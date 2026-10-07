@@ -7,6 +7,7 @@ import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
 import { FixedStep } from './loop.ts';
 import { Camera } from './render/camera.ts';
+import { CrtFilter } from './render/crt.ts';
 import { Lighting } from './render/lighting.ts';
 import { PlayerView } from './render/player-view.ts';
 import { Terrain } from './render/terrain.ts';
@@ -26,6 +27,8 @@ async function start(): Promise<void> {
     antialias: false,
     roundPixels: true,
     background: '#08090b',
+    // The CRT filter has a WebGL shader only.
+    preference: 'webgl',
   });
   document.getElementById('game')!.appendChild(app.canvas);
 
@@ -50,6 +53,13 @@ async function start(): Promise<void> {
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art);
   if (lighting) scene.addChild(lighting.root);
+  // A subtle CRT diffusion over the whole screen. ?nocrt shows the sharp pixels, and
+  // ?crt=spread,mix,glow,scanline tries other settings (an empty value keeps the default).
+  const crt = params.has('nocrt') ? null : new CrtFilter(crtOverrides(params.get('crt')));
+  if (crt) {
+    app.stage.filters = [crt];
+    app.stage.filterArea = app.screen;
+  }
 
   const keyboard = new Keyboard(window);
   const joystick = new TouchJoystick(
@@ -95,6 +105,8 @@ async function start(): Promise<void> {
     playerView.update(x, y, player, seconds);
     lighting?.update(x, y, performance.now() / 1000);
     camera.follow(scene, x, y);
+    const dpr = app.renderer.resolution;
+    crt?.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr);
     terrain.update(camera.view(), 1);
 
     if (hintShown && Math.hypot(player.x - spawn.x, player.y - spawn.y) > 3 * TILE_SIZE) {
@@ -107,11 +119,22 @@ async function start(): Promise<void> {
       `facing  ${player.facing}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
-      `render  ${app.renderer.name}`,
+      `render  ${app.renderer.name}${crt ? ' + crt' : ''}`,
       `seed    ${world.seed}`,
       `build   ${__COMMIT__}`,
     ]);
   });
+}
+
+/** Reads ?crt=spread,mix,glow,scanline. Values that are empty or not numbers keep the default. */
+function crtOverrides(value: string | null): Record<string, number> {
+  const names = ['spread', 'mix', 'glow', 'scanline'];
+  const overrides: Record<string, number> = {};
+  (value ?? '').split(',').forEach((part, i) => {
+    const number = Number.parseFloat(part);
+    if (names[i] && Number.isFinite(number)) overrides[names[i]] = number;
+  });
+  return overrides;
 }
 
 // iOS Safari ignores user-scalable=no, so stop the pinch and double-tap zoom here.

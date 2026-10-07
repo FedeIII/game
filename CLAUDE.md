@@ -35,7 +35,8 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
   - `src/render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (chunks drawn into render
     textures; trees and rocks as depth-sorted sprites), `player-view.ts` (8-frame walk, and a
     faint copy above the props that shows the player through trees), `lighting.ts` (the
-    Diablo-style light radius and the warm, flickering glow).
+    Diablo-style light radius and the warm, flickering glow), `crt.ts` (a full-screen shader
+    for a subtle CRT look: diffused pixels, a faint halo, light scanlines).
   - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout) and
     `joystick.ts` (floating touch stick).
   - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/`, which
@@ -88,12 +89,20 @@ screenshot of the game with `?nolight`. Read the PNG with the Read tool.
 - Depth: trees, rocks and players are in `entityLayer` with `zIndex` = the y of the point where
   they stand: the centre of the feet for a player, the centre of the solid box for a prop
   (`PROP_FOOT` in `render/terrain.ts`).
+- **The CRT filter must stay subtle and must stay on the game-pixel grid.** Its scanlines use
+  the zoom and the world origin from `CrtFilter.setGrid()`, every frame; without that they
+  would crawl over the world when the camera moves. It has a WebGL program only, so the
+  renderer is pinned to WebGL. Try settings in the URL: `?crt=spread,mix,glow,scanline`
+  (for example `?crt=,,,0.6` exaggerates the scanlines to check the alignment); `?nocrt`
+  turns it off. Put the chosen values into `CRT` in `render/crt.ts`.
 - Comments and documentation use Simplified Technical English (the rule for this box).
 
 ## Verify a change in a browser
 
 There is no GPU on the box, but headless Chromium renders WebGL with SwiftShader (slowly: 1 to
-6 FPS is normal there). Playwright is not a dependency of this repo; the hidden-agenda
+6 FPS is normal there). With the CRT filter at a phone resolution (390x844 at DPR 3) one
+screenshot takes about a minute: give `page.screenshot` a `timeout` of 180000. That is
+SwiftShader, not a measure of the cost on a real GPU. Playwright is not a dependency of this repo; the hidden-agenda
 checkout has it:
 
 ```js
