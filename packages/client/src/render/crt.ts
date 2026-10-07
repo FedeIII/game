@@ -24,6 +24,18 @@ export const CRT_DEFAULTS: Readonly<CrtSettings> = {
   scanline: 0,
 };
 
+/**
+ * The CRT settings for text in the world (the speech bubble), which has a filter of its own.
+ * Fede selected them on 2026-10-07 (?crt=0.3,0.5,0.5,0.3): less blur than the world, so the
+ * letters stay readable, and strong scanlines. The sliders do not change them.
+ */
+export const CRT_TEXT: Readonly<CrtSettings> = {
+  spread: 0.3,
+  mix: 0.5,
+  glow: 0.5,
+  scanline: 0.3,
+};
+
 const fragment = /* glsl */ `
 in vec2 vTextureCoord;
 out vec4 finalColor;
@@ -31,9 +43,11 @@ out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform vec4 uInputPixel;
 uniform vec4 uInputClamp;
+uniform vec4 uOutputFrame;
 
 uniform float uPixel;
 uniform vec2 uGrid;
+uniform float uResolution;
 uniform float uSpread;
 uniform float uMix;
 uniform float uGlow;
@@ -64,7 +78,10 @@ void main() {
 
   // Scanlines, on the rows of game pixels (not of device pixels), so they move with the world.
   // The dip is at the border between two rows; the division keeps the mean brightness.
-  float row = fract((vTextureCoord.y * uInputPixel.y - uGrid.y) / uPixel);
+  // The input texture starts at the top of the filter area, which is uOutputFrame.y (CSS
+  // pixels) below the top of the screen: 0 for a full-screen filter, more for the text filter.
+  float screenY = uOutputFrame.y * uResolution + vTextureCoord.y * uInputPixel.y;
+  float row = fract((screenY - uGrid.y) / uPixel);
   float scan = 1.0 - uScanline * (0.5 + 0.5 * cos(6.2831853 * row));
   colour.rgb *= scan / (1.0 - 0.5 * uScanline);
 
@@ -86,9 +103,14 @@ export class CrtFilter extends Filter {
     uMix: { value: number; type: 'f32' };
     uGlow: { value: number; type: 'f32' };
     uScanline: { value: number; type: 'f32' };
+    uResolution: { value: number; type: 'f32' };
   }>;
 
-  constructor(look: Readonly<CrtSettings> = CRT_DEFAULTS) {
+  /**
+   * `padding` (CSS pixels) is for a filter that covers only its container, not the screen: the
+   * blur and the halo read pixels a little outside the container.
+   */
+  constructor(look: Readonly<CrtSettings> = CRT_DEFAULTS, padding = 0) {
     const settings = new UniformGroup({
       uPixel: { value: 1, type: 'f32' },
       uGrid: { value: new Float32Array(2), type: 'vec2<f32>' },
@@ -96,6 +118,7 @@ export class CrtFilter extends Filter {
       uMix: { value: look.mix, type: 'f32' },
       uGlow: { value: look.glow, type: 'f32' },
       uScanline: { value: look.scanline, type: 'f32' },
+      uResolution: { value: 1, type: 'f32' },
     });
     super({
       // High precision: pixel coordinates go above 2048 on a phone, past what mediump can hold.
@@ -103,6 +126,7 @@ export class CrtFilter extends Filter {
       resources: { crtSettings: settings },
       resolution: 'inherit',
       antialias: 'off',
+      padding,
     });
     this.settings = settings;
   }
@@ -118,11 +142,12 @@ export class CrtFilter extends Filter {
 
   /**
    * Sets the game-pixel grid: `zoom` device pixels for each game pixel, and the device-pixel
-   * position of the world origin on the screen.
+   * position of the world origin on the screen. `resolution` is the device pixel ratio.
    */
-  setGrid(zoom: number, originX: number, originY: number): void {
+  setGrid(zoom: number, originX: number, originY: number, resolution: number): void {
     const uniforms = this.settings.uniforms;
     uniforms.uPixel = zoom;
+    uniforms.uResolution = resolution;
     uniforms.uGrid[0] = ((originX % zoom) + zoom) % zoom;
     uniforms.uGrid[1] = ((originY % zoom) + zoom) % zoom;
   }

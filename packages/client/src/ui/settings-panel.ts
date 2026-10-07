@@ -86,6 +86,8 @@ const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
  */
 export class SettingsPanel {
   private readonly crt: CrtFilter;
+  /** Filters that follow the on/off switch only (the text filter has fixed settings). */
+  private readonly linked: readonly CrtFilter[];
   private readonly state: CrtState;
   private readonly panel: HTMLElement;
   private readonly button: HTMLButtonElement;
@@ -94,8 +96,9 @@ export class SettingsPanel {
   private readonly query: HTMLElement;
   private readonly copy: HTMLButtonElement;
 
-  constructor(crt: CrtFilter, state: CrtState) {
+  constructor(crt: CrtFilter, state: CrtState, linked: readonly CrtFilter[] = []) {
     this.crt = crt;
+    this.linked = linked;
     this.state = state;
 
     this.button = document.createElement('button');
@@ -148,7 +151,7 @@ export class SettingsPanel {
 
     this.toggle.addEventListener('change', () => {
       this.state.enabled = this.toggle.checked;
-      this.crt.enabled = this.state.enabled;
+      this.applyEnabled();
       this.changed();
     });
     this.button.addEventListener('click', () => this.show(this.panel.hidden !== false));
@@ -166,9 +169,13 @@ export class SettingsPanel {
     });
 
     document.body.append(this.button, this.panel);
-    this.crt.enabled = state.enabled;
+    this.applyEnabled();
     this.crt.set(state.values);
     this.sync();
+  }
+
+  private applyEnabled(): void {
+    for (const filter of [this.crt, ...this.linked]) filter.enabled = this.state.enabled;
   }
 
   private smallButton(text: string, action: () => void): HTMLButtonElement {
@@ -205,7 +212,7 @@ export class SettingsPanel {
   private reset(): void {
     this.state.enabled = true;
     this.state.values = { ...CRT_DEFAULTS };
-    this.crt.enabled = true;
+    this.applyEnabled();
     this.crt.set(this.state.values);
     this.changed();
   }

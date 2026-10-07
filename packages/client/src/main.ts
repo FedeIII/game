@@ -18,7 +18,7 @@ import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
 import { FixedStep } from './loop.ts';
 import { Camera } from './render/camera.ts';
-import { CrtFilter } from './render/crt.ts';
+import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Lighting } from './render/lighting.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PLAYER_HEAD_HEIGHT, PlayerView } from './render/player-view.ts';
@@ -55,13 +55,20 @@ async function start(): Promise<void> {
   const player = createPlayer(spawn.x, spawn.y);
   const previous = { x: player.x, y: player.y };
 
-  // Layers, from the bottom: the ground chunks; trees, rocks and players sorted by depth; the
-  // faint copy of the player that shows through trees; the darkness of the light radius; text.
+  // Two layers, each with its own CRT filter: the world, and the text in the world on top.
+  // The world, from the bottom: the ground chunks; trees, rocks and players sorted by depth;
+  // the faint copy of the player that shows through trees; the darkness of the light radius.
+  // The camera moves `scene` and `textScene` together.
+  const worldLayer = new Container();
+  const textLayer = new Container();
   const scene = new Container();
+  const textScene = new Container();
   const groundLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
   scene.addChild(groundLayer, entityLayer);
-  app.stage.addChild(scene);
+  worldLayer.addChild(scene);
+  textLayer.addChild(textScene);
+  app.stage.addChild(worldLayer, textLayer);
 
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const playerView = new PlayerView(art);
@@ -70,15 +77,19 @@ async function start(): Promise<void> {
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art);
   if (lighting) scene.addChild(lighting.root);
-  // Text in the world goes on top of everything in the scene, the darkness too.
+  // Text in the world is above the darkness, so it is readable at night.
   const speech = new SpeechBubble(art, new PixelFont(art));
-  scene.addChild(speech.root);
-  // A CRT diffusion over the whole screen. The display settings panel turns it on and
-  // off and changes it; ?nocrt and ?crt=spread,mix,glow,scanline set it from the URL.
+  textScene.addChild(speech.root);
+  // CRT diffusion. The world filter covers the whole screen; the display settings panel turns
+  // it on and off and changes it, and ?nocrt and ?crt=spread,mix,glow,scanline set it from the
+  // URL. The text filter has its own fixed settings and covers only the text (its bounds plus
+  // padding), so it costs little; the panel's switch turns it on and off too.
   const crt = new CrtFilter();
-  app.stage.filters = [crt];
-  app.stage.filterArea = app.screen;
-  new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()));
+  worldLayer.filters = [crt];
+  worldLayer.filterArea = app.screen;
+  const crtText = new CrtFilter(CRT_TEXT, 8);
+  textLayer.filters = [crtText];
+  new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()), [crtText]);
 
   const keyboard = new Keyboard(window);
   const joystick = new TouchJoystick(
@@ -131,11 +142,14 @@ async function start(): Promise<void> {
     playerView.update(x, y, player, seconds);
     lighting?.update(x, y, performance.now() / 1000);
     camera.follow(scene, x, y);
+    textScene.position.copyFrom(scene.position);
+    textScene.scale.copyFrom(scene.scale);
     target = findInteraction(world, player);
     action.setTarget(target ? STRINGS.actionLabelFor(target.kind) : null);
     speech.update(performance.now(), x, y - PLAYER_HEAD_HEIGHT);
     const dpr = app.renderer.resolution;
-    crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr);
+    crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
+    crtText.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
     terrain.update(camera.view(), 1);
 
     if (hintShown && Math.hypot(player.x - spawn.x, player.y - spawn.y) > 3 * TILE_SIZE) {

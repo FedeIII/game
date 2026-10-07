@@ -136,9 +136,14 @@ button lights up when there is a target, and the action button or E shows the li
   they stand: the centre of the feet for a player, the centre of the solid box for a prop
   (`PROP_FOOT` in `render/terrain.ts`).
 - **The CRT defaults are Fede's choice** (`0.6,1,1,0`, set 2026-10-07): do not change them
-  without a request. **The scanlines must stay on the game-pixel grid.** They use
+  without a request. **Text in the world has its own CRT filter** with fixed settings, also
+  Fede's choice: `CRT_TEXT` (`0.3,0.5,0.5,0.3`) in `render/crt.ts`. So the stage has two
+  layers, `worldLayer` (full-screen filter) and `textLayer` (filter on the text's bounds plus
+  8 px of padding, cheap), and the camera moves `scene` and `textScene` together. The panel's
+  sliders change the world filter only; its switch turns both on and off. **The scanlines must stay on the game-pixel grid.** They use
   the zoom and the world origin from `CrtFilter.setGrid()`, every frame; without that they
-  would crawl over the world when the camera moves. The filter has a WebGL program only, so the
+  would crawl over the world when the camera moves. A filter that does not cover the whole
+  screen starts lower down: the shader adds `uOutputFrame.y` (CSS px) times `uResolution`. The filter has a WebGL program only, so the
   renderer is pinned to WebGL. Try settings in the display settings panel or in the URL:
   `?crt=spread,mix,glow,scanline` (for example `?crt=,,,0.5` exaggerates the scanlines to
   check the alignment); `?nocrt` turns it off. New defaults go into `CRT_DEFAULTS` in
