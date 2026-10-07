@@ -8,19 +8,20 @@ export interface CrtSettings {
 }
 
 /**
- * The default settings of the CRT look. Keep them subtle: the goal is pixels that are a little
- * soft, as on the screens that pixel art was made for, not a retro effect that the player
- * notices. The player can change them in the display settings (settings-panel.ts).
+ * The default settings of the CRT look: soft pixels, as on the screens that pixel art was made
+ * for. Fede selected these values with the sliders on 2026-10-07 (?crt=0.6,1,1,0): full blur
+ * and glow, no scanlines. The player can change them in the display settings
+ * (settings-panel.ts).
  */
 export const CRT_DEFAULTS: Readonly<CrtSettings> = {
   /** How far each game pixel bleeds into its neighbours, in game pixels (horizontal). */
-  spread: 0.5,
+  spread: 0.6,
   /** How much of the blurred image is mixed in (0 = sharp, 1 = all blur). */
-  mix: 0.5,
-  /** Strength of the faint halo round bright points (light glints, pale flowers, bones). */
-  glow: 0.3,
+  mix: 1,
+  /** Strength of the halo round bright points (light glints, pale flowers, bones). */
+  glow: 1,
   /** How much darker the border between two rows of game pixels is (0 = no scanlines). */
-  scanline: 0.08,
+  scanline: 0,
 };
 
 const fragment = /* glsl */ `
@@ -73,8 +74,8 @@ void main() {
 `;
 
 /**
- * A full-screen post-processing filter for a subtle CRT look: diffused pixels, a faint halo and
- * light scanlines. It runs at the full device resolution, and it needs to know the size and
+ * A full-screen post-processing filter for a CRT look: diffused pixels, a halo round bright
+ * points and optional scanlines. It runs at the full device resolution, and it needs to know the size and
  * the position of the game-pixel grid, which change with the zoom and the camera.
  */
 export class CrtFilter extends Filter {

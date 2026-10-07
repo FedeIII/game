@@ -71,7 +71,7 @@ function saveCrt(state: CrtState): void {
   }
 }
 
-/** The settings as the ?crt= value, for example "0.5,0.5,0.3,0.08". */
+/** The settings as the ?crt= value, for example "0.6,1,1,0". */
 export function crtQuery(values: CrtSettings): string {
   return SLIDERS.map((slider) => String(Number(values[slider.key].toFixed(2)))).join(',');
 }

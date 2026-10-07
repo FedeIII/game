@@ -54,7 +54,7 @@ async function start(): Promise<void> {
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art);
   if (lighting) scene.addChild(lighting.root);
-  // A subtle CRT diffusion over the whole screen. The display settings panel turns it on and
+  // A CRT diffusion over the whole screen. The display settings panel turns it on and
   // off and changes it; ?nocrt and ?crt=spread,mix,glow,scanline set it from the URL.
   const crt = new CrtFilter();
   app.stage.filters = [crt];
