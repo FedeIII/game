@@ -1,10 +1,18 @@
 import { Filter, GlProgram, UniformGroup, defaultFilterVert } from 'pixi.js';
 
+export interface CrtSettings {
+  spread: number;
+  mix: number;
+  glow: number;
+  scanline: number;
+}
+
 /**
- * The settings of the CRT look. Keep them subtle: the goal is pixels that are a little soft, as
- * on the screens that pixel art was made for, not a retro effect that the player notices.
+ * The default settings of the CRT look. Keep them subtle: the goal is pixels that are a little
+ * soft, as on the screens that pixel art was made for, not a retro effect that the player
+ * notices. The player can change them in the display settings (settings-panel.ts).
  */
-export const CRT = {
+export const CRT_DEFAULTS: Readonly<CrtSettings> = {
   /** How far each game pixel bleeds into its neighbours, in game pixels (horizontal). */
   spread: 0.5,
   /** How much of the blurred image is mixed in (0 = sharp, 1 = all blur). */
@@ -13,7 +21,7 @@ export const CRT = {
   glow: 0.3,
   /** How much darker the border between two rows of game pixels is (0 = no scanlines). */
   scanline: 0.08,
-} as const;
+};
 
 const fragment = /* glsl */ `
 in vec2 vTextureCoord;
@@ -79,9 +87,7 @@ export class CrtFilter extends Filter {
     uScanline: { value: number; type: 'f32' };
   }>;
 
-  /** `overrides` replaces some settings, for a try-out from the URL (see main.ts). */
-  constructor(overrides: Partial<Record<keyof typeof CRT, number>> = {}) {
-    const look = { ...CRT, ...overrides };
+  constructor(look: Readonly<CrtSettings> = CRT_DEFAULTS) {
     const settings = new UniformGroup({
       uPixel: { value: 1, type: 'f32' },
       uGrid: { value: new Float32Array(2), type: 'vec2<f32>' },
@@ -98,6 +104,15 @@ export class CrtFilter extends Filter {
       antialias: 'off',
     });
     this.settings = settings;
+  }
+
+  /** Changes some of the settings. The next frame uses them. */
+  set(look: Partial<CrtSettings>): void {
+    const uniforms = this.settings.uniforms;
+    if (look.spread !== undefined) uniforms.uSpread = look.spread;
+    if (look.mix !== undefined) uniforms.uMix = look.mix;
+    if (look.glow !== undefined) uniforms.uGlow = look.glow;
+    if (look.scanline !== undefined) uniforms.uScanline = look.scanline;
   }
 
   /**

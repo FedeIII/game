@@ -15,12 +15,17 @@ const BINDINGS: Readonly<Record<string, readonly [number, number]>> = {
   ArrowRight: [1, 0],
 };
 
+/** Keys typed into a form field (a slider, a future chat box) belong to that field. */
+function isFormField(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
+}
+
 export class Keyboard {
   private readonly held = new Set<string>();
 
   constructor(target: Window) {
     target.addEventListener('keydown', (event) => {
-      if (!(event.code in BINDINGS) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (!(event.code in BINDINGS) || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
       event.preventDefault(); // The arrow keys must not scroll the page.
       this.held.add(event.code);
     });

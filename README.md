@@ -15,7 +15,9 @@ npm run build      # production build in packages/client/dist
 ```
 
 Debug panel: press F3, or open `/?debug`. Another world: `/?seed=42`. No darkness: `/?nolight`.
-No CRT effect: `/?nocrt`. Other CRT settings: `/?crt=spread,mix,glow,scanline` (defaults `0.5,0.5,0.3,0.08`).
+Display settings: the button in the top-right corner (CRT on/off and sliders; saved in the
+browser). The same from the URL: `/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults
+`0.5,0.5,0.3,0.08`).
 
 - `docs/stack.md`: the stack and the reasons for it.
 - `deploy/README.md`: how game.azyr.io is deployed.

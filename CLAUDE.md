@@ -37,8 +37,11 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
     faint copy above the props that shows the player through trees), `lighting.ts` (the
     Diablo-style light radius and the warm, flickering glow), `crt.ts` (a full-screen shader
     for a subtle CRT look: diffused pixels, a faint halo, light scanlines).
-  - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout) and
-    `joystick.ts` (floating touch stick).
+  - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed
+    into a form field are ignored) and `joystick.ts` (floating touch stick).
+  - `src/settings-panel.ts`: the display settings (button in the top-right corner): CRT on/off,
+    a slider for each CRT setting, Copy link and Reset. Settings are saved in localStorage
+    (`game.crt.v1`); a `?crt=` or `?nocrt` URL wins over them.
   - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/`, which
     is in `.gitignore` and is made by `dev`, `build` and `typecheck`. See "Art" below.
 - `deploy/`: nginx site and mTLS snippet. `scripts/deploy.sh`: the deploy.
@@ -92,9 +95,13 @@ screenshot of the game with `?nolight`. Read the PNG with the Read tool.
 - **The CRT filter must stay subtle and must stay on the game-pixel grid.** Its scanlines use
   the zoom and the world origin from `CrtFilter.setGrid()`, every frame; without that they
   would crawl over the world when the camera moves. It has a WebGL program only, so the
-  renderer is pinned to WebGL. Try settings in the URL: `?crt=spread,mix,glow,scanline`
-  (for example `?crt=,,,0.6` exaggerates the scanlines to check the alignment); `?nocrt`
-  turns it off. Put the chosen values into `CRT` in `render/crt.ts`.
+  renderer is pinned to WebGL. Try settings in the display settings panel or in the URL:
+  `?crt=spread,mix,glow,scanline` (for example `?crt=,,,0.5` exaggerates the scanlines to
+  check the alignment); `?nocrt` turns it off. New defaults go into `CRT_DEFAULTS` in
+  `render/crt.ts`; slider ranges into `SLIDERS` in `settings-panel.ts`.
+- **Overlay UI goes outside `#game`.** The joystick listens for touches on `#game`, so a control
+  in another element never moves the player. After a click on a control, give the focus back
+  (see `SettingsPanel`), or WASD stops: keyboard.ts ignores keys typed into form fields.
 - Comments and documentation use Simplified Technical English (the rule for this box).
 
 ## Verify a change in a browser
