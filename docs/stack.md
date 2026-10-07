@@ -78,9 +78,14 @@ deltas.
 - Tiles are 16 x 16 pixels (`TILE_SIZE`). Chunks are 32 x 32 tiles (`CHUNK_SIZE`).
 - All frames are in one atlas (`atlas.png` plus `atlas.json`). The JSON is the
   TexturePacker "hash" format that PixiJS reads and that Aseprite exports.
-- For the POC, `packages/client/art/` makes the placeholder art: text grids for the
-  characters, and seeded procedures for tiles, edges, trees and rocks. Real art from Aseprite
-  can replace any frame with the same name.
+- For the POC, `packages/client/art/` makes the art by code. Characters, trees and rocks are
+  "pre-rendered" from simple 3D models (signed distance functions) with one fixed light, as
+  Diablo made its sprites from 3D models. Proportions, colours and poses are parameters, so
+  the style is easy to change, and an 8-frame walk costs nothing extra. Ground tiles come from
+  tiling noise; small decor is text grids. Real art from Aseprite can replace any frame with
+  the same name.
+- The look is dark and realistic in proportion (Diablo, Castlevania), with a light radius
+  round the player. The light settings live in the art and travel in the atlas JSON.
 - The world is procedural from a seed (`packages/shared/src/world.ts`), so the client and the
   server make identical terrain. Hand-made areas can come later from LDtk or Tiled.
 

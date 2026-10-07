@@ -33,12 +33,34 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
 - `packages/client`: the browser client on PixiJS v8.
   - `src/main.ts`: start-up, layers, fixed-step loop, glue.
   - `src/render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (chunks drawn into render
-    textures; trees and rocks as depth-sorted sprites), `player-view.ts`.
+    textures; trees and rocks as depth-sorted sprites), `player-view.ts` (8-frame walk, and a
+    faint copy above the props that shows the player through trees), `lighting.ts` (the
+    Diablo-style light radius and the warm, flickering glow).
   - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout) and
     `joystick.ts` (floating touch stick).
-  - `art/`: the placeholder art and the atlas packer. Output goes to `src/generated/`, which is
-    in `.gitignore` and is made by `dev`, `build` and `typecheck`.
+  - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/`, which
+    is in `.gitignore` and is made by `dev`, `build` and `typecheck`. See "Art" below.
 - `deploy/`: nginx site and mTLS snippet. `scripts/deploy.sh`: the deploy.
+
+## Art
+
+Style: dark, desaturated and realistic in proportion, after Diablo and Castlevania. The art is
+made by code, in `packages/client/art/`:
+
+- `sdf.ts`: a small offline renderer for "pre-rendered" sprites. A model is a list of SDF
+  parts (sphere, ellipsoid, round cone, capped cone, with noise displacement) with materials.
+  It casts one ray for each pixel through a camera that looks down at `CAMERA_PITCH`, lights
+  the hit with one fixed light from the top left, puts the result into the shades of the
+  material (`ramp`), and adds an outline and contact lines.
+- `characters.ts`: the player, a hooded figure about 28 pixels (6.5 heads) tall, on a
+  skeleton with an 8-frame walk cycle. Proportions are constants at the top of the file.
+- `props.ts`: spruces, a dead tree and a rock, from the same renderer.
+- `ground.ts`: ground tiles from tiling noise, and the ragged edge pieces. `decor.ts`: small
+  decor as text grids. `lights.ts`: the light textures and the `LIGHTING` settings, which
+  `build.ts` also writes into the atlas JSON (`meta.lighting`) for the client.
+
+Look at art before you commit it: `node art/build.ts --preview /tmp/atlas.png`, or a
+screenshot of the game with `?nolight`. Read the PNG with the Read tool.
 
 ## Rules
 
@@ -52,13 +74,20 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
   in the render loop. The render loop only interpolates between the last two steps.
 - **Pixel-perfect**: whole-number zoom in device pixels, `nearest` scaling, `roundPixels`.
   New art must use the 16-pixel grid. Do not scale a sprite by a fraction.
-- **Frame names are the contract between art and code** (`ground/grass/0`, `prop/tree`,
-  `player/down/1`, ...). `Art.frame()` throws on an unknown name. When real art from
-  Aseprite arrives, export it with the same names in the "hash" JSON format.
+- **Frame names are the contract between art and code**: `ground/grass/3`, `edge/dirt/nw`,
+  `prop/tree/2`, `player/left/stand`, `player/left/walk/5`, ... `Art.frame()` throws on an
+  unknown name. Numbered variants are found with `Art.variants(prefix)`, so the art can add a
+  variant with no code change. Real art from Aseprite must use the same names, in the "hash"
+  JSON format.
+- **Do not mirror lit sprites.** The light in all art comes from the top left; a mirrored
+  sprite has its light on the wrong side. That is why the player has a real `left` view.
+- **Ground textures must not show the tile grid.** No noise layer as large as the tile, and
+  enough variants. Check a wide patch of tiles, not one tile.
 - **Ground edges**: a tile draws the edges of each neighbour with a higher `BLEND_ORDER`
   (`render/terrain.ts`). A new ground type needs a blend order, variants and edge pieces.
-- Depth: trees, rocks and players are in `entityLayer` with `zIndex` = the y of the line where
-  they touch the ground.
+- Depth: trees, rocks and players are in `entityLayer` with `zIndex` = the y of the point where
+  they stand: the centre of the feet for a player, the centre of the solid box for a prop
+  (`PROP_FOOT` in `render/terrain.ts`).
 - Comments and documentation use Simplified Technical English (the rule for this box).
 
 ## Verify a change in a browser

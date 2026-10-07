@@ -10,9 +10,10 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Image, encodePng, upscale } from './png.ts';
+import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 
-const ATLAS_WIDTH = 256;
+const ATLAS_WIDTH = 512;
 /** Transparent space between frames, so a frame never samples its neighbour. */
 const PADDING = 2;
 
@@ -74,6 +75,7 @@ const json = {
     format: 'RGBA8888',
     size: { w: ATLAS_WIDTH, h: atlasHeight },
     scale: 1,
+    lighting: LIGHTING,
   },
 };
 
@@ -81,8 +83,8 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'atlas.png'), encodePng(atlas));
 writeFileSync(join(outDir, 'atlas.json'), JSON.stringify(json, null, 1) + '\n');
 // The page icon: the player, front view, at 2x.
-const iconFrame = art.frames.find((frame) => frame.name === 'player/down/0');
-if (!iconFrame) throw new Error('no player/down/0 frame for the icon');
+const iconFrame = art.frames.find((frame) => frame.name === 'player/down/stand');
+if (!iconFrame) throw new Error('no player/down/stand frame for the icon');
 writeFileSync(join(outDir, 'icon.png'), encodePng(upscale(iconFrame.image, 2)));
 console.log(`art: ${art.frames.length} frames -> src/generated/atlas.png (${ATLAS_WIDTH}x${atlasHeight})`);
 
@@ -90,7 +92,7 @@ const previewAt = process.argv.indexOf('--preview');
 if (previewAt !== -1) {
   const path = process.argv[previewAt + 1];
   if (!path) throw new Error('--preview needs an output path');
-  // A grey background shows transparent pixels.
+  // A dark chequer shows transparent pixels.
   const backed = new Image(atlas.width, atlas.height);
   for (let py = 0; py < atlas.height; py++) {
     for (let px = 0; px < atlas.width; px++) backed.set(px, py, (px >> 3) % 2 === (py >> 3) % 2 ? 0x2a2a33ff : 0x33333dff);

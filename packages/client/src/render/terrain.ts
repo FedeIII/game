@@ -11,15 +11,6 @@ const GROUND_NAME: Record<Ground, string> = {
   [Ground.DarkGrass]: 'darkgrass',
 };
 
-/** The number of variants of each ground tile in the atlas (see art/sprites.ts). */
-const GROUND_VARIANTS: Record<Ground, number> = {
-  [Ground.Water]: 3,
-  [Ground.Sand]: 3,
-  [Ground.Dirt]: 3,
-  [Ground.Grass]: 4,
-  [Ground.DarkGrass]: 3,
-};
-
 /** A ground type with a higher order draws its edge over a neighbour with a lower order. */
 const BLEND_ORDER: Record<Ground, number> = {
   [Ground.Water]: 0,
@@ -29,7 +20,14 @@ const BLEND_ORDER: Record<Ground, number> = {
   [Ground.DarkGrass]: 4,
 };
 
-const FLOWER_COLOURS = ['red', 'yellow', 'white', 'blue'];
+/**
+ * Trees and rocks stand on the centre of the solid box of their tile (see solidBox() in the
+ * shared world), in tile-local pixels. This point is also their depth for the sort.
+ */
+const PROP_FOOT = { tree: { x: 8, y: 13 }, rock: { x: 8, y: 11 } } as const;
+
+/** One in this many stone tiles shows bones instead. */
+const BONES_ONE_IN = 6;
 
 // Neighbour offsets for the edge pieces: the four sides, then the four corners.
 const SIDES = [
@@ -70,6 +68,15 @@ export class Terrain {
   /** The container and sprite pool that chunk drawing reuses. */
   private readonly scratch = new Container();
   private readonly pool: Sprite[] = [];
+  private readonly textures: {
+    readonly ground: Record<Ground, Texture[]>;
+    readonly tufts: Texture[];
+    readonly flowers: Texture[];
+    readonly stones: Texture[];
+    readonly bones: Texture[];
+    readonly trees: Texture[];
+    readonly rocks: Texture[];
+  };
 
   constructor(renderer: Renderer, world: World, art: Art, groundLayer: Container, entityLayer: Container) {
     this.renderer = renderer;
@@ -77,6 +84,17 @@ export class Terrain {
     this.art = art;
     this.groundLayer = groundLayer;
     this.entityLayer = entityLayer;
+    const ground = {} as Record<Ground, Texture[]>;
+    for (const g of Object.values(Ground)) ground[g] = art.variants(`ground/${GROUND_NAME[g]}`);
+    this.textures = {
+      ground,
+      tufts: art.variants('decor/tuft'),
+      flowers: art.variants('decor/flowers'),
+      stones: art.variants('decor/stones'),
+      bones: art.variants('decor/bones'),
+      trees: art.variants('prop/tree'),
+      rocks: art.variants('prop/rock'),
+    };
   }
 
   get chunkCount(): number {
@@ -137,6 +155,8 @@ export class Terrain {
 
     const props: Sprite[] = [];
     const world = this.world;
+    const textures = this.textures;
+    const pick = (list: Texture[], look: number): Texture => list[look % list.length]!;
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         const tx = cx * CHUNK_SIZE + lx;
@@ -146,20 +166,23 @@ export class Terrain {
         const ground = world.ground(tx, ty);
         const look = hash2(tx, ty, LOOK_SEED);
 
-        put(this.art.frame(`ground/${GROUND_NAME[ground]}/${look % GROUND_VARIANTS[ground]}`), px, py);
+        put(pick(textures.ground[ground], look), px, py);
         this.putEdges(put, tx, ty, ground, px, py);
 
         const decor = world.decor(tx, ty);
         const flip = ((look >>> 8) & 1) === 1;
-        if (decor === Decor.Tuft) put(this.art.frame(`decor/tuft/${(look >>> 9) % 2}`), px, py, flip);
-        else if (decor === Decor.Flowers) put(this.art.frame(`decor/flowers/${FLOWER_COLOURS[(look >>> 9) % 4]}`), px, py, flip);
-        else if (decor === Decor.Pebbles) put(this.art.frame('decor/pebbles/0'), px, py, flip);
-        else if (decor === Decor.Tree || decor === Decor.Rock) {
-          // Props stand on the bottom centre of their tile and sort by that line.
-          const prop = new Sprite(this.art.frame(decor === Decor.Tree ? 'prop/tree' : 'prop/rock'));
-          prop.position.set(tx * TILE_SIZE + TILE_SIZE / 2, (ty + 1) * TILE_SIZE);
+        const look2 = look >>> 9;
+        if (decor === Decor.Tuft) put(pick(textures.tufts, look2), px, py, flip);
+        else if (decor === Decor.Flowers) put(pick(textures.flowers, look2), px, py, flip);
+        else if (decor === Decor.Pebbles) {
+          put(look2 % BONES_ONE_IN === 0 ? pick(textures.bones, look2 >>> 4) : pick(textures.stones, look2 >>> 4), px, py, flip);
+        } else if (decor === Decor.Tree || decor === Decor.Rock) {
+          const tree = decor === Decor.Tree;
+          const foot = tree ? PROP_FOOT.tree : PROP_FOOT.rock;
+          const prop = new Sprite(pick(tree ? textures.trees : textures.rocks, look2));
+          prop.position.set(tx * TILE_SIZE + foot.x, ty * TILE_SIZE + foot.y);
+          // No mirror: the light in the prop art comes from the top left.
           prop.zIndex = prop.position.y;
-          if (flip) prop.scale.x = -1;
           this.entityLayer.addChild(prop);
           props.push(prop);
         }

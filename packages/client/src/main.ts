@@ -7,6 +7,7 @@ import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
 import { FixedStep } from './loop.ts';
 import { Camera } from './render/camera.ts';
+import { Lighting } from './render/lighting.ts';
 import { PlayerView } from './render/player-view.ts';
 import { Terrain } from './render/terrain.ts';
 
@@ -24,7 +25,7 @@ async function start(): Promise<void> {
     autoDensity: true,
     antialias: false,
     roundPixels: true,
-    background: '#1d2b1d',
+    background: '#08090b',
   });
   document.getElementById('game')!.appendChild(app.canvas);
 
@@ -34,7 +35,8 @@ async function start(): Promise<void> {
   const player = createPlayer(spawn.x, spawn.y);
   const previous = { x: player.x, y: player.y };
 
-  // Layers: the ground chunks under everything, then trees, rocks and players sorted by depth.
+  // Layers, from the bottom: the ground chunks; trees, rocks and players sorted by depth; the
+  // faint copy of the player that shows through trees; the darkness of the light radius.
   const scene = new Container();
   const groundLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
@@ -44,6 +46,10 @@ async function start(): Promise<void> {
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const playerView = new PlayerView(art);
   entityLayer.addChild(playerView.root);
+  scene.addChild(playerView.ghost);
+  // ?nolight shows the world without the darkness, to look at the art.
+  const lighting = params.has('nolight') ? null : new Lighting(art);
+  if (lighting) scene.addChild(lighting.root);
 
   const keyboard = new Keyboard(window);
   const joystick = new TouchJoystick(
@@ -87,6 +93,7 @@ async function start(): Promise<void> {
     const x = previous.x + (player.x - previous.x) * sim.alpha;
     const y = previous.y + (player.y - previous.y) * sim.alpha;
     playerView.update(x, y, player, seconds);
+    lighting?.update(x, y, performance.now() / 1000);
     camera.follow(scene, x, y);
     terrain.update(camera.view(), 1);
 

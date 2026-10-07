@@ -1,46 +1,61 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { PLAYER_HALF_HEIGHT, type PlayerState } from '@game/shared';
+import type { Facing, PlayerState } from '@game/shared';
 import type { Art } from '../assets.ts';
 
-/** World pixels of travel for each frame of the walk cycle. */
-const STRIDE = 10;
+/** World pixels of travel for each walk frame: 8 frames make one 32-pixel cycle of two steps. */
+const STRIDE = 4;
+
+/** The opacity of the copy of the player that shows through trees. */
+const GHOST_ALPHA = 0.3;
+
+const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 
 /**
  * Shows one player. The walk animation advances with the distance moved, not with time, so
  * a slow joystick push gives a slow walk.
  */
 export class PlayerView {
+  /** The player and its shadow, in the depth-sorted entity layer. */
   readonly root = new Container();
+  /**
+   * A faint copy of the player for a layer above all props. Over the player itself it changes
+   * nothing (the same pixels); over a tree that hides the player, it shows a faint figure.
+   */
+  readonly ghost: Sprite;
   private readonly body: Sprite;
-  private readonly stand: Record<'down' | 'up' | 'side', Texture>;
-  private readonly walk: Record<'down' | 'up' | 'side', Texture[]>;
+  private readonly stand = {} as Record<Facing, Texture>;
+  private readonly walk = {} as Record<Facing, Texture[]>;
   private travelled = 0;
 
   constructor(art: Art) {
-    const shadow = new Sprite(art.frame('player/shadow'));
-    shadow.y = -1;
-    this.stand = { down: art.frame('player/down/0'), up: art.frame('player/up/0'), side: art.frame('player/side/0') };
-    this.walk = { down: art.animation('walk/down'), up: art.animation('walk/up'), side: art.animation('walk/side') };
+    for (const facing of FACINGS) {
+      this.stand[facing] = art.frame(`player/${facing}/stand`);
+      this.walk[facing] = art.animation(`walk/${facing}`);
+    }
     this.body = new Sprite(this.stand.down);
-    this.root.addChild(shadow, this.body);
+    this.ghost = new Sprite(this.stand.down);
+    this.ghost.alpha = GHOST_ALPHA;
+    this.root.addChild(new Sprite(art.frame('player/shadow')), this.body);
   }
 
   /** Places the player at (x, y), the interpolated centre of its feet, and selects the frame. */
   update(x: number, y: number, state: PlayerState, seconds: number): void {
-    // The root is at the bottom of the feet: that line sorts the player against trees and rocks.
-    this.root.position.set(x, y + PLAYER_HALF_HEIGHT);
-    this.root.zIndex = this.root.position.y;
+    // The centre of the feet is also the line that sorts the player against trees and rocks.
+    this.root.position.set(x, y);
+    this.root.zIndex = y;
+    this.ghost.position.set(x, y);
 
-    const view = state.facing === 'left' || state.facing === 'right' ? 'side' : state.facing;
-    this.body.scale.x = state.facing === 'left' ? -1 : 1;
     const speed = Math.hypot(state.vx, state.vy);
+    let texture: Texture;
     if (speed < 1) {
       this.travelled = 0;
-      this.body.texture = this.stand[view];
-      return;
+      texture = this.stand[state.facing];
+    } else {
+      this.travelled += speed * seconds;
+      const frames = this.walk[state.facing];
+      texture = frames[Math.floor(this.travelled / STRIDE) % frames.length]!;
     }
-    this.travelled += speed * seconds;
-    const frames = this.walk[view];
-    this.body.texture = frames[Math.floor(this.travelled / STRIDE) % frames.length]!;
+    this.body.texture = texture;
+    this.ghost.texture = texture;
   }
 }
