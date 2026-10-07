@@ -1,17 +1,30 @@
 import './style.css';
 import { Application, Container, TextureSource } from 'pixi.js';
-import { DEFAULT_SEED, TICK_SECONDS, TILE_SIZE, World, clampInput, createPlayer, stepPlayer } from '@game/shared';
+import {
+  DEFAULT_SEED,
+  TICK_SECONDS,
+  TILE_SIZE,
+  World,
+  clampInput,
+  createPlayer,
+  findInteraction,
+  stepPlayer,
+  type InteractionTarget,
+} from '@game/shared';
 import { loadArt } from './assets.ts';
-import { Hud, showFatal } from './hud.ts';
+import { ActionButton } from './ui/action-button.ts';
+import { Hud, showFatal } from './ui/hud.ts';
 import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
 import { FixedStep } from './loop.ts';
 import { Camera } from './render/camera.ts';
 import { CrtFilter } from './render/crt.ts';
 import { Lighting } from './render/lighting.ts';
-import { PlayerView } from './render/player-view.ts';
+import { PLAYER_HEAD_HEIGHT, PlayerView } from './render/player-view.ts';
 import { Terrain } from './render/terrain.ts';
-import { SettingsPanel, crtStateFrom, loadSavedCrt } from './settings-panel.ts';
+import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
+import { SpeechBubble } from './ui/speech-bubble.ts';
+import { STRINGS } from './ui/strings.ts';
 
 async function start(): Promise<void> {
   const params = new URLSearchParams(location.search);
@@ -35,7 +48,9 @@ async function start(): Promise<void> {
 
   const art = await loadArt();
   const world = new World(Number.isFinite(seed) ? seed : DEFAULT_SEED);
-  const spawn = world.findSpawn();
+  // ?at=tx,ty starts on (or next to) that tile, for tests and for a look at one place.
+  const at = (params.get('at') ?? '').split(',').map((v) => Number.parseInt(v, 10));
+  const spawn = at.length === 2 && at.every(Number.isFinite) ? world.findSpawn(at[0], at[1], 0) : world.findSpawn();
   const player = createPlayer(spawn.x, spawn.y);
   const previous = { x: player.x, y: player.y };
 
@@ -74,8 +89,16 @@ async function start(): Promise<void> {
   };
 
   const hud = new Hud(params.has('debug'));
-  hud.showHint('WASD or arrow keys to move');
-  joystick.onTouchMode(() => hud.showHint('Touch and drag anywhere to move'));
+  hud.showHint(STRINGS.hintKeyboard);
+  joystick.onTouchMode(() => hud.showHint(STRINGS.hintTouch));
+
+  // Actions: the action button (or E) examines the thing that the player is very close to.
+  const action = new ActionButton();
+  const speech = new SpeechBubble();
+  let target: InteractionTarget | null = null;
+  action.onPress(() => {
+    if (target) speech.say(STRINGS.examine[target.kind], performance.now());
+  });
 
   const camera = new Camera();
   const resize = (): void => {
@@ -105,6 +128,9 @@ async function start(): Promise<void> {
     playerView.update(x, y, player, seconds);
     lighting?.update(x, y, performance.now() / 1000);
     camera.follow(scene, x, y);
+    target = findInteraction(world, player);
+    action.setTarget(target ? STRINGS.actionLabelFor(target.kind) : null);
+    speech.update(performance.now(), scene.position.x + x * scene.scale.x, scene.position.y + (y - PLAYER_HEAD_HEIGHT) * scene.scale.y);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr);
     terrain.update(camera.view(), 1);
@@ -117,6 +143,7 @@ async function start(): Promise<void> {
       `fps     ${ticker.FPS.toFixed(0)}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
+      `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

@@ -1,4 +1,4 @@
-import { CRT_DEFAULTS, type CrtFilter, type CrtSettings } from './render/crt.ts';
+import { CRT_DEFAULTS, type CrtFilter, type CrtSettings } from '../render/crt.ts';
 
 interface Slider {
   readonly key: keyof CrtSettings;

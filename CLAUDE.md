@@ -28,7 +28,7 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
 ## Layout
 
 - `packages/shared`: the simulation. World generation (`world.ts`), movement and collision
-  (`player.ts`), noise, constants. **No DOM and no PixiJS here**: the server will import this
+  (`player.ts`), interactions (`interact.ts`: what the player can act on), noise, constants. **No DOM and no PixiJS here**: the server will import this
   package as it is.
 - `packages/client`: the browser client on PixiJS v8.
   - `src/main.ts`: start-up, layers, fixed-step loop, glue.
@@ -39,9 +39,11 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
     for a CRT look: diffused pixels, a halo round bright points, optional scanlines).
   - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed
     into a form field are ignored) and `joystick.ts` (floating touch stick).
-  - `src/settings-panel.ts`: the display settings (button in the top-right corner): CRT on/off,
-    a slider for each CRT setting, Copy link and Reset. Settings are saved in localStorage
-    (`game.crt.v1`); a `?crt=` or `?nocrt` URL wins over them.
+  - `src/ui/`: the GUI, all HTML over the canvas. `strings.ts` (every text the player reads),
+    `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
+    keyboard), `speech-bubble.ts` (a line over the player's head), `settings-panel.ts` (button
+    in the top-right corner: CRT on/off, a slider for each CRT setting, Copy link, Reset;
+    saved in localStorage `game.crt.v1`; a `?crt=` or `?nocrt` URL wins over it).
   - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/`, which
     is in `.gitignore` and is made by `dev`, `build` and `typecheck`. See "Art" below.
 - `deploy/`: nginx site and mTLS snippet. `scripts/deploy.sh`: the deploy.
@@ -65,6 +67,31 @@ made by code, in `packages/client/art/`:
 
 Look at art before you commit it: `node art/build.ts --preview /tmp/atlas.png`, or a
 screenshot of the game with `?nolight`. Read the PNG with the Read tool.
+
+## GUI
+
+The GUI is approved in this style; new GUI must match it. All of it is HTML over the canvas
+(sharp text, not blurred by the CRT filter), outside `#game` so a touch on it never moves the
+player.
+
+- Colours and fonts come only from the theme variables at the top of `src/style.css`: dark
+  translucent panel (`--ui-panel`), thin dried-blood-red border (`--ui-border`), 2 px corners,
+  parchment text (`--ui-ink`), wine-red accent with a soft glow for "active" (`--ui-accent`,
+  `--ui-accent-glow`), Georgia serif (often italic) for words, monospace for numbers.
+- Controls at the bottom sit `--ui-margin` from the edges plus the safe-area insets: the
+  joystick rests bottom left, the action button bottom right. The settings button is top right.
+- Every text the player reads goes in `src/ui/strings.ts`.
+- A control gives the focus back after use, or WASD stops working (see `SettingsPanel`).
+
+## Actions
+
+`findInteraction(world, player)` in `packages/shared/src/interact.ts` decides what the player
+can act on: the nearest examinable thing (trees, rocks) within `INTERACT_RANGE` (6 px between
+the feet hitbox and the thing's solid box), and a thing in front of the player first. It is
+shared code so the server can check an action later. The client runs it every frame: the action
+button lights up when there is a target, and the action button or E shows the line from
+`STRINGS.examine` in the speech bubble. A new examinable thing needs an entry in `EXAMINABLE`
+(interact.ts) and a line in `STRINGS.examine`.
 
 ## Rules
 
@@ -119,8 +146,11 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 ```
 
 Serve the build with `npx vite preview --port 4173` in `packages/client`. Open `/?debug` and
-read `#debug` to get the tile position. For touch, use a context with `hasTouch: true` and
-send `Input.dispatchTouchEvent` through a CDP session.
+read `#debug` to get the tile position and the action target. `?at=tx,ty` starts the player on
+that tile (or the nearest open one), for example next to a tree; `?nocrt` makes SwiftShader
+much faster. For touch, use a context with `hasTouch: true` and
+send `Input.dispatchTouchEvent` through a CDP session. Careful with two fingers: a `touchEnd`
+releases the points that it lists, so list only the finger that lifts.
 
 ## Deploy
 

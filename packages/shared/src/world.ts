@@ -112,6 +112,12 @@ export interface SolidMap {
   solidBox(tx: number, ty: number): Box | null;
 }
 
+/** A map that can also tell the ground and the decor of a tile. Interactions need this. */
+export interface TileMap extends SolidMap {
+  ground(tx: number, ty: number): Ground;
+  decor(tx: number, ty: number): Decor;
+}
+
 /** Returns the solid part of a tile in tile-local pixels, or null if the tile is open. */
 export function solidBox(ground: Ground, decor: Decor): Box | null {
   if (ground === Ground.Water) return WATER_BOX;
@@ -121,7 +127,7 @@ export function solidBox(ground: Ground, decor: Decor): Box | null {
 }
 
 /** Keeps generated chunks in memory and answers questions about tiles. */
-export class World implements SolidMap {
+export class World implements TileMap {
   readonly seed: number;
   private readonly chunks = new Map<string, Chunk>();
   /** Most tile lookups are in the same chunk as the previous one; this skips the map for them. */
@@ -177,27 +183,30 @@ export class World implements SolidMap {
   }
 
   /**
-   * Finds the open tile nearest to the origin, with open tiles all around it. Returns the
-   * centre of that tile in world pixels.
+   * Finds the open tile nearest to (nearTx, nearTy) with `clearance` rings of open tiles round
+   * it (1: all 8 neighbours open; 0: only the tile itself). Returns the centre of that tile in
+   * world pixels.
    */
-  findSpawn(): { x: number; y: number } {
+  findSpawn(nearTx = 0, nearTy = 0, clearance = 1): { x: number; y: number } {
     const open = (tx: number, ty: number): boolean => {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -clearance; dy <= clearance; dy++) {
+        for (let dx = -clearance; dx <= clearance; dx++) {
           if (this.solidBox(tx + dx, ty + dy)) return false;
         }
       }
       return true;
     };
-    // Square rings around the origin, nearest ring first.
+    // Square rings round the start tile, nearest ring first.
     for (let r = 0; r < 512; r++) {
-      for (let ty = -r; ty <= r; ty++) {
-        for (let tx = -r; tx <= r; tx++) {
-          if (Math.max(Math.abs(tx), Math.abs(ty)) !== r) continue;
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = nearTx + dx;
+          const ty = nearTy + dy;
           if (open(tx, ty)) return { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + TILE_SIZE / 2 };
         }
       }
     }
-    throw new Error(`no open spawn tile near the origin for seed ${this.seed}`);
+    throw new Error(`no open tile near ${nearTx},${nearTy} for seed ${this.seed}`);
   }
 }

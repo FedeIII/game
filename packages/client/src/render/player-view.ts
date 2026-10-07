@@ -5,6 +5,9 @@ import type { Art } from '../assets.ts';
 /** World pixels of travel for each walk frame: 8 frames make one 32-pixel cycle of two steps. */
 const STRIDE = 4;
 
+/** From the centre of the feet to just above the hood, in world pixels: where speech goes. */
+export const PLAYER_HEAD_HEIGHT = 30;
+
 /** The opacity of the copy of the player that shows through trees. */
 const GHOST_ALPHA = 0.3;
 

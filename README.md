@@ -6,6 +6,7 @@ browser. Live at https://game.azyr.io.
 The POC is a dark, top-down world in the mood of Diablo and Castlevania: a hooded figure walks
 with WASD or the arrow keys, or with a touch joystick on a phone, inside a radius of torch
 light. The world is procedural and endless: grass, mud paths, lakes, spruces, dead trees, rocks.
+Very close to a tree or a rock, the action button (or E) examines it.
 
 ```bash
 npm install
@@ -14,7 +15,8 @@ npm run check      # type check + tests
 npm run build      # production build in packages/client/dist
 ```
 
-Debug panel: press F3, or open `/?debug`. Another world: `/?seed=42`. No darkness: `/?nolight`.
+Debug panel: press F3, or open `/?debug`. Another world: `/?seed=42`. Start on a tile: `/?at=-2,2`.
+No darkness: `/?nolight`.
 Display settings: the button in the top-right corner (CRT on/off and sliders; saved in the
 browser). The same from the URL: `/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults
 `0.6,1,1,0`).

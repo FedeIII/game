@@ -16,7 +16,7 @@ const BINDINGS: Readonly<Record<string, readonly [number, number]>> = {
 };
 
 /** Keys typed into a form field (a slider, a future chat box) belong to that field. */
-function isFormField(target: EventTarget | null): boolean {
+export function isFormField(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 }
 

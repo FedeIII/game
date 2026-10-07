@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRT_DEFAULTS } from './render/crt.ts';
+import { CRT_DEFAULTS } from '../render/crt.ts';
 import { crtQuery, crtStateFrom } from './settings-panel.ts';
 
 const url = (query: string) => new URLSearchParams(query);
