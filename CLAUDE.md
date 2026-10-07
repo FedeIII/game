@@ -39,9 +39,12 @@ Art preview at 4x: `cd packages/client && node art/build.ts --preview /tmp/atlas
     for a CRT look: diffused pixels, a halo round bright points, optional scanlines).
   - `src/input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed
     into a form field are ignored) and `joystick.ts` (floating touch stick).
+  - `src/render/pixel-text.ts` (`PixelFont`: lays out the atlas font in world pixels; the pure
+    measure and wrap logic is in `text-layout.ts`) and `speech-bubble.ts` (a line over the
+    player's head, drawn by the game, above the darkness).
   - `src/ui/`: the GUI, all HTML over the canvas. `strings.ts` (every text the player reads),
     `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
-    keyboard), `speech-bubble.ts` (a line over the player's head), `settings-panel.ts` (button
+    keyboard), `settings-panel.ts` (button
     in the top-right corner: CRT on/off, a slider for each CRT setting, Copy link, Reset;
     saved in localStorage `game.crt.v1`; a `?crt=` or `?nocrt` URL wins over it).
   - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/`, which
@@ -64,15 +67,28 @@ made by code, in `packages/client/art/`:
 - `ground.ts`: ground tiles from tiling noise, and the ragged edge pieces. `decor.ts`: small
   decor as text grids. `lights.ts`: the light textures and the `LIGHTING` settings, which
   `build.ts` also writes into the atlas JSON (`meta.lighting`) for the client.
+- `font.ts`: the pixel font (text grids; capitals 7 px, descenders 2 px, white glyphs that the
+  client tints; frames `font/<char code>`, metrics in `meta.font`) and the speech bubble frame
+  (`ui/bubble`, a 9-slice, and `ui/bubble-tail`). A missing character draws `font/fallback`:
+  add a glyph to `GLYPHS` before you show text that needs it (accents, for example).
 
 Look at art before you commit it: `node art/build.ts --preview /tmp/atlas.png`, or a
 screenshot of the game with `?nolight`. Read the PNG with the Read tool.
 
 ## GUI
 
-The GUI is approved in this style; new GUI must match it. All of it is HTML over the canvas
-(sharp text, not blurred by the CRT filter), outside `#game` so a touch on it never moves the
-player.
+The GUI is approved in this style; new GUI must match it.
+
+**Two kinds of text, two renderers:**
+- **Text in the world** (speech, names, labels over things) is drawn by the game: the pixel font
+  from the atlas, in world pixels, through the CRT filter. Use `PixelFont` and a frame from the
+  atlas (`ui/bubble`), never HTML. If it must be readable at night, put it above the darkness
+  (the last layer of the scene). Repeat it in a hidden live region (`.sr-only`) for screen
+  readers.
+- **The GUI** (panels, buttons, sliders, the hint) is HTML over the canvas, outside `#game` so a
+  touch on it never moves the player.
+
+For the HTML GUI:
 
 - Colours and fonts come only from the theme variables at the top of `src/style.css`: dark
   translucent panel (`--ui-panel`), thin dried-blood-red border (`--ui-border`), 2 px corners,

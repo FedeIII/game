@@ -180,44 +180,16 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------- speech bubble */
+/* ---------------------------------------------------------------- screen readers */
 
-.speech {
+/* Present for screen readers, invisible on screen. The speech bubble is drawn by the game. */
+.sr-only {
   position: fixed;
-  left: 0;
-  top: 0;
-  max-width: 220px;
-  margin-top: -8px; /* room for the tail */
-  padding: 5px 12px;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius);
-  background: var(--ui-panel);
-  font: italic 15px/1.35 var(--ui-serif);
-  letter-spacing: 0.03em;
-  text-align: center;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.speech.shown {
-  opacity: 1;
-}
-
-/* The tail: a small square turned 45 degrees, with the two borders that face down. */
-.speech::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -5px;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  border-right: 1px solid var(--ui-border);
-  border-bottom: 1px solid var(--ui-border);
-  background: inherit;
-  transform: rotate(45deg);
 }
 
 /* ---------------------------------------------------------------- display settings */

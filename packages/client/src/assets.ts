@@ -16,6 +16,11 @@ export class Art {
     return texture;
   }
 
+  /** The frame, or null if the atlas has no frame with that name (a glyph that the font lacks). */
+  tryFrame(name: string): Texture | null {
+    return this.sheet.textures[name] ?? null;
+  }
+
   /**
    * All frames named `${prefix}/0`, `${prefix}/1`, ... in order. The atlas decides how many
    * variants there are, so the art can add one without a code change.

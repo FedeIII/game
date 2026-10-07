@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Image, encodePng, upscale } from './png.ts';
+import { FONT } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 
@@ -76,6 +77,7 @@ const json = {
     size: { w: ATLAS_WIDTH, h: atlasHeight },
     scale: 1,
     lighting: LIGHTING,
+    font: FONT,
   },
 };
 

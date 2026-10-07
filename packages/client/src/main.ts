@@ -20,10 +20,11 @@ import { FixedStep } from './loop.ts';
 import { Camera } from './render/camera.ts';
 import { CrtFilter } from './render/crt.ts';
 import { Lighting } from './render/lighting.ts';
+import { PixelFont } from './render/pixel-text.ts';
 import { PLAYER_HEAD_HEIGHT, PlayerView } from './render/player-view.ts';
+import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
-import { SpeechBubble } from './ui/speech-bubble.ts';
 import { STRINGS } from './ui/strings.ts';
 
 async function start(): Promise<void> {
@@ -55,7 +56,7 @@ async function start(): Promise<void> {
   const previous = { x: player.x, y: player.y };
 
   // Layers, from the bottom: the ground chunks; trees, rocks and players sorted by depth; the
-  // faint copy of the player that shows through trees; the darkness of the light radius.
+  // faint copy of the player that shows through trees; the darkness of the light radius; text.
   const scene = new Container();
   const groundLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
@@ -69,6 +70,9 @@ async function start(): Promise<void> {
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art);
   if (lighting) scene.addChild(lighting.root);
+  // Text in the world goes on top of everything in the scene, the darkness too.
+  const speech = new SpeechBubble(art, new PixelFont(art));
+  scene.addChild(speech.root);
   // A CRT diffusion over the whole screen. The display settings panel turns it on and
   // off and changes it; ?nocrt and ?crt=spread,mix,glow,scanline set it from the URL.
   const crt = new CrtFilter();
@@ -94,7 +98,6 @@ async function start(): Promise<void> {
 
   // Actions: the action button (or E) examines the thing that the player is very close to.
   const action = new ActionButton();
-  const speech = new SpeechBubble();
   let target: InteractionTarget | null = null;
   action.onPress(() => {
     if (target) speech.say(STRINGS.examine[target.kind], performance.now());
@@ -130,7 +133,7 @@ async function start(): Promise<void> {
     camera.follow(scene, x, y);
     target = findInteraction(world, player);
     action.setTarget(target ? STRINGS.actionLabelFor(target.kind) : null);
-    speech.update(performance.now(), scene.position.x + x * scene.scale.x, scene.position.y + (y - PLAYER_HEAD_HEIGHT) * scene.scale.y);
+    speech.update(performance.now(), x, y - PLAYER_HEAD_HEIGHT);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr);
     terrain.update(camera.view(), 1);
