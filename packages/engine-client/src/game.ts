@@ -6,6 +6,7 @@ import {
   World,
   clampInput,
   createPlayer,
+  PLAYER_LOOKS,
   findInteraction,
   stepPlayer,
   useDoor,
@@ -22,7 +23,9 @@ import { Buildings } from './render/buildings.ts';
 import { Camera } from './render/camera.ts';
 import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Fixtures } from './render/fixtures.ts';
+import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
+import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PLAYER_HEAD_HEIGHT, PlayerView } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
@@ -30,6 +33,7 @@ import { Terrain } from './render/terrain.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
+import { PresenceLabel } from './ui/presence.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
 import { STRINGS } from './ui/strings.ts';
 import { WorldMenu } from './ui/world-menu.ts';
@@ -88,10 +92,14 @@ async function run(options: GameOptions): Promise<void> {
   const previous = { x: player.x, y: player.y };
   // The interpolated position of the player in this frame: speech over the player follows it.
   const shown = { x: player.x, y: player.y };
+  // A shared world goes through the multiplayer server; ?offline plays it alone.
+  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, player, world) : null;
+  // What is left to hide of a correction from the server, in world pixels.
+  const smoothing = { x: 0, y: 0 };
 
   // Two layers, each with its own CRT filter: the world, and the text in the world on top.
   // The world, from the bottom: the ground chunks; walls, fixtures, trees and players sorted by
-  // depth; the faint copy of the player that shows through trees; the darkness and its lights.
+  // depth; the faint copies of the players that show through trees; the darkness and its lights.
   // The camera moves `scene` and `textScene` together.
   const worldLayer = new Container();
   const textLayer = new Container();
@@ -99,7 +107,9 @@ async function run(options: GameOptions): Promise<void> {
   const textScene = new Container();
   const groundLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
-  scene.addChild(groundLayer, entityLayer);
+  // The faint copies of the players that show through trees: above the props, below the darkness.
+  const ghostLayer = new Container();
+  scene.addChild(groundLayer, entityLayer, ghostLayer);
   worldLayer.addChild(scene);
   textLayer.addChild(textScene);
   app.stage.addChild(worldLayer, textLayer);
@@ -108,9 +118,24 @@ async function run(options: GameOptions): Promise<void> {
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const buildings = new Buildings(world, art, entityLayer, textScene, font);
   const fixtures = new Fixtures(world, art, entityLayer);
-  const playerView = new PlayerView(art);
+  let playerView = new PlayerView(art);
   entityLayer.addChild(playerView.root);
-  scene.addChild(playerView.ghost);
+  ghostLayer.addChild(playerView.ghost);
+  const others = net ? new OtherPlayers(art, entityLayer, ghostLayer) : null;
+  if (net) {
+    new PresenceLabel(net);
+    // The server gives each visitor a look; the local player wears it too, as the others see it.
+    let look = 0;
+    net.onChange(() => {
+      if (net.look === look) return;
+      look = net.look;
+      playerView.root.destroy({ children: true });
+      playerView.ghost.destroy();
+      playerView = new PlayerView(art, PLAYER_LOOKS[look] ?? PLAYER_LOOKS[0]);
+      entityLayer.addChild(playerView.root);
+      ghostLayer.addChild(playerView.ghost);
+    });
+  }
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
   if (lighting) scene.addChild(lighting.root);
@@ -172,7 +197,8 @@ async function run(options: GameOptions): Promise<void> {
     if (!target) return;
     const now = performance.now();
     if (target.kind === 'door') {
-      if (useDoor(world, player, target.tx, target.ty) === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - PLAYER_HEAD_HEIGHT }), now);
+      const result = net ? net.door(target.tx, target.ty, net.playersAt(now)) : useDoor(world, player, target.tx, target.ty);
+      if (result === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - PLAYER_HEAD_HEIGHT }), now);
       buildings.refreshDoor(target.tx, target.ty);
       return;
     }
@@ -229,7 +255,8 @@ async function run(options: GameOptions): Promise<void> {
   const sim = new FixedStep(TICK_SECONDS, () => {
     previous.x = player.x;
     previous.y = player.y;
-    stepPlayer(player, readInput(), world);
+    if (net) net.tick(readInput());
+    else stepPlayer(player, readInput(), world);
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -243,8 +270,23 @@ async function run(options: GameOptions): Promise<void> {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
     sim.advance(seconds);
-    shown.x = previous.x + (player.x - previous.x) * sim.alpha;
-    shown.y = previous.y + (player.y - previous.y) * sim.alpha;
+    if (net) {
+      // A correction from the server moves the player: move the interpolation with it, and show
+      // a small one gradually instead of as a jump.
+      const jump = net.takeJump();
+      previous.x += jump.x;
+      previous.y += jump.y;
+      if (jump.smooth) {
+        smoothing.x -= jump.x;
+        smoothing.y -= jump.y;
+      }
+      const keep = Math.exp(-seconds * 12);
+      smoothing.x *= keep;
+      smoothing.y *= keep;
+      if (Math.hypot(smoothing.x, smoothing.y) < 0.05) smoothing.x = smoothing.y = 0;
+    }
+    shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
+    shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     playerView.update(shown.x, shown.y, player, seconds);
     camera.follow(scene, shown.x, shown.y);
     textScene.position.copyFrom(scene.position);
@@ -258,8 +300,9 @@ async function run(options: GameOptions): Promise<void> {
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
     fixtures.update(view, now / 1000);
+    others?.update(net!.playersAt(now), seconds);
     const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
-    lighting?.update(view, [torch, ...fixtures.lights(), ...buildings.lights()], now / 1000);
+    lighting?.update(view, [torch, ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
@@ -273,9 +316,13 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
+      `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
+      ...(net
+        ? [`others  ${net.playersAt(now).map((o) => `${PLAYER_LOOKS[o.look]} ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
+        : []),
       `inside  ${inside?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,

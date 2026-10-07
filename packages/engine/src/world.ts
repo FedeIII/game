@@ -183,6 +183,17 @@ export class World implements TileMap {
     else this.openDoors.delete(`${tx},${ty}`);
   }
 
+  /** The open doors, as [tx, ty] pairs. A multiplayer server sends this list to its clients. */
+  openDoorList(): [number, number][] {
+    return [...this.openDoors].map((key) => key.split(',').map(Number) as [number, number]);
+  }
+
+  /** Opens exactly the doors of the list and closes all others: the door state from a server. */
+  setOpenDoors(doors: readonly (readonly [number, number])[]): void {
+    this.openDoors.clear();
+    for (const [tx, ty] of doors) this.openDoors.add(`${tx},${ty}`);
+  }
+
   buildingAt(tx: number, ty: number): Building | null {
     const building = this.source.buildingAt(tx, ty);
     return building && inRect(building, tx, ty) ? building : null;
@@ -269,4 +280,9 @@ export interface WorldDefinition {
   readonly examine: Readonly<Record<string, string>>;
   /** How dark the night is, from 0 (no darkness) to 1 (full). */
   readonly darkness: number;
+  /**
+   * Whether visitors share this world through the multiplayer server: each one sees the others,
+   * and the server owns the state (positions, doors). Without it, the world is single-player.
+   */
+  readonly multiplayer?: boolean;
 }

@@ -3,6 +3,7 @@
  * SDF parts on a simple skeleton and rendered from four sides. The walk cycle has 8 frames.
  * Change the proportions in the constants below, not in the frames.
  */
+import { PLAYER_LOOKS, type PlayerLook } from '@game/engine';
 import { ramp } from './raster.ts';
 import { ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, type Material, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
@@ -207,14 +208,35 @@ export const VIEWS = [
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
 
+/**
+ * The cloaks of the player looks (PLAYER_LOOKS in the engine): in a multiplayer world the server
+ * gives each visitor one. All are dark and a little desaturated, so the figures stay in the
+ * style; they differ enough to tell two visitors apart. 'wine' is the single player's look.
+ */
+const PLAYER_CLOAKS = {
+  wine: null,
+  moss: ramp('#0a1209', '#111e0f', '#192a15', '#22371c', '#2c4524', '#38552d'),
+  ash: ramp('#121212', '#1d1d1e', '#29292b', '#363639', '#444448', '#54545a'),
+  indigo: ramp('#0a0b1a', '#11142a', '#191e3c', '#22294f', '#2c3563', '#384278'),
+  rust: ramp('#170b05', '#26130a', '#381c0e', '#4b2713', '#5f3219', '#743e20'),
+  bone: ramp('#24211c', '#36322a', '#4a4539', '#5f5949', '#756e5b', '#8b836d'),
+  plum: ramp('#150914', '#230f21', '#331630', '#441e40', '#562750', '#6a3162'),
+  teal: ramp('#071312', '#0c1f1d', '#122c29', '#193a36', '#214944', '#2a5a54'),
+} satisfies Record<PlayerLook, readonly number[] | null>;
+
+/** Frames `player/<look>/<view>/stand` and `player/<look>/<view>/walk/<i>`, for every look. */
 export function playerFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
   const frames: Frame[] = [];
-  for (const view of VIEWS) {
-    const render = (parts: Part[]) => renderModel(parts, MATERIALS, { ...PLAYER_FRAME, yaw: view.yaw });
-    frames.push({ name: `player/${view.name}/stand`, image: render(figure(0, 0)), anchor });
-    for (let i = 0; i < WALK_FRAMES; i++) {
-      frames.push({ name: `player/${view.name}/walk/${i}`, image: render(figure((i / WALK_FRAMES) * 2 * Math.PI, 1)), anchor });
+  for (const look of PLAYER_LOOKS) {
+    const cloak = PLAYER_CLOAKS[look];
+    const materials = cloak ? materialsFor({ cloak, hood: true }) : MATERIALS;
+    for (const view of VIEWS) {
+      const render = (parts: Part[]) => renderModel(parts, materials, { ...PLAYER_FRAME, yaw: view.yaw });
+      frames.push({ name: `player/${look}/${view.name}/stand`, image: render(figure(0, 0)), anchor });
+      for (let i = 0; i < WALK_FRAMES; i++) {
+        frames.push({ name: `player/${look}/${view.name}/walk/${i}`, image: render(figure((i / WALK_FRAMES) * 2 * Math.PI, 1)), anchor });
+      }
     }
   }
   return frames;

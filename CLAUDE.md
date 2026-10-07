@@ -8,8 +8,9 @@ A pixel-art game **engine** for the browser, and the applications on it. It runs
 https://game.azyr.io, which has two worlds: **the Wilds** (an endless dark forest with lonely
 stone houses) and the **Town of Azyr** (one house for each project of the azyr.io landing page,
 with keepers, exhibits and portals that link to the projects). The goal is an online,
-multiplayer sandbox; next step: an authoritative multiplayer server. Read `docs/stack.md`
-before you change the stack.
+multiplayer sandbox. The engine has multiplayer: an authoritative Node server, client-side
+prediction and interpolation (`docs/multiplayer.md`). The town is shared, so every visitor sees
+the others; the Wilds stay single-player. Read `docs/stack.md` before you change the stack.
 
 The engine is meant to carry more applications on this box (games, demos). Keep the line
 between engine and content clean: the engine never knows a world's content, and a world never
@@ -26,7 +27,8 @@ npm run check        # type check of every package + Vitest
 npm test             # Vitest only
 npm run art          # make packages/engine-client/src/generated/ again (atlas + icon)
 npm run build        # production build of the app in apps/game/dist
-scripts/deploy.sh    # on the box: check, build, publish to /var/www/game.azyr.io
+npm run server       # the multiplayer server, port 3008 (dev and preview send /ws to it)
+scripts/deploy.sh    # on the box: check, build, restart game-server (PM2), publish the client
 ```
 
 Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tmp/atlas.png`.
@@ -35,16 +37,18 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, the natural-terrain toolkit. **No DOM, no PixiJS**: the server will import it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, the natural-terrain toolkit, and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine-server` | `@game/engine-server` | The multiplayer server: `startServer()` (Node, `ws`): a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
 | `worlds/town` | `@game/world-town` | The Town of Azyr: a `WorldSource` (hand-made plan) and the project content. | `@game/engine` |
-| `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/main.ts` (registers the worlds, calls `startGame`), Vite config. | all |
+| `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
 
 **To add a world:** a new package under `worlds/` that exports a `WorldDefinition` (`id`, `name`,
-`createSource(seed)`, `examine` lines, `darkness`), and add it to the `worlds` list of an app.
+`createSource(seed)`, `examine` lines, `darkness`, and `multiplayer: true` to share it), and add
+it to the `worlds` list of an app.
 A world's source implements `WorldSource` (`packages/engine/src/world.ts`): `chunk()`,
 `buildingAt()`, `buildingsIn()`, `fixtureAt()`, `fixturesIn()`, `spawn()`; every method must give
 the same answer every time (client and server must see the same world). Reuse the engine's
@@ -59,13 +63,17 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 ### Engine client (`packages/engine-client/src`)
 
 - `game.ts`: `startGame()`: picks the world (`?world=`), makes the layers, renderers and GUI,
-  runs the fixed-step loop, and the action flow (doors, pages, links).
+  runs the fixed-step loop, and the action flow (doors, pages, links). In a shared world it
+  makes a `NetSession` and the tick goes through it.
+- `net/session.ts`: the connection to the multiplayer server (prediction while online, alone
+  while not, reconnection). See `docs/multiplayer.md`.
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
   textures; trees and rocks as depth-sorted sprites), `buildings.ts` (walls, doors, roofs,
   signs; fades the roof, the sign and the front wall while the player is inside),
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures),
-  `player-view.ts` (8-frame walk, and a faint copy above the props that shows the player
-  through trees), `lighting.ts` (the light map: darkness with a hole for each light),
+  `player-view.ts` (8-frame walk in one of the player looks, and a faint copy above the props
+  that shows the player through trees), `others.ts` (the other players of a shared world, with
+  their torches), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel font),
   `speech-bubble.ts` (pages of text over a head, above the darkness).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
@@ -74,7 +82,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
-  `game.crt.v1`; `?crt=` / `?nocrt` win over it), `panels.ts` (one top-right panel at a time).
+  `game.crt.v1`; `?crt=` / `?nocrt` win over it), `panels.ts` (one top-right panel at a time),
+  `presence.ts` (top left, shared worlds only: how many other visitors are here).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in
   `.gitignore`; made by `dev`, `build` and `typecheck`). See "Art".
 
@@ -259,8 +268,12 @@ const { chromium } = require('/opt/hidden-agenda/node_modules/playwright');
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 ```
 
-Serve the build with `npx vite preview --port 4173` in `apps/game`. URL switches:
-`?world=town`, `?debug` (read `#debug` for the world, tile, target and building), `?at=tx,ty`
+Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared world, also run
+a game server; on the box use another port than production's 3008, for example
+`PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
+with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
+`?world=town`, `?debug` (read `#debug` for the world, tile, target, building, and `net` and
+`others` in a shared world), `?offline` (a shared world played alone), `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
 SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[role=status]`, and the
 link from `#link-card a`. For touch, use a context with `hasTouch: true` and send
@@ -269,6 +282,8 @@ lists, so list only the finger that lifts.
 
 ## Deploy
 
-See `deploy/README.md`. Short form: `scripts/deploy.sh` on the box (it builds `apps/game`). No
-nginx reload is necessary. Cloudflare Authenticated Origin Pulls is on, so a local
-`curl -k https://localhost/` gets 400; that is correct.
+See `deploy/README.md`. Short form: `scripts/deploy.sh` on the box (it builds `apps/game`,
+restarts the PM2 process `game-server` first, then publishes the client). No nginx reload is
+necessary. Cloudflare Authenticated Origin Pulls is on, so a local `curl -k https://localhost/`
+gets 400; that is correct. The server's health: `curl -s http://127.0.0.1:3008/healthz`.
+**Never run `pm2 update` or `pm2 flush` on this box** (see /root/CLAUDE.md).

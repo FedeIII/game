@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "npm run art -w @game/engine-client && vite",
     "build": "npm run art -w @game/engine-client && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "ORIGINS=http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173 node server/main.ts"
   },
   "dependencies": {
     "@game/engine-client": "*",
     "@game/world-wilds": "*",
-    "@game/world-town": "*"
+    "@game/world-town": "*",
+    "@game/engine-server": "*"
   },
   "devDependencies": {
     "vite": "^8.3.3"

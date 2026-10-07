@@ -6,7 +6,8 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 - **The Wilds**: a dark, endless forest in the mood of Diablo and Castlevania. A hooded figure
   walks in a radius of torch light; stone houses stand in the woods: open the door, step in,
   and the roof fades away to show the room.
-- **The Town of Azyr** (`?world=town`): a small cobbled plaza and a lane with eight little
+- **The Town of Azyr** (`?world=town`), **shared**: every visitor sees the others walk about,
+  each in a cloak of its own colour with a torch. A small cobbled plaza and a lane with eight little
   houses, one for each project of the azyr.io landing page, each in its own style (a timber
   counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
   In each house a keeper introduces the project, the exhibits show its details, and a portal
@@ -20,6 +21,7 @@ npm install
 npm run dev        # http://127.0.0.1:5173
 npm run check      # type check + tests
 npm run build      # production build in apps/game/dist
+npm run server     # the multiplayer server (for the town), port 3008
 ```
 
 Debug panel: press F3, or open `/?debug`. Other switches: `/?world=town`, `/?seed=42` (the

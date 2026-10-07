@@ -24,4 +24,6 @@ export const town: WorldDefinition = {
     crate: 'A crate, nailed shut.',
   },
   darkness: 0.6,
+  // Every visitor sees the others here: the town is the shared world of game.azyr.io.
+  multiplayer: true,
 };

@@ -53,4 +53,15 @@ export const STRINGS = {
   linkKeyHint: 'or press E',
   worlds: 'Worlds',
   worldsCurrent: 'you are here',
+  /** The presence label of a shared (multiplayer) world. */
+  presence: {
+    connecting: 'Looking for other visitors…',
+    alone: 'You are the only visitor here',
+    others: (n: number): string => (n === 1 ? '1 other visitor here' : `${n} other visitors here`),
+    offline: 'No connection: you see no other visitors',
+    version: 'The game has changed: reload the page to see other visitors',
+    full: 'The world is full: you are alone in your copy',
+    busy: 'Too many open tabs: this one is alone',
+    world: 'This world is not shared now',
+  },
 } as const;

@@ -13,7 +13,7 @@ desktop and on phones. This file records the stack and the reasons for it.
 | Renderer | PixiJS v8 (WebGL 2; WebGPU is available as an option) |
 | Engine | Our own thin layer on PixiJS: fixed-step loop, camera, chunks, input |
 | Shared simulation | `packages/shared`: pure TypeScript, no DOM, no renderer |
-| Network (next step) | Authoritative Node.js server, WebSocket (`ws`), our own protocol |
+| Network | Authoritative Node.js server, WebSocket (`ws`), our own protocol (`docs/multiplayer.md`) |
 | Sprites | One atlas: PNG plus JSON in the PixiJS/TexturePacker format |
 | Art tool | Aseprite (it exports that format); text grids for placeholder art |
 | Build | Vite; Vitest for tests |
@@ -61,7 +61,7 @@ textures and a ticker. It does one job well. The game logic stays outside it, in
   most of the engine would stay unused. PixiJS is the smaller dependency for the part that
   we use.
 
-## Why WebSocket and our own protocol (next step)
+## Why WebSocket and our own protocol
 
 - **WebSocket** goes through the Cloudflare proxy with no special configuration, and
   hidden-agenda.azyr.io already does this on this box. TCP head-of-line blocking is
@@ -77,10 +77,11 @@ textures and a ticker. It does one job well. The game logic stays outside it, in
   per-player area of interest, which do not fit its "synchronize the room state" model well.
   Our own small protocol with message types in `packages/shared` fits better.
 
-Planned network model: server tick at `TICK_RATE`; the client sends `MoveInput` with a
-sequence number; client-side prediction and reconciliation for the local player;
-interpolation for the other players; chunks sent by area of interest; tile edits as small
-deltas.
+The network model (built 2026-10-07, see `docs/multiplayer.md`): the client sends `MoveInput`
+in batches with sequence numbers; the server applies them with the same `stepPlayer()`;
+client-side prediction and reconciliation for the local player; interpolation for the other
+players. Still to come, when worlds are edited: chunks sent by area of interest, and tile
+edits as small deltas.
 
 ## Sprites and art
 

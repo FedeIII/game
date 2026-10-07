@@ -462,3 +462,38 @@ body {
   opacity: 0.6;
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------- presence (shared worlds) */
+
+/* Top left, level with the buttons in the top-right corner. A mark shows the state: lit online. */
+#presence {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
+  box-sizing: border-box;
+  max-width: calc(100vw - 140px);
+  min-height: 40px;
+  padding: 9px 12px 9px 26px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-light);
+  font: italic 14px/1.4 var(--ui-serif);
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+#presence::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translateY(-50%) rotate(45deg);
+  background: var(--ui-ink-faint);
+}
+
+#presence[data-status='online']::before {
+  background: var(--ui-accent);
+  box-shadow: 0 0 8px var(--ui-accent-glow);
+}

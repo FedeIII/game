@@ -6,3 +6,7 @@ export * from './world.ts';
 export * from './player.ts';
 export * from './interact.ts';
 export * from './terrain.ts';
+export * from './net/protocol.ts';
+export * from './net/room.ts';
+export * from './net/prediction.ts';
+export * from './net/remotes.ts';

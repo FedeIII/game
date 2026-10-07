@@ -108,17 +108,25 @@ export interface DoorMap extends TileMap {
 export type DoorResult = 'opened' | 'closed' | 'blocked';
 
 /**
- * Opens or closes the door on (tx, ty). A door does not close on the player: if the player
- * stands in the doorway, the result is 'blocked' and nothing changes. Shared, so the server can
- * apply the same rule later.
+ * Whether the player is close enough to use the door on (tx, ty): the same range as every
+ * action. A multiplayer server checks it before it applies a door action from a client.
  */
-export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number): DoorResult {
+export function canReachDoor(world: TileMap, player: PlayerState, tx: number, ty: number): boolean {
+  return world.structure(tx, ty) === Structure.Door && gapTo(player, tx, ty, FULL_BOX) <= INTERACT_RANGE;
+}
+
+/**
+ * Opens or closes the door on (tx, ty). A door does not close on anyone: if the player or one
+ * of `others` stands in the doorway, the result is 'blocked' and nothing changes. Shared: the
+ * client and the multiplayer server apply the same rule.
+ */
+export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number, others: readonly PlayerState[] = []): DoorResult {
   if (world.structure(tx, ty) !== Structure.Door) throw new Error(`no door at ${tx},${ty}`);
   if (!world.isDoorOpen(tx, ty)) {
     world.setDoorOpen(tx, ty, true);
     return 'opened';
   }
-  if (gapTo(player, tx, ty, FULL_BOX) === 0) return 'blocked';
+  if (gapTo(player, tx, ty, FULL_BOX) === 0 || others.some((other) => gapTo(other, tx, ty, FULL_BOX) === 0)) return 'blocked';
   world.setDoorOpen(tx, ty, false);
   return 'closed';
 }

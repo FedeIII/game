@@ -10,6 +10,13 @@ function commit(): string {
   }
 }
 
+/**
+ * The multiplayer server for `npm run dev` and `npm run preview`: /ws goes to it, as nginx does in
+ * production. Start it with `npm run server` (it allows the local origins). GAME_SERVER points
+ * elsewhere, for example at a test server on another port.
+ */
+const wsProxy = { '/ws': { target: process.env.GAME_SERVER ?? 'ws://127.0.0.1:3008', ws: true } };
+
 export default defineConfig({
   define: {
     __COMMIT__: JSON.stringify(commit()),
@@ -21,5 +28,9 @@ export default defineConfig({
   },
   server: {
     host: '127.0.0.1',
+    proxy: wsProxy,
+  },
+  preview: {
+    proxy: wsProxy,
   },
 });
