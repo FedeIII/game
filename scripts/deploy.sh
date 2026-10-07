@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 WEB_ROOT="${WEB_ROOT:-/var/www/game.azyr.io}"
-DIST=packages/client/dist
+DIST=apps/game/dist
 
 echo "==> Commit $(git describe --always --dirty)"
 if [ -n "$(git status --porcelain)" ]; then

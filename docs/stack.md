@@ -19,6 +19,15 @@ desktop and on phones. This file records the stack and the reasons for it.
 | Build | Vite; Vitest for tests |
 | Mobile | Floating virtual joystick (pointer events), pixel-perfect zoom |
 
+## Engine and applications
+
+The repository is an engine and the applications on it (decided 2026-10-07):
+`packages/engine` (the simulation, no browser), `packages/engine-client` (the browser runtime
+and the art pipeline), `worlds/*` (content: a `WorldSource` and its texts, no browser) and
+`apps/*` (a site that registers worlds and calls `startGame()`). game.azyr.io is the first app,
+with two worlds. A world is pure data and functions, so a future server can run every world
+with the same engine code.
+
 ## Why TypeScript everywhere
 
 The most important decision for a multiplayer game is that the client and the server run

@@ -3,18 +3,19 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/shared",
-    "packages/client"
+    "packages/*",
+    "worlds/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "dev": "npm run dev -w @game/client",
-    "build": "npm run build -w @game/client",
-    "preview": "npm run preview -w @game/client",
-    "art": "npm run art -w @game/client",
-    "typecheck": "npm run art && tsc -p packages/shared && tsc -p packages/client && tsc -p packages/client/art",
+    "dev": "npm run dev -w @game/app",
+    "build": "npm run build -w @game/app",
+    "preview": "npm run preview -w @game/app",
+    "art": "npm run art -w @game/engine-client",
+    "typecheck": "npm run art && tsc -p packages/engine && tsc -p packages/engine-client && tsc -p packages/engine-client/art && tsc -p worlds/wilds && tsc -p worlds/town && tsc -p apps/game",
     "test": "vitest run",
     "check": "npm run typecheck && npm test"
   },

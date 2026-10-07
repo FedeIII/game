@@ -1,6 +1,7 @@
 # Deployment of game.azyr.io
 
-The game is static files for now: nginx serves the Vite build from `/var/www/game.azyr.io`.
+The game is static files for now: nginx serves the Vite build of `apps/game` from
+`/var/www/game.azyr.io`.
 There is no process to run.
 
 ## Normal deploy

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    // Node types for the tests only: a test reads the font of the art pipeline (Node code) to
+    // check that every character of the town's texts has a glyph. src/ uses no Node API.
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}
