@@ -13,8 +13,17 @@ export const Ground = {
   Floor: 5,
   /** Paving: the streets and squares of a town. */
   Cobble: 6,
+  /** Flagstones, the floor of a stone building. */
+  FloorStone: 7,
+  /** Packed earth with straw, the floor of a hut or a tent. */
+  FloorEarth: 8,
 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
+
+/** Whether a ground is the floor of a building (any kind). */
+export function isFloor(ground: Ground): boolean {
+  return ground === Ground.Floor || ground === Ground.FloorStone || ground === Ground.FloorEarth;
+}
 
 /** Small things on a tile. Tufts, flowers and pebbles are flat; trees and rocks are solid. */
 export const Decor = {
@@ -93,7 +102,7 @@ const ROCK_BOX: Box = [2, 7, 14, 15];
  * door is open: the player walks through it.
  */
 export function solidBox(ground: Ground, decor: Decor, structure: number = Structure.None, doorOpen = false): Box | null {
-  if (structure === Structure.Wall) return FULL_BOX;
+  if (structure === Structure.Wall || structure === Structure.Window) return FULL_BOX;
   if (structure === Structure.Door) return doorOpen ? null : FULL_BOX;
   const fixture = decodeFixture(structure);
   if (fixture) return fixture.tile.box;
@@ -222,7 +231,7 @@ export class World implements TileMap {
    */
   findSpawn(nearTx = 0, nearTy = 0, clearance = 1): { x: number; y: number } {
     const open = (tx: number, ty: number): boolean => {
-      if (clearance > 0 && this.ground(tx, ty) === Ground.Floor) return false;
+      if (clearance > 0 && isFloor(this.ground(tx, ty))) return false;
       for (let dy = -clearance; dy <= clearance; dy++) {
         for (let dx = -clearance; dx <= clearance; dx++) {
           if (this.solidBox(tx + dx, ty + dy)) return false;

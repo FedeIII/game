@@ -258,7 +258,8 @@ async function run(options: GameOptions): Promise<void> {
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
     fixtures.update(view, now / 1000);
-    lighting?.update(view, [{ x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 }, ...fixtures.lights()], now / 1000);
+    const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
+    lighting?.update(view, [torch, ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);

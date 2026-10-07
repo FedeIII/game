@@ -76,6 +76,25 @@ export const FIXTURE_TYPES = [
   },
   { id: 16, kind: 'portal', tiles: TWO_WIDE(0, 5), depth: 3 },
   { id: 17, kind: 'npc', tiles: ONE_TILE([4, 9, 12, 15]), depth: 12 },
+  // A rug lies on the floor: it does not collide, and it sorts under everything near it.
+  {
+    id: 18,
+    kind: 'rug',
+    tiles: [
+      { dx: 0, dy: -1, box: null },
+      { dx: 1, dy: -1, box: null },
+      { dx: 0, dy: 0, box: null },
+      { dx: 1, dy: 0, box: null },
+    ],
+    depth: -40,
+  },
+  { id: 19, kind: 'crate', tiles: ONE_TILE([2, 4, 14, 14]), depth: 9 },
+  { id: 20, kind: 'cauldron', tiles: ONE_TILE([2, 3, 14, 14]), depth: 9 },
+  { id: 21, kind: 'telescope', tiles: ONE_TILE([3, 4, 13, 14]), depth: 10 },
+  { id: 22, kind: 'candelabra', tiles: ONE_TILE([5, 7, 11, 13]), depth: 10 },
+  { id: 23, kind: 'forge', tiles: TWO_WIDE(0, 9), depth: 5 },
+  { id: 24, kind: 'crystalball', tiles: ONE_TILE([3, 5, 13, 13]), depth: 9 },
+  { id: 25, kind: 'scales', tiles: ONE_TILE([2, 5, 14, 13]), depth: 9 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];

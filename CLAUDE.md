@@ -94,10 +94,16 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   and the NPC looks (`NPC_LOOKS`: cloak colours, hood up or down, hair; frames `npc/<look>`).
 - `props.ts`: spruces, a dead tree and a rock. `materials.ts`: the materials that buildings and
   fixtures share (`M.<name>`).
-- `buildings.ts`: walls (`wall/<mask>/<variant>`, mask bit 1 = wall to the north, 2 = east,
-  4 = west), the door (`wall/door/open|closed`), wooden floor (`ground/floor/N`), slate roof
-  pieces (`roof/<row>/<column>/<variant>`, `roof/shadow`). A wall is a 16x48 frame: top face
-  (16 px) over front face (32 px).
+- `buildings.ts`: building styles. Each wall style of `WALL_STYLES` (stone, timber, planks,
+  brick, rubble, gothic, canvas, painted) has walls (`wall/<walls>/<mask>/<variant>`, mask bit
+  1 = wall to the north, 2 = east, 4 = west), a door (`wall/<walls>/door/open|closed`) and a lit
+  window (`wall/<walls>/window`). Each roof style of `ROOF_STYLES` (slate, shingle, thatch,
+  canvas, indigo, battlement, clay, copper) has roof pieces (`roof/<roof>/<row>/<column>/<variant>`);
+  all share `roof/shadow`. Roof props (`ROOF_PROPS`: `roof/chimney`, `roof/vane`, `roof/spire`,
+  `roof/moon`, `roof/flag-wine`, `roof/flag-green`) have their pivot at their foot. Floors:
+  `ground/floor/N` (wood), `ground/floorstone/N`, `ground/floorearth/N`. A wall is a 16x48
+  frame: top face (16 px) over front face (32 px). Keep wall tops dark: the torch lights them
+  from close by, and a pale top glares.
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
   client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`.
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, cobblestones)
@@ -163,9 +169,13 @@ For the HTML GUI:
 ## Buildings
 
 - **The model** (engine): a rectangle of walls with one door in the south wall (never in a
-  corner), a floor (`Ground.Floor`, under the walls too), fixtures, and an optional `sign` (the
-  name over the door). `structureIn()` gives the structure code of each tile; `isInside()` says
-  if a tile is in the interior or the doorway.
+  corner), a floor (`Ground.Floor`, `FloorStone` or `FloorEarth`, under the walls too; the world
+  source sets it), fixtures, and optional extras: a `sign` (the name over the door), a `style`
+  (`{ walls, roof }`, the names of the art sets; default `DEFAULT_STYLE`, stone and slate),
+  `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall)
+  and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge). The engine does not
+  read the style or the roof props. `structureIn()` gives the structure code of each tile;
+  `isInside()` says if a tile is in the interior or the doorway.
 - **Collision:** walls and a closed door are full tiles; fixtures have their boxes; an open
   door is open. The open doors are `World.openDoors`: the first world state that is not in the
   source. The server must own it when multiplayer comes.
@@ -173,7 +183,9 @@ For the HTML GUI:
   fixtures by their depth line; the roof as one container just in front of the south wall
   (zIndex `y1 * 16 + 8.5`): above everything in the building, below what stands south of it.
   The roof sits on the wall tops, 32 px up: the north eave (`top`), the back slope, the
-  `ridge`, the front slope, the `eave`. The sign is a board in the text layer, over the door.
+  `ridge`, the front slope, the `eave`. Roof props stand on the ridge line, in the middle of
+  their column. Each lit window gives a small warm light (radius 48) on the street in front of
+  it (`Buildings.lights()`). The sign is a board in the text layer, over the door.
   While the player is inside (interior or doorway), the roof and the sign fade out and the front
   wall fades to 35% (or it would hide the two floor rows behind it).
 
@@ -189,13 +201,21 @@ For the HTML GUI:
 - **The Town of Azyr** (`worlds/town`): `projects.ts` has the content of each project of the
   azyr.io landing page (`/var/www/azyr.io/public/index.html` and the detail pages), in the
   landing page's order; **when those pages change, change this file.** Kandrax Rol speaks
-  Spanish, as its page does. `layout.ts` has the plan: two rows of four houses (11 x 8) round a
-  cobbled plaza (fountain, notice board with a link to azyr.io, a town crier, lamps), a second
-  street, lanes, and a forest outside x 0..62, y 0..40. In every house: the portal (the link to
-  the project) at the end of the entrance corridor, the keeper (NPC) by the corridor, and the
-  exhibits in the slots `wallLeft`, `wallRight`, `tableLeft`, `tableRight`, `cornerLeft`,
-  `cornerRight`. Tests check the signs, one portal with an https link per house (and the exact
-  URLs), reachable fixtures, and a glyph for every character of every text.
+  Spanish, as its page does. Each project also has its **house**: a style, a floor, roof props
+  and a **plan** in ASCII, walls included (`#` wall, `D` door, `+` lit window, `.` floor, `P`
+  the portal, `K` the keeper, any other letter a thing of `exhibits`; a thing of more tiles has
+  its letter on each tile). Every house has its own walls and roof, and things that match them
+  (the smithy has a forge and an anvil, the healer's hut a cauldron). `layout.ts` has the **town
+  map** in ASCII: digits `1`-`8` are the rectangles of the houses (the plan must have the same
+  size), `=` cobblestones, `.` gardens, `T` trees, and the things of the plaza and the lane
+  (`F` fountain, `N` notice board with a link to azyr.io, `C` the crier, `L` lamps, `b` barrels,
+  `x` crates). Four small houses (6-8 x 5-7 tiles) face the plaza from the north; four more stand
+  with their backs to it and face the lane in the south; alleys of 1-3 tiles join the two.
+  Outside the map the forest begins. The parser checks the plans (walls, one door, one portal,
+  one keeper, footprints, a free tile inside the door) and throws on a mistake. Tests check the
+  signs, one portal with an https link per house (and the exact URLs), a different style for
+  every house, that the player can walk to every thing in every house and act on it (and to
+  every door and outdoor thing from the plaza), and a glyph for every character of every text.
 
 ## Rules
 
@@ -210,7 +230,7 @@ For the HTML GUI:
 - **Pixel-perfect**: whole-number zoom in device pixels, `nearest` scaling, `roundPixels`. New
   art must use the 16-pixel grid. Do not scale a sprite by a fraction (the light textures come in
   fixed radii for that reason).
-- **Frame names are the contract between art and code** (`ground/grass/3`, `wall/5/1`,
+- **Frame names are the contract between art and code** (`ground/grass/3`, `wall/stone/5/1`,
   `fixture/desk`, `npc/healer`, `player/left/walk/5`, ...). `Art.frame()` throws on an unknown
   name; `Art.variants(prefix)` finds numbered variants. Real art from Aseprite must use the same
   names, in the "hash" JSON format.

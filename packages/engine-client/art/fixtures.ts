@@ -309,6 +309,96 @@ function portalFrames(): Frame[] {
   ];
 }
 
+// ---------------------------------------------------------------- themed props
+
+/** A woven rug, 2 x 2 tiles, flat on the floor: a gold border round a field of diamonds. */
+function rug(): Part[] {
+  const pattern = (x: number, _y: number, z: number) => {
+    if (x < 3 || x > 29 || z < -29 || z > -3) return x < 1.8 || x > 30.2 ? M.canvasBone : M.bookBrown;
+    return Math.abs(((x + 32) % 8) - 4) + Math.abs(((z + 64) % 8) - 4) < 2.2 ? M.bookBrown : M.canvasWine;
+  };
+  return [{ sdf: box([1, 0, -31], [31, 0.5, -1]), material: pattern }];
+}
+
+function crate(): Part[] {
+  const body = box([2, 0, -13], [14, 11, -4], 0.3);
+  const frame = (x: number, y: number, z: number) => {
+    const edge = [x - 2, 14 - x, y, 11 - y, z + 13, -4 - z].filter((d) => d < 1.3).length >= 2;
+    return edge || Math.abs(x - 8 - (y - 5.5)) < 0.7 ? M.woodDark : y % 3.6 < 0.4 ? M.beam : M.wood;
+  };
+  return [{ sdf: body, material: frame }];
+}
+
+/** An iron cauldron on short legs over embers, full of a green brew that glows. */
+function cauldron(): Part[] {
+  const pot = subtract(intersect(sphere([8, 6, -8], 5.5), box([0, 0, -16], [16, 8.5, 0])), sphere([8, 7.5, -8], 4.6));
+  return [
+    { sdf: union(roundCone([5, 2, -6], [4, 0, -5], 0.6, 0.4), roundCone([11, 2, -6], [12, 0, -5], 0.6, 0.4), roundCone([8, 2, -11], [8, 0, -12], 0.6, 0.4)), material: M.iron },
+    { sdf: pot, material: M.iron },
+    { sdf: subtract(cylinder([8, 8.5, -8], 'y', 5.7, 1), cylinder([8, 8.5, -8], 'y', 4.7, 2)), material: M.metal },
+    { sdf: cylinder([8, 7.9, -8], 'y', 4.7, 0.6), material: M.brew },
+    { sdf: union(sphere([7, 0.5, -8], 1), sphere([9.4, 0.5, -7], 0.8)), material: M.coal },
+  ];
+}
+
+/** A brass telescope on a wooden tripod, pointed at the sky. */
+function telescope(): Part[] {
+  const top: Vec3 = [8, 9, -8];
+  return [
+    { sdf: union(roundCone(top, [3, 0, -4], 0.5, 0.4), roundCone(top, [13, 0, -4], 0.5, 0.4), roundCone(top, [8, 0, -13], 0.5, 0.4)), material: M.wood },
+    { sdf: roundCone([5, 9, -6], [13, 15, -11], 1.6, 1.1), material: M.gold },
+    { sdf: roundCone([4, 8.3, -5.4], [5, 9, -6], 0.7, 0.8), material: M.metal },
+  ];
+}
+
+/** An iron candelabra with three lit candles. */
+function candelabra(): Part[] {
+  const parts: Part[] = [
+    { sdf: cylinder([8, 0.6, -9], 'y', 3, 1.2), material: M.iron },
+    { sdf: cylinder([8, 9, -9], 'y', 0.6, 17), material: M.iron },
+    { sdf: box([3, 16.2, -9.6], [13, 17.2, -8.4], 0.3), material: M.iron },
+  ];
+  for (const x of [3.5, 8, 12.5]) {
+    parts.push({ sdf: cylinder([x, 19, -9], 'y', 0.75, 3.6), material: M.wax });
+    parts.push({ sdf: sphere([x, 21.6, -9], 0.75), material: M.flame });
+  }
+  return parts;
+}
+
+/** A smithy's forge against the north wall, 2 tiles wide: a stone hearth of glowing coals under a hood. */
+function forge(): Part[] {
+  return [
+    { sdf: box([1, 0, -16], [31, 9, -7], 0.4), material: (x, y) => (hash(Math.floor(x / 4), Math.floor(y / 3), 9) < 0.5 ? M.stoneA : M.stoneC) },
+    { sdf: box([5, 9, -14], [27, 9.8, -9]), material: M.coal },
+    { sdf: box([3, 9, -12.5], [5, 20, -10.5]), material: M.iron },
+    { sdf: box([27, 9, -12.5], [29, 20, -10.5]), material: M.iron },
+    { sdf: box([2, 20, -16], [30, 26, -10.5], 0.5), material: M.stoneC },
+    { sdf: box([10, 26, -16], [22, 36, -12]), material: M.stoneC },
+  ];
+}
+
+/** A crystal ball on a small round table. */
+function crystalball(): Part[] {
+  return [
+    { sdf: cylinder([8, 0.4, -9], 'y', 3, 0.8), material: M.woodDark },
+    { sdf: cylinder([8, 4, -9], 'y', 0.8, 7.5), material: M.woodDark },
+    { sdf: cylinder([8, 8, -9], 'y', 4.5, 1), material: M.wine },
+    { sdf: sphere([8, 11.3, -9], 2.6), material: M.orb },
+  ];
+}
+
+/** Balance scales on a little counter, one pan lower with the weight of the coins. */
+function scales(): Part[] {
+  return [
+    { sdf: box([2, 0, -12], [14, 8, -5], 0.3), material: M.wood },
+    { sdf: cylinder([8, 12, -8.5], 'y', 0.5, 8), material: M.gold },
+    { sdf: box([3, 15.6, -9], [13, 16.2, -8], 0.15), material: M.gold },
+    { sdf: cylinder([3.5, 11.6, -8.5], 'y', 2, 0.4), material: M.gold },
+    { sdf: cylinder([12.5, 12.8, -8.5], 'y', 2, 0.4), material: M.gold },
+    { sdf: union(cylinder([4, 8.3, -6.5], 'y', 1, 0.5), cylinder([5.5, 8.3, -7], 'y', 1, 0.5)), material: M.gold },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -328,5 +418,13 @@ export function fixtureFrames(): Frame[] {
     fixture('lamppost', lamppost(), 24, 64),
     fixture('fountain', fountain(), 56, 88),
     ...portalFrames(),
+    fixture('rug', rug(), 40, 48),
+    fixture('crate', crate(), 24, 40),
+    fixture('cauldron', cauldron(), 24, 32),
+    fixture('telescope', telescope(), 24, 40),
+    fixture('candelabra', candelabra(), 24, 40),
+    fixture('forge', forge(), 40, 64),
+    fixture('crystalball', crystalball(), 24, 32),
+    fixture('scales', scales(), 24, 32),
   ];
 }

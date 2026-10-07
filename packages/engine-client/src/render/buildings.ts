@@ -1,7 +1,8 @@
 import { Container, NineSliceSprite, Sprite, type Texture } from 'pixi.js';
-import { Structure, TILE_SIZE, hash2, type Building, type World } from '@game/engine';
+import { DEFAULT_STYLE, Structure, TILE_SIZE, hash2, type Building, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
+import type { LightSource } from './lighting.ts';
 import type { PixelFont } from './pixel-text.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
@@ -10,6 +11,8 @@ const FRONT_WALL_INSIDE_ALPHA = 0.35;
 const FADE_RATE = 10;
 /** Wall tops are drawn 32 pixels above the ground; the roof sits on them. */
 const WALL_HEIGHT = 32;
+/** The ridge line of a roof: this many pixels below the top of its ridge row. */
+const RIDGE_LINE = 8;
 /** The bottom of a sign: this many pixels above the ground, just over the arch of the door. */
 const SIGN_BOTTOM = 25;
 /** Look further than the screen for buildings, so a big one appears before its edge does. */
@@ -17,6 +20,8 @@ const MARGIN_TILES = 16;
 const LOOK_SEED = 0x6b1d;
 /** The sign text colour: the parchment of the GUI theme. */
 const INK = 0xd8ccb0;
+/** A lit window throws a little warm light onto the street. */
+const WINDOW_LIGHT = { radius: 48, colour: 0xffa850, y: -17 } as const;
 
 interface BuildingView {
   readonly building: Building;
@@ -44,7 +49,7 @@ export class Buildings {
   private readonly textLayer: Container;
   private readonly font: PixelFont;
   private readonly views = new Map<string, BuildingView>();
-  private readonly wallVariants = new Map<number, Texture[]>();
+  private readonly wallVariants = new Map<string, Texture[]>();
   private readonly roofVariants = new Map<string, Texture[]>();
 
   constructor(world: World, art: Art, entityLayer: Container, textLayer: Container, font: PixelFont) {
@@ -98,29 +103,51 @@ export class Buildings {
   refreshDoor(tx: number, ty: number): void {
     const building = this.world.buildingAt(tx, ty);
     const built = building && this.views.get(building.id);
-    if (built) built.door.texture = this.doorTexture(tx, ty);
+    if (built) built.door.texture = this.doorTexture(built.building, tx, ty);
   }
 
-  private doorTexture(tx: number, ty: number): Texture {
-    return this.art.frame(this.world.isDoorOpen(tx, ty) ? 'wall/door/open' : 'wall/door/closed');
+  /** The lights of the lit windows of the buildings that are shown, in world pixels. */
+  lights(): LightSource[] {
+    const out: LightSource[] = [];
+    for (const { building } of this.views.values()) {
+      for (const tx of building.windows ?? []) {
+        out.push({
+          x: tx * TILE_SIZE + TILE_SIZE / 2,
+          y: (building.y1 + 1) * TILE_SIZE + WINDOW_LIGHT.y,
+          radius: WINDOW_LIGHT.radius,
+          colour: WINDOW_LIGHT.colour,
+          flicker: true,
+          seed: tx * 7 + building.y1,
+        });
+      }
+    }
+    return out;
   }
 
-  private wallTexture(tx: number, ty: number): Texture {
+  private doorTexture(building: Building, tx: number, ty: number): Texture {
+    const walls = (building.style ?? DEFAULT_STYLE).walls;
+    return this.art.frame(`wall/${walls}/door/${this.world.isDoorOpen(tx, ty) ? 'open' : 'closed'}`);
+  }
+
+  private wallTexture(building: Building, tx: number, ty: number): Texture {
+    const walls = (building.style ?? DEFAULT_STYLE).walls;
+    if (this.world.structure(tx, ty) === Structure.Window) return this.art.frame(`wall/${walls}/window`);
     const solid = (x: number, y: number) => {
       const s = this.world.structure(x, y);
-      return s === Structure.Wall || s === Structure.Door;
+      return s === Structure.Wall || s === Structure.Door || s === Structure.Window;
     };
     const mask = (solid(tx, ty - 1) ? 1 : 0) | (solid(tx + 1, ty) ? 2 : 0) | (solid(tx - 1, ty) ? 4 : 0);
-    let variants = this.wallVariants.get(mask);
+    const key = `${walls}/${mask}`;
+    let variants = this.wallVariants.get(key);
     if (!variants) {
-      variants = this.art.variants(`wall/${mask}`);
-      this.wallVariants.set(mask, variants);
+      variants = this.art.variants(`wall/${key}`);
+      this.wallVariants.set(key, variants);
     }
     return variants[hash2(tx, ty, LOOK_SEED) % variants.length]!;
   }
 
-  private roofTexture(row: string, column: string, tx: number, ty: number): Texture {
-    const key = `${row}/${column}`;
+  private roofTexture(roof: string, row: string, column: string, tx: number, ty: number): Texture {
+    const key = `${roof}/${row}/${column}`;
     let variants = this.roofVariants.get(key);
     if (!variants) {
       variants = this.art.variants(`roof/${key}`);
@@ -166,7 +193,7 @@ export class Buildings {
       for (let tx = x0; tx <= x1; tx++) {
         if (tx !== x0 && tx !== x1 && ty !== y0 && ty !== y1) continue;
         const isDoor = tx === doorX && ty === y1;
-        const sprite = place(new Sprite(isDoor ? this.doorTexture(tx, ty) : this.wallTexture(tx, ty)), tx, ty, 8);
+        const sprite = place(new Sprite(isDoor ? this.doorTexture(building, tx, ty) : this.wallTexture(building, tx, ty)), tx, ty, 8);
         if (ty === y1) front.push(sprite);
         if (isDoor) door = sprite;
       }
@@ -176,13 +203,14 @@ export class Buildings {
     // The roof sits on the wall tops: rows of slate tiles from the north eave to the south eave.
     // Seen from the south, the back slope shows above the ridge and the front slope below it.
     const roof = new Container();
+    const roofStyle = (building.style ?? DEFAULT_STYLE).roof;
     const rows = y1 - y0 + 1;
     const ridge = Math.max(1, Math.round(rows / 2 - 1));
     for (let r = 0; r < rows; r++) {
       const row = r === 0 ? 'top' : r < ridge ? 'back' : r === ridge ? 'ridge' : r === rows - 1 ? 'eave' : 'front';
       for (let tx = x0; tx <= x1; tx++) {
         const column = tx === x0 ? 'l' : tx === x1 ? 'r' : 'm';
-        const tile = new Sprite(this.roofTexture(row, column, tx, y0 + r));
+        const tile = new Sprite(this.roofTexture(roofStyle, row, column, tx, y0 + r));
         tile.position.set(tx * TILE_SIZE, (y0 + r) * TILE_SIZE - WALL_HEIGHT);
         roof.addChild(tile);
       }
@@ -191,6 +219,12 @@ export class Buildings {
       const shadow = new Sprite(this.art.frame('roof/shadow'));
       shadow.position.set(tx * TILE_SIZE, (y1 + 1) * TILE_SIZE - WALL_HEIGHT);
       roof.addChild(shadow);
+    }
+    // Chimneys, flags and spires stand on the ridge, in the middle of their column.
+    for (const prop of building.roofProps ?? []) {
+      const sprite = new Sprite(this.art.frame(`roof/${prop.name}`));
+      sprite.position.set(prop.tx * TILE_SIZE + TILE_SIZE / 2, (y0 + ridge) * TILE_SIZE - WALL_HEIGHT + RIDGE_LINE);
+      roof.addChild(sprite);
     }
     // Just in front of the south wall: above everything in the building, below what stands south of it.
     roof.zIndex = y1 * TILE_SIZE + 8.5;

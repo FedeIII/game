@@ -45,6 +45,22 @@ export const M = {
   bottleRed: 27,
   bottleAmber: 28,
   iron: 29,
+  plaster: 30,
+  beam: 31,
+  greyWood: 32,
+  brick: 33,
+  rubble: 34,
+  blackStone: 35,
+  canvasWine: 36,
+  canvasBone: 37,
+  paintTeal: 38,
+  redGlass: 39,
+  stainedBlue: 40,
+  stainedRed: 41,
+  orb: 42,
+  canvasIndigo: 43,
+  coal: 44,
+  brew: 45,
 } as const;
 
 export const MATERIALS: Material[] = [
@@ -78,4 +94,20 @@ export const MATERIALS: Material[] = [
   { ramp: ramp('#2a0a0e', '#4a1218', '#741c24', '#a83438'), bias: 0.25 }, // red bottle
   { ramp: ramp('#3a220a', '#5e3810', '#8a5418', '#c07a24'), bias: 0.25 }, // amber bottle
   { ramp: ramp('#0b0c0f', '#15171c', '#20232a', '#2d3139', '#3d424c') }, // iron
+  { ramp: ramp('#1f1c17', '#2b2720', '#38332a', '#463f34', '#544b3e'), dither: true }, // plaster
+  { ramp: ramp('#0b0806', '#140e0a', '#1e150f', '#291d15', '#35261b') }, // beam (dark oak)
+  { ramp: ramp('#121110', '#1c1a17', '#27241f', '#332f28', '#403a31'), dither: true }, // weathered planks
+  { ramp: ramp('#1c0b09', '#2c120e', '#3d1914', '#4f221b', '#622b22'), dither: true }, // brick
+  { ramp: ramp('#111210', '#1a1c18', '#252722', '#30332c', '#3d4037', '#4c5045'), dither: true }, // rubble
+  { ramp: ramp('#0b0c10', '#121419', '#1a1d24', '#23272f', '#2d323c', '#3a404c'), dither: true }, // black stone
+  { ramp: ramp('#1a080b', '#2c0e12', '#421419', '#581c20', '#6e2628') }, // canvas, wine stripe
+  { ramp: ramp('#26231e', '#38342c', '#4c463b', '#605848', '#746a56') }, // canvas, bone stripe
+  { ramp: ramp('#0b1414', '#112020', '#182c2c', '#203939', '#2a4747') }, // painted boards, teal
+  { ramp: ramp('#5a1018', '#8a1c24', '#c03030', '#e86048'), bias: 0.6 }, // red glass, lit
+  { ramp: ramp('#1c2c5a', '#2c4a8a', '#4a74c0', '#7aa6e6'), bias: 0.55 }, // stained glass, blue
+  { ramp: ramp('#5a1c1c', '#8a2c24', '#c04a30', '#e8804a'), bias: 0.55 }, // stained glass, red
+  { ramp: ramp('#2c4a8a', '#4a7ac8', '#8ab8f0', '#d0e6ff'), bias: 0.8 }, // a glowing orb
+  { ramp: ramp('#0c0c22', '#141836', '#1c244c', '#263262', '#30407a') }, // canvas, indigo stripe
+  { ramp: ramp('#5a1a08', '#a0400c', '#e07a1c', '#ffc04a'), bias: 0.85 }, // glowing coals
+  { ramp: ramp('#1a3a14', '#2c6a1c', '#4ea02a', '#9ae05a'), bias: 0.7 }, // a green brew, glowing
 ];

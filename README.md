@@ -6,9 +6,11 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 - **The Wilds**: a dark, endless forest in the mood of Diablo and Castlevania. A hooded figure
   walks in a radius of torch light; stone houses stand in the woods: open the door, step in,
   and the roof fades away to show the room.
-- **The Town of Azyr** (`?world=town`): a cobbled plaza and eight houses, one for each project
-  of the azyr.io landing page. In each house a keeper introduces the project, the exhibits show
-  its details, and a portal opens the real thing.
+- **The Town of Azyr** (`?world=town`): a small cobbled plaza and a lane with eight little
+  houses, one for each project of the azyr.io landing page, each in its own style (a timber
+  counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
+  In each house a keeper introduces the project, the exhibits show its details, and a portal
+  opens the real thing.
 
 Move with WASD or the arrow keys, or a touch joystick on a phone. Very close to a thing, the
 action button (or E) examines it, talks to a keeper, opens a door, or shows a portal's link.

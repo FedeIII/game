@@ -41,7 +41,9 @@ describe('world generation', () => {
         }
       }
     }
-    expect([...seen].sort()).toEqual(Object.values(Ground).filter((g) => g !== Ground.Cobble).sort());
+    // Cobblestones and the stone and earth floors are for towns: the wilds do not make them.
+    const townOnly: number[] = [Ground.Cobble, Ground.FloorStone, Ground.FloorEarth];
+    expect([...seen].sort()).toEqual(Object.values(Ground).filter((g) => !townOnly.includes(g)).sort());
     expect(trees).toBeGreaterThan(100);
   });
 

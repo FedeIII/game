@@ -1,100 +1,248 @@
-import { fixtureTiles, type Building, type Fixture, type Light } from '@game/engine';
-import { PROJECTS, type Project, type Slot } from './projects.ts';
+import { Ground, fixtureTiles, fixtureType, type Building, type Fixture, type FixtureKind, type Light } from '@game/engine';
+import { PROJECTS, type Project } from './projects.ts';
 
 /**
- * The plan of the town of Azyr (tile coordinates):
+ * The plan of the town of Azyr, one character per tile, north at the top. Outside it the forest
+ * begins. Four houses face the plaza from the north; four more stand back to back with it and
+ * face the lane in the south. Alleys between the houses join the plaza and the lane.
  *
- *   y  4..11  row A: four houses, doors south onto the plaza
- *   y 12..23  street A and the plaza: fountain, notice board, the crier, lamps
- *   y 24..32  row B: four houses, with lanes between them from the plaza to street B
- *   y 33..37  street B, in front of the doors of row B
+ *   .  garden: grass with tufts and flowers      T  a tree in a garden
+ *   =  cobblestones                               1-8  the house of PROJECTS[n - 1] (projects.ts)
+ *   F  the fountain (3 x 3)     N  the notice board (2 x 1)     C  the town crier
+ *   L  a lamp post              b  a barrel                     x  a crate
  *
- * Outside x 0..62, y 0..40 the forest begins.
+ * The things (F, N, C, L, b, x) stand on cobblestones.
  */
-export const BOUNDS = { x0: 0, y0: 0, x1: 62, y1: 40 } as const;
-export const HOUSE = { width: 11, height: 8 } as const;
-const COLUMNS = [4, 18, 32, 46];
-const ROWS = [4, 25];
-/** Cobblestones: streets across, and lanes 3 tiles wide between the houses of row B. */
-export const STREETS = [
-  { x0: 2, y0: 12, x1: 60, y1: 23 },
-  { x0: 2, y0: 33, x1: 60, y1: 37 },
-  { x0: 15, y0: 24, x1: 17, y1: 32 },
-  { x0: 29, y0: 24, x1: 31, y1: 32 },
-  { x0: 43, y0: 24, x1: 45, y1: 32 },
-] as const;
+const MAP = [
+  '......................................',
+  '.T.........T.........T.....444444.....',
+  '...222222..................444444..T..',
+  '...222222..................444444.....',
+  '...222222.1111111.33333333.444444.....',
+  '...222222.1111111.33333333.444444.....',
+  '...222222.1111111.33333333.444444.....',
+  'T..222222.1111111.33333333x444444.....',
+  '..=222222b1111111x33333333x=======b=..',
+  '..=======L1111111L========L======L==..',
+  '..==...===========FFF========...====T.',
+  '..==.T.======NN===FFF===C====.T.====..',
+  '..L=...===========FFF========...===L..',
+  '..==================================..',
+  '..=========bx===========xb==========..',
+  '.T==================================..',
+  '..==================================..',
+  '..5555555=77777777==========888888==..',
+  '..5555555=77777777===666666=888888==T.',
+  '..5555555=77777777===666666=888888==..',
+  '..5555555=77777777===666666=888888==..',
+  '..5555555=77777777===666666=888888==..',
+  '..5555555=77777777===666666=888888==..',
+  '..bx=====L======b====666666=888888b=..',
+  '..L=================L======L=======L..',
+  '..==================================..',
+  '..............T.................T.....',
+  '.....T...................T............',
+];
+
+export const BOUNDS = { x0: 0, y0: 0, x1: MAP[0]!.length - 1, y1: MAP.length - 1 } as const;
+
 /** Where a new player starts: in the plaza, south of the fountain. */
-export const SPAWN = { tx: 30, ty: 22 } as const;
+export const SPAWN = { tx: 19, ty: 14 } as const;
 
-// Lights, in pixels from a fixture's anchor corner (y up is negative).
+// Lights, in pixels from a fixture's anchor corner (y up is negative). The radius snaps to the
+// nearest radius of the light atlas (48, 96, 150).
 const LAMP: Light = { radius: 96, colour: 0xffb060, x: 8, y: -41 };
-const DESK_CANDLE: Light = { radius: 48, colour: 0xffa850, x: 28, y: -26 };
-
-/**
- * The plan of a house (x0, y0 is its north-west wall corner; the interior is x0+1..x0+9 by
- * y0+1..y0+6). The door is at x0+5 in the south wall, and the column of the door and the row just
- * inside the south wall stay free. The portal stands at the end of that corridor, against the north
- * wall: the first thing in view on the way in. The keeper stands next to the corridor.
- */
-const SLOTS: Record<Slot, (x0: number, y0: number) => [number, number]> = {
-  wallLeft: (x0, y0) => [x0 + 2, y0 + 1],
-  wallRight: (x0, y0) => [x0 + 8, y0 + 1],
-  tableLeft: (x0, y0) => [x0 + 1, y0 + 3],
-  tableRight: (x0, y0) => [x0 + 7, y0 + 3],
-  cornerLeft: (x0, y0) => [x0 + 1, y0 + 6],
-  cornerRight: (x0, y0) => [x0 + 9, y0 + 6],
+/** The light that a kind of thing gives off, unless the thing has a light of its own. */
+const LIGHTS: Partial<Record<FixtureKind, Light>> = {
+  desk: { radius: 48, colour: 0xffa850, x: 28, y: -26 },
+  candelabra: { radius: 48, colour: 0xffb060, x: 8, y: -29 },
+  cauldron: { radius: 48, colour: 0x70d060, x: 8, y: -15 },
+  forge: { radius: 96, colour: 0xff7030, x: 16, y: -20 },
+  crystalball: { radius: 48, colour: 0x6a8cff, x: 8, y: -19 },
+  lamppost: LAMP,
 };
 
+/** What a tile outside the houses is: a garden, a garden with a tree, or a street. */
+export const Plot = { Garden: 0, Tree: 1, Street: 2 } as const;
+export type Plot = (typeof Plot)[keyof typeof Plot];
+
+type Tile = readonly [number, number];
+
+/** The tiles of each character of a plan whose north-west tile is (x0, y0). */
+function tilesOf(rows: readonly string[], x0: number, y0: number): Map<string, Tile[]> {
+  const out = new Map<string, Tile[]>();
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      const list = out.get(ch) ?? [];
+      list.push([x0 + x, y0 + y]);
+      out.set(ch, list);
+    });
+  });
+  return out;
+}
+
+/**
+ * Finds where the things of one kind stand from the tiles of their character. A thing of one
+ * tile stands on each of the tiles; a thing of more tiles covers one group of touching tiles,
+ * which must be its footprint exactly. Returns the anchor (south-west) tile of each thing.
+ */
+function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile[] {
+  if (fixtureType(kind).tiles.length === 1) return [...tiles];
+  const left = new Set(tiles.map(([x, y]) => `${x},${y}`));
+  const out: Tile[] = [];
+  for (const [sx, sy] of tiles) {
+    if (!left.has(`${sx},${sy}`)) continue;
+    const group: Tile[] = [];
+    const queue: Tile[] = [[sx, sy]];
+    left.delete(`${sx},${sy}`);
+    while (queue.length) {
+      const [x, y] = queue.pop()!;
+      group.push([x, y]);
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
+        if (left.delete(`${nx},${ny}`)) queue.push([nx, ny]);
+      }
+    }
+    const tx = Math.min(...group.map(([x]) => x));
+    const ty = Math.max(...group.map(([, y]) => y));
+    const footprint = fixtureTiles({ kind, tx, ty }).map(([x, y]) => `${x},${y}`).sort();
+    const drawn = group.map(([x, y]) => `${x},${y}`).sort();
+    if (footprint.join(' ') !== drawn.join(' ')) throw new Error(`${where}: the ${kind} at ${tx},${ty} does not match its footprint`);
+    out.push([tx, ty]);
+  }
+  return out;
+}
+
+/** The floor of each house, by building id. */
+const FLOORS = new Map<string, Ground>();
+
+/** Makes the building of a project from its plan, at the rectangle of its digit in MAP. */
 function house(project: Project, index: number): Building {
-  const x0 = COLUMNS[index % 4]!;
-  const y0 = ROWS[Math.floor(index / 4)]!;
-  const fixtures: Fixture[] = [
-    {
-      kind: 'portal',
-      tx: x0 + 5,
-      ty: y0 + 1,
-      content: { pages: project.portal.pages, link: { url: project.portal.url, label: project.portal.label, title: project.name } },
-      light: { radius: 96, colour: project.portal.colour, x: 16, y: -26 },
-    },
-    { kind: 'npc', tx: x0 + 4, ty: y0 + 5, look: project.keeper.look, content: { pages: project.keeper.pages, speaker: 'fixture' } },
-    ...project.exhibits.map((exhibit): Fixture => {
-      const [tx, ty] = SLOTS[exhibit.slot](x0, y0);
-      return { kind: exhibit.kind, tx, ty, content: exhibit.content, ...(exhibit.kind === 'desk' ? { light: DESK_CANDLE } : {}) };
-    }),
-  ];
-  return { id: project.id, x0, y0, x1: x0 + HOUSE.width - 1, y1: y0 + HOUSE.height - 1, doorX: x0 + 5, fixtures, sign: project.name };
+  const where = `house ${project.id}`;
+  const digit = MAP.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === String(index + 1) ? [[x, y] as const] : [])));
+  const x0 = Math.min(...digit.map(([x]) => x));
+  const y0 = Math.min(...digit.map(([, y]) => y));
+  const x1 = Math.max(...digit.map(([x]) => x));
+  const y1 = Math.max(...digit.map(([, y]) => y));
+  const { plan, exhibits, style, floor, roofProps } = project.house;
+  if (digit.length !== (x1 - x0 + 1) * (y1 - y0 + 1)) throw new Error(`${where}: its tiles in the map are not a rectangle`);
+  if (plan.length !== y1 - y0 + 1 || plan.some((row) => row.length !== x1 - x0 + 1)) {
+    throw new Error(`${where}: the plan is not ${x1 - x0 + 1} x ${y1 - y0 + 1}, as in the map`);
+  }
+
+  // The walls: '#' all round, and the door and the windows in the south wall only.
+  const fixtures: Fixture[] = [];
+  const windows: number[] = [];
+  let doorX = -1;
+  for (const [ch, tiles] of tilesOf(plan, x0, y0)) {
+    const onWall = tiles.filter(([x, y]) => x === x0 || x === x1 || y === y0 || y === y1);
+    const isCorner = ([x, y]: Tile) => (x === x0 || x === x1) && (y === y0 || y === y1);
+    if (ch === '#' || ch === 'D' || ch === '+') {
+      if (ch !== '#' && tiles.some((t) => t[1] !== y1 || isCorner(t))) throw new Error(`${where}: '${ch}' is only for the south wall, not a corner`);
+      if (onWall.length !== tiles.length) throw new Error(`${where}: '${ch}' inside the house`);
+      if (ch === 'D') {
+        if (tiles.length !== 1) throw new Error(`${where}: a house has one door`);
+        doorX = tiles[0]![0];
+      }
+      if (ch === '+') windows.push(...tiles.map(([x]) => x));
+      continue;
+    }
+    if (onWall.length) throw new Error(`${where}: '${ch}' on the walls`);
+    if (ch === '.') continue;
+    if (ch === 'P') {
+      const [portal, more] = anchors('portal', tiles, where);
+      if (!portal || more) throw new Error(`${where}: a house has one portal`);
+      fixtures.push({
+        kind: 'portal',
+        tx: portal[0],
+        ty: portal[1],
+        content: { pages: project.portal.pages, link: { url: project.portal.url, label: project.portal.label, title: project.name } },
+        light: { radius: 96, colour: project.portal.colour, x: 16, y: -26 },
+      });
+      continue;
+    }
+    if (ch === 'K') {
+      if (tiles.length !== 1) throw new Error(`${where}: a house has one keeper`);
+      const [tx, ty] = tiles[0]!;
+      fixtures.push({ kind: 'npc', tx, ty, look: project.keeper.look, content: { pages: project.keeper.pages, speaker: 'fixture' } });
+      continue;
+    }
+    const exhibit = exhibits[ch];
+    if (!exhibit) throw new Error(`${where}: no exhibit for '${ch}'`);
+    const light = exhibit.light ?? LIGHTS[exhibit.kind];
+    for (const [tx, ty] of anchors(exhibit.kind, tiles, where)) {
+      fixtures.push({ kind: exhibit.kind, tx, ty, ...(exhibit.content ? { content: exhibit.content } : {}), ...(light ? { light } : {}) });
+    }
+  }
+  if (doorX < 0) throw new Error(`${where}: a house needs a door`);
+  if (plan[plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
+  for (const letter of Object.keys(exhibits)) {
+    if (!plan.some((row) => row.includes(letter))) throw new Error(`${where}: exhibit '${letter}' is not in the plan`);
+  }
+  FLOORS.set(project.id, floor);
+  return {
+    id: project.id,
+    x0,
+    y0,
+    x1,
+    y1,
+    doorX,
+    fixtures,
+    sign: project.name,
+    style,
+    windows,
+    ...(roofProps ? { roofProps: roofProps.map(({ name, column }) => ({ name, tx: x0 + column })) } : {}),
+  };
 }
 
 export const HOUSES: readonly Building[] = PROJECTS.map(house);
 
-/** The plaza and the streets: the fountain, the notice board, the crier and the lamps. */
-export const OUTDOOR: readonly Fixture[] = [
-  { kind: 'fountain', tx: 29, ty: 19 },
-  {
-    kind: 'noticeboard',
-    tx: 24,
-    ty: 21,
-    content: {
-      pages: ['AZYR · Developer & Creator.', 'Eight houses: vest101, Osler·MD, Kandrax Rol and Kandrax App,', 'Hidden Agenda, Azyrio, GitHub and Journal.'],
-      link: { url: 'https://azyr.io', label: 'Visit azyr.io', title: 'Azyr' },
-    },
+/** The floor of a house of the town. */
+export function floorOf(building: Building): Ground {
+  return FLOORS.get(building.id) ?? Ground.Floor;
+}
+
+const CRIER: Fixture = {
+  kind: 'npc',
+  tx: 0,
+  ty: 0,
+  look: 'crier',
+  content: {
+    speaker: 'fixture',
+    pages: ['Welcome to the town of Azyr!', 'Each house holds one of the projects. Walk in and look around.', 'The portals inside lead to the real thing.'],
   },
-  {
-    kind: 'npc',
-    tx: 34,
-    ty: 21,
-    look: 'crier',
-    content: {
-      speaker: 'fixture',
-      pages: ['Welcome to the town of Azyr!', 'Each house holds one of the projects. Walk in and look around.', 'The portals inside lead to the real thing.'],
-    },
+};
+const NOTICES: Fixture = {
+  kind: 'noticeboard',
+  tx: 0,
+  ty: 0,
+  content: {
+    pages: ['AZYR · Developer & Creator.', 'Eight houses: vest101, Osler·MD, Kandrax Rol and Kandrax App,', 'Hidden Agenda, Azyrio, GitHub and Journal.'],
+    link: { url: 'https://azyr.io', label: 'Visit azyr.io', title: 'Azyr' },
   },
-  ...[
-    [16, 12], [30, 12], [44, 12], [2, 14], [60, 14],
-    [26, 18], [34, 18],
-    [16, 34], [30, 34], [44, 34], [2, 35], [60, 35],
-  ].map(([tx, ty]): Fixture => ({ kind: 'lamppost', tx: tx!, ty: ty!, light: LAMP })),
-];
+};
+/** The things of the town by their character in MAP: a template, without its place. */
+const THINGS: Readonly<Record<string, Fixture>> = {
+  F: { kind: 'fountain', tx: 0, ty: 0 },
+  N: NOTICES,
+  C: CRIER,
+  L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },
+  b: { kind: 'barrel', tx: 0, ty: 0 },
+  x: { kind: 'crate', tx: 0, ty: 0 },
+};
+
+/** The fountain, the notice board, the crier, the lamps and the props of the plaza and the lane. */
+export const OUTDOOR: readonly Fixture[] = [...tilesOf(MAP, 0, 0)].flatMap(([ch, tiles]) => {
+  const thing = THINGS[ch];
+  if (!thing) return [];
+  return anchors(thing.kind, tiles, 'the town').map(([tx, ty]) => ({ ...thing, tx, ty }));
+});
+
+/** What a tile of the town is outside the houses (inside BOUNDS). */
+export function plotAt(tx: number, ty: number): Plot {
+  const ch = MAP[ty]?.[tx] ?? '.';
+  if (ch === 'T') return Plot.Tree;
+  return ch === '.' ? Plot.Garden : Plot.Street;
+}
 
 /** Every fixture of the town, in houses and outside, by each tile of its footprint. */
 export function fixturesByTile(): Map<string, { fixture: Fixture; code: number }> {

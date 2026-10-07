@@ -12,7 +12,30 @@ export const Structure = {
   Floor: 1,
   Wall: 2,
   Door: 3,
+  /** A wall tile with a window in its front face. It collides like a wall. */
+  Window: 4,
 } as const;
+
+/**
+ * How a building looks: the name of its wall set and of its roof set in the art
+ * (`wall/<walls>/...`, `roof/<roof>/...`). The engine does not read them; the client does.
+ */
+export interface BuildingStyle {
+  readonly walls: string;
+  readonly roof: string;
+}
+
+/** The look of a building without a style of its own. */
+export const DEFAULT_STYLE: BuildingStyle = { walls: 'stone', roof: 'slate' };
+
+/**
+ * A thing that stands on the ridge of a roof, in one column: a chimney, a flag, a spire. The
+ * name is its art (`roof/<name>`); the engine does not read it.
+ */
+export interface RoofProp {
+  readonly name: string;
+  readonly tx: number;
+}
 
 export interface Building {
   /** Unique in its world. */
@@ -27,6 +50,12 @@ export interface Building {
   readonly fixtures: readonly Fixture[];
   /** A name on a sign over the door, drawn in the pixel font. */
   readonly sign?: string;
+  /** The look of the walls and the roof. Default: DEFAULT_STYLE. */
+  readonly style?: BuildingStyle;
+  /** Columns (tx) of the south wall that have a lit window. Never a corner or the door. */
+  readonly windows?: readonly number[];
+  /** Things on the roof. Never in a corner column. */
+  readonly roofProps?: readonly RoofProp[];
 }
 
 export function inRect(building: Building, tx: number, ty: number): boolean {
@@ -37,6 +66,7 @@ export function inRect(building: Building, tx: number, ty: number): boolean {
 export function structureIn(building: Building, tx: number, ty: number): number {
   const { x0, y0, x1, y1, doorX } = building;
   if (ty === y1 && tx === doorX) return Structure.Door;
+  if (ty === y1 && building.windows?.includes(tx) && tx !== x0 && tx !== x1) return Structure.Window;
   if (tx === x0 || tx === x1 || ty === y0 || ty === y1) return Structure.Wall;
   for (const fixture of building.fixtures) {
     for (const [x, y, code] of fixtureTiles(fixture)) if (x === tx && y === ty) return code;

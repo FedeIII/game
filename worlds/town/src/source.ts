@@ -14,7 +14,7 @@ import {
   type World,
   type WorldSource,
 } from '@game/engine';
-import { BOUNDS, HOUSES, OUTDOOR, SPAWN, STREETS, fixturesByTile } from './layout.ts';
+import { BOUNDS, HOUSES, OUTDOOR, Plot, SPAWN, fixturesByTile, floorOf, plotAt } from './layout.ts';
 
 /** The seed of the forest round the town, and of the variety of its tiles. */
 const TOWN_SEED = 4242;
@@ -23,14 +23,11 @@ function inBounds(tx: number, ty: number): boolean {
   return tx >= BOUNDS.x0 && tx <= BOUNDS.x1 && ty >= BOUNDS.y0 && ty <= BOUNDS.y1;
 }
 
-function onStreet(tx: number, ty: number): boolean {
-  return STREETS.some((s) => tx >= s.x0 && tx <= s.x1 && ty >= s.y0 && ty <= s.y1);
-}
-
 /**
  * The town of Azyr: a hand-made plan (layout.ts) in the middle of an endless forest. Inside the
- * town: cobbled streets, grass with flowers, eight houses and the things of the plaza. Outside:
- * the engine's natural terrain, with a forest everywhere.
+ * town: cobbled streets, gardens with flowers and a few trees, eight houses (each with its own
+ * floor) and the things of the plaza and the lane. Outside: the engine's natural terrain, with a
+ * forest everywhere.
  */
 export class TownSource implements WorldSource {
   readonly seed = TOWN_SEED;
@@ -45,7 +42,7 @@ export class TownSource implements WorldSource {
         const index = ly * CHUNK_SIZE + lx;
         const house = HOUSES.find((h) => inRect(h, tx, ty));
         if (house) {
-          chunk.ground[index] = Ground.Floor;
+          chunk.ground[index] = floorOf(house);
           chunk.structure[index] = structureIn(house, tx, ty);
           continue;
         }
@@ -56,14 +53,14 @@ export class TownSource implements WorldSource {
           const ground = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = ground;
           chunk.decor[index] = naturalDecor(this.seed, tx, ty, ground, 0);
-        } else if (onStreet(tx, ty)) {
+        } else if (plotAt(tx, ty) === Plot.Street) {
           chunk.ground[index] = Ground.Cobble;
         } else {
-          // Gardens: two kinds of grass, with tufts and flowers but no trees or rocks.
+          // Gardens: two kinds of grass, with tufts and flowers, and a tree where the plan says.
           const ground = fbm(tx / 9, ty / 9, this.seed, 2) > 0.56 ? Ground.DarkGrass : Ground.Grass;
           chunk.ground[index] = ground;
-          const decor = outdoor ? Decor.None : naturalDecor(this.seed, tx, ty, ground, 2);
-          chunk.decor[index] = decor === Decor.Rock ? Decor.None : decor;
+          const decor = naturalDecor(this.seed, tx, ty, ground, 2);
+          chunk.decor[index] = plotAt(tx, ty) === Plot.Tree ? Decor.Tree : decor === Decor.Rock ? Decor.None : decor;
         }
       }
     }
