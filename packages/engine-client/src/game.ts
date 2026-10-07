@@ -6,7 +6,6 @@ import {
   World,
   clampInput,
   createPlayer,
-  PLAYER_LOOKS,
   findInteraction,
   stepPlayer,
   useDoor,
@@ -27,9 +26,12 @@ import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
-import { PLAYER_HEAD_HEIGHT, PlayerView } from './render/player-view.ts';
+import { PlayerView, atlasPlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
+import { skinFromSeed } from '../art/skins.ts';
+import { skinSeed } from './skins/seed.ts';
+import { SkinStore } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
@@ -92,8 +94,11 @@ async function run(options: GameOptions): Promise<void> {
   const previous = { x: player.x, y: player.y };
   // The interpolated position of the player in this frame: speech over the player follows it.
   const shown = { x: player.x, y: player.y };
+  // Each visitor has a skin: a random seed that the browser keeps, so it stays the same across
+  // visits. ?skin=<n> shows another one. The others see the same skin in a shared world.
+  const skin = skinSeed(params);
   // A shared world goes through the multiplayer server; ?offline plays it alone.
-  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, player, world) : null;
+  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, player, world) : null;
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
 
@@ -118,24 +123,22 @@ async function run(options: GameOptions): Promise<void> {
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const buildings = new Buildings(world, art, entityLayer, textScene, font);
   const fixtures = new Fixtures(world, art, entityLayer);
-  let playerView = new PlayerView(art);
+  // The skins: rendered in a worker, kept in localStorage. The visitor's own goes first; until
+  // it is ready (a moment on the first visit), the player is a darker wanderer.
+  const skins = new SkinStore();
+  const ownSkin = skins.get(
+    skin,
+    (textures) => {
+      playerView.setTextures(textures);
+      playerView.setPending(false);
+    },
+    true,
+  );
+  const playerView = new PlayerView(art, ownSkin ?? atlasPlayerTextures(art), !ownSkin);
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
-  const others = net ? new OtherPlayers(art, entityLayer, ghostLayer) : null;
-  if (net) {
-    new PresenceLabel(net);
-    // The server gives each visitor a look; the local player wears it too, as the others see it.
-    let look = 0;
-    net.onChange(() => {
-      if (net.look === look) return;
-      look = net.look;
-      playerView.root.destroy({ children: true });
-      playerView.ghost.destroy();
-      playerView = new PlayerView(art, PLAYER_LOOKS[look] ?? PLAYER_LOOKS[0]);
-      entityLayer.addChild(playerView.root);
-      ghostLayer.addChild(playerView.ghost);
-    });
-  }
+  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer) : null;
+  if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
   if (lighting) scene.addChild(lighting.root);
@@ -198,7 +201,7 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     if (target.kind === 'door') {
       const result = net ? net.door(target.tx, target.ty, net.playersAt(now)) : useDoor(world, player, target.tx, target.ty);
-      if (result === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - PLAYER_HEAD_HEIGHT }), now);
+      if (result === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
       buildings.refreshDoor(target.tx, target.ty);
       return;
     }
@@ -222,7 +225,7 @@ async function run(options: GameOptions): Promise<void> {
     dialogKey = key;
     const fixture = target.fixture;
     const anchor =
-      content.speaker === 'fixture' && fixture ? () => Fixtures.headOf(fixture) : () => ({ x: shown.x, y: shown.y - PLAYER_HEAD_HEIGHT });
+      content.speaker === 'fixture' && fixture ? () => Fixtures.headOf(fixture) : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     speech.show(content.pages ?? [], anchor, now);
     if (content.link) linkCard.show(content.link);
     else linkCard.hide();
@@ -316,12 +319,13 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
+      `skin    ${skin} (${skinFromSeed(skin).vibe})`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       ...(net
-        ? [`others  ${net.playersAt(now).map((o) => `${PLAYER_LOOKS[o.look]} ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
+        ? [`others  ${net.playersAt(now).map((o) => `skin ${o.skin} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
         : []),
       `inside  ${inside?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,

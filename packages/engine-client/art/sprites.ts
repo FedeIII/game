@@ -7,7 +7,6 @@
  * these frames with the same names.
  */
 import { Image } from './png.ts';
-import { PLAYER_LOOKS } from '@game/engine';
 import { npcFrames, playerFrames, VIEWS, WALK_FRAMES } from './characters.ts';
 import { buildingFrames } from './buildings.ts';
 import { decorFrames } from './decor.ts';
@@ -49,12 +48,6 @@ export function buildArt(): Art {
     ...buildingFrames(),
     ...fixtureFrames(),
   ];
-  // Animations `walk/<look>/<view>`: the walk cycle of each look in each view.
-  const animations: Record<string, string[]> = {};
-  for (const look of PLAYER_LOOKS) {
-    for (const view of VIEWS) {
-      animations[`walk/${look}/${view.name}`] = Array.from({ length: WALK_FRAMES }, (_, i) => `player/${look}/${view.name}/walk/${i}`);
-    }
-  }
-  return { frames, animations };
+  const walk = (view: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `player/${view}/walk/${i}`);
+  return { frames, animations: Object.fromEntries(VIEWS.map((view) => [`walk/${view.name}`, walk(view.name)])) };
 }

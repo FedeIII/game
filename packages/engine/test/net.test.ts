@@ -3,7 +3,7 @@ import {
   INPUT_BATCH_TICKS,
   MAX_INPUTS_PER_MESSAGE,
   NO_INPUT,
-  PLAYER_LOOKS,
+  PROTOCOL_VERSION,
   Prediction,
   Remotes,
   Room,
@@ -42,6 +42,7 @@ class SimClient {
   readonly input: (tick: number) => MoveInput;
   /** Ticks per real tick: 2 is a client with a clock twice too fast. */
   readonly speed: number;
+  readonly skin = Math.floor(Math.random() * 0xffffffff);
 
   constructor(input: (tick: number) => MoveInput, speed = 1) {
     this.input = input;
@@ -85,7 +86,7 @@ class SimNetwork {
     this.clients.push(client);
     client.nextTickMs = this.nowMs;
     this.later(this.nowMs + this.latencyMs, () => {
-      const player = this.room.join(this.nowMs, at);
+      const player = this.room.join(this.nowMs, client.skin, at);
       if (!player) throw new Error('room full');
       const welcome = this.room.welcome(player);
       this.later(this.nowMs + this.latencyMs, () => client.receive(welcome, this.nowMs));
@@ -143,8 +144,11 @@ const north: (tick: number) => MoveInput = () => ({ x: 0, y: -1 });
 
 describe('the multiplayer protocol', () => {
   it('reads valid client messages and refuses everything else', () => {
-    expect(parseClientMessage('{"t":"hello","v":1,"world":"town"}')).toEqual({ t: 'hello', v: 1, world: 'town' });
-    expect(parseClientMessage('{"t":"hello","v":1,"world":"town","at":[3,4]}')).toEqual({ t: 'hello', v: 1, world: 'town', at: [3, 4] });
+    const v = PROTOCOL_VERSION;
+    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":4294967295}`)).toEqual({ t: 'hello', v, world: 'town', skin: 4294967295 });
+    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":5,"at":[3,4]}`)).toEqual({ t: 'hello', v, world: 'town', skin: 5, at: [3, 4] });
+    // An old client sends no skin: it gets through, so that the server can tell it to reload.
+    expect(parseClientMessage('{"t":"hello","v":1,"world":"town"}')).toEqual({ t: 'hello', v: 1, world: 'town', skin: 0 });
     expect(parseClientMessage('{"t":"in","s":1,"i":[[100,-100],[0,0]],"d":[[2,5,6,1]]}')).toEqual({
       t: 'in',
       s: 1,
@@ -164,7 +168,11 @@ describe('the multiplayer protocol', () => {
       '{"t":"in","s":1,"i":[[0.5,0]]}',
       `{"t":"in","s":1,"i":${JSON.stringify(Array(MAX_INPUTS_PER_MESSAGE + 1).fill([0, 0]))}}`,
       '{"t":"in","s":1,"i":[[0,0]],"d":[[1,5,6,2]]}',
-      '{"t":"hello","v":1,"world":"town","at":[1e9,0]}',
+      `{"t":"hello","v":${v},"world":"town","skin":1,"at":[1e9,0]}`,
+      `{"t":"hello","v":${v},"world":"town"}`,
+      `{"t":"hello","v":${v},"world":"town","skin":-1}`,
+      `{"t":"hello","v":${v},"world":"town","skin":4294967296}`,
+      `{"t":"hello","v":${v},"world":"town","skin":1.5}`,
       '{"t":"ping","c":"x"}',
       '{"t":"welcome"}',
     ]) {
@@ -230,7 +238,7 @@ describe('a multiplayer room', () => {
 
   it('ignores a repeated batch of inputs', () => {
     const room = new Room(new World(houseSource()));
-    const p = room.join(0)!;
+    const p = room.join(0, 1)!;
     const message: InputMessage = { t: 'in', s: 1, i: Array(INPUT_BATCH_TICKS).fill(toWireInput({ x: 1, y: 0 })) };
     room.input(p.id, message, 0);
     const x = p.state.x;
@@ -239,16 +247,15 @@ describe('a multiplayer room', () => {
     expect(p.seq).toBe(INPUT_BATCH_TICKS);
   });
 
-  it('gives each new player the least used look, the single-player look first', () => {
-    const room = new Room(new World(houseSource()), { maxPlayers: 3 });
-    const a = room.join(0)!;
-    const b = room.join(0)!;
-    expect([a.look, b.look]).toEqual([0, 1]);
-    room.leave(a.id);
-    expect(room.join(0)!.look).toBe(0);
-    expect(room.join(0)).not.toBeNull();
-    expect(room.join(0)).toBeNull();
-    expect(PLAYER_LOOKS[0]).toBe('wine');
+  it('shows each player in the skin that its client chose, and refuses players when full', () => {
+    const room = new Room(new World(houseSource()), { maxPlayers: 2 });
+    const a = room.join(0, 4_000_000_000)!;
+    const b = room.join(0, 7)!;
+    expect(room.join(0, 9)).toBeNull();
+    const seen = new Map<number, SnapshotMessage>();
+    room.broadcast(0, (id, m) => seen.set(id, m));
+    expect(seen.get(a.id)!.p.map((p) => [p[0], p[6]])).toEqual([[b.id, 7]]);
+    expect(seen.get(b.id)!.p.map((p) => [p[0], p[6]])).toEqual([[a.id, 4_000_000_000]]);
   });
 
   it('shares a door: one player opens it and the other sees it open', () => {
@@ -286,10 +293,10 @@ describe('a multiplayer room', () => {
   it('does not close a door on another player in the doorway', () => {
     const room = new Room(new World(houseSource()));
     room.world.setDoorOpen(5, 6, true);
-    const inside = room.join(0, [5, 6])!;
+    const inside = room.join(0, 1, [5, 6])!;
     // findSpawn put `inside` on the open doorway tile; `outside` stands just south of it.
     expect(Math.floor(inside.state.y / TILE_SIZE)).toBe(6);
-    const outside = room.join(0, [5, 7])!;
+    const outside = room.join(0, 2, [5, 7])!;
     outside.state.y = 7 * TILE_SIZE + 4;
     room.input(outside.id, { t: 'in', s: 1, i: [[0, 0]], d: [[1, 5, 6, 0]] }, 0);
     expect(room.world.isDoorOpen(5, 6)).toBe(true);
@@ -300,7 +307,7 @@ describe('a multiplayer room', () => {
 
   it('sends the doors only when they change', () => {
     const room = new Room(new World(houseSource()));
-    const p = room.join(0)!;
+    const p = room.join(0, 1)!;
     const doorsOf = () => {
       let found: SnapshotMessage | null = null;
       room.broadcast(0, (_, m) => (found = m));
@@ -324,7 +331,7 @@ describe('the other players on a client', () => {
     remotes.apply(snap(1100, 8), 5100);
     // At local 5175 the client draws server time 1075: halfway between the last two snapshots.
     const [r] = remotes.at(5175);
-    expect(r).toMatchObject({ id: 7, look: 2, x: 6, y: 50, facing: 'right' });
+    expect(r).toMatchObject({ id: 7, skin: 2, x: 6, y: 50, facing: 'right' });
     // Later than the last snapshot, it stays there and does not guess.
     expect(remotes.at(9000)[0]!.x).toBe(8);
     remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0], p: [] }, 5150);

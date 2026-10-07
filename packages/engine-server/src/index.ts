@@ -163,7 +163,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       const room = rooms.get(message.world);
       if (!room) return refuse('world');
       if ((perAddress.get(client.ip) ?? 0) > maxPerAddress) return refuse('busy');
-      const player = room.join(t, message.at);
+      const player = room.join(t, message.skin, message.at);
       if (!player) return refuse('full');
       client.room = room;
       client.world = message.world;

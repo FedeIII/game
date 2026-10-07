@@ -1,8 +1,9 @@
 import type { Container } from 'pixi.js';
-import { PLAYER_LOOKS, type RemotePlayer } from '@game/engine';
+import type { RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
+import type { SkinStore } from '../skins/skin-store.ts';
 import type { LightSource } from './lighting.ts';
-import { PlayerView } from './player-view.ts';
+import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './player-view.ts';
 
 /** Seconds for another player to fade in when it comes and out when it goes. */
 const FADE_SECONDS = 0.4;
@@ -11,7 +12,7 @@ const OTHER_TORCH = { radius: 96, colour: 0xff8a3c } as const;
 
 interface OtherView {
   readonly view: PlayerView;
-  readonly look: number;
+  readonly skin: number;
   x: number;
   y: number;
   alpha: number;
@@ -20,17 +21,22 @@ interface OtherView {
 }
 
 /**
- * Shows the other players of a multiplayer world, each in its look, in the depth-sorted entity
- * layer like the local player (and its faint copy above the props). It also gives their torches.
+ * Shows the other players of a multiplayer world, each in its own skin, in the depth-sorted
+ * entity layer like the local player (and its faint copy above the props). Until a skin is
+ * rendered, the player shows as a darker wanderer. It also gives their torches.
  */
 export class OtherPlayers {
   private readonly art: Art;
+  private readonly skins: SkinStore;
+  private readonly placeholder: PlayerTextures;
   private readonly layer: Container;
   private readonly ghostLayer: Container;
   private readonly views = new Map<number, OtherView>();
 
-  constructor(art: Art, entityLayer: Container, ghostLayer: Container) {
+  constructor(art: Art, skins: SkinStore, entityLayer: Container, ghostLayer: Container) {
     this.art = art;
+    this.skins = skins;
+    this.placeholder = atlasPlayerTextures(art);
     this.layer = entityLayer;
     this.ghostLayer = ghostLayer;
   }
@@ -47,17 +53,11 @@ export class OtherPlayers {
     for (const player of players) {
       present.add(player.id);
       let other = this.views.get(player.id);
-      if (other && other.look !== player.look) {
+      if (other && other.skin !== player.skin) {
         this.remove(player.id, other);
         other = undefined;
       }
-      if (!other) {
-        const view = new PlayerView(this.art, PLAYER_LOOKS[player.look] ?? PLAYER_LOOKS[0]);
-        this.layer.addChild(view.root);
-        this.ghostLayer.addChild(view.ghost);
-        other = { view, look: player.look, x: player.x, y: player.y, alpha: 0, here: true };
-        this.views.set(player.id, other);
-      }
+      if (!other) other = this.add(player);
       other.here = true;
       other.x = player.x;
       other.y = player.y;
@@ -81,6 +81,22 @@ export class OtherPlayers {
       out.push({ x: other.x, y: other.y - 14, radius: OTHER_TORCH.radius, colour: OTHER_TORCH.colour, flicker: true, seed: id * 13 });
     }
     return out;
+  }
+
+  private add(player: RemotePlayer): OtherView {
+    const textures = this.skins.get(player.skin, (ready) => {
+      const other = this.views.get(player.id);
+      if (other && other.skin === player.skin) {
+        other.view.setTextures(ready);
+        other.view.setPending(false);
+      }
+    });
+    const view = new PlayerView(this.art, textures ?? this.placeholder, !textures);
+    this.layer.addChild(view.root);
+    this.ghostLayer.addChild(view.ghost);
+    const other: OtherView = { view, skin: player.skin, x: player.x, y: player.y, alpha: 0, here: true };
+    this.views.set(player.id, other);
+    return other;
   }
 
   private remove(id: number, other: OtherView): void {

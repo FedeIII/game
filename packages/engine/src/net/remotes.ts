@@ -14,8 +14,8 @@ const HISTORY_MS = 1000;
 /** Another player, where the client draws it now. */
 export interface RemotePlayer {
   readonly id: number;
-  /** An index in PLAYER_LOOKS. */
-  readonly look: number;
+  /** The skin seed. */
+  readonly skin: number;
   readonly x: number;
   readonly y: number;
   readonly vx: number;
@@ -38,7 +38,7 @@ interface Sample {
  * past, so they move smoothly although snapshots come only 20 times a second.
  */
 export class Remotes {
-  private readonly players = new Map<number, { look: number; samples: Sample[] }>();
+  private readonly players = new Map<number, { skin: number; samples: Sample[] }>();
   /** Recent (local arrival time - server time) values. Their minimum is the least delayed one. */
   private offsets: { localMs: number; offset: number }[] = [];
 
@@ -57,14 +57,14 @@ export class Remotes {
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, look] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
-        player = { look, samples: [] };
+        player = { skin, samples: [] };
         this.players.set(id, player);
       }
-      player.look = look;
+      player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
       samples.push({ ms: snapshot.ms, x, y, vx, vy, facing });
@@ -80,7 +80,7 @@ export class Remotes {
     const offset = Math.min(...this.offsets.map((o) => o.offset));
     const t = localMs - offset - INTERPOLATION_DELAY_MS;
     const out: RemotePlayer[] = [];
-    for (const [id, { look, samples }] of this.players) {
+    for (const [id, { skin, samples }] of this.players) {
       const first = samples[0];
       if (!first) continue;
       let a = first;
@@ -98,7 +98,7 @@ export class Remotes {
       const near = k < 0.5 ? a : b;
       out.push({
         id,
-        look,
+        skin,
         x: a.x + (b.x - a.x) * k,
         y: a.y + (b.y - a.y) * k,
         vx: near.vx,

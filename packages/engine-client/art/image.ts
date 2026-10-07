@@ -1,0 +1,47 @@
+/**
+ * The RGBA image of the art pipeline. It is in its own module, without Node imports, so the
+ * browser can run the renderer too (player skins are made at run time, see skins.ts).
+ */
+/** An RGBA image in memory. The art scripts draw into it and then save it as a PNG. */
+export class Image {
+  readonly width: number;
+  readonly height: number;
+  readonly data: Uint8Array;
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.data = new Uint8Array(width * height * 4);
+  }
+
+  inside(x: number, y: number): boolean {
+    return x >= 0 && y >= 0 && x < this.width && y < this.height;
+  }
+
+  /** Writes one pixel. The colour is 0xRRGGBBAA. Pixels outside the image are ignored. */
+  set(x: number, y: number, rgba: number): void {
+    if (!this.inside(x, y)) return;
+    const i = (y * this.width + x) * 4;
+    this.data[i] = (rgba >>> 24) & 0xff;
+    this.data[i + 1] = (rgba >>> 16) & 0xff;
+    this.data[i + 2] = (rgba >>> 8) & 0xff;
+    this.data[i + 3] = rgba & 0xff;
+  }
+
+  /** Reads one pixel as 0xRRGGBBAA. Pixels outside the image are transparent. */
+  get(x: number, y: number): number {
+    if (!this.inside(x, y)) return 0;
+    const i = (y * this.width + x) * 4;
+    return ((this.data[i]! << 24) | (this.data[i + 1]! << 16) | (this.data[i + 2]! << 8) | this.data[i + 3]!) >>> 0;
+  }
+
+  /** Copies another image into this one. Transparent source pixels are skipped. */
+  draw(source: Image, dx: number, dy: number): void {
+    for (let y = 0; y < source.height; y++) {
+      for (let x = 0; x < source.width; x++) {
+        const rgba = source.get(x, y);
+        if ((rgba & 0xff) !== 0) this.set(dx + x, dy + y, rgba);
+      }
+    }
+  }
+}

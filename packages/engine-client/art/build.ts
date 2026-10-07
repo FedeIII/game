@@ -85,8 +85,8 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'atlas.png'), encodePng(atlas));
 writeFileSync(join(outDir, 'atlas.json'), JSON.stringify(json, null, 1) + '\n');
 // The page icon: the player, front view, at 2x.
-const iconFrame = art.frames.find((frame) => frame.name === 'player/wine/down/stand');
-if (!iconFrame) throw new Error('no player/wine/down/stand frame for the icon');
+const iconFrame = art.frames.find((frame) => frame.name === 'player/down/stand');
+if (!iconFrame) throw new Error('no player/down/stand frame for the icon');
 writeFileSync(join(outDir, 'icon.png'), encodePng(upscale(iconFrame.image, 2)));
 console.log(`art: ${art.frames.length} frames -> src/generated/atlas.png (${ATLAS_WIDTH}x${atlasHeight})`);
 

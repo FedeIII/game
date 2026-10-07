@@ -65,13 +65,16 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `game.ts`: `startGame()`: picks the world (`?world=`), makes the layers, renderers and GUI,
   runs the fixed-step loop, and the action flow (doors, pages, links). In a shared world it
   makes a `NetSession` and the tick goes through it.
+- `skins/`: the visitor's skin seed (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
+  Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
+  localStorage cache of rendered sheets).
 - `net/session.ts`: the connection to the multiplayer server (prediction while online, alone
   while not, reconnection). See `docs/multiplayer.md`.
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
   textures; trees and rocks as depth-sorted sprites), `buildings.ts` (walls, doors, roofs,
   signs; fades the roof, the sign and the front wall while the player is inside),
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures),
-  `player-view.ts` (8-frame walk in one of the player looks, and a faint copy above the props
+  `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
   their torches), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel font),
@@ -99,8 +102,19 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   `'pitch'` (default; depth foreshortened: round, small things such as the player, trees,
   rocks) and `'oblique'` (depth not foreshortened, so a model fills whole tiles of the ground
   grid: walls, doors, fixtures).
-- `characters.ts`: the player (a hooded figure about 28 px tall, 8-frame walk, four real views)
-  and the NPC looks (`NPC_LOOKS`: cloak colours, hood up or down, hair; frames `npc/<look>`).
+- `figure.ts`: **the** human figure, as parameters (`FigureSpec`: height, build, head;
+  headwear, hair, beard, cloak cut, body, pauldrons, scarf, pouch, tabard, horns, circlet, item)
+  and colours (`Palette`). Each part has a bounding sphere, so the figure renders fast.
+- `characters.ts`: the default player (the hooded wanderer, about 28 px tall, 8-frame walk, four
+  real views: frames `player/<view>/...`) and the NPC looks (`NPC_LOOKS`: cloak colours, hood up
+  or down, hair; frames `npc/<look>`), all from `figure.ts`.
+- `skins.ts`: random player skins. A 32-bit seed picks a vibe (wanderer, knight, monk, witch,
+  ranger, plague doctor, noble, gravedigger) and, inside it, proportions, garments, an item and
+  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk) frames of 32 x 48
+  (pivot 16, 42). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
+  `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
+  is in `image.ts`). **Bump `SKIN_VERSION` when a seed would give another picture**: browsers
+  cache rendered skins under it. Preview many skins before you change the vibes.
 - `props.ts`: spruces, a dead tree and a rock. `materials.ts`: the materials that buildings and
   fixtures share (`M.<name>`).
 - `buildings.ts`: building styles. Each wall style of `WALL_STYLES` (stone, timber, planks,
@@ -273,7 +287,8 @@ a game server; on the box use another port than production's 3008, for example
 `PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
 with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
 `?world=town`, `?debug` (read `#debug` for the world, tile, target, building, and `net` and
-`others` in a shared world), `?offline` (a shared world played alone), `?at=tx,ty`
+`others` in a shared world), `?offline` (a shared world played alone), `?skin=<n>` (another
+skin, not saved), `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
 SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[role=status]`, and the
 link from `#link-card a`. For touch, use a context with `hasTouch: true` and send

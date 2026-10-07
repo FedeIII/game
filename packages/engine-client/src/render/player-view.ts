@@ -1,13 +1,15 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
-import type { Facing, PlayerLook } from '@game/engine';
+import type { Facing } from '@game/engine';
 import type { Art } from '../assets.ts';
 
 /** World pixels of travel for each walk frame: 8 frames make one 32-pixel cycle of two steps. */
 const STRIDE = 4;
 
-/** From the centre of the feet to just above the hood, in world pixels: where speech goes. */
-export const PLAYER_HEAD_HEIGHT = 30;
+/** The wanderer of the atlas: from the centre of the feet to just above the hood, in world pixels. */
+const ATLAS_HEAD_HEIGHT = 30;
 
+/** A tint for a player whose skin is not ready yet: a darker wanderer, for a moment. */
+const PENDING_TINT = 0x6a6a6a;
 
 const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 
@@ -18,9 +20,29 @@ export interface PlayerPose {
   readonly facing: Facing;
 }
 
+/** The frames of one look of the player: a stand and a walk for each facing. */
+export interface PlayerTextures {
+  readonly stand: Readonly<Record<Facing, Texture>>;
+  readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
+  /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
+  readonly headHeight: number;
+}
+
+/** The hooded wanderer of the atlas: the look of a player whose own skin is not ready. */
+export function atlasPlayerTextures(art: Art): PlayerTextures {
+  const stand = {} as Record<Facing, Texture>;
+  const walk = {} as Record<Facing, Texture[]>;
+  for (const facing of FACINGS) {
+    stand[facing] = art.frame(`player/${facing}/stand`);
+    walk[facing] = art.animation(`walk/${facing}`);
+  }
+  return { stand, walk, headHeight: ATLAS_HEAD_HEIGHT };
+}
+
 /**
- * Shows one player, in one of the player looks (cloak colours). The walk animation advances
- * with the distance moved, not with time, so a slow joystick push gives a slow walk.
+ * Shows one player. The walk animation advances with the distance moved, not with time, so
+ * a slow joystick push gives a slow walk. The textures can change at any time (a skin that has
+ * just been rendered); the sprite keeps its place, because every frame is anchored at the feet.
  */
 export class PlayerView {
   /** The opacity of the copy of the player that shows through trees. */
@@ -33,19 +55,31 @@ export class PlayerView {
    */
   readonly ghost: Sprite;
   private readonly body: Sprite;
-  private readonly stand = {} as Record<Facing, Texture>;
-  private readonly walk = {} as Record<Facing, Texture[]>;
+  private textures: PlayerTextures;
   private travelled = 0;
 
-  constructor(art: Art, look: PlayerLook = 'wine') {
-    for (const facing of FACINGS) {
-      this.stand[facing] = art.frame(`player/${look}/${facing}/stand`);
-      this.walk[facing] = art.animation(`walk/${look}/${facing}`);
-    }
-    this.body = new Sprite(this.stand.down);
-    this.ghost = new Sprite(this.stand.down);
+  constructor(art: Art, textures: PlayerTextures, pending = false) {
+    this.textures = textures;
+    this.body = new Sprite(textures.stand.down);
+    this.ghost = new Sprite(textures.stand.down);
     this.ghost.alpha = PlayerView.GHOST_ALPHA;
     this.root.addChild(new Sprite(art.frame('player/shadow')), this.body);
+    this.setPending(pending);
+  }
+
+  get headHeight(): number {
+    return this.textures.headHeight;
+  }
+
+  /** Changes the look. The next update() shows it. */
+  setTextures(textures: PlayerTextures): void {
+    this.textures = textures;
+  }
+
+  /** Shows the player darker while its own skin is on the way. */
+  setPending(pending: boolean): void {
+    this.body.tint = pending ? PENDING_TINT : 0xffffff;
+    this.ghost.tint = this.body.tint;
   }
 
   /** Places the player at (x, y), the interpolated centre of its feet, and selects the frame. */
@@ -59,10 +93,10 @@ export class PlayerView {
     let texture: Texture;
     if (speed < 1) {
       this.travelled = 0;
-      texture = this.stand[state.facing];
+      texture = this.textures.stand[state.facing];
     } else {
       this.travelled += speed * seconds;
-      const frames = this.walk[state.facing];
+      const frames = this.textures.walk[state.facing];
       texture = frames[Math.floor(this.travelled / STRIDE) % frames.length]!;
     }
     this.body.texture = texture;

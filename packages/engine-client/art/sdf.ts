@@ -8,7 +8,7 @@
  * Coordinates are in world pixels: x to the right, y up, z towards the viewer. A model stands
  * on y = 0 and faces +z (towards the camera) before the yaw turns it.
  */
-import { Image } from './png.ts';
+import { Image } from './image.ts';
 import { bayer, shadowEllipse } from './raster.ts';
 
 export type Vec3 = readonly [number, number, number];
@@ -20,6 +20,12 @@ export type MaterialOf = number | ((x: number, y: number, z: number, nx: number,
 export interface Part {
   readonly sdf: Sdf;
   readonly material: MaterialOf;
+  /**
+   * A sphere [cx, cy, cz, r] that holds the whole part, as a speed-up: far from the sphere the
+   * renderer uses the distance to it, which is never more than the distance to the part, and
+   * does not call `sdf`. Without it, the renderer calls `sdf` at every step.
+   */
+  readonly bound?: readonly [number, number, number, number];
 }
 
 export interface Material {
@@ -247,6 +253,8 @@ export function displace(sdf: Sdf, amount: number, scale: number, seed: number):
 const FAR = 90;
 const MAX_STEPS = 220;
 const HIT = 0.01;
+/** Closer than this to a part's bound, the renderer uses the part's own distance. */
+const BOUND_MARGIN = 0.5;
 /** A neighbour that is this much nearer to the camera casts a dark contact line on a pixel. */
 const EDGE_DEPTH = 2;
 
@@ -274,9 +282,26 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
   const mdy = dirY;
 
   let nearest = 0;
+  const count = parts.length;
+  const bounds = parts.map((p) => p.bound ?? null);
   const scene = (x: number, y: number, z: number): number => {
     let best = Infinity;
-    for (let i = 0; i < parts.length; i++) {
+    for (let i = 0; i < count; i++) {
+      const b = bounds[i];
+      if (b) {
+        // Outside the bound by more than BOUND_MARGIN: the distance to the bound is a safe step,
+        // and it can never be a hit, so `nearest` is always a part that was really evaluated.
+        const bx = x - b[0];
+        const by = y - b[1];
+        const bz = z - b[2];
+        const outside = Math.sqrt(bx * bx + by * by + bz * bz) - b[3];
+        if (outside >= best) continue;
+        if (outside > BOUND_MARGIN) {
+          best = outside;
+          nearest = i;
+          continue;
+        }
+      }
       const d = parts[i]!.sdf(x, y, z);
       if (d < best) {
         best = d;
@@ -285,6 +310,20 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
     }
     return best;
   };
+
+  // When every part has a bound, rays are clipped to the box round all bounds: a ray that
+  // misses the box is empty, and the march starts where the ray enters it.
+  let box: [number, number, number, number, number, number] | null = null;
+  if (count > 0 && bounds.every((b) => b !== null)) {
+    box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (const b of bounds as (readonly [number, number, number, number])[]) {
+      for (let a = 0; a < 3; a++) {
+        box[a] = Math.min(box[a]!, b[a]! - b[3] - BOUND_MARGIN);
+        box[a + 3] = Math.max(box[a + 3]!, b[a]! + b[3] + BOUND_MARGIN);
+      }
+    }
+  }
+  const direction = [mdx, mdy, mdz];
 
   const size = width * height;
   const depth = new Float32Array(size).fill(Infinity);
@@ -305,8 +344,29 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
       const oz = wx * sinYaw + wz * cosYaw;
 
       let t = 0;
+      let end = maxT;
+      if (box) {
+        const origin = [ox, oy, oz];
+        let enter = 0;
+        let exit = maxT;
+        for (let a = 0; a < 3; a++) {
+          const o = origin[a]!;
+          const d = direction[a]!;
+          if (Math.abs(d) < 1e-9) {
+            if (o < box[a]! || o > box[a + 3]!) exit = -1;
+            continue;
+          }
+          const t1 = (box[a]! - o) / d;
+          const t2 = (box[a + 3]! - o) / d;
+          enter = Math.max(enter, Math.min(t1, t2));
+          exit = Math.min(exit, Math.max(t1, t2));
+        }
+        if (exit < enter) continue;
+        t = enter;
+        end = exit;
+      }
       let hit = false;
-      for (let step = 0; step < MAX_STEPS && t < maxT; step++) {
+      for (let step = 0; step < MAX_STEPS && t < end; step++) {
         const d = scene(ox + mdx * t, oy + mdy * t, oz + mdz * t);
         if (d < HIT) {
           hit = true;

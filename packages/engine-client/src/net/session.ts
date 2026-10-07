@@ -43,11 +43,10 @@ export function serverUrl(): string {
 export class NetSession {
   status: NetStatus = 'connecting';
   refusal: RefusalReason | null = null;
-  /** The look that the server gave the local player (an index in PLAYER_LOOKS). */
-  look = 0;
   /** The last round trip to the server, for the debug panel. */
   rttMs: number | null = null;
   private readonly worldId: string;
+  private readonly skin: number;
   private readonly player: PlayerState;
   private readonly world: World;
   private readonly url: string;
@@ -62,8 +61,9 @@ export class NetSession {
   /** The jump of the local player's position from reconciliations, not yet given to the view. */
   private jump = { x: 0, y: 0 };
 
-  constructor(worldId: string, player: PlayerState, world: World, url = serverUrl()) {
+  constructor(worldId: string, skin: number, player: PlayerState, world: World, url = serverUrl()) {
     this.worldId = worldId;
+    this.skin = skin;
     this.player = player;
     this.world = world;
     this.url = url;
@@ -71,7 +71,7 @@ export class NetSession {
     this.connect();
   }
 
-  /** Calls `listener` when the status, the look or the number of others changes. */
+  /** Calls `listener` when the status or the number of others changes. */
   onChange(listener: () => void): void {
     this.listeners.push(listener);
   }
@@ -134,7 +134,7 @@ export class NetSession {
     socket.onopen = () => {
       // Start where the player is now, so a reconnection does not move anyone.
       const at = [Math.floor(this.player.x / TILE_SIZE), Math.floor(this.player.y / TILE_SIZE)] as const;
-      this.send({ t: 'hello', v: PROTOCOL_VERSION, world: this.worldId, at });
+      this.send({ t: 'hello', v: PROTOCOL_VERSION, world: this.worldId, skin: this.skin, at });
     };
     socket.onmessage = (event) => {
       const message = typeof event.data === 'string' ? parseServerMessage(event.data) : null;
@@ -160,7 +160,6 @@ export class NetSession {
         const before = { x: this.player.x, y: this.player.y };
         this.prediction.reset(this.player, this.world, message);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
-        this.look = message.look;
         this.status = 'online';
         this.retryMs = RETRY_FIRST_MS;
         this.nextPingMs = now;

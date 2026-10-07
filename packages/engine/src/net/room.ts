@@ -3,7 +3,6 @@ import { canReachDoor, useDoor } from '../interact.ts';
 import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
 import type { World } from '../world.ts';
 import {
-  PLAYER_LOOKS,
   facingCode,
   fromWireInput,
   type InputMessage,
@@ -36,8 +35,8 @@ export interface RoomOptions {
 /** One player in a room, as the server sees it. */
 export interface RoomPlayer {
   readonly id: number;
-  /** An index in PLAYER_LOOKS. */
-  readonly look: number;
+  /** The skin seed that the player's client sent. */
+  readonly skin: number;
   /** The true state. Only the room changes it. */
   readonly state: PlayerState;
   /** The last input sequence number that the room has applied or skipped. */
@@ -80,10 +79,10 @@ export class Room {
   }
 
   /**
-   * Adds a player, or returns null if the room is full. The player starts near `at` (a tile)
-   * if that is close to the spawn, or else near the world's spawn.
+   * Adds a player with its skin seed, or returns null if the room is full. The player starts
+   * near `at` (a tile) if that is close to the spawn, or else near the world's spawn.
    */
-  join(nowMs: number, at?: readonly [number, number]): RoomPlayer | null {
+  join(nowMs: number, skin: number, at?: readonly [number, number]): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
     const spawn = this.world.spawn();
     const home = [Math.floor(spawn.x / TILE_SIZE), Math.floor(spawn.y / TILE_SIZE)] as const;
@@ -91,7 +90,7 @@ export class Room {
     const start = near ? this.world.findSpawn(at[0], at[1], 0) : this.spread(home[0], home[1]);
     const player: RoomPlayer = {
       id: this.nextId++,
-      look: this.freeLook(),
+      skin,
       state: createPlayer(start.x, start.y),
       seq: 0,
       tokens: INPUT_BURST,
@@ -109,7 +108,7 @@ export class Room {
   /** The first message for a new player. */
   welcome(player: RoomPlayer): WelcomeMessage {
     player.doorVersion = this.doorVersion;
-    return { t: 'welcome', id: player.id, look: player.look, x: player.state.x, y: player.state.y, doors: this.world.openDoorList() };
+    return { t: 'welcome', id: player.id, x: player.state.x, y: player.state.y, doors: this.world.openDoorList() };
   }
 
   /**
@@ -150,7 +149,7 @@ export class Room {
     const packed = new Map<number, WirePlayer>();
     for (const p of this.players.values()) {
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.look]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin]);
     }
     const doors = this.world.openDoorList();
     for (const p of this.players.values()) {
@@ -197,13 +196,6 @@ export class Room {
     const others: PlayerState[] = [];
     for (const p of this.players.values()) if (p !== player) others.push(p.state);
     if (useDoor(this.world, player.state, tx, ty, others) !== 'blocked') this.doorVersion++;
-  }
-
-  /** The least used look; the first of those, so a lone visitor has the single-player look. */
-  private freeLook(): number {
-    const used = new Array<number>(PLAYER_LOOKS.length).fill(0);
-    for (const p of this.players.values()) used[p.look] = (used[p.look] ?? 0) + 1;
-    return used.indexOf(Math.min(...used));
   }
 
   /** A start point near the spawn tile, a little apart from the others when there is a random source. */

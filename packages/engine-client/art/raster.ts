@@ -1,5 +1,5 @@
 /** Small 2D helpers for the art scripts. */
-import { Image } from './png.ts';
+import { Image } from './image.ts';
 
 export const TILE = 16;
 

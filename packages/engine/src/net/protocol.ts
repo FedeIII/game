@@ -8,7 +8,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -22,11 +22,15 @@ export const MAX_DOORS_PER_MESSAGE = 4;
 export const MAX_CLIENT_MESSAGE_BYTES = 2048;
 
 /**
- * The looks of the players: cloak colours of the hooded wanderer. The server gives each player
- * one, and every client draws that player in it. The first is the look of a single player.
+ * A player's skin is a seed, a whole number from 0 to SKIN_MAX. Each client makes the skin from
+ * the seed (the client's art decides what a seed looks like), so the protocol carries only the
+ * number. A browser keeps its own seed, so a visitor keeps the same skin across visits.
  */
-export const PLAYER_LOOKS = ['wine', 'moss', 'ash', 'indigo', 'rust', 'bone', 'plum', 'teal'] as const;
-export type PlayerLook = (typeof PLAYER_LOOKS)[number];
+export const SKIN_MAX = 0xffffffff;
+
+export function isSkin(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= SKIN_MAX;
+}
 
 const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 
@@ -57,11 +61,12 @@ export function fromWireInput(wire: WireInput): MoveInput {
 
 // ---------------------------------------------------------------- client to server
 
-/** The first message: which world, and (optionally) the tile to start on. */
+/** The first message: which world, the player's skin, and (optionally) the tile to start on. */
 export interface HelloMessage {
   readonly t: 'hello';
   readonly v: number;
   readonly world: string;
+  readonly skin: number;
   readonly at?: readonly [number, number];
 }
 
@@ -90,14 +95,13 @@ export type ClientMessage = HelloMessage | InputMessage | PingMessage;
 
 // ---------------------------------------------------------------- server to client
 
-/** A player as others see it: [id, x, y, vx, vy, facing code, look index]. Positions to 0.1 px. */
+/** A player as others see it: [id, x, y, vx, vy, facing code, skin]. Positions to 0.1 px. */
 export type WirePlayer = readonly [number, number, number, number, number, number, number];
 
 /** The reply to hello: who the player is, where it starts, and which doors are open. */
 export interface WelcomeMessage {
   readonly t: 'welcome';
   readonly id: number;
-  readonly look: number;
   readonly x: number;
   readonly y: number;
   readonly doors: readonly (readonly [number, number])[];
@@ -158,8 +162,11 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   switch (m.t) {
     case 'hello': {
       if (!isInt(m.v, 0, SEQ_LIMIT) || typeof m.world !== 'string' || m.world.length > 32) return null;
+      // A client of an older version sends no skin: let it through, so the server can tell it to reload.
+      const skin = isSkin(m.skin) ? m.skin : m.v !== PROTOCOL_VERSION && m.skin === undefined ? 0 : null;
+      if (skin === null) return null;
       if (m.at !== undefined && !isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return null;
-      return m.at === undefined ? { t: 'hello', v: m.v, world: m.world } : { t: 'hello', v: m.v, world: m.world, at: m.at };
+      return m.at === undefined ? { t: 'hello', v: m.v, world: m.world, skin } : { t: 'hello', v: m.v, world: m.world, skin, at: m.at };
     }
     case 'in': {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;

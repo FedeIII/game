@@ -31,11 +31,11 @@ a client of another version is refused, and its label tells the visitor to reloa
 
 | Direction | Message | Content |
 |---|---|---|
-| client to server | `hello` | protocol version, world id, optional start tile `at` (used if it is within 64 tiles of the spawn) |
+| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn) |
 | client to server | `in` | a batch of inputs (one per tick, each axis an integer from -100 to 100), the sequence number of the first, door wishes `[seq, tx, ty, open]` |
 | client to server | `ping` | the client's clock, for the round trip |
-| server to client | `welcome` | player id, look, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px), the doors when they changed |
+| server to client | `welcome` | player id, start position, open doors |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed |
 | server to client | `refused` | `version`, `world`, `full` or `busy` |
 | server to client | `pong` | the client's clock, back |
 
@@ -64,13 +64,18 @@ goes on the wire (quantized), so the server can repeat the step exactly.
   game never stops for the network. It reconnects with a backoff (1 s to 30 s; at once after
   code 1012, a server restart) and starts again on the player's current tile. `?offline` plays
   a shared world alone.
-- `render/others.ts` (`OtherPlayers`): the other players in their looks, with a fade in and out
+- `render/others.ts` (`OtherPlayers`): the other players in their skins, with a fade in and out
   and a smaller torch each.
 - `ui/presence.ts`: the label in the top-left corner ("2 other visitors here", or why the
   visitor is alone).
-- Looks: `PLAYER_LOOKS` (engine) names eight cloaks; the art makes `player/<look>/<view>/...`
-  for each. The server gives each new player the least used look, the single-player look
-  (`wine`) first. The local player wears its look too, as the others see it.
+- Skins (protocol 2, 2026-10-07): each browser makes a random 32-bit skin seed once and keeps it
+  in localStorage (`game.skin.v1`), so a visitor has the same skin on every visit; `?skin=<n>`
+  shows another one without saving it. The seed goes in `hello`, and the server sends each
+  player's seed to the others. Every client makes the same skin from a seed
+  (`art/skins.ts`), renders it in a Web Worker (`src/skins/skin-worker.ts`) and keeps the last
+  24 sheets in localStorage (`game.skins.v<SKIN_VERSION>.*`). Until a skin is ready, its player
+  shows as a darker wanderer from the atlas. The server never reads a seed; it only checks
+  that it is a whole number from 0 to 2^32 - 1. The Wilds use the visitor's skin too.
 - A correction from the server moves the interpolation with it; a correction of up to 2 tiles
   is shown gradually (it decays in about 0.1 s), a larger one is a jump.
 
@@ -105,7 +110,7 @@ pm2 logs game-server                  # one line per arrival and departure; no a
 
 - `packages/engine/test/net.test.ts`: a simulated network (latency in simulated milliseconds)
   with a Room and clients: exact prediction, interpolation, the input rate limit, repeats,
-  looks, a full room, and doors (shared, out of reach, never onto a player).
+  skins, a full room, and doors (shared, out of reach, never onto a player).
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.

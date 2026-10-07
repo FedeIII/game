@@ -57,7 +57,7 @@ class TestClient {
 async function joined(port: number, world = 'shared'): Promise<TestClient> {
   const client = new TestClient(port);
   await client.opened;
-  client.send({ t: 'hello', v: PROTOCOL_VERSION, world });
+  client.send({ t: 'hello', v: PROTOCOL_VERSION, world, skin: 42 });
   await client.until(() => client.last('welcome') ?? client.last('refused'));
   return client;
 }
@@ -77,6 +77,7 @@ describe('the multiplayer server', () => {
       return other && other[1] > welcomeA.x + 30 ? last : null;
     });
     expect(snap.p).toHaveLength(1);
+    expect(snap.p[0]![6]).toBe(42);
     const ownA = await a.until(() => (a.last('snap')?.a === 30 ? a.last('snap') : null));
     expect(ownA.you[0]).toBeCloseTo(welcomeA.x + 40, 5);
     expect(server!.players()).toEqual({ shared: 2 });
@@ -89,7 +90,7 @@ describe('the multiplayer server', () => {
     const { port } = await start();
     const old = new TestClient(port);
     await old.opened;
-    old.send({ t: 'hello', v: PROTOCOL_VERSION + 1, world: 'shared' });
+    old.send({ t: 'hello', v: PROTOCOL_VERSION + 1, world: 'shared', skin: 1 });
     expect((await old.until(() => old.last('refused'))).reason).toBe('version');
     const lost = await joined(port, 'solo');
     expect(lost.last('refused')!.reason).toBe('world');

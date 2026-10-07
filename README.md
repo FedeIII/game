@@ -7,7 +7,9 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
   walks in a radius of torch light; stone houses stand in the woods: open the door, step in,
   and the roof fades away to show the room.
 - **The Town of Azyr** (`?world=town`), **shared**: every visitor sees the others walk about,
-  each in a cloak of its own colour with a torch. A small cobbled plaza and a lane with eight little
+  each with a torch and a skin of its own: a random wanderer, knight, monk, witch, ranger,
+  plague doctor, noble or gravedigger, of any size and colour, that the browser keeps across
+  visits. A small cobbled plaza and a lane with eight little
   houses, one for each project of the azyr.io landing page, each in its own style (a timber
   counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
   In each house a keeper introduces the project, the exhibits show its details, and a portal
