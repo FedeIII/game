@@ -9,6 +9,7 @@ const GROUND_NAME: Record<Ground, string> = {
   [Ground.Dirt]: 'dirt',
   [Ground.Grass]: 'grass',
   [Ground.DarkGrass]: 'darkgrass',
+  [Ground.Floor]: 'floor',
 };
 
 /** A ground type with a higher order draws its edge over a neighbour with a lower order. */
@@ -18,6 +19,7 @@ const BLEND_ORDER: Record<Ground, number> = {
   [Ground.Dirt]: 2,
   [Ground.Grass]: 3,
   [Ground.DarkGrass]: 4,
+  [Ground.Floor]: 5,
 };
 
 /**
@@ -68,6 +70,8 @@ export class Terrain {
   /** The container and sprite pool that chunk drawing reuses. */
   private readonly scratch = new Container();
   private readonly pool: Sprite[] = [];
+  /** Ground types that have edge pieces. A built floor has none: walls hide its border. */
+  private readonly hasEdges = new Set<Ground>();
   private readonly textures: {
     readonly ground: Record<Ground, Texture[]>;
     readonly tufts: Texture[];
@@ -85,7 +89,10 @@ export class Terrain {
     this.groundLayer = groundLayer;
     this.entityLayer = entityLayer;
     const ground = {} as Record<Ground, Texture[]>;
-    for (const g of Object.values(Ground)) ground[g] = art.variants(`ground/${GROUND_NAME[g]}`);
+    for (const g of Object.values(Ground)) {
+      ground[g] = art.variants(`ground/${GROUND_NAME[g]}`);
+      if (art.tryFrame(`edge/${GROUND_NAME[g]}/n`)) this.hasEdges.add(g);
+    }
     this.textures = {
       ground,
       tufts: art.variants('decor/tuft'),
@@ -218,7 +225,7 @@ export class Terrain {
     const side = SIDES.map((s) => world.ground(tx + s.dx, ty + s.dy));
     const corner = CORNERS.map((c) => world.ground(tx + c.dx, ty + c.dy));
     const higher = new Set<Ground>();
-    for (const g of [...side, ...corner]) if (BLEND_ORDER[g] > own) higher.add(g);
+    for (const g of [...side, ...corner]) if (BLEND_ORDER[g] > own && this.hasEdges.has(g)) higher.add(g);
     if (higher.size === 0) return;
 
     for (const g of [...higher].sort((a, b) => BLEND_ORDER[a] - BLEND_ORDER[b])) {

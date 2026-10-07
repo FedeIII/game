@@ -9,6 +9,7 @@ import {
   createPlayer,
   findInteraction,
   stepPlayer,
+  useDoor,
   type InteractionTarget,
 } from '@game/shared';
 import { loadArt } from './assets.ts';
@@ -17,6 +18,7 @@ import { Hud, showFatal } from './ui/hud.ts';
 import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
 import { FixedStep } from './loop.ts';
+import { Buildings } from './render/buildings.ts';
 import { Camera } from './render/camera.ts';
 import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Lighting } from './render/lighting.ts';
@@ -71,6 +73,7 @@ async function start(): Promise<void> {
   app.stage.addChild(worldLayer, textLayer);
 
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
+  const buildings = new Buildings(world, art, entityLayer);
   const playerView = new PlayerView(art);
   entityLayer.addChild(playerView.root);
   scene.addChild(playerView.ghost);
@@ -107,12 +110,23 @@ async function start(): Promise<void> {
   hud.showHint(STRINGS.hintKeyboard);
   joystick.onTouchMode(() => hud.showHint(STRINGS.hintTouch));
 
-  // Actions: the action button (or E) examines the thing that the player is very close to.
+  // Actions: the action button (or E) acts on the thing that the player is very close to: it
+  // opens or closes a door, and examines anything else.
   const action = new ActionButton();
   let target: InteractionTarget | null = null;
   action.onPress(() => {
-    if (target) speech.say(STRINGS.examine[target.kind], performance.now());
+    if (!target) return;
+    if (target.kind === 'door') {
+      if (useDoor(world, player, target.tx, target.ty) === 'blocked') speech.say(STRINGS.doorBlocked, performance.now());
+      buildings.refreshDoor(target.tx, target.ty);
+      return;
+    }
+    speech.say(STRINGS.examine[target.kind], performance.now());
   });
+  const actionLabel = (t: InteractionTarget): string => {
+    if (t.kind === 'door') return world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
+    return STRINGS.actionLabelFor(t.kind);
+  };
 
   const camera = new Camera();
   const resize = (): void => {
@@ -132,6 +146,7 @@ async function start(): Promise<void> {
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
   camera.follow(scene, player.x, player.y);
   terrain.update(camera.view(), Infinity);
+  buildings.update(camera.view(), null, 0);
 
   let hintShown = true;
   app.ticker.add((ticker) => {
@@ -145,7 +160,9 @@ async function start(): Promise<void> {
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
     target = findInteraction(world, player);
-    action.setTarget(target ? STRINGS.actionLabelFor(target.kind) : null);
+    action.setTarget(target ? actionLabel(target) : null);
+    const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
+    buildings.update(camera.view(), inside, seconds);
     speech.update(performance.now(), x, y - PLAYER_HEAD_HEIGHT);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
@@ -161,6 +178,7 @@ async function start(): Promise<void> {
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
+      `inside  ${world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE))?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

@@ -6,7 +6,9 @@ browser. Live at https://game.azyr.io.
 The POC is a dark, top-down world in the mood of Diablo and Castlevania: a hooded figure walks
 with WASD or the arrow keys, or with a touch joystick on a phone, inside a radius of torch
 light. The world is procedural and endless: grass, mud paths, lakes, spruces, dead trees, rocks.
-Very close to a tree or a rock, the action button (or E) examines it.
+Stone houses stand in the woods: open the door, step in, and the roof fades away to show the
+room. Very close to a tree, a rock or a piece of furniture, the action button (or E) examines
+it; at a door it opens or closes the door.
 
 ```bash
 npm install

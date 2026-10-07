@@ -45,10 +45,21 @@ export interface View {
   readonly shadow?: { readonly radiusX: number; readonly radiusY: number; readonly alpha: number };
   /** Less than 1 for parts with noise displacement, which break the distance bound. */
   readonly stepScale?: number;
+  /**
+   * 'pitch' (default): an orthographic camera tilted down by CAMERA_PITCH. Depth is
+   * foreshortened, which suits round, small things: the player, trees, rocks.
+   * 'oblique': depth is not foreshortened (1 pixel of depth = 1 pixel up), heights are scaled as
+   * in 'pitch'. This matches the ground tiles, so it suits things that span whole tiles: walls,
+   * doors, furniture.
+   */
+  readonly projection?: 'pitch' | 'oblique';
 }
 
 /** The camera looks down at this angle (radians) from the horizontal. */
 export const CAMERA_PITCH = 0.42;
+
+/** Screen pixels for each unit of height, in both projections. */
+export const HEIGHT_SCALE = Math.cos(CAMERA_PITCH);
 
 // One light for all art, fixed in the world: from the top left and a little from the front.
 const LIGHT = normalize(-0.45, 0.75, 0.5);
@@ -143,6 +154,51 @@ export function cappedCone(base: Vec3, height: number, bottom: number, top: numb
   };
 }
 
+/** A box between two corners, with edges rounded by `radius` (exact distance). */
+export function box(min: Vec3, max: Vec3, radius = 0): Sdf {
+  const cx = (min[0] + max[0]) / 2;
+  const cy = (min[1] + max[1]) / 2;
+  const cz = (min[2] + max[2]) / 2;
+  const hx = (max[0] - min[0]) / 2 - radius;
+  const hy = (max[1] - min[1]) / 2 - radius;
+  const hz = (max[2] - min[2]) / 2 - radius;
+  return (x, y, z) => {
+    const qx = Math.abs(x - cx) - hx;
+    const qy = Math.abs(y - cy) - hy;
+    const qz = Math.abs(z - cz) - hz;
+    const ox = Math.max(qx, 0);
+    const oy = Math.max(qy, 0);
+    const oz = Math.max(qz, 0);
+    return Math.sqrt(ox * ox + oy * oy + oz * oz) + Math.min(Math.max(qx, qy, qz), 0) - radius;
+  };
+}
+
+/** A cylinder along an axis ('x', 'y' or 'z'), centred on `c`, with flat ends (exact distance). */
+export function cylinder(c: Vec3, axis: 'x' | 'y' | 'z', radius: number, length: number): Sdf {
+  const [cx, cy, cz] = c;
+  const half = length / 2;
+  return (x, y, z) => {
+    const dx = x - cx;
+    const dy = y - cy;
+    const dz = z - cz;
+    const along = axis === 'x' ? dx : axis === 'y' ? dy : dz;
+    const across = axis === 'x' ? Math.sqrt(dy * dy + dz * dz) : axis === 'y' ? Math.sqrt(dx * dx + dz * dz) : Math.sqrt(dx * dx + dy * dy);
+    const a = across - radius;
+    const b = Math.abs(along) - half;
+    const oa = Math.max(a, 0);
+    const ob = Math.max(b, 0);
+    return Math.sqrt(oa * oa + ob * ob) + Math.min(Math.max(a, b), 0);
+  };
+}
+
+export function union(...sdfs: Sdf[]): Sdf {
+  return (x, y, z) => {
+    let d = Infinity;
+    for (const sdf of sdfs) d = Math.min(d, sdf(x, y, z));
+    return d;
+  };
+}
+
 export function intersect(...sdfs: Sdf[]): Sdf {
   return (x, y, z) => {
     let d = -Infinity;
@@ -189,7 +245,7 @@ export function displace(sdf: Sdf, amount: number, scale: number, seed: number):
 // ---------------------------------------------------------------- renderer
 
 const FAR = 90;
-const MAX_STEPS = 160;
+const MAX_STEPS = 220;
 const HIT = 0.01;
 /** A neighbour that is this much nearer to the camera casts a dark contact line on a pixel. */
 const EDGE_DEPTH = 2;
@@ -200,11 +256,17 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
   const cosYaw = Math.cos(view.yaw);
   const sinYaw = Math.sin(view.yaw);
 
-  // The camera, in world space.
-  const dirY = -Math.sin(CAMERA_PITCH);
-  const dirZ = -Math.cos(CAMERA_PITCH);
-  const upY = Math.cos(CAMERA_PITCH);
-  const upZ = -Math.sin(CAMERA_PITCH);
+  // The camera, in world space. A pixel maps to "screen up" u = y * upY + z * upZ. For 'pitch'
+  // the rays are perpendicular to the screen; for 'oblique' they keep u constant with depth
+  // not foreshortened (upZ = -1), so they slant.
+  const oblique = view.projection === 'oblique';
+  const upY = oblique ? HEIGHT_SCALE : Math.cos(CAMERA_PITCH);
+  const upZ = oblique ? -1 : -Math.sin(CAMERA_PITCH);
+  const rayLength = oblique ? Math.sqrt(1 + HEIGHT_SCALE * HEIGHT_SCALE) : 1;
+  const dirY = oblique ? -1 / rayLength : -Math.sin(CAMERA_PITCH);
+  const dirZ = oblique ? -HEIGHT_SCALE / rayLength : -Math.cos(CAMERA_PITCH);
+  // Slanted rays travel further to cross the same depth.
+  const maxT = oblique ? 4 * FAR : 2 * FAR;
   // The model turns by the yaw; the ray turns the other way instead. World to model:
   // mx = wx cos - wz sin, mz = wx sin + wz cos.
   const mdx = -dirZ * sinYaw;
@@ -234,15 +296,17 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
       const sx = px + 0.5 - pivotX;
       const sy = pivotY - (py + 0.5);
       const wx = sx;
-      const wy = sy * upY - dirY * FAR;
-      const wz = sy * upZ - dirZ * FAR;
+      // A start point on the ray, FAR behind the model: for 'pitch' move back along the ray
+      // from the screen plane; for 'oblique' pick z = FAR and solve u for y.
+      const wy = oblique ? (sy + FAR) / HEIGHT_SCALE : sy * upY - dirY * FAR;
+      const wz = oblique ? FAR : sy * upZ - dirZ * FAR;
       const ox = wx * cosYaw - wz * sinYaw;
       const oy = wy;
       const oz = wx * sinYaw + wz * cosYaw;
 
       let t = 0;
       let hit = false;
-      for (let step = 0; step < MAX_STEPS && t < 2 * FAR; step++) {
+      for (let step = 0; step < MAX_STEPS && t < maxT; step++) {
         const d = scene(ox + mdx * t, oy + mdy * t, oz + mdz * t);
         if (d < HIT) {
           hit = true;

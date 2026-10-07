@@ -8,6 +8,7 @@ import {
   World,
   createPlayer,
   findInteraction,
+  Structure,
   solidBox,
   type TileMap,
 } from '../src/index.ts';
@@ -16,7 +17,13 @@ import {
 function mapWith(decor: Record<string, Decor>, water: string[] = []): TileMap {
   const ground = (tx: number, ty: number) => (water.includes(`${tx},${ty}`) ? Ground.Water : Ground.Grass);
   const decorAt = (tx: number, ty: number) => decor[`${tx},${ty}`] ?? Decor.None;
-  return { ground, decor: decorAt, solidBox: (tx, ty) => solidBox(ground(tx, ty), decorAt(tx, ty)) };
+  return {
+    ground,
+    decor: decorAt,
+    structure: () => Structure.None,
+    isDoorOpen: () => false,
+    solidBox: (tx, ty) => solidBox(ground(tx, ty), decorAt(tx, ty)),
+  };
 }
 
 // The tree box is [5, 10, 11, 16] in its tile: its bottom edge is at y = 16 in tile (0, 0).

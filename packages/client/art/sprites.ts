@@ -8,6 +8,7 @@
  */
 import { Image } from './png.ts';
 import { playerFrames, VIEWS, WALK_FRAMES } from './characters.ts';
+import { buildingFrames } from './buildings.ts';
 import { decorFrames } from './decor.ts';
 import { fontFrames } from './font.ts';
 import { groundFrames } from './ground.ts';
@@ -42,6 +43,7 @@ export function buildArt(): Art {
     playerShadow(),
     ...lightFrames(),
     ...fontFrames(),
+    ...buildingFrames(),
   ];
   const walk = (view: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `player/${view}/walk/${i}`);
   return { frames, animations: Object.fromEntries(VIEWS.map((view) => [`walk/${view.name}`, walk(view.name)])) };
