@@ -21,8 +21,8 @@ No nginx reload is necessary for a deploy.
 
 ## One-time setup (2026-10-07)
 
-Steps 2 and 3 are done on the box. Step 1 needs the Cloudflare dashboard: the token on the
-box (`/root/.cf-token`) has access to the `vest101.com` zone only.
+All three steps are done. Step 1 was done in the Cloudflare dashboard, because the token on
+the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
 
 1. DNS (Cloudflare, zone azyr.io): record `game`, type A, `46.224.16.48`, **Proxied**.
 2. nginx site, no `.conf` extension (the convention on this box):
