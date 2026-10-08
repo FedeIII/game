@@ -65,7 +65,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `game.ts`: `startGame()`: picks the world (`?world=`), makes the layers, renderers and GUI,
   runs the fixed-step loop, and the action flow (doors, pages, links). In a shared world it
   makes a `NetSession` and the tick goes through it.
-- `skins/`: the visitor's skin seed (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
+- `skins/`: the visitor's skin seed and name (`seed.ts`, localStorage `game.skin.v1` and
+  `game.name.v1`, `?skin=`; `newSkinSeed()` for "New look"), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
   localStorage cache of rendered sheets).
 - `net/session.ts`: the connection to the multiplayer server (prediction while online, alone
@@ -76,8 +77,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
-  their torches), `lighting.ts` (the light map: darkness with a hole for each light),
-  `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel font),
+  their torches and their names in the small font), `lighting.ts` (the light map: darkness with a hole for each light),
+  `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
+  PixelFont(art)` or `new PixelFont(art, 'small')`),
   `speech-bubble.ts` (pages of text over a head, above the darkness).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
   form field are ignored) and `joystick.ts` (floating touch stick).
@@ -85,7 +87,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
-  `game.crt.v1`; `?crt=` / `?nocrt` win over it), `panels.ts` (one top-right panel at a time),
+  `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
+  `you-section.ts` (the "You" section of the settings: the player's look, "New look", the name), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in
@@ -136,7 +139,10 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
   tints; frames `font/<char code>`; metrics in `meta.font`), with Spanish lowercase accents,
-  ñ, ¿, ¡, ·, dashes. Accented capitals and curly quotes draw as plain ones. Also the bubble
+  ñ, ¿, ¡, ·, dashes. Accented capitals and curly quotes draw as plain ones. The small font
+  (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _`; frames `smallfont/<char code>`;
+  metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
+  one; it is for the names over other players. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`) and the sign board
   (`ui/sign`).
 

@@ -130,6 +130,73 @@ export const GLYPHS: Record<string, string> = {
 
 const FALLBACK = '#### #..# #..# #..# #..# #..# ####';
 
+// ---------------------------------------------------------------- small font
+
+/**
+ * The small font for name tags over players: capitals and digits 5 rows tall (the world font's
+ * are 7), 3 columns wide except M, N and W. It has no lowercase: the client shows a name in
+ * these small capitals. Frames `smallfont/<char code>`; build.ts writes the metrics into the
+ * atlas JSON (meta.smallFont).
+ */
+export const SMALL_FONT = {
+  height: 5,
+  lineHeight: 7,
+  spacing: 1,
+  fallback: 'smallfont/fallback',
+} as const;
+
+export const SMALL_GLYPHS: Record<string, string> = {
+  ' ': '.. .. .. .. ..',
+  "'": '# # . . .',
+  '-': '... ... ### ... ...',
+  '.': '. . . . #',
+  _: '... ... ... ... ###',
+  A: '.#. #.# ### #.# #.#',
+  B: '##. #.# ##. #.# ##.',
+  C: '.## #.. #.. #.. .##',
+  D: '##. #.# #.# #.# ##.',
+  E: '### #.. ##. #.. ###',
+  F: '### #.. ##. #.. #..',
+  G: '.## #.. #.# #.# .##',
+  H: '#.# #.# ### #.# #.#',
+  I: '### .#. .#. .#. ###',
+  J: '..# ..# ..# #.# .#.',
+  K: '#.# #.# ##. #.# #.#',
+  L: '#.. #.. #.. #.. ###',
+  M: '#...# ##.## #.#.# #...# #...#',
+  N: '#..# ##.# #.## #..# #..#',
+  O: '.#. #.# #.# #.# .#.',
+  P: '##. #.# ##. #.. #..',
+  Q: '.#. #.# #.# ##. .##',
+  R: '##. #.# ##. #.# #.#',
+  S: '.## #.. .#. ..# ##.',
+  T: '### .#. .#. .#. .#.',
+  U: '#.# #.# #.# #.# ###',
+  V: '#.# #.# #.# #.# .#.',
+  W: '#...# #...# #.#.# ##.## #...#',
+  X: '#.# #.# .#. #.# #.#',
+  Y: '#.# #.# .#. .#. .#.',
+  Z: '### ..# .#. #.. ###',
+  '0': '### #.# #.# #.# ###',
+  '1': '.#. ##. .#. .#. ###',
+  '2': '##. ..# .#. #.. ###',
+  '3': '##. ..# .#. ..# ##.',
+  '4': '#.# #.# ### ..# ..#',
+  '5': '### #.. ##. ..# ##.',
+  '6': '.## #.. ### #.# ###',
+  '7': '### ..# .#. .#. .#.',
+  '8': '### #.# ### #.# ###',
+  '9': '### #.# ### ..# ##.',
+};
+
+const SMALL_FALLBACK = '### #.# #.# #.# ###';
+
+function smallGlyph(spec: string, name: string): Image {
+  const rows = spec.split(' ');
+  if (rows.length !== SMALL_FONT.height) throw new Error(`small glyph ${name} has ${rows.length} rows, not ${SMALL_FONT.height}`);
+  return grid(rows, { '#': 0xffffffff });
+}
+
 function glyph(spec: string, name: string): Image {
   const rows = spec.split(' ');
   if (rows.length > FONT.height) throw new Error(`glyph ${name} has ${rows.length} rows, more than ${FONT.height}`);
@@ -156,6 +223,8 @@ const SIGN_COLOURS = { '#': rgb('#140d09'), l: rgb('#5a3f2a'), w: rgb('#3d2a1c')
 export function fontFrames(): Frame[] {
   const frames: Frame[] = Object.entries(GLYPHS).map(([ch, spec]) => ({ name: `font/${ch.charCodeAt(0)}`, image: glyph(spec, ch) }));
   frames.push({ name: FONT.fallback, image: glyph(FALLBACK, 'fallback') });
+  for (const [ch, spec] of Object.entries(SMALL_GLYPHS)) frames.push({ name: `smallfont/${ch.charCodeAt(0)}`, image: smallGlyph(spec, ch) });
+  frames.push({ name: SMALL_FONT.fallback, image: smallGlyph(SMALL_FALLBACK, 'fallback') });
   frames.push({ name: 'ui/bubble', image: grid(BUBBLE_FRAME, BUBBLE) });
   frames.push({ name: 'ui/bubble-tail', image: grid(BUBBLE_TAIL, BUBBLE), anchor: { x: 0.5, y: 0 } });
   frames.push({ name: 'ui/more', image: grid(MORE, { '#': 0xd8ccb0ff }) });

@@ -1,18 +1,28 @@
-import type { Container } from 'pixi.js';
+import { Container } from 'pixi.js';
 import type { RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
+import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
+import type { PixelFont } from './pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './player-view.ts';
 
 /** Seconds for another player to fade in when it comes and out when it goes. */
 const FADE_SECONDS = 0.4;
+/** The name tag: the parchment ink on a 1-pixel shadow, this far above the head. */
+const NAME_INK = 0xd8ccb0;
+const NAME_SHADOW = 0x07050a;
+const NAME_GAP = 3;
 /** Other players carry a torch too, a smaller one than the local player's (radius 150). */
 const OTHER_TORCH = { radius: 96, colour: 0xff8a3c } as const;
 
 interface OtherView {
   readonly view: PlayerView;
-  readonly skin: number;
+  skin: number;
+  /** The name over its head, and its tag in the text layer (null for no name). */
+  name: string;
+  tag: Container | null;
+  tagWidth: number;
   x: number;
   y: number;
   alpha: number;
@@ -23,7 +33,9 @@ interface OtherView {
 /**
  * Shows the other players of a multiplayer world, each in its own skin, in the depth-sorted
  * entity layer like the local player (and its faint copy above the props). Until a skin is
- * rendered, the player shows as a darker wanderer. It also gives their torches.
+ * rendered, the player shows as a darker wanderer; a new skin replaces the old one when it is
+ * ready. A player with a name has a tag over its head, in the small font, in the text layer
+ * (above the darkness). It also gives their torches.
  */
 export class OtherPlayers {
   private readonly art: Art;
@@ -31,14 +43,23 @@ export class OtherPlayers {
   private readonly placeholder: PlayerTextures;
   private readonly layer: Container;
   private readonly ghostLayer: Container;
+  private readonly textLayer: Container;
+  private readonly font: PixelFont;
   private readonly views = new Map<number, OtherView>();
 
-  constructor(art: Art, skins: SkinStore, entityLayer: Container, ghostLayer: Container) {
+  constructor(art: Art, skins: SkinStore, entityLayer: Container, ghostLayer: Container, textLayer: Container, smallFont: PixelFont) {
     this.art = art;
     this.skins = skins;
     this.placeholder = atlasPlayerTextures(art);
     this.layer = entityLayer;
     this.ghostLayer = ghostLayer;
+    this.textLayer = textLayer;
+    this.font = smallFont;
+  }
+
+  /** The skins that the other players wear now: the skin store keeps them. */
+  get skinsWorn(): number[] {
+    return [...this.views.values()].map((v) => v.skin);
   }
 
   /** The number of other players that are shown. */
@@ -48,20 +69,24 @@ export class OtherPlayers {
     return n;
   }
 
-  update(players: readonly RemotePlayer[], seconds: number): void {
+  update(players: readonly RemotePlayer[], seconds: number, view: Rect): void {
     const present = new Set<number>();
     for (const player of players) {
       present.add(player.id);
       let other = this.views.get(player.id);
-      if (other && other.skin !== player.skin) {
-        this.remove(player.id, other);
-        other = undefined;
-      }
+      if (other && other.skin !== player.skin) this.reskin(player.id, other, player.skin);
       if (!other) other = this.add(player);
+      if (other.name !== player.name) this.rename(other, player.name);
       other.here = true;
       other.x = player.x;
       other.y = player.y;
       other.view.update(player.x, player.y, player, seconds);
+      if (other.tag) {
+        // Over the head, on whole world pixels; inside the screen, like a speech bubble.
+        const top = Math.round(player.y - other.view.headHeight - NAME_GAP - this.font.height);
+        const left = Math.round(Math.max(view.x + 1, Math.min(view.x + view.width - other.tagWidth - 1, player.x - other.tagWidth / 2)));
+        other.tag.position.set(left, Math.max(Math.round(view.y + 1), top));
+      }
     }
     const step = seconds / FADE_SECONDS;
     for (const [id, other] of this.views) {
@@ -69,6 +94,7 @@ export class OtherPlayers {
       other.alpha = Math.max(0, Math.min(1, other.alpha + (other.here ? step : -step)));
       other.view.root.alpha = other.alpha;
       other.view.ghost.alpha = other.alpha * PlayerView.GHOST_ALPHA;
+      if (other.tag) other.tag.alpha = other.alpha;
       if (!other.here && other.alpha === 0) this.remove(id, other);
     }
   }
@@ -84,24 +110,49 @@ export class OtherPlayers {
   }
 
   private add(player: RemotePlayer): OtherView {
-    const textures = this.skins.get(player.skin, (ready) => {
-      const other = this.views.get(player.id);
-      if (other && other.skin === player.skin) {
-        other.view.setTextures(ready);
+    const view = new PlayerView(this.art, this.placeholder, true);
+    this.layer.addChild(view.root);
+    this.ghostLayer.addChild(view.ghost);
+    const other: OtherView = { view, skin: -1, name: '', tag: null, tagWidth: 0, x: player.x, y: player.y, alpha: 0, here: true };
+    this.views.set(player.id, other);
+    this.reskin(player.id, other, player.skin);
+    return other;
+  }
+
+  /** Wears skin `skin`: at once if it is ready, else when it is (the old look stays until then). */
+  private reskin(id: number, other: OtherView, skin: number): void {
+    other.skin = skin;
+    const ready = this.skins.get(skin, (textures) => {
+      if (this.views.get(id) === other && other.skin === skin) {
+        other.view.setTextures(textures);
         other.view.setPending(false);
       }
     });
-    const view = new PlayerView(this.art, textures ?? this.placeholder, !textures);
-    this.layer.addChild(view.root);
-    this.ghostLayer.addChild(view.ghost);
-    const other: OtherView = { view, skin: player.skin, x: player.x, y: player.y, alpha: 0, here: true };
-    this.views.set(player.id, other);
-    return other;
+    if (ready) {
+      other.view.setTextures(ready);
+      other.view.setPending(false);
+    }
+  }
+
+  private rename(other: OtherView, name: string): void {
+    other.tag?.destroy({ children: true });
+    other.name = name;
+    other.tag = null;
+    if (!name) return;
+    const tag = new Container();
+    const shadow = this.font.layout([name], NAME_SHADOW);
+    shadow.position.set(1, 1);
+    tag.addChild(shadow, this.font.layout([name], NAME_INK));
+    tag.alpha = other.alpha;
+    this.textLayer.addChild(tag);
+    other.tag = tag;
+    other.tagWidth = this.font.measure(name);
   }
 
   private remove(id: number, other: OtherView): void {
     other.view.root.destroy({ children: true });
     other.view.ghost.destroy();
+    other.tag?.destroy({ children: true });
     this.views.delete(id);
   }
 }

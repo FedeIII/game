@@ -81,8 +81,9 @@ const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
 <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`;
 
 /**
- * The display settings: a button in the top-right corner opens a panel with an on/off switch
- * and a slider for each CRT setting. Changes apply at once and are saved in this browser.
+ * The settings: a button in the top-right corner opens a panel. It has the display settings (an
+ * on/off switch and a slider for each CRT setting), and the sections that the game adds on top
+ * (addSection: the visitor's look and name). Changes apply at once and are saved in this browser.
  * The panel is outside the game surface, so a touch on it never moves the player.
  */
 export class SettingsPanel {
@@ -105,7 +106,7 @@ export class SettingsPanel {
     this.button = document.createElement('button');
     this.button.id = 'settings-button';
     this.button.type = 'button';
-    this.button.setAttribute('aria-label', 'Display settings');
+    this.button.setAttribute('aria-label', 'Settings');
     this.button.setAttribute('aria-expanded', 'false');
     this.button.setAttribute('aria-controls', 'settings');
     this.button.innerHTML = ICON;
@@ -113,7 +114,7 @@ export class SettingsPanel {
     this.panel = document.createElement('section');
     this.panel.id = 'settings';
     this.panel.hidden = true;
-    this.panel.setAttribute('aria-label', 'Display settings');
+    this.panel.setAttribute('aria-label', 'Settings');
 
     const title = document.createElement('label');
     title.className = 'settings-title';
@@ -166,7 +167,9 @@ export class SettingsPanel {
     this.panel.addEventListener('click', () => {
       setTimeout(() => {
         const focused = document.activeElement;
-        if (focused instanceof HTMLElement && this.panel.contains(focused)) focused.blur();
+        // Not a text field: the visitor is about to type in it.
+        const typing = focused instanceof HTMLInputElement && focused.type === 'text';
+        if (focused instanceof HTMLElement && this.panel.contains(focused) && !typing) focused.blur();
       }, 0);
     });
 
@@ -174,6 +177,11 @@ export class SettingsPanel {
     this.applyEnabled();
     this.crt.set(state.values);
     this.sync();
+  }
+
+  /** Puts a section at the top of the panel, over the display settings. */
+  addSection(section: HTMLElement): void {
+    this.panel.prepend(section);
   }
 
   private applyEnabled(): void {

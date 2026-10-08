@@ -13,6 +13,7 @@ import {
   World,
   createPlayer,
   fromWireInput,
+  cleanName,
   parseClientMessage,
   random,
   toWireInput,
@@ -145,10 +146,11 @@ const north: (tick: number) => MoveInput = () => ({ x: 0, y: -1 });
 describe('the multiplayer protocol', () => {
   it('reads valid client messages and refuses everything else', () => {
     const v = PROTOCOL_VERSION;
-    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":4294967295}`)).toEqual({ t: 'hello', v, world: 'town', skin: 4294967295 });
-    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":5,"at":[3,4]}`)).toEqual({ t: 'hello', v, world: 'town', skin: 5, at: [3, 4] });
+    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":4294967295}`)).toEqual({ t: 'hello', v, world: 'town', skin: 4294967295, name: '' });
+    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":5,"at":[3,4]}`)).toEqual({ t: 'hello', v, world: 'town', skin: 5, at: [3, 4], name: '' });
     // An old client sends no skin: it gets through, so that the server can tell it to reload.
-    expect(parseClientMessage('{"t":"hello","v":1,"world":"town"}')).toEqual({ t: 'hello', v: 1, world: 'town', skin: 0 });
+    expect(parseClientMessage(`{"t":"hello","v":${v},"world":"town","skin":5,"name":" Ana "}`)).toEqual({ t: 'hello', v, world: 'town', skin: 5, name: 'Ana' });
+    expect(parseClientMessage('{"t":"hello","v":1,"world":"town"}')).toEqual({ t: 'hello', v: 1, world: 'town', skin: 0, name: '' });
     expect(parseClientMessage('{"t":"in","s":1,"i":[[100,-100],[0,0]],"d":[[2,5,6,1]]}')).toEqual({
       t: 'in',
       s: 1,
@@ -336,5 +338,68 @@ describe('the other players on a client', () => {
     expect(remotes.at(9000)[0]!.x).toBe(8);
     remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0], p: [] }, 5150);
     expect(remotes.count).toBe(0);
+  });
+});
+
+describe('a new look in the middle of a visit', () => {
+  it('reads a skin message, and refuses a skin that is not a 32-bit whole number', () => {
+    expect(parseClientMessage('{"t":"skin","skin":123}')).toEqual({ t: 'skin', skin: 123 });
+    for (const bad of ['{"t":"skin"}', '{"t":"skin","skin":-1}', '{"t":"skin","skin":4294967296}', '{"t":"skin","skin":"7"}']) {
+      expect(parseClientMessage(bad), bad).toBeNull();
+    }
+  });
+
+  it('shows the new skin to the others, at most one change every 2 seconds (the last one wins)', () => {
+    const room = new Room(new World(houseSource()));
+    const a = room.join(0, 1)!;
+    const b = room.join(0, 2)!;
+    const seenByB = (ms: number) => {
+      let skin = -1;
+      room.broadcast(ms, (id, m) => {
+        if (id === b.id) skin = m.p.find((p) => p[0] === a.id)![6];
+      });
+      return skin;
+    };
+    room.setSkin(a.id, 10, 1000);
+    expect(seenByB(1000)).toBe(10);
+    room.setSkin(a.id, 11, 1500);
+    room.setSkin(a.id, 12, 1800);
+    expect(seenByB(2000)).toBe(10);
+    expect(seenByB(3000)).toBe(12);
+  });
+});
+
+describe('names', () => {
+  it('keep letters (with accents), digits, spaces and a few marks, and at most 16 characters', () => {
+    expect(cleanName('  Fede   del  Río ')).toBe('Fede del Río');
+    expect(cleanName('<script>alert(1)</script>')).toBe('scriptalert1scri');
+    expect(cleanName('a'.repeat(40))).toHaveLength(16);
+    expect(cleanName("Zoë_O'Neil-2.0")).toBe("Zoë_O'Neil-2.0");
+    expect(cleanName('名前 🙂')).toBe('');
+    expect(parseClientMessage('{"t":"name","name":"  Ana  "}')).toEqual({ t: 'name', name: 'Ana' });
+    expect(parseClientMessage(`{"t":"name","name":"${'x'.repeat(100)}"}`)).toBeNull();
+  });
+
+  it('reach the others in a roster, only when a name changes', () => {
+    const room = new Room(new World(houseSource()));
+    const a = room.join(0, 1, undefined, 'Ana')!;
+    const rosters: (readonly (readonly [number, string])[] | undefined)[] = [];
+    const b = room.join(0, 2)!;
+    const rosterForB = (ms: number) => {
+      let names: readonly (readonly [number, string])[] | undefined;
+      room.broadcast(ms, (id, m) => {
+        if (id === b.id) names = m.names;
+      });
+      rosters.push(names);
+      return names;
+    };
+    expect(rosterForB(0)).toEqual([[a.id, 'Ana']]);
+    expect(rosterForB(50)).toBeUndefined();
+    room.setName(a.id, 'Ana María');
+    expect(rosterForB(100)).toEqual([[a.id, 'Ana María']]);
+    room.setName(b.id, 'Bo');
+    expect(rosterForB(150)).toEqual([[a.id, 'Ana María'], [b.id, 'Bo']]);
+    room.leave(a.id);
+    expect(rosterForB(200)).toEqual([[b.id, 'Bo']]);
   });
 });

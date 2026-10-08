@@ -163,7 +163,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       const room = rooms.get(message.world);
       if (!room) return refuse('world');
       if ((perAddress.get(client.ip) ?? 0) > maxPerAddress) return refuse('busy');
-      const player = room.join(t, message.skin, message.at);
+      const player = room.join(t, message.skin, message.at, message.name);
       if (!player) return refuse('full');
       client.room = room;
       client.world = message.world;
@@ -174,6 +174,8 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       return;
     }
     if (!client.room) return socket.close(1008, 'no hello');
+    if (message.t === 'skin') return client.room.setSkin(client.playerId, message.skin, t);
+    if (message.t === 'name') return client.room.setName(client.playerId, message.name);
     client.room.input(client.playerId, message, t);
   }
 

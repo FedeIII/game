@@ -17,6 +17,8 @@ export interface RemotePlayer {
   readonly id: number;
   /** The skin seed. */
   readonly skin: number;
+  /** The name over its head; '' for none. */
+  readonly name: string;
   readonly x: number;
   readonly y: number;
   readonly vx: number;
@@ -62,6 +64,8 @@ function sampleAt(samples: readonly Sample[], t: number): Sample {
  */
 export class Remotes {
   private readonly players = new Map<number, { skin: number; samples: Sample[] }>();
+  /** The names from the last roster, by player id. */
+  private names = new Map<number, string>();
   /** The NPCs of the world, by their index: a short history of each. */
   private npcs: Sample[][] = [];
   /** Recent (local arrival time - server time) values. Their minimum is the least delayed one. */
@@ -74,12 +78,14 @@ export class Remotes {
   /** Forgets everything, for a new connection. */
   clear(): void {
     this.players.clear();
+    this.names = new Map();
     this.npcs = [];
     this.offsets = [];
   }
 
   /** Takes the other players of a snapshot that arrived at local time `localMs`. */
   apply(snapshot: SnapshotMessage, localMs: number): void {
+    if (snapshot.names) this.names = new Map(snapshot.names);
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
@@ -130,7 +136,7 @@ export class Remotes {
     for (const [id, { skin, samples }] of this.players) {
       if (samples.length === 0) continue;
       const s = sampleAt(samples, t);
-      out.push({ id, skin, x: s.x, y: s.y, vx: s.vx, vy: s.vy, facing: facingFromCode(s.facing) });
+      out.push({ id, skin, name: this.names.get(id) ?? '', x: s.x, y: s.y, vx: s.vx, vy: s.vy, facing: facingFromCode(s.facing) });
     }
     return out;
   }

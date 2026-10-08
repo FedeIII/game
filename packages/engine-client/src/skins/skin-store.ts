@@ -8,6 +8,8 @@ import type { SkinRequest, SkinResult } from './skin-worker.ts';
 const CACHE_PREFIX = `game.skins.v${SKIN_VERSION}.`;
 const CACHE_INDEX = `${CACHE_PREFIX}index`;
 const CACHE_SIZE = 24;
+/** Skins kept as textures; beyond this, the ones that nobody wears now are freed (retain()). */
+const MAX_READY = 40;
 
 interface Cached {
   readonly png: string;
@@ -30,6 +32,8 @@ function readIndex(): number[] {
  */
 export class SkinStore {
   private readonly ready = new Map<number, PlayerTextures>();
+  /** The sheet of each ready skin, for a preview in the GUI, and its base texture, to free it. */
+  private readonly sheets = new Map<number, { canvas: HTMLCanvasElement; base: Texture }>();
   private readonly waiting = new Map<number, ((textures: PlayerTextures) => void)[]>();
   private readonly queue: number[] = [];
   private readonly started = new Set<number>();
@@ -114,7 +118,7 @@ export class SkinStore {
       canvas.width = image.width;
       canvas.height = image.height;
       canvas.getContext('2d')!.drawImage(image, 0, 0);
-      this.done(seed, this.textures(canvas, cached.headHeight));
+      this.done(seed, this.textures(seed, canvas, cached.headHeight));
       this.remember(seed, null);
       return true;
     } catch {
@@ -127,7 +131,7 @@ export class SkinStore {
     canvas.width = width;
     canvas.height = height;
     canvas.getContext('2d')!.putImageData(new ImageData(pixels, width, height), 0, 0);
-    this.done(seed, this.textures(canvas, headHeight));
+    this.done(seed, this.textures(seed, canvas, headHeight));
     if (save) this.remember(seed, { png: canvas.toDataURL('image/png'), headHeight });
   }
 
@@ -150,10 +154,36 @@ export class SkinStore {
     }
   }
 
+  /** The sheet of a ready skin (all its frames, SKIN_FRAME each), or null. */
+  sheet(seed: number): HTMLCanvasElement | null {
+    return this.sheets.get(seed)?.canvas ?? null;
+  }
+
+  /**
+   * Frees the textures of skins that nobody in `wearing` wears, oldest first, while more than
+   * MAX_READY are kept. Players who change skins often would otherwise fill the memory.
+   */
+  retain(wearing: ReadonlySet<number>): void {
+    if (this.ready.size <= MAX_READY) return;
+    for (const [seed, textures] of this.ready) {
+      if (this.ready.size <= MAX_READY) break;
+      if (wearing.has(seed)) continue;
+      for (const facing of Object.keys(textures.stand) as Facing[]) {
+        textures.stand[facing].destroy(false);
+        for (const frame of textures.walk[facing]) frame.destroy(false);
+      }
+      this.sheets.get(seed)?.base.destroy(true);
+      this.sheets.delete(seed);
+      this.ready.delete(seed);
+      this.started.delete(seed);
+    }
+  }
+
   /** The frames of a sheet: one row per view, the stand and then the walk. */
-  private textures(canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
+  private textures(seed: number, canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
     const base = Texture.from(canvas);
     base.source.scaleMode = 'nearest';
+    this.sheets.set(seed, { canvas, base });
     const { width, height, pivotX, pivotY } = SKIN_FRAME;
     const anchor = { x: pivotX / width, y: pivotY / height };
     const frame = (column: number, row: number) =>

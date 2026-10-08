@@ -102,6 +102,11 @@ body {
   opacity: 0;
 }
 
+/* An open panel covers the hint on a narrow screen, and the two texts would mix: hide the hint. */
+body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
+  opacity: 0;
+}
+
 /* On a narrow screen the hint would run under the buttons in the top-right corner: put it below them. */
 @media (max-width: 560px) {
   #hint {
@@ -514,4 +519,76 @@ body {
   body:has(#presence) #hint {
     top: calc(60px + env(safe-area-inset-top));
   }
+}
+
+/* ---------------------------------------------------------------- settings: you */
+
+.settings-you {
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--ui-ink-faint);
+}
+
+.settings-heading {
+  margin: 0 0 6px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.you-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The skin at 2x, sharp: one pixel of the art is a block of 2 x 2 screen pixels. */
+.you-preview {
+  width: 64px;
+  height: 96px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: #1a1614;
+  image-rendering: pixelated;
+}
+
+.you-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.you-kind {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.settings-small:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.you-name {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.you-name input {
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: rgb(0 0 0 / 0.4);
+  color: var(--ui-ink);
+  font: 15px var(--ui-serif);
+}
+
+.you-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.6;
 }

@@ -52,6 +52,15 @@ export const STRINGS = {
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',
   linkKeyHint: 'or press E',
+  /** The "You" section of the settings: the visitor's look and name. */
+  you: {
+    heading: 'You',
+    newLook: 'New look',
+    drawing: 'Drawing…',
+    name: 'Name',
+    noName: 'No name',
+    nameHint: 'The other visitors see it over your head.',
+  },
   worlds: 'Worlds',
   worldsCurrent: 'you are here',
   /** The presence label of a shared (multiplayer) world. */

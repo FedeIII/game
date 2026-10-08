@@ -4,6 +4,8 @@ import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
 import { NpcCrowd } from '../npc.ts';
 import type { World } from '../world.ts';
 import {
+  SKIN_CHANGE_GAP_MS,
+  cleanName,
   facingCode,
   fromWireInput,
   type InputMessage,
@@ -37,8 +39,14 @@ export interface RoomOptions {
 /** One player in a room, as the server sees it. */
 export interface RoomPlayer {
   readonly id: number;
-  /** The skin seed that the player's client sent. */
-  readonly skin: number;
+  /** The skin seed that the player's client sent (it can change: see setSkin). */
+  skin: number;
+  /** A skin asked for and not applied yet (too soon after the last change), and when the last change was. */
+  wantedSkin: number | null;
+  skinChangedMs: number;
+  /** The name that the others see over the player ('' for none), and the name version its client has. */
+  name: string;
+  namesVersion: number;
   /** The true state. Only the room changes it. */
   readonly state: PlayerState;
   /** The last input sequence number that the room has applied or skipped. */
@@ -65,6 +73,8 @@ export class Room {
   private nextId = 1;
   /** Goes up each time a door opens or closes. A snapshot carries the doors when it changed. */
   private doorVersion = 0;
+  /** Goes up each time a name appears, changes or goes. A snapshot carries the names when it changed. */
+  private namesVersion = 0;
   /** The world's walking NPCs, or null if it has none. */
   readonly npcs: NpcCrowd | null;
   private lastTickMs: number | null = null;
@@ -105,7 +115,7 @@ export class Room {
    * Adds a player with its skin seed, or returns null if the room is full. The player starts
    * near `at` (a tile) if that is close to the spawn, or else near the world's spawn.
    */
-  join(nowMs: number, skin: number, at?: readonly [number, number]): RoomPlayer | null {
+  join(nowMs: number, skin: number, at?: readonly [number, number], name = ''): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
     const spawn = this.world.spawn();
     const home = [Math.floor(spawn.x / TILE_SIZE), Math.floor(spawn.y / TILE_SIZE)] as const;
@@ -114,6 +124,11 @@ export class Room {
     const player: RoomPlayer = {
       id: this.nextId++,
       skin,
+      wantedSkin: null,
+      skinChangedMs: -Infinity,
+      name: cleanName(name),
+      // The first snapshot carries the names of everyone already there.
+      namesVersion: -1,
       state: createPlayer(start.x, start.y),
       seq: 0,
       tokens: INPUT_BURST,
@@ -121,11 +136,42 @@ export class Room {
       doorVersion: this.doorVersion,
     };
     this.players.set(player.id, player);
+    if (player.name) this.namesVersion++;
     return player;
   }
 
   leave(id: number): void {
+    if (this.players.get(id)?.name) this.namesVersion++;
     this.players.delete(id);
+  }
+
+  /** A new name for a player ('' for none). */
+  setName(id: number, name: string): void {
+    const player = this.players.get(id);
+    const clean = cleanName(name);
+    if (!player || player.name === clean) return;
+    player.name = clean;
+    this.namesVersion++;
+  }
+
+  /**
+   * A new skin for a player. It applies at once, or, if the last change was less than
+   * SKIN_CHANGE_GAP_MS ago, as soon as that time has passed (the last skin asked for wins).
+   */
+  setSkin(id: number, skin: number, nowMs: number): void {
+    const player = this.players.get(id);
+    if (!player) return;
+    player.wantedSkin = skin;
+    this.applySkin(player, nowMs);
+  }
+
+  private applySkin(player: RoomPlayer, nowMs: number): void {
+    if (player.wantedSkin === null || nowMs - player.skinChangedMs < SKIN_CHANGE_GAP_MS) return;
+    if (player.wantedSkin !== player.skin) {
+      player.skin = player.wantedSkin;
+      player.skinChangedMs = nowMs;
+    }
+    player.wantedSkin = null;
   }
 
   /** The first message for a new player. */
@@ -171,12 +217,15 @@ export class Room {
     const round = (v: number) => Math.round(v * 10) / 10;
     const packed = new Map<number, WirePlayer>();
     for (const p of this.players.values()) {
+      this.applySkin(p, nowMs);
       const s = p.state;
       packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin]);
     }
     const doors = this.world.openDoorList();
     const barks = this.barks;
     this.barks = [];
+    const names: [number, string][] = [];
+    for (const p of this.players.values()) if (p.name) names.push([p.id, p.name]);
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;
@@ -188,6 +237,8 @@ export class Room {
       const s = p.state;
       const changed = p.doorVersion !== this.doorVersion;
       p.doorVersion = this.doorVersion;
+      const renamed = p.namesVersion !== this.namesVersion;
+      p.namesVersion = this.namesVersion;
       send(p.id, {
         t: 'snap',
         ms,
@@ -197,6 +248,7 @@ export class Room {
         ...(changed ? { doors } : {}),
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
+        ...(renamed ? { names } : {}),
       });
     }
   }

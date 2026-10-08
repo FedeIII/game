@@ -8,7 +8,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -27,6 +27,19 @@ export const MAX_CLIENT_MESSAGE_BYTES = 2048;
  * number. A browser keeps its own seed, so a visitor keeps the same skin across visits.
  */
 export const SKIN_MAX = 0xffffffff;
+
+/** The longest name, in characters. */
+export const NAME_MAX = 16;
+
+/**
+ * A name as every visitor sees it: Latin letters (with accents), digits, spaces and ' . _ -
+ * only; spaces joined; at most NAME_MAX characters. Anything else is removed. An empty name is
+ * no name. The client cleans a name before it saves it, and the server cleans what it gets.
+ */
+export function cleanName(raw: string): string {
+  const kept = raw.normalize('NFC').replace(/[^\p{Script=Latin}\p{Nd} '._-]/gu, '');
+  return [...kept.replace(/\s+/g, ' ').trim()].slice(0, NAME_MAX).join('').trim();
+}
 
 export function isSkin(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= SKIN_MAX;
@@ -61,13 +74,15 @@ export function fromWireInput(wire: WireInput): MoveInput {
 
 // ---------------------------------------------------------------- client to server
 
-/** The first message: which world, the player's skin, and (optionally) the tile to start on. */
+/** The first message: which world, the player's skin and name, and (optionally) the tile to start on. */
 export interface HelloMessage {
   readonly t: 'hello';
   readonly v: number;
   readonly world: string;
   readonly skin: number;
   readonly at?: readonly [number, number];
+  /** Cleaned (cleanName); '' for no name. */
+  readonly name?: string;
 }
 
 /**
@@ -85,13 +100,31 @@ export interface InputMessage {
   readonly d?: readonly WireDoor[];
 }
 
+/**
+ * A new skin for the player (the visitor chose a new look). The room applies at most one change
+ * every SKIN_CHANGE_GAP_MS for each player: the last one asked for.
+ */
+export interface SkinMessage {
+  readonly t: 'skin';
+  readonly skin: number;
+}
+
+/** A new name for the player ('' for none). The others see it over the player's head. */
+export interface NameMessage {
+  readonly t: 'name';
+  readonly name: string;
+}
+
 /** Asks for a pong, to measure the round trip. `c` is the client's clock, sent back as it is. */
 export interface PingMessage {
   readonly t: 'ping';
   readonly c: number;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | PingMessage;
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage;
+
+/** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
+export const SKIN_CHANGE_GAP_MS = 2000;
 
 // ---------------------------------------------------------------- server to client
 
@@ -126,6 +159,8 @@ export interface SnapshotMessage {
    * player gets them at the same time; the client shows each over its NPC for a few seconds.
    */
   readonly b?: readonly (readonly [number, number])[];
+  /** The names of the players that have one, [id, name]: all of them, and only when one changed. */
+  readonly names?: readonly (readonly [number, string])[];
 }
 
 /** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */
@@ -176,7 +211,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       const skin = isSkin(m.skin) ? m.skin : m.v !== PROTOCOL_VERSION && m.skin === undefined ? 0 : null;
       if (skin === null) return null;
       if (m.at !== undefined && !isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return null;
-      return m.at === undefined ? { t: 'hello', v: m.v, world: m.world, skin } : { t: 'hello', v: m.v, world: m.world, skin, at: m.at };
+      if (m.name !== undefined && (typeof m.name !== 'string' || m.name.length > 4 * NAME_MAX)) return null;
+      const name = typeof m.name === 'string' ? cleanName(m.name) : '';
+      return m.at === undefined ? { t: 'hello', v: m.v, world: m.world, skin, name } : { t: 'hello', v: m.v, world: m.world, skin, at: m.at, name };
     }
     case 'in': {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;
@@ -194,6 +231,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (!m.d.every(doorShaped)) return null;
       return { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[] };
     }
+    case 'skin':
+      return isSkin(m.skin) ? { t: 'skin', skin: m.skin } : null;
+    case 'name':
+      return typeof m.name === 'string' && m.name.length <= 4 * NAME_MAX ? { t: 'name', name: cleanName(m.name) } : null;
     case 'ping':
       return typeof m.c === 'number' && Number.isFinite(m.c) ? { t: 'ping', c: m.c } : null;
     default:

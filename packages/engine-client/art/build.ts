@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Image, encodePng, upscale } from './png.ts';
-import { FONT } from './font.ts';
+import { FONT, SMALL_FONT } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 
@@ -78,6 +78,7 @@ const json = {
     scale: 1,
     lighting: LIGHTING,
     font: FONT,
+    smallFont: SMALL_FONT,
   },
 };
 

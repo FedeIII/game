@@ -47,7 +47,8 @@ export class NetSession {
   /** The last round trip to the server, for the debug panel. */
   rttMs: number | null = null;
   private readonly worldId: string;
-  private readonly skin: number;
+  private skin: number;
+  private name: string;
   private readonly player: PlayerState;
   private readonly world: World;
   private readonly url: string;
@@ -63,9 +64,10 @@ export class NetSession {
   /** The jump of the local player's position from reconciliations, not yet given to the view. */
   private jump = { x: 0, y: 0 };
 
-  constructor(worldId: string, skin: number, player: PlayerState, world: World, url = serverUrl()) {
+  constructor(worldId: string, skin: number, name: string, player: PlayerState, world: World, url = serverUrl()) {
     this.worldId = worldId;
     this.skin = skin;
+    this.name = name;
     this.player = player;
     this.world = world;
     this.url = url;
@@ -116,6 +118,18 @@ export class NetSession {
     return this.status === 'online' ? this.remotes.at(nowMs) : [];
   }
 
+  /** The visitor chose a new look: the others see it (and a reconnection keeps it). */
+  setSkin(skin: number): void {
+    this.skin = skin;
+    if (this.status === 'online') this.send({ t: 'skin', skin });
+  }
+
+  /** The visitor chose a name ('' for none): the others see it over the player's head. */
+  setName(name: string): void {
+    this.name = name;
+    if (this.status === 'online') this.send({ t: 'name', name });
+  }
+
   /** Whether the NPCs come from the server now (online, in a world with NPCs). */
   get serverNpcs(): boolean {
     return this.status === 'online' && this.remotes.hasNpcs;
@@ -151,7 +165,7 @@ export class NetSession {
     socket.onopen = () => {
       // Start where the player is now, so a reconnection does not move anyone.
       const at = [Math.floor(this.player.x / TILE_SIZE), Math.floor(this.player.y / TILE_SIZE)] as const;
-      this.send({ t: 'hello', v: PROTOCOL_VERSION, world: this.worldId, skin: this.skin, at });
+      this.send({ t: 'hello', v: PROTOCOL_VERSION, world: this.worldId, skin: this.skin, at, name: this.name });
     };
     socket.onmessage = (event) => {
       const message = typeof event.data === 'string' ? parseServerMessage(event.data) : null;

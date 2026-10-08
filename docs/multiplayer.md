@@ -31,11 +31,13 @@ a client of another version is refused, and its label tells the visitor to reloa
 
 | Direction | Message | Content |
 |---|---|---|
-| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn) |
+| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name` |
+| client to server | `skin` | a new skin seed for the player (from the settings panel) |
+| client to server | `name` | a new name for the player (`''` for none) |
 | client to server | `in` | a batch of inputs (one per tick, each axis an integer from -100 to 100), the sequence number of the first, door wishes `[seq, tx, ty, open]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed, and the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full` or `busy` |
 | server to client | `pong` | the client's clock, back |
 
@@ -54,6 +56,29 @@ depends on them. NPCs open and close doors (the Room's door version goes up, so 
 everyone), and a door does not close on an NPC. The lines that NPCs say are events in the next
 snapshot (`b`: [npc index, line index]); a client that misses a snapshot (a full send buffer)
 misses the line, which is harmless.
+
+## Looks and names (protocol 4, 2026-10-08)
+
+The "You" section of the settings panel (`ui/you-section.ts`) shows the player's look and its
+kind, a "New look" button and a name field.
+
+- **New look**: the client makes a new random seed (`newSkinSeed()`), saves it in
+  `game.skin.v1` (the next visit has it too), renders it, and only then sends `skin`. The
+  server applies a new skin at most once every `SKIN_CHANGE_GAP_MS` (2 s) for each player; a
+  skin that comes sooner waits, and the last one asked for wins. The others keep the old look
+  until the new one is rendered on their side.
+- **Name**: the visitor types it and presses Enter (or leaves the field). The client saves it
+  in `game.name.v1` and sends `name`; it also goes in `hello`, so it comes back after a
+  reconnection or a reload. `cleanName()` (`net/protocol.ts`) runs on both sides: Latin
+  letters, digits, space and `' . _ -` only, spaces joined, at most `NAME_MAX` (16)
+  characters. The server cleans every name again; it never trusts the client.
+- The others see the name over the player's head, in the small pixel font (capitals only, 5 px
+  high), in the text layer (above the darkness), inside the screen. The local player does not
+  see its own name.
+- The snapshot carries the whole list of names, but only when a name appears, changes or goes
+  (the room's names version). A new player gets the list in its first snapshot. A client that
+  is skipped (a full send buffer) gets the list with its next snapshot.
+- There is no moderation of names. The character set and the length are the only limits.
 
 ## Limits on the server
 
@@ -100,7 +125,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
 npm run server                       # local, port 3008, allows the Vite origins
-curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":1,"players":{"town":2}}
+curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":4,"players":{"town":2}}
 pm2 logs game-server                  # one line per arrival and departure; no addresses
 ```
 
@@ -123,7 +148,8 @@ pm2 logs game-server                  # one line per arrival and departure; no a
 
 - `packages/engine/test/net.test.ts`: a simulated network (latency in simulated milliseconds)
   with a Room and clients: exact prediction, interpolation, the input rate limit, repeats,
-  skins, a full room, and doors (shared, out of reach, never onto a player).
+  skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
+  a full room, and doors (shared, out of reach, never onto a player).
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.

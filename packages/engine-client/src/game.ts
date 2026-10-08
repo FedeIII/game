@@ -33,16 +33,17 @@ import { WelcomeSpeech } from './render/welcome.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
-import { PlayerView, atlasPlayerTextures } from './render/player-view.ts';
+import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinFromSeed } from '../art/skins.ts';
-import { skinSeed } from './skins/seed.ts';
+import { newSkinSeed, saveName, savedName, skinSeed } from './skins/seed.ts';
 import { SkinStore } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
 import { PresenceLabel } from './ui/presence.ts';
+import { YouSection } from './ui/you-section.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
 import { STRINGS } from './ui/strings.ts';
 import { WorldMenu } from './ui/world-menu.ts';
@@ -103,9 +104,11 @@ async function run(options: GameOptions): Promise<void> {
   const shown = { x: player.x, y: player.y };
   // Each visitor has a skin: a random seed that the browser keeps, so it stays the same across
   // visits. ?skin=<n> shows another one. The others see the same skin in a shared world.
-  const skin = skinSeed(params);
+  let skin = skinSeed(params);
+  // The visitor's name: the others see it over the player's head (in a shared world).
+  let name = savedName();
   // A shared world goes through the multiplayer server; ?offline plays it alone.
-  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, player, world) : null;
+  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world) : null;
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
 
@@ -133,18 +136,41 @@ async function run(options: GameOptions): Promise<void> {
   // The skins: rendered in a worker, kept in localStorage. The visitor's own goes first; until
   // it is ready (a moment on the first visit), the player is a darker wanderer.
   const skins = new SkinStore();
-  const ownSkin = skins.get(
-    skin,
-    (textures) => {
+  /** Wears skin `seed` when it is ready (at once if it is), unless another one was asked for since. */
+  const wear = (seed: number, then: () => void = () => {}) => {
+    const apply = (textures: PlayerTextures) => {
+      if (seed !== skin) return;
       playerView.setTextures(textures);
       playerView.setPending(false);
-    },
-    true,
-  );
-  const playerView = new PlayerView(art, ownSkin ?? atlasPlayerTextures(art), !ownSkin);
+      you.showLook(skins.sheet(seed), skinFromSeed(seed).vibe);
+      then();
+    };
+    const ready = skins.get(seed, apply, true);
+    if (ready) apply(ready);
+  };
+  const playerView = new PlayerView(art, atlasPlayerTextures(art), true);
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
-  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer) : null;
+  // The settings panel's "You" section: a new random look (saved for the next visits; the others
+  // see it), and the name.
+  const you = new YouSection(name, {
+    onNewLook: () => {
+      skin = newSkinSeed();
+      you.setBusy(true);
+      const seed = skin;
+      wear(seed, () => {
+        you.setBusy(false);
+        net?.setSkin(seed);
+      });
+    },
+    onName: (raw) => {
+      name = saveName(raw);
+      you.setName(name);
+      net?.setName(name);
+    },
+  });
+  wear(skin);
+  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, textScene, new PixelFont(art, 'small')) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
   // is alone (a single-player world, or no server). Its seed differs per page: nobody else sees it.
   const npcDefs = world.source.npcs?.() ?? [];
@@ -216,7 +242,8 @@ async function run(options: GameOptions): Promise<void> {
   worldLayer.filterArea = app.screen;
   const crtText = new CrtFilter(CRT_TEXT, 8);
   textLayer.filters = [crtText];
-  new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()), [crtText]);
+  const settings = new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()), [crtText]);
+  settings.addSection(you.element);
   new WorldMenu(options.worlds, definition);
 
   const keyboard = new Keyboard(window);
@@ -347,6 +374,7 @@ async function run(options: GameOptions): Promise<void> {
   fixtures.update(camera.view(), 0);
 
   let hintShown = true;
+  let nextRetainAt = 0;
   app.ticker.add((ticker) => {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
@@ -383,7 +411,12 @@ async function run(options: GameOptions): Promise<void> {
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
     fixtures.update(view, now / 1000);
-    others?.update(net!.playersAt(now), seconds);
+    others?.update(net!.playersAt(now), seconds, view);
+    // Free the skins that nobody here wears any more (now and then).
+    if (now >= nextRetainAt) {
+      nextRetainAt = now + 5000;
+      skins.retain(new Set([skin, ...(others?.skinsWorn ?? [])]));
+    }
     const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     lighting?.update(view, [torch, ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now, view);
@@ -412,13 +445,13 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
-      `skin    ${skin} (${skinFromSeed(skin).vibe})`,
+      `skin    ${skin} (${skinFromSeed(skin).vibe})${name ? `, name ${name}` : ''}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       ...(net
-        ? [`others  ${net.playersAt(now).map((o) => `skin ${o.skin} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
+        ? [`others  ${net.playersAt(now).map((o) => `skin ${o.skin}${o.name ? ` "${o.name}"` : ''} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
         : []),
       `inside  ${inside?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,

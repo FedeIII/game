@@ -9,7 +9,8 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 - **The Town of Azyr** (`?world=town`), **shared**: every visitor sees the others walk about,
   each with a torch and a skin of its own: a random wanderer, knight, monk, witch, ranger,
   plague doctor, noble or gravedigger, of any size and colour, that the browser keeps across
-  visits. A small cobbled plaza and a lane with eight little
+  visits. The settings panel draws a new look and sets a name, which the others see over
+  the player's head. A small cobbled plaza and a lane with eight little
   houses, one for each project of the azyr.io landing page, each in its own style (a timber
   counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
   In each house a keeper introduces the project, the exhibits show its details, and a portal
@@ -28,7 +29,7 @@ npm run server     # the multiplayer server (for the town), port 3008
 
 Debug panel: press F3, or open `/?debug`. Other switches: `/?world=town`, `/?seed=42` (the
 wilds), `/?at=11,10` (start on a tile), `/?nolight` (no darkness). Display settings: the button
-in the top-right corner (CRT on/off and sliders; saved in the browser). The same from the URL:
+in the top-right corner (your look and name, CRT on/off and sliders; saved in the browser). The same from the URL:
 `/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults `0.6,1,1,0`).
 
 - `packages/engine`: the simulation (no browser). `packages/engine-client`: the browser
