@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  Decor,
   Ground,
   PLAYER_HALF_HEIGHT,
   PLAYER_HALF_WIDTH,
@@ -16,6 +17,7 @@ import {
 } from '@game/engine';
 import { ROOF_PROPS, ROOF_STYLES, WALL_STYLES } from '../../../packages/engine-client/art/buildings.ts';
 import { GLYPHS } from '../../../packages/engine-client/art/font.ts';
+import { Camera } from '../../../packages/engine-client/src/render/camera.ts';
 import { BOUNDS, HOUSES, OUTDOOR, PROJECTS, SPAWN, TownSource, floorOf, town } from '../src/index.ts';
 
 const world = new World(new TownSource());
@@ -129,6 +131,46 @@ describe('the town of Azyr', () => {
         expect(prop.tx > house.x0 && prop.tx < house.x1, `${house.id} ${prop.name} in a corner column`).toBe(true);
       }
     }
+  });
+
+  it('keeps the ground in front of every door clear: no lamp, prop, tree or wall', () => {
+    for (const house of HOUSES) {
+      for (let ty = house.y1 + 1; ty <= house.y1 + 3; ty++) {
+        for (let tx = house.doorX - 2; tx <= house.doorX + 2; tx++) {
+          const where = `${house.id}: ${tx},${ty}`;
+          expect(world.solidBox(tx, ty), where).toBeNull();
+          expect(world.fixtureAt(tx, ty), where).toBeNull();
+          expect(world.decor(tx, ty), where).not.toBe(Decor.Tree);
+          expect(world.buildingAt(tx, ty), where).toBeNull();
+        }
+      }
+      // The two tiles straight in front of the door are paved.
+      expect(world.ground(house.doorX, house.y1 + 1), house.id).toBe(Ground.Cobble);
+      expect(world.ground(house.doorX, house.y1 + 2), house.id).toBe(Ground.Cobble);
+    }
+  });
+
+  it('shows all eight doors at once from the spawn on a desktop, and the middle ones on a phone', () => {
+    const spawn = world.spawn();
+    /** The doors whose front face (the door tile and the row of wall above it) is on the screen. */
+    const doorsSeen = (width: number, height: number, dpr: number) => {
+      const camera = new Camera();
+      camera.resize(width, height, dpr);
+      const stage = { scale: { set() {} }, position: { set() {} } };
+      camera.follow(stage as unknown as Parameters<Camera['follow']>[0], spawn.x, spawn.y);
+      const view = camera.view();
+      return HOUSES.filter((h) => {
+        const [x0, y0, x1, y1] = [h.doorX * TILE_SIZE, (h.y1 - 1) * TILE_SIZE, (h.doorX + 1) * TILE_SIZE, (h.y1 + 1) * TILE_SIZE];
+        return x0 >= view.x && x1 <= view.x + view.width && y0 >= view.y && y1 <= view.y + view.height;
+      }).map((h) => h.id);
+    };
+    // 1280 x 720 is the smallest common desktop view: 15 rows of tiles.
+    expect(doorsSeen(1280, 720, 1)).toHaveLength(8);
+    expect(doorsSeen(1920, 1080, 1)).toHaveLength(8);
+    expect(doorsSeen(1366, 768, 1)).toHaveLength(8);
+    // A phone held upright: a narrow view, the four doors in the middle.
+    expect(doorsSeen(390, 844, 2).length).toBeGreaterThanOrEqual(4);
+    expect(doorsSeen(360, 780, 3).length).toBeGreaterThanOrEqual(4);
   });
 
   it('lets the player walk to every thing of a house and act on it', () => {

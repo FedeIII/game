@@ -31,6 +31,8 @@ interface BuildingView {
   /** The sign hangs outside the front wall: it goes away while the player is inside. */
   readonly sign: Container | null;
   readonly door: Sprite;
+  /** The door state that the door sprite shows. */
+  doorOpen: boolean;
   readonly roof: Container;
   alpha: number;
 }
@@ -85,6 +87,9 @@ export class Buildings {
 
     const step = Math.min(1, seconds * FADE_RATE);
     for (const built of this.views.values()) {
+      // A door can change without this client: another visitor, an NPC, the server.
+      const open = this.world.isDoorOpen(built.building.doorX, built.building.y1);
+      if (open !== built.doorOpen) this.refreshDoor(built.building.doorX, built.building.y1);
       const target = built.building === inside ? 0 : 1;
       built.alpha += (target - built.alpha) * step;
       if (Math.abs(target - built.alpha) < 0.01) built.alpha = target;
@@ -103,7 +108,9 @@ export class Buildings {
   refreshDoor(tx: number, ty: number): void {
     const building = this.world.buildingAt(tx, ty);
     const built = building && this.views.get(building.id);
-    if (built) built.door.texture = this.doorTexture(built.building, tx, ty);
+    if (!built) return;
+    built.door.texture = this.doorTexture(built.building, tx, ty);
+    built.doorOpen = this.world.isDoorOpen(tx, ty);
   }
 
   /** The lights of the lit windows of the buildings that are shown, in world pixels. */
@@ -231,6 +238,6 @@ export class Buildings {
     this.layer.addChild(roof);
 
     if (!door) throw new Error(`building ${building.id} has no door`);
-    return { building, sprites, front, sign, door, roof, alpha: 1 };
+    return { building, sprites, front, sign, door, doorOpen: this.world.isDoorOpen(doorX, y1), roof, alpha: 1 };
   }
 }

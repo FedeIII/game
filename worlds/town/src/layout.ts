@@ -6,6 +6,12 @@ import { PROJECTS, type Project } from './projects.ts';
  * begins. Four houses face the plaza from the north; four more stand back to back with it and
  * face the lane in the south. Alleys between the houses join the plaza and the lane.
  *
+ * The town is small on purpose: from the spawn, a desktop screen at the default zoom (1280 x
+ * 720: 26 x 15 tiles) shows all eight doors at once, and a phone the four in the middle. So the
+ * north fronts are on row 8, the south fronts on row 20, and the outer doors are near the
+ * inner ends of their houses. In front of each door the ground stays clear: no lamp, prop or
+ * tree in the 5 x 3 tiles below it (the tests check both).
+ *
  *   .  garden: grass with tufts and flowers      T  a tree in a garden
  *   =  cobblestones                               1-8  the house of PROJECTS[n - 1] (projects.ts)
  *   F  the fountain (3 x 3)     N  the notice board (2 x 1)     C  the town crier
@@ -14,40 +20,38 @@ import { PROJECTS, type Project } from './projects.ts';
  * The things (F, N, C, L, b, x) stand on cobblestones.
  */
 const MAP = [
-  '......................................',
-  '.T.........T.........T.....444444.....',
-  '...222222..................444444..T..',
-  '...222222..................444444.....',
-  '...222222.1111111.33333333.444444.....',
-  '...222222.1111111.33333333.444444.....',
-  '...222222.1111111.33333333.444444.....',
-  'T..222222.1111111.33333333x444444.....',
-  '..=222222b1111111x33333333x=======b=..',
-  '..=======L1111111L========L======L==..',
-  '..==...===========FFF========...====T.',
-  '..==.T.======NN===FFF===C====.T.====..',
-  '..L=...===========FFF========...===L..',
+  '............T............T............',
+  '.T....................................',
+  '...222222............444444.888888....',
+  '...222222.1111111..T.444444.888888....',
+  '...222222.1111111....444444.888888..T.',
+  '...222222.1111111.T..444444.888888....',
+  '...222222.1111111....444444.888888....',
+  '...222222.1111111....444444.888888....',
+  '...222222.1111111....444444.888888....',
+  '..=L=======L======FFF=====L======L==..',
+  'T.================FFF===============..',
+  '..x===============FFF==============x..',
+  '..b========NN=========C============b..',
+  '..==================================.T',
   '..==================================..',
-  '..=========bx===========xb==========..',
-  '.T==================================..',
-  '..==================================..',
-  '..5555555=77777777==========888888==..',
-  '..5555555=77777777===666666=888888==T.',
-  '..5555555=77777777===666666=888888==..',
-  '..5555555=77777777===666666=888888==..',
-  '..5555555=77777777===666666=888888==..',
-  '..5555555=77777777===666666=888888==..',
-  '..bx=====L======b====666666=888888b=..',
-  '..L=================L======L=======L..',
-  '..==================================..',
-  '..............T.................T.....',
-  '.....T...................T............',
+  '..=666666===========5555555=77777777..',
+  '..=666666=33333333==5555555=77777777..',
+  'T.=666666=33333333==5555555=77777777..',
+  '..=666666=33333333==5555555=77777777..',
+  '..=666666=33333333==5555555=77777777.T',
+  '..=666666=33333333==5555555=77777777..',
+  '.==L======L========L=============L===.',
+  '.b==================================b.',
+  '.x==================================x.',
+  '................T................T....',
+  '......T...................T...........',
 ];
 
 export const BOUNDS = { x0: 0, y0: 0, x1: MAP[0]!.length - 1, y1: MAP.length - 1 } as const;
 
-/** Where a new player starts: in the plaza, south of the fountain. */
-export const SPAWN = { tx: 19, ty: 14 } as const;
+/** Where a new player starts: south of the fountain, at the top of the main alley. */
+export const SPAWN = { tx: 19, ty: 13 } as const;
 
 // Lights, in pixels from a fixture's anchor corner (y up is negative). The radius snaps to the
 // nearest radius of the light atlas (48, 96, 150).

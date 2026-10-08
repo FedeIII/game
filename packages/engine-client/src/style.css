@@ -497,3 +497,21 @@ body {
   background: var(--ui-accent);
   box-shadow: 0 0 8px var(--ui-accent-glow);
 }
+
+/*
+ * On a wide screen the label goes to the top centre: the town puts no door there (the garden
+ * behind the fountain), while the top corners show the signs of the outer houses. The control
+ * hint goes under it.
+ */
+@media (min-width: 561px) {
+  #presence {
+    left: 50%;
+    max-width: none;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  body:has(#presence) #hint {
+    top: calc(60px + env(safe-area-inset-top));
+  }
+}

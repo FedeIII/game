@@ -86,7 +86,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it), `panels.ts` (one top-right panel at a time),
-  `presence.ts` (top left, shared worlds only: how many other visitors are here).
+  `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
+  screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in
   `.gitignore`; made by `dev`, `build` and `typecheck`). See "Art".
 
@@ -235,10 +236,17 @@ For the HTML GUI:
   `x` crates). Four small houses (6-8 x 5-7 tiles) face the plaza from the north; four more stand
   with their backs to it and face the lane in the south; alleys of 1-3 tiles join the two.
   Outside the map the forest begins. The parser checks the plans (walls, one door, one portal,
-  one keeper, footprints, a free tile inside the door) and throws on a mistake. Tests check the
+  one keeper, footprints, a free tile inside the door) and throws on a mistake.
+  **Two rules for the map (2026-10-08, Fede's request):** (1) from the spawn, the default view
+  of a 1280 x 720 desktop (26.7 x 15 tiles) shows all eight doors at once, and a phone the four
+  in the middle: so the town is only 13 rows from the north fronts (row 8) to the south fronts
+  (row 20), the outer doors are near the inner ends of their houses, and the corner houses have
+  short names (their signs must fit on the screen and stay clear of the GUI in the corners);
+  (2) the 5 x 3 tiles in front of each door stay clear: no lamp, prop, tree or wall. Tests check the
   signs, one portal with an https link per house (and the exact URLs), a different style for
   every house, that the player can walk to every thing in every house and act on it (and to
-  every door and outdoor thing from the plaza), and a glyph for every character of every text.
+  every door and outdoor thing from the plaza), the two map rules (with the real `Camera`), and a
+  glyph for every character of every text.
 
 ## Rules
 

@@ -87,7 +87,7 @@ export const PROJECTS: readonly Project[] = [
         '#.....#',
         '#dd..K#',
         '#l....#',
-        '#+#D#+#',
+        '#+#+#D#',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Portfolio: every broker and every asset class in one figure.', 'A stale number that looks fresh is worse than no number.') },
@@ -123,7 +123,7 @@ export const PROJECTS: readonly Project[] = [
         '#crrK#',
         '#.rr.#',
         '#l...#',
-        '##D+##',
+        '##+#D#',
       ],
       exhibits: {
         a: { kind: 'apothecary', content: say("Lab results, doctor's notes and reports, kept as a private medical memory.") },
@@ -159,8 +159,8 @@ export const PROJECTS: readonly Project[] = [
         '########',
         '#bPPx.l#',
         '#......#',
-        '#mm.Kgg#',
-        '###D####',
+        '#mmK.gg#',
+        '####D###',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Cada sesión trae nuevos desafíos y personajes memorables.') },
@@ -193,10 +193,10 @@ export const PROJECTS: readonly Project[] = [
         '######',
         '#bPPt#',
         '#....#',
-        '#mm.K#',
+        '#.mmK#',
         '#....#',
-        '#dd..#',
-        '###D+#',
+        '#..dd#',
+        '##D+##',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say("Quick reference to the game's mechanics.") },
@@ -264,7 +264,7 @@ export const PROJECTS: readonly Project[] = [
         '#.rr.#',
         '#.rrK#',
         '#gg..#',
-        '##+D##',
+        '##+#D#',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Game reviews and playthroughs.', 'For anyone who likes good game design.') },
@@ -298,7 +298,7 @@ export const PROJECTS: readonly Project[] = [
         '#......#',
         '#dd.Ka.#',
         '#.....w#',
-        '#+#D##+#',
+        '#D+###+#',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Personal projects and open source contributions.') },
@@ -336,8 +336,8 @@ export const PROJECTS: readonly Project[] = [
         '#....#',
         '#c..K#',
         '#dd..#',
-        '#l...#',
-        '##D+##',
+        '#...l#',
+        '#D+###',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Years of memories, side by side.', 'A time-traveling walk through your own history.') },
