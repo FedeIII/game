@@ -10,6 +10,7 @@ import {
   type InputMessage,
   type SnapshotMessage,
   type WelcomeMessage,
+  type WireAttack,
   type WireDoor,
   type WireInput,
 } from './protocol.ts';
@@ -43,6 +44,7 @@ export class Prediction {
   private batch: WireInput[] = [];
   private batchFirst = 1;
   private batchDoors: WireDoor[] = [];
+  private batchAttacks: WireAttack[] = [];
   /** The open doors in the server's last word. */
   private serverDoors: readonly (readonly [number, number])[] = [];
 
@@ -58,6 +60,7 @@ export class Prediction {
     this.nextDoors = [];
     this.batch = [];
     this.batchDoors = [];
+    this.batchAttacks = [];
     this.batchFirst = 1;
     this.serverDoors = welcome.doors;
     world.setOpenDoors(welcome.doors);
@@ -65,10 +68,19 @@ export class Prediction {
     player.y = welcome.y;
     player.vx = 0;
     player.vy = 0;
+    // A new player on the server: no fight in progress.
+    player.attack = 0;
+    player.cooldown = 0;
+    player.stun = 0;
+    player.guard = 0;
   }
 
-  /** Runs one tick of the local player with the input (as it goes on the wire), and keeps it. */
-  step(player: PlayerState, world: World, input: MoveInput): void {
+  /**
+   * Runs one tick of the local player with the input (as it goes on the wire), and keeps it.
+   * `viewMs` is the server time at which the client shows the mobs now: an attack that starts
+   * in this tick sends it along. Returns whether an attack starts.
+   */
+  step(player: PlayerState, world: World, input: MoveInput, viewMs = 0): boolean {
     const wire = toWireInput(input);
     this.seq++;
     this.pending.push({ seq: this.seq, input: wire, doors: this.nextDoors });
@@ -76,7 +88,9 @@ export class Prediction {
     this.nextDoors = [];
     if (this.batch.length === 0) this.batchFirst = this.seq;
     this.batch.push(wire);
-    stepPlayer(player, fromWireInput(wire), world);
+    const struck = stepPlayer(player, fromWireInput(wire), world);
+    if (struck) this.batchAttacks.push([this.seq, Math.round(viewMs)]);
+    return struck;
   }
 
   /** Uses a door at once, and keeps the wish to send it with the next input. */
@@ -89,10 +103,16 @@ export class Prediction {
   /** The inputs to send, once every INPUT_BATCH_TICKS ticks; null when it is not time yet. */
   takeBatch(): InputMessage | null {
     if (this.batch.length < INPUT_BATCH_TICKS) return null;
-    const message: InputMessage =
-      this.batchDoors.length > 0 ? { t: 'in', s: this.batchFirst, i: this.batch, d: this.batchDoors } : { t: 'in', s: this.batchFirst, i: this.batch };
+    const message: InputMessage = {
+      t: 'in',
+      s: this.batchFirst,
+      i: this.batch,
+      ...(this.batchDoors.length > 0 ? { d: this.batchDoors } : {}),
+      ...(this.batchAttacks.length > 0 ? { k: this.batchAttacks } : {}),
+    };
     this.batch = [];
     this.batchDoors = [];
+    this.batchAttacks = [];
     return message;
   }
 
@@ -105,12 +125,16 @@ export class Prediction {
     if (snapshot.doors) this.serverDoors = snapshot.doors;
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
-    const [x, y, vx, vy, facing] = snapshot.you;
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard] = snapshot.you;
     player.x = x;
     player.y = y;
     player.vx = vx;
     player.vy = vy;
     player.facing = facingFromCode(facing);
+    player.attack = attack;
+    player.cooldown = cooldown;
+    player.stun = stun;
+    player.guard = guard;
     for (const p of this.pending) {
       for (const [tx, ty, open] of p.doors) wishDoor(world, player, tx, ty, open, others);
       stepPlayer(player, fromWireInput(p.input), world);

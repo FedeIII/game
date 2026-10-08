@@ -11,6 +11,7 @@ import {
   type Building,
   type Chunk,
   type Fixture,
+  type MobRules,
   type NpcDef,
   type World,
   type WorldSource,
@@ -23,6 +24,11 @@ const TOWN_SEED = 4242;
 function inBounds(tx: number, ty: number): boolean {
   return tx >= BOUNDS.x0 && tx <= BOUNDS.x1 && ty >= BOUNDS.y0 && ty <= BOUNDS.y1;
 }
+
+/** A mob that chases a player may come this many tiles into the town; no further. */
+export const MOB_EDGE = 3;
+/** Mobs round each visitor: three imps and two brutes, in the forest. */
+const MOB_POPULATION = { imp: 3, brute: 2 } as const;
 
 /**
  * The town of Azyr: a hand-made plan (layout.ts) in the middle of an endless forest. Inside the
@@ -90,5 +96,16 @@ export class TownSource implements WorldSource {
 
   npcs(): readonly NpcDef[] {
     return NPCS;
+  }
+
+  /**
+   * Mobs live in the forest round the town. While they chase a visitor they may come into the
+   * edge of the town (MOB_EDGE tiles), not to the plaza or the lane: the middle of the town is
+   * safe.
+   */
+  mobs(): MobRules {
+    const edge = (tx: number, ty: number) =>
+      tx < BOUNDS.x0 + MOB_EDGE || tx > BOUNDS.x1 - MOB_EDGE || ty < BOUNDS.y0 + MOB_EDGE || ty > BOUNDS.y1 - MOB_EDGE;
+    return { roam: (tx, ty) => !inBounds(tx, ty), hunt: edge, population: MOB_POPULATION };
   }
 }

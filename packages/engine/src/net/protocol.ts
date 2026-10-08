@@ -1,3 +1,5 @@
+import { TILE_SIZE } from '../constants.ts';
+import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
 import { clampInput, type Facing, type MoveInput } from '../player.ts';
 
 /**
@@ -8,7 +10,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -18,6 +20,10 @@ export const INPUT_BATCH_TICKS = 3;
 export const MAX_INPUTS_PER_MESSAGE = 30;
 /** The most door actions in one message. */
 export const MAX_DOORS_PER_MESSAGE = 4;
+/** The most attacks in one message (an attack and its cooldown take 27 ticks). */
+export const MAX_ATTACKS_PER_MESSAGE = 4;
+/** The server sends the mobs this close to a player (world pixels): far beyond the screen. */
+export const MOB_SEND_RADIUS = 30 * TILE_SIZE;
 /** The largest message, in bytes, in either direction from a client. */
 export const MAX_CLIENT_MESSAGE_BYTES = 2048;
 
@@ -56,20 +62,22 @@ export function facingFromCode(code: number): Facing {
 }
 
 /**
- * An input on the wire: each axis as a whole number from -100 to 100. The client applies the
- * input that it sends, not the one that it read, so the server can repeat the same step.
+ * An input on the wire: each axis as a whole number from -100 to 100, and for an attack a third
+ * number, 1 + the facing code of its side. The client applies the input that it sends, not the
+ * one that it read, so the server can repeat the same step.
  */
-export type WireInput = readonly [number, number];
+export type WireInput = readonly [number, number] | readonly [number, number, number];
 
 const INPUT_SCALE = 100;
 
 export function toWireInput(input: MoveInput): WireInput {
   const q = (v: number) => Math.max(-INPUT_SCALE, Math.min(INPUT_SCALE, Math.round(v * INPUT_SCALE)));
-  return [q(input.x), q(input.y)];
+  return input.attack ? [q(input.x), q(input.y), 1 + facingCode(input.attack)] : [q(input.x), q(input.y)];
 }
 
 export function fromWireInput(wire: WireInput): MoveInput {
-  return clampInput({ x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE });
+  const move = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
+  return clampInput(wire.length === 3 ? { ...move, attack: facingFromCode(wire[2] - 1) } : move);
 }
 
 // ---------------------------------------------------------------- client to server
@@ -92,12 +100,20 @@ export interface HelloMessage {
  */
 export type WireDoor = readonly [number, number, number, number];
 
+/**
+ * When the attack of input `seq` started, the client showed the mobs as they were at server time
+ * `viewMs` (it draws them a little in the past): [seq, viewMs]. The server checks the hit there
+ * too (within limits), so a blow that looked right on the screen lands.
+ */
+export type WireAttack = readonly [number, number];
+
 /** A batch of inputs. `s` is the sequence number of the first input; the others follow it, one per tick. */
 export interface InputMessage {
   readonly t: 'in';
   readonly s: number;
   readonly i: readonly WireInput[];
   readonly d?: readonly WireDoor[];
+  readonly k?: readonly WireAttack[];
 }
 
 /**
@@ -128,8 +144,31 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 
 // ---------------------------------------------------------------- server to client
 
-/** A player as others see it: [id, x, y, vx, vy, facing code, skin]. Positions to 0.1 px. */
-export type WirePlayer = readonly [number, number, number, number, number, number, number];
+/**
+ * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard]: the last
+ * three are the ticks left, as in PlayerState. Positions to 0.1 px.
+ */
+export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number];
+
+/** A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard]. */
+export type WireSelf = readonly [number, number, number, number, number, number, number, number, number];
+
+/** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state]. Positions to 0.1 px. */
+export type WireMob = readonly [number, number, number, number, number, number, number, number, number];
+
+export function mobKindCode(kind: MobKind): number {
+  return MOB_KINDS.indexOf(kind);
+}
+
+export function mobStateCode(state: MobState): number {
+  return MOB_STATES.indexOf(state);
+}
+
+/** A mob as the wire carries it. */
+export function toWireMob(mob: Mob): WireMob {
+  const round = (v: number) => Math.round(v * 10) / 10;
+  return [mob.id, mobKindCode(mob.kind), round(mob.x), round(mob.y), Math.round(mob.vx), Math.round(mob.vy), facingCode(mob.facing), mobStateCode(mob.state), Math.round(mob.stateMs)];
+}
 
 /** The reply to hello: who the player is, where it starts, and which doors are open. */
 export interface WelcomeMessage {
@@ -149,7 +188,7 @@ export interface SnapshotMessage {
   readonly t: 'snap';
   readonly ms: number;
   readonly a: number;
-  readonly you: readonly [number, number, number, number, number];
+  readonly you: WireSelf;
   readonly p: readonly WirePlayer[];
   readonly doors?: readonly (readonly [number, number])[];
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
@@ -161,6 +200,8 @@ export interface SnapshotMessage {
   readonly b?: readonly (readonly [number, number])[];
   /** The names of the players that have one, [id, name]: all of them, and only when one changed. */
   readonly names?: readonly (readonly [number, string])[];
+  /** In a world with mobs: the mobs near this player (within MOB_SEND_RADIUS). */
+  readonly m?: readonly WireMob[];
 }
 
 /** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */
@@ -217,9 +258,18 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'in': {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;
-      if (!m.i.every((input) => isPair(input, -INPUT_SCALE, INPUT_SCALE))) return null;
+      const inputShaped = (v: unknown) =>
+        isPair(v, -INPUT_SCALE, INPUT_SCALE) ||
+        (Array.isArray(v) && v.length === 3 && isInt(v[0], -INPUT_SCALE, INPUT_SCALE) && isInt(v[1], -INPUT_SCALE, INPUT_SCALE) && isInt(v[2], 1, 4));
+      if (!m.i.every(inputShaped)) return null;
       const inputs = m.i as WireInput[];
-      if (m.d === undefined) return { t: 'in', s: m.s, i: inputs };
+      let attacks: WireAttack[] | undefined;
+      if (m.k !== undefined) {
+        const attackShaped = (k: unknown) => Array.isArray(k) && k.length === 2 && isInt(k[0], 1, SEQ_LIMIT) && typeof k[1] === 'number' && Number.isFinite(k[1]);
+        if (!Array.isArray(m.k) || m.k.length > MAX_ATTACKS_PER_MESSAGE || !m.k.every(attackShaped)) return null;
+        attacks = m.k as WireAttack[];
+      }
+      if (m.d === undefined) return attacks ? { t: 'in', s: m.s, i: inputs, k: attacks } : { t: 'in', s: m.s, i: inputs };
       if (!Array.isArray(m.d) || m.d.length > MAX_DOORS_PER_MESSAGE) return null;
       const doorShaped = (d: unknown) =>
         Array.isArray(d) &&
@@ -229,7 +279,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         isInt(d[2], -TILE_LIMIT, TILE_LIMIT) &&
         isInt(d[3], 0, 1);
       if (!m.d.every(doorShaped)) return null;
-      return { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[] };
+      return attacks ? { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[], k: attacks } : { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[] };
     }
     case 'skin':
       return isSkin(m.skin) ? { t: 'skin', skin: m.skin } : null;

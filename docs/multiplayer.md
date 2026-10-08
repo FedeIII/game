@@ -34,10 +34,10 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name` |
 | client to server | `skin` | a new skin seed for the player (from the settings panel) |
 | client to server | `name` | a new name for the player (`''` for none) |
-| client to server | `in` | a batch of inputs (one per tick, each axis an integer from -100 to 100), the sequence number of the first, door wishes `[seq, tx, ty, open]` |
+| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the facing code of its side), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks), the others (positions to 0.1 px, their skin seeds, and their attack, stun and guard ticks), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full` or `busy` |
 | server to client | `pong` | the client's clock, back |
 
@@ -79,6 +79,24 @@ kind, a "New look" button and a name field.
   (the room's names version). A new player gets the list in its first snapshot. A client that
   is skipped (a full send buffer) gets the list with its next snapshot.
 - There is no moderation of names. The character set and the length are the only limits.
+
+## Mobs (protocol 5, 2026-10-08)
+
+The server runs the mobs of a shared world (`Room.horde`, a `Horde`, see CLAUDE.md "Mobs and
+fights"): `Room.tick()` steps them with every player's true state, and a mob's hit stuns that
+state at once. The client takes the stun from the next snapshot (`you`), and its prediction
+replays the unconfirmed inputs with it, so the player stands still at once and a correction
+is small. The client draws the mobs 100 ms in the past, like the players (`Remotes.mobsAt()`); a
+counter (a state's ms, an attack's ticks) runs on from the last sample.
+
+An attack is an input (`stepPlayer` starts it), so the client predicts it exactly. A blow on the
+screen hits the mobs as the client shows them, 100 ms and a half round trip in the past. So the
+client sends the server time of what it shows (`Remotes.viewTime()`) with the attack (`k`), and
+the room checks the hit against the mobs now **and** where they were at that time (`Room` keeps
+700 ms of their positions). It never goes back more than 500 ms; without a time, 150 ms. The
+client shows the kill at once (`game.ts`, `predicted`): the mob dies on the screen; when the
+server's snapshot says that it dies too, the death goes on with the local timing; if the server
+has not said so after 0.7 s, the mob shows alive again.
 
 ## Limits on the server
 
@@ -125,7 +143,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
 npm run server                       # local, port 3008, allows the Vite origins
-curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":4,"players":{"town":2}}
+curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":5,"players":{"town":2}}
 pm2 logs game-server                  # one line per arrival and departure; no addresses
 ```
 
@@ -148,6 +166,8 @@ pm2 logs game-server                  # one line per arrival and departure; no a
 
 - `packages/engine/test/net.test.ts`: a simulated network (latency in simulated milliseconds)
   with a Room and clients: exact prediction, interpolation, the input rate limit, repeats,
+  mobs (a kill that every client sees, the rewind of a blow and its limit, a stun that the
+  prediction keeps, only the mobs near a player),
   skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
   a full room, and doors (shared, out of reach, never onto a player).
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`

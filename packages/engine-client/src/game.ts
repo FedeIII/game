@@ -10,6 +10,7 @@ import {
   World,
   npcActors,
   npcFixture,
+  attackHits,
   canAttack,
   clampInput,
   createPlayer,
@@ -79,6 +80,8 @@ const ATTACK_BUFFER_MS = 150;
 const AIM_SLACK = 10;
 /** A hit shakes the camera for this long (ms), by about this much (world pixels). */
 const SHAKE = { ms: 220, amount: 2 } as const;
+/** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
+const PREDICTED_KILL_MS = 700;
 
 /** A key for "the same target": a fixture by its anchor, anything else by its tile. */
 function targetKey(target: InteractionTarget): string {
@@ -189,7 +192,7 @@ async function run(options: GameOptions): Promise<void> {
     },
   });
   wear(skin);
-  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, textScene, new PixelFont(art, 'small')) : null;
+  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, textScene, glowLayer, new PixelFont(art, 'small')) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
   // is alone (a single-player world, or no server). Its seed differs per page: nobody else sees it.
   const npcDefs = world.source.npcs?.() ?? [];
@@ -241,10 +244,49 @@ async function run(options: GameOptions): Promise<void> {
       horde.spawn(kind, spot.x, spot.y);
     }
   });
-  const mobsNow = (): readonly MobLook[] => horde?.mobs ?? [];
   let kills = 0;
+  let confirmed = 0;
   let hitsTaken = 0;
+  let stunSeen = false;
   let shakeUntil = -Infinity;
+  // In a shared world, a blow that hits a mob on the screen kills it there at once; the server
+  // decides, and its word comes a moment later. Mob id -> when, and where the mob was.
+  const predicted = new Map<number, { at: number; x: number; y: number; confirmed: boolean }>();
+  const predictKills = (): void => {
+    const now = performance.now();
+    for (const mob of net?.mobsAt(now) ?? []) {
+      if (mob.state === 'dying' || predicted.has(mob.id)) continue;
+      if (!attackHits(player.x, player.y, player.facing, mob.x, mob.y, MOB_STATS[mob.kind].radius)) continue;
+      predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
+      kills++;
+    }
+  };
+  /** The mobs to draw and to aim at now: the local horde's, or the server's with the kills that this client predicts. */
+  const mobsNow = (): readonly MobLook[] => {
+    if (!net) return horde?.mobs ?? [];
+    const now = performance.now();
+    const list = net.mobsAt(now);
+    const out: MobLook[] = [];
+    const present = new Set<number>();
+    for (const mob of list) {
+      present.add(mob.id);
+      const guess = predicted.get(mob.id);
+      if (!guess) out.push(mob);
+      else if (mob.state === 'dying') {
+        // The server agrees. The death keeps the local timing, so it does not start again.
+        if (!guess.confirmed) confirmed++;
+        guess.confirmed = true;
+        out.push({ ...mob, stateMs: now - guess.at });
+      } else if (now - guess.at > PREDICTED_KILL_MS) {
+        predicted.delete(mob.id);
+        out.push(mob);
+      } else {
+        out.push({ ...mob, x: guess.x, y: guess.y, vx: 0, vy: 0, state: 'dying', stateMs: now - guess.at });
+      }
+    }
+    for (const id of predicted.keys()) if (!present.has(id)) predicted.delete(id);
+    return out;
+  };
   // An attack: the button (or Space) asks for it, and the next tick in which the player can
   // attack starts it, towards the nearest mob in reach, else the way the player walks or faces.
   const attackButton = mobRules ? new AttackButton() : null;
@@ -431,13 +473,11 @@ async function run(options: GameOptions): Promise<void> {
       input = { ...input, attack: aim(input) };
       attackAskedAt = -Infinity;
     }
-    if (net) net.tick(input);
-    else if (stepPlayer(player, input, world) && horde) kills += horde.strike(player, player.facing).length;
+    if (net) {
+      if (net.tick(input)) predictKills();
+    } else if (stepPlayer(player, input, world) && horde) kills += horde.strike(player, player.facing).length;
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
-    if (horde && horde.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]).length > 0) {
-      hitsTaken++;
-      shakeUntil = performance.now() + SHAKE.ms;
-    }
+    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]);
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -470,7 +510,12 @@ async function run(options: GameOptions): Promise<void> {
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     playerView.update(shown.x, shown.y, player, seconds);
-    // A hit shakes the view a little.
+    // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
+    if (player.stun > 0 && !stunSeen) {
+      hitsTaken++;
+      shakeUntil = now + SHAKE.ms;
+    }
+    stunSeen = player.stun > 0;
     const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
     mobViews?.update(mobsNow(), now, seconds);
@@ -528,7 +573,14 @@ async function run(options: GameOptions): Promise<void> {
       `facing  ${player.facing}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       ...(net
-        ? [`others  ${net.playersAt(now).map((o) => `skin ${o.skin}${o.name ? ` "${o.name}"` : ''} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}`).join('; ') || '-'}`]
+        ? [
+            `others  ${
+              net
+                .playersAt(now)
+                .map((o) => `skin ${o.skin}${o.name ? ` "${o.name}"` : ''} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}${o.attack ? ' attacking' : ''}${o.stun ? ' stunned' : ''}`)
+                .join('; ') || '-'
+            }`,
+          ]
         : []),
       `inside  ${inside?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
@@ -538,7 +590,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(mobRules
         ? [
             `mobs    ${mobsNow().map((m) => `${m.kind} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`).join('; ') || '-'}`,
-            `fight   kills ${kills}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
+            `fight   kills ${kills}${net ? ` (${confirmed} confirmed)` : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
           ]
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,

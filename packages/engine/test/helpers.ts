@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, Decor, Ground, emptyChunk, inRect, structureIn, type Building, type WorldSource } from '../src/index.ts';
+import { CHUNK_SIZE, Decor, Ground, emptyChunk, inRect, structureIn, type Building, type MobRules, type WorldSource } from '../src/index.ts';
 
 /**
  * A small world from a text map, for engine tests: '.' grass, 'T' tree, 'R' rock, '~' water.
@@ -57,4 +57,9 @@ export function houseSource(): WorldSource {
     fixturesIn: () => [],
     spawn: (world) => world.findSpawn(5, 9, 1),
   };
+}
+
+/** The house world with mobs: they may go anywhere outside the house; none come by themselves. */
+export function mobHouseSource(population: MobRules['population'] = { imp: 0, brute: 0 }): WorldSource {
+  return { ...houseSource(), mobs: () => ({ roam: () => true, hunt: () => true, population }) };
 }

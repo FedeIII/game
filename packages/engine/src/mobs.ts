@@ -34,6 +34,8 @@ export interface MobStats {
   /** The wind-up before the blow, and the blow itself (ms). */
   readonly windupMs: number;
   readonly strikeMs: number;
+  /** It keeps running at the player during the wind-up at this speed (px/s; 0: it stands). */
+  readonly windupSpeed: number;
   /** How far it lunges forward during the blow (world pixels). */
   readonly lunge: number;
   /** A hit stuns the player for this many ticks. */
@@ -53,14 +55,15 @@ export interface MobStats {
 export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
   imp: {
     wanderSpeed: 30,
-    chaseSpeed: 90,
-    retreatSpeed: 76,
+    chaseSpeed: 96,
+    retreatSpeed: 80,
     sight: 112,
     forget: 200,
     reach: 15,
     hitRange: 21,
     windupMs: 280,
     strikeMs: 240,
+    windupSpeed: 86,
     lunge: 7,
     stunTicks: 60,
     retreatMs: [1100, 1800],
@@ -79,6 +82,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     hitRange: 28,
     windupMs: 650,
     strikeMs: 380,
+    windupSpeed: 0,
     lunge: 3,
     stunTicks: 120,
     retreatMs: [1400, 2200],
@@ -128,6 +132,14 @@ export interface HordePlayer {
 
 /** A mob walks at most this far from its home while it wanders (world pixels). */
 const WANDER_RADIUS = 4 * TILE_SIZE;
+/**
+ * A mob prowls: when it sets off on a walk, with this chance it moves its home this far towards
+ * the nearest player (world pixels), but not closer to it than PROWL_NEAREST. So mobs come near
+ * the players over time, and find them.
+ */
+const PROWL_CHANCE = 0.5;
+const PROWL_STEP = 3 * TILE_SIZE;
+const PROWL_NEAREST = 8 * TILE_SIZE;
 /** A mob does not chase further than this from its home (world pixels): then it goes back. */
 const LEASH = 18 * TILE_SIZE;
 /** It follows a player that it cannot see any more for this long (ms), to where it saw it last. */
@@ -152,7 +164,7 @@ const MAX_MOVE = 6;
 const DETOURS = [0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5];
 
 interface Brain {
-  readonly home: { readonly x: number; readonly y: number };
+  home: { readonly x: number; readonly y: number };
   /** The player that it chases or runs from, where it saw it last, and for how long it has not seen it. */
   target: number | null;
   seenX: number;
@@ -264,18 +276,28 @@ export class Horde {
         case 'walk':
           if (this.despawn(mob, players)) break;
           if (this.notice(mob, brain, players)) break;
-          this.wander(mob, brain, dt);
+          this.wander(mob, brain, dt, players);
           break;
         case 'chase':
           this.chase(mob, brain, byId, dt);
           break;
         case 'windup': {
+          const stats = MOB_STATS[mob.kind];
           const target = brain.target === null ? undefined : byId.get(brain.target);
-          if (target) mob.facing = facingTo(target.x - mob.x, target.y - mob.y, mob.facing);
+          if (target) {
+            // A quick mob keeps running at the player while it winds up, so running away does not save the player.
+            const dx = target.x - mob.x;
+            const dy = target.y - mob.y;
+            if (stats.windupSpeed > 0 && Math.hypot(dx, dy) > stats.reach * 0.6) this.steer(mob, brain, Math.atan2(dy, dx), stats.windupSpeed, dt);
+            else {
+              mob.vx = 0;
+              mob.vy = 0;
+            }
+            mob.facing = facingTo(dx, dy, mob.facing);
+          }
           brain.timerMs -= dt;
           if (brain.timerMs > 0) break;
           // The blow: it lands if the player is still close, and not stunned or just after a stun.
-          const stats = MOB_STATS[mob.kind];
           brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           if (brain.hit) {
             stunPlayer(target!, stats.stunTicks);
@@ -363,11 +385,12 @@ export class Horde {
     return true;
   }
 
-  private wander(mob: Mob, brain: Brain, dt: number): void {
+  private wander(mob: Mob, brain: Brain, dt: number, players: readonly HordePlayer[]): void {
     const stats = MOB_STATS[mob.kind];
     if (mob.state === 'idle') {
       brain.timerMs -= dt;
       if (brain.timerMs > 0) return;
+      if (this.random() < PROWL_CHANCE) this.prowl(brain, players);
       brain.goal = this.wanderGoal(brain);
       if (!brain.goal) {
         brain.timerMs = this.between(800, 2000);
@@ -562,6 +585,24 @@ export class Horde {
   }
 
   // ---------------------------------------------------------------- coming and going
+
+  /** Moves the home a step towards the nearest player, onto an open tile where it may roam. */
+  private prowl(brain: Brain, players: readonly HordePlayer[]): void {
+    let nearest: PlayerState | null = null;
+    let best = POPULATION_RADIUS * TILE_SIZE;
+    for (const p of players) {
+      const d = Math.hypot(p.state.x - brain.home.x, p.state.y - brain.home.y);
+      if (d < best) {
+        best = d;
+        nearest = p.state;
+      }
+    }
+    if (!nearest || best <= PROWL_NEAREST) return;
+    const step = Math.min(PROWL_STEP, best - PROWL_NEAREST);
+    const x = brain.home.x + ((nearest.x - brain.home.x) / best) * step;
+    const y = brain.home.y + ((nearest.y - brain.home.y) / best) * step;
+    if (this.open(tileOf(x), tileOf(y))) brain.home = { x, y };
+  }
 
   /** A place to walk to near home: an open tile where it may roam. */
   private wanderGoal(brain: Brain): { x: number; y: number } | null {

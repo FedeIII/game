@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   Decor,
   Ground,
+  Horde,
+  NO_INPUT,
   PLAYER_HALF_HEIGHT,
   PLAYER_HALF_WIDTH,
   Structure,
@@ -9,6 +11,7 @@ import {
   World,
   createPlayer,
   decodeFixture,
+  stepPlayer,
   findInteraction,
   fixtureTiles,
   isInside,
@@ -282,4 +285,36 @@ describe('the town of Azyr', () => {
     const missing = new Set([...texts.join('')].filter((ch) => !drawable(ch)));
     expect([...missing]).toEqual([]);
   });
+
+  it('keeps mobs in the forest: the plaza, the lane and every door are out of their reach', () => {
+    const rules = new TownSource().mobs();
+    expect(rules.hunt(SPAWN.tx, SPAWN.ty)).toBe(false);
+    for (const house of HOUSES) expect(rules.hunt(house.doorX, house.y1 + 1)).toBe(false);
+    expect(rules.roam(5, 5)).toBe(false);
+    expect(rules.roam(-4, 10)).toBe(true);
+    expect(rules.hunt(1, 10)).toBe(true);
+  });
+
+  it('never lets a mob hit a visitor who stays in the plaza, or step where it may not', () => {
+    const rules = new TownSource().mobs();
+    const horde = new Horde(world, rules, 77);
+    const spawn = world.spawn();
+    const p = createPlayer(spawn.x, spawn.y);
+    let hits = 0;
+    let most = 0;
+    for (let t = 0; t < 120_000; t += 50) {
+      stepPlayer(p, NO_INPUT, world);
+      hits += horde.step(50, [{ id: 1, state: p }]).length;
+      most = Math.max(most, horde.mobs.length);
+      for (const mob of horde.mobs) {
+        const tx = Math.floor(mob.x / TILE_SIZE);
+        const ty = Math.floor(mob.y / TILE_SIZE);
+        expect(rules.hunt(tx, ty)).toBe(true);
+      }
+    }
+    expect(hits).toBe(0);
+    // They came, in the forest round the town.
+    expect(most).toBe(5);
+  });
 });
+

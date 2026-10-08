@@ -44,16 +44,18 @@ export class OtherPlayers {
   private readonly layer: Container;
   private readonly ghostLayer: Container;
   private readonly textLayer: Container;
+  private readonly glowLayer: Container;
   private readonly font: PixelFont;
   private readonly views = new Map<number, OtherView>();
 
-  constructor(art: Art, skins: SkinStore, entityLayer: Container, ghostLayer: Container, textLayer: Container, smallFont: PixelFont) {
+  constructor(art: Art, skins: SkinStore, entityLayer: Container, ghostLayer: Container, textLayer: Container, glowLayer: Container, smallFont: PixelFont) {
     this.art = art;
     this.skins = skins;
     this.placeholder = atlasPlayerTextures(art);
     this.layer = entityLayer;
     this.ghostLayer = ghostLayer;
     this.textLayer = textLayer;
+    this.glowLayer = glowLayer;
     this.font = smallFont;
   }
 
@@ -113,6 +115,7 @@ export class OtherPlayers {
     const view = new PlayerView(this.art, this.placeholder, true);
     this.layer.addChild(view.root);
     this.ghostLayer.addChild(view.ghost);
+    this.glowLayer.addChild(view.overlay);
     const other: OtherView = { view, skin: -1, name: '', tag: null, tagWidth: 0, x: player.x, y: player.y, alpha: 0, here: true };
     this.views.set(player.id, other);
     this.reskin(player.id, other, player.skin);
@@ -152,6 +155,7 @@ export class OtherPlayers {
   private remove(id: number, other: OtherView): void {
     other.view.root.destroy({ children: true });
     other.view.ghost.destroy();
+    other.view.overlay.destroy({ children: true });
     other.tag?.destroy({ children: true });
     this.views.delete(id);
   }

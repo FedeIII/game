@@ -67,7 +67,7 @@ the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
 curl -sI https://game.azyr.io/ | grep -iE '^HTTP|cache-control'      # 200, no-store
 # A local curl gets 400 "No required SSL certificate was sent". That is correct.
 # The multiplayer server, locally:
-curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":4,"players":{"town":N}}
+curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":5,"players":{"town":N}}
 pm2 logs game-server --lines 20 --nostream
 curl -sk --resolve game.azyr.io:443:127.0.0.1 https://game.azyr.io/ -o /dev/null -w '%{http_code}\n'
 ```

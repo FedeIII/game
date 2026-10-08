@@ -16,7 +16,8 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
   houses, one for each project of the azyr.io landing page, each in its own style (a timber
   counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
   In each house a keeper introduces the project, the exhibits show its details, and a portal
-  opens the real thing.
+  opens the real thing. Mobs prowl in the forest round the town, and every visitor sees the
+  same ones; the plaza and the lane are safe.
 
 Move with WASD or the arrow keys, or a touch joystick on a phone. Very close to a thing, the
 action button (or E) examines it, talks to a keeper, opens a door, or shows a portal's link.

@@ -3,6 +3,7 @@ import {
   INPUT_BATCH_TICKS,
   MAX_INPUTS_PER_MESSAGE,
   NO_INPUT,
+  MOB_SEND_RADIUS,
   PROTOCOL_VERSION,
   Prediction,
   Remotes,
@@ -22,15 +23,16 @@ import {
   type PlayerState,
   type ServerMessage,
   type SnapshotMessage,
+  type WorldSource,
 } from '../src/index.ts';
-import { houseSource } from './helpers.ts';
+import { houseSource, mobHouseSource } from './helpers.ts';
 
 const TICK_MS = 1000 / TICK_RATE;
 const SNAPSHOT_MS = 1000 / SNAPSHOT_RATE;
 
 /** A client of the simulated network: its own world, a predicted player and the others. */
 class SimClient {
-  readonly world = new World(houseSource());
+  readonly world: World;
   readonly player: PlayerState = createPlayer(0, 0);
   readonly prediction = new Prediction();
   readonly remotes = new Remotes();
@@ -45,9 +47,10 @@ class SimClient {
   readonly speed: number;
   readonly skin = Math.floor(Math.random() * 0xffffffff);
 
-  constructor(input: (tick: number) => MoveInput, speed = 1) {
+  constructor(input: (tick: number) => MoveInput, speed = 1, source: () => WorldSource = houseSource) {
     this.input = input;
     this.speed = speed;
+    this.world = new World(source());
   }
 
   receive(message: ServerMessage, nowMs: number): void {
@@ -66,7 +69,7 @@ class SimClient {
 
 /** A server room and clients, with a one-way latency, in simulated milliseconds. */
 class SimNetwork {
-  readonly room = new Room(new World(houseSource()));
+  readonly room: Room;
   readonly clients: SimClient[] = [];
   private readonly queue: { at: number; order: number; run: () => void }[] = [];
   private order = 0;
@@ -75,8 +78,9 @@ class SimNetwork {
 
   readonly latencyMs: number;
 
-  constructor(latencyMs: number) {
+  constructor(latencyMs: number, source: () => WorldSource = houseSource) {
     this.latencyMs = latencyMs;
+    this.room = new Room(new World(source()));
   }
 
   private later(at: number, run: () => void): void {
@@ -108,7 +112,7 @@ class SimNetwork {
       for (const client of this.clients) {
         while (client.welcomed && client.nextTickMs <= this.nowMs) {
           client.nextTickMs += TICK_MS / client.speed;
-          client.prediction.step(client.player, client.world, client.input(client.ticks++));
+          client.prediction.step(client.player, client.world, client.input(client.ticks++), client.remotes.viewTime(this.nowMs));
           const batch = client.prediction.takeBatch();
           if (batch) this.send(client, batch);
         }
@@ -116,6 +120,7 @@ class SimNetwork {
       }
       if (this.nowMs >= this.nextSnapshotMs) {
         this.nextSnapshotMs += SNAPSHOT_MS;
+        this.room.tick(this.nowMs);
         this.room.broadcast(this.nowMs, (id, message) => {
           const client = this.clients.find((c) => c.id === id);
           if (client) this.later(this.nowMs + this.latencyMs, () => client.receive(message, this.nowMs));
@@ -327,7 +332,7 @@ describe('a multiplayer room', () => {
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
     const remotes = new Remotes();
-    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2]] });
+    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0]] });
     remotes.apply(snap(1000, 0), 5000);
     remotes.apply(snap(1050, 4), 5050);
     remotes.apply(snap(1100, 8), 5100);
@@ -336,7 +341,7 @@ describe('the other players on a client', () => {
     expect(r).toMatchObject({ id: 7, skin: 2, x: 6, y: 50, facing: 'right' });
     // Later than the last snapshot, it stays there and does not guess.
     expect(remotes.at(9000)[0]!.x).toBe(8);
-    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0], p: [] }, 5150);
+    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0], p: [] }, 5150);
     expect(remotes.count).toBe(0);
   });
 });
@@ -401,5 +406,105 @@ describe('names', () => {
     expect(rosterForB(150)).toEqual([[a.id, 'Ana María'], [b.id, 'Bo']]);
     room.leave(a.id);
     expect(rosterForB(200)).toEqual([[b.id, 'Bo']]);
+  });
+});
+
+describe('mobs in a shared world', () => {
+  it('reads attacks in inputs, and refuses a bad side or a bad view time', () => {
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 4]], k: [[1, 12345.5]] }))).toEqual({ t: 'in', s: 1, i: [[0, 0, 4]], k: [[1, 12345.5]] });
+    expect(fromWireInput([100, 0, 2])).toEqual({ x: 1, y: 0, attack: 'up' });
+    expect(toWireInput({ x: 0, y: 0, attack: 'right' })).toEqual([0, 0, 4]);
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 5]] }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0]], k: [[1, 'soon']] }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0]], k: Array.from({ length: 5 }, () => [1, 0]) }))).toBeNull();
+  });
+
+  it('kill a mob that a client strikes, and every client sees it die', () => {
+    const net = new SimNetwork(40, mobHouseSource);
+    let attackAt = -1;
+    const a = new SimClient((tick) => (tick === attackAt ? { x: 0, y: 0, attack: 'right' } : NO_INPUT), 1, mobHouseSource);
+    const b = new SimClient(() => NO_INPUT, 1, mobHouseSource);
+    net.connect(a, [5, 10]);
+    net.connect(b, [5, 12]);
+    net.run(400);
+    const p = net.room.player(a.id)!.state;
+    const mob = net.room.horde!.spawn('imp', p.x + 18, p.y);
+    net.run(300);
+    attackAt = a.ticks + 1;
+    net.run(600);
+    expect(net.room.kills).toBe(1);
+    expect(mob.state).toBe('dying');
+    // B was told: it draws the mob dying (100 ms in the past).
+    const seen = b.remotes.mobsAt(net.nowMs).find((m) => m.id === mob.id);
+    expect(seen?.state).toBe('dying');
+    // And B saw A strike.
+    expect(net.room.player(a.id)!.state.cooldown).toBe(0);
+  });
+
+  it('let a blow land where the client showed the mob, but not long before', () => {
+    const room = new Room(new World(mobHouseSource()));
+    const p = room.join(0, 1, [5, 10])!;
+    const horde = room.horde!;
+    const mob = horde.spawn('imp', p.state.x + 18, p.state.y);
+    room.tick(1000);
+    room.tick(1050);
+    // The mob runs off to the east: out of reach now, in reach at 1050.
+    mob.x += 60;
+    room.tick(1100);
+    room.tick(1150);
+    room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4]], k: [[1, 1050]] }, 1160);
+    expect(room.kills).toBe(1);
+    // Another mob, the same way, but the client claims a view of long ago: it does not count.
+    const other = horde.spawn('imp', p.state.x + 18, p.state.y);
+    room.tick(2000);
+    other.x += 60;
+    room.tick(2050);
+    room.tick(2700);
+    room.tick(2750);
+    for (let i = 2; i < 40; i++) room.input(p.id, { t: 'in', s: i, i: [[0, 0]] }, 2750);
+    room.input(p.id, { t: 'in', s: 40, i: [[0, 0, 4]], k: [[40, 2000]] }, 2760);
+    expect(room.kills).toBe(1);
+  });
+
+  it('stun a client with a hit, and its prediction stands still until the stun is over', () => {
+    const net = new SimNetwork(50, mobHouseSource);
+    // The client runs east all the time; an imp comes from the west, and it is faster.
+    const a = new SimClient(() => ({ x: 1, y: 0 }), 1, mobHouseSource);
+    net.connect(a, [5, 12]);
+    net.run(300);
+    const p = net.room.player(a.id)!.state;
+    net.room.horde!.spawn('imp', p.x - 40, p.y);
+    let stunnedAt = -1;
+    let xAtStun = 0;
+    let movedWhileStunned = 0;
+    for (let t = 0; t < 8000 && stunnedAt < 0; t += 20) {
+      net.run(20);
+      if (a.player.stun > 0) {
+        stunnedAt = net.nowMs;
+        xAtStun = a.player.x;
+      }
+    }
+    expect(net.room.hits).toBeGreaterThanOrEqual(1);
+    expect(stunnedAt).toBeGreaterThan(0);
+    while (a.player.stun > 1) {
+      net.run(10);
+      movedWhileStunned = Math.max(movedWhileStunned, Math.abs(a.player.x - xAtStun));
+    }
+    expect(movedWhileStunned).toBeLessThan(1);
+    // The client and the server agree on the stun: no big correction.
+    expect(a.worstCorrection).toBeLessThan(12);
+  });
+
+  it('send only the mobs near each player', () => {
+    const room = new Room(new World(mobHouseSource()));
+    const p = room.join(0, 1, [5, 10])!;
+    room.horde!.spawn('imp', p.state.x + 40, p.state.y);
+    room.horde!.spawn('brute', p.state.x + MOB_SEND_RADIUS + 50, p.state.y);
+    room.tick(10);
+    room.tick(60);
+    let snap: SnapshotMessage | null = null;
+    room.broadcast(100, (_id, message) => (snap = message));
+    expect(snap!.m!.map((m) => m[1])).toEqual([0]);
+    expect(snap!.you).toHaveLength(9);
   });
 });

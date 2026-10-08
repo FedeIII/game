@@ -198,10 +198,13 @@ town has one (the crier explains the town); the Wilds have none. `?nointro` skip
 ## Mobs and fights
 
 `packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
-small and quick (runs at 90 px/s, faster than a player), and the **brute**, big and slow (42
-px/s, a long wind-up, a 2 s stun). A mob wanders round its home; when it sees a player (close,
-out in the open, no building between), it runs at the player on a curve (an angle off the
-straight line that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
+small and quick (runs at 96 px/s, faster than a player, and keeps running during its short
+wind-up, so running away does not save you), and the **brute**, big and slow (42 px/s, a long
+wind-up in which it stands, a 2 s stun: you can walk away from it). A mob wanders round its
+home, and now and then it moves its home 3 tiles towards the nearest player (a prowl; never
+closer than 8 tiles), so mobs find players who stand still. When it sees a player (close, out in
+the open, no building between), it runs at the player on a curve (an angle off the straight line
+that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
 the player (`stunPlayer`: no move, no attack), and after it the player has a guard of 1 s in which
 no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. While the player is
 stunned or guarded, mobs circle round it. A mob never enters a building, gives up the chase when
@@ -217,8 +220,12 @@ an attack starts; the caller asks the horde what it hits (`Horde.strike`: in rea
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
-water and the ground round a house; 4 imps and 2 brutes. The client of a single-player world runs
-its own `Horde`. In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
+water and the ground round a house; 4 imps and 2 brutes. The town: they live in the forest round
+it and may come `MOB_EDGE` (3) tiles into the town while they chase; the plaza, the lane and
+every door are out of their reach (a test checks it); 3 imps and 2 brutes. The client of a
+single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
+`docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
+and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
 lunge, the red flash of a hit, stars over the head while stunned, a blink while guarded) and
 `ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A press is kept for
 150 ms, and the attack turns to the nearest mob in reach. `?mob=imp,brute` puts mobs next to the

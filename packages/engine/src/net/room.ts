@@ -1,17 +1,21 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, useDoor, type Feet } from '../interact.ts';
 import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
+import { Horde, type HordePlayer } from '../mobs.ts';
 import { NpcCrowd } from '../npc.ts';
 import type { World } from '../world.ts';
 import {
+  MOB_SEND_RADIUS,
   SKIN_CHANGE_GAP_MS,
   cleanName,
   facingCode,
   fromWireInput,
+  toWireMob,
   type InputMessage,
   type SnapshotMessage,
   type WelcomeMessage,
   type WireDoor,
+  type WireMob,
   type WireNpc,
   type WirePlayer,
 } from './protocol.ts';
@@ -28,6 +32,14 @@ const INPUT_BURST = TICK_RATE * 1.5;
 const MAX_START_DISTANCE = 64;
 /** Keep the chunks this far round the players (in chunks) when the room trims its memory. */
 const CHUNK_MARGIN = 2;
+/**
+ * An attack is checked against the mobs as its client showed them (the client says when), but
+ * never further back than this (ms); without that word, this far back.
+ */
+const MAX_REWIND_MS = 500;
+const DEFAULT_REWIND_MS = 150;
+/** The room keeps where the mobs were for this long (ms), for those checks. */
+const TRAIL_MS = 700;
 
 export interface RoomOptions {
   /** The most players at once. Default 50. */
@@ -80,6 +92,13 @@ export class Room {
   private lastTickMs: number | null = null;
   /** NPC lines since the last broadcast. */
   private barks: (readonly [number, number])[] = [];
+  /** The world's mobs, or null if it has none. */
+  readonly horde: Horde | null;
+  /** Where the mobs were at each tick of the last TRAIL_MS: [time, mob id -> x, y]. */
+  private trail: { ms: number; at: Map<number, readonly [number, number]> }[] = [];
+  /** Mob hits and kills so far (for the logs and tests). */
+  hits = 0;
+  kills = 0;
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
@@ -87,6 +106,8 @@ export class Room {
     this.random = options.random ?? null;
     const defs = world.source.npcs?.() ?? [];
     this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
+    const rules = world.source.mobs?.();
+    this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff)) : null;
   }
 
   /**
@@ -96,11 +117,41 @@ export class Room {
   tick(nowMs: number): void {
     const dt = this.lastTickMs === null ? 0 : Math.max(0, nowMs - this.lastTickMs);
     this.lastTickMs = nowMs;
-    if (!this.npcs || dt === 0) return;
-    const feet = [...this.players.values()].map((p) => p.state);
-    const events = this.npcs.step(dt, feet);
-    if (events.doors) this.doorVersion++;
-    this.barks.push(...events.barks);
+    if (dt === 0) return;
+    if (this.npcs) {
+      const feet = [...this.players.values()].map((p) => p.state);
+      const events = this.npcs.step(dt, feet);
+      if (events.doors) this.doorVersion++;
+      this.barks.push(...events.barks);
+    }
+    if (this.horde) {
+      // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
+      const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state }));
+      this.hits += this.horde.step(dt, players).length;
+      this.trail.push({ ms: nowMs, at: new Map(this.horde.mobs.map((m) => [m.id, [m.x, m.y] as const])) });
+      while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
+    }
+  }
+
+  /** Where mob `id` was at time `ms` (between two ticks of the trail), or null if the trail does not know. */
+  private mobAt(id: number, ms: number): { x: number; y: number } | null {
+    let before: (typeof this.trail)[number] | null = null;
+    let after: (typeof this.trail)[number] | null = null;
+    for (const entry of this.trail) {
+      if (entry.ms <= ms) before = entry;
+      else {
+        after = entry;
+        break;
+      }
+    }
+    const a = before?.at.get(id);
+    const b = after?.at.get(id);
+    if (a && b) {
+      const k = (ms - before!.ms) / (after!.ms - before!.ms);
+      return { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k };
+    }
+    const one = a ?? b;
+    return one ? { x: one[0], y: one[1] } : null;
   }
 
   get size(): number {
@@ -200,7 +251,12 @@ export class Room {
       player.seq = seq;
       if (player.tokens < 1) return;
       player.tokens -= 1;
-      stepPlayer(player.state, fromWireInput(wire), this.world);
+      if (stepPlayer(player.state, fromWireInput(wire), this.world) && this.horde) {
+        // The blow lands where the mobs are now, or where its client showed them (not too long ago).
+        const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
+        const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
+        this.kills += this.horde.strike(player.state, player.state.facing, (mob) => this.mobAt(mob.id, then)).length;
+      }
     });
     // And one for an input that has not come yet happens after this batch.
     for (const door of doors) if (door[0] > Math.max(last, player.seq)) this.door(player, door);
@@ -219,13 +275,14 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard]);
     }
     const doors = this.world.openDoorList();
     const barks = this.barks;
     this.barks = [];
     const names: [number, string][] = [];
     for (const p of this.players.values()) if (p.name) names.push([p.id, p.name]);
+    const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;
@@ -243,12 +300,14 @@ export class Room {
         t: 'snap',
         ms,
         a: p.seq,
-        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing)],
+        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard],
         p: others,
         ...(changed ? { doors } : {}),
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
         ...(renamed ? { names } : {}),
+        // The mobs near this player only: the others are far off its screen.
+        ...(mobs ? { m: mobs.filter((m) => Math.hypot(m[2] - s.x, m[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
       });
     }
   }

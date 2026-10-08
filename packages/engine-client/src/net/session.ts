@@ -13,6 +13,7 @@ import {
   type NpcPose,
   type PlayerState,
   type RefusalReason,
+  type RemoteMob,
   type RemotePlayer,
   type ServerMessage,
   type World,
@@ -91,13 +92,10 @@ export class NetSession {
     return this.status === 'online' ? this.remotes.count : 0;
   }
 
-  /** One tick of the local player. */
-  tick(input: MoveInput): void {
-    if (this.status !== 'online') {
-      stepPlayer(this.player, input, this.world);
-      return;
-    }
-    this.prediction.step(this.player, this.world, input);
+  /** One tick of the local player. Returns whether an attack starts in it. */
+  tick(input: MoveInput): boolean {
+    if (this.status !== 'online') return stepPlayer(this.player, input, this.world);
+    const struck = this.prediction.step(this.player, this.world, input, this.remotes.viewTime(performance.now()));
     const batch = this.prediction.takeBatch();
     if (batch) this.send(batch);
     const now = performance.now();
@@ -106,6 +104,7 @@ export class NetSession {
       this.send({ t: 'ping', c: now });
     }
     if (this.prediction.unconfirmed > MAX_UNCONFIRMED) this.socket?.close();
+    return struck;
   }
 
   /** Opens or closes a door: at once here, and through the server for everyone. */
@@ -139,6 +138,11 @@ export class NetSession {
   /** The NPCs to draw now, from the server. */
   npcsAt(nowMs: number): NpcPose[] {
     return this.remotes.npcsAt(nowMs);
+  }
+
+  /** The mobs to draw now, from the server (none while not online). */
+  mobsAt(nowMs: number): RemoteMob[] {
+    return this.status === 'online' ? this.remotes.mobsAt(nowMs) : [];
   }
 
   /**

@@ -41,8 +41,8 @@ describe('mobs', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 1);
     const home = at(0, 0);
     const mob = horde.spawn('imp', home.x, home.y);
-    // A player far away (20 tiles), so the mob stays but does not see it.
-    const far: HordePlayer = { id: 1, state: createPlayer(home.x + 20 * TILE_SIZE, home.y) };
+    // A player far away (30 tiles): the mob stays, but it does not see it or prowl towards it.
+    const far: HordePlayer = { id: 1, state: createPlayer(home.x + 30 * TILE_SIZE, home.y) };
     let furthest = 0;
     let walked = false;
     run(horde, [far], 60_000, () => {
@@ -227,4 +227,16 @@ describe('the player in a fight', () => {
     while (p.stun > 0) stepPlayer(p, NO_INPUT, world);
     expect(p.guard).toBe(GUARD_TICKS);
   });
+
+  it('prowl towards a player who stands still, find it and attack', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 12);
+    const mob = horde.spawn('brute', 20 * TILE_SIZE, 0);
+    const player: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    let came = false;
+    run(horde, [player], 180_000, () => {
+      if (mob.state === 'chase') came = true;
+    });
+    expect(came).toBe(true);
+  });
 });
+
