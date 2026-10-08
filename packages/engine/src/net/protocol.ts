@@ -8,7 +8,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -119,7 +119,12 @@ export interface SnapshotMessage {
   readonly you: readonly [number, number, number, number, number];
   readonly p: readonly WirePlayer[];
   readonly doors?: readonly (readonly [number, number])[];
+  /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
+  readonly n?: readonly WireNpc[];
 }
+
+/** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */
+export type WireNpc = readonly [number, number, number, number, number];
 
 /** Why the server does not let a client in. The client then plays alone. */
 export type RefusalReason = 'version' | 'world' | 'full' | 'busy';

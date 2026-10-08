@@ -9,6 +9,7 @@ import {
   type ClientMessage,
   type DoorResult,
   type MoveInput,
+  type NpcPose,
   type PlayerState,
   type RefusalReason,
   type RemotePlayer,
@@ -107,6 +108,16 @@ export class NetSession {
   /** The other players to draw now. */
   playersAt(nowMs: number): RemotePlayer[] {
     return this.status === 'online' ? this.remotes.at(nowMs) : [];
+  }
+
+  /** Whether the NPCs come from the server now (online, in a world with NPCs). */
+  get serverNpcs(): boolean {
+    return this.status === 'online' && this.remotes.hasNpcs;
+  }
+
+  /** The NPCs to draw now, from the server. */
+  npcsAt(nowMs: number): NpcPose[] {
+    return this.remotes.npcsAt(nowMs);
   }
 
   /**

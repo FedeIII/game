@@ -35,12 +35,22 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `in` | a batch of inputs (one per tick, each axis an integer from -100 to 100), the sequence number of the first, door wishes `[seq, tx, ty, open]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state, the others (positions to 0.1 px, and their skin seeds), the doors when they changed, and the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`) |
 | server to client | `refused` | `version`, `world`, `full` or `busy` |
 | server to client | `pong` | the client's clock, back |
 
 The client sends a batch every 3 ticks (20 messages a second). It applies the input as it
 goes on the wire (quantized), so the server can repeat the step exactly.
+
+## NPCs (protocol 3, 2026-10-08)
+
+The server runs the walking NPCs of a shared world (`npc.ts`, `NpcCrowd`): `Room.tick()` moves
+them before each broadcast, with the time since the last tick (at most 250 ms; an empty room
+stands still), and with every player's feet, because a player close to an NPC stops it. Each
+snapshot carries all of them; the client draws them 100 ms in the past, as it draws the other
+players (`Remotes.npcsAt()`). Until the first snapshot, or with no server, the client runs its
+own crowd. NPCs do not collide with players, so the prediction of the local player never
+depends on them.
 
 ## Limits on the server
 

@@ -1,6 +1,7 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, useDoor } from '../interact.ts';
 import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
+import { NpcCrowd } from '../npc.ts';
 import type { World } from '../world.ts';
 import {
   facingCode,
@@ -9,6 +10,7 @@ import {
   type SnapshotMessage,
   type WelcomeMessage,
   type WireDoor,
+  type WireNpc,
   type WirePlayer,
 } from './protocol.ts';
 
@@ -63,11 +65,28 @@ export class Room {
   private nextId = 1;
   /** Goes up each time a door opens or closes. A snapshot carries the doors when it changed. */
   private doorVersion = 0;
+  /** The world's walking NPCs, or null if it has none. */
+  readonly npcs: NpcCrowd | null;
+  private lastTickMs: number | null = null;
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
     this.maxPlayers = options.maxPlayers ?? 50;
     this.random = options.random ?? null;
+    const defs = world.source.npcs?.() ?? [];
+    this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
+  }
+
+  /**
+   * Moves the world on to `nowMs`: the NPCs walk. The server calls it before each broadcast.
+   * The time between two calls counts at most 250 ms, so a stall does not make NPCs jump.
+   */
+  tick(nowMs: number): void {
+    const dt = this.lastTickMs === null ? 0 : Math.max(0, nowMs - this.lastTickMs);
+    this.lastTickMs = nowMs;
+    if (!this.npcs || dt === 0) return;
+    const feet = [...this.players.values()].map((p) => p.state);
+    if (this.npcs.step(dt, feet).doors) this.doorVersion++;
   }
 
   get size(): number {
@@ -152,6 +171,9 @@ export class Room {
       packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin]);
     }
     const doors = this.world.openDoorList();
+    const npcs: WireNpc[] | null = this.npcs
+      ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
+      : null;
     for (const p of this.players.values()) {
       // A client that cannot take more now (a slow connection) gets the next one, doors included.
       if (skip(p.id)) continue;
@@ -167,6 +189,7 @@ export class Room {
         you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing)],
         p: others,
         ...(changed ? { doors } : {}),
+        ...(npcs ? { n: npcs } : {}),
       });
     }
   }

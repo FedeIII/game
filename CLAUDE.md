@@ -170,6 +170,17 @@ For the HTML GUI:
 
 ## Fixtures, content and actions
 
+- **Walking NPCs** (`packages/engine/src/npc.ts`, since 2026-10-08): a world gives them with
+  `WorldSource.npcs()`: `NpcDef` = id, look, home tile, `area` (the tiles where it may walk;
+  open and in one piece), content. `NpcCrowd` walks them: a random tile of the area by the
+  shortest path, at `NPC_SPEED` (28 px/s); then a stop of 1.5-6 s, sometimes 6-14 s, now and
+  then 15-25 s, looking round. A player within `NPC_HOLD_RADIUS` (22 px) stops the NPC, and it
+  turns to the player, so a dialog is never cut. NPCs do not collide with anyone. In a shared
+  world the Room runs the crowd (`Room.tick()`, before each broadcast) and the snapshots carry
+  the poses; otherwise the client runs its own crowd. To act on one, findInteraction() takes
+  `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.
+  The client draws them with `render/npcs.ts` (frames `npc/<look>/<view>/stand|walk/<i>`).
+
 - **Fixture types** (`packages/engine/src/fixtures.ts`, `FIXTURE_TYPES`): a kind, a footprint
   (tiles from the anchor = south-west tile, each with a solid box or none) and a depth line.
   **Structure codes:** each type has a range of codes in the structure layer, one per tile, after

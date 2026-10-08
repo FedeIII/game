@@ -104,11 +104,24 @@ export function playerFrames(): Frame[] {
   return frames;
 }
 
-/** One standing frame for each NPC look, facing south, with the player's frame size and anchor. */
+/**
+ * The frames of each NPC look, with the player's frame size and anchor: `npc/<look>` (standing,
+ * facing south, for an NPC that stands still as a fixture), and for walking NPCs
+ * `npc/<look>/<view>/stand` and `npc/<look>/<view>/walk/<i>`.
+ */
 export function npcFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
-  return Object.entries(NPC_LOOKS).map(([name, look]) => {
+  const frames: Frame[] = [];
+  for (const [name, look] of Object.entries(NPC_LOOKS)) {
     const { spec, materials } = npcFigure(look);
-    return { name: `npc/${name}`, image: renderModel(figure(spec, 0, 0), materials, { ...PLAYER_FRAME, yaw: 0 }), anchor };
-  });
+    frames.push({ name: `npc/${name}`, image: renderModel(figure(spec, 0, 0), materials, { ...PLAYER_FRAME, yaw: 0 }), anchor });
+    for (const view of VIEWS) {
+      const render = (parts: Part[]) => renderModel(parts, materials, { ...PLAYER_FRAME, yaw: view.yaw });
+      frames.push({ name: `npc/${name}/${view.name}/stand`, image: render(figure(spec, 0, 0)), anchor });
+      for (let i = 0; i < WALK_FRAMES; i++) {
+        frames.push({ name: `npc/${name}/${view.name}/walk/${i}`, image: render(figure(spec, (i / WALK_FRAMES) * 2 * Math.PI, 1)), anchor });
+      }
+    }
+  }
+  return frames;
 }

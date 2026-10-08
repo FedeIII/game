@@ -11,10 +11,11 @@ import {
   type Building,
   type Chunk,
   type Fixture,
+  type NpcDef,
   type World,
   type WorldSource,
 } from '@game/engine';
-import { BOUNDS, HOUSES, OUTDOOR, Plot, SPAWN, fixturesByTile, floorOf, plotAt } from './layout.ts';
+import { BOUNDS, HOUSES, NPCS, OUTDOOR, Plot, SPAWN, fixturesByTile, floorOf, plotAt } from './layout.ts';
 
 /** The seed of the forest round the town, and of the variety of its tiles. */
 const TOWN_SEED = 4242;
@@ -85,5 +86,9 @@ export class TownSource implements WorldSource {
 
   spawn(world: World): { x: number; y: number } {
     return world.findSpawn(SPAWN.tx, SPAWN.ty, 1);
+  }
+
+  npcs(): readonly NpcDef[] {
+    return NPCS;
   }
 }

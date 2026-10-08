@@ -1,9 +1,12 @@
 import './style.css';
 import { Application, Container, TextureSource } from 'pixi.js';
 import {
+  NpcCrowd,
   TICK_SECONDS,
   TILE_SIZE,
   World,
+  npcActors,
+  npcFixture,
   clampInput,
   createPlayer,
   findInteraction,
@@ -24,6 +27,7 @@ import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Fixtures } from './render/fixtures.ts';
 import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
+import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures } from './render/player-view.ts';
@@ -138,6 +142,13 @@ async function run(options: GameOptions): Promise<void> {
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
   const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer) : null;
+  // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
+  // is alone (a single-player world, or no server). Its seed differs per page: nobody else sees it.
+  const npcDefs = world.source.npcs?.() ?? [];
+  const localNpcs = npcDefs.length > 0 ? new NpcCrowd(world, npcDefs, Math.floor(Math.random() * 0xffffffff)) : null;
+  const npcViews = npcDefs.length > 0 ? new NpcViews(art, npcDefs, entityLayer, ghostLayer) : null;
+  const npcIndex = new Map(npcDefs.map((def, i) => [npcFixture(def), i]));
+  const npcPoses = (now: number) => (net?.serverNpcs ? net.npcsAt(now) : (localNpcs?.poses ?? []));
   if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
@@ -224,8 +235,13 @@ async function run(options: GameOptions): Promise<void> {
     }
     dialogKey = key;
     const fixture = target.fixture;
+    const walker = fixture ? npcIndex.get(fixture) : undefined;
     const anchor =
-      content.speaker === 'fixture' && fixture ? () => Fixtures.headOf(fixture) : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
+      content.speaker === 'fixture' && fixture
+        ? walker !== undefined
+          ? () => npcViews!.headOf(walker)
+          : () => Fixtures.headOf(fixture)
+        : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     speech.show(content.pages ?? [], anchor, now);
     if (content.link) linkCard.show(content.link);
     else linkCard.hide();
@@ -260,6 +276,7 @@ async function run(options: GameOptions): Promise<void> {
     previous.y = player.y;
     if (net) net.tick(readInput());
     else stepPlayer(player, readInput(), world);
+    if (localNpcs && !net?.serverNpcs) localNpcs.step(TICK_SECONDS * 1000, [player]);
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -295,7 +312,9 @@ async function run(options: GameOptions): Promise<void> {
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
 
-    target = findInteraction(world, player, accept);
+    const npcsNow = npcPoses(now);
+    npcViews?.update(npcsNow, seconds);
+    target = findInteraction(world, player, accept, npcActors(npcDefs, npcsNow));
     if (dialogKey && (!target || targetKey(target) !== dialogKey)) closeDialog(now);
     action.setTarget(target ? actionLabel(target) : null);
 
@@ -330,6 +349,8 @@ async function run(options: GameOptions): Promise<void> {
       `inside  ${inside?.id ?? '-'}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
+      `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
+      ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,
       `seed    ${world.seed}`,

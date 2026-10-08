@@ -1,4 +1,4 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type Fixture, type FixtureKind, type Light } from '@game/engine';
+import { Ground, fixtureTiles, fixtureType, type Building, type Fixture, type FixtureKind, type Light, type NpcDef } from '@game/engine';
 import { PROJECTS, type Project } from './projects.ts';
 
 /**
@@ -118,6 +118,8 @@ function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile
 
 /** The floor of each house, by building id. */
 const FLOORS = new Map<string, Ground>();
+/** The keeper of each house, by building id. */
+const KEEPERS = new Map<string, NpcDef>();
 
 /** Makes the building of a project from its plan, at the rectangle of its digit in MAP. */
 function house(project: Project, index: number): Building {
@@ -135,6 +137,7 @@ function house(project: Project, index: number): Building {
 
   // The walls: '#' all round, and the door and the windows in the south wall only.
   const fixtures: Fixture[] = [];
+  let keeper: Tile | null = null;
   const windows: number[] = [];
   let doorX = -1;
   for (const [ch, tiles] of tilesOf(plan, x0, y0)) {
@@ -166,8 +169,7 @@ function house(project: Project, index: number): Building {
     }
     if (ch === 'K') {
       if (tiles.length !== 1) throw new Error(`${where}: a house has one keeper`);
-      const [tx, ty] = tiles[0]!;
-      fixtures.push({ kind: 'npc', tx, ty, look: project.keeper.look, content: { pages: project.keeper.pages, speaker: 'fixture' } });
+      keeper = tiles[0]!;
       continue;
     }
     const exhibit = exhibits[ch];
@@ -178,6 +180,19 @@ function house(project: Project, index: number): Building {
     }
   }
   if (doorX < 0) throw new Error(`${where}: a house needs a door`);
+  if (!keeper) throw new Error(`${where}: a house needs a keeper`);
+  // The keeper walks the open floor of the house: '.', its own tile, and things that do not
+  // collide (rugs).
+  const walkable = (ch: string) => ch === '.' || ch === 'K' || (exhibits[ch] !== undefined && fixtureType(exhibits[ch]!.kind).tiles.every((t) => t.box === null));
+  const area: Tile[] = [];
+  plan.forEach((row, y) => [...row].forEach((ch, x) => walkable(ch) && x > 0 && y > 0 && x < row.length - 1 && y < plan.length - 1 && area.push([x0 + x, y0 + y])));
+  KEEPERS.set(project.id, {
+    id: project.id,
+    look: project.keeper.look,
+    home: keeper,
+    area,
+    content: { pages: project.keeper.pages, speaker: 'fixture' },
+  });
   if (plan[plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
   for (const letter of Object.keys(exhibits)) {
     if (!plan.some((row) => row.includes(letter))) throw new Error(`${where}: exhibit '${letter}' is not in the plan`);
@@ -205,16 +220,6 @@ export function floorOf(building: Building): Ground {
   return FLOORS.get(building.id) ?? Ground.Floor;
 }
 
-const CRIER: Fixture = {
-  kind: 'npc',
-  tx: 0,
-  ty: 0,
-  look: 'crier',
-  content: {
-    speaker: 'fixture',
-    pages: ['Welcome to the town of Azyr!', 'Each house holds one of the projects. Walk in and look around.', 'The portals inside lead to the real thing.'],
-  },
-};
 const NOTICES: Fixture = {
   kind: 'noticeboard',
   tx: 0,
@@ -228,18 +233,49 @@ const NOTICES: Fixture = {
 const THINGS: Readonly<Record<string, Fixture>> = {
   F: { kind: 'fountain', tx: 0, ty: 0 },
   N: NOTICES,
-  C: CRIER,
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },
   b: { kind: 'barrel', tx: 0, ty: 0 },
   x: { kind: 'crate', tx: 0, ty: 0 },
 };
 
-/** The fountain, the notice board, the crier, the lamps and the props of the plaza and the lane. */
+/** The fountain, the notice board, the lamps and the props of the plaza and the lane. */
 export const OUTDOOR: readonly Fixture[] = [...tilesOf(MAP, 0, 0)].flatMap(([ch, tiles]) => {
   const thing = THINGS[ch];
   if (!thing) return [];
   return anchors(thing.kind, tiles, 'the town').map(([tx, ty]) => ({ ...thing, tx, ty }));
 });
+
+/**
+ * The crier walks the plaza: the open street tiles south of the fountain and beside it
+ * (x 13..25, y 11..12), from its place C in MAP.
+ */
+const CRIER_AREA = { x0: 13, y0: 11, x1: 25, y1: 12 } as const;
+
+function crier(): NpcDef {
+  const home = tilesOf(MAP, 0, 0).get('C')?.[0];
+  if (!home) throw new Error('the town: no crier (C) in the map');
+  const things = new Set(OUTDOOR.flatMap((f) => fixtureTiles(f).map(([x, y]) => `${x},${y}`)));
+  const area: Tile[] = [];
+  for (let ty = CRIER_AREA.y0; ty <= CRIER_AREA.y1; ty++) {
+    for (let tx = CRIER_AREA.x0; tx <= CRIER_AREA.x1; tx++) {
+      const ch = MAP[ty]?.[tx];
+      if ((ch === '=' || ch === 'C') && !things.has(`${tx},${ty}`)) area.push([tx, ty]);
+    }
+  }
+  return {
+    id: 'crier',
+    look: 'crier',
+    home,
+    area,
+    content: {
+      speaker: 'fixture',
+      pages: ['Welcome to the town of Azyr!', 'Each house holds one of the projects. Walk in and look around.', 'The portals inside lead to the real thing.'],
+    },
+  };
+}
+
+/** The NPCs of the town: the keeper of each house, in the order of PROJECTS, and the crier. */
+export const NPCS: readonly NpcDef[] = [...PROJECTS.map((p) => KEEPERS.get(p.id)!), crier()];
 
 /** What a tile of the town is outside the houses (inside BOUNDS). */
 export function plotAt(tx: number, ty: number): Plot {

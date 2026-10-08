@@ -1,7 +1,7 @@
 import type { WorldDefinition } from '@game/engine';
 import { TownSource } from './source.ts';
 
-export { BOUNDS, HOUSES, OUTDOOR, SPAWN, floorOf } from './layout.ts';
+export { BOUNDS, HOUSES, NPCS, OUTDOOR, SPAWN, floorOf } from './layout.ts';
 export { PROJECTS, type Exhibit, type House, type Project } from './projects.ts';
 export { TownSource } from './source.ts';
 

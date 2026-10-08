@@ -192,7 +192,9 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
   const snapshots = setInterval(() => {
     const t = now();
     for (const room of rooms.values()) {
+      // An empty room stands still: its NPCs wait for the next visitor.
       if (room.size === 0) continue;
+      room.tick(t);
       const bySocket = sockets.get(room)!;
       room.broadcast(
         t,

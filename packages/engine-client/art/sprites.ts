@@ -7,7 +7,7 @@
  * these frames with the same names.
  */
 import { Image } from './png.ts';
-import { npcFrames, playerFrames, VIEWS, WALK_FRAMES } from './characters.ts';
+import { NPC_LOOKS, npcFrames, playerFrames, VIEWS, WALK_FRAMES } from './characters.ts';
 import { buildingFrames } from './buildings.ts';
 import { decorFrames } from './decor.ts';
 import { fixtureFrames } from './fixtures.ts';
@@ -48,6 +48,11 @@ export function buildArt(): Art {
     ...buildingFrames(),
     ...fixtureFrames(),
   ];
-  const walk = (view: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `player/${view}/walk/${i}`);
-  return { frames, animations: Object.fromEntries(VIEWS.map((view) => [`walk/${view.name}`, walk(view.name)])) };
+  const walk = (prefix: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `${prefix}/walk/${i}`);
+  // Animations: `walk/<view>` for the player, `npcwalk/<look>/<view>` for each NPC look.
+  const animations: Record<string, string[]> = Object.fromEntries(VIEWS.map((view) => [`walk/${view.name}`, walk(`player/${view.name}`)]));
+  for (const look of Object.keys(NPC_LOOKS)) {
+    for (const view of VIEWS) animations[`npcwalk/${look}/${view.name}`] = walk(`npc/${look}/${view.name}`);
+  }
+  return { frames, animations };
 }

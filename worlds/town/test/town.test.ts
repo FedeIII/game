@@ -12,13 +12,16 @@ import {
   findInteraction,
   fixtureTiles,
   isInside,
+  NpcCrowd,
+  npcActors,
+  npcFixture,
   type Facing,
   type Fixture,
 } from '@game/engine';
 import { ROOF_PROPS, ROOF_STYLES, WALL_STYLES } from '../../../packages/engine-client/art/buildings.ts';
 import { GLYPHS } from '../../../packages/engine-client/art/font.ts';
 import { Camera } from '../../../packages/engine-client/src/render/camera.ts';
-import { BOUNDS, HOUSES, OUTDOOR, PROJECTS, SPAWN, TownSource, floorOf, town } from '../src/index.ts';
+import { BOUNDS, HOUSES, NPCS, OUTDOOR, PROJECTS, SPAWN, TownSource, floorOf, town } from '../src/index.ts';
 
 const world = new World(new TownSource());
 
@@ -82,7 +85,9 @@ describe('the town of Azyr', () => {
       const link = portals[0]!.content?.link;
       expect(link?.url, house.id).toMatch(/^https:\/\//);
       expect(link?.title).toBe(house.sign);
-      expect(house.fixtures.filter((f) => f.kind === 'npc' && f.content?.speaker === 'fixture'), house.id).toHaveLength(1);
+      const keeper = NPCS.find((n) => n.id === house.id);
+      expect(keeper?.content.speaker, house.id).toBe('fixture');
+      expect(keeper?.content.pages?.length, house.id).toBeGreaterThan(0);
       expect(house.fixtures.filter((f) => f.kind !== 'npc' && f.kind !== 'portal' && f.content).length, house.id).toBeGreaterThanOrEqual(3);
       // Everything that collides has something to say; a rug only lies on the floor.
       for (const f of house.fixtures) if (f.kind !== 'rug') expect(f.content?.pages?.length, `${house.id} ${f.kind}`).toBeGreaterThan(0);
@@ -209,20 +214,49 @@ describe('the town of Azyr', () => {
     expect(world.buildingAt(tx, ty)).toBeNull();
   });
 
-  it('lets the player in front of a keeper talk to them', () => {
-    const house = HOUSES[0]!;
-    const keeper = house.fixtures.find((f) => f.kind === 'npc')!;
-    const player = createPlayer(keeper.tx * TILE_SIZE + 8, (keeper.ty + 1) * TILE_SIZE + 6);
+  it('lets the player in front of a keeper talk to them, where the keeper stands', () => {
+    const keeper = NPCS[0]!;
+    const crowd = new NpcCrowd(world, NPCS, 1);
+    const pose = crowd.poses[0]!;
+    const player = createPlayer(pose.x, pose.y + 9);
     player.facing = 'up';
-    const target = findInteraction(world, player);
+    const target = findInteraction(world, player, () => true, npcActors(NPCS, crowd.poses));
     expect(target?.kind).toBe('npc');
-    expect(target?.fixture).toBe(keeper);
+    expect(target?.fixture).toBe(npcFixture(keeper));
+    expect(target?.fixture?.content?.pages?.[0]).toBe('Welcome to vest101, a portfolio tracker.');
+  });
+
+  it('gives every keeper the open floor of its house to walk, and the crier a part of the plaza', () => {
+    expect(NPCS.map((n) => n.id)).toEqual([...PROJECTS.map((p) => p.id), 'crier']);
+    for (const npc of NPCS) {
+      const house = HOUSES.find((h) => h.id === npc.id);
+      const area = new Set(npc.area.map(([x, y]) => `${x},${y}`));
+      expect(area.has(`${npc.home[0]},${npc.home[1]}`), npc.id).toBe(true);
+      expect(area.size, npc.id).toBeGreaterThanOrEqual(6);
+      for (const [tx, ty] of npc.area) {
+        expect(world.solidBox(tx, ty), `${npc.id} ${tx},${ty}`).toBeNull();
+        if (house) expect(isInside(house, tx, ty) && !(tx === house.doorX && ty === house.y1), `${npc.id} ${tx},${ty}`).toBe(true);
+        else expect(world.buildingAt(tx, ty), `${npc.id} ${tx},${ty}`).toBeNull();
+      }
+      // One piece: the NPC can walk from its home to every tile of its area.
+      const seen = new Set<string>();
+      const queue = [`${npc.home[0]},${npc.home[1]}`];
+      while (queue.length) {
+        const k = queue.pop()!;
+        if (seen.has(k) || !area.has(k)) continue;
+        seen.add(k);
+        const [x, y] = k.split(',').map(Number) as [number, number];
+        queue.push(`${x + 1},${y}`, `${x - 1},${y}`, `${x},${y + 1}`, `${x},${y - 1}`);
+      }
+      expect(seen.size, npc.id).toBe(area.size);
+    }
   });
 
   it('has a glyph in the pixel font for every character of every text', () => {
     const texts = [
       ...HOUSES.flatMap((h) => [h.sign ?? '', ...h.fixtures.flatMap((f) => [...(f.content?.pages ?? []), f.content?.link?.title ?? ''])]),
       ...OUTDOOR.flatMap((f) => f.content?.pages ?? []),
+      ...NPCS.flatMap((n) => n.content.pages ?? []),
     ];
     const missing = new Set([...texts.join('')].filter((ch) => !drawable(ch)));
     expect([...missing]).toEqual([]);

@@ -1,6 +1,7 @@
 import { Structure, inRect, isInside, type Building } from './buildings.ts';
 import { CHUNK_SIZE, TILE_SIZE } from './constants.ts';
 import { decodeFixture, type Fixture } from './fixtures.ts';
+import type { NpcDef } from './npc.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
 export const Ground = {
@@ -74,6 +75,8 @@ export interface WorldSource {
   fixturesIn(x0: number, y0: number, x1: number, y1: number): Fixture[];
   /** Where a new player starts, in world pixels. */
   spawn(world: World): { x: number; y: number };
+  /** The NPCs that walk in this world (npc.ts). Without it, none. */
+  npcs?(): readonly NpcDef[];
 }
 
 /** Anything that can tell which part of a tile is solid. The movement code needs only this. */

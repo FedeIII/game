@@ -67,12 +67,30 @@ function gapTo(player: PlayerState, tx: number, ty: number, box: Box): number {
 }
 
 /**
+ * Something to act on that is not on the tile grid: a walking NPC. Its feet box is round (x, y),
+ * `halfWidth` by `halfHeight`; `fixture` gives its kind and content, and stays the same object
+ * while it moves.
+ */
+export interface Actor {
+  readonly x: number;
+  readonly y: number;
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+  readonly fixture: Fixture;
+}
+
+/**
  * Finds the thing that the player can act on now: the nearest interactable thing in range,
  * preferring one in front of the player. `accept` leaves out things that have nothing to show
- * (a door always counts). This is shared code: the server will use the same rule to check an
- * action that a client sends.
+ * (a door always counts). `actors` are things that move (walking NPCs). This is shared code: the
+ * server can use the same rule to check an action that a client sends.
  */
-export function findInteraction(world: TileMap, player: PlayerState, accept: AcceptTarget = () => true): InteractionTarget | null {
+export function findInteraction(
+  world: TileMap,
+  player: PlayerState,
+  accept: AcceptTarget = () => true,
+  actors: readonly Actor[] = [],
+): InteractionTarget | null {
   const tx0 = Math.floor((player.x - PLAYER_HALF_WIDTH - INTERACT_RANGE) / TILE_SIZE);
   const tx1 = Math.floor((player.x + PLAYER_HALF_WIDTH + INTERACT_RANGE) / TILE_SIZE);
   const ty0 = Math.floor((player.y - PLAYER_HALF_HEIGHT - INTERACT_RANGE) / TILE_SIZE);
@@ -95,6 +113,18 @@ export function findInteraction(world: TileMap, player: PlayerState, accept: Acc
         bestScore = score;
         best = found.fixture ? { kind: found.kind, tx, ty, distance, fixture: found.fixture } : { kind: found.kind, tx, ty, distance };
       }
+    }
+  }
+  for (const actor of actors) {
+    if (!accept(actor.fixture.kind, actor.fixture)) continue;
+    const dx = Math.max(actor.x - actor.halfWidth - (player.x + PLAYER_HALF_WIDTH), 0, player.x - PLAYER_HALF_WIDTH - (actor.x + actor.halfWidth));
+    const dy = Math.max(actor.y - actor.halfHeight - (player.y + PLAYER_HALF_HEIGHT), 0, player.y - PLAYER_HALF_HEIGHT - (actor.y + actor.halfHeight));
+    const distance = Math.hypot(dx, dy);
+    if (distance > INTERACT_RANGE) continue;
+    const score = distance + (inFront(player, actor.x, actor.y) ? 0 : INTERACT_RANGE);
+    if (score < bestScore) {
+      bestScore = score;
+      best = { kind: actor.fixture.kind, tx: Math.floor(actor.x / TILE_SIZE), ty: Math.floor(actor.y / TILE_SIZE), distance, fixture: actor.fixture };
     }
   }
   return best;
