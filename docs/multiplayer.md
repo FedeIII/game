@@ -73,8 +73,13 @@ kind, a "New look" button and a name field.
   letters, digits, space and `' . _ -` only, spaces joined, at most `NAME_MAX` (16)
   characters. The server cleans every name again; it never trusts the client.
 - The others see the name over the player's head, in the small pixel font (capitals only, 5 px
-  high), in the text layer (above the darkness), inside the screen. The local player does not
-  see its own name.
+  high), in the text layer (above the darkness), inside the screen. The local player sees its
+  own name too (`render/name-tag.ts`); it hides while a speech bubble is over the player.
+- A visitor without a name is called by its look: `skinName(seed)` (`art/skins.ts`) gives a
+  first name and a title for the vibe ("Brother Aldric", "Sir Galen", "Doctor Hesk"). Every
+  client makes the same name from the skin seed, so it is not on the wire: the roster carries
+  only names that visitors chose. The empty name field shows it, and it changes with a new
+  look.
 - The snapshot carries the whole list of names, but only when a name appears, changes or goes
   (the room's names version). A new player gets the list in its first snapshot. A client that
   is skipped (a full send buffer) gets the list with its next snapshot.

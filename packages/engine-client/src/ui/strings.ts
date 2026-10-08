@@ -61,7 +61,7 @@ export const STRINGS = {
     drawing: 'Drawing…',
     name: 'Name',
     noName: 'No name',
-    nameHint: 'The other visitors see it over your head.',
+    nameHint: 'Everyone sees it over your head. If it is empty, your look gives you a name.',
   },
   worlds: 'Worlds',
   worldsCurrent: 'you are here',

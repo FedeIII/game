@@ -14,10 +14,15 @@ import { figure, figureMaterials, figureTop, type BodyCut, type CloakCut, type F
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel } from './sdf.ts';
 
-export const SKIN_VERSION = 2;
+export const SKIN_VERSION = 3;
 
-/** A skin frame is taller than the atlas's player frame: room for tall figures and hats. */
-export const SKIN_FRAME = { width: 32, height: 48, pivotX: 16, pivotY: 42 } as const;
+/**
+ * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
+ * staff over the head or a rapier at full reach in an attack.
+ */
+export const SKIN_FRAME = { width: 56, height: 56, pivotX: 28, pivotY: 50 } as const;
+/** The part of a frame round the figure at rest, for a preview: 32 x 48, the feet 42 from its top. */
+export const SKIN_PORTRAIT = { x: SKIN_FRAME.pivotX - 16, y: SKIN_FRAME.pivotY - 42, width: 32, height: 48 } as const;
 /** The views of a sheet, one row each, in this order. */
 export const SKIN_VIEWS = [
   { name: 'down', yaw: 0 },
@@ -399,6 +404,43 @@ export function skinFromSeed(seed: number): Skin {
   const r = rng(seed ^ 0x5eed5);
   const vibe = weighted(r, VIBES.map((v) => [v, v.weight] as const));
   return { seed: seed >>> 0, vibe: vibe.name, ...vibe.make(r) };
+}
+
+// ---------------------------------------------------------------- names
+
+/** First names: short, old and dark. Each fits with every title below in NAME_MAX (16) characters. */
+const FIRST_NAMES = [
+  'Aldric', 'Bram', 'Corvin', 'Dagny', 'Edda', 'Fenn', 'Garrick', 'Hesk', 'Isolde', 'Jorund', 'Kael', 'Lenna',
+  'Mordin', 'Nyx', 'Osric', 'Petra', 'Quill', 'Rowan', 'Sable', 'Tamsin', 'Ulric', 'Vesna', 'Wendel', 'Ysra',
+  'Zora', 'Brenn', 'Cass', 'Dorian', 'Elric', 'Galen', 'Hild', 'Ivo', 'Ketil', 'Lorne', 'Mabe', 'Nell',
+  'Orla', 'Perrin', 'Rook', 'Silas', 'Thane', 'Una', 'Varn', 'Wyn', 'Agna', 'Bertil', 'Cyne', 'Ebba',
+];
+
+/** How each vibe is called: templates with {n} for the first name. */
+const NAME_TEMPLATES: Readonly<Record<string, readonly string[]>> = {
+  wanderer: ['{n}', '{n} the Grey', '{n} Farwalker', '{n} of Ash'],
+  knight: ['Sir {n}', 'Dame {n}', 'Sir {n} Vane'],
+  monk: ['Brother {n}', 'Sister {n}', 'Father {n}'],
+  witch: ['Mother {n}', 'Old {n}', '{n} Nightshade'],
+  ranger: ['{n} Ashwood', '{n} Fenmoor', '{n} Thorn'],
+  'plague doctor': ['Doctor {n}', 'Dr. {n}', 'Doctor {n} Crow'],
+  noble: ['Lord {n}', 'Lady {n}', 'Count {n}'],
+  gravedigger: ['Old {n}', 'Gaffer {n}', '{n} Mudd'],
+};
+
+/**
+ * The name of a skin, for a visitor who has not chosen a name: a first name, and a title that
+ * fits its vibe (a monk is "Brother Aldric", a knight "Sir Galen"). The same seed gives the same
+ * name in every client, so the others see it too, and it stays with the look.
+ */
+export function skinName(seed: number): string {
+  const vibe = skinFromSeed(seed).vibe;
+  // Its own stream of random numbers: the look of a seed does not change with the names.
+  const r = rng((seed ^ 0x6e616d65) >>> 0);
+  const first = pick(r, FIRST_NAMES);
+  const templates = NAME_TEMPLATES[vibe] ?? ['{n}'];
+  const name = pick(r, templates).replace('{n}', first);
+  return name.length <= 16 ? name : first;
 }
 
 /** The headwear and the hair of a spec, for tests and previews. */

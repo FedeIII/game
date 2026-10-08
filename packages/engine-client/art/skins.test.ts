@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { SKIN_FRAME, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinFromSeed } from './skins.ts';
+import { cleanName } from '@game/engine';
+import { SMALL_GLYPHS } from './font.ts';
+import { SKIN_ATTACK_FRAMES, SKIN_FRAME, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinFromSeed, skinName } from './skins.ts';
 
 describe('random player skins', () => {
   it('makes the same skin from the same seed, and different skins from different seeds', () => {
@@ -30,7 +32,7 @@ describe('random player skins', () => {
     for (const seed of seeds) {
       const sheet = renderSkinSheet(skinFromSeed(seed));
       for (let row = 0; row < SKIN_VIEWS.length; row++) {
-        for (let column = 0; column <= SKIN_WALK_FRAMES; column++) {
+        for (let column = 0; column <= SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES; column++) {
           const x0 = column * width;
           const y0 = row * height;
           for (let i = 0; i < width; i++) {
@@ -47,4 +49,17 @@ describe('random player skins', () => {
       expect(sheet.headHeight).toBeLessThan(height);
     }
   }, 120_000);
+
+  it('gives every skin a name for its vibe: the same every time, short, and drawn by the small font', () => {
+    expect(skinName(4242)).toBe(skinName(4242));
+    const names = Array.from({ length: 300 }, (_, i) => (i * 2654435761 + 7) >>> 0).map((seed) => [skinFromSeed(seed).vibe, skinName(seed)] as const);
+    expect(new Set(names.map(([, n]) => n)).size).toBeGreaterThan(200);
+    for (const [, name] of names) {
+      expect(cleanName(name), name).toBe(name);
+      for (const ch of name.toUpperCase()) expect(Object.keys(SMALL_GLYPHS), `${name}: ${ch}`).toContain(ch);
+    }
+    expect(names.some(([vibe, n]) => vibe === 'monk' && /^(Brother|Sister|Father) /.test(n))).toBe(true);
+    expect(names.some(([vibe, n]) => vibe === 'knight' && /^(Sir|Dame) /.test(n))).toBe(true);
+  });
 });
+

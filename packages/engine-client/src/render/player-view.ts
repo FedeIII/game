@@ -226,10 +226,10 @@ export class PlayerView {
     }
     // The guard after a stun: the player blinks, so everyone sees that mobs cannot hit it now.
     this.body.alpha = (state.guard ?? 0) > 0 && Math.floor(now / 90) % 2 === 0 ? 0.45 : 1;
-    // The stars of a stun, circling over the head.
+    // The stars of a stun, circling round the top of the head (under the name).
     this.overlay.visible = stun > 0;
     if (stun > 0) {
-      const top = this.textures.headHeight + 2;
+      const top = this.textures.headHeight - 2;
       this.stars.forEach((star, i) => {
         const angle = now / 160 + (i * 2 * Math.PI) / STAR_COUNT;
         star.position.set(this.root.x + Math.round(Math.cos(angle) * 6), this.root.y - top + Math.round(Math.sin(angle) * 2));

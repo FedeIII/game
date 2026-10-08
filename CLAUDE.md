@@ -77,7 +77,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
-  their torches and their names in the small font), `lighting.ts` (the light map: darkness with a hole for each light),
+  their torches and their names), `name-tag.ts` (a name over a head, in the small font: the
+  other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `speech-bubble.ts` (pages of text over a head, above the darkness).
@@ -114,10 +115,13 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   or down, hair; frames `npc/<look>`), all from `figure.ts`.
 - `skins.ts`: random player skins. A 32-bit seed picks a vibe (wanderer, knight, monk, witch,
   ranger, plague doctor, noble, gravedigger) and, inside it, proportions, garments, an item and
-  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 32 x 48
-  (pivot 16, 42). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
+  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 56 x 56
+  (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
+  32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
-  is in `image.ts`). **Bump `SKIN_VERSION` when a seed would give another picture**: browsers
+  is in `image.ts`). `skinName(seed)` names a skin for its vibe (its own random stream, so the
+  look of a seed never changes with the names). **Bump `SKIN_VERSION` when a seed would give
+  another picture or the sheet changes**: browsers
   cache rendered skins under it. Preview many skins before you change the vibes.
 - `props.ts`: spruces, a dead tree and a rock. `materials.ts`: the materials that buildings and
   fixtures share (`M.<name>`).

@@ -40,13 +40,14 @@ import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { MobViews, type MobLook } from './render/mobs.ts';
+import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
-import { skinFromSeed } from '../art/skins.ts';
+import { skinFromSeed, skinName } from '../art/skins.ts';
 import { newSkinSeed, saveName, savedName, skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
@@ -165,6 +166,8 @@ async function run(options: GameOptions): Promise<void> {
     // How it attacks follows the skin at once; the frames come when the skin is ready.
     const look = attackLook(seed);
     playerView.setAttackStyle(look.style, look.tint);
+    // Without a name of its own, the visitor is called by its look.
+    you.setLookName(skinName(seed));
     const apply = (textures: PlayerTextures) => {
       if (seed !== skin) return;
       playerView.setTextures(textures);
@@ -352,6 +355,11 @@ async function run(options: GameOptions): Promise<void> {
   // Text in the world is above the darkness, so it is readable at night.
   const speech = new SpeechBubble(art, font, { name: 'dialog' });
   textScene.addChild(speech.root);
+  // The visitor's own name over its head: the one it chose, or else the name of its look. It
+  // hides while the player speaks (a bubble over its head).
+  const ownTag = new NameTag(new PixelFont(art, 'small'), textScene);
+  let speaking = false;
+  const displayName = () => name || skinName(skin);
 
   // The arrival: the name of the world in the middle of the screen; as it fades out, the host
   // NPC starts its welcome. ?nointro skips both (for tests and for a quick look).
@@ -433,6 +441,7 @@ async function run(options: GameOptions): Promise<void> {
         // Who is in the way: the player itself, or someone else (another visitor, an NPC).
         const self = Math.abs(player.x - (target.tx * TILE_SIZE + TILE_SIZE / 2)) < TILE_SIZE / 2 + 5 && player.y + 3 > target.ty * TILE_SIZE && player.y - 3 < (target.ty + 1) * TILE_SIZE;
         speech.show([self ? STRINGS.doorBlocked : STRINGS.doorBlockedByOther], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
+        speaking = true;
       }
       buildings.refreshDoor(target.tx, target.ty);
       return;
@@ -468,6 +477,7 @@ async function run(options: GameOptions): Promise<void> {
           : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     speech.show(content.pages ?? [], anchor, now);
+    speaking = !(content.speaker === 'fixture' && fixture);
     if (content.link) linkCard.show(content.link);
     else linkCard.hide();
   });
@@ -576,6 +586,8 @@ async function run(options: GameOptions): Promise<void> {
     const fxLight = playerView.fxLight;
     lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now, view);
+    ownTag.set(displayName());
+    ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
     barkBubbles?.update(now, view);
     if (arrivedAt === null) {
       arrivedAt = now;
@@ -601,7 +613,7 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
-      `skin    ${skin} (${skinFromSeed(skin).vibe})${name ? `, name ${name}` : ''}`,
+      `skin    ${skin} (${skinFromSeed(skin).vibe}), name ${displayName()}${name ? '' : ' (from the look)'}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,
@@ -611,7 +623,7 @@ async function run(options: GameOptions): Promise<void> {
             `others  ${
               net
                 .playersAt(now)
-                .map((o) => `skin ${o.skin}${o.name ? ` "${o.name}"` : ''} at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}${o.attack ? ' attacking' : ''}${o.stun ? ' stunned' : ''}`)
+                .map((o) => `skin ${o.skin} "${o.name || skinName(o.skin)}" at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}${o.attack ? ' attacking' : ''}${o.stun ? ' stunned' : ''}`)
                 .join('; ') || '-'
             }`,
           ]

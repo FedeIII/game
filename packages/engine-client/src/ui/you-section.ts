@@ -1,5 +1,5 @@
 import { NAME_MAX } from '@game/engine';
-import { SKIN_FRAME } from '../../art/skins.ts';
+import { SKIN_PORTRAIT } from '../../art/skins.ts';
 import { STRINGS } from './strings.ts';
 
 export interface YouCallbacks {
@@ -34,8 +34,8 @@ export class YouSection {
     row.className = 'you-row';
     this.preview = document.createElement('canvas');
     this.preview.className = 'you-preview';
-    this.preview.width = SKIN_FRAME.width;
-    this.preview.height = SKIN_FRAME.height;
+    this.preview.width = SKIN_PORTRAIT.width;
+    this.preview.height = SKIN_PORTRAIT.height;
     this.preview.setAttribute('aria-hidden', 'true');
     const info = document.createElement('div');
     info.className = 'you-info';
@@ -79,7 +79,8 @@ export class YouSection {
   showLook(sheet: HTMLCanvasElement | null, kind: string): void {
     const context = this.preview.getContext('2d')!;
     context.clearRect(0, 0, this.preview.width, this.preview.height);
-    if (sheet) context.drawImage(sheet, 0, 0, SKIN_FRAME.width, SKIN_FRAME.height, 0, 0, SKIN_FRAME.width, SKIN_FRAME.height);
+    const { x, y, width, height } = SKIN_PORTRAIT;
+    if (sheet) context.drawImage(sheet, x, y, width, height, 0, 0, width, height);
     this.kind.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
   }
 
@@ -92,5 +93,10 @@ export class YouSection {
   /** Shows the name as it was saved (cleaned). */
   setName(name: string): void {
     this.input.value = name;
+  }
+
+  /** The name of the look, in the empty field: the name that the visitor has while it chooses none. */
+  setLookName(name: string): void {
+    this.input.placeholder = name;
   }
 }

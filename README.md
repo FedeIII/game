@@ -11,8 +11,9 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 - **The Town of Azyr** (`?world=town`), **shared**: every visitor sees the others walk about,
   each with a torch and a skin of its own: a random wanderer, knight, monk, witch, ranger,
   plague doctor, noble or gravedigger, of any size and colour, that the browser keeps across
-  visits. The settings panel draws a new look and sets a name, which the others see over
-  the player's head. A small cobbled plaza and a lane with eight little
+  visits. Everyone has a name over the head: the one set in the settings panel, or else a
+  name that comes with the look ("Brother Aldric", "Sir Galen"). The settings panel also draws a
+  new look. A small cobbled plaza and a lane with eight little
   houses, one for each project of the azyr.io landing page, each in its own style (a timber
   counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
   In each house a keeper introduces the project, the exhibits show its details, and a portal
