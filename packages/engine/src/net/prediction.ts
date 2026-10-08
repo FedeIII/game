@@ -1,5 +1,5 @@
 import { Structure } from '../buildings.ts';
-import { useDoor, type DoorResult } from '../interact.ts';
+import { useDoor, type DoorResult, type Feet } from '../interact.ts';
 import { stepPlayer, type MoveInput, type PlayerState } from '../player.ts';
 import type { World } from '../world.ts';
 import {
@@ -22,7 +22,7 @@ interface PendingInput {
 }
 
 /** Applies a door wish to the world, as the room does: only a change, never onto someone. */
-function wishDoor(world: World, player: PlayerState, tx: number, ty: number, open: boolean, others: readonly PlayerState[]): void {
+function wishDoor(world: World, player: PlayerState, tx: number, ty: number, open: boolean, others: readonly Feet[]): void {
   if (world.structure(tx, ty) !== Structure.Door || world.isDoorOpen(tx, ty) === open) return;
   useDoor(world, player, tx, ty, others);
 }
@@ -80,7 +80,7 @@ export class Prediction {
   }
 
   /** Uses a door at once, and keeps the wish to send it with the next input. */
-  door(player: PlayerState, world: World, tx: number, ty: number, others: readonly PlayerState[]): DoorResult {
+  door(player: PlayerState, world: World, tx: number, ty: number, others: readonly Feet[]): DoorResult {
     const result = useDoor(world, player, tx, ty, others);
     if (result !== 'blocked') this.nextDoors.push([tx, ty, result === 'opened']);
     return result;
@@ -100,7 +100,7 @@ export class Prediction {
    * Takes the true state from a snapshot and applies the unconfirmed inputs again. Returns how
    * far the predicted position moved, so the view can hide a small correction.
    */
-  reconcile(player: PlayerState, world: World, snapshot: SnapshotMessage, others: readonly PlayerState[]): { dx: number; dy: number } {
+  reconcile(player: PlayerState, world: World, snapshot: SnapshotMessage, others: readonly Feet[]): { dx: number; dy: number } {
     const before = { x: player.x, y: player.y };
     if (snapshot.doors) this.serverDoors = snapshot.doors;
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);

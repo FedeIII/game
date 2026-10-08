@@ -174,8 +174,13 @@ For the HTML GUI:
   `WorldSource.npcs()`: `NpcDef` = id, look, home tile, `area` (the tiles where it may walk;
   open and in one piece), content. `NpcCrowd` walks them: a random tile of the area by the
   shortest path, at `NPC_SPEED` (28 px/s); then a stop of 1.5-6 s, sometimes 6-14 s, now and
-  then 15-25 s, looking round. A player within `NPC_HOLD_RADIUS` (22 px) stops the NPC, and it
-  turns to the player, so a dialog is never cut. NPCs do not collide with anyone. In a shared
+  then 15-25 s, looking round. 70% of its walks end inside a building when its area is inside
+  and outside. A door tile in the area is a way through: the NPC opens the door, waits 0.45 s,
+  walks through, and closes it behind it when the doorway is clear (it tries for 6 s, then
+  leaves it open); it never closes a door that it did not open. A player within
+  `NPC_HOLD_RADIUS` (22 px) stops the NPC, and it turns to the player, so a dialog is never
+  cut. NPCs do not collide with anyone, but a door does not close on an NPC (`useDoor` takes
+  everyone's feet). In a shared
   world the Room runs the crowd (`Room.tick()`, before each broadcast) and the snapshots carry
   the poses; otherwise the client runs its own crowd. To act on one, findInteraction() takes
   `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.
@@ -253,7 +258,10 @@ For the HTML GUI:
   in the middle: so the town is only 13 rows from the north fronts (row 8) to the south fronts
   (row 20), the outer doors are near the inner ends of their houses, and the corner houses have
   short names (their signs must fit on the screen and stay clear of the GUI in the corners);
-  (2) the 5 x 3 tiles in front of each door stay clear: no lamp, prop, tree or wall. Tests check the
+  (2) the 5 x 3 tiles in front of each door stay clear: no lamp, prop, tree or wall. The keeper
+  of each house is a walking NPC: its area is the open floor of the house, the door, and the
+  first 5 x 2 of those clear tiles (`DOORSTEP`); the crier walks the plaza south of the fountain
+  (`CRIER_AREA`). Tests check the
   signs, one portal with an https link per house (and the exact URLs), a different style for
   every house, that the player can walk to every thing in every house and act on it (and to
   every door and outdoor thing from the plaza), the two map rules (with the real `Camera`), and a

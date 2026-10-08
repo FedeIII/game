@@ -95,3 +95,61 @@ describe('walking NPCs', () => {
     void p;
   });
 });
+
+describe('NPCs and doors', () => {
+  // The test house: walls x 2..8, y 2..6, door at (5, 6). Outside: x 3..7, y 7..8.
+  const OUTSIDE: [number, number][] = [];
+  for (let ty = 7; ty <= 8; ty++) for (let tx = 3; tx <= 7; tx++) OUTSIDE.push([tx, ty]);
+  const walker: NpcDef = { ...keeper, id: 'walker', area: [...INSIDE, [5, 6], ...OUTSIDE] };
+  const inHouse = (p: { y: number }) => p.y < 6 * 16;
+
+  it('go out and in through the door: open it, pass, and close it behind them', () => {
+    const world = new World(houseSource());
+    const crowd = new NpcCrowd(world, [walker], 21);
+    let trips = 0;
+    let wasInside = true;
+    let openSteps = 0;
+    for (let t = 0; t < 20 * 60_000; t += 50) {
+      crowd.step(50, []);
+      const pose = crowd.poses[0]!;
+      const inside = inHouse(pose);
+      if (inside !== wasInside) {
+        trips++;
+        wasInside = inside;
+      }
+      const onDoor = Math.floor(pose.x / 16) === 5 && Math.floor(pose.y / 16) === 6;
+      if (onDoor) expect(world.isDoorOpen(5, 6), 'the door is open while it passes').toBe(true);
+      if (world.isDoorOpen(5, 6)) openSteps++;
+    }
+    expect(trips).toBeGreaterThan(6);
+    // The door is open only for the moments of passing, not for the whole walk.
+    expect(openSteps * 50).toBeLessThan(trips * 4000);
+    expect(world.isDoorOpen(5, 6) && !(Math.floor(crowd.poses[0]!.y / 16) === 6)).toBe(false);
+  });
+
+  it('do not close a door on a player in the doorway, and leave a door open that they did not open', () => {
+    const world = new World(houseSource());
+    const crowd = new NpcCrowd(world, [walker], 21);
+    const pose = crowd.poses[0]!;
+    // Run until the NPC has passed the door that it opened: it stands on the tile outside.
+    let t = 0;
+    while (!(world.isDoorOpen(5, 6) && Math.floor(pose.y / 16) === 7) && t < 20 * 60_000) {
+      crowd.step(50, []);
+      t += 50;
+    }
+    expect(world.isDoorOpen(5, 6)).toBe(true);
+    // A player steps into the doorway at that moment: the door stays open.
+    const inDoorway = { x: 5 * 16 + 8, y: 6 * 16 + 8 };
+    for (let i = 0; i < 60; i++) crowd.step(50, [inDoorway]);
+    expect(world.isDoorOpen(5, 6), 'open while the player stands in it').toBe(true);
+    // The player goes: the NPC closes it.
+    for (let i = 0; i < 20; i++) crowd.step(50, [{ x: 0, y: 0 }]);
+    expect(world.isDoorOpen(5, 6), 'closed when the doorway is clear').toBe(false);
+
+    const other = new World(houseSource());
+    other.setDoorOpen(5, 6, true);
+    const crowd2 = new NpcCrowd(other, [walker], 21);
+    for (let i = 0; i < 20 * 60 * 20; i++) crowd2.step(50, []);
+    expect(other.isDoorOpen(5, 6), 'a door that a player opened stays open').toBe(true);
+  });
+});

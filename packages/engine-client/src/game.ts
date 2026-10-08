@@ -211,7 +211,9 @@ async function run(options: GameOptions): Promise<void> {
     if (!target) return;
     const now = performance.now();
     if (target.kind === 'door') {
-      const result = net ? net.door(target.tx, target.ty, net.playersAt(now)) : useDoor(world, player, target.tx, target.ty);
+      // A door never closes on anyone: the other players, or an NPC in the doorway.
+      const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
+      const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people);
       if (result === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
       buildings.refreshDoor(target.tx, target.ty);
       return;
@@ -350,6 +352,7 @@ async function run(options: GameOptions): Promise<void> {
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
+      `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

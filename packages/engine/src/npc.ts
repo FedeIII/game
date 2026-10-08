@@ -1,3 +1,4 @@
+import { Structure } from './buildings.ts';
 import { TILE_SIZE } from './constants.ts';
 import type { Fixture, Interaction } from './fixtures.ts';
 import type { Actor } from './interact.ts';
@@ -9,6 +10,10 @@ import type { World } from './world.ts';
  * while), looks round, and walks on. A player who comes close stops it, and it turns to face the
  * player, so a dialog is never cut by an NPC that walks away. NPCs do not collide with players
  * (as players do not collide with each other).
+ *
+ * An NPC's area can reach through a door (the door tile is in it): the NPC opens the door, waits a
+ * moment, walks through, and closes the door behind it when nobody stands in the doorway. It
+ * does not close a door that it did not open.
  *
  * A world gives its NPCs with WorldSource.npcs(). In a shared world the server runs them (a
  * Room has an NpcCrowd) and sends their poses in the snapshots; in a single-player world, or
@@ -71,14 +76,30 @@ export function npcFixture(def: NpcDef): Fixture {
   return fixture;
 }
 
-/** What happened in a step that others must know: for now, nothing. Later: doors, speech. */
+/** What happened in a step that others must know. */
 export interface NpcEvents {
+  /** An NPC opened or closed a door. */
   readonly doors: boolean;
 }
 
+/** An NPC waits this long at a door that it has just opened, before it walks through. */
+const DOOR_PAUSE_MS = 450;
+/** It tries this long to close a door behind it (someone in the doorway); then it leaves it open. */
+const CLOSE_PATIENCE_MS = 6000;
+/** The share of walks that end inside a building, when the area is inside and outside. */
+const INSIDE_SHARE = 0.7;
+
 interface Brain {
   readonly area: ReadonlySet<string>;
-  readonly tiles: readonly (readonly [number, number])[];
+  /** Where it may stop: the area without doors, inside buildings and outside. */
+  readonly inside: readonly (readonly [number, number])[];
+  readonly outside: readonly (readonly [number, number])[];
+  /** A door that it opened and must close behind it, whether it has stepped into it, and for how long it has tried. */
+  opened: [number, number] | null;
+  passed: boolean;
+  closeMs: number;
+  /** A short stop in a walk (at a door). */
+  pauseMs: number;
   /** The last tile it stood on or reached. */
   tile: [number, number];
   path: [number, number][];
@@ -126,16 +147,31 @@ export class NpcCrowd {
     this.brains = defs.map((def) => {
       const area = new Set(def.area.map(([tx, ty]) => key(tx, ty)));
       if (!area.has(key(def.home[0], def.home[1]))) throw new Error(`npc ${def.id}: home is not in its area`);
-      // A random first stop, so the NPCs of a town do not all set off at once.
-      return { area, tiles: def.area, tile: [def.home[0], def.home[1]], path: [], waitMs: this.between(500, 6000), lookMs: this.between(1500, 4000) };
+      const stops = def.area.filter(([tx, ty]) => world.structure(tx, ty) !== Structure.Door);
+      return {
+        area,
+        inside: stops.filter(([tx, ty]) => world.buildingAt(tx, ty) !== null),
+        outside: stops.filter(([tx, ty]) => world.buildingAt(tx, ty) === null),
+        opened: null,
+        passed: false,
+        closeMs: 0,
+        pauseMs: 0,
+        tile: [def.home[0], def.home[1]],
+        path: [],
+        // A random first stop, so the NPCs of a town do not all set off at once.
+        waitMs: this.between(500, 6000),
+        lookMs: this.between(1500, 4000),
+      };
     });
   }
 
   /** Moves every NPC by `dtMs` milliseconds. `players` are the feet of the players near or far. */
   step(dtMs: number, players: readonly { readonly x: number; readonly y: number }[]): NpcEvents {
     const dt = Math.min(dtMs, 250);
+    let doors = false;
     this.brains.forEach((brain, i) => {
       const pose = this.poses[i]! as NpcPose;
+      if (brain.opened && this.closeBehind(brain, pose, players, dt)) doors = true;
       // A player close by: stop, and face the nearest one.
       let nearest: { x: number; y: number } | null = null;
       let best = NPC_HOLD_RADIUS;
@@ -153,9 +189,39 @@ export class NpcCrowd {
         return;
       }
       if (brain.path.length === 0) this.stand(brain, pose, dt);
-      else this.walk(brain, pose, dt);
+      else if (this.walk(brain, pose, dt)) doors = true;
     });
-    return { doors: false };
+    return { doors };
+  }
+
+  /**
+   * Closes the door that the NPC opened, once it has walked off the door tile and nobody (no
+   * player, no NPC) stands in the doorway. Returns whether it closed it.
+   */
+  private closeBehind(brain: Brain, pose: NpcPose, players: readonly { readonly x: number; readonly y: number }[], dt: number): boolean {
+    const [tx, ty] = brain.opened!;
+    const inDoorway = (x: number, y: number, hw: number, hh: number) =>
+      x + hw > tx * TILE_SIZE && x - hw < (tx + 1) * TILE_SIZE && y + hh > ty * TILE_SIZE && y - hh < (ty + 1) * TILE_SIZE;
+    if (inDoorway(pose.x, pose.y, NPC_HALF_WIDTH, NPC_HALF_HEIGHT)) {
+      brain.passed = true;
+      return false;
+    }
+    // Not through it yet: it has only just opened it.
+    if (!brain.passed) return false;
+    if (!this.world.isDoorOpen(tx, ty)) {
+      brain.opened = null;
+      return false;
+    }
+    const blocked =
+      players.some((p) => inDoorway(p.x, p.y, 5, 3)) || this.poses.some((p) => p !== pose && inDoorway(p.x, p.y, NPC_HALF_WIDTH, NPC_HALF_HEIGHT));
+    if (blocked) {
+      brain.closeMs += dt;
+      if (brain.closeMs > CLOSE_PATIENCE_MS) brain.opened = null;
+      return false;
+    }
+    this.world.setDoorOpen(tx, ty, false);
+    brain.opened = null;
+    return true;
   }
 
   private stand(brain: Brain, pose: NpcPose, dt: number): void {
@@ -169,12 +235,34 @@ export class NpcCrowd {
     }
     brain.waitMs -= dt;
     if (brain.waitMs > 0) return;
-    const target = brain.tiles[Math.floor(this.random() * brain.tiles.length)]!;
+    const group = brain.outside.length === 0 || (brain.inside.length > 0 && this.random() < INSIDE_SHARE) ? brain.inside : brain.outside;
+    const target = group[Math.floor(this.random() * group.length)]!;
     brain.path = this.route(brain, target);
     if (brain.path.length === 0) brain.waitMs = this.between(500, 2000);
   }
 
-  private walk(brain: Brain, pose: NpcPose, dt: number): void {
+  /** Walks along the path for `dt`; returns whether it opened a door. */
+  private walk(brain: Brain, pose: NpcPose, dt: number): boolean {
+    if (brain.pauseMs > 0) {
+      brain.pauseMs -= dt;
+      pose.vx = 0;
+      pose.vy = 0;
+      return false;
+    }
+    const [nx, ny] = brain.path[0]!;
+    if (this.world.structure(nx, ny) === Structure.Door && !this.world.isDoorOpen(nx, ny)) {
+      // A closed door on the way: open it, and wait a moment before walking through.
+      this.world.setDoorOpen(nx, ny, true);
+      brain.opened = [nx, ny];
+      brain.passed = false;
+      brain.closeMs = 0;
+      brain.pauseMs = DOOR_PAUSE_MS;
+      const goal = standPoint(nx, ny);
+      pose.facing = facingTo(goal.x - pose.x, goal.y - pose.y, pose.facing);
+      pose.vx = 0;
+      pose.vy = 0;
+      return true;
+    }
     let budget = (NPC_SPEED * dt) / 1000;
     const startX = pose.x;
     const startY = pose.y;
@@ -210,6 +298,7 @@ export class NpcCrowd {
       pose.vx = (mx / dt) * 1000;
       pose.vy = (my / dt) * 1000;
     }
+    return false;
   }
 
   /** The tiles from the NPC's tile to `target`, through its area (four directions), without the first. */

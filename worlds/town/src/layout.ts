@@ -116,6 +116,9 @@ function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile
   return out;
 }
 
+/** The ground in front of a door where its keeper may walk: `reach` tiles to each side, `rows` deep. */
+const DOORSTEP = { reach: 2, rows: 2 } as const;
+
 /** The floor of each house, by building id. */
 const FLOORS = new Map<string, Ground>();
 /** The keeper of each house, by building id. */
@@ -181,11 +184,16 @@ function house(project: Project, index: number): Building {
   }
   if (doorX < 0) throw new Error(`${where}: a house needs a door`);
   if (!keeper) throw new Error(`${where}: a house needs a keeper`);
-  // The keeper walks the open floor of the house: '.', its own tile, and things that do not
-  // collide (rugs).
+  // The keeper walks the open floor of the house ('.', its own tile, and things that do not
+  // collide, such as rugs), the door, and the ground in front of the door: the 5 x 2 tiles that
+  // stay clear (see MAP). It opens the door to pass, and closes it behind it.
   const walkable = (ch: string) => ch === '.' || ch === 'K' || (exhibits[ch] !== undefined && fixtureType(exhibits[ch]!.kind).tiles.every((t) => t.box === null));
   const area: Tile[] = [];
   plan.forEach((row, y) => [...row].forEach((ch, x) => walkable(ch) && x > 0 && y > 0 && x < row.length - 1 && y < plan.length - 1 && area.push([x0 + x, y0 + y])));
+  area.push([doorX, y1]);
+  for (let ty = y1 + 1; ty <= y1 + DOORSTEP.rows; ty++) {
+    for (let tx = doorX - DOORSTEP.reach; tx <= doorX + DOORSTEP.reach; tx++) area.push([tx, ty]);
+  }
   KEEPERS.set(project.id, {
     id: project.id,
     look: project.keeper.look,

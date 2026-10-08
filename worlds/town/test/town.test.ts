@@ -226,7 +226,7 @@ describe('the town of Azyr', () => {
     expect(target?.fixture?.content?.pages?.[0]).toBe('Welcome to vest101, a portfolio tracker.');
   });
 
-  it('gives every keeper the open floor of its house to walk, and the crier a part of the plaza', () => {
+  it('gives every keeper the open floor of its house and its doorstep to walk, and the crier a part of the plaza', () => {
     expect(NPCS.map((n) => n.id)).toEqual([...PROJECTS.map((p) => p.id), 'crier']);
     for (const npc of NPCS) {
       const house = HOUSES.find((h) => h.id === npc.id);
@@ -234,9 +234,20 @@ describe('the town of Azyr', () => {
       expect(area.has(`${npc.home[0]},${npc.home[1]}`), npc.id).toBe(true);
       expect(area.size, npc.id).toBeGreaterThanOrEqual(6);
       for (const [tx, ty] of npc.area) {
-        expect(world.solidBox(tx, ty), `${npc.id} ${tx},${ty}`).toBeNull();
-        if (house) expect(isInside(house, tx, ty) && !(tx === house.doorX && ty === house.y1), `${npc.id} ${tx},${ty}`).toBe(true);
-        else expect(world.buildingAt(tx, ty), `${npc.id} ${tx},${ty}`).toBeNull();
+        const where = `${npc.id} ${tx},${ty}`;
+        if (house && tx === house.doorX && ty === house.y1) continue; // the door: solid while it is closed
+        expect(world.solidBox(tx, ty), where).toBeNull();
+        if (!house) {
+          expect(world.buildingAt(tx, ty), where).toBeNull();
+          continue;
+        }
+        // Inside the house, or on the doorstep: at most 2 rows below the door, 2 columns aside.
+        const doorstep = ty > house.y1 && ty <= house.y1 + 2 && Math.abs(tx - house.doorX) <= 2;
+        expect(isInside(house, tx, ty) || doorstep, where).toBe(true);
+      }
+      if (house) {
+        expect(area.has(`${house.doorX},${house.y1}`), `${npc.id}: its door`).toBe(true);
+        expect(npc.area.filter(([, ty]) => ty > house.y1).length, `${npc.id}: its doorstep`).toBe(10);
       }
       // One piece: the NPC can walk from its home to every tile of its area.
       const seen = new Set<string>();

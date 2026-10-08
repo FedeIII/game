@@ -179,7 +179,7 @@ export class NetSession {
       }
       case 'snap': {
         const count = this.remotes.count;
-        const others = this.remotes.at(now).map((r) => ({ x: r.x, y: r.y, vx: r.vx, vy: r.vy, facing: r.facing }));
+        const others = [...this.remotes.at(now), ...this.remotes.npcsAt(now)];
         const { dx, dy } = this.prediction.reconcile(this.player, this.world, message, others);
         this.addJump(dx, dy);
         this.remotes.apply(message, now);

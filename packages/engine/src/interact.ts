@@ -59,8 +59,14 @@ function inFront(player: PlayerState, cx: number, cy: number): boolean {
   }
 }
 
+/** Where someone's feet are: a player, or an NPC. Their feet box is the player's. */
+export interface Feet {
+  readonly x: number;
+  readonly y: number;
+}
+
 /** The gap in pixels between the player's feet hitbox and a box on tile (tx, ty). */
-function gapTo(player: PlayerState, tx: number, ty: number, box: Box): number {
+function gapTo(player: Feet, tx: number, ty: number, box: Box): number {
   const dx = Math.max(tx * TILE_SIZE + box[0] - (player.x + PLAYER_HALF_WIDTH), 0, player.x - PLAYER_HALF_WIDTH - (tx * TILE_SIZE + box[2]));
   const dy = Math.max(ty * TILE_SIZE + box[1] - (player.y + PLAYER_HALF_HEIGHT), 0, player.y - PLAYER_HALF_HEIGHT - (ty * TILE_SIZE + box[3]));
   return Math.hypot(dx, dy);
@@ -150,7 +156,7 @@ export function canReachDoor(world: TileMap, player: PlayerState, tx: number, ty
  * of `others` stands in the doorway, the result is 'blocked' and nothing changes. Shared: the
  * client and the multiplayer server apply the same rule.
  */
-export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number, others: readonly PlayerState[] = []): DoorResult {
+export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number, others: readonly Feet[] = []): DoorResult {
   if (world.structure(tx, ty) !== Structure.Door) throw new Error(`no door at ${tx},${ty}`);
   if (!world.isDoorOpen(tx, ty)) {
     world.setDoorOpen(tx, ty, true);

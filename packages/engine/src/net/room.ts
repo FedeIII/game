@@ -1,5 +1,5 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
-import { canReachDoor, useDoor } from '../interact.ts';
+import { canReachDoor, useDoor, type Feet } from '../interact.ts';
 import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
 import { NpcCrowd } from '../npc.ts';
 import type { World } from '../world.ts';
@@ -216,7 +216,8 @@ export class Room {
   private door(player: RoomPlayer, [, tx, ty, open]: WireDoor): void {
     if (!canReachDoor(this.world, player.state, tx, ty)) return;
     if (this.world.isDoorOpen(tx, ty) === (open === 1)) return;
-    const others: PlayerState[] = [];
+    // A door never closes on anyone: the other players, or an NPC in the doorway.
+    const others: Feet[] = [...(this.npcs?.poses ?? [])];
     for (const p of this.players.values()) if (p !== player) others.push(p.state);
     if (useDoor(this.world, player.state, tx, ty, others) !== 'blocked') this.doorVersion++;
   }
