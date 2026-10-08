@@ -44,6 +44,8 @@ export interface RemoteMob {
   readonly state: MobState;
   /** Milliseconds in its state, at the time shown. */
   readonly stateMs: number;
+  /** The blows that it can still take. */
+  readonly health: number;
 }
 
 interface Sample {
@@ -53,7 +55,7 @@ interface Sample {
   readonly vx: number;
   readonly vy: number;
   readonly facing: number;
-  /** Counters that run down with time: a player's attack, stun and guard (ticks), or a mob's state and ms in it. */
+  /** Counters that run down with time: a player's attack, stun and guard (ticks), or a mob's state, ms in it and health. */
   readonly a?: number;
   readonly b?: number;
   readonly c?: number;
@@ -140,7 +142,7 @@ export class Remotes {
     if (snapshot.m) {
       this.mobs ??= new Map();
       const here = new Set<number>();
-      for (const [id, kind, x, y, vx, vy, facing, state, stateMs] of snapshot.m) {
+      for (const [id, kind, x, y, vx, vy, facing, state, stateMs, health] of snapshot.m) {
         here.add(id);
         let mob = this.mobs.get(id);
         if (!mob) {
@@ -149,7 +151,7 @@ export class Remotes {
         }
         const samples = mob.samples;
         if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-        samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: state, b: stateMs });
+        samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: state, b: stateMs, c: health });
         while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
       }
       // A mob that is not in the snapshot is gone (dead and done, or far away).
@@ -201,6 +203,7 @@ export class Remotes {
         facing: facingFromCode(s.facing),
         state: MOB_STATES[since.a ?? 0] ?? 'idle',
         stateMs: (since.b ?? 0) + Math.max(0, t - since.ms),
+        health: since.c ?? 1,
       });
     }
     return out;

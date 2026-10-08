@@ -14,6 +14,8 @@ export interface MobLook {
   readonly facing: Facing;
   readonly state: MobState;
   readonly stateMs: number;
+  /** The blows that it can still take (for the debug panel). */
+  readonly health?: number;
 }
 
 /** World pixels of travel for each walk frame. */
@@ -23,7 +25,7 @@ const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff
 /** The death: the frames play over this share of the death; the body fades out over the end. */
 const DIE_FRAMES_SHARE = 0.6;
 const FADE_FROM = 0.55;
-/** The white flash of a blow, at the start of a death (ms). */
+/** The white flash of a blow, at the start of a death or a reel (ms). */
 const FLASH_MS = 110;
 /** Ash and embers that rise from a dead mob. */
 const ASH = { count: 14, ms: 1100 } as const;
@@ -117,14 +119,15 @@ export class MobViews {
     return view;
   }
 
-  /** The textures of `mob/<kind>/<facing>/<name>/<i>` (or the single frame `.../stand`). */
+  /** The textures of `mob/<kind>/<facing>/<name>/<i>` (or the single frames `.../stand` and `.../hurt`). */
   private frame(kind: MobKind, facing: Facing, name: string, index: number): Texture {
     const key = `${kind}/${facing}/${name}`;
     let list = this.frames.get(key);
     if (!list) {
-      list = name === 'stand' ? [this.art.frame(`mob/${key}`)] : this.art.variants(`mob/${key}`);
+      const single = name === 'stand' || name === 'hurt';
+      list = single ? [this.art.frame(`mob/${key}`)] : this.art.variants(`mob/${key}`);
       this.frames.set(key, list);
-      list.forEach((texture, i) => this.names.set(texture, name === 'stand' ? `mob/${key}` : `mob/${key}/${i}`));
+      list.forEach((texture, i) => this.names.set(texture, single ? `mob/${key}` : `mob/${key}/${i}`));
     }
     return list[Math.max(0, Math.min(list.length - 1, index))]!;
   }
@@ -143,6 +146,10 @@ export class MobViews {
         name = mob.stateMs < stats.strikeMs * 0.7 ? 'strike' : 'windup';
         index = mob.stateMs < stats.strikeMs * 0.3 ? 0 : 1;
         if (name === 'windup') index = 0;
+        break;
+      case 'hurt':
+        // It reels back from the blow, then stands for a moment before it comes on again.
+        name = mob.stateMs < stats.hurtMs * 0.75 ? 'hurt' : 'stand';
         break;
       case 'dying': {
         const t = mob.stateMs / stats.deathMs;
@@ -174,7 +181,7 @@ export class MobViews {
     view.body.texture = texture;
     view.body.alpha = alpha;
     view.shadow.alpha = alpha;
-    const flashing = mob.state === 'dying' && mob.stateMs < FLASH_MS;
+    const flashing = (mob.state === 'dying' || mob.state === 'hurt') && mob.stateMs < FLASH_MS;
     view.flash.visible = flashing;
     if (flashing) {
       view.flash.texture = texture;

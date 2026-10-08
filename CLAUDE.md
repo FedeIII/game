@@ -227,7 +227,10 @@ The player's attack is part of the input (`MoveInput.attack`: the side to strike
 `stepPlayer` stays the one rule for prediction: an attack lasts `ATTACK_TICKS` (the player stands
 still), and the next can start `ATTACK_COOLDOWN_TICKS` after it. `stepPlayer` returns true when
 an attack starts; the caller asks the horde what it hits (`Horde.strike`: in reach, in front;
-`attackHits`). One blow kills a mob: it flashes white, falls, fades, and ash rises.
+`attackHits`). A blow takes one of the mob's `health` (imp 1, brute 3) and pushes it away from
+the attacker (`knockback`: imp 10 px, brute 18 px, over 0.2 s). The last blow kills it: it
+flashes white, falls, fades, and ash rises. Another blow makes it reel (state `hurt`: a flash and
+a recoil frame, `hurtMs`): its wind-up or its blow breaks off, and then it goes for the attacker.
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except

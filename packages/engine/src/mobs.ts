@@ -49,6 +49,12 @@ export interface MobStats {
   readonly halfHeight: number;
   /** The death animation (ms); then it is gone. */
   readonly deathMs: number;
+  /** The blows that it takes to die. */
+  readonly health: number;
+  /** A blow pushes it this far away from the attacker (world pixels), dead or not. */
+  readonly knockback: number;
+  /** A blow that does not kill stuns it for this long (ms): its wind-up or its blow stops. */
+  readonly hurtMs: number;
 }
 
 /** The small, quick imp and the big, slow brute. The player walks at 80 px/s. */
@@ -71,6 +77,9 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 3,
     halfHeight: 2,
     deathMs: 750,
+    health: 1,
+    knockback: 10,
+    hurtMs: 250,
   },
   brute: {
     wanderSpeed: 16,
@@ -90,15 +99,19 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 5,
     halfHeight: 3,
     deathMs: 950,
+    health: 3,
+    knockback: 18,
+    hurtMs: 320,
   },
 };
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
- * strikes, runs away after a hit (retreat), or dies. The order is the code on the wire.
+ * strikes, runs away after a hit (retreat), dies, or reels from a blow that did not kill it
+ * (hurt). The order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt'];
 
 export interface Mob {
   readonly id: number;
@@ -112,6 +125,8 @@ export interface Mob {
   state: MobState;
   /** Milliseconds since the state began: the animations need it. */
   stateMs: number;
+  /** The blows that it can still take (MobStats.health at first). */
+  health: number;
 }
 
 /** Where the mobs of a world may be, and how many there are. */
@@ -158,8 +173,8 @@ const KILL_PAUSE_MS = 6000;
 const MAX_MOBS = 40;
 /** The curve of a chase: the angle (radians) off the straight line, far from the player. */
 const CURVE = [0.35, 0.65] as const;
-/** A dying mob slides back this fast (px/s) for this long (ms): the blow throws it. */
-const DEATH_SLIDE = { speed: 60, ms: 160 } as const;
+/** A blow pushes a mob back (MobStats.knockback) over this long (ms), fast at first. */
+const KNOCKBACK_MS = 200;
 /** The longest move in one go, so a mob never passes through a solid box. */
 const MAX_MOVE = 6;
 /** A mob that stays this close to one point while it wants to move is stuck (world pixels); after this long (ms) it changes its plan, and a chase gives up after GIVE_UP_MS. */
@@ -249,7 +264,7 @@ export class Horde {
 
   /** Puts a new mob at (x, y), which is also its home. */
   spawn(kind: MobKind, x: number, y: number): Mob {
-    const mob: Mob = { id: this.nextId++, kind, x, y, vx: 0, vy: 0, facing: 'down', state: 'idle', stateMs: 0 };
+    const mob: Mob = { id: this.nextId++, kind, x, y, vx: 0, vy: 0, facing: 'down', state: 'idle', stateMs: 0, health: MOB_STATS[kind].health };
     this.mobs.push(mob);
     this.brains.set(mob.id, {
       home: { x, y },
@@ -329,18 +344,24 @@ export class Horde {
         case 'dying':
           this.die(mob, brain, dt);
           break;
+        case 'hurt':
+          this.reel(mob, brain, byId, dt);
+          break;
       }
     }
     return hits;
   }
 
   /**
-   * An attack from `attacker` towards `facing` kills every living mob that it hits. `at` can
-   * give another position of a mob (where the attacker saw it, a moment ago): a hit there
-   * counts too. Returns the mobs that it killed.
+   * An attack from `attacker` (the player `attackerId`) towards `facing` hits every living mob in
+   * its reach. `at` can give another position of a mob (where the attacker saw it, a moment ago):
+   * a hit there counts too. A blow takes one of a mob's health and pushes it away: the last one
+   * kills it; another one makes it reel (`hurt`), and then it goes for the attacker. Returns the
+   * mobs that it hit: the dead ones are `dying`.
    */
-  strike(attacker: { readonly x: number; readonly y: number }, facing: Facing, at?: (mob: Mob) => { x: number; y: number } | null): Mob[] {
-    const killed: Mob[] = [];
+  strike(attacker: { readonly x: number; readonly y: number }, facing: Facing, at?: (mob: Mob) => { x: number; y: number } | null, attackerId?: number): Mob[] {
+    const struck: Mob[] = [];
+    let killed = 0;
     for (const mob of this.mobs) {
       if (mob.state === 'dying') continue;
       const radius = MOB_STATS[mob.kind].radius;
@@ -354,11 +375,21 @@ export class Horde {
       const d = Math.hypot(dx, dy) || 1;
       brain.slideX = dx / d;
       brain.slideY = dy / d;
-      this.enter(mob, 'dying');
-      killed.push(mob);
+      mob.health--;
+      struck.push(mob);
+      if (mob.health <= 0) {
+        this.enter(mob, 'dying');
+        killed++;
+        continue;
+      }
+      // It reels, its wind-up or blow broken, and turns on the one who hit it.
+      if (attackerId !== undefined) brain.target = attackerId;
+      brain.lostMs = 0;
+      mob.facing = facingTo(-dx, -dy, mob.facing);
+      this.enter(mob, 'hurt');
     }
-    if (killed.length > 0) this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
-    return killed;
+    if (killed > 0) this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
+    return struck;
   }
 
   /** Whether a mob may be on a tile at all: never in a building, and only where the world lets it hunt. */
@@ -519,12 +550,29 @@ export class Horde {
   }
 
   private die(mob: Mob, brain: Brain, dt: number): void {
-    const slideMs = Math.max(0, Math.min(dt, DEATH_SLIDE.ms - (mob.stateMs - dt)));
-    if (slideMs > 0) {
-      const d = (DEATH_SLIDE.speed * slideMs) / 1000;
-      this.move(mob, brain.slideX * d, brain.slideY * d);
-    }
+    this.knock(mob, brain, dt);
     if (mob.stateMs >= MOB_STATS[mob.kind].deathMs) this.remove(mob);
+  }
+
+  /** Reels from a blow: pushed back, facing the attacker; then it goes for the attacker. */
+  private reel(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    this.knock(mob, brain, dt);
+    if (mob.stateMs < MOB_STATS[mob.kind].hurtMs) return;
+    if (brain.target !== null && players.has(brain.target)) {
+      brain.curve = this.newCurve();
+      this.enter(mob, 'chase');
+    } else {
+      this.giveUp(mob, brain);
+    }
+  }
+
+  /** The push of a blow, away from the attacker: fast at first, over KNOCKBACK_MS. */
+  private knock(mob: Mob, brain: Brain, dt: number): void {
+    const ease = (t: number) => 1 - (1 - Math.max(0, Math.min(1, t))) ** 2;
+    const share = ease(mob.stateMs / KNOCKBACK_MS) - ease((mob.stateMs - dt) / KNOCKBACK_MS);
+    if (share <= 0) return;
+    const d = share * MOB_STATS[mob.kind].knockback;
+    this.move(mob, brain.slideX * d, brain.slideY * d);
   }
 
   /** Stops the hunt and walks back home. */

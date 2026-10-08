@@ -6,8 +6,8 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 - **The Wilds**: a dark, endless forest in the mood of Diablo and Castlevania. A hooded figure
   walks in a radius of torch light; stone houses stand in the woods: open the door, step in,
   and the roof fades away to show the room. Mobs live in the woods: quick little imps and slow
-  brutes with clubs. They run at you on a curve; a hit stuns you for a moment, and one blow of
-  yours kills them.
+  brutes with clubs. They run at you on a curve; a hit stuns you for a moment. One blow of yours
+  kills an imp; a brute takes three, and each one throws it back.
 - **The Town of Azyr** (`?world=town`), **shared**: every visitor sees the others walk about,
   each with a torch and a skin of its own: a random wanderer, knight, monk, witch, ranger,
   plague doctor, noble or gravedigger, of any size and colour, that the browser keeps across

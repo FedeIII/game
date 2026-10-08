@@ -507,4 +507,23 @@ describe('mobs in a shared world', () => {
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
     expect(snap!.you).toHaveLength(9);
   });
+
+  it('kill a brute with the third blow, and send what it has left', () => {
+    const room = new Room(new World(mobHouseSource()));
+    const p = room.join(0, 1, [5, 10])!;
+    const brute = room.horde!.spawn('brute', p.state.x + 20, p.state.y);
+    const healthSent = (): number | undefined => {
+      let snap: SnapshotMessage | null = null;
+      room.broadcast(0, (_id, message) => (snap = message));
+      return snap!.m!.find((m) => m[0] === brute.id)?.[9];
+    };
+    expect(healthSent()).toBe(3);
+    // Three attacks, the cooldown apart (no tick between: the brute stays in reach).
+    const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
+    room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
+    expect(room.kills).toBe(1);
+    expect(brute.state).toBe('dying');
+    expect(healthSent()).toBe(0);
+  });
 });
+

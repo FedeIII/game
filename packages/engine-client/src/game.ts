@@ -261,15 +261,21 @@ async function run(options: GameOptions): Promise<void> {
   let hitsTaken = 0;
   let stunSeen = false;
   let shakeUntil = -Infinity;
-  // In a shared world, a blow that hits a mob on the screen kills it there at once; the server
-  // decides, and its word comes a moment later. Mob id -> when, and where the mob was.
+  // In a shared world, a blow that hits a mob on the screen shows at once: its last blow kills
+  // it there, another one makes it reel. The server decides, and its word comes a moment later.
+  // Mob id -> when, and where the mob was (a kill), or when (a reel).
   const predicted = new Map<number, { at: number; x: number; y: number; confirmed: boolean }>();
+  const reeling = new Map<number, { at: number; seen: boolean }>();
   const predictKills = (): void => {
     const now = performance.now();
     for (const mob of net?.mobsAt(now) ?? []) {
       if (mob.state === 'dying' || predicted.has(mob.id)) continue;
       // Only a clear hit: a blow at the edge of the reach waits for the server's word.
       if (!attackHits(player.x, player.y, player.facing, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
+      if (mob.health > 1) {
+        reeling.set(mob.id, { at: now, seen: false });
+        continue;
+      }
       predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
       kills++;
     }
@@ -283,6 +289,17 @@ async function run(options: GameOptions): Promise<void> {
     const present = new Set<number>();
     for (const mob of list) {
       present.add(mob.id);
+      const reel = reeling.get(mob.id);
+      if (reel && mob.state !== 'dying') {
+        // A predicted reel shows at once with the local timing, until the server's reel is over
+        // (or, if the server does not agree, for at most PREDICTED_KILL_MS).
+        if (mob.state === 'hurt') reel.seen = true;
+        if (mob.state === 'hurt' || (!reel.seen && now - reel.at < PREDICTED_KILL_MS)) {
+          out.push({ ...mob, state: 'hurt', stateMs: Math.max(mob.state === 'hurt' ? mob.stateMs : 0, now - reel.at) });
+          continue;
+        }
+        reeling.delete(mob.id);
+      }
       const guess = predicted.get(mob.id);
       if (!guess) out.push(mob);
       else if (mob.state === 'dying') {
@@ -298,6 +315,7 @@ async function run(options: GameOptions): Promise<void> {
       }
     }
     for (const id of predicted.keys()) if (!present.has(id)) predicted.delete(id);
+    for (const id of reeling.keys()) if (!present.has(id)) reeling.delete(id);
     return out;
   };
   // An attack: the button (or Space) asks for it, and the next tick in which the player can
@@ -488,7 +506,9 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (net) {
       if (net.tick(input)) predictKills();
-    } else if (stepPlayer(player, input, world) && horde) kills += horde.strike(player, player.facing).length;
+    } else if (stepPlayer(player, input, world) && horde) {
+      kills += horde.strike(player, player.facing, undefined, 0).filter((mob) => mob.state === 'dying').length;
+    }
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]);
   });
@@ -603,7 +623,9 @@ async function run(options: GameOptions): Promise<void> {
       ...(intro ? [`intro   ${introTitle!.phase(introClock(now))}, welcome ${welcome?.progress ?? '-'}${welcomed && !welcome?.active ? ' (done)' : ''}`] : []),
       ...(mobRules
         ? [
-            `mobs    ${mobsNow().map((m) => `${m.kind} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`).join('; ') || '-'}`,
+            `mobs    ${mobsNow()
+              .map((m) => `${m.kind}${m.health !== undefined && MOB_STATS[m.kind].health > 1 ? ` ${m.health}/${MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
+              .join('; ') || '-'}`,
             `fight   kills ${kills}${net ? ` (${confirmed} confirmed)` : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
           ]
         : []),

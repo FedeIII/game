@@ -19,13 +19,17 @@ export type MobKind = 'imp' | 'brute';
 /** Material slots of a mob. */
 const MM = { hide: 0, belly: 1, horn: 2, claw: 3, eye: 4, mouth: 5, cloth: 6, wood: 7, metal: 8, wing: 9 } as const;
 
-/** One pose of a mob: the walk cycle, and how far into a wind-up, a blow or a death it is (0..1). */
+/**
+ * One pose of a mob: the walk cycle, and how far into a wind-up, a blow or a death it is (0..1);
+ * `reel` tips it back from a blow that did not kill it.
+ */
 export interface MobPose {
   readonly phase: number;
   readonly walk: number;
   readonly windup: number;
   readonly strike: number;
   readonly death: number;
+  readonly reel?: number;
 }
 
 const POSE: MobPose = { phase: 0, walk: 0, windup: 0, strike: 0, death: 0 };
@@ -337,6 +341,7 @@ const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = { imp: (pos
 export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   const parts = MODELS[kind](pose);
   const d = pose.death;
+  if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, kind === 'imp' ? -1.5 : -2);
   if (d <= 0) return parts;
   if (kind === 'imp') {
     // Thrown back, then over on its back, then it sinks into a heap.
@@ -354,12 +359,13 @@ export function mobPoses(): { name: string; pose: MobPose }[] {
   for (let i = 0; i < MOB_ANIMATIONS.walk; i++) out.push({ name: `walk/${i}`, pose: { ...POSE, walk: 1, phase: (i / MOB_ANIMATIONS.walk) * 2 * Math.PI } });
   out.push({ name: 'windup/0', pose: { ...POSE, windup: 0.55 } }, { name: 'windup/1', pose: { ...POSE, windup: 1 } });
   out.push({ name: 'strike/0', pose: { ...POSE, windup: 0.25, strike: 0.85 } }, { name: 'strike/1', pose: { ...POSE, strike: 1 } });
+  out.push({ name: 'hurt', pose: { ...POSE, windup: 0.3, reel: 1 } });
   for (let i = 0; i < MOB_ANIMATIONS.die; i++) out.push({ name: `die/${i}`, pose: { ...POSE, strike: i === 0 ? 0.3 : 0, death: (i + 1) / MOB_ANIMATIONS.die } });
   return out;
 }
 
 /**
- * The frames of the mobs, `mob/<kind>/<view>/<pose>` (stand, walk/i, windup/i, strike/i,
+ * The frames of the mobs, `mob/<kind>/<view>/<pose>` (stand, walk/i, windup/i, strike/i, hurt,
  * die/i), their shadows `mob/<kind>/shadow`, and the eye pixels of each frame.
  */
 export function mobFrames(): { frames: Frame[]; eyes: Record<string, number[]> } {

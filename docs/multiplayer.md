@@ -37,7 +37,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the facing code of its side), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks), the others (positions to 0.1 px, their skin seeds, and their attack, stun and guard ticks), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks), the others (positions to 0.1 px, their skin seeds, and their attack, stun and guard ticks), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full` or `busy` |
 | server to client | `pong` | the client's clock, back |
 
@@ -80,7 +80,7 @@ kind, a "New look" button and a name field.
   is skipped (a full send buffer) gets the list with its next snapshot.
 - There is no moderation of names. The character set and the length are the only limits.
 
-## Mobs (protocol 5, 2026-10-08)
+## Mobs (protocol 5, 2026-10-08; health and the `hurt` state: protocol 6)
 
 The server runs the mobs of a shared world (`Room.horde`, a `Horde`, see CLAUDE.md "Mobs and
 fights"): `Room.tick()` steps them with every player's true state, and a mob's hit stuns that
@@ -94,8 +94,9 @@ screen hits the mobs as the client shows them, 100 ms and a half round trip in t
 client sends the server time of what it shows (`Remotes.viewTime()`) with the attack (`k`), and
 the room checks the hit against the mobs now **and** where they were at that time (`Room` keeps
 700 ms of their positions). It never goes back more than 500 ms; without a time, 150 ms. The
-client shows the kill at once when the hit is clear (3 px inside the reach; `game.ts`,
-`predicted`): the mob dies on the screen; when the
+client shows the blow at once when the hit is clear (3 px inside the reach; `game.ts`): a mob
+with more than one health left reels (`reeling`; the server's push follows), and a mob on its
+last health dies (`predicted`): it dies on the screen; when the
 server's snapshot says that it dies too, the death goes on with the local timing; if the server
 has not said so after 0.7 s, the mob shows alive again.
 

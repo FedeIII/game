@@ -96,7 +96,7 @@ export class Room {
   readonly horde: Horde | null;
   /** Where the mobs were at each tick of the last TRAIL_MS: [time, mob id -> x, y]. */
   private trail: { ms: number; at: Map<number, readonly [number, number]> }[] = [];
-  /** Mob hits and kills so far (for the logs and tests). */
+  /** Mob hits on players and mob kills so far (for the logs and tests). */
   hits = 0;
   kills = 0;
 
@@ -255,7 +255,8 @@ export class Room {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
         const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
-        this.kills += this.horde.strike(player.state, player.state.facing, (mob) => this.mobAt(mob.id, then)).length;
+        const struck = this.horde.strike(player.state, player.state.facing, (mob) => this.mobAt(mob.id, then), player.id);
+        this.kills += struck.filter((mob) => mob.state === 'dying').length;
       }
     });
     // And one for an input that has not come yet happens after this batch.

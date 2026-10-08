@@ -10,7 +10,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -153,8 +153,8 @@ export type WirePlayer = readonly [number, number, number, number, number, numbe
 /** A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard]. */
 export type WireSelf = readonly [number, number, number, number, number, number, number, number, number];
 
-/** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state]. Positions to 0.1 px. */
-export type WireMob = readonly [number, number, number, number, number, number, number, number, number];
+/** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state, health left]. Positions to 0.1 px. */
+export type WireMob = readonly [number, number, number, number, number, number, number, number, number, number];
 
 export function mobKindCode(kind: MobKind): number {
   return MOB_KINDS.indexOf(kind);
@@ -167,7 +167,18 @@ export function mobStateCode(state: MobState): number {
 /** A mob as the wire carries it. */
 export function toWireMob(mob: Mob): WireMob {
   const round = (v: number) => Math.round(v * 10) / 10;
-  return [mob.id, mobKindCode(mob.kind), round(mob.x), round(mob.y), Math.round(mob.vx), Math.round(mob.vy), facingCode(mob.facing), mobStateCode(mob.state), Math.round(mob.stateMs)];
+  return [
+    mob.id,
+    mobKindCode(mob.kind),
+    round(mob.x),
+    round(mob.y),
+    Math.round(mob.vx),
+    Math.round(mob.vy),
+    facingCode(mob.facing),
+    mobStateCode(mob.state),
+    Math.round(mob.stateMs),
+    mob.health,
+  ];
 }
 
 /** The reply to hello: who the player is, where it starts, and which doors are open. */

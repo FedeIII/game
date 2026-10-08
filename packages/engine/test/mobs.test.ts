@@ -193,6 +193,46 @@ describe('mobs', () => {
   });
 });
 
+describe('a brute in a fight', () => {
+  it('takes three blows; each one pushes it away from the attacker and breaks its wind-up', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 21);
+    const p = createPlayer(at(5, 5).x, at(5, 5).y);
+    const players: HordePlayer[] = [{ id: 7, state: p }];
+    const brute = horde.spawn('brute', p.x + 18, p.y);
+    // Let it wind up.
+    for (let i = 0; i < 200 && brute.state !== 'windup'; i++) horde.step(TICK_MS, players);
+    expect(brute.state).toBe('windup');
+    for (let blow = 1; blow <= 2; blow++) {
+      // Step up to it and strike.
+      p.x = brute.x - 18;
+      p.y = brute.y;
+      const startX = brute.x;
+      expect(horde.strike(p, 'right', undefined, 7)).toEqual([brute]);
+      expect(brute.state).toBe('hurt');
+      expect(brute.health).toBe(3 - blow);
+      for (let t = 0; t < MOB_STATS.brute.hurtMs; t += TICK_MS) horde.step(TICK_MS, players);
+      // Pushed back east, away from the player, and then after the player again.
+      expect(brute.x - startX).toBeGreaterThan(MOB_STATS.brute.knockback - 2);
+      expect(brute.state).toBe('chase');
+    }
+    p.x = brute.x - 18;
+    p.y = brute.y;
+    horde.strike(p, 'right', undefined, 7);
+    expect(brute.state).toBe('dying');
+    expect(brute.health).toBe(0);
+  });
+
+  it('turns on the player who hit it, even if it had not seen that player', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 22);
+    const p = createPlayer(0, 0);
+    const brute = horde.spawn('brute', 20, 0);
+    horde.strike(p, 'right', undefined, 3);
+    expect(brute.state).toBe('hurt');
+    for (let t = 0; t <= MOB_STATS.brute.hurtMs; t += TICK_MS) horde.step(TICK_MS, [{ id: 3, state: p }]);
+    expect(brute.state).toBe('chase');
+  });
+});
+
 describe('the player in a fight', () => {
   const world = new World(textSource([]));
 
@@ -239,4 +279,3 @@ describe('the player in a fight', () => {
     expect(came).toBe(true);
   });
 });
-
