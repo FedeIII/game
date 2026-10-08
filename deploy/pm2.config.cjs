@@ -14,7 +14,8 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: '3008',
         HOST: '127.0.0.1',
-        ORIGINS: 'https://game.azyr.io',
+        // The game's own site, and azyr.io, whose landing page is the town.
+        ORIGINS: 'https://game.azyr.io,https://azyr.io,https://www.azyr.io',
       },
       // The server closes every connection with code 1012 on SIGINT; the clients come back at once.
       kill_timeout: 3000,

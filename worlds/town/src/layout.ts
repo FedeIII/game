@@ -235,7 +235,7 @@ const NOTICES: Fixture = {
   ty: 0,
   content: {
     pages: ['AZYR · Developer & Creator.', 'Eight houses: vest101, Osler·MD, Kandrax Rol and Kandrax App,', 'Hidden Agenda, Azyrio, GitHub and Journal.'],
-    link: { url: 'https://azyr.io', label: 'Visit azyr.io', title: 'Azyr' },
+    link: { url: 'https://azyr.io/projects', label: 'All the projects', title: 'Azyr' },
   },
 };
 /** The things of the town by their character in MAP: a template, without its place. */
