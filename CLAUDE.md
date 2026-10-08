@@ -191,7 +191,8 @@ town has one (the crier explains the town); the Wilds have none. `?nointro` skip
   walks through, and closes it behind it when the doorway is clear (it tries for 6 s, then
   leaves it open); it never closes a door that it did not open. A player within
   `NPC_HOLD_RADIUS` (22 px) stops the NPC, and it turns to the player, so a dialog is never
-  cut. NPCs do not collide with anyone, but a door does not close on an NPC (`useDoor` takes
+  cut; but an NPC never stops in a doorway (it would keep the door from closing), only just
+  after it. NPCs do not collide with anyone, but a door does not close on an NPC (`useDoor` takes
   everyone's feet). **Lines** (`NpcDef.barks`): each NPC says one now and then (the first 6-40 s
   after the start, then every 25-70 s), never while a player stands close, never the same line
   twice in a row, and never within 5 s of another NPC's line (one voice at a time). They are

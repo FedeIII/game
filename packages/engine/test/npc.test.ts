@@ -218,3 +218,30 @@ describe('NPCs that speak', () => {
     expect(got.get(a.id)).toBe(got.get(b.id));
   });
 });
+
+describe('NPCs in a doorway', () => {
+  it('do not stop in a doorway for a player close by: they stop just after it', () => {
+    const OUTSIDE: [number, number][] = [];
+    for (let ty = 7; ty <= 8; ty++) for (let tx = 3; tx <= 7; tx++) OUTSIDE.push([tx, ty]);
+    const walker: NpcDef = { ...keeper, id: 'walker', area: [...INSIDE, [5, 6], ...OUTSIDE] };
+    const world = new World(houseSource());
+    const crowd = new NpcCrowd(world, [walker], 21);
+    const pose = crowd.poses[0]!;
+    // A player stands just outside the door, the whole time.
+    const player = { x: 5 * 16 + 8, y: 7 * 16 + 10 };
+    let inDoorwayStill = 0;
+    let passes = 0;
+    let wasOnDoor = false;
+    for (let t = 0; t < 20 * 60_000; t += 50) {
+      crowd.step(50, [player]);
+      const onDoor = Math.floor(pose.x / 16) === 5 && Math.floor(pose.y / 16) === 6;
+      if (onDoor && pose.vx === 0 && pose.vy === 0) inDoorwayStill += 50;
+      if (wasOnDoor && !onDoor) passes++;
+      wasOnDoor = onDoor;
+    }
+    // It walks through, and then the player (who never moves) stops it on the doorstep.
+    expect(passes).toBeGreaterThanOrEqual(1);
+    expect(Math.floor(pose.y / 16)).toBe(7);
+    expect(inDoorwayStill).toBeLessThan(600);
+  });
+});

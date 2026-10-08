@@ -9,6 +9,7 @@ export const STRINGS = {
   hintKeyboard: 'WASD or arrow keys to move · E to act',
   hintTouch: 'Touch and drag anywhere to move',
   doorBlocked: 'Step out of the doorway first.',
+  doorBlockedByOther: 'Someone is in the doorway.',
   actionLabel: 'Act',
   openDoor: 'Open the door',
   closeDoor: 'Close the door',

@@ -265,7 +265,11 @@ async function run(options: GameOptions): Promise<void> {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
       const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
       const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people);
-      if (result === 'blocked') speech.show([STRINGS.doorBlocked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
+      if (result === 'blocked') {
+        // Who is in the way: the player itself, or someone else (another visitor, an NPC).
+        const self = Math.abs(player.x - (target.tx * TILE_SIZE + TILE_SIZE / 2)) < TILE_SIZE / 2 + 5 && player.y + 3 > target.ty * TILE_SIZE && player.y - 3 < (target.ty + 1) * TILE_SIZE;
+        speech.show([self ? STRINGS.doorBlocked : STRINGS.doorBlockedByOther], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
+      }
       buildings.refreshDoor(target.tx, target.ty);
       return;
     }

@@ -7,8 +7,8 @@ import type { World } from './world.ts';
 
 /**
  * NPCs that walk: each one wanders its own area of tiles, stops for a while (sometimes a long
- * while), looks round, and walks on. A player who comes close stops it, and it turns to face the
- * player, so a dialog is never cut by an NPC that walks away. NPCs do not collide with players
+ * while), looks round, and walks on. A player who comes close stops it (but not in a doorway),
+ * and it turns to face the player, so a dialog is never cut by an NPC that walks away. NPCs do not collide with players
  * (as players do not collide with each other).
  *
  * An NPC's area can reach through a door (the door tile is in it): the NPC opens the door, waits a
@@ -204,7 +204,9 @@ export class NpcCrowd {
           nearest = p;
         }
       }
-      if (nearest) {
+      // Never in a doorway, though: there it would keep the door from closing. It stops just after.
+      const inDoorway = this.world.structure(Math.floor(pose.x / TILE_SIZE), Math.floor(pose.y / TILE_SIZE)) === Structure.Door;
+      if (nearest && !inDoorway) {
         pose.vx = 0;
         pose.vy = 0;
         pose.facing = facingTo(nearest.x - pose.x, nearest.y - pose.y, pose.facing);
