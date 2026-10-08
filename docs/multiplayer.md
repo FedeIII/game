@@ -94,7 +94,8 @@ screen hits the mobs as the client shows them, 100 ms and a half round trip in t
 client sends the server time of what it shows (`Remotes.viewTime()`) with the attack (`k`), and
 the room checks the hit against the mobs now **and** where they were at that time (`Room` keeps
 700 ms of their positions). It never goes back more than 500 ms; without a time, 150 ms. The
-client shows the kill at once (`game.ts`, `predicted`): the mob dies on the screen; when the
+client shows the kill at once when the hit is clear (3 px inside the reach; `game.ts`,
+`predicted`): the mob dies on the screen; when the
 server's snapshot says that it dies too, the death goes on with the local timing; if the server
 has not said so after 0.7 s, the mob shows alive again.
 

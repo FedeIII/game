@@ -83,6 +83,8 @@ const AIM_SLACK = 10;
 const SHAKE = { ms: 220, amount: 2 } as const;
 /** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
 const PREDICTED_KILL_MS = 700;
+/** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
+const PREDICT_MARGIN = 3;
 
 /** A key for "the same target": a fixture by its anchor, anything else by its tile. */
 function targetKey(target: InteractionTarget): string {
@@ -266,7 +268,8 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     for (const mob of net?.mobsAt(now) ?? []) {
       if (mob.state === 'dying' || predicted.has(mob.id)) continue;
-      if (!attackHits(player.x, player.y, player.facing, mob.x, mob.y, MOB_STATS[mob.kind].radius)) continue;
+      // Only a clear hit: a blow at the edge of the reach waits for the server's word.
+      if (!attackHits(player.x, player.y, player.facing, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
       predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
       kills++;
     }

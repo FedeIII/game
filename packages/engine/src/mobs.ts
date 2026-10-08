@@ -139,7 +139,9 @@ const WANDER_RADIUS = 4 * TILE_SIZE;
  */
 const PROWL_CHANCE = 0.5;
 const PROWL_STEP = 3 * TILE_SIZE;
-const PROWL_NEAREST = 8 * TILE_SIZE;
+const PROWL_NEAREST = 6 * TILE_SIZE;
+/** The most tiles that a prowl searches for its way. */
+const PROWL_SEARCH = 3000;
 /** A mob does not chase further than this from its home (world pixels): then it goes back. */
 const LEASH = 18 * TILE_SIZE;
 /** It follows a player that it cannot see any more for this long (ms), to where it saw it last. */
@@ -160,6 +162,10 @@ const CURVE = [0.35, 0.65] as const;
 const DEATH_SLIDE = { speed: 60, ms: 160 } as const;
 /** The longest move in one go, so a mob never passes through a solid box. */
 const MAX_MOVE = 6;
+/** A mob that stays this close to one point while it wants to move is stuck (world pixels); after this long (ms) it changes its plan, and a chase gives up after GIVE_UP_MS. */
+const STUCK_RADIUS = 8;
+const STUCK_MS = 1500;
+const GIVE_UP_MS = 4000;
 /** The ways round an obstacle, as angles off the wished direction, nearest first. */
 const DETOURS = [0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5];
 
@@ -181,8 +187,13 @@ interface Brain {
   /** A way round an obstacle that it keeps for a moment, and for how long. */
   detour: number;
   detourMs: number;
-  /** How long it has not got anywhere (ms). */
+  /**
+   * How long it has wanted to move and stayed within STUCK_RADIUS of `anchor` (ms): it goes back
+   * and forth in a pocket between obstacles, or it is blocked.
+   */
   stuckMs: number;
+  anchorX: number;
+  anchorY: number;
   /** The direction of the blow that killed it. */
   slideX: number;
   slideY: number;
@@ -253,6 +264,8 @@ export class Horde {
       detour: 0,
       detourMs: 0,
       stuckMs: 0,
+      anchorX: x,
+      anchorY: y,
       slideX: 0,
       slideY: 0,
     });
@@ -358,6 +371,12 @@ export class Horde {
   private enter(mob: Mob, state: MobState): void {
     mob.state = state;
     mob.stateMs = 0;
+    const brain = this.brains.get(mob.id);
+    if (brain) {
+      brain.stuckMs = 0;
+      brain.anchorX = mob.x;
+      brain.anchorY = mob.y;
+    }
     if (state !== 'walk' && state !== 'chase' && state !== 'retreat') {
       mob.vx = 0;
       mob.vy = 0;
@@ -403,7 +422,7 @@ export class Horde {
     const dx = goal.x - mob.x;
     const dy = goal.y - mob.y;
     const d = Math.hypot(dx, dy);
-    if (d < 2 || brain.stuckMs > 1200) {
+    if (d < 2 || brain.stuckMs > STUCK_MS) {
       this.enter(mob, 'idle');
       brain.goal = null;
       brain.timerMs = this.between(1000, 4500);
@@ -428,9 +447,15 @@ export class Horde {
       brain.lostMs += dt;
     }
     const fromHome = Math.hypot(mob.x - brain.home.x, mob.y - brain.home.y);
-    if (brain.lostMs > MEMORY_MS || fromHome > LEASH) {
+    if (brain.lostMs > MEMORY_MS || fromHome > LEASH || brain.stuckMs > GIVE_UP_MS) {
       this.giveUp(mob, brain);
       return;
+    }
+    if (brain.stuckMs > STUCK_MS && brain.detourMs <= 0) {
+      // Stuck behind something: bend the other way round it for a moment.
+      brain.curve = -brain.curve;
+      brain.detour = 1.6;
+      brain.detourMs = 700;
     }
     const dx = (seen ? target.x : brain.seenX) - mob.x;
     const dy = (seen ? target.y : brain.seenY) - mob.y;
@@ -483,7 +508,7 @@ export class Horde {
       this.giveUp(mob, brain);
       return;
     }
-    if (brain.timerMs <= 0) {
+    if (brain.timerMs <= 0 || brain.stuckMs > STUCK_MS) {
       brain.curve = this.newCurve();
       brain.lostMs = 0;
       this.enter(mob, 'chase');
@@ -564,8 +589,14 @@ export class Horde {
     const my = mob.y - startY;
     mob.vx = (mx * 1000) / Math.max(dt, 1);
     mob.vy = (my * 1000) / Math.max(dt, 1);
-    if (Math.hypot(mx, my) < want * 0.3) brain.stuckMs += dt;
-    else brain.stuckMs = 0;
+    // Real progress: away from the last anchor point. Back and forth in one place is no progress.
+    if (Math.hypot(mob.x - brain.anchorX, mob.y - brain.anchorY) > STUCK_RADIUS) {
+      brain.anchorX = mob.x;
+      brain.anchorY = mob.y;
+      brain.stuckMs = 0;
+    } else {
+      brain.stuckMs += dt;
+    }
     mob.facing = facingTo(mx, my, mob.facing);
   }
 
@@ -586,7 +617,12 @@ export class Horde {
 
   // ---------------------------------------------------------------- coming and going
 
-  /** Moves the home a step towards the nearest player, onto an open tile where it may roam. */
+  /**
+   * Moves the home a step towards the nearest player: PROWL_STEP along the shortest way through
+   * open ground where it may roam (round a town, round a lake), to the nearest place
+   * PROWL_NEAREST from the player. It searches at most PROWL_SEARCH tiles; without a way, it
+   * takes a straight step if that one is open.
+   */
   private prowl(brain: Brain, players: readonly HordePlayer[]): void {
     let nearest: PlayerState | null = null;
     let best = POPULATION_RADIUS * TILE_SIZE;
@@ -598,9 +634,36 @@ export class Horde {
       }
     }
     if (!nearest || best <= PROWL_NEAREST) return;
+    const near = nearest;
+    const start: [number, number] = [tileOf(brain.home.x), tileOf(brain.home.y)];
+    const close = (tx: number, ty: number) => Math.hypot(tx * TILE_SIZE + 8 - near.x, ty * TILE_SIZE + 12 - near.y) <= PROWL_NEAREST;
+    const key = (tx: number, ty: number) => `${tx},${ty}`;
+    const from = new Map<string, string | null>([[key(...start), null]]);
+    const queue: [number, number][] = [start];
+    let goal: string | null = null;
+    for (let head = 0; head < queue.length && from.size < PROWL_SEARCH; head++) {
+      const [x, y] = queue[head]!;
+      if (close(x, y)) {
+        goal = key(x, y);
+        break;
+      }
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
+        const k = key(nx, ny);
+        if (from.has(k) || !this.open(nx, ny)) continue;
+        from.set(k, key(x, y));
+        queue.push([nx, ny]);
+      }
+    }
+    if (goal) {
+      const path: string[] = [];
+      for (let k: string | null = goal; k; k = from.get(k) ?? null) path.unshift(k);
+      const [tx, ty] = path[Math.min(path.length - 1, PROWL_STEP / TILE_SIZE)]!.split(',').map(Number) as [number, number];
+      brain.home = { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 };
+      return;
+    }
     const step = Math.min(PROWL_STEP, best - PROWL_NEAREST);
-    const x = brain.home.x + ((nearest.x - brain.home.x) / best) * step;
-    const y = brain.home.y + ((nearest.y - brain.home.y) / best) * step;
+    const x = brain.home.x + ((near.x - brain.home.x) / best) * step;
+    const y = brain.home.y + ((near.y - brain.home.y) / best) * step;
     if (this.open(tileOf(x), tileOf(y))) brain.home = { x, y };
   }
 

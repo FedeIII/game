@@ -316,5 +316,20 @@ describe('the town of Azyr', () => {
     // They came, in the forest round the town.
     expect(most).toBe(5);
   });
+
+  it('sends mobs to a visitor who waits at the edge of the town, round the forest edge', () => {
+    // A visitor in the west garden, by the forest; with every random start, mobs come for it.
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const horde = new Horde(world, new TownSource().mobs(), seed);
+      const p = createPlayer(1 * TILE_SIZE + 8, 12 * TILE_SIZE + 12);
+      let found = -1;
+      for (let t = 0; t < 180_000 && found < 0; t += 50) {
+        stepPlayer(p, NO_INPUT, world);
+        horde.step(50, [{ id: 1, state: p }]);
+        if (horde.mobs.some((m) => m.state === 'chase' || m.state === 'windup')) found = t;
+      }
+      expect(found, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+    }
+  });
 });
 

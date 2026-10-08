@@ -209,8 +209,11 @@ town has one (the crier explains the town); the Wilds have none. `?nointro` skip
 small and quick (runs at 96 px/s, faster than a player, and keeps running during its short
 wind-up, so running away does not save you), and the **brute**, big and slow (42 px/s, a long
 wind-up in which it stands, a 2 s stun: you can walk away from it). A mob wanders round its
-home, and now and then it moves its home 3 tiles towards the nearest player (a prowl; never
-closer than 8 tiles), so mobs find players who stand still. When it sees a player (close, out in
+home, and now and then it moves its home 3 tiles towards the nearest player (a prowl: along
+the shortest way through open ground where it may roam, so round a town or a lake; never closer
+than 6 tiles), so mobs find players who stand still (in the town, in about 20 to 90 s at the
+edge). A mob that stays within 8 px of one point for 1.5 s while it wants to move is stuck (back
+and forth between trees): a walk ends, a chase bends the other way and gives up after 4 s. When it sees a player (close, out in
 the open, no building between), it runs at the player on a curve (an angle off the straight line
 that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
 the player (`stunPlayer`: no move, no attack), and after it the player has a guard of 1 s in which
