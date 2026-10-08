@@ -28,6 +28,8 @@ import { Fixtures } from './render/fixtures.ts';
 import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
+import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
+import { WelcomeSpeech } from './render/welcome.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
@@ -171,19 +173,40 @@ async function run(options: GameOptions): Promise<void> {
       const pose = poses[index];
       const there = pose ? world.insideOf(...tileOf(pose)) : null;
       if (there !== null && there !== here) continue;
+      // Nobody talks over the arrival: the title and the host's welcome.
+      if (arriving(now)) continue;
       if (dialogKey === targetKey({ kind: 'npc', tx: def.home[0], ty: def.home[1], distance: 0, fixture: npcFixture(def) })) continue;
       barkBubbles?.say(index, text, () => npcViews!.headOf(index), now);
       linesShown++;
     }
   };
   net?.onBarks(sayLines);
+
   if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
   if (lighting) scene.addChild(lighting.root);
   // Text in the world is above the darkness, so it is readable at night.
-  const speech = new SpeechBubble(art, font);
+  const speech = new SpeechBubble(art, font, { name: 'dialog' });
   textScene.addChild(speech.root);
+
+  // The arrival: the name of the world in the middle of the screen; as it fades out, the host
+  // NPC starts its welcome. ?nointro skips both (for tests and for a quick look).
+  const intro = definition.intro && !params.has('nointro') ? definition.intro : null;
+  const introTitle = intro ? new IntroTitle(font, intro.title) : null;
+  if (introTitle) textScene.addChild(introTitle.root);
+  const hostIndex = intro?.speaker ? npcDefs.findIndex((def) => def.id === intro.speaker) : -1;
+  const welcome = intro?.welcome?.length ? new WelcomeSpeech(art, font, textScene) : null;
+  /** The welcome starts in the middle of the title's fade-out. */
+  const WELCOME_AT = INTRO_TIMING.fadeIn + INTRO_TIMING.hold + INTRO_TIMING.fadeOut / 2;
+  let arrivedAt: number | null = null;
+  let welcomed = false;
+  // ?introat=<ms> stops the title's clock at that moment after the arrival (the welcome then
+  // starts at once if that moment is past its start): a screenshot of the title on a slow machine.
+  const frozenAt = Number.parseFloat(params.get('introat') ?? '');
+  const introClock = (now: number) => (Number.isFinite(frozenAt) && arrivedAt !== null ? arrivedAt + frozenAt : now);
+  /** Whether the arrival is under way: the title, the wait for the welcome, or the welcome. */
+  const arriving = (now: number) => intro !== null && (introTitle!.phase(introClock(now)) !== 'done' || (welcome !== null && (!welcomed || welcome.active)));
   // CRT diffusion. The world filter covers the whole screen; the display settings panel turns
   // it on and off and changes it, and ?nocrt and ?crt=spread,mix,glow,scanline set it from the
   // URL. The text filter has its own fixed settings and covers only the text (its bounds plus
@@ -265,9 +288,10 @@ async function run(options: GameOptions): Promise<void> {
     }
     dialogKey = key;
     const fixture = target.fixture;
-    // A dialog with an NPC stops the line that it was saying.
+    // A dialog with an NPC stops the line that it was saying, and its welcome.
     const talking = fixture ? npcIndex.get(fixture) : undefined;
     if (talking !== undefined) barkBubbles?.hush(talking, now);
+    if (talking !== undefined && talking === hostIndex) welcome?.stop(now);
     const walker = fixture ? npcIndex.get(fixture) : undefined;
     const anchor =
       content.speaker === 'fixture' && fixture
@@ -360,6 +384,18 @@ async function run(options: GameOptions): Promise<void> {
     lighting?.update(view, [torch, ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now, view);
     barkBubbles?.update(now, view);
+    if (arrivedAt === null) {
+      arrivedAt = now;
+      introTitle?.start(now);
+    }
+    const introNow = introClock(now);
+    introTitle?.update(introNow, view);
+    if (welcome && intro?.welcome && !welcomed && introNow - arrivedAt >= WELCOME_AT) {
+      welcomed = true;
+      const anchor = hostIndex >= 0 ? () => npcViews!.headOf(hostIndex) : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
+      welcome.start(intro.welcome, anchor, now);
+    }
+    welcome?.update(now, view);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
     crtText.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
@@ -384,6 +420,7 @@ async function run(options: GameOptions): Promise<void> {
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
+      ...(intro ? [`intro   ${introTitle!.phase(introClock(now))}, welcome ${welcome?.progress ?? '-'}${welcomed && !welcome?.active ? ' (done)' : ''}`] : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),

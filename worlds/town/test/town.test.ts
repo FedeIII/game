@@ -264,11 +264,20 @@ describe('the town of Azyr', () => {
     }
   });
 
+  it('welcomes a new visitor: the name of the town, then the crier explains it', () => {
+    expect(town.intro?.title).toBe('Town of Azyr');
+    expect(NPCS.some((n) => n.id === town.intro?.speaker)).toBe(true);
+    expect(town.intro?.welcome?.length).toBeGreaterThanOrEqual(3);
+    expect(town.intro?.welcome?.[0]).toMatch(/^Welcome/);
+  });
+
   it('has a glyph in the pixel font for every character of every text', () => {
     const texts = [
       ...HOUSES.flatMap((h) => [h.sign ?? '', ...h.fixtures.flatMap((f) => [...(f.content?.pages ?? []), f.content?.link?.title ?? ''])]),
       ...OUTDOOR.flatMap((f) => f.content?.pages ?? []),
       ...NPCS.flatMap((n) => [...(n.content.pages ?? []), ...(n.barks ?? [])]),
+      town.intro?.title ?? '',
+      ...(town.intro?.welcome ?? []),
     ];
     const missing = new Set([...texts.join('')].filter((ch) => !drawable(ch)));
     expect([...missing]).toEqual([]);

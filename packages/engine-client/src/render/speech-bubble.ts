@@ -30,6 +30,8 @@ export interface SpeechOptions {
   readonly live?: boolean;
   /** How long a one-page dialog stays, in milliseconds, for a line. Default DURATION. */
   readonly duration?: (line: string) => number;
+  /** A name for the live region (data-speech), so tests and tools can tell the regions apart. */
+  readonly name?: string;
 }
 
 /** Where the tip of the tail goes, in world pixels: over the head of whoever speaks. */
@@ -76,6 +78,7 @@ export class SpeechBubble {
       this.live.className = 'sr-only';
       this.live.setAttribute('role', 'status');
       this.live.setAttribute('aria-live', 'polite');
+      if (options.name) this.live.dataset.speech = options.name;
       document.body.append(this.live);
     }
   }
@@ -154,7 +157,9 @@ export class SpeechBubble {
     const alpha = Math.min(1, (now - this.shownAt) / FADE_IN, (this.hideAt + FADE_OUT - now) / FADE_OUT);
     this.root.visible = alpha > 0;
     if (!this.root.visible) {
-      if (this.live?.textContent) this.live.textContent = '';
+      // Clear the live region when the dialog has closed, not in the first moment of a fade-in
+      // (alpha 0 too): else a screen reader never hears a line that starts this frame.
+      if (!this.showing && this.live?.textContent) this.live.textContent = '';
       return;
     }
     this.root.alpha = alpha;

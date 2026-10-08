@@ -26,4 +26,17 @@ export const town: WorldDefinition = {
   darkness: 0.6,
   // Every visitor sees the others here: the town is the shared world of game.azyr.io.
   multiplayer: true,
+  // On arrival: the name of the town, and then the crier explains the town.
+  intro: {
+    title: 'Town of Azyr',
+    speaker: 'crier',
+    welcome: [
+      'Welcome to the town of Azyr, traveller!',
+      'Each house here holds one of the projects of Azyr.',
+      'Walk in, talk to the keepers, and look at what they show.',
+      'The portal in each house leads to the real project.',
+      'The notice board by the fountain lists them all.',
+      'And other visitors walk these streets too. Good journey!',
+    ],
+  },
 };

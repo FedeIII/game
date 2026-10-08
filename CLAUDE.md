@@ -168,6 +168,18 @@ For the HTML GUI:
   click, but not from the start of a touch. So E opens the link, and a tap on the action button
   only points at the card's link (`pulse()`); a tap on the link opens it.
 
+## Arrival in a world
+
+`WorldDefinition.intro` (`title`, `speaker`, `welcome`): when a visitor arrives, the world's name
+shows in the middle of the screen (`render/intro.ts`: on a dark band between two red lines that
+grow from the centre; it fades in 0.65 s while it rises a few pixels, stays 1.45 s, and fades out
+0.8 s), in the pixel font at twice the size of world text, in the text layer. In the middle of
+the fade-out, the NPC `speaker` starts its welcome (`render/welcome.ts`): one line after the
+other, each as long as it takes to read, over its head; the visitor can walk on, and talking to
+the NPC ends it. No other NPC speaks during the arrival. Screen readers hear the welcome. The
+town has one (the crier explains the town); the Wilds have none. `?nointro` skips it;
+`?introat=<ms>` stops the title at that moment, for a screenshot on a slow machine.
+
 ## Fixtures, content and actions
 
 - **Walking NPCs** (`packages/engine/src/npc.ts`, since 2026-10-08): a world gives them with
@@ -321,11 +333,13 @@ a game server; on the box use another port than production's 3008, for example
 `PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
 with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
 `?world=town`, `?debug` (read `#debug` for the world, tile, target, building, and `net` and
-`others` in a shared world), `?offline` (a shared world played alone), `?skin=<n>` (another
-skin, not saved), `?at=tx,ty`
+`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in the town), `?offline` (a
+shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
+`?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
-SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[role=status]`, and the
-link from `#link-card a`. For touch, use a context with `hasTouch: true` and send
+SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[data-speech=dialog]` (the
+welcome has `[data-speech=welcome]`), and the link from `#link-card a`. For touch, use a context
+with `hasTouch: true` and send
 `Input.dispatchTouchEvent` through a CDP session; a `touchEnd` releases the points that it
 lists, so list only the finger that lifts.
 

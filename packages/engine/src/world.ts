@@ -288,4 +288,14 @@ export interface WorldDefinition {
    * and the server owns the state (positions, doors). Without it, the world is single-player.
    */
   readonly multiplayer?: boolean;
+  /**
+   * What a visitor sees on arrival: the world's name in the middle of the screen, and then a
+   * welcome: lines that the NPC with the id `speaker` says to the new visitor, one after the
+   * other. Without it, the visitor just starts.
+   */
+  readonly intro?: {
+    readonly title: string;
+    readonly speaker?: string;
+    readonly welcome?: readonly string[];
+  };
 }
