@@ -1,20 +1,27 @@
 import './style.css';
 import { Application, Container, TextureSource } from 'pixi.js';
 import {
+  ATTACK_REACH,
+  Horde,
+  MOB_STATS,
   NpcCrowd,
   TICK_SECONDS,
   TILE_SIZE,
   World,
   npcActors,
   npcFixture,
+  canAttack,
   clampInput,
   createPlayer,
+  facingFor,
   findInteraction,
   stepPlayer,
   useDoor,
+  type Facing,
   type Fixture,
   type Interaction,
   type InteractionTarget,
+  type MoveInput,
   type WorldDefinition,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
@@ -30,6 +37,7 @@ import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
+import { MobViews, type MobLook } from './render/mobs.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
@@ -40,6 +48,7 @@ import { skinFromSeed } from '../art/skins.ts';
 import { newSkinSeed, saveName, savedName, skinSeed } from './skins/seed.ts';
 import { SkinStore } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
+import { AttackButton } from './ui/attack-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
 import { PresenceLabel } from './ui/presence.ts';
@@ -63,6 +72,13 @@ export interface GameOptions {
   /** The page title: "<world name> · <title>". */
   readonly title?: string;
 }
+
+/** An attack asked for this recently (ms) still starts when the player becomes able to attack. */
+const ATTACK_BUFFER_MS = 150;
+/** The attack turns to a mob this much beyond the reach of the attack (world pixels). */
+const AIM_SLACK = 10;
+/** A hit shakes the camera for this long (ms), by about this much (world pixels). */
+const SHAKE = { ms: 220, amount: 2 } as const;
 
 /** A key for "the same target": a fixture by its anchor, anything else by its tile. */
 function targetKey(target: InteractionTarget): string {
@@ -124,6 +140,8 @@ async function run(options: GameOptions): Promise<void> {
   const entityLayer = new Container({ sortableChildren: true });
   // The faint copies of the players that show through trees: above the props, below the darkness.
   const ghostLayer = new Container();
+  // What glows above the darkness: the eyes of mobs, embers, the stars of a stun.
+  const glowLayer = new Container();
   scene.addChild(groundLayer, entityLayer, ghostLayer);
   worldLayer.addChild(scene);
   textLayer.addChild(textScene);
@@ -151,6 +169,7 @@ async function run(options: GameOptions): Promise<void> {
   const playerView = new PlayerView(art, atlasPlayerTextures(art), true);
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
+  glowLayer.addChild(playerView.overlay);
   // The settings panel's "You" section: a new random look (saved for the next visits; the others
   // see it), and the name.
   const you = new YouSection(name, {
@@ -208,10 +227,55 @@ async function run(options: GameOptions): Promise<void> {
   };
   net?.onBarks(sayLines);
 
+  // Mobs: in a world with mob rules. A single-player world runs its own horde (its seed differs
+  // per page); a shared world gets them from the server.
+  // ?nomobs: none (for tests that walk about, and for a quiet look).
+  const mobRules = params.has('nomobs') ? null : (world.source.mobs?.() ?? null);
+  const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
+  const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer) : null;
+  // ?mob=imp,brute puts those mobs near the player at the start, one tile apart, 5 tiles to the
+  // east (for tests and for a look at them). Single-player worlds only.
+  (params.get('mob') ?? '').split(',').forEach((kind, i) => {
+    if (horde && (kind === 'imp' || kind === 'brute')) {
+      const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 5, Math.floor(player.y / TILE_SIZE) + i * 2 - 1, 0);
+      horde.spawn(kind, spot.x, spot.y);
+    }
+  });
+  const mobsNow = (): readonly MobLook[] => horde?.mobs ?? [];
+  let kills = 0;
+  let hitsTaken = 0;
+  let shakeUntil = -Infinity;
+  // An attack: the button (or Space) asks for it, and the next tick in which the player can
+  // attack starts it, towards the nearest mob in reach, else the way the player walks or faces.
+  const attackButton = mobRules ? new AttackButton() : null;
+  let attackAskedAt = -Infinity;
+  attackButton?.onPress(() => {
+    attackAskedAt = performance.now();
+  });
+  const aim = (move: MoveInput): Facing => {
+    let best: MobLook | null = null;
+    let bestD = Infinity;
+    for (const mob of mobsNow()) {
+      if (mob.state === 'dying') continue;
+      const d = Math.hypot(mob.x - player.x, mob.y - player.y);
+      if (d < bestD && d <= ATTACK_REACH + MOB_STATS[mob.kind].radius + AIM_SLACK) {
+        best = mob;
+        bestD = d;
+      }
+    }
+    if (best) {
+      const dx = best.x - player.x;
+      const dy = best.y - player.y;
+      return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+    }
+    return facingFor(player.facing, move);
+  };
+
   if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
   if (lighting) scene.addChild(lighting.root);
+  scene.addChild(glowLayer);
   // Text in the world is above the darkness, so it is readable at night.
   const speech = new SpeechBubble(art, font, { name: 'dialog' });
   textScene.addChild(speech.root);
@@ -259,7 +323,7 @@ async function run(options: GameOptions): Promise<void> {
   };
 
   const hud = new Hud(params.has('debug'));
-  hud.showHint(STRINGS.hintKeyboard);
+  hud.showHint(mobRules ? STRINGS.hintKeyboardFight : STRINGS.hintKeyboard);
   joystick.onTouchMode(() => hud.showHint(STRINGS.hintTouch));
 
   // ---------------------------------------------------------------- actions
@@ -362,9 +426,18 @@ async function run(options: GameOptions): Promise<void> {
   const sim = new FixedStep(TICK_SECONDS, () => {
     previous.x = player.x;
     previous.y = player.y;
-    if (net) net.tick(readInput());
-    else stepPlayer(player, readInput(), world);
+    let input: MoveInput = readInput();
+    if (performance.now() - attackAskedAt < ATTACK_BUFFER_MS && canAttack(player)) {
+      input = { ...input, attack: aim(input) };
+      attackAskedAt = -Infinity;
+    }
+    if (net) net.tick(input);
+    else if (stepPlayer(player, input, world) && horde) kills += horde.strike(player, player.facing).length;
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
+    if (horde && horde.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]).length > 0) {
+      hitsTaken++;
+      shakeUntil = performance.now() + SHAKE.ms;
+    }
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -397,7 +470,11 @@ async function run(options: GameOptions): Promise<void> {
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     playerView.update(shown.x, shown.y, player, seconds);
-    camera.follow(scene, shown.x, shown.y);
+    // A hit shakes the view a little.
+    const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
+    camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
+    mobViews?.update(mobsNow(), now, seconds);
+    attackButton?.setReady(player.stun === 0);
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
 
@@ -458,6 +535,12 @@ async function run(options: GameOptions): Promise<void> {
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
       ...(intro ? [`intro   ${introTitle!.phase(introClock(now))}, welcome ${welcome?.progress ?? '-'}${welcomed && !welcome?.active ? ' (done)' : ''}`] : []),
+      ...(mobRules
+        ? [
+            `mobs    ${mobsNow().map((m) => `${m.kind} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`).join('; ') || '-'}`,
+            `fight   kills ${kills}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
+          ]
+        : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),

@@ -37,7 +37,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, the natural-terrain toolkit, and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs, mobs and fights, the natural-terrain toolkit, and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The multiplayer server: `startServer()` (Node, `ws`): a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
@@ -133,6 +133,15 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   from close by, and a pale top glares.
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
   client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`.
+- `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
+  brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
+  `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
+  `mob/<kind>/shadow`. The eyes are a material of their own: the build lists the eye pixels of
+  each frame in `meta.mobEyes`, and the game draws them glowing above the darkness. In a death
+  the eyes go dark. Preview the frames when you change a model: poses that look right in one
+  view can hide the head in another.
+- `fx.ts`: the effects of a fight, white and grey, tinted by the game: the arc of an attack
+  (`fx/slash/<0-3>`, facing right; the game turns it) and the star of a stun (`fx/star`).
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, cobblestones)
   and the ragged edge pieces. `decor.ts`: small decor as text grids.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
@@ -185,6 +194,35 @@ other, each as long as it takes to read, over its head; the visitor can walk on,
 the NPC ends it. No other NPC speaks during the arrival. Screen readers hear the welcome. The
 town has one (the crier explains the town); the Wilds have none. `?nointro` skips it;
 `?introat=<ms>` stops the title at that moment, for a screenshot on a slow machine.
+
+## Mobs and fights
+
+`packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
+small and quick (runs at 90 px/s, faster than a player), and the **brute**, big and slow (42
+px/s, a long wind-up, a 2 s stun). A mob wanders round its home; when it sees a player (close,
+out in the open, no building between), it runs at the player on a curve (an angle off the
+straight line that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
+the player (`stunPlayer`: no move, no attack), and after it the player has a guard of 1 s in which
+no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. While the player is
+stunned or guarded, mobs circle round it. A mob never enters a building, gives up the chase when
+it loses the player for 1.5 s or is 18 tiles from home, and walks home. New mobs come one at a
+time, 17 to 25 tiles from every player (out of sight), up to the world's population round each
+player; a wandering mob 36 tiles from every player goes away.
+
+The player's attack is part of the input (`MoveInput.attack`: the side to strike), so
+`stepPlayer` stays the one rule for prediction: an attack lasts `ATTACK_TICKS` (the player stands
+still), and the next can start `ATTACK_COOLDOWN_TICKS` after it. `stepPlayer` returns true when
+an attack starts; the caller asks the horde what it hits (`Horde.strike`: in reach, in front;
+`attackHits`). One blow kills a mob: it flashes white, falls, fades, and ash rises.
+
+A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
+where they may step while they chase, `population` per player). The Wilds: everywhere except
+water and the ground round a house; 4 imps and 2 brutes. The client of a single-player world runs
+its own `Horde`. In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
+lunge, the red flash of a hit, stars over the head while stunned, a blink while guarded) and
+`ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A press is kept for
+150 ms, and the attack turns to the nearest mob in reach. `?mob=imp,brute` puts mobs next to the
+player at the start (single-player worlds); `?nomobs` turns them off.
 
 ## Fixtures, content and actions
 
@@ -340,8 +378,10 @@ a game server; on the box use another port than production's 3008, for example
 `PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
 with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
 `?world=town`, `?debug` (read `#debug` for the world, tile, target, building, and `net` and
-`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in the town), `?offline` (a
+`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in the town; `mobs` and
+`fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
+`?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
 `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
 SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[data-speech=dialog]` (the

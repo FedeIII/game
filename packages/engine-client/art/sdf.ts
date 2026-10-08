@@ -258,7 +258,13 @@ const BOUND_MARGIN = 0.5;
 /** A neighbour that is this much nearer to the camera casts a dark contact line on a pixel. */
 const EDGE_DEPTH = 2;
 
-export function renderModel(parts: readonly Part[], materials: readonly Material[], view: View): Image {
+/** What a render can give back besides the image. */
+export interface RenderInfo {
+  /** The material index of each pixel, row by row (-1: empty). Filled by renderModel. */
+  materialAt?: Int16Array;
+}
+
+export function renderModel(parts: readonly Part[], materials: readonly Material[], view: View, info?: RenderInfo): Image {
   const { width, height, pivotX, pivotY } = view;
   const stepScale = view.stepScale ?? 0.9;
   const cosYaw = Math.cos(view.yaw);
@@ -425,5 +431,6 @@ export function renderModel(parts: readonly Part[], materials: readonly Material
       image.set(px, py, material.ramp[shade]!);
     }
   }
+  if (info) info.materialAt = materialAt;
   return image;
 }

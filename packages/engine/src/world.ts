@@ -1,6 +1,7 @@
 import { Structure, inRect, isInside, type Building } from './buildings.ts';
 import { CHUNK_SIZE, TILE_SIZE } from './constants.ts';
 import { decodeFixture, type Fixture } from './fixtures.ts';
+import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
@@ -77,6 +78,8 @@ export interface WorldSource {
   spawn(world: World): { x: number; y: number };
   /** The NPCs that walk in this world (npc.ts). Without it, none. */
   npcs?(): readonly NpcDef[];
+  /** Where the mobs of this world may be, and how many (mobs.ts). Without it, the world has none. */
+  mobs?(): MobRules;
 }
 
 /** Anything that can tell which part of a tile is solid. The movement code needs only this. */

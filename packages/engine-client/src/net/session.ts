@@ -8,6 +8,7 @@ import {
   useDoor,
   type ClientMessage,
   type DoorResult,
+  type Feet,
   type MoveInput,
   type NpcPose,
   type PlayerState,
@@ -108,7 +109,7 @@ export class NetSession {
   }
 
   /** Opens or closes a door: at once here, and through the server for everyone. */
-  door(tx: number, ty: number, others: readonly PlayerState[]): DoorResult {
+  door(tx: number, ty: number, others: readonly Feet[]): DoorResult {
     if (this.status !== 'online') return useDoor(this.world, this.player, tx, ty);
     return this.prediction.door(this.player, this.world, tx, ty, others);
   }

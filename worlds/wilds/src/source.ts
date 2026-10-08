@@ -11,6 +11,7 @@ import {
   type Building,
   type Chunk,
   type Fixture,
+  type MobRules,
   type World,
   type WorldSource,
 } from '@game/engine';
@@ -28,6 +29,9 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
   const ring = tx >= house.x0 - 1 && tx <= house.x1 + 1 && ty >= house.y0 - 1 && ty <= house.y1 + 1;
   return ring || onApproach(house, tx, ty);
 }
+
+/** Mobs in the wilds: four imps and two brutes round each player. */
+const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
 /** The wilds: endless natural terrain from a seed, with a house in about a third of the cells. */
 export class WildsSource implements WorldSource {
@@ -104,5 +108,20 @@ export class WildsSource implements WorldSource {
 
   spawn(world: World): { x: number; y: number } {
     return world.findSpawn();
+  }
+
+  /**
+   * Mobs live everywhere in the woods, except on water and on the ground of a house (its ring and
+   * the path to its door): a player who comes out of a door does not walk into one. They hunt
+   * everywhere outside the houses.
+   */
+  mobs(): MobRules {
+    return {
+      roam: (tx, ty) =>
+        naturalGround(this.seed, tx, ty) !== Ground.Water &&
+        !this.buildingsIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
+      hunt: () => true,
+      population: MOB_POPULATION,
+    };
   }
 }

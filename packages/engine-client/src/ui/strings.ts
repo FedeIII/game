@@ -7,6 +7,8 @@ import type { Interactable } from '@game/engine';
  */
 export const STRINGS = {
   hintKeyboard: 'WASD or arrow keys to move · E to act',
+  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Space to attack',
+  attack: 'Attack',
   hintTouch: 'Touch and drag anywhere to move',
   doorBlocked: 'Step out of the doorway first.',
   doorBlockedByOther: 'Someone is in the doorway.',

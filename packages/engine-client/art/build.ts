@@ -79,6 +79,7 @@ const json = {
     lighting: LIGHTING,
     font: FONT,
     smallFont: SMALL_FONT,
+    mobEyes: art.mobEyes,
   },
 };
 

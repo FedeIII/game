@@ -12,8 +12,10 @@ import { buildingFrames } from './buildings.ts';
 import { decorFrames } from './decor.ts';
 import { fixtureFrames } from './fixtures.ts';
 import { fontFrames } from './font.ts';
+import { fxFrames } from './fx.ts';
 import { groundFrames } from './ground.ts';
 import { lightFrames } from './lights.ts';
+import { mobFrames } from './mobs.ts';
 import { propFrames } from './props.ts';
 import { shadowEllipse } from './raster.ts';
 
@@ -27,6 +29,8 @@ export interface Frame {
 export interface Art {
   readonly frames: Frame[];
   readonly animations: Record<string, string[]>;
+  /** The glowing eye pixels of each mob frame: [x, y, x, y, ...] from the frame's top-left corner. */
+  readonly mobEyes: Record<string, number[]>;
 }
 
 function playerShadow(): Frame {
@@ -36,6 +40,7 @@ function playerShadow(): Frame {
 }
 
 export function buildArt(): Art {
+  const mobs = mobFrames();
   const frames = [
     ...groundFrames(),
     ...decorFrames(),
@@ -47,6 +52,8 @@ export function buildArt(): Art {
     ...fontFrames(),
     ...buildingFrames(),
     ...fixtureFrames(),
+    ...mobs.frames,
+    ...fxFrames(),
   ];
   const walk = (prefix: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `${prefix}/walk/${i}`);
   // Animations: `walk/<view>` for the player, `npcwalk/<look>/<view>` for each NPC look.
@@ -54,5 +61,5 @@ export function buildArt(): Art {
   for (const look of Object.keys(NPC_LOOKS)) {
     for (const view of VIEWS) animations[`npcwalk/${look}/${view.name}`] = walk(`npc/${look}/${view.name}`);
   }
-  return { frames, animations };
+  return { frames, animations, mobEyes: mobs.eyes };
 }

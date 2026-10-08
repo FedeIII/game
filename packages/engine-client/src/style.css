@@ -185,6 +185,42 @@ body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
   font: 11px/1.2 var(--ui-mono);
 }
 
+/* The attack button: left of the action button, the same size. Lit while the player can attack. */
+#attack {
+  position: fixed;
+  right: calc(var(--ui-margin) + 64px + 14px + env(safe-area-inset-right));
+  bottom: calc(var(--ui-margin) + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  opacity: 0.4;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+#attack.ready {
+  border-color: var(--ui-accent);
+  opacity: 0.9;
+}
+
+#attack:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 14px var(--ui-accent-glow);
+}
+
+#attack .action-key {
+  min-width: 34px;
+}
+
 /* On a touch screen there is no E key to show. */
 @media (pointer: coarse) {
   .action-key {
