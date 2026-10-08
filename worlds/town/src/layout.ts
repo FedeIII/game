@@ -200,6 +200,7 @@ function house(project: Project, index: number): Building {
     home: keeper,
     area,
     content: { pages: project.keeper.pages, speaker: 'fixture' },
+    barks: project.keeper.barks,
   });
   if (plan[plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
   for (const letter of Object.keys(exhibits)) {
@@ -279,6 +280,7 @@ function crier(): NpcDef {
       speaker: 'fixture',
       pages: ['Welcome to the town of Azyr!', 'Each house holds one of the projects. Walk in and look around.', 'The portals inside lead to the real thing.'],
     },
+    barks: ['Eight houses, eight projects!', 'The portals lead to the real thing!', 'Every house welcomes visitors!', 'All the projects are on azyr.io!'],
   };
 }
 

@@ -27,6 +27,7 @@ import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Fixtures } from './render/fixtures.ts';
 import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
+import { BarkBubbles } from './render/barks.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
@@ -149,6 +150,33 @@ async function run(options: GameOptions): Promise<void> {
   const npcViews = npcDefs.length > 0 ? new NpcViews(art, npcDefs, entityLayer, ghostLayer) : null;
   const npcIndex = new Map(npcDefs.map((def, i) => [npcFixture(def), i]));
   const npcPoses = (now: number) => (net?.serverNpcs ? net.npcsAt(now) : (localNpcs?.poses ?? []));
+  // The lines that NPCs say by themselves, over their heads; never over a dialog with them.
+  const barkBubbles = npcDefs.length > 0 ? new BarkBubbles(art, font, textScene) : null;
+  let linesHeard = 0;
+  let linesShown = 0;
+  let lastLine = '-';
+  const tileOf = (p: { x: number; y: number }) => [Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE)] as const;
+  const sayLines = (lines: readonly (readonly [number, number])[]) => {
+    const now = performance.now();
+    const poses = npcPoses(now);
+    const here = world.insideOf(...tileOf(player));
+    for (const [index, line] of lines) {
+      const def = npcDefs[index];
+      const text = def?.barks?.[line];
+      if (!def || !text) continue;
+      linesHeard++;
+      lastLine = `${def.id}: ${text}`;
+      // The visitor sees what it hears: an NPC outside, or in the same house. A keeper under a
+      // roof does not put a bubble over it. And no line over a dialog with that NPC.
+      const pose = poses[index];
+      const there = pose ? world.insideOf(...tileOf(pose)) : null;
+      if (there !== null && there !== here) continue;
+      if (dialogKey === targetKey({ kind: 'npc', tx: def.home[0], ty: def.home[1], distance: 0, fixture: npcFixture(def) })) continue;
+      barkBubbles?.say(index, text, () => npcViews!.headOf(index), now);
+      linesShown++;
+    }
+  };
+  net?.onBarks(sayLines);
   if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
@@ -237,6 +265,9 @@ async function run(options: GameOptions): Promise<void> {
     }
     dialogKey = key;
     const fixture = target.fixture;
+    // A dialog with an NPC stops the line that it was saying.
+    const talking = fixture ? npcIndex.get(fixture) : undefined;
+    if (talking !== undefined) barkBubbles?.hush(talking, now);
     const walker = fixture ? npcIndex.get(fixture) : undefined;
     const anchor =
       content.speaker === 'fixture' && fixture
@@ -278,7 +309,7 @@ async function run(options: GameOptions): Promise<void> {
     previous.y = player.y;
     if (net) net.tick(readInput());
     else stepPlayer(player, readInput(), world);
-    if (localNpcs && !net?.serverNpcs) localNpcs.step(TICK_SECONDS * 1000, [player]);
+    if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -327,7 +358,8 @@ async function run(options: GameOptions): Promise<void> {
     others?.update(net!.playersAt(now), seconds);
     const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     lighting?.update(view, [torch, ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
-    speech.update(now);
+    speech.update(now, view);
+    barkBubbles?.update(now, view);
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
     crtText.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
@@ -353,6 +385,7 @@ async function run(options: GameOptions): Promise<void> {
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
+      ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

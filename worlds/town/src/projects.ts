@@ -45,8 +45,11 @@ export interface Project {
   readonly id: string;
   /** The name on the sign and on the link card. */
   readonly name: string;
-  /** The keeper: an NPC look (art/characters.ts) and what the keeper says. */
-  readonly keeper: { readonly look: string; readonly pages: readonly string[] };
+  /**
+   * The keeper: an NPC look (art/characters.ts), what the keeper says when a visitor talks to it,
+   * and short lines that it says by itself now and then (barks).
+   */
+  readonly keeper: { readonly look: string; readonly pages: readonly string[]; readonly barks: readonly string[] };
   /** The portal: the most prominent thing in the house, and the link to the project. */
   readonly portal: { readonly colour: number; readonly pages: readonly string[]; readonly url: string; readonly label: string };
   readonly house: House;
@@ -65,6 +68,13 @@ export const PROJECTS: readonly Project[] = [
         'One place for everything you own.',
         'Trading 212 and Interactive Brokers, Bitcoin, gold and private investments.',
         'All in a single currency, so the total actually means something.',
+      ],
+      barks: [
+        'All you own, in one currency.',
+        'Trading 212, Interactive Brokers, Bitcoin, gold: one total.',
+        'Dividends: the payments that actually arrived.',
+        'The agents propose. You decide.',
+        'Prices move. So does the portfolio.',
       ],
     },
     portal: {
@@ -104,6 +114,12 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'healer',
       pages: ['Welcome to Osler·MD, a personal medical assistant.', 'Upload your records and get guidance shaped by your own history.'],
+      barks: [
+        'Your records, kept as a private medical memory.',
+        'Meals, sleep, exercise: ask about your own history.',
+        'In English or in Spanish.',
+        'I am not a doctor. In an emergency, call your local emergency services.',
+      ],
     },
     portal: {
       colour: 0x7fd6c8,
@@ -140,6 +156,13 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'bard',
       pages: ['¡Bienvenido a Kandrax Rol!', 'Un canal de YouTube dedicado al arte del rol de mesa.'],
+      barks: [
+        '¡Aventuras épicas en los reinos de Dungeons & Dragons!',
+        'Donde la narración y la imaginación se unen.',
+        'Cada sesión trae nuevos desafíos.',
+        '¡Suscríbete y sigue nuestras campañas!',
+        'El rol de mesa es un arte colaborativo.',
+      ],
     },
     portal: {
       colour: 0xa070e0,
@@ -177,6 +200,12 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'dungeonmaster',
       pages: ['Kandrax App: a tool for Dungeons & Dragons.', 'From dungeon masters to players, it helps everyone at the table.'],
+      barks: [
+        'Track your characters. Organize your campaign.',
+        'Quick reference to the rules, at the table.',
+        'Focus on what matters most: the story.',
+        'For dungeon masters and players alike.',
+      ],
     },
     portal: {
       colour: 0x60c080,
@@ -212,6 +241,13 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'spymaster',
       pages: ['Hidden Agenda: a board game where deception meets teamwork.', 'Trust is a rare commodity here.'],
+      barks: [
+        'Trust is a rare commodity.',
+        'Agents, Spies, Snipers, CEOs... who is who?',
+        'Reveal yourself at the right moment.',
+        'Share a room code. Play from your own device.',
+        'Every move counts.',
+      ],
     },
     portal: {
       colour: 0xd04848,
@@ -246,6 +282,12 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'gamer',
       pages: ['Azyrio: my gaming content channel.', 'Indie gems and popular titles, with thoughtful commentary.'],
+      barks: [
+        'Indie gems and popular titles.',
+        'Thoughtful commentary, gameplay highlights.',
+        'Good game design deserves a closer look.',
+        'Here we celebrate what makes gaming special.',
+      ],
     },
     portal: {
       colour: 0x5a8cff,
@@ -280,6 +322,12 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'smith',
       pages: ['GitHub: code and open source.', 'Web development, tools and experimental projects.'],
+      barks: [
+        'Clean, maintainable software.',
+        'From full-stack apps to utility libraries.',
+        'Open source, tools and experiments.',
+        'Each repository: a commitment to quality.',
+      ],
     },
     portal: {
       colour: 0xc8d0dc,
@@ -315,6 +363,12 @@ export const PROJECTS: readonly Project[] = [
     keeper: {
       look: 'archivist',
       pages: ['Journal: daily reflections.', 'A place to capture your memories, one day at a time.'],
+      barks: [
+        'Write a little, every day.',
+        'What did you write on this day, last year?',
+        'Years of memories, side by side.',
+        'A walk through your own history.',
+      ],
     },
     portal: {
       colour: 0xe09a50,

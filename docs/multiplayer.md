@@ -50,7 +50,10 @@ stands still), and with every player's feet, because a player close to an NPC st
 snapshot carries all of them; the client draws them 100 ms in the past, as it draws the other
 players (`Remotes.npcsAt()`). Until the first snapshot, or with no server, the client runs its
 own crowd. NPCs do not collide with players, so the prediction of the local player never
-depends on them.
+depends on them. NPCs open and close doors (the Room's door version goes up, so the doors go to
+everyone), and a door does not close on an NPC. The lines that NPCs say are events in the next
+snapshot (`b`: [npc index, line index]); a client that misses a snapshot (a full send buffer)
+misses the line, which is harmless.
 
 ## Limits on the server
 

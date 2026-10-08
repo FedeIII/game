@@ -54,6 +54,7 @@ export class NetSession {
   private readonly prediction = new Prediction();
   private readonly remotes = new Remotes();
   private readonly listeners: (() => void)[] = [];
+  private readonly barkListeners: ((barks: readonly (readonly [number, number])[]) => void)[] = [];
   private socket: WebSocket | null = null;
   private retryMs = RETRY_FIRST_MS;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -70,6 +71,11 @@ export class NetSession {
     this.url = url;
     document.addEventListener('visibilitychange', () => this.visibility());
     this.connect();
+  }
+
+  /** Calls `listener` with the lines that the server's NPCs say: [npc index, line index]. */
+  onBarks(listener: (barks: readonly (readonly [number, number])[]) => void): void {
+    this.barkListeners.push(listener);
   }
 
   /** Calls `listener` when the status or the number of others changes. */
@@ -184,6 +190,7 @@ export class NetSession {
         this.addJump(dx, dy);
         this.remotes.apply(message, now);
         if (this.remotes.count !== count) this.changed();
+        if (message.b) for (const listener of this.barkListeners) listener(message.b);
         return;
       }
       case 'refused':

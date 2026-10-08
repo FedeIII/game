@@ -1,5 +1,6 @@
 import { Container, NineSliceSprite, Sprite } from 'pixi.js';
 import type { Art } from '../assets.ts';
+import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
 
 /** How long a single short line stays, and how long it takes to appear and to fade, in milliseconds. */
@@ -21,6 +22,16 @@ const TAIL_HEIGHT = 3;
 /** The colour of the text: the parchment of the GUI theme (--ui-ink in style.css). */
 const INK = 0xd8ccb0;
 
+export interface SpeechOptions {
+  /**
+   * Repeat each page in a hidden live region for screen readers. Default true. Off for lines
+   * that NPCs say by themselves: a screen reader would read every line of every NPC.
+   */
+  readonly live?: boolean;
+  /** How long a one-page dialog stays, in milliseconds, for a line. Default DURATION. */
+  readonly duration?: (line: string) => number;
+}
+
 /** Where the tip of the tail goes, in world pixels: over the head of whoever speaks. */
 export type Anchor = () => { x: number; y: number };
 
@@ -38,7 +49,8 @@ export class SpeechBubble {
   private readonly frame: NineSliceSprite;
   private readonly tail: Sprite;
   private readonly more: Sprite;
-  private readonly live: HTMLElement;
+  private readonly live: HTMLElement | null;
+  private readonly duration: (line: string) => number;
   private text: Container | null = null;
   private pages: readonly string[] = [];
   private page = 0;
@@ -48,8 +60,9 @@ export class SpeechBubble {
   private shownAt = -Infinity;
   private hideAt = -Infinity;
 
-  constructor(art: Art, font: PixelFont) {
+  constructor(art: Art, font: PixelFont, options: SpeechOptions = {}) {
     this.font = font;
+    this.duration = options.duration ?? (() => DURATION);
     this.frame = new NineSliceSprite({ texture: art.frame('ui/bubble'), leftWidth: 2, topHeight: 2, rightWidth: 2, bottomHeight: 2 });
     this.tail = new Sprite(art.frame('ui/bubble-tail'));
     this.tail.anchor.set(0, 0);
@@ -57,11 +70,14 @@ export class SpeechBubble {
     this.root.addChild(this.frame, this.tail, this.more);
     this.root.visible = false;
 
-    this.live = document.createElement('div');
-    this.live.className = 'sr-only';
-    this.live.setAttribute('role', 'status');
-    this.live.setAttribute('aria-live', 'polite');
-    document.body.append(this.live);
+    this.live = null;
+    if (options.live ?? true) {
+      this.live = document.createElement('div');
+      this.live.className = 'sr-only';
+      this.live.setAttribute('role', 'status');
+      this.live.setAttribute('aria-live', 'polite');
+      document.body.append(this.live);
+    }
   }
 
   /** Whether a dialog is on screen (or fading out). */
@@ -124,23 +140,33 @@ export class SpeechBubble {
     this.more.visible = more;
 
     // One short page goes away by itself; a dialog stays until it is closed.
-    this.hideAt = this.pages.length === 1 ? now + DURATION : Infinity;
-    this.live.textContent = line;
+    this.hideAt = this.pages.length === 1 ? now + this.duration(line) : Infinity;
+    if (this.live) this.live.textContent = line;
   }
 
-  /** Follows the anchor, fades the bubble in and out, and blinks the "more" triangle. */
-  update(now: number): void {
+  /**
+   * Follows the anchor, fades the bubble in and out, and blinks the "more" triangle. With `view`
+   * (the part of the world on the screen), the bubble stays inside it, 2 pixels from the edges:
+   * an NPC at the top of the screen still shows its whole line.
+   */
+  update(now: number, view?: Rect): void {
     if (this.showing && now >= this.hideAt) this.pages = [];
     const alpha = Math.min(1, (now - this.shownAt) / FADE_IN, (this.hideAt + FADE_OUT - now) / FADE_OUT);
     this.root.visible = alpha > 0;
     if (!this.root.visible) {
-      if (this.live.textContent) this.live.textContent = '';
+      if (this.live?.textContent) this.live.textContent = '';
       return;
     }
     this.root.alpha = alpha;
     this.more.alpha = Math.floor(now / 400) % 2 === 0 ? 1 : 0.35;
     // The frame goes on whole world pixels, so the letters stay on the pixel grid.
     const { x, y } = this.anchor();
-    this.root.position.set(Math.round(x - this.width / 2), Math.round(y - this.height - TAIL_HEIGHT + 1));
+    let left = x - this.width / 2;
+    let top = y - this.height - TAIL_HEIGHT + 1;
+    if (view) {
+      left = Math.max(view.x + 2, Math.min(view.x + view.width - this.width - 2, left));
+      top = Math.max(view.y + 2, Math.min(view.y + view.height - this.height - 2, top));
+    }
+    this.root.position.set(Math.round(left), Math.round(top));
   }
 }

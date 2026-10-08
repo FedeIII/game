@@ -180,7 +180,13 @@ For the HTML GUI:
   leaves it open); it never closes a door that it did not open. A player within
   `NPC_HOLD_RADIUS` (22 px) stops the NPC, and it turns to the player, so a dialog is never
   cut. NPCs do not collide with anyone, but a door does not close on an NPC (`useDoor` takes
-  everyone's feet). In a shared
+  everyone's feet). **Lines** (`NpcDef.barks`): each NPC says one now and then (the first 6-40 s
+  after the start, then every 25-70 s), never while a player stands close, never the same line
+  twice in a row, and never within 5 s of another NPC's line (one voice at a time). They are
+  events: the Room sends them in the next snapshot (`b`), so every visitor gets them at once.
+  The client (`render/barks.ts`) shows a line over its NPC only if the NPC is outside or in the
+  visitor's own house, and never over a dialog with that NPC; screen readers do not get them.
+  Speech bubbles stay inside the screen. In a shared
   world the Room runs the crowd (`Room.tick()`, before each broadcast) and the snapshots carry
   the poses; otherwise the client runs its own crowd. To act on one, findInteraction() takes
   `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.
@@ -261,7 +267,8 @@ For the HTML GUI:
   (2) the 5 x 3 tiles in front of each door stay clear: no lamp, prop, tree or wall. The keeper
   of each house is a walking NPC: its area is the open floor of the house, the door, and the
   first 5 x 2 of those clear tiles (`DOORSTEP`); the crier walks the plaza south of the fountain
-  (`CRIER_AREA`). Tests check the
+  (`CRIER_AREA`). Each keeper has `barks`: short lines from its project's azyr.io page (Spanish
+  for Kandrax Rol); the crier has town lines. Tests check the
   signs, one portal with an https link per house (and the exact URLs), a different style for
   every house, that the player can walk to every thing in every house and act on it (and to
   every door and outdoor thing from the plaza), the two map rules (with the real `Camera`), and a

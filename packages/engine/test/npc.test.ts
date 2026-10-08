@@ -153,3 +153,68 @@ describe('NPCs and doors', () => {
     expect(other.isDoorOpen(5, 6), 'a door that a player opened stays open').toBe(true);
   });
 });
+
+describe('NPCs that speak', () => {
+  const speaker: NpcDef = { ...keeper, id: 'speaker', barks: ['One.', 'Two.', 'Three.'] };
+
+  it('say a line now and then, 25 to 70 seconds apart, and not the same line twice in a row', () => {
+    const crowd = new NpcCrowd(new World(houseSource()), [speaker], 9);
+    const said: { t: number; line: number }[] = [];
+    for (let t = 0; t < 30 * 60_000; t += 50) {
+      for (const [npc, line] of crowd.step(50, []).barks) {
+        expect(npc).toBe(0);
+        said.push({ t, line });
+      }
+    }
+    expect(said.length).toBeGreaterThan(25);
+    expect(said[0]!.t).toBeLessThan(41_000);
+    for (let i = 1; i < said.length; i++) {
+      const gap = said[i]!.t - said[i - 1]!.t;
+      expect(gap).toBeGreaterThanOrEqual(24_950);
+      expect(gap).toBeLessThanOrEqual(70_050);
+      expect(said[i]!.line).not.toBe(said[i - 1]!.line);
+    }
+    expect(new Set(said.map((s) => s.line)).size).toBe(3);
+  });
+
+  it('speak one at a time: never two lines within 5 seconds in a crowd', () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ ...speaker, id: `s${i}` }));
+    const crowd = new NpcCrowd(new World(houseSource()), many, 4);
+    const times: number[] = [];
+    const who = new Set<number>();
+    for (let t = 0; t < 20 * 60_000; t += 50) {
+      for (const [npc] of crowd.step(50, []).barks) {
+        times.push(t);
+        who.add(npc);
+      }
+    }
+    for (let i = 1; i < times.length; i++) expect(times[i]! - times[i - 1]!).toBeGreaterThanOrEqual(4950);
+    expect(who.size).toBe(9);
+    expect(times.length).toBeGreaterThan(100);
+  });
+
+  it('do not speak while a player stands close, or without lines', () => {
+    const crowd = new NpcCrowd(new World(houseSource()), [speaker, keeper], 9);
+    const close = () => [{ x: crowd.poses[0]!.x + 10, y: crowd.poses[0]!.y }];
+    let lines = 0;
+    for (let t = 0; t < 10 * 60_000; t += 50) lines += crowd.step(50, close()).barks.filter(([npc]) => npc === 0).length;
+    expect(lines).toBe(0);
+    let silent = 0;
+    for (let t = 0; t < 10 * 60_000; t += 50) silent += crowd.step(50, []).barks.filter(([npc]) => npc === 1).length;
+    expect(silent).toBe(0);
+  });
+
+  it('reach every player through the snapshots, once', () => {
+    const world = new World({ ...houseSource(), npcs: () => [speaker] });
+    const room = new Room(world, { random: () => 0.5 });
+    const a = room.join(0, 1)!;
+    const b = room.join(0, 2)!;
+    const got = new Map<number, number>([[a.id, 0], [b.id, 0]]);
+    for (let ms = 0; ms <= 5 * 60_000; ms += 50) {
+      room.tick(ms);
+      room.broadcast(ms, (id, m) => got.set(id, got.get(id)! + (m.b?.length ?? 0)));
+    }
+    expect(got.get(a.id)).toBeGreaterThan(3);
+    expect(got.get(a.id)).toBe(got.get(b.id));
+  });
+});

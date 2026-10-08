@@ -32,6 +32,8 @@ export interface NpcDef {
   readonly area: readonly (readonly [number, number])[];
   /** What it says when a player talks to it. */
   readonly content: Interaction;
+  /** Short lines that it says by itself, now and then. Without them, it says nothing. */
+  readonly barks?: readonly string[];
 }
 
 /** Where an NPC is and how it moves: the same shape as a player's pose. */
@@ -80,7 +82,16 @@ export function npcFixture(def: NpcDef): Fixture {
 export interface NpcEvents {
   /** An NPC opened or closed a door. */
   readonly doors: boolean;
+  /** Lines that NPCs said: [npc index, line index in its barks]. */
+  readonly barks: readonly (readonly [number, number])[];
 }
+
+/** An NPC says a line this long after the last one: a random time between the two (ms). */
+const BARK_GAP_MS = [25_000, 70_000] as const;
+/** And the first line comes this long after the start. */
+const FIRST_BARK_MS = [6_000, 40_000] as const;
+/** No NPC starts a line sooner than this after another NPC's line: one voice at a time. */
+const LINE_GAP_MS = 5_000;
 
 /** An NPC waits this long at a door that it has just opened, before it walks through. */
 const DOOR_PAUSE_MS = 450;
@@ -100,6 +111,9 @@ interface Brain {
   closeMs: number;
   /** A short stop in a walk (at a door). */
   pauseMs: number;
+  /** The time left before it says a line, and the last line it said. */
+  barkMs: number;
+  lastBark: number;
   /** The last tile it stood on or reached. */
   tile: [number, number];
   path: [number, number][];
@@ -138,6 +152,9 @@ export class NpcCrowd {
   readonly poses: readonly NpcPose[];
   private readonly brains: Brain[];
   private readonly random: () => number;
+  /** The crowd's own clock (the sum of the steps), and when the last line was said. */
+  private clock = 0;
+  private lastLineAt = -Infinity;
 
   constructor(world: World, defs: readonly NpcDef[], seed: number) {
     this.world = world;
@@ -156,6 +173,8 @@ export class NpcCrowd {
         passed: false,
         closeMs: 0,
         pauseMs: 0,
+        barkMs: this.between(FIRST_BARK_MS[0], FIRST_BARK_MS[1]),
+        lastBark: -1,
         tile: [def.home[0], def.home[1]],
         path: [],
         // A random first stop, so the NPCs of a town do not all set off at once.
@@ -168,10 +187,13 @@ export class NpcCrowd {
   /** Moves every NPC by `dtMs` milliseconds. `players` are the feet of the players near or far. */
   step(dtMs: number, players: readonly { readonly x: number; readonly y: number }[]): NpcEvents {
     const dt = Math.min(dtMs, 250);
+    this.clock += dt;
     let doors = false;
+    const barks: [number, number][] = [];
     this.brains.forEach((brain, i) => {
       const pose = this.poses[i]! as NpcPose;
       if (brain.opened && this.closeBehind(brain, pose, players, dt)) doors = true;
+      const line = this.bark(brain, this.defs[i]!, dt);
       // A player close by: stop, and face the nearest one.
       let nearest: { x: number; y: number } | null = null;
       let best = NPC_HOLD_RADIUS;
@@ -186,12 +208,36 @@ export class NpcCrowd {
         pose.vx = 0;
         pose.vy = 0;
         pose.facing = facingTo(nearest.x - pose.x, nearest.y - pose.y, pose.facing);
+        // It does not speak over a conversation: the line waits a little.
+        brain.barkMs = Math.max(brain.barkMs, 4000);
         return;
+      }
+      if (line !== null) {
+        barks.push([i, line]);
+        this.lastLineAt = this.clock;
       }
       if (brain.path.length === 0) this.stand(brain, pose, dt);
       else if (this.walk(brain, pose, dt)) doors = true;
     });
-    return { doors };
+    return { doors, barks };
+  }
+
+  /** Counts down to the next line; returns the index of a line to say now (not the last one), or null. */
+  private bark(brain: Brain, def: NpcDef, dt: number): number | null {
+    const lines = def.barks?.length ?? 0;
+    if (lines === 0) return null;
+    brain.barkMs -= dt;
+    if (brain.barkMs > 0) return null;
+    if (this.clock - this.lastLineAt < LINE_GAP_MS) {
+      // Another NPC has just spoken: wait for a gap.
+      brain.barkMs = this.between(2000, 8000);
+      return null;
+    }
+    brain.barkMs = this.between(BARK_GAP_MS[0], BARK_GAP_MS[1]);
+    let line = Math.floor(this.random() * lines);
+    if (line === brain.lastBark && lines > 1) line = (line + 1) % lines;
+    brain.lastBark = line;
+    return line;
   }
 
   /**

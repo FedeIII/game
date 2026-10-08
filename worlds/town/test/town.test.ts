@@ -245,6 +245,7 @@ describe('the town of Azyr', () => {
         const doorstep = ty > house.y1 && ty <= house.y1 + 2 && Math.abs(tx - house.doorX) <= 2;
         expect(isInside(house, tx, ty) || doorstep, where).toBe(true);
       }
+      expect(npc.barks?.length ?? 0, `${npc.id}: lines to say`).toBeGreaterThanOrEqual(4);
       if (house) {
         expect(area.has(`${house.doorX},${house.y1}`), `${npc.id}: its door`).toBe(true);
         expect(npc.area.filter(([, ty]) => ty > house.y1).length, `${npc.id}: its doorstep`).toBe(10);
@@ -267,7 +268,7 @@ describe('the town of Azyr', () => {
     const texts = [
       ...HOUSES.flatMap((h) => [h.sign ?? '', ...h.fixtures.flatMap((f) => [...(f.content?.pages ?? []), f.content?.link?.title ?? ''])]),
       ...OUTDOOR.flatMap((f) => f.content?.pages ?? []),
-      ...NPCS.flatMap((n) => n.content.pages ?? []),
+      ...NPCS.flatMap((n) => [...(n.content.pages ?? []), ...(n.barks ?? [])]),
     ];
     const missing = new Set([...texts.join('')].filter((ch) => !drawable(ch)));
     expect([...missing]).toEqual([]);

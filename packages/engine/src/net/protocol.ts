@@ -121,6 +121,11 @@ export interface SnapshotMessage {
   readonly doors?: readonly (readonly [number, number])[];
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
   readonly n?: readonly WireNpc[];
+  /**
+   * Lines that NPCs said since the last snapshot: [npc index, line index in its barks]. Every
+   * player gets them at the same time; the client shows each over its NPC for a few seconds.
+   */
+  readonly b?: readonly (readonly [number, number])[];
 }
 
 /** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */

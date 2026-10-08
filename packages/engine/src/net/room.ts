@@ -68,6 +68,8 @@ export class Room {
   /** The world's walking NPCs, or null if it has none. */
   readonly npcs: NpcCrowd | null;
   private lastTickMs: number | null = null;
+  /** NPC lines since the last broadcast. */
+  private barks: (readonly [number, number])[] = [];
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
@@ -86,7 +88,9 @@ export class Room {
     this.lastTickMs = nowMs;
     if (!this.npcs || dt === 0) return;
     const feet = [...this.players.values()].map((p) => p.state);
-    if (this.npcs.step(dt, feet).doors) this.doorVersion++;
+    const events = this.npcs.step(dt, feet);
+    if (events.doors) this.doorVersion++;
+    this.barks.push(...events.barks);
   }
 
   get size(): number {
@@ -171,6 +175,8 @@ export class Room {
       packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin]);
     }
     const doors = this.world.openDoorList();
+    const barks = this.barks;
+    this.barks = [];
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;
@@ -190,6 +196,7 @@ export class Room {
         p: others,
         ...(changed ? { doors } : {}),
         ...(npcs ? { n: npcs } : {}),
+        ...(barks.length > 0 ? { b: barks } : {}),
       });
     }
   }
