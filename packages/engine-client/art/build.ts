@@ -14,8 +14,18 @@ import { FONT, SMALL_FONT } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 
-const ATLAS_WIDTH = 512;
-/** Transparent space between frames, so a frame never samples its neighbour. */
+/**
+ * The atlas is wide rather than tall, and it must stay within MAX_ATLAS_SIZE on both sides: a GPU
+ * that samples with 16-bit floats (mediump on many Android phones) is then never off by half a
+ * texel, so a frame never shows a row or a column of its neighbour (black lines, broken text).
+ */
+const ATLAS_WIDTH = 1024;
+const MAX_ATLAS_SIZE = 2048;
+/**
+ * Space between frames, so a frame never samples its neighbour. Each frame repeats its edge
+ * pixels 1 px out into it (extrusion): a sample a little off the frame (a GPU with low
+ * precision) gets the frame's own edge, not an empty pixel that shows as a black line.
+ */
 const PADDING = 2;
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,14 +59,30 @@ for (const frame of order) {
   rowHeight = Math.max(rowHeight, frame.image.height);
 }
 const atlasHeight = y + rowHeight + PADDING;
+if (atlasHeight > MAX_ATLAS_SIZE) {
+  throw new Error(`the atlas is ${ATLAS_WIDTH} x ${atlasHeight}: keep it within ${MAX_ATLAS_SIZE} px (16-bit GPUs), e.g. make ATLAS_WIDTH larger`);
+}
 
 const atlas = new Image(ATLAS_WIDTH, atlasHeight);
 const frames: Record<string, unknown> = {};
+/** Repeats the edge pixels of the frame at (x, y) one pixel out, into the padding round it. */
+function extrude(x: number, y: number, w: number, h: number): void {
+  for (let j = 0; j < h; j++) {
+    atlas.set(x - 1, y + j, atlas.get(x, y + j));
+    atlas.set(x + w, y + j, atlas.get(x + w - 1, y + j));
+  }
+  for (let i = -1; i <= w; i++) {
+    atlas.set(x + i, y - 1, atlas.get(x + i, y));
+    atlas.set(x + i, y + h, atlas.get(x + i, y + h - 1));
+  }
+}
+
 for (const frame of art.frames) {
   const at = placed.get(frame.name)!;
   atlas.draw(frame.image, at.x, at.y);
   const w = frame.image.width;
   const h = frame.image.height;
+  extrude(at.x, at.y, w, h);
   frames[frame.name] = {
     frame: { x: at.x, y: at.y, w, h },
     rotated: false,

@@ -1,5 +1,5 @@
 import './style.css';
-import { Application, Container, TextureSource } from 'pixi.js';
+import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
   ATTACK_REACH,
   ATTACK_TICKS,
@@ -102,6 +102,12 @@ async function run(options: GameOptions): Promise<void> {
 
   // Pixel art: no smoothing on any texture, and sprites on whole pixels.
   TextureSource.defaultOptions.scaleMode = 'nearest';
+  // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
+  // some Adreno) compute it with 16-bit floats: a texture coordinate near the bottom of the
+  // atlas (about 3000 px tall) is then off by up to 0.7 texel, so a tile reads the empty gap
+  // next to it, and black lines show across the ground and the text. Pixi falls back on its own
+  // where a GPU has no highp for fragments.
+  GlProgram.defaultOptions.preferredFragmentPrecision = 'highp';
   const app = new Application();
   await app.init({
     width: window.innerWidth,

@@ -98,7 +98,15 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 ## Art
 
 Style: dark, desaturated and realistic in proportion, after Diablo and Castlevania. It is
-approved: new art must match it. The art is made by code, in `packages/engine-client/art/`:
+approved: new art must match it. The art is made by code, in `packages/engine-client/art/`.
+
+**The atlas and Android GPUs.** `build.ts` packs one atlas, 1024 px wide; the build fails if it
+grows past 2048 px on a side (make it wider then). Each frame repeats its edge pixels 1 px into
+the gap round it. And `game.ts` makes every fragment shader ask for `highp`. All three are for
+phones: many Android GPUs run `mediump` with 16-bit floats, and on the old 512 x 2995 atlas a
+texture coordinate near the bottom was off by 0.7 texel: black lines across the ground tiles,
+broken letters (2026-10-08). See "Verify a change in a browser" to emulate such a GPU.
+
 
 - `sdf.ts`: a small offline renderer for "pre-rendered" sprites. A model is a list of SDF parts
   (sphere, ellipsoid, box, cylinder, round cone, capped cone, with noise displacement) with
@@ -417,6 +425,14 @@ welcome has `[data-speech=welcome]`), and the link from `#link-card a`. For touc
 with `hasTouch: true` and send
 `Input.dispatchTouchEvent` through a CDP session; a `touchEnd` releases the points that it
 lists, so list only the finger that lifts.
+
+To see what a phone GPU with 16-bit floats shows (SwiftShader computes in 32 bits), round the
+texture coordinates in the page's shaders before they compile: `page.addInitScript` that wraps
+`WebGL2RenderingContext.prototype.shaderSource`, adds
+`vec2 fp16q(vec2 v){ vec2 e = exp2(floor(log2(max(abs(v), vec2(1e-20)))) - 10.0); return floor(v / e + 0.5) * e; }`
+before `void main`, and replaces `texture(t, vUV)` by `texture(t, fp16q(vUV))` (only in shaders
+with `precision mediump float`, as a real GPU; or in all of them, as a GPU without highp). Use an
+Android viewport (412 x 915, `deviceScaleFactor: 2.625`).
 
 ## Deploy
 
