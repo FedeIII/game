@@ -67,9 +67,29 @@ the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
 curl -sI https://game.azyr.io/ | grep -iE '^HTTP|cache-control'      # 200, no-store
 # A local curl gets 400 "No required SSL certificate was sent". That is correct.
 # The multiplayer server, locally:
-curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":5,"players":{"town":N}}
+curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":6,"players":{"town":N}}
 pm2 logs game-server --lines 20 --nostream
 curl -sk --resolve game.azyr.io:443:127.0.0.1 https://game.azyr.io/ -o /dev/null -w '%{http_code}\n'
+```
+
+## azyr.io: the town is its landing page (2026-10-08)
+
+azyr.io serves this same page at `/` (the site's nginx file `/etc/nginx/sites-available/azyr.io`,
+not in this repo; backups next to it). It reads the game's folder directly, so every deploy
+here updates azyr.io too:
+
+- `location = /`: `/var/www/game.azyr.io/index.html`, `no-store`. On azyr.io the page starts in
+  the town and names azyr.io in its title (`apps/game/src/main.ts`).
+- `location ^~ /assets/`: the game's files, cached for a year. `^~`, so that the site's regex
+  for images and scripts does not take them.
+- `location = /ws`: the multiplayer server, as on game.azyr.io. The server accepts the origins
+  `https://azyr.io` and `https://www.azyr.io` (`ORIGINS` in `pm2.config.cjs`).
+- The list of projects (the landing page before) is at `/projects` (the site's `index.html`);
+  `/projects/` and `/index.html` redirect there. `/private/` did not move.
+
+```bash
+curl -sk -H 'Host: azyr.io' https://localhost/ | grep -o '<title>[^<]*</title>'   # game.azyr.io (the page sets the title)
+curl -sk -o /dev/null -w '%{http_code}\n' -H 'Host: azyr.io' https://localhost/projects   # 200
 ```
 
 ## Caching

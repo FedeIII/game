@@ -420,6 +420,10 @@ lists, so list only the finger that lifts.
 
 ## Deploy
 
+azyr.io serves this page as its landing page, from the same folder (see `deploy/README.md`,
+"azyr.io"): a deploy changes azyr.io too. There the page starts in the town.
+
+
 See `deploy/README.md`. Short form: `scripts/deploy.sh` on the box (it builds `apps/game`,
 restarts the PM2 process `game-server` first, then publishes the client). No nginx reload is
 necessary. Cloudflare Authenticated Origin Pulls is on, so a local `curl -k https://localhost/`

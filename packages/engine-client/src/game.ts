@@ -157,6 +157,9 @@ async function run(options: GameOptions): Promise<void> {
   const font = new PixelFont(art);
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const buildings = new Buildings(world, art, entityLayer, textScene, font);
+  // The names over heads: above the signs, below every speech bubble (added later).
+  const tagLayer = new Container();
+  textScene.addChild(tagLayer);
   const fixtures = new Fixtures(world, art, entityLayer);
   // The skins: rendered in a worker, kept in localStorage. The visitor's own goes first; until
   // it is ready (a moment on the first visit), the player is a darker wanderer.
@@ -207,7 +210,7 @@ async function run(options: GameOptions): Promise<void> {
     },
   });
   wear(skin);
-  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, textScene, glowLayer, new PixelFont(art, 'small')) : null;
+  const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, tagLayer, glowLayer, new PixelFont(art, 'small')) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
   // is alone (a single-player world, or no server). Its seed differs per page: nobody else sees it.
   const npcDefs = world.source.npcs?.() ?? [];
@@ -357,7 +360,7 @@ async function run(options: GameOptions): Promise<void> {
   textScene.addChild(speech.root);
   // The visitor's own name over its head: the one it chose, or else the name of its look. It
   // hides while the player speaks (a bubble over its head).
-  const ownTag = new NameTag(new PixelFont(art, 'small'), textScene);
+  const ownTag = new NameTag(new PixelFont(art, 'small'), tagLayer);
   let speaking = false;
   const displayName = () => name || skinName(skin);
 
