@@ -21,7 +21,9 @@ https://game.azyr.io, with two worlds (the map button in the top-right corner sw
 
 Move with WASD or the arrow keys, or a touch joystick on a phone. Very close to a thing, the
 action button (or E) examines it, talks to a keeper, opens a door, or shows a portal's link.
-Where there are mobs, the sword button (or Space, or J) attacks.
+Where there are mobs, the sword button (or Space, or J) attacks: each look attacks in its own
+way (a sword slash, a rapier thrust, a staff blow, a spell, a gout of flame from a lantern, a
+poison cloud, a palm strike or a punch), and every attack reaches as far.
 
 ```bash
 npm install

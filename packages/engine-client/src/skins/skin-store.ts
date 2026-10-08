@@ -1,8 +1,17 @@
 import { Rectangle, Texture } from 'pixi.js';
 import type { Facing } from '@game/engine';
-import { SKIN_FRAME, SKIN_VERSION, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinFromSeed } from '../../art/skins.ts';
-import type { PlayerTextures } from '../render/player-view.ts';
+import type { AttackStyle } from '../../art/attacks.ts';
+import { SKIN_ATTACK_FRAMES, SKIN_FRAME, SKIN_VERSION, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinAttack, skinFromSeed } from '../../art/skins.ts';
+import { ATTACK_TINT, type PlayerTextures } from '../render/player-view.ts';
 import type { SkinRequest, SkinResult } from './skin-worker.ts';
+
+/** How the skin of `seed` attacks, and the colour of its effect (a spell takes the colour of the orb). */
+export function attackLook(seed: number): { style: AttackStyle; tint: number } {
+  const skin = skinFromSeed(seed);
+  const style = skinAttack(skin);
+  const glass = skin.palette.glass;
+  return { style, tint: style === 'spell' && glass ? glass[glass.length - 1]! >>> 8 : ATTACK_TINT[style] };
+}
 
 /** Rendered skins in localStorage: the visitor's own and the last ones met. */
 const CACHE_PREFIX = `game.skins.v${SKIN_VERSION}.`;
@@ -170,7 +179,7 @@ export class SkinStore {
       if (wearing.has(seed)) continue;
       for (const facing of Object.keys(textures.stand) as Facing[]) {
         textures.stand[facing].destroy(false);
-        for (const frame of textures.walk[facing]) frame.destroy(false);
+        for (const frame of [...textures.walk[facing], ...textures.attack[facing]]) frame.destroy(false);
       }
       this.sheets.get(seed)?.base.destroy(true);
       this.sheets.delete(seed);
@@ -179,7 +188,7 @@ export class SkinStore {
     }
   }
 
-  /** The frames of a sheet: one row per view, the stand and then the walk. */
+  /** The frames of a sheet: one row per view, the stand, the walk and the attack. */
   private textures(seed: number, canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
     const base = Texture.from(canvas);
     base.source.scaleMode = 'nearest';
@@ -190,10 +199,12 @@ export class SkinStore {
       new Texture({ source: base.source, frame: new Rectangle(column * width, row * height, width, height), defaultAnchor: anchor });
     const stand = {} as Record<Facing, Texture>;
     const walk = {} as Record<Facing, Texture[]>;
+    const attack = {} as Record<Facing, Texture[]>;
     SKIN_VIEWS.forEach((view, row) => {
       stand[view.name] = frame(0, row);
       walk[view.name] = Array.from({ length: SKIN_WALK_FRAMES }, (_, i) => frame(1 + i, row));
+      attack[view.name] = Array.from({ length: SKIN_ATTACK_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + i, row));
     });
-    return { stand, walk, headHeight };
+    return { stand, walk, attack, headHeight };
   }
 }

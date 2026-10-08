@@ -1,7 +1,7 @@
 import { Container } from 'pixi.js';
 import type { RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
-import type { SkinStore } from '../skins/skin-store.ts';
+import { attackLook, type SkinStore } from '../skins/skin-store.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
 import type { PixelFont } from './pixel-text.ts';
@@ -101,12 +101,14 @@ export class OtherPlayers {
     }
   }
 
-  /** The torches of the other players, in world pixels. */
+  /** The torches of the other players, and the light of their glowing attacks, in world pixels. */
   lights(): LightSource[] {
     const out: LightSource[] = [];
     for (const [id, other] of this.views) {
       if (other.alpha <= 0) continue;
       out.push({ x: other.x, y: other.y - 14, radius: OTHER_TORCH.radius, colour: OTHER_TORCH.colour, flicker: true, seed: id * 13 });
+      const fx = other.view.fxLight;
+      if (fx) out.push(fx);
     }
     return out;
   }
@@ -125,6 +127,8 @@ export class OtherPlayers {
   /** Wears skin `skin`: at once if it is ready, else when it is (the old look stays until then). */
   private reskin(id: number, other: OtherView, skin: number): void {
     other.skin = skin;
+    const look = attackLook(skin);
+    other.view.setAttackStyle(look.style, look.tint);
     const ready = this.skins.get(skin, (textures) => {
       if (this.views.get(id) === other && other.skin === skin) {
         other.view.setTextures(textures);

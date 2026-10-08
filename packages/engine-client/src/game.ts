@@ -2,6 +2,7 @@ import './style.css';
 import { Application, Container, TextureSource } from 'pixi.js';
 import {
   ATTACK_REACH,
+  ATTACK_TICKS,
   Horde,
   MOB_STATS,
   NpcCrowd,
@@ -47,7 +48,7 @@ import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinFromSeed } from '../art/skins.ts';
 import { newSkinSeed, saveName, savedName, skinSeed } from './skins/seed.ts';
-import { SkinStore } from './skins/skin-store.ts';
+import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { AttackButton } from './ui/attack-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
@@ -159,6 +160,9 @@ async function run(options: GameOptions): Promise<void> {
   const skins = new SkinStore();
   /** Wears skin `seed` when it is ready (at once if it is), unless another one was asked for since. */
   const wear = (seed: number, then: () => void = () => {}) => {
+    // How it attacks follows the skin at once; the frames come when the skin is ready.
+    const look = attackLook(seed);
+    playerView.setAttackStyle(look.style, look.tint);
     const apply = (textures: PlayerTextures) => {
       if (seed !== skin) return;
       playerView.setTextures(textures);
@@ -170,6 +174,12 @@ async function run(options: GameOptions): Promise<void> {
     if (ready) apply(ready);
   };
   const playerView = new PlayerView(art, atlasPlayerTextures(art), true);
+  // ?attackpose=<tick>,<facing> shows the player frozen at that tick of an attack, facing that
+  // way: a screenshot of an attack on a slow machine.
+  const [poseTick, poseFacing] = (params.get('attackpose') ?? '').split(',');
+  const attackPose = Number.isFinite(Number.parseInt(poseTick ?? '', 10))
+    ? { attack: ATTACK_TICKS - Number.parseInt(poseTick!, 10), facing: (['down', 'up', 'left', 'right'].includes(poseFacing ?? '') ? poseFacing : 'down') as Facing }
+    : null;
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
   glowLayer.addChild(playerView.overlay);
@@ -509,7 +519,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
-    playerView.update(shown.x, shown.y, player, seconds);
+    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : player, seconds);
     // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
     if (player.stun > 0 && !stunSeen) {
       hitsTaken++;
@@ -540,7 +550,8 @@ async function run(options: GameOptions): Promise<void> {
       skins.retain(new Set([skin, ...(others?.skinsWorn ?? [])]));
     }
     const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
-    lighting?.update(view, [torch, ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
+    const fxLight = playerView.fxLight;
+    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now, view);
     barkBubbles?.update(now, view);
     if (arrivedAt === null) {

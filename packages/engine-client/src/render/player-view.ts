@@ -1,6 +1,8 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import { ATTACK_TICKS, type Facing } from '@game/engine';
+import type { AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
+import type { LightSource } from './lighting.ts';
 
 /** World pixels of travel for each walk frame: 8 frames make one 32-pixel cycle of two steps. */
 const STRIDE = 4;
@@ -11,11 +13,25 @@ const ATLAS_HEAD_HEIGHT = 30;
 /** A tint for a player whose skin is not ready yet: a darker wanderer, for a moment. */
 const PENDING_TINT = 0x6a6a6a;
 
-/** The arc of an attack shows for this many ticks of the attack, in SLASH_FRAMES frames. */
-const SLASH_TICKS = 13;
-const SLASH_FRAMES = 4;
-/** The colour of the arc: pale steel. */
-const SLASH_TINT = 0xd8e0ea;
+/** The effect of an attack shows from tick FX_FROM of the attack, for FX_TICKS ticks, in FX_FRAMES frames. */
+const FX_FROM = 1;
+const FX_TICKS = 12;
+const FX_FRAMES = 4;
+/** The body's attack frame for each tick of the attack: a short wind-up, the blow, the follow-through, the return. */
+const BODY_FRAME_ENDS = [2, 7, 13];
+/** The colour of each effect (a spell takes the colour of the skin's orb when it has one). */
+export const ATTACK_TINT: Readonly<Record<AttackStyle, number>> = {
+  slash: 0xd8e0ea,
+  thrust: 0xe0e8f0,
+  bash: 0xd2c2a8,
+  spell: 0xb57cff,
+  flame: 0xffa040,
+  miasma: 0x8fcf6a,
+  palm: 0xffd890,
+  punch: 0xeadfcf,
+};
+/** Effects that glow (added to what is under them), and give a little light. */
+const GLOWING: ReadonlySet<AttackStyle> = new Set(['spell', 'flame', 'palm']);
 /** A hit: the body flashes red for this long (ms); then it is a little grey while stunned. */
 const HIT_FLASH_MS = 160;
 const HIT_TINT = 0xff7060;
@@ -37,10 +53,11 @@ export interface PlayerPose {
   readonly guard?: number;
 }
 
-/** The frames of one look of the player: a stand and a walk for each facing. */
+/** The frames of one look of the player: a stand, a walk and an attack for each facing. */
 export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
+  readonly attack: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -49,11 +66,13 @@ export interface PlayerTextures {
 export function atlasPlayerTextures(art: Art): PlayerTextures {
   const stand = {} as Record<Facing, Texture>;
   const walk = {} as Record<Facing, Texture[]>;
+  const attack = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
+    attack[facing] = art.variants(`player/${facing}/attack`);
   }
-  return { stand, walk, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -74,9 +93,13 @@ export class PlayerView {
   /** What shows above the darkness: the stars of a stun. The owner puts it in a layer above the lights. */
   readonly overlay = new Container();
   private readonly body: Sprite;
-  /** The arc of an attack: behind the body when the player faces up, in front of it otherwise. */
+  /** The effect of an attack: behind the body when the player faces up, in front of it otherwise. */
   private readonly slash: Sprite;
-  private readonly slashFrames: Texture[];
+  private readonly art: Art;
+  private slashFrames: Texture[];
+  private style: AttackStyle = 'punch';
+  private tint = ATTACK_TINT.punch;
+  private light: LightSource | null = null;
   private readonly stars: Sprite[] = [];
   private textures: PlayerTextures;
   private travelled = 0;
@@ -89,10 +112,11 @@ export class PlayerView {
     this.body = new Sprite(textures.stand.down);
     this.ghost = new Sprite(textures.stand.down);
     this.ghost.alpha = PlayerView.GHOST_ALPHA;
-    this.slashFrames = art.variants('fx/slash');
+    this.art = art;
+    this.slashFrames = art.variants('fx/punch');
     this.slash = new Sprite(this.slashFrames[0]);
-    this.slash.tint = SLASH_TINT;
     this.slash.visible = false;
+    this.setAttackStyle('punch');
     this.root.addChild(new Sprite(art.frame('player/shadow')), this.body, this.slash);
     for (let i = 0; i < STAR_COUNT; i++) {
       const star = new Sprite(art.frame('fx/star'));
@@ -106,6 +130,20 @@ export class PlayerView {
 
   get headHeight(): number {
     return this.textures.headHeight;
+  }
+
+  /** How this player attacks (its skin decides), and the colour of the effect. */
+  setAttackStyle(style: AttackStyle, tint: number = ATTACK_TINT[style]): void {
+    this.style = style;
+    this.tint = tint;
+    this.slashFrames = this.art.variants(`fx/${style}`);
+    this.slash.tint = tint;
+    this.slash.blendMode = GLOWING.has(style) ? 'add' : 'normal';
+  }
+
+  /** The light of a glowing effect (a spell, a flame, a palm) while it shows, or null. */
+  get fxLight(): LightSource | null {
+    return this.light;
   }
 
   /** Changes the look. The next update() shows it. */
@@ -131,7 +169,15 @@ export class PlayerView {
 
     const speed = Math.hypot(state.vx, state.vy);
     let texture: Texture;
-    if (speed < 1) {
+    const attack = state.attack ?? 0;
+    if (attack > 0) {
+      // The attack frames, by the ticks since the attack started.
+      const elapsed = ATTACK_TICKS - attack;
+      const frame = BODY_FRAME_ENDS.findIndex((end) => elapsed < end);
+      const frames = this.textures.attack[state.facing];
+      texture = frames[Math.min(frames.length - 1, frame < 0 ? BODY_FRAME_ENDS.length : frame)]!;
+      this.travelled = 0;
+    } else if (speed < 1) {
       this.travelled = 0;
       texture = this.textures.stand[state.facing];
     } else {
@@ -148,11 +194,12 @@ export class PlayerView {
     const attack = state.attack ?? 0;
     const stun = state.stun ?? 0;
     const elapsed = attack > 0 ? ATTACK_TICKS - attack : Infinity;
-    // The arc: from the chest, towards the side of the attack.
-    this.slash.visible = elapsed < SLASH_TICKS;
+    // The effect: from the chest, towards the side of the attack.
+    this.slash.visible = elapsed >= FX_FROM && elapsed < FX_FROM + FX_TICKS;
+    this.light = null;
     let lunge = 0;
     if (this.slash.visible) {
-      this.slash.texture = this.slashFrames[Math.min(SLASH_FRAMES - 1, Math.floor((elapsed / SLASH_TICKS) * SLASH_FRAMES))]!;
+      this.slash.texture = this.slashFrames[Math.min(FX_FRAMES - 1, Math.floor(((elapsed - FX_FROM) / FX_TICKS) * FX_FRAMES))]!;
       const chest = -Math.round(this.textures.headHeight * 0.45);
       const turn = { right: 0, down: Math.PI / 2, left: 0, up: -Math.PI / 2 }[state.facing];
       this.slash.rotation = turn;
@@ -160,9 +207,13 @@ export class PlayerView {
       this.slash.position.set(state.facing === 'left' ? -3 : state.facing === 'right' ? 3 : 0, chest + (state.facing === 'down' ? 4 : state.facing === 'up' ? -2 : 0));
       // Behind the body when the player faces away from the viewer.
       this.root.setChildIndex(this.slash, state.facing === 'up' ? 1 : 2);
-      lunge = elapsed >= 1 && elapsed <= 8 ? 2 : 0;
+      lunge = elapsed >= 2 && elapsed <= 8 ? 1 : 0;
     }
     const [fx, fy] = state.facing === 'left' ? [-1, 0] : state.facing === 'right' ? [1, 0] : state.facing === 'up' ? [0, -1] : [0, 1];
+    if (this.slash.visible && GLOWING.has(this.style)) {
+      const chest = Math.round(this.textures.headHeight * 0.45);
+      this.light = { x: this.root.x + fx * 16, y: this.root.y - chest + fy * 12, radius: 48, colour: this.tint, flicker: this.style === 'flame', seed: 31 };
+    }
     // A hit: when a stun starts.
     if (stun > 0 && !this.wasStunned) this.hitAt = now;
     this.wasStunned = stun > 0;

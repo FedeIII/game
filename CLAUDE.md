@@ -114,7 +114,7 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   or down, hair; frames `npc/<look>`), all from `figure.ts`.
 - `skins.ts`: random player skins. A 32-bit seed picks a vibe (wanderer, knight, monk, witch,
   ranger, plague doctor, noble, gravedigger) and, inside it, proportions, garments, an item and
-  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk) frames of 32 x 48
+  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 32 x 48
   (pivot 16, 42). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
   is in `image.ts`). **Bump `SKIN_VERSION` when a seed would give another picture**: browsers
@@ -140,8 +140,16 @@ approved: new art must match it. The art is made by code, in `packages/engine-cl
   each frame in `meta.mobEyes`, and the game draws them glowing above the darkness. In a death
   the eyes go dark. Preview the frames when you change a model: poses that look right in one
   view can hide the head in another.
-- `fx.ts`: the effects of a fight, white and grey, tinted by the game: the arc of an attack
-  (`fx/slash/<0-3>`, facing right; the game turns it) and the star of a stun (`fx/star`).
+- `attacks.ts`: how each skin attacks. `attackStyle(vibe, spec)`: a sword slashes (a noble's
+  rapier thrusts), a staff bashes with both hands, an orb staff casts a spell, a lantern throws
+  flame; without an item a witch casts from her hands, a monk strikes with the palm, a plague
+  doctor throws a poison cloud (miasma), a ranger or a noble thrusts a dagger, a knight slashes,
+  the others punch. Each style has four poses (`attackAction`: arm directions, a lean, the weapon
+  in the hand, as a `FigureAction` for `figure()`), rendered as the attack frames of a skin sheet
+  and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All attacks reach as far:
+  only the look differs.
+- `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
+  style (`fx/<style>/<0-3>`, facing right; the game turns it) and the star of a stun (`fx/star`).
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, cobblestones)
   and the ragged edge pieces. `decor.ts`: small decor as text grids.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
@@ -226,7 +234,9 @@ every door are out of their reach (a test checks it); 3 imps and 2 brutes. The c
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
 and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
-lunge, the red flash of a hit, stars over the head while stunned, a blink while guarded) and
+lunge, the attack frames of the skin and the effect of its style, in the colour of the style (a
+spell in the colour of the skin's orb; spells, flames and palms glow and give a short light),
+the red flash of a hit, stars over the head while stunned, a blink while guarded) and
 `ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A press is kept for
 150 ms, and the attack turns to the nearest mob in reach. `?mob=imp,brute` puts mobs next to the
 player at the start (single-player worlds); `?nomobs` turns them off.
@@ -389,6 +399,7 @@ with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor.
 `fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
+`?attackpose=<tick>,<facing>` (the player frozen at that tick of an attack: a screenshot of it),
 `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
 SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[data-speech=dialog]` (the

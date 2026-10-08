@@ -4,6 +4,7 @@
  * figure (skins.ts). Change the proportions in figure.ts, not in the frames.
  */
 import { ramp } from './raster.ts';
+import { ATTACK_FRAMES, ATTACK_STANCE, attackAction } from './attacks.ts';
 import { WANDERER, figure, figureMaterials, type FigureSpec, type Palette } from './figure.ts';
 import { renderModel, type Material, type Part } from './sdf.ts';
 import type { Frame } from './sprites.ts';
@@ -89,7 +90,7 @@ export const VIEWS = [
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
 
-/** Frames `player/<view>/stand` and `player/<view>/walk/<i>`: the wanderer, the default player. */
+/** Frames `player/<view>/stand`, `player/<view>/walk/<i>` and `player/<view>/attack/<i>` (a punch): the wanderer, the default player. */
 export function playerFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
   const materials = figureMaterials(WANDERER_PALETTE);
@@ -99,6 +100,10 @@ export function playerFrames(): Frame[] {
     frames.push({ name: `player/${view.name}/stand`, image: render(figure(WANDERER, 0, 0)), anchor });
     for (let i = 0; i < WALK_FRAMES; i++) {
       frames.push({ name: `player/${view.name}/walk/${i}`, image: render(figure(WANDERER, (i / WALK_FRAMES) * 2 * Math.PI, 1)), anchor });
+    }
+    for (let i = 0; i < ATTACK_FRAMES; i++) {
+      const [phase, amount] = ATTACK_STANCE[i]!;
+      frames.push({ name: `player/${view.name}/attack/${i}`, image: render(figure(WANDERER, phase, amount, attackAction('punch', i, WANDERER))), anchor });
     }
   }
   return frames;

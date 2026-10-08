@@ -64,6 +64,27 @@ export interface FigureSpec {
   readonly item?: Item;
 }
 
+/**
+ * A pose for an attack (attacks.ts makes them). Each arm points along two directions in model
+ * space, [upper arm, forearm]; `right` is the arm on the +x side, whose hand holds the item.
+ * `lean` bends the upper body forward. `weapon` is what that hand holds during the attack.
+ */
+export interface FigureAction {
+  readonly right: readonly [Vec3, Vec3];
+  readonly left?: readonly [Vec3, Vec3];
+  readonly lean: number;
+  readonly weapon?: Weapon;
+}
+
+/**
+ * A blade along the forearm (a sword, a rapier, a dagger: its length and width), a staff in the
+ * hand along `dir` (with an orb at its end, or a knob), or a lantern held out.
+ */
+export type Weapon =
+  | { readonly kind: 'blade'; readonly length: number; readonly width: number }
+  | { readonly kind: 'staff'; readonly dir: Vec3; readonly orb: boolean }
+  | { readonly kind: 'lantern' };
+
 /** The player's hooded wanderer. */
 export const WANDERER: FigureSpec = {
   height: 1,
@@ -201,7 +222,7 @@ export function figureTop(spec: FigureSpec): number {
  * The parts of the figure at one moment of the walk. `phase` is the walk cycle angle and
  * `amount` is 0 for a stand and 1 for a full walk.
  */
-export function figure(spec: FigureSpec, phase: number, amount: number): Part[] {
+export function figure(spec: FigureSpec, phase: number, amount: number, action?: FigureAction): Part[] {
   const h = spec.height;
   const w = spec.build;
   const k = spec.head;
@@ -214,8 +235,8 @@ export function figure(spec: FigureSpec, phase: number, amount: number): Part[] 
   const swing = (robe ? 0.48 : 0.62) * amount;
   const kneeBend = 1.05 * amount;
   const armSwing = 0.5 * amount;
-  // A small forward lean of the upper body when it walks.
-  const lean = 0.1 * amount;
+  // A small forward lean of the upper body when it walks; an attack adds its own.
+  const lean = 0.1 * amount + (action?.lean ?? 0);
   const hipY = HIP_Y * h;
 
   const legs = [-1, 1].map((side) => {
@@ -268,14 +289,23 @@ export function figure(spec: FigureSpec, phase: number, amount: number): Part[] 
 
   // ---------------------------------------------------------------- arms
   const hands: Record<number, Vec3> = {};
+  /** The direction of the right forearm, for a weapon along it. */
+  let rightForearm: Vec3 = [0, -1, 0];
   for (const side of [-1, 1]) {
     const p = phase + (side < 0 ? 0 : Math.PI);
     // The arm swings against the leg on the same side, and bends more when it swings forward.
     const alpha = -armSwing * Math.sin(p);
     const bend = 0.3 + 0.5 * Math.max(0, alpha);
     const shoulder: Vec3 = [side * SHOULDER_HALF_WIDTH * w, SHOULDER_Y * h, 0];
-    const elbow = add(shoulder, scale(unit(side * 0.16, -Math.cos(alpha), Math.sin(alpha)), UPPER_ARM * h));
-    const forearm = unit(side * 0.06, -Math.cos(alpha + bend), Math.sin(alpha + bend));
+    let elbow = add(shoulder, scale(unit(side * 0.16, -Math.cos(alpha), Math.sin(alpha)), UPPER_ARM * h));
+    let forearm = unit(side * 0.06, -Math.cos(alpha + bend), Math.sin(alpha + bend));
+    // An attack puts the arm where it says.
+    const posed = side === 1 ? action?.right : action?.left;
+    if (posed) {
+      elbow = add(shoulder, scale(unit(...posed[0]), UPPER_ARM * h));
+      forearm = unit(...posed[1]);
+    }
+    if (side === 1) rightForearm = forearm;
     const wrist = add(elbow, scale(forearm, FOREARM * h));
     const hand = add(wrist, scale(forearm, 0.7));
     hands[side] = upper(hand);
@@ -368,7 +398,30 @@ export function figure(spec: FigureSpec, phase: number, amount: number): Part[] 
 
   // ---------------------------------------------------------------- what it carries
   const right = hands[1]!;
-  switch (spec.item ?? 'none') {
+  const weapon = action?.weapon;
+  // In an attack the weapon is in the hand: a staff or a lantern moves there; a sword leaves its scabbard.
+  const carried = weapon && (spec.item === 'staff' || spec.item === 'orbstaff' || spec.item === 'lantern') ? 'none' : (spec.item ?? 'none');
+  if (weapon?.kind === 'blade') {
+    const f = rightForearm;
+    // The guard across the blade, then the blade, thin to a point.
+    const guard = add(right, scale(f, 0.55));
+    const across = unit(-f[2], 0, f[0]);
+    part(C(add(guard, scale(across, -0.9)), add(guard, scale(across, 0.9)), 0.28, 0.28), FM.metal);
+    part(C(add(right, scale(f, 0.7)), add(right, scale(f, 0.7 + weapon.length)), weapon.width, 0.12), FM.metal);
+  } else if (weapon?.kind === 'staff') {
+    const d = unit(...weapon.dir);
+    const foot = add(right, scale(d, -6 * h));
+    const top = add(right, scale(d, 13 * h));
+    part(C(foot, top, 0.42, 0.42), FM.wood);
+    if (weapon.orb) part(S(add(top, scale(d, 1.0)), 1.0), FM.glass);
+    else part(S(add(top, scale(d, 0.3)), 0.7), FM.wood);
+  } else if (weapon?.kind === 'lantern') {
+    const lantern = add(right, add(scale(rightForearm, 1.4), [0, -0.6, 0]));
+    part(E(lantern, [0.75, 1.0, 0.75]), FM.glass);
+    part(S(add(lantern, [0, 1.05, 0]), 0.5), FM.metal);
+    part(E(add(lantern, [0, -1.0, 0]), [0.8, 0.25, 0.8]), FM.metal);
+  }
+  switch (carried) {
     case 'staff':
     case 'orbstaff': {
       // Held upright in the right hand, from the ground to above the head.
@@ -388,9 +441,10 @@ export function figure(spec: FigureSpec, phase: number, amount: number): Part[] 
       break;
     }
     case 'sword': {
-      // In its scabbard on the left hip, the hilt forward.
+      // In its scabbard on the left hip, the hilt forward (unless the sword is out, in an attack).
       const hip = up([-2.15 * w, 15.0 * h, 0.7 * zs]);
       part(C(hip, add(hip, [-0.5, -7.2 * h, -2.4]), 0.45, 0.38), FM.belt);
+      if (weapon?.kind === 'blade') break;
       part(C(add(hip, [0.05, 0.2, 0.15]), add(hip, [0.25, 2.0 * h, 0.75]), 0.3, 0.3), FM.metal);
       part(E(add(hip, [0.05, 0.25, 0.15]), [0.9, 0.22, 0.35]), FM.metal);
       break;

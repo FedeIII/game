@@ -2,8 +2,8 @@
 import { renderSkinSheet, skinFromSeed } from '../../art/skins.ts';
 
 /**
- * Renders player skins away from the main thread: a skin is 36 SDF-rendered frames, about a
- * quarter of a second on a desktop and more on a phone. Gets { seed }, answers with the sheet's
+ * Renders player skins away from the main thread: a skin is 52 SDF-rendered frames, about a
+ * third of a second on a desktop and more on a phone. Gets { seed }, answers with the sheet's
  * RGBA pixels (transferred, not copied).
  */
 export interface SkinRequest {

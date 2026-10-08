@@ -9,11 +9,12 @@
  * Node imports. Change SKIN_VERSION when a seed would give a different picture: the clients
  * keep rendered skins in localStorage under that version.
  */
+import { ATTACK_FRAMES, ATTACK_STANCE, attackAction, attackStyle, type AttackStyle } from './attacks.ts';
 import { figure, figureMaterials, figureTop, type BodyCut, type CloakCut, type FigureSpec, type HairCut, type Headwear, type Item, type Palette } from './figure.ts';
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel } from './sdf.ts';
 
-export const SKIN_VERSION = 1;
+export const SKIN_VERSION = 2;
 
 /** A skin frame is taller than the atlas's player frame: room for tall figures and hats. */
 export const SKIN_FRAME = { width: 32, height: 48, pivotX: 16, pivotY: 42 } as const;
@@ -24,8 +25,9 @@ export const SKIN_VIEWS = [
   { name: 'right', yaw: Math.PI / 2 },
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
-/** Columns of a sheet: the stand, then the walk frames. */
+/** Columns of a sheet: the stand, then the walk frames, then the attack frames. */
 export const SKIN_WALK_FRAMES = 8;
+export const SKIN_ATTACK_FRAMES = ATTACK_FRAMES;
 
 export interface Skin {
   readonly seed: number;
@@ -35,7 +37,7 @@ export interface Skin {
 }
 
 export interface SkinSheet {
-  /** SKIN_VIEWS rows by 1 + SKIN_WALK_FRAMES columns of SKIN_FRAME. */
+  /** SKIN_VIEWS rows by 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES columns of SKIN_FRAME. */
   readonly image: Image;
   /** From the feet to just above the head or hat, in screen pixels: speech goes there. */
   readonly headHeight: number;
@@ -407,15 +409,26 @@ export function describeSkin(skin: Skin): string {
 
 export type { BodyCut, CloakCut, HairCut, Headwear, Item };
 
-/** Renders the sheet of a skin: every view, the stand and the walk. */
+/** How a skin attacks (attacks.ts): from its vibe and its item. */
+export function skinAttack(skin: Skin): AttackStyle {
+  return attackStyle(skin.vibe, skin.spec);
+}
+
+/** Renders the sheet of a skin: every view, the stand, the walk and the attack. */
 export function renderSkinSheet(skin: Skin): SkinSheet {
   const { width, height } = SKIN_FRAME;
-  const image = new Image(width * (1 + SKIN_WALK_FRAMES), height * SKIN_VIEWS.length);
+  const image = new Image(width * (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES), height * SKIN_VIEWS.length);
   const materials = figureMaterials(skin.palette);
+  const style = skinAttack(skin);
   SKIN_VIEWS.forEach((view, row) => {
     for (let column = 0; column <= SKIN_WALK_FRAMES; column++) {
       const parts = column === 0 ? figure(skin.spec, 0, 0) : figure(skin.spec, ((column - 1) / SKIN_WALK_FRAMES) * 2 * Math.PI, 1);
       image.draw(renderModel(parts, materials, { ...SKIN_FRAME, yaw: view.yaw }), column * width, row * height);
+    }
+    for (let f = 0; f < SKIN_ATTACK_FRAMES; f++) {
+      const [phase, amount] = ATTACK_STANCE[f]!;
+      const parts = figure(skin.spec, phase, amount, attackAction(style, f, skin.spec));
+      image.draw(renderModel(parts, materials, { ...SKIN_FRAME, yaw: view.yaw }), (1 + SKIN_WALK_FRAMES + f) * width, row * height);
     }
   });
   return { image, headHeight: Math.round(figureTop(skin.spec) * HEIGHT_SCALE) + 4 };
