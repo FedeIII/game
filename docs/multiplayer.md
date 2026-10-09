@@ -1,8 +1,10 @@
 # Multiplayer
 
 Since 2026-10-07 the engine has multiplayer. A world with `multiplayer: true` in its
-`WorldDefinition` is shared: every visitor of that world sees the others. On game.azyr.io the
-Town of Azyr is shared, and the Wilds stay single-player.
+`WorldDefinition` is shared: every visitor of that world sees the others. The Town of Azyr was
+the shared world of game.azyr.io until 2026-10-09; it is now on azyr.io, from the branch `town`
+(its own server, `town-server`). The Wilds are single-player, so the game has no shared world
+now: the server runs with no room until a world of the game sets `multiplayer: true`.
 
 ## The model
 
@@ -150,7 +152,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
 npm run server                       # local, port 3008, allows the Vite origins
-curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":5,"players":{"town":2}}
+curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":6,"players":{}} (one count per shared world)
 pm2 logs game-server                  # one line per arrival and departure; no addresses
 ```
 
@@ -180,6 +182,6 @@ pm2 logs game-server                  # one line per arrival and departure; no a
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.
-- In a browser: two Playwright contexts in the town (see CLAUDE.md, "Verify a change in a
+- In a browser: two Playwright contexts in a shared world (see CLAUDE.md, "Verify a change in a
   browser"): each sees the other (`#presence`, and the `others` line of `?debug`), and a door
   that one opens is open for the other.

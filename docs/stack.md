@@ -24,8 +24,9 @@ desktop and on phones. This file records the stack and the reasons for it.
 The repository is an engine and the applications on it (decided 2026-10-07):
 `packages/engine` (the simulation, no browser), `packages/engine-client` (the browser runtime
 and the art pipeline), `worlds/*` (content: a `WorldSource` and its texts, no browser) and
-`apps/*` (a site that registers worlds and calls `startGame()`). game.azyr.io is the first app,
-with two worlds. A world is pure data and functions, so a future server can run every world
+`apps/*` (a site that registers worlds and calls `startGame()`). game.azyr.io is the first app.
+It had two worlds; on 2026-10-09 the Town of Azyr left for azyr.io, as a frozen copy on the
+branch `town`, and the game kept the Wilds. A world is pure data and functions, so a future server can run every world
 with the same engine code.
 
 ## Why TypeScript everywhere

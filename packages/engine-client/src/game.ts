@@ -398,7 +398,8 @@ async function run(options: GameOptions): Promise<void> {
   textLayer.filters = [crtText];
   const settings = new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()), [crtText]);
   settings.addSection(you.element);
-  new WorldMenu(options.worlds, definition);
+  // The worlds menu only when there is another world to go to.
+  if (options.worlds.length > 1) new WorldMenu(options.worlds, definition);
 
   const keyboard = new Keyboard(window);
   const joystick = new TouchJoystick(

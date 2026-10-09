@@ -67,30 +67,19 @@ the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
 curl -sI https://game.azyr.io/ | grep -iE '^HTTP|cache-control'      # 200, no-store
 # A local curl gets 400 "No required SSL certificate was sent". That is correct.
 # The multiplayer server, locally:
-curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":6,"players":{"town":N}}
+curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":6,"players":{}}: no shared world now
 pm2 logs game-server --lines 20 --nostream
 curl -sk --resolve game.azyr.io:443:127.0.0.1 https://game.azyr.io/ -o /dev/null -w '%{http_code}\n'
 ```
 
-## azyr.io: the town is its landing page (2026-10-08)
+## azyr.io is not deployed from here (since 2026-10-09)
 
-azyr.io serves this same page at `/` (the site's nginx file `/etc/nginx/sites-available/azyr.io`,
-not in this repo; backups next to it). It reads the game's folder directly, so every deploy
-here updates azyr.io too:
-
-- `location = /`: `/var/www/game.azyr.io/index.html`, `no-store`. On azyr.io the page starts in
-  the town and names azyr.io in its title (`apps/game/src/main.ts`).
-- `location ^~ /assets/`: the game's files, cached for a year. `^~`, so that the site's regex
-  for images and scripts does not take them.
-- `location = /ws`: the multiplayer server, as on game.azyr.io. The server accepts the origins
-  `https://azyr.io` and `https://www.azyr.io` (`ORIGINS` in `pm2.config.cjs`).
-- The list of projects (the landing page before) is at `/projects` (the site's `index.html`);
-  `/projects/` and `/index.html` redirect there. `/private/` did not move.
-
-```bash
-curl -sk -H 'Host: azyr.io' https://localhost/ | grep -o '<title>[^<]*</title>'   # game.azyr.io (the page sets the title)
-curl -sk -o /dev/null -w '%{http_code}\n' -H 'Host: azyr.io' https://localhost/projects   # 200
-```
+From 2026-10-08 to 2026-10-09, azyr.io served this page from `/var/www/game.azyr.io`, so a
+game deploy changed azyr.io too. Now the Town of Azyr on azyr.io has its own checkout
+(`/opt/azyr-town`, branch `town`), PM2 process (`town-server`, port 3009) and web root
+(`/var/www/azyr.io/town`); see `deploy/README.md` on that branch. The azyr.io nginx site reads
+nothing from this repository's folders, and `game-server` accepts the origin
+`https://game.azyr.io` only.
 
 ## Caching
 

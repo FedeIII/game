@@ -5,12 +5,22 @@ This file gives guidance to Claude Code when it works in this repository.
 ## What this is
 
 A pixel-art game **engine** for the browser, and the applications on it. It runs at
-https://game.azyr.io, which has two worlds: **the Wilds** (an endless dark forest with lonely
-stone houses) and the **Town of Azyr** (one house for each project of the azyr.io landing page,
-with keepers, exhibits and portals that link to the projects). The goal is an online,
-multiplayer sandbox. The engine has multiplayer: an authoritative Node server, client-side
-prediction and interpolation (`docs/multiplayer.md`). The town is shared, so every visitor sees
-the others; the Wilds stay single-player. Read `docs/stack.md` before you change the stack.
+https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
+stone houses, and mobs). The goal is an online, multiplayer sandbox. The engine has
+multiplayer: an authoritative Node server, client-side prediction and interpolation
+(`docs/multiplayer.md`); the Wilds are single-player for now. Read `docs/stack.md` before you
+change the stack.
+
+**The game and the Town of Azyr are separate (Fede's decision, 2026-10-09).** The town is the
+landing page of https://azyr.io. It left this branch at commit `57060cc` and lives on as a
+frozen copy of the engine: the branch `town` of this repository, checked out in
+`/opt/azyr-town`, with its own PM2 process (`town-server`, port 3009) and its own web root
+(`/var/www/azyr.io/town`). Thus:
+
+- New work on the game goes here (`main`), into the Wilds on game.azyr.io. It never reaches
+  azyr.io, and it must not: do not touch `/opt/azyr-town` or `town-server` for the game.
+- The town changes only when Fede asks for a town change, and only on the branch `town`. Do not
+  merge `main` into `town`. See `/opt/azyr-town/CLAUDE.md`.
 
 The engine is meant to carry more applications on this box (games, demos). Keep the line
 between engine and content clean: the engine never knows a world's content, and a world never
@@ -41,7 +51,6 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 | `packages/engine-server` | `@game/engine-server` | The multiplayer server: `startServer()` (Node, `ws`): a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
-| `worlds/town` | `@game/world-town` | The Town of Azyr: a `WorldSource` (hand-made plan) and the project content. | `@game/engine` |
 | `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
@@ -53,7 +62,7 @@ A world's source implements `WorldSource` (`packages/engine/src/world.ts`): `chu
 `buildingAt()`, `buildingsIn()`, `fixtureAt()`, `fixturesIn()`, `spawn()`; every method must give
 the same answer every time (client and server must see the same world). Reuse the engine's
 `naturalGround` / `naturalDecor` for natural terrain. Test it with the engine's rules (see the
-town and wilds tests: wall ring, reachable fixtures, glyphs for every character).
+wilds tests: wall ring, reachable fixtures).
 
 **To add an application:** a new package under `apps/` like `apps/game` (an `index.html` with
 the engine's elements, a `main.ts` that calls `startGame({ worlds, title })`, a Vite config that
@@ -87,7 +96,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
-  map icon), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
+  map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `you-section.ts` (the "You" section of the settings: the player's look, "New look", the name), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
@@ -212,7 +221,7 @@ grow from the centre; it fades in 0.65 s while it rises a few pixels, stays 1.45
 the fade-out, the NPC `speaker` starts its welcome (`render/welcome.ts`): one line after the
 other, each as long as it takes to read, over its head; the visitor can walk on, and talking to
 the NPC ends it. No other NPC speaks during the arrival. Screen readers hear the welcome. The
-town has one (the crier explains the town); the Wilds have none. `?nointro` skips it;
+Wilds have none now (the Town of Azyr has one: its crier explains the town). `?nointro` skips it;
 `?introat=<ms>` stops the title at that moment, for a screenshot on a slow machine.
 
 ## Mobs and fights
@@ -223,7 +232,7 @@ wind-up, so running away does not save you), and the **brute**, big and slow (42
 wind-up in which it stands, a 2 s stun: you can walk away from it). A mob wanders round its
 home, and now and then it moves its home 3 tiles towards the nearest player (a prowl: along
 the shortest way through open ground where it may roam, so round a town or a lake; never closer
-than 6 tiles), so mobs find players who stand still (in the town, in about 20 to 90 s at the
+than 6 tiles), so mobs find players who stand still (in the Town of Azyr, in about 20 to 90 s at its
 edge). A mob that stays within 8 px of one point for 1.5 s while it wants to move is stuck (back
 and forth between trees): a walk ends, a chase bends the other way and gives up after 4 s. When it sees a player (close, out in
 the open, no building between), it runs at the player on a curve (an angle off the straight line
@@ -246,9 +255,7 @@ a recoil frame, `hurtMs`): its wind-up or its blow breaks off, and then it goes 
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
-water and the ground round a house; 4 imps and 2 brutes. The town: they live in the forest round
-it and may come `MOB_EDGE` (3) tiles into the town while they chase; the plaza, the lane and
-every door are out of their reach (a test checks it); 3 imps and 2 brutes. The client of a
+water and the ground round a house; 4 imps and 2 brutes. The client of a
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
 and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
@@ -302,7 +309,7 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   in range, and E opens the link. Walking away closes the dialog and the card.
 - **Lights:** a fixture's `light` (`radius` from `LIGHTING.radii`, `colour`, centre in pixels
   from its anchor corner). The player's torch is radius 150. A portal's glow takes the colour of
-  its light. `WorldDefinition.darkness` (0..1) scales the night: the town is 0.6, the wilds 1.
+  its light. `WorldDefinition.darkness` (0..1) scales the night: the wilds are 1.
 
 ## Buildings
 
@@ -336,35 +343,9 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into
   them). Tests check 150+ houses for a wall ring, one door and reachable furniture.
-- **The Town of Azyr** (`worlds/town`): `projects.ts` has the content of each project of the
-  azyr.io landing page (`/var/www/azyr.io/public/index.html` and the detail pages), in the
-  landing page's order; **when those pages change, change this file.** Kandrax Rol speaks
-  Spanish, as its page does. Each project also has its **house**: a style, a floor, roof props
-  and a **plan** in ASCII, walls included (`#` wall, `D` door, `+` lit window, `.` floor, `P`
-  the portal, `K` the keeper, any other letter a thing of `exhibits`; a thing of more tiles has
-  its letter on each tile). Every house has its own walls and roof, and things that match them
-  (the smithy has a forge and an anvil, the healer's hut a cauldron). `layout.ts` has the **town
-  map** in ASCII: digits `1`-`8` are the rectangles of the houses (the plan must have the same
-  size), `=` cobblestones, `.` gardens, `T` trees, and the things of the plaza and the lane
-  (`F` fountain, `N` notice board with a link to azyr.io, `C` the crier, `L` lamps, `b` barrels,
-  `x` crates). Four small houses (6-8 x 5-7 tiles) face the plaza from the north; four more stand
-  with their backs to it and face the lane in the south; alleys of 1-3 tiles join the two.
-  Outside the map the forest begins. The parser checks the plans (walls, one door, one portal,
-  one keeper, footprints, a free tile inside the door) and throws on a mistake.
-  **Two rules for the map (2026-10-08, Fede's request):** (1) from the spawn, the default view
-  of a 1280 x 720 desktop (26.7 x 15 tiles) shows all eight doors at once, and a phone the four
-  in the middle: so the town is only 13 rows from the north fronts (row 8) to the south fronts
-  (row 20), the outer doors are near the inner ends of their houses, and the corner houses have
-  short names (their signs must fit on the screen and stay clear of the GUI in the corners);
-  (2) the 5 x 3 tiles in front of each door stay clear: no lamp, prop, tree or wall. The keeper
-  of each house is a walking NPC: its area is the open floor of the house, the door, and the
-  first 5 x 2 of those clear tiles (`DOORSTEP`); the crier walks the plaza south of the fountain
-  (`CRIER_AREA`). Each keeper has `barks`: short lines from its project's azyr.io page (Spanish
-  for Kandrax Rol); the crier has town lines. Tests check the
-  signs, one portal with an https link per house (and the exact URLs), a different style for
-  every house, that the player can walk to every thing in every house and act on it (and to
-  every door and outdoor thing from the plaza), the two map rules (with the real `Camera`), and a
-  glyph for every character of every text.
+- **The Town of Azyr** is not here any more: it is on the branch `town` (`/opt/azyr-town`,
+  azyr.io), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
+  lines, the arrival intro, signs, building styles), and a world of the game can use it.
 
 ## Rules
 
@@ -412,8 +393,8 @@ Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared
 a game server; on the box use another port than production's 3008, for example
 `PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
 with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
-`?world=town`, `?debug` (read `#debug` for the world, tile, target, building, and `net` and
-`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in the town; `mobs` and
+`?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, tile, target, building, and `net` and
+`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
@@ -436,9 +417,8 @@ Android viewport (412 x 915, `deviceScaleFactor: 2.625`).
 
 ## Deploy
 
-azyr.io serves this page as its landing page, from the same folder (see `deploy/README.md`,
-"azyr.io"): a deploy changes azyr.io too. There the page starts in the town.
-
+A deploy changes game.azyr.io only. azyr.io serves the town from its own checkout, server and
+folder (see "What this is"), so nothing here needs to keep azyr.io working.
 
 See `deploy/README.md`. Short form: `scripts/deploy.sh` on the box (it builds `apps/game`,
 restarts the PM2 process `game-server` first, then publishes the client). No nginx reload is

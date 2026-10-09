@@ -3,7 +3,8 @@ import { WORLDS } from '../src/worlds.ts';
 
 /**
  * The multiplayer server of game.azyr.io. PM2 runs it with Node (deploy/pm2.config.cjs); nginx
- * sends wss://game.azyr.io/ws to it. Settings come from the environment:
+ * sends wss://game.azyr.io/ws to it. It hosts the worlds with `multiplayer: true`; since the town
+ * left (2026-10-09) there is none, so it waits with no room. Settings come from the environment:
  *   PORT (3008), HOST (127.0.0.1), ORIGINS (comma-separated, default https://game.azyr.io).
  */
 const port = Number(process.env.PORT ?? 3008);
