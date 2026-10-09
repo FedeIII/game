@@ -1,4 +1,5 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Fixture, type FixtureKind, type Light, type NpcDef } from '@game/engine';
+import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type NpcDef } from '@game/engine';
+import { APOTHECARY, INNKEEPER, REEVE, WATCHMAN } from './dialogs.ts';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -83,13 +84,15 @@ interface Thing {
 
 /**
  * Someone who lives in a building, by its letter in the plan (its home tile): an NPC look
- * (art/characters.ts), what it says when a visitor talks to it, and lines that it says by itself.
- * With `doorstep`, it also walks out of the door, to the 5 x 2 tiles in front of it.
+ * (art/characters.ts), what it says when a visitor talks to it (pages, or a conversation:
+ * dialogs.ts), and lines that it says by itself. With `doorstep`, it also walks out of the door,
+ * to the 5 x 2 tiles in front of it.
  */
 interface Person {
   readonly id: string;
   readonly look: string;
-  readonly pages: readonly string[];
+  readonly pages?: readonly string[];
+  readonly dialog?: Dialog;
   readonly barks: readonly string[];
   readonly doorstep?: boolean;
 }
@@ -150,11 +153,7 @@ const BUILDINGS: readonly Plan[] = [
         id: 'innkeeper',
         look: 'innkeeper',
         doorstep: true,
-        pages: [
-          'Welcome to the Crooked Lantern, traveller.',
-          'The beds are taken, but the fire is free and the ale is cheap.',
-          'Go back into the woods before the candles burn down. Not after.',
-        ],
+        dialog: INNKEEPER,
         barks: ['Another round?', 'Wipe your boots. The woods come in on them.', 'The fire is free. The ale is not.'],
       },
       M: {
@@ -275,11 +274,7 @@ const BUILDINGS: readonly Plan[] = [
         id: 'apothecary',
         look: 'healer',
         doorstep: true,
-        pages: [
-          'Careful with that shelf. Half of it heals and half of it kills.',
-          'Nightcap for sleep, ashroot for wounds. The rest I will not name.',
-          'If an imp scratches you, wash it with salt. Then wash it again.',
-        ],
+        dialog: APOTHECARY,
         barks: ['Salt, salt and more salt.', 'Who took my ashroot?', 'Do not touch the green jar.'],
       },
     },
@@ -321,11 +316,7 @@ const BUILDINGS: readonly Plan[] = [
       K: {
         id: 'reeve',
         look: 'treasurer',
-        pages: [
-          'I am the reeve of Thornwick. Of what is left of it.',
-          'Four houses shut this year. The families went south and did not write.',
-          'We still have the forge, the chapel and the inn. While we have those, we have a town.',
-        ],
+        dialog: REEVE,
         barks: ['Taxes, taxes...', 'Another letter with no answer.', 'The gate, the lamps. Always the lamps.'],
       },
     },
@@ -473,7 +464,7 @@ function build(plan: Plan, index: number): Building {
       look: person.look,
       home,
       area: person.doorstep ? [...floor, ...doorstep] : floor,
-      content: { pages: person.pages, speaker: 'fixture' },
+      content: { speaker: 'fixture', ...(person.pages ? { pages: person.pages } : {}), ...(person.dialog ? { dialog: person.dialog } : {}) },
       barks: person.barks,
     });
   }
@@ -568,14 +559,7 @@ const WALKERS: readonly NpcDef[] = [
     look: 'watchman',
     home: at(42, 11),
     area: streetArea(38, 11, 44, 13),
-    content: {
-      speaker: 'fixture',
-      pages: [
-        'Halt! Who walks the road at night?',
-        'Ah, from the hut in the woods. Welcome to Thornwick.',
-        'Keep inside the lamplight. The things in the trees do not come past the gate.',
-      ],
-    },
+    content: { speaker: 'fixture', dialog: WATCHMAN },
     barks: ['Nothing comes past this gate.', 'Keep to the lamps.', 'A quiet night. Too quiet.'],
   },
   {

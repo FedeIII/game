@@ -23,6 +23,14 @@ export const STRINGS = {
   next: 'Next',
   close: 'Close',
   lookIntoPortal: 'Look into the portal',
+  /** The conversation panel (ui/conversation.ts). */
+  conversation: {
+    end: 'End the conversation',
+    /** The action button while the NPC says its first line: the answers come next. */
+    answer: 'Answer',
+    you: 'You',
+    keys: '↑ ↓ to choose · E to answer · Esc to leave',
+  },
   /** The names of things in action labels ("Examine the map table"). */
   names: {
     tree: 'tree',

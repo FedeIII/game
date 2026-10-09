@@ -8,6 +8,7 @@ import {
   NpcCrowd,
   TICK_SECONDS,
   TILE_SIZE,
+  NO_INPUT,
   World,
   appearanceOf,
   characterSkin,
@@ -25,6 +26,7 @@ import {
   useDoor,
   facingOfAngle,
   type Character,
+  type Dialog,
   type Facing,
   type Fixture,
   type Interaction,
@@ -54,6 +56,7 @@ import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
+import { ConversationPanel } from './ui/conversation.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
@@ -98,6 +101,10 @@ const ATTACK_BUFFER_MS = 150;
 const AIM_SLACK = 10;
 /** A click closer than this to the player's chest (world pixels) gives no direction: the attack goes the way the player faces. */
 const MOUSE_DEAD_ZONE = 3;
+/** An NPC with a dialog says its first line; the conversation panel opens this long after (ms). */
+const TALK_DELAY_MS = 700;
+/** The conversation ends when the NPC is further than this from the player (world pixels). */
+const TALK_RANGE = 40;
 /** A hit shakes the camera for this long (ms), by about this much (world pixels). */
 const SHAKE = { ms: 220, amount: 2 } as const;
 /** A character in a world that the page runs: its place goes to the server this often (ms), if it moved. */
@@ -515,7 +522,11 @@ async function run(options: GameOptions): Promise<void> {
   // The action button (or E) acts on the thing that the player is very close to. A door opens
   // or closes. Anything else shows its content: pages of text over whoever speaks (the player
   // for a thing, the NPC for an NPC), one page per press, and a link card if it has a link.
-  // The dialog belongs to its target: walking away closes it.
+  // The dialog belongs to its target: walking away closes it. An NPC with a dialog starts a
+  // conversation instead: it says its first line, and a moment later the conversation panel
+  // opens with the answers (ui/conversation.ts). While the panel is open, the player stands still
+  // and the panel has the keys; the conversation ends with an answer that ends it, with Esc, or
+  // when the NPC is not close any more.
   const contentOf = (t: InteractionTarget): Interaction | null => {
     if (t.fixture?.content) return t.fixture.content;
     const line = definition.examine[t.kind];
@@ -526,15 +537,38 @@ async function run(options: GameOptions): Promise<void> {
   const linkCard = new LinkCard();
   let target: InteractionTarget | null = null;
   let dialogKey: string | null = null;
+  /** A conversation that is about to open (the NPC says its first line), and the NPC of the conversation. */
+  let pendingTalk: { readonly at: number; readonly dialog: Dialog } | null = null;
+  let talkWith: Fixture | null = null;
+  let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
+  const conversation = new ConversationPanel({
+    line: (say) => speech.show([say], talkAnchor, performance.now()),
+    end: () => closeDialog(performance.now()),
+  });
+  const openTalk = () => {
+    if (!pendingTalk || !talkWith) return;
+    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null);
+    pendingTalk = null;
+  };
+  /** Whether the NPC of the conversation is still close to the player. */
+  const talkingClose = (now: number): boolean => {
+    const walker = talkWith ? npcIndex.get(talkWith) : undefined;
+    const pose = walker !== undefined ? npcPoses(now)[walker] : undefined;
+    return pose !== undefined && Math.hypot(pose.x - player.x, pose.y - player.y) <= TALK_RANGE;
+  };
 
   const closeDialog = (now: number) => {
     speech.hide(now);
     linkCard.hide();
     dialogKey = null;
+    pendingTalk = null;
+    talkWith = null;
+    conversation.close();
   };
 
   action.onPress((source: PressSource) => {
-    if (!target) return;
+    // The conversation panel has the keys while it is open (and the button is hidden).
+    if (!target || conversation.open) return;
     const now = performance.now();
     if (target.kind === 'door') {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
@@ -558,6 +592,11 @@ async function run(options: GameOptions): Promise<void> {
     if (!content) return;
     const key = targetKey(target);
     if (key === dialogKey) {
+      // A second press while the NPC says its first line opens the answers at once.
+      if (content.dialog) {
+        openTalk();
+        return;
+      }
       if (speech.showing && speech.hasMore) {
         speech.next(now);
         return;
@@ -584,6 +623,15 @@ async function run(options: GameOptions): Promise<void> {
           ? () => npcViews!.headOf(walker)
           : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
+    if (content.dialog && fixture) {
+      speech.show([content.dialog.nodes[content.dialog.start]!.say], anchor, now);
+      speaking = false;
+      linkCard.hide();
+      talkWith = fixture;
+      talkAnchor = anchor;
+      pendingTalk = { at: now + TALK_DELAY_MS, dialog: content.dialog };
+      return;
+    }
     speech.show(content.pages ?? [], anchor, now);
     speaking = !(content.speaker === 'fixture' && fixture);
     if (content.link) linkCard.show(content.link);
@@ -594,6 +642,7 @@ async function run(options: GameOptions): Promise<void> {
     if (t.kind === 'door') return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
+      if (content?.dialog) return STRINGS.conversation.answer;
       if (speech.showing && speech.hasMore) return STRINGS.next;
       if (content?.link && linkCard.visible) return content.link.label;
       return STRINGS.close;
@@ -618,7 +667,9 @@ async function run(options: GameOptions): Promise<void> {
   const sim = new FixedStep(TICK_SECONDS, () => {
     previous.x = player.x;
     previous.y = player.y;
-    let input: MoveInput = readInput();
+    // In a conversation the player stands still and does not attack.
+    if (conversation.open) attackAskedAt = -Infinity;
+    let input: MoveInput = conversation.open ? NO_INPUT : readInput();
     if (performance.now() - attackAskedAt < ATTACK_BUFFER_MS && canAttack(player)) {
       input = { ...input, attack: attackClick ? aimAt(attackClick) : aim(input) };
       attackAskedAt = -Infinity;
@@ -683,7 +734,14 @@ async function run(options: GameOptions): Promise<void> {
     const npcsNow = npcPoses(now);
     npcViews?.update(npcsNow, seconds);
     target = findInteraction(world, player, accept, npcActors(npcDefs, npcsNow));
-    if (dialogKey && (!target || targetKey(target) !== dialogKey)) closeDialog(now);
+    if (pendingTalk && now >= pendingTalk.at) openTalk();
+    if (conversation.open) {
+      // The NPC waits for a player who stands close to it; a stun, or an NPC that is not close
+      // any more, ends the conversation.
+      if (player.stun > 0 || !talkingClose(now)) closeDialog(now);
+    } else if (dialogKey && (!target || targetKey(target) !== dialogKey)) {
+      closeDialog(now);
+    }
     action.setTarget(target ? actionLabel(target) : null);
 
     const view = camera.view();
@@ -758,6 +816,7 @@ async function run(options: GameOptions): Promise<void> {
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
+      ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

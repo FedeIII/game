@@ -1,3 +1,4 @@
+import type { Dialog } from './dialog.ts';
 import type { Box } from './world.ts';
 
 /**
@@ -151,6 +152,11 @@ export interface Interaction {
   /** Who says the pages: the player (who examines a thing) or the fixture (an NPC). */
   readonly speaker?: 'player' | 'fixture';
   readonly link?: Link;
+  /**
+   * A conversation (an NPC): it takes the place of the pages. The NPC says the line of the start
+   * node, and the conversation panel shows its answers (dialog.ts).
+   */
+  readonly dialog?: Dialog;
 }
 
 /** A light that a fixture gives off. */

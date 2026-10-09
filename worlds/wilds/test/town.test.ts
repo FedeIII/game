@@ -8,6 +8,7 @@ import {
   TICK_SECONDS,
   TILE_SIZE,
   World,
+  checkDialog,
   createPlayer,
   findInteraction,
   fixtureTiles,
@@ -185,7 +186,9 @@ describe('Thornwick', () => {
     expect(new Set(TOWN_NPCS.map((n) => n.id)).size).toBe(TOWN_NPCS.length);
     for (const npc of TOWN_NPCS) {
       expect(npc.content.speaker).toBe('fixture');
-      expect(npc.content.pages!.length, npc.id).toBeGreaterThanOrEqual(2);
+      // Pages, or a conversation.
+      if (npc.content.dialog) expect(checkDialog(npc.content.dialog), npc.id).toEqual([]);
+      else expect(npc.content.pages!.length, npc.id).toBeGreaterThanOrEqual(2);
       expect(npc.barks!.length, npc.id).toBeGreaterThanOrEqual(2);
       // Nobody lives in a building that is shut.
       expect(world.buildingAt(npc.home[0], npc.home[1])?.locked).toBeUndefined();
@@ -203,6 +206,19 @@ describe('Thornwick', () => {
       expect(seen.size, npc.id).toBe(tiles.size);
     }
     expect(source.npcs()).toBe(TOWN_NPCS);
+  });
+
+  it('has people who talk with the player: conversations with answers that branch', () => {
+    const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
+    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'reeve', 'watchman']);
+    for (const npc of talkers) {
+      const dialog = npc.content.dialog!;
+      const nodes = Object.values(dialog.nodes);
+      expect(nodes.length, npc.id).toBeGreaterThanOrEqual(5);
+      // The first line offers more than one way on.
+      expect(dialog.nodes[dialog.start]!.answers.filter((a) => a.next).length, npc.id).toBeGreaterThanOrEqual(2);
+      expect(npc.content.pages, npc.id).toBeUndefined();
+    }
   });
 
   it('lets its people walk about, each in its own area', () => {

@@ -98,7 +98,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs, mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -158,6 +158,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
+  `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, "Main menu" and "Sign out"), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
@@ -286,7 +287,9 @@ For the HTML GUI:
   translucent panel, thin dried-blood-red border, 2 px corners, parchment text, wine-red accent
   with a soft glow for "active", Georgia serif for words, monospace for numbers.
 - Bottom left: the joystick at rest. Bottom right: the action button. Bottom centre, above
-  them: the link card. Top right: the worlds button and the settings button.
+  them: the link card. Top right: the worlds button and the settings button. Bottom centre, over
+  everything there: the conversation panel; while it is open, the joystick, the action and
+  attack buttons and the link card hide (`body.conversing`).
 - Every engine text the player reads goes in `src/ui/strings.ts`; what things say is content and
   belongs to the world.
 - A control gives the focus back after use, or WASD stops working (see `SettingsPanel`).
@@ -461,8 +464,23 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **A fixture** is a placed instance: kind, anchor tile, optional `look` (NPC costume),
   `content` and `light`. Content (`Interaction`): `pages` (one per press of the action button),
   `speaker` (`'player'`, the default, or `'fixture'` for an NPC: the bubble goes over its head),
-  and `link` (`url`, `label`, `title`: the link card). Without content, the world's
-  `examine[kind]` line is used; a thing with neither is not a target.
+  `link` (`url`, `label`, `title`: the link card), and `dialog` (a conversation, for an NPC; it
+  takes the place of the pages). Without content, the world's `examine[kind]` line is used; a
+  thing with neither is not a target.
+- **Conversations** (since 2026-10-10): a `Dialog` (`packages/engine/src/dialog.ts`) is a tree:
+  a `name` (over the picture), a `start` node, and `nodes`, each with what the NPC says (`say`)
+  and 1 to 4 `answers` (`text`, and `next`: the next node, or none to end). `checkDialog()` gives
+  its problems (a node that no answer reaches, a node with no way out, a missing node, texts too
+  long for the panel); a world tests its dialogs with it. The engine keeps no state of a
+  conversation, so the server knows nothing of it. In the client: a press on such an NPC makes it
+  say its start line in its bubble; 0.7 s later (or on the next press) the conversation panel
+  opens (`ui/conversation.ts`): a close-up of the NPC (14 x 14 pixels of `npc/<look>` from the
+  top of its head, at 8x, sharp: `drawCloseup()`), its name, "You: " and the last answer, its
+  line, and the numbered answers (an answer that ends it in italics). Each answer makes the NPC
+  say the next line in its bubble too. While the panel is open the player stands still and does
+  not attack, and the panel takes the keys first (capture phase): W S or the arrows choose, E,
+  Enter or Space answer, 1 to 9 answer at once, Esc ends it; a tap or a click answers. It ends
+  with an answer that ends it, Esc, the close button, a stun, or an NPC more than 40 px away.
 - **Actions:** `findInteraction(world, player, accept)` (shared) finds the nearest target within
   `INTERACT_RANGE` (6 px from the feet hitbox to the target's box; a door uses its whole tile),
   in front of the player first. The client runs it every frame. A press: on a door, `useDoor()`
@@ -527,7 +545,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   chandler, the cottage, the granary, the house). Ten NPCs (`TOWN_NPCS`): in the buildings the
   innkeeper and the minstrel, the smith, the priest, the apothecary and the reeve (some walk out
   to their doorstep); in the streets the watchman at the gate, the peddler, the widow by the
-  fountain and the child in the lane. Each one has a dialog of three pages and three lines.
+  fountain and the child in the lane. Each one has three lines that it says by itself, and
+  something to say: a conversation for the watchman, the innkeeper, the apothecary and the reeve
+  (`dialogs.ts`), three pages for the others.
   Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
   of mud from below the path to the home's door to the gate, also over water; nothing grows on it
   or close to it. **The signpost** stands outside the hut, two tiles below the door on the west
@@ -600,10 +620,12 @@ ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and the preview th
 the menu: sign in with the dev sign-in (fill `#dev-name`, click `.dev-sign-in button`), "New
 game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-gender-<g>`,
 `#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
-`#builder-create`), and wait for `#menu` to go. `?nomenu` skips it: a guest. URL switches:
+`#builder-create`), and wait for `#menu` to go. A conversation: `#conversation` (hidden when
+closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.selected`). `?nomenu` skips it: a guest. URL switches:
 `?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it),
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
-`others` in a shared world; `walkers`, `doors`, `lines` and `intro` in a world with NPCs; `mobs` and
+`others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
+name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
