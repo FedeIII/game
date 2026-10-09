@@ -33,14 +33,14 @@ a client of another version is refused, and its label tells the visitor to reloa
 
 | Direction | Message | Content |
 |---|---|---|
-| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name` |
-| client to server | `skin` | a new skin seed for the player (from the settings panel) |
-| client to server | `name` | a new name for the player (`''` for none) |
+| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
+| client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
+| client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
 | client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the facing code of its side), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
 | server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks), the others (positions to 0.1 px, their skin seeds, and their attack, stun and guard ticks), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
-| server to client | `refused` | `version`, `world`, `full` or `busy` |
+| server to client | `refused` | `version`, `world`, `full`, `busy`, or `account` (a server with accounts: no session, no character, or not the visitor's own) |
 | server to client | `pong` | the client's clock, back |
 
 The client sends a batch every 3 ticks (20 messages a second). It applies the input as it
@@ -59,29 +59,36 @@ everyone), and a door does not close on an NPC. The lines that NPCs say are even
 snapshot (`b`: [npc index, line index]); a client that misses a snapshot (a full send buffer)
 misses the line, which is harmless.
 
+## Characters and accounts (protocol 7, 2026-10-09)
+
+On a server with accounts (`startServer({ accounts })`, game.azyr.io), a player is one of the
+characters of a signed-in account. The session cookie comes with the WebSocket upgrade (the page
+and `/ws` have one origin), and `hello` names the character (`character`). The server loads it
+from its database, checks that it belongs to the session's account, and takes the skin seed
+(`characterSkin()`: race, class, gender and variant) and the name from it: what `hello` says
+about them does not count, and `skin` and `name` messages are ignored. A visitor without a
+session or a character of its own gets `refused` `account`. See CLAUDE.md, "Menu, characters
+and accounts".
+
 ## Looks and names (protocol 4, 2026-10-08)
 
-The "You" section of the settings panel (`ui/you-section.ts`) shows the player's look and its
-kind, a "New look" button and a name field.
+The look and the name of a player come from its character (above). The protocol keeps the
+`skin` and `name` messages for a server without accounts (none now; the engine keeps them):
 
-- **New look**: the client makes a new random seed (`newSkinSeed()`), saves it in
-  `game.skin.v1` (the next visit has it too), renders it, and only then sends `skin`. The
-  server applies a new skin at most once every `SKIN_CHANGE_GAP_MS` (2 s) for each player; a
-  skin that comes sooner waits, and the last one asked for wins. The others keep the old look
-  until the new one is rendered on their side.
-- **Name**: the visitor types it and presses Enter (or leaves the field). The client saves it
-  in `game.name.v1` and sends `name`; it also goes in `hello`, so it comes back after a
-  reconnection or a reload. `cleanName()` (`net/protocol.ts`) runs on both sides: Latin
-  letters, digits, space and `' . _ -` only, spaces joined, at most `NAME_MAX` (16)
-  characters. The server cleans every name again; it never trusts the client.
+- **Skin**: the server applies a new skin at most once every `SKIN_CHANGE_GAP_MS` (2 s) for each
+  player; a skin that comes sooner waits, and the last one asked for wins. The others keep the
+  old look until the new one is rendered on their side.
+- **Name**: it also goes in `hello`, so it comes back after a reconnection or a reload.
+  `cleanName()` (`net/protocol.ts`) runs on both sides: Latin letters, digits, space and
+  `' . _ -` only, spaces joined, at most `NAME_MAX` (16) characters. The server cleans every name
+  again; it never trusts the client. A character's name is cleaned in the same way when it is
+  made (`checkSheet()`).
 - The others see the name over the player's head, in the small pixel font (capitals only, 5 px
   high), in the text layer (above the darkness), inside the screen. The local player sees its
   own name too (`render/name-tag.ts`); it hides while a speech bubble is over the player.
-- A visitor without a name is called by its look: `skinName(seed)` (`art/skins.ts`) gives a
-  first name and a title for the vibe ("Brother Aldric", "Sir Galen", "Doctor Hesk"). Every
-  client makes the same name from the skin seed, so it is not on the wire: the roster carries
-  only names that visitors chose. The empty name field shows it, and it changes with a new
-  look.
+- A player without a name (a guest, `?nomenu`) is called by its look: `skinName(seed)`
+  (`art/skins.ts`) gives a first name and a title for the class ("Sister Petra", "Sir Galen").
+  Every client makes the same name from the skin seed, so it is not on the wire.
 - The snapshot carries the whole list of names, but only when a name appears, changes or goes
   (the room's names version). A new player gets the list in its first snapshot. A client that
   is skipped (a full send buffer) gets the list with its next snapshot.
@@ -133,10 +140,11 @@ has not said so after 0.7 s, the mob shows alive again.
   and a smaller torch each.
 - `ui/presence.ts`: the label in the top-left corner ("2 other visitors here", or why the
   visitor is alone).
-- Skins (protocol 2, 2026-10-07): each browser makes a random 32-bit skin seed once and keeps it
-  in localStorage (`game.skin.v1`), so a visitor has the same skin on every visit; `?skin=<n>`
-  shows another one without saving it. The seed goes in `hello`, and the server sends each
-  player's seed to the others. Every client makes the same skin from a seed
+- Skins (protocol 2, 2026-10-07; from the character since protocol 7): a skin is a 32-bit seed.
+  A character's seed encodes its race, class, gender and variant (`appearanceSeed()`); a guest
+  (`?nomenu`) has a random seed that the browser keeps (`game.skin.v1`); `?skin=<n>` shows
+  another one without saving it. The seed goes in `hello`, and the server sends each player's
+  seed to the others. Every client makes the same skin from a seed
   (`art/skins.ts`), renders it in a Web Worker (`src/skins/skin-worker.ts`) and keeps the last
   24 sheets in localStorage (`game.skins.v<SKIN_VERSION>.*`). Until a skin is ready, its player
   shows as a darker wanderer from the atlas. The server never reads a seed; it only checks
@@ -153,7 +161,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":6,"players":{}} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":7,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 

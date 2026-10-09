@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up the game.azyr.io accounts database every night
+
+[Timer]
+OnCalendar=*-*-* 03:41:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

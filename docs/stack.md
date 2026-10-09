@@ -14,6 +14,7 @@ desktop and on phones. This file records the stack and the reasons for it.
 | Engine | Our own thin layer on PixiJS: fixed-step loop, camera, chunks, input |
 | Shared simulation | `packages/shared`: pure TypeScript, no DOM, no renderer |
 | Network | Authoritative Node.js server, WebSocket (`ws`), our own protocol (`docs/multiplayer.md`) |
+| Accounts and data | Sign-in with Google (OpenID Connect, our own small client); SQLite through `node:sqlite`, in the game server |
 | Sprites | One atlas: PNG plus JSON in the PixiJS/TexturePacker format |
 | Art tool | Aseprite (it exports that format); text grids for placeholder art |
 | Build | Vite; Vitest for tests |
@@ -107,8 +108,26 @@ edits as small deltas.
   moves in whole device pixels. Phones (short side under 500 CSS pixels) zoom in more.
 - Each chunk is drawn once into a render texture at resolution 1, then shown as one sprite.
 
+## Why SQLite in the game server, and Google sign-in (2026-10-09)
+
+Fede asked for accounts with Google sign-in, and for the characters on the VPS.
+
+- **SQLite through `node:sqlite`** (built into Node 24): no native package to compile on the VPS,
+  no database server, one file to back up (`VACUUM INTO`, nightly). The game server is one
+  process, and SQLite in WAL mode is fast for one writer. The VPS has PostgreSQL (the journal
+  uses it), but a second database there means a user, a password, a network port and a separate
+  backup, for some kilobytes per account. Move to PostgreSQL when more than one process must
+  write (for example two game servers), or when the world itself is persistent.
+- **Google sign-in with our own small client** (`packages/engine-server/src/google.ts`, about
+  100 lines): the authorization code flow with PKCE, the ID token straight from Google's token
+  endpoint over TLS (so no signature check is needed), and sessions in our own database. A
+  library (Passport, openid-client, Auth.js) would add more code than it saves for one provider.
+  A second provider is another module of the same shape.
+- **Sessions** are random tokens in an HttpOnly, SameSite=Lax cookie; the database keeps only a
+  hash of each token. No JWT: a session can end at once (sign-out, or a delete of its row).
+
 ## Open decisions for later
 
 - ECS (for example bitECS or miniplex) when entity counts grow. The POC does not need it.
-- Persistence of the world (PostgreSQL or SQLite, chunk deltas against the seed).
+- Persistence of the world (SQLite now has the accounts; chunk deltas against the seed).
 - Binary encoding of messages, when bandwidth matters.

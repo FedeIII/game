@@ -34,8 +34,14 @@ export type Headwear = 'hood' | 'cowl' | 'bare' | 'brim' | 'witch' | 'helm' | 'b
 export type HairCut = 'none' | 'short' | 'long' | 'tail';
 export type CloakCut = 'long' | 'short' | 'none';
 export type BodyCut = 'jerkin' | 'robe' | 'armour';
-/** What the figure carries: a staff in the right hand (with an orb or a knob), a sword at the left hip, a lantern in the right hand. */
-export type Item = 'none' | 'staff' | 'orbstaff' | 'sword' | 'lantern';
+/**
+ * What the figure carries: a staff in the right hand (with an orb or a knob), a sword at the left
+ * hip, a lantern in the right hand, an axe upright in the right hand, a mace that hangs from the
+ * right hand, a dagger at the right hip, or a bow in the left hand.
+ */
+export type Item = 'none' | 'staff' | 'orbstaff' | 'sword' | 'lantern' | 'axe' | 'mace' | 'dagger' | 'bow';
+/** Pointed ears: short (a half-elf) or long (an elf). */
+export type Ears = 'short' | 'long';
 
 export interface FigureSpec {
   /** The scale of all heights: 1 is about 28 pixels. */
@@ -57,11 +63,27 @@ export interface FigureSpec {
   readonly pouch: boolean;
   /** A cloth panel over the chest, in the colour of the cloak (over armour, for a knight). */
   readonly tabard?: boolean;
-  /** Horns on a helm. */
+  /** Horns: large on a helm, small on a bare head, a hood or a cowl. */
   readonly horns?: boolean;
   /** A thin metal band round the head (on hair). */
   readonly circlet?: boolean;
   readonly item?: Item;
+  /** Pointed ears, where the headwear shows the sides of the head (bare, a brim or a pointed hat). */
+  readonly ears?: Ears;
+  /** Two small tusks from the lower jaw. */
+  readonly tusks?: boolean;
+  /** A big round nose. */
+  readonly nose?: boolean;
+  /** The length of a beard: 1 (the default) is short; 2 reaches the chest. */
+  readonly beardLength?: number;
+  /** A round shield on the left forearm (the arm on the -x side). */
+  readonly shield?: boolean;
+  /** A quiver of arrows on the back. */
+  readonly quiver?: boolean;
+  /** Antlers on the head (with a bare head, a hood or a cowl). */
+  readonly antlers?: boolean;
+  /** A feather in the band of a brim hat. */
+  readonly feather?: boolean;
 }
 
 /**
@@ -83,7 +105,9 @@ export interface FigureAction {
 export type Weapon =
   | { readonly kind: 'blade'; readonly length: number; readonly width: number }
   | { readonly kind: 'staff'; readonly dir: Vec3; readonly orb: boolean }
-  | { readonly kind: 'lantern' };
+  | { readonly kind: 'lantern' }
+  | { readonly kind: 'axe' }
+  | { readonly kind: 'mace' };
 
 /** The player's hooded wanderer. */
 export const WANDERER: FigureSpec = {
@@ -199,10 +223,47 @@ const join = (a: Shape, b: Shape): Shape => {
   };
 };
 
+/** A flat round disc (a shield): centre, unit normal, radius and half thickness, with soft edges. */
+const disc = (c: Vec3, n: Vec3, radius: number, half: number): Shape => ({
+  sdf: (x, y, z) => {
+    const px = x - c[0];
+    const py = y - c[1];
+    const pz = z - c[2];
+    const along = px * n[0] + py * n[1] + pz * n[2];
+    const qx = px - along * n[0];
+    const qy = py - along * n[1];
+    const qz = pz - along * n[2];
+    const radial = Math.sqrt(qx * qx + qy * qy + qz * qz) - (radius - 0.2);
+    const axial = Math.abs(along) - (half - 0.2);
+    return Math.min(Math.max(radial, axial), 0) + Math.hypot(Math.max(radial, 0), Math.max(axial, 0)) - 0.2;
+  },
+  bound: [c[0], c[1], c[2], radius + 0.1],
+});
+
+/** A curve through points, as round cones from point to point; the bound holds all of them. */
+const curve = (points: readonly Vec3[], radii: readonly number[]): Shape => {
+  const segments = points.slice(1).map((b, i) => roundCone(points[i]!, b, radii[i]!, radii[i + 1]!));
+  const lo = [0, 1, 2].map((a) => Math.min(...points.map((p) => p[a]!)));
+  const hi = [0, 1, 2].map((a) => Math.max(...points.map((p) => p[a]!)));
+  const centre: Vec3 = [(lo[0]! + hi[0]!) / 2, (lo[1]! + hi[1]!) / 2, (lo[2]! + hi[2]!) / 2];
+  const reach = Math.max(...points.map((p) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2])));
+  return {
+    sdf: (x, y, z) => {
+      let d = Infinity;
+      for (const segment of segments) d = Math.min(d, segment(x, y, z));
+      return d;
+    },
+    bound: [centre[0], centre[1], centre[2], reach + Math.max(...radii)],
+  };
+};
+
 /** How high the top of the figure is (head, hood or hat), in model units above the ground. */
 export function figureTop(spec: FigureSpec): number {
   const head = HEAD_Y * spec.height;
   const k = spec.head;
+  // Antlers rise above a hood or a bare head.
+  if (spec.antlers && (spec.headwear === 'bare' || spec.headwear === 'hood' || spec.headwear === 'cowl')) return head + 4.6 * k;
+  if (spec.feather && spec.headwear === 'brim') return head + 4.3 * k;
   switch (spec.headwear) {
     case 'witch':
       return head + 7.4 * k;
@@ -322,7 +383,16 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   const skin = shaded ? FM.face : FM.faceLit;
   part(C(upper([0, 22 * h, 0]), upper([0, 24 * h, 0.1]), 0.85 * k, 0.8 * k), skin);
   part(S(head, HEAD_RADIUS * k), spec.headwear === 'beak' ? FM.mask : skin);
-  if (spec.beard) part(E(at([0, -1.45, 1.05]), [1.3 * k, 1.25 * k, 1.0 * k]), FM.hair);
+  if (spec.beard && (spec.beardLength ?? 1) > 1) {
+    // A long beard: from the chin down over the chest, narrower at its end.
+    const l = spec.beardLength!;
+    part(C(at([0, -1.3, 1.05]), at([0, -1.3 - 1.9 * (l - 0.6), 1.2 + 0.25 * (l - 1)]), 1.3 * k, 0.75 * k), FM.hair);
+  } else if (spec.beard) part(E(at([0, -1.45, 1.05]), [1.3 * k, 1.25 * k, 1.0 * k]), FM.hair);
+  // A big round nose; tusks from the lower jaw (they show over a short beard).
+  if (spec.nose) part(S(at([0, -0.5, 2.05]), 0.72 * k), skin);
+  if (spec.tusks) {
+    for (const side of [-1, 1]) part(C(at([side * 0.62, -1.55, 1.7]), at([side * 0.8, -0.65, 2.4]), 0.38 * k, 0.18 * k), FM.mask);
+  }
 
   // The face opening of a hood, and the mantle on the shoulders under it.
   const opening = sphere(at([0, -0.3, 2.1]), 1.95 * k);
@@ -395,12 +465,34 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
     for (const side of [-1, 1]) part(C(at([side * 1.7, 1.0, -0.2]), at([side * 3.0, 2.6, -0.6]), 0.55 * k, 0.15 * k), FM.mask);
   }
   if (spec.circlet && (spec.headwear === 'bare' || spec.headwear === 'helm')) part(E(at([0, 0.95, -0.1]), [2.05 * k, 0.28 * k, 2.05 * k]), FM.metal);
+  if (spec.ears && (spec.headwear === 'bare' || spec.headwear === 'brim' || spec.headwear === 'witch')) {
+    // Pointed ears out of the sides of the head, up and back.
+    // The tips reach past the outline of the head (up and back), or they would not show.
+    const tip: Vec3 = spec.ears === 'long' ? [4.0, 2.2, -1.5] : [3.2, 1.25, -0.9];
+    for (const side of [-1, 1]) part(C(at([side * 1.6, -0.2, 0]), at([side * tip[0], tip[1], tip[2]]), 0.62 * k, 0.14 * k), skin);
+  }
+  const openHead = spec.headwear === 'bare' || spec.headwear === 'hood' || spec.headwear === 'cowl';
+  if (spec.horns && openHead) {
+    for (const side of [-1, 1]) part(curve([at([side * 1.1, 1.2, 0.4]), at([side * 1.9, 2.6, 0.1]), at([side * 2.1, 3.5, -0.7])], [0.55 * k, 0.32 * k, 0.12 * k]), FM.mask);
+  }
+  if (spec.antlers && openHead) {
+    for (const side of [-1, 1]) {
+      // A beam up and out, and two tines from it.
+      const base = at([side * 1.0, 1.5, -0.3]);
+      const mid = at([side * 1.9, 3.1, -0.6]);
+      part(curve([base, mid, at([side * 2.7, 4.5, -1.1])], [0.36 * k, 0.26 * k, 0.12 * k]), FM.wood);
+      part(C(mid, at([side * 1.6, 4.2, 0.3]), 0.22 * k, 0.1 * k), FM.wood);
+      part(C(at([side * 1.45, 2.3, -0.45]), at([side * 2.5, 2.9, 0.35]), 0.2 * k, 0.1 * k), FM.wood);
+    }
+  }
+  if (spec.feather && spec.headwear === 'brim') part(C(at([1.8, 1.6, -0.5]), at([3.1, 5.0, -2.4]), 0.62 * k, 0.12 * k), FM.scarf);
 
   // ---------------------------------------------------------------- what it carries
   const right = hands[1]!;
   const weapon = action?.weapon;
   // In an attack the weapon is in the hand: a staff or a lantern moves there; a sword leaves its scabbard.
-  const carried = weapon && (spec.item === 'staff' || spec.item === 'orbstaff' || spec.item === 'lantern') ? 'none' : (spec.item ?? 'none');
+  const inHand = spec.item === 'staff' || spec.item === 'orbstaff' || spec.item === 'lantern' || spec.item === 'axe' || spec.item === 'mace';
+  const carried = weapon && inHand ? 'none' : (spec.item ?? 'none');
   if (weapon?.kind === 'blade') {
     const f = rightForearm;
     // The guard across the blade, then the blade, thin to a point.
@@ -415,6 +507,22 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
     part(C(foot, top, 0.42, 0.42), FM.wood);
     if (weapon.orb) part(S(add(top, scale(d, 1.0)), 1.0), FM.glass);
     else part(S(add(top, scale(d, 0.3)), 0.7), FM.wood);
+  } else if (weapon?.kind === 'axe' || weapon?.kind === 'mace') {
+    // A haft along the forearm; an axe has a wedge of a blade across it at the end, a mace a head.
+    const f = rightForearm;
+    const long = weapon.kind === 'axe';
+    const end = add(right, scale(f, long ? 7.2 : 4.6));
+    // Parts thinner than a radius of about 0.45 fall between the rays: a haft must be this thick.
+    part(C(add(right, scale(f, -1.2)), end, 0.46, 0.44), FM.wood);
+    if (long) {
+      const across = unit(-f[2], 0.35, f[0]);
+      const neck = add(end, scale(f, -0.6));
+      part(C(neck, add(neck, scale(across, 2.1)), 1.35, 0.7), FM.metal);
+      part(C(neck, add(neck, scale(across, -0.9)), 0.55, 0.2), FM.metal);
+    } else {
+      part(S(end, 1.35), FM.metal);
+      part(S(add(end, scale(f, 1.1)), 0.5), FM.metal);
+    }
   } else if (weapon?.kind === 'lantern') {
     const lantern = add(right, add(scale(rightForearm, 1.4), [0, -0.6, 0]));
     part(E(lantern, [0.75, 1.0, 0.75]), FM.glass);
@@ -449,8 +557,65 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
       part(E(add(hip, [0.05, 0.25, 0.15]), [0.9, 0.22, 0.35]), FM.metal);
       break;
     }
+    case 'axe': {
+      // A great axe upright in the right hand, from the knee to above the head, as a staff is
+      // held; the blade near its top, out to the side.
+      const foot = add(right, [0.5, -5.2 * h, 0.4]);
+      const top = add(right, [0.5, 13.5 * h, -0.3]);
+      part(C(foot, top, 0.46, 0.44), FM.wood);
+      const head = add(top, [0, -1.8 * h, 0]);
+      part(C(head, add(head, [2.3, -0.4, 0.15]), 1.55, 0.8), FM.metal);
+      part(C(head, add(head, [-1.0, 0.1, 0]), 0.6, 0.2), FM.metal);
+      break;
+    }
+    case 'mace': {
+      // Upright in the right hand, the head at the height of the chest.
+      const grip = add(right, [0.4, -1.2 * h, 0.35]);
+      const head = add(right, [0.45, 5.4 * h, 0.15]);
+      part(C(grip, head, 0.46, 0.46), FM.wood);
+      part(S(head, 1.4), FM.metal);
+      part(S(add(head, [0, 1.35, 0]), 0.5), FM.metal);
+      break;
+    }
+    case 'dagger': {
+      // In a short sheath at the front of the belt, on the right, the hilt up (unless it is out,
+      // in an attack). At the hip it would hide behind the arm.
+      const hip = up([1.3 * w, 15.2 * h, 1.75 * zs]);
+      part(C(hip, add(hip, [0.7, -3.2 * h, 0.35]), 0.48, 0.34), FM.belt);
+      if (weapon?.kind === 'blade') break;
+      part(C(add(hip, [0, 0.2, 0]), add(hip, [-0.25, 1.45 * h, 0.1]), 0.4, 0.38), FM.metal);
+      part(E(add(hip, [0, 0.25, 0]), [0.9, 0.3, 0.4]), FM.metal);
+      break;
+    }
+    case 'bow': {
+      // In the left hand: a tall curve of wood, its middle out to the side, and its string.
+      const grip = hands[-1]!;
+      const span = 6.6 * h;
+      const points: Vec3[] = [-1, -0.5, 0, 0.5, 1].map((t) => add(grip, [-0.3 - 1.7 * (1 - t * t), span * t, 0.25]));
+      part(curve(points, [0.38, 0.46, 0.55, 0.46, 0.38]), FM.wood);
+      part(C(points[0]!, points[4]!, 0.24, 0.24), FM.mask);
+      break;
+    }
     case 'none':
       break;
+  }
+
+  if (spec.shield) {
+    // On the left forearm, its face out and to the front, a metal boss in the middle.
+    const hand = hands[-1]!;
+    const n = unit(-0.6, 0.12, 0.8);
+    const centre = add(hand, [-0.75, 1.6 * h, 0.75]);
+    const radius = 2.2 + 0.5 * w;
+    part(disc(centre, n, radius, 0.45), FM.cloak);
+    part(S(add(centre, scale(n, 0.45)), 0.6), FM.metal);
+  }
+
+  if (spec.quiver) {
+    // On the back, from the right hip to above the left shoulder, with the fletching out of it.
+    const bottom = upper([1.0 * w, 15.2 * h, -1.9 * zs]);
+    const top = upper([-1.4 * w, 23.2 * h, -2.2 * zs]);
+    part(C(bottom, top, 0.75, 0.85), FM.belt);
+    part(E(add(top, [-0.35, 0.9, -0.1]), [0.75, 0.75, 0.6]), FM.scarf);
   }
 
   if (spec.scarf) {

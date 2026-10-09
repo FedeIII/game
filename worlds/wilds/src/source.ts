@@ -12,9 +12,9 @@ import {
   type Chunk,
   type Fixture,
   type MobRules,
-  type World,
   type WorldSource,
 } from '@game/engine';
+import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
@@ -33,7 +33,10 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
 /** Mobs in the wilds: four imps and two brutes round each player. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
-/** The wilds: endless natural terrain from a seed, with a house in about a third of the cells. */
+/**
+ * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, and
+ * the player's home in the middle (home.ts), where every character starts.
+ */
 export class WildsSource implements WorldSource {
   readonly seed: number;
   private readonly houses = new Map<string, Building | null>();
@@ -47,7 +50,8 @@ export class WildsSource implements WorldSource {
     const key = `${cellX},${cellY}`;
     let house = this.houses.get(key);
     if (house === undefined) {
-      house = generateHouse(this.seed, cellX, cellY, (tx, ty) => naturalGround(this.seed, tx, ty) === Ground.Water);
+      const isWater = (tx: number, ty: number) => naturalGround(this.seed, tx, ty) === Ground.Water;
+      house = cellX === HOME_CELL[0] && cellY === HOME_CELL[1] ? generateHome(isWater) : generateHouse(this.seed, cellX, cellY, isWater);
       this.houses.set(key, house);
     }
     return house;
@@ -64,10 +68,13 @@ export class WildsSource implements WorldSource {
         const tx = cx * CHUNK_SIZE + lx;
         const ty = cy * CHUNK_SIZE + ly;
         const index = ly * CHUNK_SIZE + lx;
-        const ground = naturalGround(this.seed, tx, ty);
         const house = houses.find((h) => nearHouse(h, tx, ty));
+        const natural = naturalGround(this.seed, tx, ty);
+        // The ground of the home is always dry (it stands where it must, see home.ts).
+        const ground = house?.id === HOME_ID && natural === Ground.Water ? Ground.Grass : natural;
         if (house && inRect(house, tx, ty)) {
-          chunk.ground[index] = Ground.Floor;
+          // The home is a hut: packed earth with straw. The other houses have wooden floors.
+          chunk.ground[index] = house.id === HOME_ID ? Ground.FloorEarth : Ground.Floor;
           chunk.structure[index] = structureIn(house, tx, ty);
         } else {
           // A short mud path leads to the door.
@@ -106,8 +113,14 @@ export class WildsSource implements WorldSource {
     return this.buildingsIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter((f) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1));
   }
 
-  spawn(world: World): { x: number; y: number } {
-    return world.findSpawn();
+  /** Inside the home, by the door. */
+  spawn(): { x: number; y: number } {
+    return homeStart(this.home());
+  }
+
+  /** The player's home (home.ts). */
+  home(): Building {
+    return this.house(HOME_CELL[0], HOME_CELL[1])!;
   }
 
   /**

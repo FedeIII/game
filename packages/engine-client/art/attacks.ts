@@ -1,9 +1,10 @@
 /**
- * How each skin attacks. A skin's vibe and item give its attack style; each style has four poses
+ * How each skin attacks. A skin's class and item give its attack style; each style has four poses
  * of the figure (a short wind-up, the blow, the follow-through, the return) and an effect in the
  * game (fx.ts). All attacks reach as far (the engine decides the hits); only the look differs.
  * No Node imports: the browser renders skins with it.
  */
+import type { CharacterClass } from '@game/engine';
 import type { FigureAction, FigureSpec, Weapon } from './figure.ts';
 import type { Vec3 } from './sdf.ts';
 
@@ -19,11 +20,22 @@ export const ATTACK_STYLES: readonly AttackStyle[] = ['slash', 'thrust', 'bash',
 /** Frames of an attack in a sheet. */
 export const ATTACK_FRAMES = 4;
 
-/** The style of a skin, from its vibe and what it carries. */
-export function attackStyle(vibe: string, spec: FigureSpec): AttackStyle {
+/**
+ * The style of a skin, from its class and what it carries. Fighters, paladins, barbarians (an
+ * axe or a sword) and clerics (a mace) slash; bards (a rapier), rogues and rangers (a dagger)
+ * thrust; a staff bashes and an orb staff casts a spell; sorcerers and warlocks cast from the
+ * hands too; monks strike with the palm. A lantern throws flame.
+ */
+export function attackStyle(cls: CharacterClass, spec: FigureSpec): AttackStyle {
   switch (spec.item ?? 'none') {
     case 'sword':
-      return vibe === 'noble' ? 'thrust' : 'slash';
+      return cls === 'bard' ? 'thrust' : 'slash';
+    case 'axe':
+    case 'mace':
+      return 'slash';
+    case 'dagger':
+    case 'bow':
+      return 'thrust';
     case 'staff':
       return 'bash';
     case 'orbstaff':
@@ -31,11 +43,10 @@ export function attackStyle(vibe: string, spec: FigureSpec): AttackStyle {
     case 'lantern':
       return 'flame';
     default:
-      if (vibe === 'witch') return 'spell';
-      if (vibe === 'monk') return 'palm';
-      if (vibe === 'plague doctor') return 'miasma';
-      if (vibe === 'ranger' || vibe === 'noble') return 'thrust';
-      if (vibe === 'knight') return 'slash';
+      if (cls === 'sorcerer' || cls === 'warlock' || cls === 'wizard' || cls === 'druid') return 'spell';
+      if (cls === 'monk') return 'palm';
+      if (cls === 'rogue' || cls === 'ranger' || cls === 'bard') return 'thrust';
+      if (cls === 'fighter' || cls === 'paladin' || cls === 'barbarian' || cls === 'cleric') return 'slash';
       return 'punch';
   }
 }
@@ -182,7 +193,7 @@ export function attackAction(style: AttackStyle, frame: number, spec: FigureSpec
   const left = poses.left === 'mirror' ? mirror(right) : poses.left?.[frame];
   let weapon: Weapon | undefined;
   const item = spec.item ?? 'none';
-  if (style === 'slash') weapon = { kind: 'blade', length: 8.5, width: 0.42 };
+  if (style === 'slash') weapon = item === 'axe' ? { kind: 'axe' } : item === 'mace' ? { kind: 'mace' } : { kind: 'blade', length: 8.5, width: 0.42 };
   else if (style === 'thrust') weapon = item === 'sword' ? { kind: 'blade', length: 10, width: 0.3 } : { kind: 'blade', length: 3.6, width: 0.34 };
   else if ((style === 'bash' || style === 'spell') && (item === 'staff' || item === 'orbstaff')) weapon = { kind: 'staff', dir: poses.staff![frame]!, orb: item === 'orbstaff' };
   else if (style === 'flame') weapon = { kind: 'lantern' };

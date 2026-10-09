@@ -6,7 +6,7 @@
     "dev": "npm run art -w @game/engine-client && vite",
     "build": "npm run art -w @game/engine-client && vite build",
     "preview": "vite preview",
-    "server": "PORT=${PORT:-3020} ORIGINS=http://127.0.0.1:3019,http://localhost:3019,http://127.0.0.1:4173,http://localhost:4173 node server/main.ts"
+    "server": "PORT=${PORT:-3020} ORIGINS=http://localhost:3019,http://127.0.0.1:3019,http://localhost:4173,http://127.0.0.1:4173 PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-http://localhost:3019} GAME_DB=${GAME_DB:-../../.dev-data/game.db} AUTH_DEV_LOGIN=${AUTH_DEV_LOGIN:-1} ENV_FILE=${ENV_FILE:-../../.env.local} node server/main.ts"
   },
   "dependencies": {
     "@game/engine-client": "*",

@@ -1,0 +1,8 @@
+# The nightly copy of the accounts database of game.azyr.io (scripts/backup-db.ts).
+# Install: see deploy/README.md, "Accounts".
+[Unit]
+Description=Back up the game.azyr.io accounts database
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/node /opt/game/scripts/backup-db.ts /var/lib/game/game.db /var/backups/game 14

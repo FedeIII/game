@@ -8,17 +8,26 @@ import {
   Room,
   SNAPSHOT_RATE,
   World,
+  characterSkin,
   parseClientMessage,
   type ClientMessage,
   type RefusalReason,
   type ServerMessage,
   type WorldDefinition,
 } from '@game/engine';
+import { Accounts, type AccountsOptions } from './accounts.ts';
+import type { User } from './store.ts';
+
+export { Accounts, type AccountsOptions } from './accounts.ts';
+export { AccountStore, type User } from './store.ts';
+export type { GoogleConfig } from './google.ts';
 
 /**
  * The multiplayer server of the engine: one Room for each world of the application that has
  * `multiplayer: true`, behind one WebSocket endpoint, /ws. It runs in Node, behind nginx (which
- * terminates TLS and sets X-Forwarded-For). See docs/multiplayer.md.
+ * terminates TLS and sets X-Forwarded-For). See docs/multiplayer.md. With `accounts`, it also
+ * answers /api/ and /auth/ (accounts.ts), and a player in a shared world must be signed in and
+ * play one of its own characters.
  */
 
 export interface ServerOptions {
@@ -36,6 +45,8 @@ export interface ServerOptions {
   readonly maxPlayers?: number;
   /** Connections from one address (tabs, people behind one router). Default 8. */
   readonly maxPerAddress?: number;
+  /** Accounts, sessions and characters (accounts.ts). Without it: no /api/ and no /auth/. */
+  readonly accounts?: AccountsOptions;
   readonly log?: (line: string) => void;
 }
 
@@ -44,6 +55,8 @@ export interface GameServer {
   readonly port: number;
   /** The number of players in each multiplayer world. */
   players(): Record<string, number>;
+  /** The accounts, if the server has them. */
+  readonly accounts: Accounts | null;
   /** Closes every connection (code 1012: the clients come back) and stops. */
   close(): Promise<void>;
 }
@@ -60,6 +73,8 @@ const TRIM_INTERVAL_MS = 10_000;
 
 interface Client {
   readonly ip: string;
+  /** The signed-in user of the connection (its session cookie), on a server with accounts. */
+  readonly user: User | null;
   room: Room | null;
   world: string;
   playerId: number;
@@ -95,6 +110,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
   const perAddress = new Map<string, number>();
   const clients = new Map<WebSocket, Client>();
   const players = () => Object.fromEntries([...rooms].map(([id, room]) => [id, room.size]));
+  const accounts = options.accounts ? new Accounts(options.accounts, options.origins, log) : null;
 
   const send = (socket: WebSocket, message: ServerMessage) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -103,11 +119,24 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
   const http = createServer((request, response) => {
     if (request.method === 'GET' && request.url === '/healthz') {
       response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      response.end(JSON.stringify({ ok: true, protocol: PROTOCOL_VERSION, players: players() }));
+      response.end(JSON.stringify({ ok: true, protocol: PROTOCOL_VERSION, players: players(), accounts: accounts !== null }));
       return;
     }
-    response.writeHead(404, { 'content-type': 'text/plain' });
-    response.end('not found\n');
+    const notFound = () => {
+      response.writeHead(404, { 'content-type': 'text/plain' });
+      response.end('not found\n');
+    };
+    if (!accounts) return notFound();
+    accounts.handle(request, response).then(
+      (answered) => {
+        if (!answered) notFound();
+      },
+      (error: unknown) => {
+        log(`http: ${(error as Error).stack ?? String(error)}`);
+        if (!response.headersSent) response.writeHead(500);
+        response.end();
+      },
+    );
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
 
@@ -119,12 +148,14 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     if (pathname !== '/ws') return reject('404 Not Found');
     // Only the game's own pages: another site must not make its visitors connect here.
     if (options.origins && !options.origins.includes(String(request.headers.origin ?? ''))) return reject('403 Forbidden');
-    wss.handleUpgrade(request, socket, head, (ws) => connected(ws, addressOf(request)));
+    // The session cookie comes with the upgrade (the page and /ws have one origin).
+    const user = accounts?.userOf(request) ?? null;
+    wss.handleUpgrade(request, socket, head, (ws) => connected(ws, addressOf(request), user));
   });
 
-  function connected(socket: WebSocket, ip: string): void {
+  function connected(socket: WebSocket, ip: string, user: User | null): void {
     perAddress.set(ip, (perAddress.get(ip) ?? 0) + 1);
-    const client: Client = { ip, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
+    const client: Client = { ip, user, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
     clients.set(socket, client);
     const helloTimer = setTimeout(() => {
       if (!client.room) socket.close(4000, 'no hello');
@@ -163,7 +194,16 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       const room = rooms.get(message.world);
       if (!room) return refuse('world');
       if ((perAddress.get(client.ip) ?? 0) > maxPerAddress) return refuse('busy');
-      const player = room.join(t, message.skin, message.at, message.name);
+      let skin = message.skin;
+      let name = message.name;
+      if (accounts) {
+        // The look and the name of a player come from its stored character, not from the client.
+        const character = client.user && message.character ? accounts.characterOf(client.user, message.character) : null;
+        if (!character) return refuse('account');
+        skin = characterSkin(character);
+        name = character.name;
+      }
+      const player = room.join(t, skin, message.at, name);
       if (!player) return refuse('full');
       client.room = room;
       client.world = message.world;
@@ -174,8 +214,9 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       return;
     }
     if (!client.room) return socket.close(1008, 'no hello');
-    if (message.t === 'skin') return client.room.setSkin(client.playerId, message.skin, t);
-    if (message.t === 'name') return client.room.setName(client.playerId, message.name);
+    // With accounts, the character decides the look and the name: a change is ignored.
+    if (message.t === 'skin') return accounts ? undefined : client.room.setSkin(client.playerId, message.skin, t);
+    if (message.t === 'name') return accounts ? undefined : client.room.setName(client.playerId, message.name);
     client.room.input(client.playerId, message, t);
   }
 
@@ -229,11 +270,16 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     http.listen(options.port, options.host ?? '127.0.0.1', () => resolve());
   });
   const port = (http.address() as AddressInfo).port;
-  log(`listening on ${options.host ?? '127.0.0.1'}:${port}, worlds: ${[...rooms.keys()].join(', ') || 'none'}`);
+  log(
+    `listening on ${options.host ?? '127.0.0.1'}:${port}, worlds: ${[...rooms.keys()].join(', ') || 'none'}, accounts: ${
+      accounts ? `on (${[options.accounts?.google ? 'google' : '', options.accounts?.devLogin ? 'dev' : ''].filter(Boolean).join(', ') || 'no sign-in'})` : 'off'
+    }`,
+  );
 
   return {
     port,
     players,
+    accounts,
     async close() {
       clearInterval(snapshots);
       clearInterval(heartbeat);
@@ -244,6 +290,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       for (const socket of clients.keys()) socket.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       await new Promise<void>((resolve) => http.close(() => resolve()));
+      accounts?.close();
     },
   };
 }

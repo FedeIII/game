@@ -3,9 +3,11 @@
 A pixel-art game engine for the browser, and the applications on it. Live at
 https://game.azyr.io, with one world:
 
-- **The Wilds**: a dark, endless forest in the mood of Diablo and Castlevania. A hooded figure
-  walks in a radius of torch light; stone houses stand in the woods: open the door, step in,
-  and the roof fades away to show the room. Mobs live in the woods: quick little imps and slow
+- **The Wilds**: a dark, endless forest in the mood of Diablo and Castlevania. Sign in with
+  Google, make a character (one of seven races and twelve classes of D&D 5e, a gender, a name,
+  a look of its own, and ability scores by point buy) or continue with one, and wake up in your
+  hut in the middle of the woods. Your figure walks in a radius of torch light; stone houses
+  stand in the woods: open the door, step in, and the roof fades away to show the room. Mobs live in the woods: quick little imps and slow
   brutes with clubs. They run at you on a curve; a hit stuns you for a moment. One blow of yours
   kills an imp; a brute takes three, and each one throws it back.
 
@@ -20,11 +22,11 @@ poison cloud, a palm strike or a punch), and every attack reaches as far.
 
 ```bash
 npm install
-scripts/dev.sh     # server + page, http://127.0.0.1:3019, the Wilds shared (play button in Cursor)
-npm run dev        # http://127.0.0.1:3019
+scripts/dev.sh     # server + page, http://localhost:3019, dev sign-in, the Wilds shared (play button in Cursor)
+npm run dev        # the page only, http://localhost:3019 (with npm run server for the menu)
 npm run check      # type check + tests
 npm run build      # production build in apps/game/dist
-npm run server     # the multiplayer server (for shared worlds; none in production now), port 3020
+npm run server     # the game server (accounts, dev sign-in, shared worlds), port 3020
 ```
 
 Debug panel: press F3, or open `/?debug`. Other switches: `/?seed=42` (the

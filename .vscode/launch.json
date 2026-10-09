@@ -11,7 +11,7 @@
 			"name": "Browser: player 1",
 			"type": "chrome",
 			"request": "launch",
-			"url": "http://127.0.0.1:3019/",
+			"url": "http://localhost:3019/",
 			"webRoot": "${workspaceFolder}/apps/game",
 			"preLaunchTask": "dev",
 			// Vite serves the files outside apps/game (the packages) under /@fs/.
@@ -27,7 +27,7 @@
 			"name": "Browser: player 2",
 			"type": "chrome",
 			"request": "launch",
-			"url": "http://127.0.0.1:3019/",
+			"url": "http://localhost:3019/",
 			"webRoot": "${workspaceFolder}/apps/game",
 			"userDataDir": "${workspaceFolder}/.vscode/.chrome/player-2",
 			"preLaunchTask": "dev",

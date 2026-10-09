@@ -11,13 +11,16 @@ function commit(): string {
 }
 
 /**
- * The multiplayer server for `npm run dev` and `npm run preview`: /ws goes to it, as nginx does in
- * production. Start it with `npm run server` (port 3020; it allows the local origins). GAME_SERVER
- * points elsewhere, for example at a test server on another port. The development ports (3019 and
+ * The game server for `npm run dev` and `npm run preview`: /api/, /auth/ and /ws go to it, as nginx
+ * does in production. Start it with `npm run server` (port 3020; it allows the local origins), or
+ * use scripts/dev.sh. GAME_SERVER points elsewhere, for example at a test server on another port. The development ports (3019 and
  * 3020) are not production's 3008, and on the laptop no other project uses them
  * (~/Projects/LOCAL_PORTS.md).
  */
-const wsProxy = { '/ws': { target: process.env.GAME_SERVER ?? 'ws://127.0.0.1:3020', ws: true } };
+const gameServer = process.env.GAME_SERVER ?? 'ws://127.0.0.1:3020';
+// The accounts and the characters (/api/, /auth/) are on the same server, over HTTP.
+const gameHttp = gameServer.replace(/^ws/, 'http');
+const wsProxy = { '/ws': { target: gameServer, ws: true }, '/api': { target: gameHttp }, '/auth': { target: gameHttp } };
 
 export default defineConfig({
   define: {

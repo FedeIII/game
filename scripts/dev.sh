@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 #
-# The local dev environment of the game: the multiplayer server (it restarts when its code
-# changes) and the Vite dev server of the page. The page sends /ws to the server through Vite, as
-# nginx does in production. The Wilds are shared here (SHARED_WORLDS=wilds), so two browser
-# profiles see each other. The game keeps no state on disk, so there is no database to start.
+# The local dev environment of the game: the game server (accounts, characters and the shared
+# worlds; it restarts when its code changes) and the Vite dev server of the page. The page sends
+# /api/, /auth/ and /ws to the server through Vite, as nginx does in production. The Wilds are
+# shared here (SHARED_WORLDS=wilds), so two browser profiles see each other.
+#
+# The database is a SQLite file in the server process (.dev-data/game.db), so there is no database
+# server to start. The menu has a dev sign-in (a name only). For the real sign-in with Google, put
+# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local (see deploy/README.md). Open the page at
+# http://localhost:3019 (not 127.0.0.1): Google sends the visitor back to that name, and the
+# session cookie belongs to it.
 #
 #   scripts/dev.sh               server + page, and open a browser
 #   scripts/dev.sh --solo        share no world: single-player, as on game.azyr.io now
@@ -168,8 +174,10 @@ export SHARED_WORLDS="$SHARED"
 if [ "$run_server" -eq 1 ]; then
 	server_args=(--watch)
 	[ "$inspect" -eq 0 ] || server_args+=(--inspect="127.0.0.1:$INSPECT_PORT")
+	mkdir -p .dev-data
 	start server "$BLUE" env PORT="$SERVER_PORT" \
-		ORIGINS="http://127.0.0.1:$PAGE_PORT,http://localhost:$PAGE_PORT,http://127.0.0.1:4173,http://localhost:4173" \
+		ORIGINS="http://localhost:$PAGE_PORT,http://127.0.0.1:$PAGE_PORT,http://localhost:4173,http://127.0.0.1:4173" \
+		PUBLIC_ORIGIN="http://localhost:$PAGE_PORT" GAME_DB=.dev-data/game.db AUTH_DEV_LOGIN=1 ENV_FILE=.env.local \
 		node "${server_args[@]}" apps/game/server/main.ts
 fi
 # The Vite config sets the port (strictPort) and sends /ws to the server.
@@ -194,7 +202,7 @@ for i in $(seq 1 120); do
 	sleep 0.5
 done
 
-URL="http://127.0.0.1:$PAGE_PORT/"
+URL="http://localhost:$PAGE_PORT/"
 note "shared worlds: ${SHARED:-none (single-player)}"
 [ "$inspect" -eq 0 ] || note "server inspector: 127.0.0.1:$INSPECT_PORT"
 # The last line of the start: the tasks in .vscode/tasks.json wait for it (endsPattern). It must

@@ -1,5 +1,5 @@
-# game.azyr.io: the browser game. Static files, and /ws for the multiplayer server (PM2:
-# game-server on 127.0.0.1:3008).
+# game.azyr.io: the browser game. Static files; /api/ and /auth/ (accounts and characters) and
+# /ws (the multiplayer server) go to the game server (PM2: game-server on 127.0.0.1:3008).
 #
 # Install as /etc/nginx/sites-available/game.azyr.io (NO .conf extension, which is the
 # convention on this box) and symlink it into sites-enabled. See deploy/README.md.
@@ -64,6 +64,20 @@ server {
 		proxy_set_header X-Forwarded-For $remote_addr;
 
 		# A websocket must never be cached, whatever a Cloudflare rule might say.
+		proxy_cache_bypass 1;
+	}
+
+	# Accounts and characters (since 2026-10-09): the JSON API and the sign-in with Google. The
+	# server sets Cache-Control: no-store on every answer. The security headers of the server
+	# block apply here, because this location sets none of its own.
+	location ~ ^/(api|auth)/ {
+		proxy_pass http://127.0.0.1:3008;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		# SET, as for /ws.
+		proxy_set_header X-Forwarded-For $remote_addr;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_read_timeout 30s;
 		proxy_cache_bypass 1;
 	}
 

@@ -10,7 +10,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -36,6 +36,9 @@ export const SKIN_MAX = 0xffffffff;
 
 /** The longest name, in characters. */
 export const NAME_MAX = 16;
+
+/** The id of a stored character (an account's): lowercase letters and digits. */
+export const CHARACTER_ID = /^[a-z0-9]{8,40}$/;
 
 /**
  * A name as every visitor sees it: Latin letters (with accents), digits, spaces and ' . _ -
@@ -82,7 +85,11 @@ export function fromWireInput(wire: WireInput): MoveInput {
 
 // ---------------------------------------------------------------- client to server
 
-/** The first message: which world, the player's skin and name, and (optionally) the tile to start on. */
+/**
+ * The first message: which world, the player's skin and name, and (optionally) the tile to start
+ * on. On a server with accounts, `character` names the account's character to play: the server
+ * then takes the skin and the name from the stored character, not from the message.
+ */
 export interface HelloMessage {
   readonly t: 'hello';
   readonly v: number;
@@ -91,6 +98,8 @@ export interface HelloMessage {
   readonly at?: readonly [number, number];
   /** Cleaned (cleanName); '' for no name. */
   readonly name?: string;
+  /** A character id (CHARACTER_ID). */
+  readonly character?: string;
 }
 
 /**
@@ -219,7 +228,8 @@ export interface SnapshotMessage {
 export type WireNpc = readonly [number, number, number, number, number];
 
 /** Why the server does not let a client in. The client then plays alone. */
-export type RefusalReason = 'version' | 'world' | 'full' | 'busy';
+/** `account`: the server has accounts, and the visitor is not signed in or the character is not its own. */
+export type RefusalReason = 'version' | 'world' | 'full' | 'busy' | 'account';
 
 export interface RefusedMessage {
   readonly t: 'refused';
@@ -265,7 +275,16 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (m.at !== undefined && !isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return null;
       if (m.name !== undefined && (typeof m.name !== 'string' || m.name.length > 4 * NAME_MAX)) return null;
       const name = typeof m.name === 'string' ? cleanName(m.name) : '';
-      return m.at === undefined ? { t: 'hello', v: m.v, world: m.world, skin, name } : { t: 'hello', v: m.v, world: m.world, skin, at: m.at, name };
+      if (m.character !== undefined && (typeof m.character !== 'string' || !CHARACTER_ID.test(m.character))) return null;
+      return {
+        t: 'hello',
+        v: m.v,
+        world: m.world,
+        skin,
+        name,
+        ...(m.at === undefined ? {} : { at: m.at as [number, number] }),
+        ...(m.character === undefined ? {} : { character: m.character }),
+      };
     }
     case 'in': {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;

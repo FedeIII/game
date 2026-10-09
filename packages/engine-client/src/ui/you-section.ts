@@ -1,27 +1,33 @@
-import { NAME_MAX } from '@game/engine';
+import { ABILITIES, type Scores } from '@game/engine';
 import { SKIN_PORTRAIT } from '../../art/skins.ts';
 import { STRINGS } from './strings.ts';
 
+export interface YouInfo {
+  /** The name over the player's head. */
+  readonly name: string;
+  /** What the character is: "Dwarf fighter". */
+  readonly kind: string;
+  /** The final ability scores, for a character of an account. */
+  readonly scores?: Scores;
+  /** Whether the character belongs to an account (else it is a guest: nothing is saved). */
+  readonly account: boolean;
+}
+
 export interface YouCallbacks {
-  /** The visitor asks for a new random look. */
-  onNewLook(): void;
-  /** The visitor wrote a name (not cleaned yet). */
-  onName(name: string): void;
+  /** Back to the menu: another character, or a new game. */
+  mainMenu(): void;
+  signOut(): void;
 }
 
 /**
- * The "You" section of the settings panel: a picture of the visitor's look (the skin, standing,
- * facing south), the kind of figure it is, a button for a new random look, and the name that
- * the other visitors see over the visitor's head.
+ * The "You" section of the settings panel: a picture of the character (standing, facing south),
+ * its name, race and class, its ability scores, and the way back to the menu.
  */
 export class YouSection {
   readonly element: HTMLElement;
   private readonly preview: HTMLCanvasElement;
-  private readonly kind: HTMLElement;
-  private readonly button: HTMLButtonElement;
-  private readonly input: HTMLInputElement;
 
-  constructor(name: string, callbacks: YouCallbacks) {
+  constructor(info: YouInfo, callbacks: YouCallbacks) {
     const text = STRINGS.you;
     this.element = document.createElement('div');
     this.element.className = 'settings-you';
@@ -37,66 +43,60 @@ export class YouSection {
     this.preview.width = SKIN_PORTRAIT.width;
     this.preview.height = SKIN_PORTRAIT.height;
     this.preview.setAttribute('aria-hidden', 'true');
-    const info = document.createElement('div');
-    info.className = 'you-info';
-    this.kind = document.createElement('span');
-    this.kind.className = 'you-kind';
-    this.button = document.createElement('button');
-    this.button.type = 'button';
-    this.button.className = 'settings-small';
-    this.button.textContent = text.newLook;
-    this.button.addEventListener('click', () => callbacks.onNewLook());
-    info.append(this.kind, this.button);
-    row.append(this.preview, info);
+    const about = document.createElement('div');
+    about.className = 'you-info';
+    const name = document.createElement('span');
+    name.className = 'you-name';
+    name.textContent = info.name;
+    const kind = document.createElement('span');
+    kind.className = 'you-kind';
+    kind.textContent = info.account ? info.kind : `${info.kind} · ${text.guest}`;
+    about.append(name, kind);
+    if (info.scores) {
+      const scores = document.createElement('dl');
+      scores.className = 'you-scores';
+      for (const ability of ABILITIES) {
+        const term = document.createElement('dt');
+        const abbr = document.createElement('abbr');
+        abbr.title = STRINGS.abilities[ability].name;
+        abbr.textContent = STRINGS.abilities[ability].short;
+        term.append(abbr);
+        const value = document.createElement('dd');
+        value.textContent = String(info.scores[ability]);
+        scores.append(term, value);
+      }
+      about.append(scores);
+    }
+    row.append(this.preview, about);
 
-    const label = document.createElement('label');
-    label.className = 'you-name';
-    const caption = document.createElement('span');
-    caption.textContent = text.name;
-    this.input = document.createElement('input');
-    this.input.type = 'text';
-    this.input.maxLength = NAME_MAX;
-    this.input.placeholder = text.noName;
-    this.input.autocomplete = 'off';
-    this.input.spellcheck = false;
-    this.input.value = name;
-    this.input.setAttribute('aria-describedby', 'you-name-hint');
-    // A name applies when the visitor leaves the field or presses Enter.
-    this.input.addEventListener('change', () => callbacks.onName(this.input.value));
-    this.input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') this.input.blur();
-    });
-    label.append(caption, this.input);
-    const hint = document.createElement('p');
-    hint.id = 'you-name-hint';
-    hint.className = 'you-hint';
-    hint.textContent = text.nameHint;
+    const actions = document.createElement('div');
+    actions.className = 'you-actions';
+    const menu = document.createElement('button');
+    menu.type = 'button';
+    menu.className = 'settings-small';
+    menu.textContent = text.mainMenu;
+    menu.addEventListener('click', () => callbacks.mainMenu());
+    actions.append(menu);
+    if (info.account) {
+      const out = document.createElement('button');
+      out.type = 'button';
+      out.className = 'settings-small';
+      out.textContent = text.signOut;
+      out.addEventListener('click', () => {
+        out.disabled = true;
+        callbacks.signOut();
+      });
+      actions.append(out);
+    }
 
-    this.element.append(heading, row, label, hint);
+    this.element.append(heading, row, actions);
   }
 
-  /** Shows a look: the standing frame of its sheet, and what kind of figure it is. */
-  showLook(sheet: HTMLCanvasElement | null, kind: string): void {
+  /** Shows the look: the standing frame of its sheet. */
+  showLook(sheet: HTMLCanvasElement | null): void {
     const context = this.preview.getContext('2d')!;
     context.clearRect(0, 0, this.preview.width, this.preview.height);
     const { x, y, width, height } = SKIN_PORTRAIT;
     if (sheet) context.drawImage(sheet, x, y, width, height, 0, 0, width, height);
-    this.kind.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
-  }
-
-  /** While a new look is drawn, the button waits. */
-  setBusy(busy: boolean): void {
-    this.button.disabled = busy;
-    this.button.textContent = busy ? STRINGS.you.drawing : STRINGS.you.newLook;
-  }
-
-  /** Shows the name as it was saved (cleaned). */
-  setName(name: string): void {
-    this.input.value = name;
-  }
-
-  /** The name of the look, in the empty field: the name that the visitor has while it chooses none. */
-  setLookName(name: string): void {
-    this.input.placeholder = name;
   }
 }

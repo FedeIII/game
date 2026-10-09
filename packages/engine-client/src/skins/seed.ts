@@ -1,12 +1,13 @@
-import { cleanName, isSkin } from '@game/engine';
+import { isSkin } from '@game/engine';
 
-/** Where the browser keeps its skin seed: the same skin on every visit. */
+/** Where the browser keeps the skin seed of a guest (?nomenu): the same look on every visit. */
 const KEY = 'game.skin.v1';
 
 /**
- * The skin seed of this visitor. ?skin=<n> shows another skin (for tests and previews) and does
- * not change the saved one. Without a saved seed, a new random one is made and saved. If the
- * browser keeps no storage, the visitor gets a new skin on each visit.
+ * The skin seed of a guest. ?skin=<n> shows another skin (for tests and previews) and does not
+ * change the saved one. Without a saved seed, a new random one is made and saved. If the browser
+ * keeps no storage, the guest gets a new skin on each visit. A character of an account has the
+ * look of its sheet instead (characterSkin()).
  */
 export function skinSeed(params: URLSearchParams): number {
   const forced = Number(params.get('skin'));
@@ -24,39 +25,4 @@ export function skinSeed(params: URLSearchParams): number {
     // As above.
   }
   return seed;
-}
-
-/** A new random skin for this visitor, saved for the next visits (the "New look" button). */
-export function newSkinSeed(): number {
-  const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
-  try {
-    localStorage.setItem(KEY, String(seed));
-  } catch {
-    // No storage: the new skin lasts until the page closes.
-  }
-  return seed;
-}
-
-/** Where the browser keeps the visitor's name. */
-const NAME_KEY = 'game.name.v1';
-
-/** The visitor's saved name (cleaned), or '' for none. */
-export function savedName(): string {
-  try {
-    return cleanName(localStorage.getItem(NAME_KEY) ?? '');
-  } catch {
-    return '';
-  }
-}
-
-/** Saves the visitor's name (cleaned) and returns it as saved. */
-export function saveName(name: string): string {
-  const clean = cleanName(name);
-  try {
-    if (clean) localStorage.setItem(NAME_KEY, clean);
-    else localStorage.removeItem(NAME_KEY);
-  } catch {
-    // No storage: the name lasts until the page closes.
-  }
-  return clean;
 }

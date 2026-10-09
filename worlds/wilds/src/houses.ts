@@ -7,7 +7,10 @@ import { fixtureTiles, hash01, hash2, random, type Building, type Fixture } from
  */
 export const BUILDING_CELL = 24;
 
-/** The chance that a cell has a house. The cell at (0, 0), next to the spawn, always tries. */
+/**
+ * The chance that a cell has a house. The cell at (0, 0) has the player's home (home.ts) instead,
+ * and the cell east of it always tries, so a house stands near the home.
+ */
 const BUILDING_CHANCE = 0.35;
 /** Tiles between a house and the edge of its cell. */
 const CELL_MARGIN = 2;
@@ -78,7 +81,7 @@ export const CANDLE = { radius: 48, colour: 0xffa850, x: 8, y: -24 } as const;
  * with water right round it, or with water on the approach to its door.
  */
 export function generateHouse(seed: number, cellX: number, cellY: number, isWater: (tx: number, ty: number) => boolean): Building | null {
-  const forced = cellX === 0 && cellY === 0;
+  const forced = cellX === 1 && cellY === 0;
   if (!forced && hash01(cellX, cellY, seed + SEED_OFFSET) >= BUILDING_CHANCE) return null;
   const rand = random(hash2(cellX, cellY, seed + SEED_OFFSET + 1));
   const width = 7 + Math.floor(rand() * 5);

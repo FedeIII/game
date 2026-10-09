@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Builds the client, restarts the multiplayer server, and publishes the client to the nginx web
-# root. Run it on the box. It deploys the working tree as it is, so check out the commit you
-# want first.
+# Builds the client, restarts the game server, and publishes the client to the nginx web root.
+# Run it on the VPS. It deploys the working tree as it is, so check out the commit you want first.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -11,6 +10,23 @@ DIST=apps/game/dist
 # The local dev switch (scripts/dev.sh) must not reach production: the build reads it, and
 # `pm2 startOrReload --update-env` gives the shell's environment to game-server.
 unset SHARED_WORLDS
+
+# Accounts (since 2026-10-09): the server does not start without its Google client, and the page
+# cannot sign in without the nginx routes. Check them before anything changes (deploy/README.md,
+# "Accounts").
+SECRETS="${SECRETS:-/etc/game/secret.env}"
+SITE="${SITE:-/etc/nginx/sites-available/game.azyr.io}"
+echo "==> Preflight"
+for key in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+	if ! grep -q "^$key=." "$SECRETS" 2> /dev/null; then
+		echo "    ERROR: $SECRETS has no $key (see deploy/README.md, \"Accounts\")"
+		exit 1
+	fi
+done
+if ! grep -q '(api|auth)' "$SITE" 2> /dev/null; then
+	echo "    ERROR: the nginx site $SITE does not send /api/ and /auth/ to the server (see deploy/README.md)"
+	exit 1
+fi
 
 echo "==> Commit $(git describe --always --dirty)"
 if [ -n "$(git status --porcelain)" ]; then

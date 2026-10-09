@@ -6,4 +6,5 @@ declare const __SHARED_WORLDS__: string;
 
 // game.azyr.io: the game. Only this site serves this page; azyr.io has the Town of Azyr, from
 // its own copy of the engine (the branch town).
-startGame({ worlds: shareWorlds(WORLDS, __SHARED_WORLDS__), defaultWorld: DEFAULT_WORLD, title: 'game.azyr.io' });
+// It has accounts (the server's /api/ and /auth/): the menu comes first.
+startGame({ worlds: shareWorlds(WORLDS, __SHARED_WORLDS__), defaultWorld: DEFAULT_WORLD, title: 'game.azyr.io', accounts: true });

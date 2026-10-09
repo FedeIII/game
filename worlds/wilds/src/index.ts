@@ -2,6 +2,7 @@ import type { WorldDefinition } from '@game/engine';
 import { WildsSource } from './source.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
+export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { WildsSource } from './source.ts';
 
 /** The seed of the wilds when the URL gives none. */

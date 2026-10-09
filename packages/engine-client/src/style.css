@@ -16,6 +16,15 @@
   --ui-serif: Georgia, 'Times New Roman', serif;
   --ui-mono: ui-monospace, Menlo, Consolas, monospace;
   --ui-margin: 28px; /* from the screen edge, for the controls at the bottom */
+  --ui-backdrop: #08090b; /* the page behind the game and the menu */
+  --ui-menu-glow: rgb(122 48 46 / 0.14); /* the faint red light behind the menu */
+  --ui-portrait: #1a1614; /* behind a picture of a skin */
+  --ui-portrait-light: #34302b; /* the faint light behind a figure in the menu, so a dark look reads */
+  /* Google's dark "Sign in with Google" button (its branding guidelines). */
+  --google-fill: #131314;
+  --google-stroke: #8e918f;
+  --google-ink: #e3e3e3;
+  --google-font: Roboto, Arial, sans-serif;
   --stick-radius: 52px; /* Must agree with STICK_RADIUS in src/input/joystick.ts. */
 }
 
@@ -24,7 +33,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #08090b;
+  background: var(--ui-backdrop);
   color: var(--ui-ink);
   font: 14px/1.4 var(--ui-mono);
   /* No scroll, pull-to-refresh, text selection or callout menu on a long press. */
@@ -583,7 +592,7 @@ body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
   height: 96px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
-  background: #1a1614;
+  background: var(--ui-portrait);
   image-rendering: pixelated;
 }
 
@@ -594,9 +603,38 @@ body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
   gap: 8px;
 }
 
+.you-name {
+  font-size: 16px;
+}
+
 .you-kind {
-  font-size: 14px;
+  font-size: 13px;
+  font-style: italic;
   opacity: 0.85;
+}
+
+.you-scores {
+  display: grid;
+  grid-template-columns: repeat(3, auto auto);
+  gap: 0 6px;
+  margin: 2px 0 0;
+  font: 12px var(--ui-mono);
+}
+
+.you-scores dt abbr {
+  text-decoration: none;
+  opacity: 0.65;
+}
+
+.you-scores dd {
+  margin: 0 6px 0 0;
+}
+
+.you-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .settings-small:disabled {
@@ -604,27 +642,537 @@ body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
   cursor: wait;
 }
 
-.you-name {
+/* ---------------------------------------------------------------- menu (before the game) */
+
+/* Over the whole page, and it scrolls on a small screen (the page itself never scrolls). */
+#menu {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  place-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
+  background: radial-gradient(ellipse at 50% 35%, var(--ui-menu-glow) 0%, transparent 65%), var(--ui-backdrop);
+  font: 15px/1.45 var(--ui-serif);
+  transition: opacity 0.4s;
 }
 
-.you-name input {
+#menu.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.menu-panel {
+  box-sizing: border-box;
+  width: min(600px, 100%);
+  padding: 18px 22px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel);
+}
+
+.menu-head {
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.menu-name {
+  margin: 0;
+  font: italic 34px/1.1 var(--ui-serif);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 18px var(--ui-accent-glow);
+}
+
+.menu-site {
+  margin: 4px 0 0;
+  font: 12px var(--ui-mono);
+  opacity: 0.55;
+}
+
+#menu .menu-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  text-align: center;
+}
+
+#menu .menu-title:focus,
+#menu h2:focus {
+  outline: none;
+}
+
+.menu-hint {
+  margin: 4px 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.menu-status {
+  min-height: 1.45em;
+  margin: 12px 0 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.menu-status:empty {
+  margin: 0;
+  min-height: 0;
+}
+
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.menu-stack {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 280px;
+  margin: 8px auto 0;
+}
+
+.menu-button {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  font: 16px var(--ui-serif);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.menu-button:hover:not(:disabled),
+.menu-button:focus-visible {
+  border-color: var(--ui-accent);
+}
+
+.menu-primary {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 12px var(--ui-accent-glow);
+}
+
+.menu-button:disabled,
+.menu-small:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: default;
+}
+
+.menu-small {
+  padding: 4px 10px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--ui-ink);
+  font: 13px var(--ui-serif);
+  cursor: pointer;
+}
+
+.menu-small:hover:not(:disabled),
+.menu-small:focus-visible {
+  border-color: var(--ui-border);
+}
+
+.menu-small.danger {
+  border-color: var(--ui-accent);
+}
+
+.menu-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.menu-account {
+  margin: 18px 0 0;
+  font-size: 13px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+#menu input[type='text'] {
+  box-sizing: border-box;
   min-width: 0;
-  height: 32px;
-  padding: 0 8px;
+  height: 38px;
+  padding: 0 10px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
   background: rgb(0 0 0 / 0.4);
   color: var(--ui-ink);
-  font: 15px var(--ui-serif);
+  font: 16px var(--ui-serif);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-.you-hint {
-  margin: 4px 0 0;
-  font-size: 12px;
+#menu input[type='text']:focus-visible {
+  outline: none;
+  border-color: var(--ui-accent);
+}
+
+/* Google's dark button: the "G" in its colours, and its own text and colours. */
+.menu-button.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-color: var(--google-stroke);
+  background: var(--google-fill);
+  color: var(--google-ink);
+  font: 500 14px var(--google-font);
+  letter-spacing: 0.01em;
+}
+
+.dev-sign-in {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------------------------------------------------------------- menu: the character builder */
+
+.builder-step {
+  margin: -4px 0 12px;
+  font: 12px var(--ui-mono);
+  text-align: center;
+  opacity: 0.7;
+}
+
+.builder-look {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.builder-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.portrait {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: radial-gradient(ellipse at 50% 62%, var(--ui-portrait-light) 0%, var(--ui-portrait) 72%);
+  image-rendering: pixelated;
+  transition: opacity 0.2s;
+}
+
+/* The walking preview of the builder: 40 x 52 pixels of the art at 4x (3x on a narrow screen). */
+.portrait-walk {
+  width: 160px;
+  height: 208px;
+}
+
+.portrait.drawing {
+  opacity: 0.4;
+}
+
+.builder-kind {
+  margin: 0;
+  font-style: italic;
+  text-align: center;
+}
+
+.choice {
+  margin: 0 0 12px;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.choice legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  position: relative;
+  cursor: pointer;
+}
+
+/* The radio button stays for the keyboard and for screen readers; the label shows the choice. */
+.chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.chip span {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  font-size: 14px;
+}
+
+.chip:hover span {
+  border-color: var(--ui-border);
+}
+
+.chip input:checked + span {
+  border-color: var(--ui-accent);
+  background: var(--ui-panel-light);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+.chip input:focus-visible + span {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.choice-line {
+  margin: 6px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.builder-name label {
+  display: block;
+  margin-bottom: 6px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.builder-name-row {
+  display: flex;
+  gap: 8px;
+}
+
+.builder-name-row input {
+  flex: 1;
+}
+
+.points {
+  margin: 4px 0 2px;
+  font: 20px var(--ui-mono);
+  text-align: center;
+}
+
+.points-done {
+  text-shadow: 0 0 12px var(--ui-accent-glow);
+}
+
+.builder-notes {
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.abilities {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.abilities th,
+.abilities td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--ui-ink-faint);
+  text-align: center;
+}
+
+.abilities thead th {
+  font: 12px var(--ui-mono);
+  font-weight: normal;
+  opacity: 0.65;
+}
+
+.abilities th[scope='row'] {
+  font-weight: normal;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.abilities abbr {
+  display: inline-block;
+  width: 2.6em;
+  font: 13px var(--ui-mono);
+  text-decoration: none;
+}
+
+.abilities .ability-name {
+  opacity: 0.85;
+}
+
+/* The abilities that the class needs most (the hint above the table names them). */
+.abilities th.primary abbr {
+  color: var(--ui-accent);
+  text-shadow: 0 0 8px var(--ui-accent-glow);
+}
+
+.abilities .base {
+  white-space: nowrap;
+}
+
+.abilities output {
+  display: inline-block;
+  width: 2em;
+  font: 16px var(--ui-mono);
+}
+
+.step-button,
+.bonus-toggle {
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--ui-ink);
+  font: 16px var(--ui-mono);
+  cursor: pointer;
+}
+
+.step-button:hover:not(:disabled),
+.bonus-toggle:hover:not(:disabled) {
+  border-color: var(--ui-border);
+}
+
+.step-button:disabled,
+.bonus-toggle:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.bonus-toggle[aria-pressed='true'] {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+.abilities .bonus {
+  font: 14px var(--ui-mono);
+}
+
+.abilities .bonus.none {
+  opacity: 0.4;
+}
+
+.abilities .total {
+  font: 16px var(--ui-mono);
+}
+
+.abilities .mod {
+  font: 14px var(--ui-mono);
+  opacity: 0.85;
+}
+
+.builder-note {
+  min-height: 1.45em;
+  margin: 8px 0 0;
+  font-size: 13px;
+  text-align: right;
+  opacity: 0.85;
+}
+
+@media (max-width: 560px) {
+  .builder-look {
+    grid-template-columns: 1fr;
+  }
+
+  .portrait-walk {
+    width: 120px;
+    height: 156px;
+  }
+
+  .menu-panel {
+    padding: 16px 14px 14px;
+  }
+}
+
+@media (max-width: 460px) {
+  .abilities .ability-name {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- menu: continue */
+
+.character-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.character {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.character-play {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.character-play:hover,
+.character-play:focus-visible {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+.character-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.character-name {
+  font-size: 17px;
+}
+
+.character-kind {
+  font-size: 14px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.character-when {
+  font: 11px var(--ui-mono);
   opacity: 0.6;
+}
+
+.character-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 220px;
+  font-size: 13px;
 }

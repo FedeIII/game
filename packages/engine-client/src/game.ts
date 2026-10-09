@@ -9,6 +9,9 @@ import {
   TICK_SECONDS,
   TILE_SIZE,
   World,
+  appearanceOf,
+  characterSkin,
+  finalScores,
   npcActors,
   npcFixture,
   attackHits,
@@ -19,6 +22,7 @@ import {
   findInteraction,
   stepPlayer,
   useDoor,
+  type Character,
   type Facing,
   type Fixture,
   type Interaction,
@@ -47,8 +51,10 @@ import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
-import { skinFromSeed, skinName } from '../art/skins.ts';
-import { newSkinSeed, saveName, savedName, skinSeed } from './skins/seed.ts';
+import { skinName } from '../art/skins.ts';
+import { api } from './menu/api.ts';
+import { runMenu } from './menu/menu.ts';
+import { skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { AttackButton } from './ui/attack-button.ts';
@@ -74,6 +80,12 @@ export interface GameOptions {
   readonly defaultWorld?: string;
   /** The page title: "<world name> · <title>". */
   readonly title?: string;
+  /**
+   * The application has accounts (its server answers /api/ and /auth/): the menu comes first
+   * (sign-in, new game, continue), and the visitor plays a character of its account. ?nomenu skips
+   * the menu: a guest with a random look, for tests and screenshots.
+   */
+  readonly accounts?: boolean;
 }
 
 /** An attack asked for this recently (ms) still starts when the player becomes able to attack. */
@@ -102,6 +114,17 @@ async function run(options: GameOptions): Promise<void> {
 
   // Pixel art: no smoothing on any texture, and sprites on whole pixels.
   TextureSource.defaultOptions.scaleMode = 'nearest';
+  // The atlas loads while the visitor is in the menu.
+  const artLoading = loadArt();
+  artLoading.catch(() => {});
+  // The skins: rendered in a worker, kept in localStorage. The menu draws the looks with it, so
+  // the chosen look is ready when the game starts.
+  const skins = new SkinStore();
+  let character: Character | null = null;
+  if (options.accounts && !params.has('nomenu')) {
+    character = (await runMenu({ title: definition.name, site: options.title ?? location.host, skins })).character;
+  }
+
   // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
   // some Adreno) compute it with 16-bit floats: a texture coordinate near the bottom of the
   // atlas (about 3000 px tall) is then off by up to 0.7 texel, so a tile reads the empty gap
@@ -122,7 +145,7 @@ async function run(options: GameOptions): Promise<void> {
   });
   document.getElementById('game')!.appendChild(app.canvas);
 
-  const art = await loadArt();
+  const art = await artLoading;
   const world = new World(definition.createSource(Number.isFinite(seed) ? seed : null));
   // ?at=tx,ty starts on (or next to) that tile, for tests and for a look at one place.
   const at = (params.get('at') ?? '').split(',').map((v) => Number.parseInt(v, 10));
@@ -131,13 +154,12 @@ async function run(options: GameOptions): Promise<void> {
   const previous = { x: player.x, y: player.y };
   // The interpolated position of the player in this frame: speech over the player follows it.
   const shown = { x: player.x, y: player.y };
-  // Each visitor has a skin: a random seed that the browser keeps, so it stays the same across
-  // visits. ?skin=<n> shows another one. The others see the same skin in a shared world.
-  let skin = skinSeed(params);
-  // The visitor's name: the others see it over the player's head (in a shared world).
-  let name = savedName();
+  // The look and the name of the character. A guest (?nomenu) has a random look that the browser
+  // keeps, and the name of its look. ?skin=<n> shows another look. The others see the same.
+  const skin = character && !params.has('skin') ? characterSkin(character) : skinSeed(params);
+  const name = character?.name ?? '';
   // A shared world goes through the multiplayer server; ?offline plays it alone.
-  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world) : null;
+  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, character?.id ?? null) : null;
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
 
@@ -167,21 +189,18 @@ async function run(options: GameOptions): Promise<void> {
   const tagLayer = new Container();
   textScene.addChild(tagLayer);
   const fixtures = new Fixtures(world, art, entityLayer);
-  // The skins: rendered in a worker, kept in localStorage. The visitor's own goes first; until
-  // it is ready (a moment on the first visit), the player is a darker wanderer.
-  const skins = new SkinStore();
+  // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
+  // darker wanderer.
   /** Wears skin `seed` when it is ready (at once if it is), unless another one was asked for since. */
   const wear = (seed: number, then: () => void = () => {}) => {
     // How it attacks follows the skin at once; the frames come when the skin is ready.
     const look = attackLook(seed);
     playerView.setAttackStyle(look.style, look.tint);
-    // Without a name of its own, the visitor is called by its look.
-    you.setLookName(skinName(seed));
     const apply = (textures: PlayerTextures) => {
       if (seed !== skin) return;
       playerView.setTextures(textures);
       playerView.setPending(false);
-      you.showLook(skins.sheet(seed), skinFromSeed(seed).vibe);
+      you.showLook(skins.sheet(seed));
       then();
     };
     const ready = skins.get(seed, apply, true);
@@ -197,24 +216,21 @@ async function run(options: GameOptions): Promise<void> {
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
   glowLayer.addChild(playerView.overlay);
-  // The settings panel's "You" section: a new random look (saved for the next visits; the others
-  // see it), and the name.
-  const you = new YouSection(name, {
-    onNewLook: () => {
-      skin = newSkinSeed();
-      you.setBusy(true);
-      const seed = skin;
-      wear(seed, () => {
-        you.setBusy(false);
-        net?.setSkin(seed);
-      });
+  // The settings panel's "You" section: the character, and the way back to the menu.
+  const look = appearanceOf(skin);
+  const you = new YouSection(
+    {
+      name: name || skinName(skin),
+      kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}`,
+      ...(character ? { scores: finalScores(character.base, character.race, character.bonus) } : {}),
+      account: character !== null,
     },
-    onName: (raw) => {
-      name = saveName(raw);
-      you.setName(name);
-      net?.setName(name);
+    {
+      // The menu comes at the start of the page.
+      mainMenu: () => location.reload(),
+      signOut: () => void api.signOut().finally(() => location.reload()),
     },
-  });
+  );
   wear(skin);
   const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, tagLayer, glowLayer, new PixelFont(art, 'small')) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
@@ -623,7 +639,8 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
-      `skin    ${skin} (${skinFromSeed(skin).vibe}), name ${displayName()}${name ? '' : ' (from the look)'}`,
+      `skin    ${skin} (${look.race} ${look.class} ${look.gender}), name ${displayName()}${name ? '' : ' (from the look)'}`,
+      `char    ${character ? `${character.id}` : 'guest'}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}`,

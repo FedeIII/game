@@ -13,7 +13,7 @@ import {
   useDoor,
   type Building,
 } from '@game/engine';
-import { BUILDING_CELL, DEFAULT_SEED, WildsSource } from '../src/index.ts';
+import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, WildsSource } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
 const houseOf = (world: World, cx: number, cy: number) => (world.source as WildsSource).house(cx, cy);
@@ -41,14 +41,15 @@ describe('buildings', () => {
     expect(new WildsSource(1).house(2, 3)).toEqual(new WildsSource(1).house(2, 3));
   });
 
-  it('there is one next to the spawn of the default world', () => {
-    const building = new WildsSource(DEFAULT_SEED).house(0, 0);
-    expect(building).not.toBeNull();
+  it('there is the home in the middle, and a house next to it', () => {
+    const source = new WildsSource(DEFAULT_SEED);
+    expect(source.house(0, 0)?.id).toBe(HOME_ID);
+    expect(source.house(1, 0)).not.toBeNull();
   });
 
   it('stay inside their cell, off water, with a wall ring and one door in the south wall', () => {
     for (const { world, building: b } of buildings) {
-      const [cx, cy] = b.id.split(',').map(Number) as [number, number];
+      const [cx, cy] = b.id === HOME_ID ? HOME_CELL : (b.id.split(',').map(Number) as [number, number]);
       expect(b.x0).toBeGreaterThan(cx * BUILDING_CELL);
       expect(b.x1).toBeLessThan((cx + 1) * BUILDING_CELL - 1);
       expect(b.y0).toBeGreaterThan(cy * BUILDING_CELL);
@@ -64,13 +65,17 @@ describe('buildings', () => {
             expect(world.ground(tx, ty)).not.toBe(Ground.Water);
             continue;
           }
-          expect(world.ground(tx, ty)).toBe(Ground.Floor);
+          expect(world.ground(tx, ty)).toBe(b.id === HOME_ID ? Ground.FloorEarth : Ground.Floor);
           const edge = tx === b.x0 || tx === b.x1 || ty === b.y0 || ty === b.y1;
           if (structure === Structure.Door) {
             doors++;
             expect(ty).toBe(b.y1);
             expect(tx).toBeGreaterThan(b.x0 + 1);
             expect(tx).toBeLessThan(b.x1 - 1);
+          } else if (structure === Structure.Window) {
+            // A lit window is part of the south wall, never in a corner.
+            expect(ty).toBe(b.y1);
+            expect(tx > b.x0 && tx < b.x1).toBe(true);
           } else {
             expect(structure === Structure.Wall, `wall at ${tx},${ty} of ${b.id}`).toBe(edge);
           }
@@ -182,5 +187,46 @@ describe('walls and doors', () => {
     const player = createPlayer((tx + side[0]) * TILE_SIZE + 8, (ty + side[1]) * TILE_SIZE + 8);
     player.facing = side[2];
     expect(findInteraction(world, player)?.kind).toBe(item.kind);
+  });
+});
+
+describe('the home', () => {
+  const seeds = [DEFAULT_SEED, 1, 7, 42, 1234, 99, 2024, 31337];
+
+  it('is a small hut in the middle cell, the same for a seed, and every character starts in it', () => {
+    for (const seed of seeds) {
+      const world = newWorld(seed);
+      const home = (world.source as WildsSource).home();
+      expect(home).toEqual(new WildsSource(seed).home());
+      expect([home.x1 - home.x0 + 1, home.y1 - home.y0 + 1]).toEqual([7, 6]);
+      expect(home.style).toEqual({ walls: 'timber', roof: 'thatch' });
+      const spawn = world.spawn();
+      const [tx, ty] = [Math.floor(spawn.x / TILE_SIZE), Math.floor(spawn.y / TILE_SIZE)];
+      expect(world.insideOf(tx, ty)).toBe(home);
+      expect(world.structure(tx, ty)).toBe(Structure.Floor);
+      expect([tx, ty]).toEqual([home.doorX, home.y1 - 1]);
+      // Dry all round, and on the approach to its door.
+      for (let y = home.y0 - 1; y <= home.y1 + 1; y++) for (let x = home.x0 - 1; x <= home.x1 + 1; x++) expect(world.ground(x, y), `${seed}: ${x},${y}`).not.toBe(Ground.Water);
+      for (let y = home.y1 + 1; y <= home.y1 + 3; y++) for (let x = home.doorX - 1; x <= home.doorX + 1; x++) expect(world.ground(x, y), `${seed}: ${x},${y}`).not.toBe(Ground.Water);
+    }
+  });
+
+  it('has a bed, a chest, a shelf, a table with a candle and a barrel, each with its own text', () => {
+    const home = new WildsSource(DEFAULT_SEED).home();
+    expect(home.fixtures.map((f) => f.kind).sort()).toEqual(['barrel', 'bed', 'bookshelf', 'chest', 'table']);
+    for (const fixture of home.fixtures) expect(fixture.content?.pages?.length, fixture.kind).toBe(1);
+    expect(home.fixtures.find((f) => f.kind === 'table')?.light).toBeTruthy();
+  });
+
+  it('lets the player walk out of the door', () => {
+    const world = newWorld(DEFAULT_SEED);
+    const home = (world.source as WildsSource).home();
+    const start = world.spawn();
+    const player = createPlayer(start.x, start.y);
+    player.facing = 'down';
+    expect(findInteraction(world, player)).toMatchObject({ kind: 'door', tx: home.doorX, ty: home.y1 });
+    expect(useDoor(world, player, home.doorX, home.y1)).toBe('opened');
+    for (let i = 0; i < TICK_RATE; i++) stepPlayer(player, { x: 0, y: 1 }, world);
+    expect(Math.floor(player.y / TILE_SIZE)).toBeGreaterThan(home.y1);
   });
 });

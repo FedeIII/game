@@ -92,6 +92,18 @@ export class SkinStore {
     return null;
   }
 
+  /**
+   * Forgets a skin that is still in the queue (not drawn yet) and the calls that wait for it: the
+   * character builder asks for many looks, and only the last one counts.
+   */
+  cancel(seed: number): void {
+    const at = this.queue.indexOf(seed);
+    if (at < 0) return;
+    this.queue.splice(at, 1);
+    this.started.delete(seed);
+    this.waiting.delete(seed);
+  }
+
   private next(): void {
     if (this.busy) return;
     const seed = this.queue.shift();

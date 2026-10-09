@@ -6,7 +6,9 @@ This file gives guidance to Claude Code when it works in this repository.
 
 A pixel-art game **engine** for the browser, and the applications on it. It runs at
 https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
-stone houses, and mobs). The goal is an online, multiplayer sandbox. The engine has
+stone houses, and mobs). A visitor signs in with Google, makes a character (D&D 5e races,
+classes, abilities) or continues with one, and starts in the character's home, a hut in the
+middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
 (`docs/multiplayer.md`); the Wilds are single-player for now (only the local dev environment
 shares them; see "Commands"). Read `docs/stack.md` before you
@@ -54,12 +56,12 @@ laptop, use nvm: `nvm use` (`nvm install` the first time). npm workspaces: `pack
 ```bash
 npm install
 scripts/dev.sh       # the local dev environment: the server (Wilds shared) + the page on 3019; --help
-npm run dev          # the app's Vite dev server, http://127.0.0.1:3019 (makes the art first)
+npm run dev          # the app's Vite dev server, http://localhost:3019 (makes the art first; the menu needs npm run server)
 npm run check        # type check of every package + Vitest
 npm test             # Vitest only
 npm run art          # make packages/engine-client/src/generated/ again (atlas + icon)
 npm run build        # production build of the app in apps/game/dist
-npm run server       # the multiplayer server, port 3020 (dev and preview send /ws to it)
+npm run server       # the game server, port 3020: accounts (.dev-data/game.db, dev sign-in), /ws (dev and preview send /api/, /auth/, /ws to it)
 scripts/deploy.sh    # on the VPS only: check, build, restart game-server (PM2), publish the client
 ```
 
@@ -68,8 +70,12 @@ on the laptop `~/Projects/LOCAL_PORTS.md` gives them to this game. Do not use 30
 test: on the VPS they are production's `game-server` and `town-server`. Vite does not move to
 another port, because the server refuses an origin that is not in its list.
 
-**Local multiplayer.** `scripts/dev.sh` starts the multiplayer server (`node --watch`: it
-restarts when its code changes) and Vite, and it opens the page. It sets `SHARED_WORLDS=wilds`
+**Local multiplayer.** `scripts/dev.sh` starts the game server (`node --watch`: it restarts
+when its code changes) and Vite, and it opens the page at **http://localhost:3019** (not
+127.0.0.1: the session cookie and the Google redirect belong to that name). The server gets the
+development settings of the accounts: the database `.dev-data/game.db`, the dev sign-in (a name
+only), and `.env.local` (git ignores it) for `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` if
+you want the real Google sign-in on the laptop. It sets `SHARED_WORLDS=wilds`
 for both: `shareWorlds()` in `apps/game/src/worlds.ts` then gives the Wilds `multiplayer: true`,
 so two browser profiles see each other. `--solo` shares nothing (as game.azyr.io now), and
 `--inspect` puts the server under the Node inspector on 127.0.0.1:9669. Without
@@ -79,9 +85,11 @@ so two browser profiles see each other. `--solo` shares nothing (as game.azyr.io
 
 **Cursor (or VS Code)**: the play button (F5) starts "Dev: play" (`.vscode/launch.json`): the
 task `dev` (`scripts/dev.sh --no-open --inspect`, `.vscode/tasks.json`), the debugger on the
-server, and Chrome on the page. "Dev: two players" adds a second Chrome with its own profile.
-Breakpoints work in the page and in the server. There is no database: the game keeps no state
-on disk.
+server, and Chrome on the page. "Dev: two players" adds a second Chrome with its own profile
+(another account in the dev sign-in). Breakpoints work in the page and in the server. The
+database is SQLite inside the server process, so there is no database to launch. After a change
+to `scripts/dev.sh`, stop the `dev` task and start it again: `node --watch` restarts the server
+with new code, but not with new settings.
 
 Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tmp/atlas.png`.
 
@@ -89,8 +97,8 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs, mobs and fights, the natural-terrain toolkit, and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
-| `packages/engine-server` | `@game/engine-server` | The multiplayer server: `startServer()` (Node, `ws`): a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs, mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
 | `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server; `shareWorlds()`, the dev switch), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
@@ -113,13 +121,18 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 
 ### Engine client (`packages/engine-client/src`)
 
-- `game.ts`: `startGame()`: picks the world (`?world=`), makes the layers, renderers and GUI,
-  runs the fixed-step loop, and the action flow (doors, pages, links). In a shared world it
+- `game.ts`: `startGame()`: in an app with accounts, first the menu (`menu/`); then it picks the
+  world (`?world=`), makes the layers, renderers and GUI, runs the fixed-step loop, and the
+  action flow (doors, pages, links). The atlas loads while the menu shows. In a shared world it
   makes a `NetSession` and the tick goes through it.
-- `skins/`: the visitor's skin seed and name (`seed.ts`, localStorage `game.skin.v1` and
-  `game.name.v1`, `?skin=`; `newSkinSeed()` for "New look"), the Web
+- `menu/`: the menu before the game (see "Menu, characters and accounts"): `menu.ts`
+  (`runMenu()`: sign-in, main screen, continue), `builder.ts` (the character builder),
+  `portrait.ts` (a skin in the menu, walking or still), `names.ts` (random names per race),
+  `api.ts` (the accounts API), `dom.ts`.
+- `skins/`: the skin seed of a guest (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
-  localStorage cache of rendered sheets).
+  localStorage cache of rendered sheets; `cancel()` drops a look that the builder no longer
+  shows).
 - `net/session.ts`: the connection to the multiplayer server (prediction while online, alone
   while not, reconnection). See `docs/multiplayer.md`.
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
@@ -140,7 +153,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
-  `you-section.ts` (the "You" section of the settings: the player's look, "New look", the name), `panels.ts` (one top-right panel at a time),
+  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, "Main menu" and "Sign out"), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
@@ -167,21 +180,34 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   rocks) and `'oblique'` (depth not foreshortened, so a model fills whole tiles of the ground
   grid: walls, doors, fixtures).
 - `figure.ts`: **the** human figure, as parameters (`FigureSpec`: height, build, head;
-  headwear, hair, beard, cloak cut, body, pauldrons, scarf, pouch, tabard, horns, circlet, item)
-  and colours (`Palette`). Each part has a bounding sphere, so the figure renders fast.
+  headwear, hair, beard and `beardLength`, cloak cut, body, pauldrons, scarf, pouch, tabard,
+  horns, circlet, item; for races and classes `ears`, `tusks`, `nose`, `shield`, `quiver`,
+  `antlers`, `feather`, all off by default) and colours (`Palette`). Items: staff, orb staff,
+  sword, lantern, axe, mace, dagger, bow. Each part has a bounding sphere, so the figure renders
+  fast. A new field must default to off: the atlas (the wanderer, the NPCs) must not change.
 - `characters.ts`: the default player (the hooded wanderer, about 28 px tall, 8-frame walk, four
   real views: frames `player/<view>/...`) and the NPC looks (`NPC_LOOKS`: cloak colours, hood up
   or down, hair; frames `npc/<look>`), all from `figure.ts`.
-- `skins.ts`: random player skins. A 32-bit seed picks a vibe (wanderer, knight, monk, witch,
-  ranger, plague doctor, noble, gravedigger) and, inside it, proportions, garments, an item and
-  muted colours. `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 56 x 56
+- `skins.ts`: player skins. A skin is a 32-bit seed that holds the look of a character:
+  `appearanceOf(seed)` (`@game/engine`, `character.ts`) gives its race, class and gender (the
+  low 9 bits) and a variant (the other 23 bits). The race gives the silhouette (a dwarf short and
+  very broad, a gnome or a halfling small, a gnome's head big, an elf tall and slender, a half-orc
+  big with grey-green skin and tusks), the skin tones, the hair, beards and pointed ears (elf
+  long, half-elf short; they show only with a bare head or a hat). The class gives the garments,
+  the headwear, the item and the colour families (a barbarian's fur and axe, a cleric's mace and
+  shield, a druid's antlers, a ranger's bow and quiver, a wizard's pointed hat). The gender gives
+  the shoulders, beards and the hair; the variant picks the rest. Thus every race, class and
+  gender has 2^23 looks. `Skin` is `{ seed, appearance, spec, palette }`.
+  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
-  is in `image.ts`). `skinName(seed)` names a skin for its vibe (its own random stream, so the
-  look of a seed never changes with the names). **Bump `SKIN_VERSION` when a seed would give
-  another picture or the sheet changes**: browsers
-  cache rendered skins under it. Preview many skins before you change the vibes.
+  is in `image.ts`). `skinName(seed)` names a look without a chosen name (a guest) for its class
+  and gender (its own random stream, so the look of a seed never changes with the names). **Bump
+  `SKIN_VERSION` when a seed would give another picture or the sheet changes**: browsers cache
+  rendered skins under it. Preview many skins before you change them:
+  `node art/skins-preview.ts <folder>` (in `packages/engine-client`) writes contact sheets (each
+  race by gender and class, variants, views, attacks).
 - `props.ts`: spruces, a dead tree and a rock. `materials.ts`: the materials that buildings and
   fixtures share (`M.<name>`).
 - `buildings.ts`: building styles. Each wall style of `WALL_STYLES` (stone, timber, planks,
@@ -203,11 +229,12 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   each frame in `meta.mobEyes`, and the game draws them glowing above the darkness. In a death
   the eyes go dark. Preview the frames when you change a model: poses that look right in one
   view can hide the head in another.
-- `attacks.ts`: how each skin attacks. `attackStyle(vibe, spec)`: a sword slashes (a noble's
-  rapier thrusts), a staff bashes with both hands, an orb staff casts a spell, a lantern throws
-  flame; without an item a witch casts from her hands, a monk strikes with the palm, a plague
-  doctor throws a poison cloud (miasma), a ranger or a noble thrusts a dagger, a knight slashes,
-  the others punch. Each style has four poses (`attackAction`: arm directions, a lean, the weapon
+- `attacks.ts`: how each skin attacks. `attackStyle(class, spec)`: a sword, an axe or a mace
+  slashes (a bard's rapier thrusts), a dagger thrusts (a rogue, a ranger), a staff bashes with
+  both hands, an orb staff casts a spell, a lantern throws flame; without an item a sorcerer or a
+  warlock casts from the hands and a monk strikes with the palm. A caster's spell takes the
+  colour of its `palette.glass` (sorcerer fire, warlock green or violet, wizard blue, druid
+  green). Each style has four poses (`attackAction`: arm directions, a lean, the weapon
   in the hand, as a `FigureAction` for `figure()`), rendered as the attack frames of a skin sheet
   and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All attacks reach as far:
   only the look differs.
@@ -253,6 +280,51 @@ For the HTML GUI:
 - A link must be a real `<a>` (the link card): a browser opens a new tab from a key press or a
   click, but not from the start of a touch. So E opens the link, and a tap on the action button
   only points at the card's link (`pulse()`); a tap on the link opens it.
+
+## Menu, characters and accounts
+
+Since 2026-10-09 the game starts on a menu (`startGame({ accounts: true })`, `menu/`), HTML in the
+GUI style, over the whole page (it scrolls on a phone):
+
+- **Sign-in**: "Sign in with Google" (Google's dark button, with the "G"), or in development a
+  dev sign-in with a name only. After Google, the page shows `?login=failed` or `cancelled` once.
+- **Main screen**: "New game", "Continue" (off without characters), "Signed in as ... · Sign
+  out". An account keeps at most `MAX_CHARACTERS` (12).
+- **New game**, the character builder (`menu/builder.ts`), two steps. 1, Appearance: race
+  (human, dwarf, elf, gnome, half-elf, halfling, half-orc), class (barbarian, bard, cleric,
+  druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock, wizard), gender (male, female,
+  undetermined), name (2 to 16 characters after `cleanName()`; "Random name" gives an SRD name
+  of the race), "Another look" (a new random variant), and a preview that walks and turns.
+  2, Abilities: point buy of D&D 5e (SRD 5.1): each score starts at 8, 27 points, at most 15;
+  the race's increases (with the SRD subrace: hill dwarf, high elf, rock gnome, lightfoot
+  halfling); a half-elf chooses two abilities other than Charisma for +1; the class's main
+  abilities are marked. "Create" stores the character and the game starts.
+- **Continue**: the account's characters (the last played first), each with its picture; one
+  plays it, "Delete" asks first.
+- In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
+  the menu comes again) and "Sign out".
+
+**The rules** are in `packages/engine/src/character.ts`, for the page and the server alike:
+`RACES`, `CLASSES`, `GENDERS`, `ABILITIES`, `POINT_BUY`, `RACE_BONUS`, `CLASS_PRIMARY`,
+`checkSheet()` (the server checks every sheet with it) and the look in one number
+(`appearanceSeed()` / `appearanceOf()`, see `skins.ts` under "Art"). A character is a
+`CharacterSheet` (name, race, class, gender, variant, base scores, bonus choices) with an id and
+its times. Its skin seed is `characterSkin(sheet)`. Its texts (names of races, classes and
+abilities, one line about each) are in `ui/strings.ts`. The scores do nothing in the game yet.
+
+**The accounts** are in the game server (`packages/engine-server/src`): `google.ts` (OpenID
+Connect, the code flow with PKCE and a state bound to the browser by a cookie; the ID token comes
+straight from Google, and the server checks its issuer, audience and expiry), `store.ts` (SQLite
+by `node:sqlite`: users, sessions (only a hash of each token), sign-in states, characters as JSON;
+a schema version and migrations), `accounts.ts` (the routes; see its comment). The session is
+the cookie `game_session` (HttpOnly, SameSite=Lax, Secure on https, 30 days, renewed in use).
+A request that changes something must have the Origin of one of the game's pages (`ORIGINS`).
+In a shared world the server takes the look and the name from the stored character
+(`docs/multiplayer.md`, protocol 7). `apps/game/server/main.ts` reads the settings from the
+environment (its comment lists them): `GAME_DB` turns the accounts on; in production it refuses
+to start without the Google client or with `AUTH_DEV_LOGIN`. Production keeps the secrets in
+`/etc/game/secret.env` and the database in `/var/lib/game/game.db`, with a nightly copy
+(`scripts/backup-db.ts`). See `deploy/README.md`, "Accounts".
 
 ## Arrival in a world
 
@@ -378,9 +450,14 @@ player at the start (single-player worlds); `?nomobs` turns them off.
 
 ## The worlds
 
-- **The Wilds** (`worlds/wilds`): the engine's natural terrain from a seed (`?seed=`), and a
-  house in about a third of the 24 x 24-tile cells (`houses.ts`; the cell next to the spawn
-  always tries). Houses: 7-11 x 6-9 tiles, never on water; furniture by `furnish()` (bed with a
+- **The Wilds** (`worlds/wilds`): the engine's natural terrain from a seed (`?seed=`), the
+  player's home in the middle (`home.ts`), and a house in about a third of the 24 x 24-tile cells
+  (`houses.ts`; the cell east of the home always tries). **The home** is the house of the cell
+  (0, 0), id `home`: a timber hut with a thatch roof, 7 x 6 tiles, an earth floor, a lit window
+  and a chimney, a bed with a chest, a shelf, a table with a candle and a barrel, each with its
+  own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
+  dry in any case). Every character starts in it, on the tile north of the door
+  (`WildsSource.spawn()`), facing the door. Houses: 7-11 x 6-9 tiles, never on water; furniture by `furnish()` (bed with a
   chest at its foot, bookshelves, a table with a candle, barrels) with the door column and the
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into
@@ -447,8 +524,13 @@ Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared
 server` (port 3020; the preview sends `/ws` to it). Or use `scripts/dev.sh --no-open`: the Wilds
 shared, the page on 3019. A second test server needs a free port: `PORT=<port>
 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and the preview then needs
-`GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per visitor. URL switches:
-`?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, tile, target, building, and `net` and
+`GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per visitor. The page starts on
+the menu: sign in with the dev sign-in (fill `#dev-name`, click `.dev-sign-in button`), "New
+game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-gender-<g>`,
+`#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
+`#builder-create`), and wait for `#menu` to go. `?nomenu` skips it: a guest. URL switches:
+`?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it),
+`?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines` and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
@@ -475,7 +557,9 @@ Android viewport (412 x 915, `deviceScaleFactor: 2.625`).
 A deploy changes game.azyr.io only. azyr.io serves the town from its own checkout, server and
 folder (see "What this is"), so nothing here needs to keep azyr.io working.
 
-A deploy runs only on the VPS. See `deploy/README.md`. Short form:
+A deploy runs only on the VPS. See `deploy/README.md`; the accounts need a one-time setup there
+first (the Google OAuth client, `/etc/game/secret.env`, the nginx routes `/api/` and `/auth/`,
+the backup timer), and `scripts/deploy.sh` checks it before it changes anything. Short form:
 `cd /opt/game && git pull && scripts/deploy.sh` (it builds `apps/game`, restarts the PM2
 process `game-server` first, then publishes the client). No nginx reload is necessary.
 
