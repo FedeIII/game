@@ -15,7 +15,7 @@ function commit(): string {
  * production. Start it with `npm run server` (it allows the local origins). GAME_SERVER points
  * elsewhere, for example at a test server on another port.
  */
-const wsProxy = { '/ws': { target: process.env.GAME_SERVER ?? 'ws://127.0.0.1:3008', ws: true } };
+const wsProxy = { '/ws': { target: process.env.GAME_SERVER ?? 'ws://127.0.0.1:3009', ws: true } };
 
 export default defineConfig({
   define: {

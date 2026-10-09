@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@game/engine-client": "*",
-    "@game/world-wilds": "*",
     "@game/world-town": "*",
     "@game/engine-server": "*"
   },

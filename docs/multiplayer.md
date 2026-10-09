@@ -1,8 +1,8 @@
 # Multiplayer
 
 Since 2026-10-07 the engine has multiplayer. A world with `multiplayer: true` in its
-`WorldDefinition` is shared: every visitor of that world sees the others. On game.azyr.io the
-Town of Azyr is shared, and the Wilds stay single-player.
+`WorldDefinition` is shared: every visitor of that world sees the others. The Town of Azyr
+(azyr.io) is shared.
 
 ## The model
 
@@ -138,7 +138,7 @@ has not said so after 0.7 s, the mob shows alive again.
   (`art/skins.ts`), renders it in a Web Worker (`src/skins/skin-worker.ts`) and keeps the last
   24 sheets in localStorage (`game.skins.v<SKIN_VERSION>.*`). Until a skin is ready, its player
   shows as a darker wanderer from the atlas. The server never reads a seed; it only checks
-  that it is a whole number from 0 to 2^32 - 1. The Wilds use the visitor's skin too.
+  that it is a whole number from 0 to 2^32 - 1.
 - A correction from the server moves the interpolation with it; a correction of up to 2 tiles
   is shown gradually (it decays in about 0.1 s), a larger one is a jump.
 
@@ -149,20 +149,20 @@ has not said so after 0.7 s, the mob shows alive again.
 it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
-npm run server                       # local, port 3008, allows the Vite origins
-curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":5,"players":{"town":2}}
-pm2 logs game-server                  # one line per arrival and departure; no addresses
+npm run server                       # local, port 3009, allows the Vite origins
+curl -s http://127.0.0.1:3009/healthz   # {"ok":true,"protocol":6,"players":{"town":2}}
+pm2 logs town-server                  # one line per arrival and departure; no addresses
 ```
 
-`npm run dev` and `npm run preview` send `/ws` to `GAME_SERVER` (default `ws://127.0.0.1:3008`).
+`npm run dev` and `npm run preview` send `/ws` to `GAME_SERVER` (default `ws://127.0.0.1:3009`).
 
 ## Production
 
-- PM2 process `game-server` (`deploy/pm2.config.cjs`): `/usr/bin/node apps/game/server/main.ts`
-  in `/opt/game`, `PORT=3008`, `HOST=127.0.0.1`, `ORIGINS=https://game.azyr.io`.
-- nginx: `location = /ws` in the game.azyr.io site (`deploy/nginx/game.azyr.io`), modelled on
-  hidden-agenda.azyr.io: Upgrade headers, `proxy_read_timeout 3600s`, X-Forwarded-For **set** to
-  `$remote_addr`.
+- PM2 process `town-server` (`deploy/pm2.config.cjs`): `/usr/bin/node apps/game/server/main.ts`
+  in `/opt/azyr-town`, `PORT=3009`, `HOST=127.0.0.1`, `ORIGINS=https://azyr.io,https://www.azyr.io`.
+- nginx: `location = /ws` in the azyr.io site (`/etc/nginx/sites-available/azyr.io`, see
+  `deploy/README.md`), modelled on hidden-agenda.azyr.io: Upgrade headers,
+  `proxy_read_timeout 3600s`, X-Forwarded-For **set** to `$remote_addr`.
 - `scripts/deploy.sh` restarts the server **before** it publishes the client: a page with the
   new client must never meet the old server. Each deploy drops every connection for about a
   second; the clients come back on their own.

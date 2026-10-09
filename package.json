@@ -15,7 +15,7 @@
     "build": "npm run build -w @game/app",
     "preview": "npm run preview -w @game/app",
     "art": "npm run art -w @game/engine-client",
-    "typecheck": "npm run art && tsc -p packages/engine && tsc -p packages/engine-server && tsc -p packages/engine-client && tsc -p packages/engine-client/art && tsc -p worlds/wilds && tsc -p worlds/town && tsc -p apps/game && tsc -p apps/game/tsconfig.node.json",
+    "typecheck": "npm run art && tsc -p packages/engine && tsc -p packages/engine-server && tsc -p packages/engine-client && tsc -p packages/engine-client/art && tsc -p worlds/town && tsc -p apps/game && tsc -p apps/game/tsconfig.node.json",
     "test": "vitest run",
     "check": "npm run typecheck && npm test",
     "server": "npm run server -w @game/app"

@@ -2,21 +2,22 @@ import { startServer } from '@game/engine-server';
 import { WORLDS } from '../src/worlds.ts';
 
 /**
- * The multiplayer server of game.azyr.io. PM2 runs it with Node (deploy/pm2.config.cjs); nginx
- * sends wss://game.azyr.io/ws to it. Settings come from the environment:
- *   PORT (3008), HOST (127.0.0.1), ORIGINS (comma-separated, default https://game.azyr.io).
+ * The multiplayer server of the Town of Azyr. PM2 runs it with Node (deploy/pm2.config.cjs) as
+ * town-server; nginx sends wss://azyr.io/ws to it. Settings come from the environment:
+ *   PORT (3009), HOST (127.0.0.1), ORIGINS (comma-separated, default https://azyr.io).
  */
-const port = Number(process.env.PORT ?? 3008);
+const port = Number(process.env.PORT ?? 3009);
 const host = process.env.HOST ?? '127.0.0.1';
-const origins = (process.env.ORIGINS ?? 'https://game.azyr.io').split(',').map((o) => o.trim()).filter(Boolean);
+const origins = (process.env.ORIGINS ?? 'https://azyr.io').split(',').map((o) => o.trim()).filter(Boolean);
 
-const server = await startServer({ worlds: WORLDS, port, host, origins });
+const log = (line: string) => console.log(`[town-server] ${line}`);
+const server = await startServer({ worlds: WORLDS, port, host, origins, log });
 
 let stopping = false;
 const stop = async (signal: string) => {
   if (stopping) return;
   stopping = true;
-  console.log(`[game-server] ${signal}: closing`);
+  log(`${signal}: closing`);
   await server.close();
   process.exit(0);
 };
