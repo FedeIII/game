@@ -340,7 +340,8 @@ player at the start (single-player worlds); `?nomobs` turns them off.
 
 - **The Town of Azyr** (`worlds/town`): `projects.ts` has the content of each project of the
   azyr.io landing page (`/var/www/azyr.io/public/index.html` and the detail pages), in the
-  landing page's order; **when those pages change, change this file.** Kandrax Rol speaks
+  landing page's order. When those pages change, ask Fede if the town must follow (a town
+change needs a request; see "What this is"). Kandrax Rol speaks
   Spanish, as its page does. Each project also has its **house**: a style, a floor, roof props
   and a **plan** in ASCII, walls included (`#` wall, `D` door, `+` lit window, `.` floor, `P`
   the portal, `K` the keeper, any other letter a thing of `exhibits`; a thing of more tiles has
