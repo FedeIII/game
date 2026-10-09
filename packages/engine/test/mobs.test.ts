@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ATTACK_REACH,
   ATTACK_TICKS,
   GUARD_TICKS,
   Horde,
@@ -8,6 +9,7 @@ import {
   TICK_SECONDS,
   TILE_SIZE,
   World,
+  canBeHit,
   createPlayer,
   facingAngle,
   stepPlayer,
@@ -206,6 +208,107 @@ describe('mobs', () => {
         expect(horde.world.buildingAt(tx, ty)).toBeNull();
       }
     });
+  });
+});
+
+describe('mobs that hunt one player', () => {
+  /** Three imps round a player who stands still. */
+  function pack(seed: number, kinds: Mob['kind'][] = ['imp', 'imp', 'imp']) {
+    const horde = new Horde(new World(textSource([])), everywhere(), seed);
+    const player: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    const mobs = kinds.map((kind, i) => horde.spawn(kind, Math.cos((i / kinds.length) * 2 * Math.PI) * 90, Math.sin((i / kinds.length) * 2 * Math.PI) * 90));
+    return { horde, player, mobs };
+  }
+  const attacking = (mob: Mob) => mob.state === 'windup' || mob.state === 'strike';
+
+  it('take turns: one attacks at a time, the others hound the player out of reach, and each one hits', () => {
+    for (const kinds of [['imp', 'imp', 'imp'], ['brute', 'imp', 'brute', 'imp']] as Mob['kind'][][]) {
+      const { horde, player, mobs } = pack(3, kinds);
+      const hitters = new Set<number>();
+      let hounded = false;
+      run(horde, [player], 30_000, (_t, hits) => {
+        for (const [mob] of hits) hitters.add(mob);
+        const attackers = mobs.filter(attacking);
+        expect(attackers.length).toBeLessThanOrEqual(1);
+        if (attackers.length === 0) return;
+        for (const mob of mobs) {
+          if (mob.state !== 'chase') continue;
+          // Out of the reach of its blow while another one attacks.
+          expect(dist(mob, player.state)).toBeGreaterThan(MOB_STATS[mob.kind].hitRange);
+          if (dist(mob, player.state) < MOB_STATS[mob.kind].harass[1] + 8) hounded = true;
+        }
+      });
+      expect(hounded).toBe(true);
+      expect(hitters.size).toBe(kinds.length);
+    }
+  });
+
+  it('hound the player from out of the reach of its attacks', () => {
+    for (const kind of ['imp', 'brute'] as const) {
+      const stats = MOB_STATS[kind];
+      expect(stats.harass[0]).toBeGreaterThan(stats.hitRange);
+      expect(stats.harass[0]).toBeGreaterThan(ATTACK_REACH + stats.radius);
+    }
+  });
+
+  it('time the next attack to come right after the guard of a hit', () => {
+    const { horde, player, mobs } = pack(1);
+    // The time when the player could be hit again, and when the next wind-up began after it.
+    let free = -1;
+    const gaps: number[] = [];
+    run(horde, [player], 20_000, (t) => {
+      if (canBeHit(player.state) && !mobs.some(attacking)) {
+        if (free < 0) free = t;
+      } else if (mobs.some((m) => m.state === 'windup' && m.stateMs <= TICK_MS + 1) && free >= 0) {
+        gaps.push(t - free);
+        free = -1;
+      } else if (!canBeHit(player.state)) {
+        free = -1;
+      }
+    });
+    // The first one runs in from far away; then each comes within a moment.
+    expect(gaps.length).toBeGreaterThanOrEqual(5);
+    for (const gap of gaps.slice(1)) expect(gap).toBeLessThan(200);
+  });
+
+  it('time the next attack to come right after a blow that misses', () => {
+    const { horde, player, mobs } = pack(2, ['imp', 'imp']);
+    let first: Mob | null = null;
+    let missed = false;
+    let over = -1;
+    let next = -1;
+    for (let t = 0; t < 10_000 && next < 0; t += TICK_MS) {
+      stepPlayer(player.state, NO_INPUT, horde.world);
+      // The player dodges the first blow: no mob can hit it in the tick of the blow.
+      if (first && !missed && first.state === 'windup' && first.stateMs + TICK_MS >= MOB_STATS.imp.windupMs) {
+        player.state.guard = 1;
+        missed = true;
+      }
+      expect(horde.step(TICK_MS, [player])).toEqual([]);
+      first ??= mobs.find(attacking) ?? null;
+      if (first && missed && over < 0 && !attacking(first)) over = t;
+      const other = mobs.find((m) => m !== first && attacking(m));
+      if (other) {
+        // Not while the first one attacks, and soon after its blow is over.
+        expect(over).toBeGreaterThanOrEqual(0);
+        next = t;
+      }
+    }
+    expect(next).toBeGreaterThan(0);
+    expect(next - over).toBeLessThan(120);
+  });
+
+  it('take turns for each player alone: two players can be attacked at once', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 4);
+    const a: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    const b: HordePlayer = { id: 2, state: createPlayer(12 * TILE_SIZE, 0) };
+    horde.spawn('imp', a.state.x + 40, a.state.y);
+    horde.spawn('imp', b.state.x + 40, b.state.y);
+    let both = false;
+    run(horde, [a, b], 6000, () => {
+      if (horde.mobs.filter((m) => m.state === 'windup' || m.state === 'strike').length === 2) both = true;
+    });
+    expect(both).toBe(true);
   });
 });
 

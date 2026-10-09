@@ -1,5 +1,5 @@
-import { TILE_SIZE } from './constants.ts';
-import { attackHits, canBeHit, moveAxis, stunPlayer, type Facing, type PlayerState } from './player.ts';
+import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
+import { GUARD_TICKS, attackHits, canBeHit, moveAxis, normalAngle, stunPlayer, type Facing, type PlayerState } from './player.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
 /**
@@ -8,6 +8,10 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * up and strikes. A hit stuns the player for a moment, and then the mob runs away from the
  * player for a while before it comes back for another attack. One attack of a player kills a
  * mob, which dies with an animation.
+ *
+ * Mobs that hunt the same player take turns: only one attacks it at a time. The others hound
+ * the player from close by, out of the reach of their blows and of the player's attacks, and the
+ * next one in the line times its approach, so that its attack comes right after the one before.
  *
  * Mobs never go into a building, and a world can keep them out of more (a town): see MobRules.
  * They do not collide with players, NPCs or each other, only with the world.
@@ -42,6 +46,11 @@ export interface MobStats {
   readonly stunTicks: number;
   /** After a hit it runs away for a time between these two (ms). */
   readonly retreatMs: readonly [number, number];
+  /**
+   * While another mob has the turn, it hounds the player at a distance between these two (world
+   * pixels): out of its own reach, and out of the player's (ATTACK_REACH + radius).
+   */
+  readonly harass: readonly [number, number];
   /** The radius of its body, for the player's attacks (world pixels). */
   readonly radius: number;
   /** Its feet box, for the collisions with the world. */
@@ -73,6 +82,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     lunge: 7,
     stunTicks: 60,
     retreatMs: [1100, 1800],
+    harass: [36, 50],
     radius: 7,
     halfWidth: 3,
     halfHeight: 2,
@@ -95,6 +105,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     lunge: 3,
     stunTicks: 120,
     retreatMs: [1400, 2200],
+    harass: [42, 56],
     radius: 11,
     halfWidth: 5,
     halfHeight: 3,
@@ -183,6 +194,25 @@ const STUCK_MS = 1500;
 const GIVE_UP_MS = 4000;
 /** The ways round an obstacle, as angles off the wished direction, nearest first. */
 const DETOURS = [0.6, -0.6, 1.2, -1.2, 1.8, -1.8, 2.5, -2.5];
+/**
+ * A mob in the line of a player hounds it within this distance beyond MobStats.harass (world
+ * pixels); further away it runs at the player as in a chase. The next in the line stays the next
+ * while it is within twice that distance.
+ */
+const HOUND_MARGIN = 16;
+/**
+ * While it hounds, it moves round the player (its goal is this many radians ahead on its circle),
+ * at this share of its chase speed when it is at its distance, and faster by HOUND_PULL px/s for
+ * each pixel that it is off its distance.
+ */
+const ORBIT = 0.4;
+const HOUND_SPEED = 0.5;
+const HOUND_PULL = 12;
+/** Mobs that hound one player keep this far apart round it (radians). */
+const SPREAD = 1.1;
+/** The next in the line closes in at this share of its chase speed: it can keep up with its timed distance. */
+const CLOSE_IN = 0.8;
+const TICK_MS = TICK_SECONDS * 1000;
 
 interface Brain {
   home: { readonly x: number; readonly y: number };
@@ -212,6 +242,14 @@ interface Brain {
   /** The direction of the blow that killed it. */
   slideX: number;
   slideY: number;
+  /** When it joined the line of the mobs that hunt its target (horde ms): the line is in this order. */
+  queuedMs: number;
+  /** While it hounds: the distance that it keeps from the player, and for how long more (ms). */
+  ring: number;
+  ringMs: number;
+  /** The way round the player (+1 or -1), and for how long more (ms). */
+  orbit: number;
+  orbitMs: number;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -247,6 +285,10 @@ export class Horde {
   private readonly ground: SolidMap;
   private nextId = 1;
   private spawnMs = SPAWN_GAP_MS;
+  /** The time of the horde (ms): the sum of its steps. */
+  private clockMs = 0;
+  /** For each player that mobs hunt: the mob with the next turn to attack it. See nextUp(). */
+  private readonly nextMob = new Map<number, number>();
 
   constructor(world: World, rules: MobRules, seed: number) {
     this.world = world;
@@ -283,6 +325,11 @@ export class Horde {
       anchorY: y,
       slideX: 0,
       slideY: 0,
+      queuedMs: 0,
+      ring: MOB_STATS[kind].harass[1],
+      ringMs: 0,
+      orbit: 1,
+      orbitMs: 0,
     });
     return mob;
   }
@@ -294,8 +341,10 @@ export class Horde {
   step(dtMs: number, players: readonly HordePlayer[]): [number, number][] {
     const dt = Math.min(Math.max(0, dtMs), 250);
     const hits: [number, number][] = [];
+    this.clockMs += dt;
     this.populate(dt, players);
     const byId = new Map(players.map((p) => [p.id, p.state]));
+    for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
     for (const mob of [...this.mobs]) {
       const brain = this.brains.get(mob.id)!;
       mob.stateMs += dt;
@@ -431,6 +480,7 @@ export class Horde {
     brain.seenY = best.state.y;
     brain.lostMs = 0;
     brain.curve = this.newCurve();
+    brain.queuedMs = this.clockMs;
     this.enter(mob, 'chase');
     return true;
   }
@@ -485,24 +535,35 @@ export class Horde {
     if (brain.stuckMs > STUCK_MS && brain.detourMs <= 0) {
       // Stuck behind something: bend the other way round it for a moment.
       brain.curve = -brain.curve;
+      brain.orbit = -brain.orbit;
       brain.detour = 1.6;
       brain.detourMs = 700;
     }
     const dx = (seen ? target.x : brain.seenX) - mob.x;
     const dy = (seen ? target.y : brain.seenY) - mob.y;
     const d = Math.hypot(dx, dy);
-    if (seen && d <= stats.reach && canBeHit(target)) {
-      this.enter(mob, 'windup');
-      mob.facing = facingTo(dx, dy, mob.facing);
-      brain.timerMs = stats.windupMs;
-      return;
+    if (seen) {
+      const wait = this.waitFor(mob, brain.target!, target);
+      if (wait === 0 && d <= stats.reach) {
+        this.enter(mob, 'windup');
+        mob.facing = facingTo(dx, dy, mob.facing);
+        brain.timerMs = stats.windupMs;
+        return;
+      }
+      if (wait > 0 && d <= stats.harass[1] + HOUND_MARGIN) {
+        if (wait === Infinity) {
+          // Another mob has the next turn: hound the player from out of reach.
+          this.hound(mob, brain, brain.target!, target, brain.ring, 1, dt);
+        } else {
+          // Its turn comes in `wait` ms: close in at a pace that brings it into reach just then,
+          // and straight at the player at the end.
+          const radius = Math.min(stats.harass[1], stats.reach + (CLOSE_IN * stats.chaseSpeed * wait) / 1000);
+          this.hound(mob, brain, brain.target!, target, radius, 0.5 * Math.min(1, (radius - stats.reach) / (stats.harass[0] - stats.reach)), dt);
+        }
+        return;
+      }
     }
     const straight = Math.atan2(dy, dx);
-    if (seen && !canBeHit(target) && d < stats.reach * 2.6) {
-      // The player is stunned or just after a stun: circle round it until it can be hit.
-      this.steer(mob, brain, straight + Math.sign(brain.curve) * (d < stats.reach * 1.8 ? 2.2 : Math.PI / 2), stats.chaseSpeed * 0.55, dt);
-      return;
-    }
     // The curve: far away the mob runs at an angle to the straight line; the angle shrinks as
     // it comes near, so the path bends round to the player.
     const bend = brain.curve * Math.max(0, Math.min(1, (d - stats.reach) / (stats.sight * 0.8)));
@@ -526,8 +587,13 @@ export class Horde {
       brain.curve = this.newCurve();
       return;
     }
-    if (brain.target !== null && players.has(brain.target)) this.enter(mob, 'chase');
-    else this.giveUp(mob, brain);
+    if (brain.target !== null && players.has(brain.target)) {
+      // A miss: it goes to the end of the line.
+      brain.queuedMs = this.clockMs;
+      this.enter(mob, 'chase');
+    } else {
+      this.giveUp(mob, brain);
+    }
   }
 
   /** Runs away from the player that it hit, on a curve, until it is time to attack again. */
@@ -542,6 +608,7 @@ export class Horde {
     if (brain.timerMs <= 0 || brain.stuckMs > STUCK_MS) {
       brain.curve = this.newCurve();
       brain.lostMs = 0;
+      brain.queuedMs = this.clockMs;
       this.enter(mob, 'chase');
       return;
     }
@@ -581,6 +648,101 @@ export class Horde {
     brain.goal = { x: brain.home.x, y: brain.home.y };
     brain.stuckMs = 0;
     this.enter(mob, 'walk');
+  }
+
+  // ---------------------------------------------------------------- turns
+
+  /**
+   * How long the mob must wait for its turn to attack the player `playerId` (ms): 0 if it may
+   * attack now, Infinity if it is not the next in the line. The turn comes when the attack of the
+   * mob before it is over and the player can be hit again (after a stun and its guard).
+   */
+  private waitFor(mob: Mob, playerId: number, player: PlayerState): number {
+    if (this.nextUp(playerId, player) !== mob.id) return Infinity;
+    let wait = (player.stun > 0 ? player.stun + GUARD_TICKS : player.guard) * TICK_MS;
+    const attacker = this.attacker(playerId);
+    if (attacker) {
+      const timer = this.brains.get(attacker.id)!.timerMs;
+      wait = Math.max(wait, attacker.state === 'windup' ? timer + MOB_STATS[attacker.kind].strikeMs : timer);
+    }
+    return wait;
+  }
+
+  /**
+   * The mob with the next turn to attack the player `playerId`, or null. It stays the next until
+   * it attacks, stops the hunt, or falls far behind. A new next is the mob that has waited
+   * longest in the line, among those that hunt the player close to it.
+   */
+  private nextUp(playerId: number, player: PlayerState): number | null {
+    const kept = this.nextMob.get(playerId);
+    if (kept !== undefined) {
+      const mob = this.mobs.find((m) => m.id === kept);
+      if (mob && mob.state === 'chase' && this.brains.get(kept)!.target === playerId && this.near(mob, player, 2)) return kept;
+    }
+    let best: Mob | null = null;
+    let since = Infinity;
+    for (const mob of this.mobs) {
+      if (mob.state !== 'chase') continue;
+      const brain = this.brains.get(mob.id)!;
+      if (brain.target !== playerId || brain.queuedMs >= since || !this.near(mob, player, 1)) continue;
+      best = mob;
+      since = brain.queuedMs;
+    }
+    if (best) this.nextMob.set(playerId, best.id);
+    else this.nextMob.delete(playerId);
+    return best?.id ?? null;
+  }
+
+  /** The mob that attacks the player `playerId` now (in its wind-up or its blow), or null. At most one does. */
+  private attacker(playerId: number): Mob | null {
+    for (const mob of this.mobs) {
+      if ((mob.state === 'windup' || mob.state === 'strike') && this.brains.get(mob.id)!.target === playerId) return mob;
+    }
+    return null;
+  }
+
+  /** Whether the mob is close to the player: within its hounding distance and `margins` times HOUND_MARGIN. */
+  private near(mob: Mob, player: PlayerState, margins: number): boolean {
+    return Math.hypot(mob.x - player.x, mob.y - player.y) <= MOB_STATS[mob.kind].harass[1] + margins * HOUND_MARGIN;
+  }
+
+  /**
+   * Hounds the player `playerId` (at `player`): the mob keeps `radius` from the player, moves
+   * round it, keeps apart from the other mobs round the player, and looks at the player. It takes
+   * a new distance and now and then a new way round. `freedom` (0 to 1) scales the moves round
+   * the player: 0 goes straight to its distance.
+   */
+  private hound(mob: Mob, brain: Brain, playerId: number, player: PlayerState, radius: number, freedom: number, dt: number): void {
+    const stats = MOB_STATS[mob.kind];
+    brain.ringMs -= dt;
+    if (brain.ringMs <= 0) {
+      brain.ring = this.between(stats.harass[0], stats.harass[1]);
+      brain.ringMs = this.between(700, 1600);
+    }
+    brain.orbitMs -= dt;
+    if (brain.orbitMs <= 0) {
+      if (this.random() < 0.5) brain.orbit = -brain.orbit;
+      brain.orbitMs = this.between(1200, 3000);
+    }
+    const ax = mob.x - player.x;
+    const ay = mob.y - player.y;
+    const angle = Math.atan2(ay, ax);
+    // Each other mob round the player that is closer than SPREAD round the circle pushes it on.
+    let push = 0;
+    for (const other of this.mobs) {
+      if (other === mob || (other.state !== 'chase' && other.state !== 'windup' && other.state !== 'strike')) continue;
+      if (this.brains.get(other.id)!.target !== playerId || !this.near(other, player, 1)) continue;
+      const diff = normalAngle(angle - Math.atan2(other.y - player.y, other.x - player.x));
+      if (Math.abs(diff) < SPREAD) push += (diff === 0 ? (mob.id < other.id ? 1 : -1) : Math.sign(diff)) * (SPREAD - Math.abs(diff));
+    }
+    const turn = freedom * Math.max(-1, Math.min(1, ORBIT * brain.orbit + push));
+    const goalX = player.x + Math.cos(angle + turn) * radius;
+    const goalY = player.y + Math.sin(angle + turn) * radius;
+    const toGoal = Math.hypot(goalX - mob.x, goalY - mob.y);
+    // Fast to its distance, slower round the player once it is there.
+    const speed = Math.min(stats.chaseSpeed, stats.chaseSpeed * HOUND_SPEED + HOUND_PULL * Math.abs(Math.hypot(ax, ay) - radius));
+    this.steer(mob, brain, Math.atan2(goalY - mob.y, goalX - mob.x), Math.min(speed, (toGoal * 1000) / Math.max(dt, 1)), dt);
+    mob.facing = facingTo(-ax, -ay, mob.facing);
   }
 
   // ---------------------------------------------------------------- senses and movement

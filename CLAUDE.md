@@ -385,8 +385,15 @@ and forth between trees): a walk ends, a chase bends the other way and gives up 
 the open, no building between), it runs at the player on a curve (an angle off the straight line
 that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
 the player (`stunPlayer`: no move, no attack), and after it the player has a guard of 1 s in which
-no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. While the player is
-stunned or guarded, mobs circle round it. A mob never enters a building, gives up the chase when
+no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. **Mobs that hunt one
+player take turns** (`Horde.waitFor()`, `nextUp()`): only one attacks it at a time (its wind-up and
+its blow). The others hound the player: they keep `MobStats.harass` from it (imp 36 to 50 px,
+brute 42 to 56 px: out of their reach and out of the player's), move round it, keep apart, and
+look at it. The line goes in the order in which the mobs joined it; a miss or the end of a retreat
+puts a mob at the end. The next in the line times its approach: it comes into reach when the
+attack before it is over and the player can be hit again (after a stun and its guard), and it
+winds up at once. Each player has a line of its own. Hounding is part of the state `chase`, so the
+protocol does not change. A mob never enters a building, gives up the chase when
 it loses the player for 1.5 s or is 18 tiles from home, and walks home. New mobs come one at a
 time, 17 to 25 tiles from every player (out of sight), up to the world's population round each
 player; a wandering mob 36 tiles from every player goes away.
