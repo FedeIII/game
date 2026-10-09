@@ -17,10 +17,9 @@ export interface MenuOptions {
   readonly skins: SkinStore;
 }
 
-/** The chosen character, and the name of the signed-in person. */
+/** The chosen character. */
 export interface MenuChoice {
   readonly character: Character;
-  readonly account: string;
 }
 
 /** "3 days ago", "yesterday". */
@@ -59,6 +58,11 @@ function googleMark(): SVGSVGElement {
     svg.append(path);
   }
   return svg;
+}
+
+/** The privacy page (apps/game/public/privacy/), in a new tab: the menu stays as it is. */
+function privacyLink(): HTMLAnchorElement {
+  return el('a', { href: '/privacy/', target: '_blank', rel: 'noopener', class: 'menu-link' }, T.privacy);
 }
 
 /**
@@ -126,7 +130,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         options.skins.get(characterSkin(played), undefined, true);
         root.classList.add('leaving');
         setTimeout(() => root.remove(), 400);
-        resolve({ character: played, account: me?.user?.name ?? '' });
+        resolve({ character: played });
       } catch (error) {
         fail(error, () => void start(character));
       }
@@ -157,6 +161,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         parts.push(form);
       }
       if (!me?.login.google && !me?.login.dev) parts.push(el('p', { class: 'menu-hint' }, T.noSignIn));
+      parts.push(el('p', { class: 'menu-account' }, privacyLink()));
       show(el('section', { class: 'menu-screen' }, ...parts));
     };
 
@@ -171,13 +176,38 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         out.disabled = true;
         api.signOut().then(home, (error: unknown) => fail(error, () => void home()));
       });
+      const remove = el('button', { type: 'button', class: 'menu-link' }, T.deleteAccount);
+      const account = el('p', { class: 'menu-account' }, T.signedIn(me?.user?.via ?? 'google'), ' · ', out, ' · ', remove, ' · ', privacyLink());
+      remove.addEventListener('click', () => {
+        // Ask first: the account and every character go at once.
+        const yes = el('button', { type: 'button', class: 'menu-small danger' }, T.deleteAccountYes);
+        const no = el('button', { type: 'button', class: 'menu-small' }, T.keep);
+        const ask = el('div', { class: 'account-ask', role: 'alertdialog', 'aria-label': T.deleteAccountAsk }, el('p', {}, T.deleteAccountAsk), el('div', { class: 'menu-actions' }, no, yes));
+        no.addEventListener('click', () => {
+          ask.replaceWith(account);
+          remove.focus();
+        });
+        yes.addEventListener('click', () => {
+          yes.disabled = true;
+          no.disabled = true;
+          api.deleteAccount().then(
+            () => {
+              characters = [];
+              void home();
+            },
+            (error: unknown) => fail(error, main),
+          );
+        });
+        account.replaceWith(ask);
+        no.focus();
+      });
       show(
         el(
           'section',
           { class: 'menu-screen menu-main' },
           el('h2', { class: 'sr-only', tabindex: '-1' }, options.title),
           el('div', { class: 'menu-actions menu-stack' }, newGame, resume),
-          el('p', { class: 'menu-account' }, T.signedInAs(me?.user?.name || me?.user?.email || '?'), ' · ', out),
+          account,
         ),
       );
       newGame.focus();

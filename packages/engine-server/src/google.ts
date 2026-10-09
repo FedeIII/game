@@ -7,6 +7,9 @@ import { createHash, randomBytes } from 'node:crypto';
  * (with its client secret and the PKCE verifier) for an ID token, straight from Google over TLS.
  * Thus the token needs no signature check (OpenID Connect Core 1.0, 3.1.3.7); the server checks
  * its issuer, its audience and its expiry.
+ *
+ * The scope is `openid` only: the token gives the Google account id (`sub`) and no name, email
+ * or picture. The game keeps only that id (see apps/game/public/privacy/).
  */
 
 export interface GoogleConfig {
@@ -36,7 +39,7 @@ export function googleAuthUrl(config: GoogleConfig, redirectUri: string, state: 
     client_id: config.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'openid email profile',
+    scope: 'openid',
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -46,10 +49,8 @@ export function googleAuthUrl(config: GoogleConfig, redirectUri: string, state: 
 }
 
 export interface GoogleIdentity {
-  /** Google's id of the person: it never changes, an email can. */
+  /** Google's id of the account (`sub`): it never changes. */
   readonly subject: string;
-  readonly email: string;
-  readonly name: string;
 }
 
 /** Reads the claims of a JWT without its signature (see the comment at the top). */
@@ -95,9 +96,5 @@ export async function googleIdentity(
   if (!audience.includes(config.clientId)) throw new Error('audience');
   if (typeof claims.exp !== 'number' || claims.exp * 1000 < now - SKEW_MS) throw new Error('expired');
   if (typeof claims.sub !== 'string' || claims.sub.length === 0) throw new Error('subject');
-  return {
-    subject: claims.sub,
-    email: typeof claims.email === 'string' ? claims.email : '',
-    name: typeof claims.name === 'string' ? claims.name : typeof claims.given_name === 'string' ? claims.given_name : '',
-  };
+  return { subject: claims.sub };
 }

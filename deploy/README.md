@@ -74,7 +74,8 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
    "game-azyr-io"):
    - "Google Auth Platform" (or "APIs & Services", "OAuth consent screen"): user type
      **External**, app name `game.azyr.io`, a support email, the authorized domain `azyr.io`,
-     and the scopes `openid`, `email` and `profile` (no sensitive scopes, so Google does not
+     the privacy page `https://game.azyr.io/privacy/`, and the scope `openid` only (the game asks
+     for nothing else, since 2026-10-10; no sensitive scopes, so Google does not
      need to verify the app). **Publish the app** ("In production"): in "Testing", only the test
      users can sign in.
    - "Clients" (or "Credentials"), "Create client", type **Web application**. Authorized
@@ -119,8 +120,8 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
 6. **The nightly encrypted backup** of the database (`scripts/backup-db.ts`: `VACUUM INTO` a
    dated copy, gpg AES256 with a passphrase file, a test decryption, then the plain copy is
    deleted; `/var/backups/game/game-<UTC stamp>.db.gpg`, the newest 14 kept; 03:41 to 03:46,
-   after the house-md backup and before the wallet backup). The copies hold the emails of the
-   accounts. This is the method of the house-md and wallet backups on the VPS. The script
+   after the house-md backup and before the wallet backup). The copies hold the Google account
+   ids of the players (since 2026-10-10 no emails and no names). This is the method of the house-md and wallet backups on the VPS. The script
    refuses to run without the passphrase file, or if the file is not mode 600:
 
    ```bash
@@ -180,5 +181,7 @@ nothing from this repository's folders, and `game-server` accepts the origin
 - `/assets/*` has `max-age=31536000, immutable`. That is safe only because Vite puts a
   content hash in every file name. Do not put a file with a fixed name under `/assets/`.
 - Everything else, `index.html` included, has `no-store`.
-- Files in `apps/game/public/` (none yet) keep their names. If you add one, do not put
-  it under `/assets/`, and expect the browser to revalidate it.
+- The privacy page, `/privacy/` (`apps/game/privacy/index.html`, a second Vite page), has
+  `no-store` like the game's page. nginx serves `privacy/index.html` for it (`try_files $uri/`).
+- Files in `apps/game/public/` (none now) keep their names. If you add one, do not put it under
+  `/assets/`, and expect the browser to revalidate it.

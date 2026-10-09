@@ -803,6 +803,22 @@ body:has(#settings:not([hidden]), #worlds:not([hidden])) #hint {
   opacity: 0.75;
 }
 
+a.menu-link {
+  color: inherit;
+}
+
+.account-ask {
+  margin: 18px auto 0;
+  max-width: 360px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.account-ask .menu-actions {
+  justify-content: center;
+  margin-top: 8px;
+}
+
 #menu input[type='text'] {
   box-sizing: border-box;
   min-width: 0;

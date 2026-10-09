@@ -288,8 +288,11 @@ GUI style, over the whole page (it scrolls on a phone):
 
 - **Sign-in**: "Sign in with Google" (Google's dark button, with the "G"), or in development a
   dev sign-in with a name only. After Google, the page shows `?login=failed` or `cancelled` once.
-- **Main screen**: "New game", "Continue" (off without characters), "Signed in as ... · Sign
-  out". An account keeps at most `MAX_CHARACTERS` (12).
+- **Main screen**: "New game", "Continue" (off without characters), and "Signed in with Google
+  · Sign out · Delete account · Privacy". "Delete account" asks first, then deletes the account,
+  its sessions and all its characters. "Privacy" opens `/privacy/` (`apps/game/privacy/
+  index.html`, a second Vite page; its text must say what the server keeps, so change it with
+  the data). The sign-in screen links it too. An account keeps at most `MAX_CHARACTERS` (12).
 - **New game**, the character builder (`menu/builder.ts`), two steps. 1, Appearance: race
   (human, dwarf, elf, gnome, half-elf, halfling, half-orc), class (barbarian, bard, cleric,
   druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock, wizard), gender (male, female,
@@ -313,10 +316,14 @@ its times. Its skin seed is `characterSkin(sheet)`. Its texts (names of races, c
 abilities, one line about each) are in `ui/strings.ts`. The scores do nothing in the game yet.
 
 **The accounts** are in the game server (`packages/engine-server/src`): `google.ts` (OpenID
-Connect, the code flow with PKCE and a state bound to the browser by a cookie; the ID token comes
-straight from Google, and the server checks its issuer, audience and expiry), `store.ts` (SQLite
-by `node:sqlite`: users, sessions (only a hash of each token), sign-in states, characters as JSON;
-a schema version and migrations), `accounts.ts` (the routes; see its comment). The session is
+Connect with the scope `openid` only, the code flow with PKCE and a state bound to the browser by
+a cookie; the ID token comes straight from Google, and the server checks its issuer, audience and
+expiry), `store.ts` (SQLite by `node:sqlite`: users, sessions (only a hash of each token),
+sign-in states, characters as JSON; a schema version and migrations), `accounts.ts` (the routes;
+see its comment). **Keep personal data to a minimum (Fede's decision, 2026-10-10):** an account
+is only the provider's id (Google's `sub`) and its times; the server never asks for or keeps a
+name, an email or a picture, so the privacy page stays short. `DELETE /api/me` deletes an account
+with everything in it. The session is
 the cookie `game_session` (HttpOnly, SameSite=Lax, Secure on https, 30 days, renewed in use).
 A request that changes something must have the Origin of one of the game's pages (`ORIGINS`).
 In a shared world the server takes the look and the name from the stored character

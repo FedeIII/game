@@ -1,8 +1,12 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { PROTOCOL_VERSION, characterSkin, type CharacterSheet, type ServerMessage, type WorldDefinition } from '@game/engine';
 import { houseSource } from '../../engine/test/helpers.ts';
-import { startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
+import { AccountStore, startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
 
 const shared: WorldDefinition = { id: 'shared', name: 'Shared', createSource: () => houseSource(), examine: {}, darkness: 0, multiplayer: true };
 const ORIGIN = 'http://localhost:3019';
@@ -94,7 +98,7 @@ describe('accounts: sessions', () => {
     const browser = new Browser(port);
     expect((await browser.request('GET', '/api/me')).json).toEqual({ user: null, login: { google: false, dev: true } });
     await browser.signIn('  Fede ');
-    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ name: 'Fede', email: '' });
+    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
     expect((await browser.request('POST', '/auth/logout')).status).toBe(204);
     expect((await browser.request('GET', '/api/me')).json.user).toBeNull();
   });
@@ -217,6 +221,8 @@ describe('accounts: sign-in with Google', () => {
     expect(to.origin + to.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
     expect(to.searchParams.get('redirect_uri')).toBe(`${ORIGIN}/auth/google/callback`);
     expect(to.searchParams.get('code_challenge_method')).toBe('S256');
+    // Only the account id: no email, no name, no picture.
+    expect(to.searchParams.get('scope')).toBe('openid');
     const state = to.searchParams.get('state')!;
     expect(browser.cookies.get('game_login')).toBe(state);
 
@@ -226,7 +232,7 @@ describe('accounts: sign-in with Google', () => {
     expect(calls[0]!.url).toBe('https://oauth2.googleapis.com/token');
     expect(calls[0]!.body.get('code')).toBe('the-code');
     expect(calls[0]!.body.get('code_verifier')).toMatch(/^[\w-]{43}$/);
-    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ name: 'Fede III', email: 'fede@example.com' });
+    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'google' });
     // A state works once.
     const again = await new Browser(port).request('GET', `/auth/google/callback?state=${state}&code=the-code`);
     expect(again.headers.get('location')).toBe(`${ORIGIN}/?login=failed`);
@@ -293,5 +299,57 @@ describe('accounts: the shared world', () => {
     const other = new Browser(port);
     await other.signIn('Bea');
     expect((await other.hello({ character: id })).first).toEqual({ t: 'refused', reason: 'account' });
+  });
+});
+
+describe('accounts: personal data', () => {
+  it('deletes an account with its sessions and characters, and only that account', async () => {
+    const { port } = await start();
+    const a = new Browser(port);
+    const b = new Browser(port);
+    await a.signIn('Ana');
+    await b.signIn('Bea');
+    await a.request('POST', '/api/characters', sheet);
+    const kept = (await b.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const oldCookie = a.cookies.get('game_session')!;
+    expect((await a.request('DELETE', '/api/me', undefined, 'https://evil.example')).status).toBe(403);
+    expect((await a.request('DELETE', '/api/me')).status).toBe(204);
+    expect(a.cookies.has('game_session')).toBe(false);
+    // The old session is gone too, not only the cookie.
+    a.cookies.set('game_session', oldCookie);
+    expect((await a.request('GET', '/api/me')).json.user).toBeNull();
+    expect((await a.request('GET', '/api/characters')).status).toBe(401);
+    expect((await b.request('GET', '/api/characters')).json.characters.map((c: { id: string }) => c.id)).toEqual([kept]);
+    // A new sign-in starts from nothing.
+    await a.signIn('Ana');
+    expect((await a.request('GET', '/api/characters')).json.characters).toEqual([]);
+  });
+
+  it('keeps no email and no name, and removes them from an old database', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
+    try {
+      // A database of the first schema, with an email and a name.
+      const file = join(dir, 'game.db');
+      const old = new DatabaseSync(file);
+      old.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, provider TEXT NOT NULL, subject TEXT NOT NULL, email TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, last_login_at INTEGER NOT NULL, UNIQUE (provider, subject));
+        CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+        CREATE INDEX sessions_user ON sessions (user_id);
+        CREATE TABLE login_states (state TEXT PRIMARY KEY, verifier TEXT NOT NULL, created_at INTEGER NOT NULL);
+        CREATE TABLE characters (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE, sheet TEXT NOT NULL, created_at INTEGER NOT NULL, played_at INTEGER);
+        CREATE INDEX characters_user ON characters (user_id);
+        INSERT INTO users (provider, subject, email, name, created_at, last_login_at) VALUES ('google', '123', 'a@example.com', 'Ana', 1, 1);
+        PRAGMA user_version = 1;`);
+      old.close();
+      const store = new AccountStore(file);
+      const user = store.signIn('google', '123', 2);
+      expect(user).toEqual({ id: 1, provider: 'google' });
+      store.close();
+      const check = new DatabaseSync(file);
+      const columns = (check.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
+      expect(columns.sort()).toEqual(['created_at', 'id', 'last_login_at', 'provider', 'subject']);
+      check.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

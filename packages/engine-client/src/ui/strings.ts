@@ -65,8 +65,12 @@ export const STRINGS = {
   menu: {
     newGame: 'New game',
     continue: 'Continue',
-    signedInAs: (name: string): string => `Signed in as ${name}`,
+    signedIn: (via: 'google' | 'dev'): string => (via === 'google' ? 'Signed in with Google' : 'Signed in (development)'),
     signOut: 'Sign out',
+    deleteAccount: 'Delete account',
+    deleteAccountAsk: 'Delete your account and all your characters? This cannot be undone.',
+    deleteAccountYes: 'Delete everything',
+    privacy: 'Privacy',
     signInTitle: 'Sign in to keep your characters',
     google: 'Sign in with Google',
     devName: 'Name',

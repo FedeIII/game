@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#08090b" />
+    <title>Privacy · game.azyr.io</title>
+    <style>
+      /* The colours and fonts of the game's theme (packages/engine-client/src/style.css). */
+      :root {
+        color-scheme: dark;
+        --ui-ink: #d8ccb0;
+        --ui-panel: rgb(8 6 8 / 0.85);
+        --ui-border: rgb(122 48 46 / 0.6);
+        --ui-accent: #9a3a36;
+        --ui-backdrop: #08090b;
+        --ui-menu-glow: rgb(122 48 46 / 0.14);
+        --ui-radius: 2px;
+        --ui-serif: Georgia, 'Times New Roman', serif;
+        --ui-mono: ui-monospace, Menlo, Consolas, monospace;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px 16px;
+        box-sizing: border-box;
+        background: radial-gradient(ellipse at 50% 20%, var(--ui-menu-glow) 0%, transparent 65%), var(--ui-backdrop);
+        color: var(--ui-ink);
+        font: 16px/1.55 var(--ui-serif);
+      }
+      main {
+        box-sizing: border-box;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 18px 22px;
+        border: 1px solid var(--ui-border);
+        border-radius: var(--ui-radius);
+        background: var(--ui-panel);
+      }
+      h1 {
+        margin: 0 0 4px;
+        font: italic 30px/1.2 var(--ui-serif);
+        letter-spacing: 0.04em;
+      }
+      h2 {
+        margin: 20px 0 4px;
+        font: italic 18px var(--ui-serif);
+      }
+      p {
+        margin: 0 0 8px;
+      }
+      code,
+      .date {
+        font: 13px var(--ui-mono);
+      }
+      .date {
+        opacity: 0.6;
+      }
+      a {
+        color: var(--ui-ink);
+        text-decoration-color: var(--ui-accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy</h1>
+      <p class="date">game.azyr.io · last change 10 October 2026</p>
+
+      <h2>What the game keeps</h2>
+      <p>
+        When you sign in with Google, the game asks Google only for the id of your Google account (a number). It does
+        not get or keep your name, your email address or your picture. It keeps that id, when you first and last
+        signed in, your sign-in sessions, and the characters that you make (name, race, class, gender, look, ability
+        scores, and when you made and last played each one).
+      </p>
+
+      <h2>Why</h2>
+      <p>To keep your characters for you, and to know that they are yours. Nothing else: no ads, no analytics, no trackers. The game shares nothing with anyone.</p>
+
+      <h2>How long</h2>
+      <p>
+        Until you delete your account. A sign-in session ends at most 30 days after you last use it. A copy of the database is
+        made every night, encrypted, and kept for 14 days: deleted data leaves the copies within 14 days.
+      </p>
+
+      <h2>How to delete everything</h2>
+      <p>In the game's menu, choose <em>Delete account</em>. Your account, its sessions and all its characters go at once.</p>
+
+      <h2>Cookies and storage</h2>
+      <p>
+        One cookie, <code>game_session</code>, keeps you signed in; it is necessary for the sign-in, so the game asks no
+        consent for it. A second one, <code>game_login</code>, lives 10 minutes during a sign-in. Your browser also keeps
+        your display settings and the drawn looks of characters, on your device only. Google runs the sign-in, and
+        Google's own privacy policy covers your Google account.
+      </p>
+
+      <p><a href="/">Back to the game</a></p>
+    </main>
+  </body>
+</html>

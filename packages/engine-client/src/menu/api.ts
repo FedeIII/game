@@ -7,7 +7,8 @@ import type { Character, CharacterSheet } from '@game/engine';
  */
 
 export interface Me {
-  readonly user: { readonly name: string; readonly email: string } | null;
+  /** How the visitor signed in (the server keeps no name and no email), or null. */
+  readonly user: { readonly via: 'google' | 'dev' } | null;
   readonly login: { readonly google: boolean; readonly dev: boolean };
 }
 
@@ -52,6 +53,8 @@ export const api = {
   },
   devSignIn: (name: string) => call<{ user: Me['user'] }>('POST', '/auth/dev', { name }),
   signOut: () => call<null>('POST', '/auth/logout'),
+  /** Deletes the account, its sessions and its characters. */
+  deleteAccount: () => call<null>('DELETE', '/api/me'),
   characters: async () => (await call<{ characters: Character[] }>('GET', '/api/characters')).characters,
   create: async (sheet: CharacterSheet) => (await call<{ character: Character }>('POST', '/api/characters', sheet)).character,
   play: async (id: string) => (await call<{ character: Character }>('POST', `/api/characters/${encodeURIComponent(id)}/play`)).character,

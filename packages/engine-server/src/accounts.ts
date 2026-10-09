@@ -8,7 +8,8 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  * characters (the JSON API that the menu of the page uses). nginx sends /api/ and /auth/ here,
  * as it sends /ws; in development, Vite does.
  *
- *   GET    /api/me                      who is signed in (or null), and the ways to sign in
+ *   GET    /api/me                      who is signed in (how, or null), and the ways to sign in
+ *   DELETE /api/me                      deletes the account, its sessions and its characters
  *   GET    /api/characters              the account's characters
  *   POST   /api/characters              a new character (a CharacterSheet as JSON)
  *   POST   /api/characters/<id>/play    the character starts to play (stamps it, returns it)
@@ -145,6 +146,7 @@ export class Accounts {
     if (method !== 'GET' && method !== 'HEAD') this.checkOrigin(request);
 
     if (path === '/api/me' && method === 'GET') return this.me(request, response);
+    if (path === '/api/me' && method === 'DELETE') return this.deleteAccount(request, response);
     if (path === '/auth/google' && method === 'GET') return this.googleStart(response);
     if (path === '/auth/google/callback' && method === 'GET') return this.googleCallback(request, response, url);
     if (path === '/auth/dev' && method === 'POST') return this.devSignIn(request, response);
@@ -199,7 +201,7 @@ export class Accounts {
       response,
       200,
       {
-        user: session ? { name: session.user.name, email: session.user.email } : null,
+        user: session ? { via: session.user.provider } : null,
         login: { google: Boolean(this.options.google), dev: Boolean(this.options.devLogin) },
       },
       headers,
@@ -246,7 +248,7 @@ export class Accounts {
       this.log(`accounts: google sign-in failed: ${(error as Error).message}`);
       return back('failed', { 'set-cookie': clearLogin });
     }
-    const user = this.store.signIn('google', identity.subject, identity.email, identity.name, this.now());
+    const user = this.store.signIn('google', identity.subject, this.now());
     const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
     response.writeHead(302, {
       location: `${this.options.publicOrigin}/`,
@@ -261,9 +263,18 @@ export class Accounts {
     const body = (await readJson(request)) as { name?: unknown };
     const name = typeof body?.name === 'string' && body.name.length <= 4 * NAME_MAX ? cleanName(body.name) : '';
     if (!name) throw new HttpError(400, 'name');
-    const user = this.store.signIn('dev', name.toLowerCase(), '', name, this.now());
+    const user = this.store.signIn('dev', name.toLowerCase(), this.now());
     const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
-    this.json(response, 200, { user: { name: user.name, email: user.email } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
+    this.json(response, 200, { user: { via: user.provider } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
+  }
+
+  /** The visitor deletes its account: the user, its sessions and its characters, at once. */
+  private deleteAccount(request: IncomingMessage, response: ServerResponse): void {
+    const user = this.requireUser(request);
+    this.store.deleteUser(user.id);
+    this.log('accounts: an account was deleted');
+    response.writeHead(204, { 'cache-control': 'no-store', 'set-cookie': this.cookie(SESSION_COOKIE, '', '/', 0) });
+    response.end();
   }
 
   private logout(request: IncomingMessage, response: ServerResponse): void {

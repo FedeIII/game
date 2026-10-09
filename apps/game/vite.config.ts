@@ -1,5 +1,9 @@
 import { execSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 /** The commit of the build, shown in the debug panel (F3), so a deploy can be verified. */
 function commit(): string {
@@ -32,6 +36,10 @@ export default defineConfig({
     target: 'es2022',
     // Keep the atlas a separate file with a content hash, as real art will be.
     assetsInlineLimit: 0,
+    rolldownOptions: {
+      // Two pages: the game, and the privacy notice at /privacy/ (the same in development).
+      input: { main: resolve(here, 'index.html'), privacy: resolve(here, 'privacy/index.html') },
+    },
   },
   server: {
     host: '127.0.0.1',
