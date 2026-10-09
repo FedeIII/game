@@ -96,19 +96,29 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
 3. **The data folder** (the server makes it too, but give it these permissions):
    `install -d -m 700 /var/lib/game`. The database file is `/var/lib/game/game.db` (and its
    `-wal` and `-shm` files while the server runs).
-4. **nginx**: the site now sends `/api/` and `/auth/` to the server. Back it up, copy it, test,
-   reload:
+4. **nginx**: the site now sends `/api/` and `/auth/` to the server. Do this **before** the pull:
+   game-server runs the TypeScript of `/opt/game` with no build step, so after a pull a restart
+   would run the new code with the old environment. Take the file from `origin/main`. Back up,
+   copy, test, reload:
 
    ```bash
-   cp /etc/nginx/sites-available/game.azyr.io /etc/nginx/sites-available/game.azyr.io.backup.$(date +%Y%m%d_%H%M%S)
-   cp /opt/game/deploy/nginx/game.azyr.io /etc/nginx/sites-available/game.azyr.io
+   git -C /opt/game fetch origin
+   git -C /opt/game diff HEAD origin/main -- deploy/nginx/   # only the new location block
+   cp -p /etc/nginx/sites-available/game.azyr.io /etc/nginx/sites-available/game.azyr.io.backup.$(date +%Y%m%d_%H%M%S)
+   git -C /opt/game show origin/main:deploy/nginx/game.azyr.io > /etc/nginx/sites-available/game.azyr.io
    nginx -t && systemctl reload nginx
+   # If nginx -t fails: copy the backup back, run nginx -t again, and do not reload.
    ```
 
-5. **Deploy** as usual (`scripts/deploy.sh`). PM2 gets the new environment from
-   `deploy/pm2.config.cjs` (`ENV_FILE`, `GAME_DB`, `PUBLIC_ORIGIN`).
+5. **Deploy**, the pull and the script in one command:
+   `cd /opt/game && git pull --ff-only && scripts/deploy.sh`. PM2 gets the new environment from
+   `deploy/pm2.config.cjs` (`ENV_FILE`, `GAME_DB`, `PUBLIC_ORIGIN`), and the script saves the
+   PM2 process list (`pm2 save`) when every app is online; otherwise it says so, and you run
+   `pm2 save` yourself. Without the save, game-server starts without its environment after a
+   reboot, and fails.
 6. **The nightly backup** of the database (`scripts/backup-db.ts`: `VACUUM INTO` a dated copy
-   in `/var/backups/game`, the newest 14 kept):
+   in `/var/backups/game`, the newest 14 kept; 03:41, after the house-md backup). The copies are
+   not encrypted now, and they hold the emails of the accounts:
 
    ```bash
    cp /opt/game/deploy/game-backup.service /opt/game/deploy/game-backup.timer /etc/systemd/system/

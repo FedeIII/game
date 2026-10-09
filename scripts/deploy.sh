@@ -44,13 +44,11 @@ npm run build
 
 # The server goes first: a page with the new client must never meet the old server. (An old
 # page that meets the new server with another protocol version is told to reload.)
-echo "==> Multiplayer server (PM2: game-server)"
+echo "==> Game server (PM2: game-server)"
 if pm2 describe game-server > /dev/null 2>&1; then
 	pm2 startOrReload deploy/pm2.config.cjs --update-env
 else
 	pm2 start deploy/pm2.config.cjs
-	# A new app: save the process list, so that it comes back after a reboot.
-	pm2 save
 fi
 for i in $(seq 1 20); do
 	if curl -sf http://127.0.0.1:3008/healthz > /dev/null; then break; fi
@@ -58,6 +56,17 @@ for i in $(seq 1 20); do
 	sleep 0.5
 done
 echo "    $(curl -s http://127.0.0.1:3008/healthz)"
+
+# After a reboot, PM2 starts its apps from the saved process list (the dump). A reload with a new
+# environment does not change the dump: without a save, game-server comes back without ENV_FILE
+# and does not start. Save only when every app is online, so that the dump never keeps an app
+# that is stopped for a moment.
+if pm2 jlist 2> /dev/null | node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => process.exit(JSON.parse(s).every((p) => p.pm2_env.status === "online") ? 0 : 1))'; then
+	pm2 save
+else
+	echo "    WARNING: a PM2 app is not online, so the process list was not saved."
+	echo "    Run \`pm2 save\` when all the apps are online, or game-server can fail after a reboot."
+fi
 
 echo "==> Publish to $WEB_ROOT"
 mkdir -p "$WEB_ROOT/assets"
