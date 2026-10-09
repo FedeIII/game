@@ -8,6 +8,18 @@ const NAME_SHADOW = 0x07050a;
 const NAME_GAP = 3;
 
 /**
+ * Lines of text as a name tag shows them: the parchment ink on a shadow 1 pixel down and to the
+ * right. The signs of the buildings use it too, in the same small font.
+ */
+export function shadowedText(font: PixelFont, lines: readonly string[]): Container {
+  const text = new Container();
+  const shadow = font.layout(lines, NAME_SHADOW);
+  shadow.position.set(1, 1);
+  text.addChild(shadow, font.layout(lines, NAME_INK));
+  return text;
+}
+
+/**
  * A name over a player's head, in the small pixel font, in the text layer (above the darkness).
  * It stays inside the screen, like a speech bubble, on whole world pixels.
  */
@@ -34,10 +46,7 @@ export class NameTag {
     this.tag?.destroy({ children: true });
     this.tag = null;
     if (!name) return;
-    const tag = new Container();
-    const shadow = this.font.layout([name], NAME_SHADOW);
-    shadow.position.set(1, 1);
-    tag.addChild(shadow, this.font.layout([name], NAME_INK));
+    const tag = shadowedText(this.font, [name]);
     this.layer.addChild(tag);
     this.tag = tag;
     this.width = this.font.measure(name);

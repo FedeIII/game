@@ -3,6 +3,7 @@ import { DEFAULT_STYLE, Structure, TILE_SIZE, hash2, type Building, type World }
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
+import { shadowedText } from './name-tag.ts';
 import type { PixelFont } from './pixel-text.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
@@ -18,8 +19,6 @@ const SIGN_BOTTOM = 25;
 /** Look further than the screen for buildings, so a big one appears before its edge does. */
 const MARGIN_TILES = 16;
 const LOOK_SEED = 0x6b1d;
-/** The sign text colour: the parchment of the GUI theme. */
-const INK = 0xd8ccb0;
 /** A lit window throws a little warm light onto the street. */
 const WINDOW_LIGHT = { radius: 48, colour: 0xffa850, y: -17 } as const;
 
@@ -165,16 +164,20 @@ export class Buildings {
     return variants[hash2(tx, ty, LOOK_SEED + 1) % variants.length]!;
   }
 
-  /** A wooden board with the building's name, centred over the door. */
+  /**
+   * A wooden board with the building's name, centred over the door. The name is drawn as the
+   * names over heads are: the small font, the parchment ink and a 1-pixel shadow.
+   */
   private sign(building: Building, text: string): Container {
     const lines = this.font.wrap(text, 120);
-    const width = Math.max(...lines.map((l) => this.font.measure(l))) + 8;
-    const height = (lines.length - 1) * this.font.lineHeight + this.font.height + 5;
+    // The shadow adds a pixel to the right and below the letters.
+    const width = Math.max(...lines.map((l) => this.font.measure(l))) + 1 + 8;
+    const height = (lines.length - 1) * this.font.lineHeight + this.font.height + 1 + 6;
     const sign = new Container();
     const board = new NineSliceSprite({ texture: this.art.frame('ui/sign'), leftWidth: 2, topHeight: 2, rightWidth: 2, bottomHeight: 2 });
     board.width = width;
     board.height = height;
-    const label = this.font.layout(lines, INK);
+    const label = shadowedText(this.font, lines);
     label.position.set(4, 3);
     sign.addChild(board, label);
     sign.position.set(
