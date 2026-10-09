@@ -536,7 +536,12 @@ async function run(options: GameOptions): Promise<void> {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
       const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
       const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people);
-      if (result === 'blocked') {
+      const locked = result === 'locked' ? world.buildingAt(target.tx, target.ty)?.locked : undefined;
+      if (locked) {
+        // A door that never opens: the player says the building's line.
+        speech.show([locked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
+        speaking = true;
+      } else if (result === 'blocked') {
         // Who is in the way: the player itself, or someone else (another visitor, an NPC).
         const self = Math.abs(player.x - (target.tx * TILE_SIZE + TILE_SIZE / 2)) < TILE_SIZE / 2 + 5 && player.y + 3 > target.ty * TILE_SIZE && player.y - 3 < (target.ty + 1) * TILE_SIZE;
         speech.show([self ? STRINGS.doorBlocked : STRINGS.doorBlockedByOther], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
@@ -582,7 +587,7 @@ async function run(options: GameOptions): Promise<void> {
   });
 
   const actionLabel = (t: InteractionTarget): string => {
-    if (t.kind === 'door') return world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
+    if (t.kind === 'door') return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
       if (speech.showing && speech.hasMore) return STRINGS.next;
@@ -591,6 +596,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (t.kind === 'npc') return STRINGS.talk;
     if (t.kind === 'portal') return STRINGS.lookIntoPortal;
+    if (t.kind === 'signpost') return STRINGS.readSign;
     return STRINGS.examine(STRINGS.names[t.kind]);
   };
 

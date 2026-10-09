@@ -95,6 +95,8 @@ export const FIXTURE_TYPES = [
   { id: 23, kind: 'forge', tiles: TWO_WIDE(0, 9), depth: 5 },
   { id: 24, kind: 'crystalball', tiles: ONE_TILE([3, 5, 13, 13]), depth: 9 },
   { id: 25, kind: 'scales', tiles: ONE_TILE([2, 5, 14, 13]), depth: 9 },
+  // A wooden post with a board that points the way: the post stands on the east side of the tile.
+  { id: 26, kind: 'signpost', tiles: ONE_TILE([9, 10, 12, 14]), depth: 12 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];

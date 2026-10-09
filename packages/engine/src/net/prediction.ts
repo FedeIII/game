@@ -97,7 +97,7 @@ export class Prediction {
   /** Uses a door at once, and keeps the wish to send it with the next input. */
   door(player: PlayerState, world: World, tx: number, ty: number, others: readonly Feet[]): DoorResult {
     const result = useDoor(world, player, tx, ty, others);
-    if (result !== 'blocked') this.nextDoors.push([tx, ty, result === 'opened']);
+    if (result === 'opened' || result === 'closed') this.nextDoors.push([tx, ty, result === 'opened']);
     return result;
   }
 

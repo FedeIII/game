@@ -336,6 +336,13 @@ function wallFrame(name: string, style: WallStyle, centre: Part[], neighbours: {
   return { name, image, anchor: { x: 0, y: 1 } };
 }
 
+/** A shape turned by `angle` (radians, counterclockwise as seen from the south) round (cx, cy) in the plane of a wall. */
+function turned(sdf: Sdf, cx: number, cy: number, angle: number): Sdf {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return (x, y, z) => sdf(cx + (x - cx) * c + (y - cy) * s, cy - (x - cx) * s + (y - cy) * c, z);
+}
+
 /** The shape of an opening of the style: a door through the wall, or a window recess. */
 function opening(arch: Arch, x0: number, x1: number, y0: number, spring: number, z0: number, z1: number): Sdf {
   const cx = (x0 + x1) / 2;
@@ -380,6 +387,15 @@ function styleFrames(name: string, style: WallStyle): Frame[] {
   const ring: Part = { sdf: sphere([10.2, 11, -3.3], 0.75), material: M.metal };
   frames.push(wallFrame(`wall/${name}/door/closed`, style, [wall, leaf, ring], sides));
   frames.push(wallFrame(`wall/${name}/door/open`, style, [wall], sides));
+  // Boarded up (a building that is shut for good): two planks nailed across the closed door, a
+  // little askew, with a nail at each end.
+  const boards = [
+    { y: 7, angle: 0.12 },
+    { y: 16.5, angle: -0.16 },
+  ];
+  const planks: Part[] = boards.map(({ y, angle }) => ({ sdf: turned(box([1.5, y - 1.6, -0.6], [14.5, y + 1.6, 0.8]), 8, y, angle), material: M.wood }));
+  const nails: Part[] = boards.flatMap(({ y, angle }) => [-5, 5].map((dx) => ({ sdf: sphere([8 + dx, y + dx * Math.sin(angle), 1], 0.55), material: M.metal })));
+  frames.push(wallFrame(`wall/${name}/door/boarded`, style, [wall, leaf, ring, ...planks, ...nails], sides));
 
   // The window: a recess with lit glass, a cross of mullions and a sill that stands out.
   const recess = opening(style.arch, 4.5, 11.5, 12, style.arch === 'pointed' ? 20 : 22, -3, 2);

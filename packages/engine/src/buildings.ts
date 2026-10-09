@@ -56,6 +56,11 @@ export interface Building {
   readonly windows?: readonly number[];
   /** Things on the roof. Never in a corner column. */
   readonly roofProps?: readonly RoofProp[];
+  /**
+   * A door that never opens: the building is shut for good. A press on the door shows this line
+   * (the player says it) and the door stays closed. NPCs do not walk through it.
+   */
+  readonly locked?: string;
 }
 
 export function inRect(building: Building, tx: number, ty: number): boolean {

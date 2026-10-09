@@ -5,6 +5,7 @@ import {
   emptyChunk,
   fixtureTiles,
   inRect,
+  isGrass,
   naturalDecor,
   naturalGround,
   structureIn,
@@ -12,10 +13,13 @@ import {
   type Chunk,
   type Fixture,
   type MobRules,
+  type NpcDef,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
+import { Road, signpost } from './road.ts';
+import { Plot, TOWN, TOWN_BUILDINGS, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
   return tx >= house.doorX - 1 && tx <= house.doorX + 1 && ty > house.y1 && ty <= house.y1 + DOOR_PATH;
@@ -33,28 +37,84 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
 /** Mobs in the wilds: four imps and two brutes round each player. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
+/** No house of the wilds stands this close to the town (tiles), and mobs do not live this close to it. */
+const TOWN_MARGIN = 2;
+
+/** Every fixture of the town, in its buildings and in its streets. */
+const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES];
+/** The same, by each tile of its footprint. */
+const TOWN_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
+for (const fixture of TOWN_FIXTURE_LIST) {
+  for (const [tx, ty, code] of fixtureTiles(fixture)) {
+    const key = `${tx},${ty}`;
+    if (TOWN_FIXTURES.has(key)) throw new Error(`two fixtures of the town on tile ${key}`);
+    TOWN_FIXTURES.set(key, { fixture, code });
+  }
+}
+
+const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: number, y0: number, x1: number, y1: number) =>
+  b.x1 >= x0 && b.x0 <= x1 && b.y1 >= y0 && b.y0 <= y1;
+
 /**
- * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, and
- * the player's home in the middle (home.ts), where every character starts.
+ * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, the
+ * player's home in the middle (home.ts), where every character starts, and the town of Thornwick
+ * to the west (town.ts), at the end of a road from the home (road.ts).
  */
 export class WildsSource implements WorldSource {
   readonly seed: number;
   private readonly houses = new Map<string, Building | null>();
+  private roadOf: Road | null = null;
+  private signOf: Fixture | null = null;
 
   constructor(seed: number) {
     this.seed = seed;
   }
 
-  /** The house of a cell (cached), or null. */
+  /** The road from the home to the town. */
+  get road(): Road {
+    this.roadOf ??= new Road(this.home());
+    return this.roadOf;
+  }
+
+  /** The signpost by the home that points to the town. */
+  get sign(): Fixture {
+    this.signOf ??= signpost(this.home());
+    return this.signOf;
+  }
+
+  /**
+   * The house of a cell (cached), or null. A cell has no house where the house's ground (its ring
+   * and the approach to its door) would touch the town, the road or the signpost.
+   */
   house(cellX: number, cellY: number): Building | null {
     const key = `${cellX},${cellY}`;
     let house = this.houses.get(key);
     if (house === undefined) {
       const isWater = (tx: number, ty: number) => naturalGround(this.seed, tx, ty) === Ground.Water;
-      house = cellX === HOME_CELL[0] && cellY === HOME_CELL[1] ? generateHome(isWater) : generateHouse(this.seed, cellX, cellY, isWater);
+      if (cellX === HOME_CELL[0] && cellY === HOME_CELL[1]) {
+        house = generateHome(isWater);
+      } else {
+        house = generateHouse(this.seed, cellX, cellY, isWater);
+        if (house && this.inTheWay(house)) house = null;
+      }
       this.houses.set(key, house);
     }
     return house;
+  }
+
+  /** Whether the ground of a house of the wilds would touch the town, the road or the signpost. */
+  private inTheWay(house: Building): boolean {
+    const x0 = house.x0 - 1;
+    const y0 = house.y0 - 1;
+    const x1 = house.x1 + 1;
+    const y1 = house.y1 + DOOR_PATH;
+    if (overlaps(TOWN, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN)) return true;
+    const sign = this.sign;
+    if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
+    const road = this.road;
+    if (!overlaps(road, x0, y0, x1, y1)) return false;
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (road.clear(tx, ty)) return true;
+    return false;
   }
 
   chunk(cx: number, cy: number): Chunk {
@@ -62,13 +122,34 @@ export class WildsSource implements WorldSource {
     // The houses of the cells that this chunk overlaps, and of the cells next to it: the ground
     // of a house (its ring and the path to its door) can reach a few tiles into the next cell.
     const reach = DOOR_PATH + 1;
-    const houses = this.buildingsIn(cx * CHUNK_SIZE - reach, cy * CHUNK_SIZE - reach, cx * CHUNK_SIZE + CHUNK_SIZE - 1 + reach, cy * CHUNK_SIZE + CHUNK_SIZE - 1 + reach);
+    const houses = this.cellHousesIn(cx * CHUNK_SIZE - reach, cy * CHUNK_SIZE - reach, cx * CHUNK_SIZE + CHUNK_SIZE - 1 + reach, cy * CHUNK_SIZE + CHUNK_SIZE - 1 + reach);
+    const road = this.road;
+    const sign = this.sign;
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
         const tx = cx * CHUNK_SIZE + lx;
         const ty = cy * CHUNK_SIZE + ly;
         const index = ly * CHUNK_SIZE + lx;
+        if (inTown(tx, ty)) {
+          this.townTile(chunk, index, tx, ty);
+          continue;
+        }
+        if (tx === sign.tx && ty === sign.ty) {
+          const natural = naturalGround(this.seed, tx, ty);
+          chunk.ground[index] = natural === Ground.Water ? Ground.Grass : natural;
+          chunk.structure[index] = fixtureTiles(sign)[0]![2];
+          continue;
+        }
         const house = houses.find((h) => nearHouse(h, tx, ty));
+        if (!house && road.clear(tx, ty)) {
+          // The road: mud (over water too), and nothing grows on it or close to it.
+          const natural = naturalGround(this.seed, tx, ty);
+          const ground = road.on(tx, ty) ? Ground.Dirt : natural === Ground.Water ? Ground.Sand : natural;
+          chunk.ground[index] = ground;
+          const decor = road.on(tx, ty) ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
+          chunk.decor[index] = decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
+          continue;
+        }
         const natural = naturalGround(this.seed, tx, ty);
         // The ground of the home is always dry (it stands where it must, see home.ts).
         const ground = house?.id === HOME_ID && natural === Ground.Water ? Ground.Grass : natural;
@@ -79,20 +160,62 @@ export class WildsSource implements WorldSource {
         } else {
           // A short mud path leads to the door.
           chunk.ground[index] = house && tx === house.doorX && onApproach(house, tx, ty) ? Ground.Dirt : ground;
-          // Nothing grows on a house, right next to it, or in front of its door.
-          chunk.decor[index] = house ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
+          // Nothing grows on a house, right next to it, or in front of its door; no tree grows
+          // right next to the signpost.
+          const decor = house ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
+          chunk.decor[index] = decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1 ? Decor.None : decor;
         }
       }
     }
     return chunk;
   }
 
+  /** A tile of the town: its buildings, its streets with their things, and its gardens. */
+  private townTile(chunk: Chunk, index: number, tx: number, ty: number): void {
+    const building = TOWN_BUILDINGS.find((b) => inRect(b, tx, ty));
+    if (building) {
+      chunk.ground[index] = townFloor(building);
+      chunk.structure[index] = structureIn(building, tx, ty);
+      return;
+    }
+    const plot = plotAt(tx, ty);
+    if (plot === Plot.Street || plot === Plot.Lane) {
+      chunk.ground[index] = plot === Plot.Street ? Ground.Cobble : Ground.Dirt;
+      chunk.structure[index] = TOWN_FIXTURES.get(`${tx},${ty}`)?.code ?? 0;
+      return;
+    }
+    // A garden: the grass of the wilds (dry in any case), with tufts and flowers, and a tree only
+    // where the plan has one.
+    const natural = naturalGround(this.seed, tx, ty);
+    const ground = isGrass(natural) ? natural : Ground.Grass;
+    chunk.ground[index] = ground;
+    const decor = naturalDecor(this.seed, tx, ty, ground);
+    chunk.decor[index] = plot === Plot.Tree && !this.treeOutsideNextTo(tx, ty) ? Decor.Tree : decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
+  }
+
+  /** Whether a tree of the wilds grows next to a tile of the town, just outside it: then no tree of the town grows there (no two trees touch). */
+  private treeOutsideNextTo(tx: number, ty: number): boolean {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const [x, y] = [tx + dx, ty + dy];
+        if (!inTown(x, y) && naturalDecor(this.seed, x, y, naturalGround(this.seed, x, y)) === Decor.Tree) return true;
+      }
+    }
+    return false;
+  }
+
   buildingAt(tx: number, ty: number): Building | null {
+    if (inTown(tx, ty)) return TOWN_BUILDINGS.find((b) => inRect(b, tx, ty)) ?? null;
     const house = this.house(Math.floor(tx / BUILDING_CELL), Math.floor(ty / BUILDING_CELL));
     return house && inRect(house, tx, ty) ? house : null;
   }
 
   buildingsIn(x0: number, y0: number, x1: number, y1: number): Building[] {
+    return [...TOWN_BUILDINGS.filter((b) => overlaps(b, x0, y0, x1, y1)), ...this.cellHousesIn(x0, y0, x1, y1)];
+  }
+
+  /** The houses of the cells (the home among them) that overlap a rectangle of tiles. */
+  private cellHousesIn(x0: number, y0: number, x1: number, y1: number): Building[] {
     const out: Building[] = [];
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
       for (let cx = Math.floor(x0 / BUILDING_CELL); cx <= Math.floor(x1 / BUILDING_CELL); cx++) {
@@ -104,13 +227,24 @@ export class WildsSource implements WorldSource {
   }
 
   fixtureAt(tx: number, ty: number): Fixture | null {
+    if (inTown(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
+    if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
     const house = this.buildingAt(tx, ty);
     if (!house) return null;
     return house.fixtures.find((f) => fixtureTiles(f).some(([x, y]) => x === tx && y === ty)) ?? null;
   }
 
   fixturesIn(x0: number, y0: number, x1: number, y1: number): Fixture[] {
-    return this.buildingsIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter((f) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1));
+    const within = (f: Fixture) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1;
+    const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
+    if (overlaps(TOWN, x0, y0, x1, y1)) out.push(...TOWN_FIXTURE_LIST.filter(within));
+    if (within(this.sign)) out.push(this.sign);
+    return out;
+  }
+
+  /** The people of Thornwick. */
+  npcs(): readonly NpcDef[] {
+    return TOWN_NPCS;
   }
 
   /** Inside the home, by the door. */
@@ -124,16 +258,19 @@ export class WildsSource implements WorldSource {
   }
 
   /**
-   * Mobs live everywhere in the woods, except on water and on the ground of a house (its ring and
-   * the path to its door): a player who comes out of a door does not walk into one. They hunt
-   * everywhere outside the houses.
+   * Mobs live everywhere in the woods, except on water, on the ground of a house (its ring and
+   * the path to its door: a player who comes out of a door does not walk into one) and in or near
+   * the town. They hunt everywhere outside the houses and the town: they never come into the
+   * town, so it is safe.
    */
   mobs(): MobRules {
+    const nearTown = (tx: number, ty: number) => tx >= TOWN.x0 - TOWN_MARGIN && tx <= TOWN.x1 + TOWN_MARGIN && ty >= TOWN.y0 - TOWN_MARGIN && ty <= TOWN.y1 + TOWN_MARGIN;
     return {
       roam: (tx, ty) =>
         naturalGround(this.seed, tx, ty) !== Ground.Water &&
-        !this.buildingsIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
-      hunt: () => true,
+        !nearTown(tx, ty) &&
+        !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
+      hunt: (tx, ty) => !inTown(tx, ty),
       population: MOB_POPULATION,
     };
   }

@@ -27,6 +27,7 @@ function mapWith(decor: Record<string, Decor>, water: string[] = []): TileMap {
     decor: decorAt,
     structure: () => Structure.None,
     isDoorOpen: () => false,
+    isDoorLocked: () => false,
     fixtureAt: () => null,
     solidBox: (tx, ty) => solidBox(ground(tx, ty), decorAt(tx, ty)),
   };

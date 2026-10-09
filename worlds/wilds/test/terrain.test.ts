@@ -41,10 +41,8 @@ describe('world generation', () => {
         }
       }
     }
-    // Cobblestones and the stone floor are for towns: the wilds do not make them. The earth
-    // floor is the floor of the home only.
-    const townOnly: number[] = [Ground.Cobble, Ground.FloorStone];
-    expect([...seen].sort()).toEqual(Object.values(Ground).filter((g) => !townOnly.includes(g)).sort());
+    // Every ground: the cobblestones and the stone floors are in the town of Thornwick.
+    expect([...seen].sort()).toEqual(Object.values(Ground).sort());
     expect(trees).toBeGreaterThan(100);
   });
 

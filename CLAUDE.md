@@ -6,7 +6,7 @@ This file gives guidance to Claude Code when it works in this repository.
 
 A pixel-art game **engine** for the browser, and the applications on it. It runs at
 https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
-stone houses, and mobs). A visitor signs in with Google, makes a character (D&D 5e races,
+stone houses, mobs, and the town of Thornwick west of the home). A visitor signs in with Google, makes a character (D&D 5e races,
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 | `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs, mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
-| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
+| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
 | `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server; `shareWorlds()`, the dev switch), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
@@ -192,7 +192,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   fast. A new field must default to off: the atlas (the wanderer, the NPCs) must not change.
 - `characters.ts`: the default player (the hooded wanderer, about 28 px tall, 8-frame walk, four
   real views: frames `player/<view>/...`) and the NPC looks (`NPC_LOOKS`: cloak colours, hood up
-  or down, hair; frames `npc/<look>`), all from `figure.ts`.
+  or down, hair, and optional `spec` and `palette` that change parts of the wanderer: the
+  people of Thornwick `watchman`, `innkeeper`, `priest`, `child`; frames `npc/<look>`), all from
+  `figure.ts`.
 - `skins.ts`: player skins. A skin is a 32-bit seed that holds the look of a character:
   `appearanceOf(seed)` (`@game/engine`, `character.ts`) gives its race, class and gender (the
   low 9 bits) and a variant (the other 23 bits). The race gives the silhouette (a dwarf short and
@@ -217,7 +219,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   fixtures share (`M.<name>`).
 - `buildings.ts`: building styles. Each wall style of `WALL_STYLES` (stone, timber, planks,
   brick, rubble, gothic, canvas, painted) has walls (`wall/<walls>/<mask>/<variant>`, mask bit
-  1 = wall to the north, 2 = east, 4 = west), a door (`wall/<walls>/door/open|closed`) and a lit
+  1 = wall to the north, 2 = east, 4 = west), a door (`wall/<walls>/door/open|closed`, and
+  `boarded`: closed, with two planks nailed across it, for a building that is shut) and a lit
   window (`wall/<walls>/window`). Each roof style of `ROOF_STYLES` (slate, shingle, thatch,
   canvas, indigo, battlement, clay, copper) has roof pieces (`roof/<roof>/<row>/<column>/<variant>`);
   all share `roof/shadow`. Roof props (`ROOF_PROPS`: `roof/chimney`, `roof/vane`, `roof/spire`,
@@ -226,7 +229,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   frame: top face (16 px) over front face (32 px). Keep wall tops dark: the torch lights them
   from close by, and a pale top glares.
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
-  client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`.
+  client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
+  `signpost` points west only (do not mirror it); its post is on the east side of its tile.
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
@@ -410,7 +414,8 @@ a recoil frame, `hurtMs`): its wind-up or its blow breaks off, and then it goes 
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
-water and the ground round a house; 4 imps and 2 brutes. The client of a
+water, the ground round a house and Thornwick (they do not live within 2 tiles of the town, and
+they never step into it, so the town is safe); 4 imps and 2 brutes. The client of a
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
 and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
@@ -461,7 +466,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **Actions:** `findInteraction(world, player, accept)` (shared) finds the nearest target within
   `INTERACT_RANGE` (6 px from the feet hitbox to the target's box; a door uses its whole tile),
   in front of the player first. The client runs it every frame. A press: on a door, `useDoor()`
-  (shared; it does not close a door on the player); on anything else, the first page, then
+  (shared; it does not close a door on the player; the door of a building with `locked` stays
+  closed, `'locked'`, and the player says the building's line; the label is "Try the door"); on
+  a signpost, "Read the sign"; on anything else, the first page, then
   the next page on each press, then "Close"; with a link, the card stays while the player is
   in range, and E opens the link. Walking away closes the dialog and the card.
 - **Lights:** a fixture's `light` (`radius` from `LIGHTING.radii`, `colour`, centre in pixels
@@ -475,8 +482,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   source sets it), fixtures, and optional extras: a `sign` (the name over the door), a `style`
   (`{ walls, roof }`, the names of the art sets; default `DEFAULT_STYLE`, stone and slate),
   `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall)
-  and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge). The engine does not
-  read the style or the roof props. `structureIn()` gives the structure code of each tile;
+  and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge), and `locked` (a
+  building that is shut for good: its door never opens, `World.isDoorLocked()`, and a press on it
+  shows that line; NPCs may not have its door in their area). The engine does not read the style
+  or the roof props. `structureIn()` gives the structure code of each tile;
   `isInside()` says if a tile is in the interior or the doorway.
 - **Collision:** walls and a closed door are full tiles; fixtures have their boxes; an open
   door is open. The open doors are `World.openDoors`: the first world state that is not in the
@@ -505,7 +514,26 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   chest at its foot, bookshelves, a table with a candle, barrels) with the door column and the
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into
-  them). Tests check 150+ houses for a wall ring, one door and reachable furniture.
+  them). Tests check 150+ houses for a wall ring, one door and reachable furniture. A cell has no
+  house where the house's ground would touch the town, the road or the signpost.
+- **Thornwick** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
+  fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) west of
+  the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.
+  The main street runs east to west (cobblestones, lamps); the road from the home comes in at its
+  east end (`TOWN_GATE`). North of the street: the inn (the Crooked Lantern), the smithy, a square
+  with the fountain and the notice board, the chapel, and the chandler. South of it, back to back
+  with it and facing a lane by the lake, with alleys between them: the apothecary, a cottage, the
+  reeve's house, the granary and a house. Five open; four are shut for good (`locked`: the
+  chandler, the cottage, the granary, the house). Ten NPCs (`TOWN_NPCS`): in the buildings the
+  innkeeper and the minstrel, the smith, the priest, the apothecary and the reeve (some walk out
+  to their doorstep); in the streets the watchman at the gate, the peddler, the widow by the
+  fountain and the child in the lane. Each one has a dialog of three pages and three lines.
+  Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
+  of mud from below the path to the home's door to the gate, also over water; nothing grows on it
+  or close to it. **The signpost** stands outside the hut, two tiles below the door on the west
+  side of its path, and points west: "It reads: THORNWICK." Tests (`town.test.ts`): the sign and
+  the road for five seeds, the walls and doors, the shut doors, every thing and door reachable,
+  the NPC areas, and no mob in the town. `?at=-12,3` starts at the gate.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,
   `/opt/azyr-town`), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
   lines, the arrival intro, signs, building styles), and a world of the game can use it.

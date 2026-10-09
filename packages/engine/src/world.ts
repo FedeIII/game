@@ -94,6 +94,8 @@ export interface TileMap extends SolidMap {
   decor(tx: number, ty: number): Decor;
   structure(tx: number, ty: number): number;
   isDoorOpen(tx: number, ty: number): boolean;
+  /** Whether the tile is the door of a building that is shut for good (Building.locked). */
+  isDoorLocked(tx: number, ty: number): boolean;
   fixtureAt(tx: number, ty: number): Fixture | null;
 }
 
@@ -182,6 +184,10 @@ export class World implements TileMap {
 
   isDoorOpen(tx: number, ty: number): boolean {
     return this.openDoors.has(`${tx},${ty}`);
+  }
+
+  isDoorLocked(tx: number, ty: number): boolean {
+    return this.structure(tx, ty) === Structure.Door && this.buildingAt(tx, ty)?.locked !== undefined;
   }
 
   setDoorOpen(tx: number, ty: number, open: boolean): void {

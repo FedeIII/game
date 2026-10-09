@@ -164,6 +164,8 @@ export class NpcCrowd {
     this.brains = defs.map((def) => {
       const area = new Set(def.area.map(([tx, ty]) => key(tx, ty)));
       if (!area.has(key(def.home[0], def.home[1]))) throw new Error(`npc ${def.id}: home is not in its area`);
+      const locked = def.area.find(([tx, ty]) => world.isDoorLocked(tx, ty));
+      if (locked) throw new Error(`npc ${def.id}: its area has the locked door at ${locked[0]},${locked[1]}`);
       const stops = def.area.filter(([tx, ty]) => world.structure(tx, ty) !== Structure.Door);
       return {
         area,

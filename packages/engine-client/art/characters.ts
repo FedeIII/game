@@ -36,6 +36,10 @@ interface Look {
   readonly hood: boolean;
   readonly hair?: readonly number[];
   readonly leather?: readonly number[];
+  /** Other parts of the figure than the wanderer's (a helm, a beard, a staff, a small body). */
+  readonly spec?: Partial<FigureSpec>;
+  /** Other colours than the wanderer's, for the other slots. */
+  readonly palette?: Partial<Palette>;
 }
 
 /** The figure and the colours of an NPC look: the wanderer with the look's colours in place. */
@@ -46,8 +50,9 @@ function npcFigure(look: Look): { spec: FigureSpec; materials: Material[] } {
     lining: look.cloak.slice(0, 4),
     ...(look.hair ? { hair: look.hair } : {}),
     ...(look.leather ? { garment: look.leather } : {}),
+    ...look.palette,
   };
-  return { spec: { ...WANDERER, headwear: look.hood ? 'hood' : 'bare' }, materials: figureMaterials(palette) };
+  return { spec: { ...WANDERER, headwear: look.hood ? 'hood' : 'bare', ...look.spec }, materials: figureMaterials(palette) };
 }
 
 const HAIR = {
@@ -77,6 +82,35 @@ export const NPC_LOOKS: Record<string, Look> = {
   },
   archivist: { cloak: ramp('#0d1014', '#151a20', '#1e252d', '#28303a', '#333d49', '#3f4b59'), hood: true },
   crier: { cloak: ramp('#14070a', '#260c10', '#3a1216', '#501a1d', '#662325', '#7c302e'), hood: false, hair: HAIR.blond },
+  // The people of Thornwick (worlds/wilds, town.ts).
+  /** A town guard: a helm, mail, a short cloak and a tabard in the town's dark red, a sword. */
+  watchman: {
+    cloak: ramp('#16080a', '#240d10', '#341316', '#45191c', '#572023', '#69282a'),
+    hood: false,
+    hair: HAIR.dark,
+    spec: { headwear: 'helm', body: 'armour', cloak: 'short', tabard: true, item: 'sword', beard: true },
+  },
+  /** A stout innkeeper with a long beard and a leather apron, no cloak. */
+  innkeeper: {
+    cloak: ramp('#120c08', '#20160e', '#2f2015', '#3f2b1c', '#503724', '#62442d'),
+    hood: false,
+    hair: HAIR.chestnut,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { build: 1.18, cloak: 'none', beard: true, beardLength: 2, pauldrons: false, pouch: true },
+  },
+  /** A priest in a pale robe and a cowl, with a staff. */
+  priest: {
+    cloak: ramp('#1e1c18', '#2f2c26', '#433f37', '#5a554b', '#736d60', '#8c8576'),
+    hood: false,
+    spec: { headwear: 'cowl', body: 'robe', pauldrons: false, item: 'staff' },
+  },
+  /** A child: small, with a big head and a short cloak. */
+  child: {
+    cloak: ramp('#141008', '#221b0e', '#332915', '#45381d', '#584826', '#6b5930'),
+    hood: false,
+    hair: HAIR.blond,
+    spec: { height: 0.7, build: 0.82, head: 1.15, cloak: 'short', pauldrons: false },
+  },
 };
 
 /**

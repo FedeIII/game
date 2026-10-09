@@ -141,7 +141,8 @@ export interface DoorMap extends TileMap {
   setDoorOpen(tx: number, ty: number, open: boolean): void;
 }
 
-export type DoorResult = 'opened' | 'closed' | 'blocked';
+/** What a press on a door did. 'locked': nothing, the door never opens (Building.locked). */
+export type DoorResult = 'opened' | 'closed' | 'blocked' | 'locked';
 
 /**
  * Whether the player is close enough to use the door on (tx, ty): the same range as every
@@ -153,11 +154,12 @@ export function canReachDoor(world: TileMap, player: PlayerState, tx: number, ty
 
 /**
  * Opens or closes the door on (tx, ty). A door does not close on anyone: if the player or one
- * of `others` stands in the doorway, the result is 'blocked' and nothing changes. Shared: the
- * client and the multiplayer server apply the same rule.
+ * of `others` stands in the doorway, the result is 'blocked' and nothing changes. A locked door
+ * stays closed ('locked'). Shared: the client and the multiplayer server apply the same rule.
  */
 export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number, others: readonly Feet[] = []): DoorResult {
   if (world.structure(tx, ty) !== Structure.Door) throw new Error(`no door at ${tx},${ty}`);
+  if (world.isDoorLocked(tx, ty)) return 'locked';
   if (!world.isDoorOpen(tx, ty)) {
     world.setDoorOpen(tx, ty, true);
     return 'opened';

@@ -258,6 +258,28 @@ function lamppost(): Part[] {
   ];
 }
 
+/**
+ * A signpost: a weathered post on the east side of its tile, and a board that points west, with
+ * letters cut into it. (Only west: a mirror would mirror the light.)
+ */
+function signpost(): Part[] {
+  const post = box([9.3, 0, -9], [12, 27, -7], 0.3);
+  // The board: a plank from x 2 to 14, and an arrow point from x -2.5 to 2.
+  const plank = box([2, 17.5, -7.4], [14, 23.5, -6.2], 0.25);
+  const k = 3 / 4.5;
+  const n = Math.hypot(1, k);
+  const point: Sdf = (x, y, z) =>
+    Math.max(box([-2.5, 17.5, -7.4], [2.2, 23.5, -6.2])(x, y, z), (y - 20.5 - k * (x + 2.5)) / n, (20.5 - y - k * (x + 2.5)) / n);
+  // Letters: short cuts in a row, darker than the wood.
+  const board = (x: number, y: number) => (y > 19.4 && y < 21.6 && x > 1 && x < 12.5 && hash(Math.floor(x * 1.4), 0, 61) > 0.38 ? M.woodDark : M.greyWood);
+  return [
+    { sdf: post, material: M.greyWood },
+    { sdf: union(plank, point), material: board },
+    { sdf: sphere([10.6, 22.5, -6], 0.5), material: M.metal },
+    { sdf: sphere([10.6, 18.5, -6], 0.5), material: M.metal },
+  ];
+}
+
 /** A round stone fountain, 3 x 3 tiles, with a basin, a pillar, an upper bowl and still water. */
 function fountain(): Part[] {
   const c: Vec3 = [24, 0, -24];
@@ -426,5 +448,6 @@ export function fixtureFrames(): Frame[] {
     fixture('forge', forge(), 40, 64),
     fixture('crystalball', crystalball(), 24, 32),
     fixture('scales', scales(), 24, 32),
+    fixture('signpost', signpost(), 24, 40),
   ];
 }

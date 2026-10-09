@@ -353,6 +353,7 @@ export class Room {
     // A door never closes on anyone: the other players, or an NPC in the doorway.
     const others: Feet[] = [...(this.npcs?.poses ?? [])];
     for (const p of this.players.values()) if (p !== player) others.push(p.state);
-    if (useDoor(this.world, player.state, tx, ty, others) !== 'blocked') this.doorVersion++;
+    const result = useDoor(this.world, player.state, tx, ty, others);
+    if (result === 'opened' || result === 'closed') this.doorVersion++;
   }
 }

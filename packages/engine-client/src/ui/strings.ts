@@ -15,6 +15,9 @@ export const STRINGS = {
   actionLabel: 'Act',
   openDoor: 'Open the door',
   closeDoor: 'Close the door',
+  /** The label for the door of a building that is shut for good. */
+  tryDoor: 'Try the door',
+  readSign: 'Read the sign',
   examine: (name: string): string => `Examine the ${name}`,
   talk: 'Talk',
   next: 'Next',
@@ -51,6 +54,7 @@ export const STRINGS = {
     forge: 'forge',
     crystalball: 'crystal ball',
     scales: 'scales',
+    signpost: 'signpost',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',
   linkKeyHint: 'or press E',

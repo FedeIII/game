@@ -131,9 +131,11 @@ export class Buildings {
     return out;
   }
 
+  /** The door open, closed, or boarded up (a building that is shut for good). */
   private doorTexture(building: Building, tx: number, ty: number): Texture {
     const walls = (building.style ?? DEFAULT_STYLE).walls;
-    return this.art.frame(`wall/${walls}/door/${this.world.isDoorOpen(tx, ty) ? 'open' : 'closed'}`);
+    const state = building.locked !== undefined ? 'boarded' : this.world.isDoorOpen(tx, ty) ? 'open' : 'closed';
+    return this.art.frame(`wall/${walls}/door/${state}`);
   }
 
   private wallTexture(building: Building, tx: number, ty: number): Texture {

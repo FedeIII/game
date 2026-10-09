@@ -61,6 +61,10 @@ everyone), and a door does not close on an NPC. The lines that NPCs say are even
 snapshot (`b`: [npc index, line index]); a client that misses a snapshot (a full send buffer)
 misses the line, which is harmless.
 
+**Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
+buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
+protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
 ## Characters and accounts (protocol 7, 2026-10-09)
 
 On a server with accounts (`startServer({ accounts })`, game.azyr.io), a player is one of the
