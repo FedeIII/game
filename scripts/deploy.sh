@@ -8,6 +8,10 @@ cd "$(dirname "$0")/.."
 WEB_ROOT="${WEB_ROOT:-/var/www/game.azyr.io}"
 DIST=apps/game/dist
 
+# The local dev switch (scripts/dev.sh) must not reach production: the build reads it, and
+# `pm2 startOrReload --update-env` gives the shell's environment to game-server.
+unset SHARED_WORLDS
+
 echo "==> Commit $(git describe --always --dirty)"
 if [ -n "$(git status --porcelain)" ]; then
 	echo "    WARNING: the working tree has uncommitted changes, and they go live."

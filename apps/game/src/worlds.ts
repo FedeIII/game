@@ -7,3 +7,14 @@ import { wilds } from '@game/world-wilds';
  */
 export const WORLDS = [wilds];
 export const DEFAULT_WORLD = 'wilds';
+
+/**
+ * The worlds, with each world of `ids` (comma-separated) as a shared world (`multiplayer: true`).
+ * The local dev environment (scripts/dev.sh) sets SHARED_WORLDS=wilds for the page and for the
+ * server, so that both share the Wilds before game.azyr.io does. Production sets nothing: then the
+ * worlds stay as they are.
+ */
+export function shareWorlds(worlds: typeof WORLDS, ids: string): typeof WORLDS {
+  const shared = new Set(ids.split(',').map((id) => id.trim()).filter(Boolean));
+  return worlds.map((world) => (shared.has(world.id) ? { ...world, multiplayer: true } : world));
+}

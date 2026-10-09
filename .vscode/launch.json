@@ -1,0 +1,74 @@
+{
+	"version": "0.2.0",
+	// The play button (F5) starts "Dev: play": the task "dev" (scripts/dev.sh: the multiplayer
+	// server and the Vite dev server), the debugger on the server, and a browser on the page.
+	// Breakpoints work in both. Each configuration starts the task "dev" when it does not run yet,
+	// and uses it when it runs. The stop button stops the debuggers and the browsers; the servers
+	// keep running in the terminal panel until you stop the task.
+	"configurations": [
+		{
+			// A browser with its own profile, so its look and name stay the same across runs.
+			"name": "Browser: player 1",
+			"type": "chrome",
+			"request": "launch",
+			"url": "http://127.0.0.1:3019/",
+			"webRoot": "${workspaceFolder}/apps/game",
+			"preLaunchTask": "dev",
+			// Vite serves the files outside apps/game (the packages) under /@fs/.
+			"sourceMapPathOverrides": {
+				"/@fs/*": "/*",
+				"/src/*": "${workspaceFolder}/apps/game/src/*"
+			},
+			"presentation": { "group": "2-parts", "order": 1 }
+		},
+		{
+			// A second visitor: another browser profile, so another look and name. Start it while
+			// "Dev: play" runs, or use "Dev: two players".
+			"name": "Browser: player 2",
+			"type": "chrome",
+			"request": "launch",
+			"url": "http://127.0.0.1:3019/",
+			"webRoot": "${workspaceFolder}/apps/game",
+			"userDataDir": "${workspaceFolder}/.vscode/.chrome/player-2",
+			"preLaunchTask": "dev",
+			"sourceMapPathOverrides": {
+				"/@fs/*": "/*",
+				"/src/*": "${workspaceFolder}/apps/game/src/*"
+			},
+			"presentation": { "group": "2-parts", "order": 2 }
+		},
+		{
+			// The multiplayer server under the inspector of scripts/dev.sh (--inspect, port 9669).
+			// Node runs the TypeScript sources, so breakpoints in apps/game/server and packages/*
+			// bind with no source maps. `node --watch` restarts the server when its code changes,
+			// and the debugger attaches again.
+			"name": "Attach: game server",
+			"type": "node",
+			"request": "attach",
+			"address": "127.0.0.1",
+			"port": 9669,
+			"restart": true,
+			"continueOnAttach": true,
+			"skipFiles": ["<node_internals>/**"],
+			"preLaunchTask": "dev",
+			"presentation": { "group": "2-parts", "order": 3 }
+		}
+	],
+	"compounds": [
+		{
+			"name": "Dev: play",
+			"configurations": ["Attach: game server", "Browser: player 1"],
+			"preLaunchTask": "dev",
+			"stopAll": true,
+			"presentation": { "group": "1-dev", "order": 1 }
+		},
+		{
+			// Two visitors in the shared Wilds: each one sees the other.
+			"name": "Dev: two players",
+			"configurations": ["Attach: game server", "Browser: player 1", "Browser: player 2"],
+			"preLaunchTask": "dev",
+			"stopAll": true,
+			"presentation": { "group": "1-dev", "order": 2 }
+		}
+	]
+}

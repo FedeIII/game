@@ -8,7 +8,8 @@ A pixel-art game **engine** for the browser, and the applications on it. It runs
 https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
 stone houses, and mobs). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
-(`docs/multiplayer.md`); the Wilds are single-player for now. Read `docs/stack.md` before you
+(`docs/multiplayer.md`); the Wilds are single-player for now (only the local dev environment
+shares them; see "Commands"). Read `docs/stack.md` before you
 change the stack.
 
 **The game and the Town of Azyr are separate (Fede's decision, 2026-10-09).** The town is the
@@ -52,6 +53,7 @@ laptop, use nvm: `nvm use` (`nvm install` the first time). npm workspaces: `pack
 
 ```bash
 npm install
+scripts/dev.sh       # the local dev environment: the server (Wilds shared) + the page on 3019; --help
 npm run dev          # the app's Vite dev server, http://127.0.0.1:3019 (makes the art first)
 npm run check        # type check of every package + Vitest
 npm test             # Vitest only
@@ -66,6 +68,21 @@ on the laptop `~/Projects/LOCAL_PORTS.md` gives them to this game. Do not use 30
 test: on the VPS they are production's `game-server` and `town-server`. Vite does not move to
 another port, because the server refuses an origin that is not in its list.
 
+**Local multiplayer.** `scripts/dev.sh` starts the multiplayer server (`node --watch`: it
+restarts when its code changes) and Vite, and it opens the page. It sets `SHARED_WORLDS=wilds`
+for both: `shareWorlds()` in `apps/game/src/worlds.ts` then gives the Wilds `multiplayer: true`,
+so two browser profiles see each other. `--solo` shares nothing (as game.azyr.io now), and
+`--inspect` puts the server under the Node inspector on 127.0.0.1:9669. Without
+`SHARED_WORLDS`, `npm run dev`, `npm run server` and `npm run build` share nothing, and
+`scripts/deploy.sh` clears it. To share the Wilds in production, give their definition
+`multiplayer: true`.
+
+**Cursor (or VS Code)**: the play button (F5) starts "Dev: play" (`.vscode/launch.json`): the
+task `dev` (`scripts/dev.sh --no-open --inspect`, `.vscode/tasks.json`), the debugger on the
+server, and Chrome on the page. "Dev: two players" adds a second Chrome with its own profile.
+Breakpoints work in the page and in the server. There is no database: the game keeps no state
+on disk.
+
 Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tmp/atlas.png`.
 
 ## Layout and layers
@@ -76,7 +93,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 | `packages/engine-server` | `@game/engine-server` | The multiplayer server: `startServer()` (Node, `ws`): a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated) and its texts. | `@game/engine` |
-| `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
+| `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server; `shareWorlds()`, the dev switch), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
 
@@ -425,11 +442,12 @@ Playwright is not a dependency of this repo; the hidden-agenda checkout has it, 
   const browser = await chromium.launch({ channel: 'chromium' });   // or no options: SwiftShader
   ```
 
-Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared world, also run
-the game server with `npm run server` (port 3020; the preview sends `/ws` to it). A second test
-server needs a free port: `PORT=<port> ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`,
-and the preview then needs `GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per
-visitor. URL switches:
+Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared world, build with
+`SHARED_WORLDS=wilds npm run build`, and run the game server with `SHARED_WORLDS=wilds npm run
+server` (port 3020; the preview sends `/ws` to it). Or use `scripts/dev.sh --no-open`: the Wilds
+shared, the page on 3019. A second test server needs a free port: `PORT=<port>
+ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and the preview then needs
+`GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per visitor. URL switches:
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines` and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs), `?offline` (a

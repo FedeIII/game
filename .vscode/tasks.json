@@ -1,0 +1,55 @@
+{
+	"version": "2.0.0",
+	// scripts/dev.sh starts the local dev environment: the multiplayer server (127.0.0.1:3020, the
+	// Wilds shared) and the Vite dev server of the page (127.0.0.1:3019). The ports are in
+	// ~/Projects/LOCAL_PORTS.md. Each task here uses the same ports, so only one runs at a time:
+	// stop it (trash icon in the terminal panel) before you start another.
+	//
+	// The problem matcher never matches on purpose. A background task needs one, but a pattern that
+	// matches the script's own error line hides the reason: the editor then says only "errors exist
+	// after running preLaunchTask". Now a failure stops the task, and the reason is in its terminal.
+	"tasks": [
+		{
+			// The default build task (Shift-Cmd-B), and the preLaunchTask of each launch configuration.
+			// The server runs under the inspector, so "Attach: game server" can attach to it.
+			"label": "dev",
+			"type": "shell",
+			"command": "scripts/dev.sh --no-open --inspect",
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": { "regexp": "^__never_matches__$" },
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".*game dev env.*",
+					"endsPattern": ".*dev env ready.*"
+				}
+			},
+			"group": { "kind": "build", "isDefault": true },
+			"presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+			"icon": { "id": "play", "color": "terminal.ansiGreen" }
+		},
+		{
+			// Single-player, as on game.azyr.io now: no world is shared.
+			"label": "dev (solo)",
+			"type": "shell",
+			"command": "scripts/dev.sh --no-open --inspect --solo",
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": { "regexp": "^__never_matches__$" },
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".*game dev env.*",
+					"endsPattern": ".*dev env ready.*"
+				}
+			},
+			"presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+		},
+		{
+			"label": "check",
+			"type": "npm",
+			"script": "check",
+			"group": { "kind": "test", "isDefault": true },
+			"problemMatcher": ["$tsc"]
+		}
+	]
+}

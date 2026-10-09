@@ -22,6 +22,8 @@ const wsProxy = { '/ws': { target: process.env.GAME_SERVER ?? 'ws://127.0.0.1:30
 export default defineConfig({
   define: {
     __COMMIT__: JSON.stringify(commit()),
+    // The worlds that the page shares: scripts/dev.sh sets it, production does not (worlds.ts).
+    __SHARED_WORLDS__: JSON.stringify(process.env.SHARED_WORLDS ?? ''),
   },
   build: {
     target: 'es2022',
