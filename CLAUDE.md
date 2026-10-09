@@ -323,8 +323,9 @@ In a shared world the server takes the look and the name from the stored charact
 (`docs/multiplayer.md`, protocol 7). `apps/game/server/main.ts` reads the settings from the
 environment (its comment lists them): `GAME_DB` turns the accounts on; in production it refuses
 to start without the Google client or with `AUTH_DEV_LOGIN`. Production keeps the secrets in
-`/etc/game/secret.env` and the database in `/var/lib/game/game.db`, with a nightly copy
-(`scripts/backup-db.ts`). See `deploy/README.md`, "Accounts".
+`/etc/game/secret.env` and the database in `/var/lib/game/game.db`, with a nightly copy that
+gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase`). See
+`deploy/README.md`, "Accounts".
 
 ## Arrival in a world
 

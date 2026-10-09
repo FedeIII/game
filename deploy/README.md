@@ -116,14 +116,31 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
    PM2 process list (`pm2 save`) when every app is online; otherwise it says so, and you run
    `pm2 save` yourself. Without the save, game-server starts without its environment after a
    reboot, and fails.
-6. **The nightly backup** of the database (`scripts/backup-db.ts`: `VACUUM INTO` a dated copy
-   in `/var/backups/game`, the newest 14 kept; 03:41, after the house-md backup). The copies are
-   not encrypted now, and they hold the emails of the accounts:
+6. **The nightly encrypted backup** of the database (`scripts/backup-db.ts`: `VACUUM INTO` a
+   dated copy, gpg AES256 with a passphrase file, a test decryption, then the plain copy is
+   deleted; `/var/backups/game/game-<UTC stamp>.db.gpg`, the newest 14 kept; 03:41 to 03:46,
+   after the house-md backup and before the wallet backup). The copies hold the emails of the
+   accounts. This is the method of the house-md and wallet backups on the VPS. The script
+   refuses to run without the passphrase file, or if the file is not mode 600:
 
    ```bash
+   (umask 077; openssl rand -hex 32 > /etc/game/backup.passphrase)
    cp /opt/game/deploy/game-backup.service /opt/game/deploy/game-backup.timer /etc/systemd/system/
-   systemctl daemon-reload && systemctl enable --now game-backup.timer
+   systemctl daemon-reload
    systemctl start game-backup.service && ls -l /var/backups/game
+   systemctl enable --now game-backup.timer
+   ```
+
+   **Keep a copy of `/etc/game/backup.passphrase` somewhere that is not this VPS.** Without it,
+   the backups cannot be opened. Restore a copy:
+
+   ```bash
+   gpg --batch --decrypt --passphrase-file /etc/game/backup.passphrase \
+     /var/backups/game/game-<stamp>.db.gpg > /root/game-restore.db
+   pm2 stop game-server
+   mkdir -m 700 /var/lib/game/before-restore && mv /var/lib/game/game.db* /var/lib/game/before-restore/
+   install -m 600 /root/game-restore.db /var/lib/game/game.db && rm /root/game-restore.db
+   pm2 start game-server && curl -s http://127.0.0.1:3008/healthz
    ```
 
 7. **Check** (see "Checks"): `/healthz` says `"accounts":true`, and

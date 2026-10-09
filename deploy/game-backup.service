@@ -1,8 +1,10 @@
-# The nightly copy of the accounts database of game.azyr.io (scripts/backup-db.ts).
+# The nightly encrypted copy of the accounts database of game.azyr.io (scripts/backup-db.ts).
 # Install: see deploy/README.md, "Accounts".
 [Unit]
-Description=Back up the game.azyr.io accounts database
+Description=Encrypted backup of the game.azyr.io accounts database
 
 [Service]
 Type=oneshot
+UMask=0077
+Environment=BACKUP_PASSPHRASE_FILE=/etc/game/backup.passphrase
 ExecStart=/usr/bin/node /opt/game/scripts/backup-db.ts /var/lib/game/game.db /var/backups/game 14
