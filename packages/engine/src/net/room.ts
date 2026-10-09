@@ -8,6 +8,7 @@ import {
   MOB_SEND_RADIUS,
   SKIN_CHANGE_GAP_MS,
   cleanName,
+  aimCode,
   facingCode,
   fromWireInput,
   toWireMob,
@@ -255,7 +256,7 @@ export class Room {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
         const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
-        const struck = this.horde.strike(player.state, player.state.facing, (mob) => this.mobAt(mob.id, then), player.id);
+        const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id);
         this.kills += struck.filter((mob) => mob.state === 'dying').length;
       }
     });
@@ -276,7 +277,7 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim)]);
     }
     const doors = this.world.openDoorList();
     const barks = this.barks;
@@ -301,7 +302,7 @@ export class Room {
         t: 'snap',
         ms,
         a: p.seq,
-        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard],
+        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard, aimCode(s.aim)],
         p: others,
         ...(changed ? { doors } : {}),
         ...(npcs ? { n: npcs } : {}),

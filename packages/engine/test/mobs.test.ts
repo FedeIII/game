@@ -9,6 +9,7 @@ import {
   TILE_SIZE,
   World,
   createPlayer,
+  facingAngle,
   stepPlayer,
   type HordePlayer,
   type Mob,
@@ -139,24 +140,39 @@ describe('mobs', () => {
     const p = createPlayer(at(5, 5).x, at(5, 5).y);
     const front = horde.spawn('imp', p.x + 20, p.y);
     const behind = horde.spawn('brute', p.x - 24, p.y);
-    const killed = horde.strike(p, 'right');
+    const killed = horde.strike(p, 0);
     expect(killed.map((m: Mob) => m.id)).toEqual([front.id]);
     expect(front.state).toBe('dying');
     expect(behind.state).not.toBe('dying');
     // A second blow does not kill the dying one again.
-    expect(horde.strike(p, 'right')).toEqual([]);
+    expect(horde.strike(p, 0)).toEqual([]);
     const watcher: HordePlayer = { id: 1, state: createPlayer(p.x, p.y + 20 * TILE_SIZE) };
     run(horde, [watcher], MOB_STATS.imp.deathMs + 50);
     expect(horde.mobs.includes(front)).toBe(false);
     expect(horde.mobs.includes(behind)).toBe(true);
   });
 
+  it('die from an attack in any direction: in front of it, not beside it', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 4);
+    const p = createPlayer(0, 0);
+    // A mob to the south-east, and one to the north-east (90 degrees from it).
+    const southEast = horde.spawn('imp', 14, 14);
+    const northEast = horde.spawn('imp', 14, -14);
+    expect(horde.strike(p, Math.PI / 4)).toEqual([southEast]);
+    expect(northEast.state).not.toBe('dying');
+    // Straight east, both are within the arc.
+    const east = new Horde(new World(textSource([])), everywhere(), 4);
+    east.spawn('imp', 14, 14);
+    east.spawn('imp', 14, -14);
+    expect(east.strike(p, 0)).toHaveLength(2);
+  });
+
   it('can be hit where the attacker saw them a moment ago', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 4);
     const p = createPlayer(0, 0);
     const mob = horde.spawn('imp', 80, 0);
-    expect(horde.strike(p, 'right')).toEqual([]);
-    expect(horde.strike(p, 'right', () => ({ x: 18, y: 0 }))).toEqual([mob]);
+    expect(horde.strike(p, 0)).toEqual([]);
+    expect(horde.strike(p, 0, () => ({ x: 18, y: 0 }))).toEqual([mob]);
   });
 
   it('come out of the sight of the players, up to the population of the world', () => {
@@ -207,7 +223,7 @@ describe('a brute in a fight', () => {
       p.x = brute.x - 18;
       p.y = brute.y;
       const startX = brute.x;
-      expect(horde.strike(p, 'right', undefined, 7)).toEqual([brute]);
+      expect(horde.strike(p, 0, undefined, 7)).toEqual([brute]);
       expect(brute.state).toBe('hurt');
       expect(brute.health).toBe(3 - blow);
       for (let t = 0; t < MOB_STATS.brute.hurtMs; t += TICK_MS) horde.step(TICK_MS, players);
@@ -217,7 +233,7 @@ describe('a brute in a fight', () => {
     }
     p.x = brute.x - 18;
     p.y = brute.y;
-    horde.strike(p, 'right', undefined, 7);
+    horde.strike(p, 0, undefined, 7);
     expect(brute.state).toBe('dying');
     expect(brute.health).toBe(0);
   });
@@ -226,7 +242,7 @@ describe('a brute in a fight', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 22);
     const p = createPlayer(0, 0);
     const brute = horde.spawn('brute', 20, 0);
-    horde.strike(p, 'right', undefined, 3);
+    horde.strike(p, 0, undefined, 3);
     expect(brute.state).toBe('hurt');
     for (let t = 0; t <= MOB_STATS.brute.hurtMs; t += TICK_MS) horde.step(TICK_MS, [{ id: 3, state: p }]);
     expect(brute.state).toBe('chase');
@@ -238,18 +254,31 @@ describe('the player in a fight', () => {
 
   it('attacks with an input, stands still while it strikes, and waits for the cooldown', () => {
     const p: PlayerState = createPlayer(0, 0);
-    expect(stepPlayer(p, { x: 1, y: 0, attack: 'up' }, world)).toBe(true);
+    expect(stepPlayer(p, { x: 1, y: 0, attack: facingAngle('up') }, world)).toBe(true);
     expect(p.facing).toBe('up');
     expect(p.attack).toBe(ATTACK_TICKS);
-    for (let i = 0; i < ATTACK_TICKS; i++) expect(stepPlayer(p, { x: 1, y: 0, attack: 'up' }, world)).toBe(false);
+    for (let i = 0; i < ATTACK_TICKS; i++) expect(stepPlayer(p, { x: 1, y: 0, attack: facingAngle('up') }, world)).toBe(false);
     expect(p.x).toBe(0);
     expect(p.attack).toBe(0);
     // The cooldown is not over yet: the input walks instead.
-    expect(stepPlayer(p, { x: 1, y: 0, attack: 'up' }, world)).toBe(false);
+    expect(stepPlayer(p, { x: 1, y: 0, attack: facingAngle('up') }, world)).toBe(false);
     let ticks = 0;
-    while (!stepPlayer(p, { x: 0, y: 0, attack: 'left' }, world)) ticks++;
+    while (!stepPlayer(p, { x: 0, y: 0, attack: facingAngle('left') }, world)) ticks++;
     expect(ticks).toBeLessThan(20);
     expect(p.facing).toBe('left');
+  });
+
+  it('attacks in the exact direction of the input, and faces the nearest side', () => {
+    const p: PlayerState = createPlayer(0, 0);
+    expect(stepPlayer(p, { x: 0, y: 0, attack: 2.5 }, world)).toBe(true);
+    expect(p.aim).toBe(2.5);
+    expect(p.facing).toBe('left');
+    // An angle out of range is put in (-PI, PI]; an attack without a finite direction is no attack.
+    const q: PlayerState = createPlayer(0, 0);
+    expect(stepPlayer(q, { x: 0, y: 0, attack: 2 * Math.PI + 1 }, world)).toBe(true);
+    expect(q.aim).toBeCloseTo(1);
+    expect(q.facing).toBe('down');
+    expect(stepPlayer(createPlayer(0, 0), { x: 0, y: 0, attack: Number.NaN }, world)).toBe(false);
   });
 
   it('cannot move or attack while stunned, and cannot be hit just after', () => {
@@ -262,7 +291,7 @@ describe('the player in a fight', () => {
     expect(p.stun).toBeGreaterThan(0);
     expect(mob.state).toBe('strike');
     const before = { x: p.x, y: p.y };
-    expect(stepPlayer(p, { x: 1, y: 0, attack: 'right' }, world)).toBe(false);
+    expect(stepPlayer(p, { x: 1, y: 0, attack: 0 }, world)).toBe(false);
     expect({ x: p.x, y: p.y }).toEqual(before);
     while (p.stun > 0) stepPlayer(p, NO_INPUT, world);
     expect(p.guard).toBe(GUARD_TICKS);

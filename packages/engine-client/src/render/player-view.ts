@@ -1,6 +1,6 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
-import { ATTACK_TICKS, type Facing } from '@game/engine';
-import type { AttackStyle } from '../../art/attacks.ts';
+import { ATTACK_TICKS, facingAngle, type Facing } from '@game/engine';
+import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
 
@@ -47,6 +47,8 @@ export interface PlayerPose {
   readonly vx: number;
   readonly vy: number;
   readonly facing: Facing;
+  /** The direction of the attack (radians, as PlayerState.aim). None: the way it faces. */
+  readonly aim?: number;
   /** Ticks left of an attack, of a stun, and of the guard after a stun (as in PlayerState; 0 or none: not now). */
   readonly attack?: number;
   readonly stun?: number;
@@ -96,7 +98,8 @@ export class PlayerView {
   /** The effect of an attack: behind the body when the player faces up, in front of it otherwise. */
   private readonly slash: Sprite;
   private readonly art: Art;
-  private slashFrames: Texture[];
+  /** The frames of the effect, for each drawn turn (fx/<style>/<turn>). */
+  private slashFrames: Texture[][];
   private style: AttackStyle = 'punch';
   private tint = ATTACK_TINT.punch;
   private light: LightSource | null = null;
@@ -113,8 +116,8 @@ export class PlayerView {
     this.ghost = new Sprite(textures.stand.down);
     this.ghost.alpha = PlayerView.GHOST_ALPHA;
     this.art = art;
-    this.slashFrames = art.variants('fx/punch');
-    this.slash = new Sprite(this.slashFrames[0]);
+    this.slashFrames = PlayerView.effectFrames(art, 'punch');
+    this.slash = new Sprite(this.slashFrames[0]![0]);
     this.slash.visible = false;
     this.setAttackStyle('punch');
     this.root.addChild(new Sprite(art.frame('player/shadow')), this.body, this.slash);
@@ -132,11 +135,20 @@ export class PlayerView {
     return this.textures.headHeight;
   }
 
+  /** From the centre of the feet up to the chest, in world pixels: an attack starts there. */
+  get chestHeight(): number {
+    return Math.round(this.textures.headHeight * 0.45);
+  }
+
+  private static effectFrames(art: Art, style: AttackStyle): Texture[][] {
+    return Array.from({ length: FX_TURNS }, (_, turn) => art.variants(`fx/${style}/${turn}`));
+  }
+
   /** How this player attacks (its skin decides), and the colour of the effect. */
   setAttackStyle(style: AttackStyle, tint: number = ATTACK_TINT[style]): void {
     this.style = style;
     this.tint = tint;
-    this.slashFrames = this.art.variants(`fx/${style}`);
+    this.slashFrames = PlayerView.effectFrames(this.art, style);
     this.slash.tint = tint;
     this.slash.blendMode = GLOWING.has(style) ? 'add' : 'normal';
   }
@@ -194,32 +206,34 @@ export class PlayerView {
     const attack = state.attack ?? 0;
     const stun = state.stun ?? 0;
     const elapsed = attack > 0 ? ATTACK_TICKS - attack : Infinity;
-    // The effect: from the chest, towards the side of the attack.
+    // The effect: from the chest, in the direction of the attack (in 16 steps).
     this.slash.visible = elapsed >= FX_FROM && elapsed < FX_FROM + FX_TICKS;
     this.light = null;
     let lunge = 0;
+    const place = fxPlacement(state.aim ?? facingAngle(state.facing));
+    const fx = Math.cos(place.angle);
+    const fy = Math.sin(place.angle);
     if (this.slash.visible) {
-      this.slash.texture = this.slashFrames[Math.min(FX_FRAMES - 1, Math.floor(((elapsed - FX_FROM) / FX_TICKS) * FX_FRAMES))]!;
-      const chest = -Math.round(this.textures.headHeight * 0.45);
-      const turn = { right: 0, down: Math.PI / 2, left: 0, up: -Math.PI / 2 }[state.facing];
-      this.slash.rotation = turn;
-      this.slash.scale.x = state.facing === 'left' ? -1 : 1;
-      this.slash.position.set(state.facing === 'left' ? -3 : state.facing === 'right' ? 3 : 0, chest + (state.facing === 'down' ? 4 : state.facing === 'up' ? -2 : 0));
+      const texture = this.slashFrames[place.turn]![Math.min(FX_FRAMES - 1, Math.floor(((elapsed - FX_FROM) / FX_TICKS) * FX_FRAMES))]!;
+      this.slash.texture = texture;
+      // Each frame is cropped to its pixels, so each has its own anchor.
+      this.slash.anchor.copyFrom(texture.defaultAnchor ?? { x: 0, y: 0 });
+      this.slash.rotation = place.rotation;
+      this.slash.scale.x = place.mirror ? -1 : 1;
+      this.slash.position.set(Math.round(fx * 3), -this.chestHeight + Math.round(fy > 0 ? fy * 4 : fy * 2));
       // Behind the body when the player faces away from the viewer.
       this.root.setChildIndex(this.slash, state.facing === 'up' ? 1 : 2);
       lunge = elapsed >= 2 && elapsed <= 8 ? 1 : 0;
     }
-    const [fx, fy] = state.facing === 'left' ? [-1, 0] : state.facing === 'right' ? [1, 0] : state.facing === 'up' ? [0, -1] : [0, 1];
     if (this.slash.visible && GLOWING.has(this.style)) {
-      const chest = Math.round(this.textures.headHeight * 0.45);
-      this.light = { x: this.root.x + fx * 16, y: this.root.y - chest + fy * 12, radius: 48, colour: this.tint, flicker: this.style === 'flame', seed: 31 };
+      this.light = { x: this.root.x + fx * 16, y: this.root.y - this.chestHeight + fy * 12, radius: 48, colour: this.tint, flicker: this.style === 'flame', seed: 31 };
     }
     // A hit: when a stun starts.
     if (stun > 0 && !this.wasStunned) this.hitAt = now;
     this.wasStunned = stun > 0;
     const sinceHit = now - this.hitAt;
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
-    this.body.position.set(fx * lunge + sway, fy * lunge);
+    this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge));
     if (!this.pending) {
       this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;

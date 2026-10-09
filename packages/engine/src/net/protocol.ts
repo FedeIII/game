@@ -1,6 +1,6 @@
 import { TILE_SIZE } from '../constants.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
-import { clampInput, type Facing, type MoveInput } from '../player.ts';
+import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
 
 /**
  * The multiplayer protocol: JSON messages over one WebSocket. The client sends its inputs, the
@@ -10,7 +10,7 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -64,10 +64,25 @@ export function facingFromCode(code: number): Facing {
   return FACINGS[code] ?? 'down';
 }
 
+/** A direction on the wire (an attack's) is a whole number from 0 to AIM_STEPS - 1: steps of 1.4 degrees. */
+export const AIM_STEPS = 256;
+
+/** The code of a direction (radians): 0 east, AIM_STEPS / 4 south. */
+export function aimCode(angle: number): number {
+  const code = Math.round((normalAngle(angle) * (AIM_STEPS / 2)) / Math.PI);
+  return ((code % AIM_STEPS) + AIM_STEPS) % AIM_STEPS;
+}
+
+/** The direction (radians, in (-PI, PI]) of a code. */
+export function aimFromCode(code: number): number {
+  const c = ((Math.round(code) % AIM_STEPS) + AIM_STEPS) % AIM_STEPS;
+  return ((c > AIM_STEPS / 2 ? c - AIM_STEPS : c) * Math.PI) / (AIM_STEPS / 2);
+}
+
 /**
  * An input on the wire: each axis as a whole number from -100 to 100, and for an attack a third
- * number, 1 + the facing code of its side. The client applies the input that it sends, not the
- * one that it read, so the server can repeat the same step.
+ * number, 1 + the code of its direction (aimCode). The client applies the input that it sends,
+ * not the one that it read, so the server can repeat the same step.
  */
 export type WireInput = readonly [number, number] | readonly [number, number, number];
 
@@ -75,12 +90,13 @@ const INPUT_SCALE = 100;
 
 export function toWireInput(input: MoveInput): WireInput {
   const q = (v: number) => Math.max(-INPUT_SCALE, Math.min(INPUT_SCALE, Math.round(v * INPUT_SCALE)));
-  return input.attack ? [q(input.x), q(input.y), 1 + facingCode(input.attack)] : [q(input.x), q(input.y)];
+  const attack = clampInput(input).attack;
+  return attack !== undefined ? [q(input.x), q(input.y), 1 + aimCode(attack)] : [q(input.x), q(input.y)];
 }
 
 export function fromWireInput(wire: WireInput): MoveInput {
   const move = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
-  return clampInput(wire.length === 3 ? { ...move, attack: facingFromCode(wire[2] - 1) } : move);
+  return clampInput(wire.length === 3 ? { ...move, attack: aimFromCode(wire[2] - 1) } : move);
 }
 
 // ---------------------------------------------------------------- client to server
@@ -154,13 +170,14 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 // ---------------------------------------------------------------- server to client
 
 /**
- * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard]: the last
- * three are the ticks left, as in PlayerState. Positions to 0.1 px.
+ * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard, aim
+ * code]: attack, stun and guard are the ticks left, as in PlayerState; the aim code is the
+ * direction of its attack (aimCode). Positions to 0.1 px.
  */
-export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number];
+export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number];
 
-/** A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard]. */
-export type WireSelf = readonly [number, number, number, number, number, number, number, number, number];
+/** A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code]. */
+export type WireSelf = readonly [number, number, number, number, number, number, number, number, number, number];
 
 /** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state, health left]. Positions to 0.1 px. */
 export type WireMob = readonly [number, number, number, number, number, number, number, number, number, number];
@@ -201,8 +218,8 @@ export interface WelcomeMessage {
 
 /**
  * The state of the world for one player. `ms` is the server's clock; `a` is the last input of
- * this player that the server has applied; `you` is its true state [x, y, vx, vy, facing code],
- * at full precision; `p` holds the other players. `doors` comes only when the doors changed.
+ * this player that the server has applied; `you` is its true state (WireSelf), at full
+ * precision; `p` holds the other players. `doors` comes only when the doors changed.
  */
 export interface SnapshotMessage {
   readonly t: 'snap';
@@ -290,7 +307,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;
       const inputShaped = (v: unknown) =>
         isPair(v, -INPUT_SCALE, INPUT_SCALE) ||
-        (Array.isArray(v) && v.length === 3 && isInt(v[0], -INPUT_SCALE, INPUT_SCALE) && isInt(v[1], -INPUT_SCALE, INPUT_SCALE) && isInt(v[2], 1, 4));
+        (Array.isArray(v) && v.length === 3 && isInt(v[0], -INPUT_SCALE, INPUT_SCALE) && isInt(v[1], -INPUT_SCALE, INPUT_SCALE) && isInt(v[2], 1, AIM_STEPS));
       if (!m.i.every(inputShaped)) return null;
       const inputs = m.i as WireInput[];
       let attacks: WireAttack[] | undefined;

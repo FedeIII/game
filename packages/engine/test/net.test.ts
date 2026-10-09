@@ -12,6 +12,8 @@ import {
   TICK_RATE,
   TILE_SIZE,
   World,
+  aimCode,
+  aimFromCode,
   createPlayer,
   fromWireInput,
   cleanName,
@@ -332,7 +334,7 @@ describe('a multiplayer room', () => {
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
     const remotes = new Remotes();
-    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0]] });
+    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0]] });
     remotes.apply(snap(1000, 0), 5000);
     remotes.apply(snap(1050, 4), 5050);
     remotes.apply(snap(1100, 8), 5100);
@@ -341,7 +343,7 @@ describe('the other players on a client', () => {
     expect(r).toMatchObject({ id: 7, skin: 2, x: 6, y: 50, facing: 'right' });
     // Later than the last snapshot, it stays there and does not guess.
     expect(remotes.at(9000)[0]!.x).toBe(8);
-    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0], p: [] }, 5150);
+    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [] }, 5150);
     expect(remotes.count).toBe(0);
   });
 });
@@ -410,19 +412,34 @@ describe('names', () => {
 });
 
 describe('mobs in a shared world', () => {
-  it('reads attacks in inputs, and refuses a bad side or a bad view time', () => {
+  it('reads attacks in inputs, and refuses a bad direction or a bad view time', () => {
     expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 4]], k: [[1, 12345.5]] }))).toEqual({ t: 'in', s: 1, i: [[0, 0, 4]], k: [[1, 12345.5]] });
-    expect(fromWireInput([100, 0, 2])).toEqual({ x: 1, y: 0, attack: 'up' });
-    expect(toWireInput({ x: 0, y: 0, attack: 'right' })).toEqual([0, 0, 4]);
-    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 5]] }))).toBeNull();
+    expect(fromWireInput([100, 0, 65])).toEqual({ x: 1, y: 0, attack: Math.PI / 2 });
+    expect(toWireInput({ x: 0, y: 0, attack: 0 })).toEqual([0, 0, 1]);
+    expect(toWireInput({ x: 0, y: 0, attack: -Math.PI / 2 })).toEqual([0, 0, 193]);
+    expect(toWireInput({ x: 0, y: 0, attack: Math.PI })).toEqual([0, 0, 129]);
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 256]] }))).not.toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 257]] }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0, 0]] }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0]], k: [[1, 'soon']] }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ t: 'in', s: 1, i: [[0, 0]], k: Array.from({ length: 5 }, () => [1, 0]) }))).toBeNull();
+  });
+
+  it('sends a direction in 256 steps, the same on both sides', () => {
+    for (const angle of [0, 0.3, Math.PI / 4, 2, Math.PI, -Math.PI, -0.01, -2.5, 7]) {
+      const code = aimCode(angle);
+      expect(code).toBeGreaterThanOrEqual(0);
+      expect(code).toBeLessThan(256);
+      const back = aimFromCode(code);
+      expect(Math.abs(Math.atan2(Math.sin(back - angle), Math.cos(back - angle)))).toBeLessThanOrEqual(Math.PI / 256 + 1e-9);
+      expect(aimCode(back)).toBe(code);
+    }
   });
 
   it('kill a mob that a client strikes, and every client sees it die', () => {
     const net = new SimNetwork(40, mobHouseSource);
     let attackAt = -1;
-    const a = new SimClient((tick) => (tick === attackAt ? { x: 0, y: 0, attack: 'right' } : NO_INPUT), 1, mobHouseSource);
+    const a = new SimClient((tick) => (tick === attackAt ? { x: 0, y: 0, attack: 0 } : NO_INPUT), 1, mobHouseSource);
     const b = new SimClient(() => NO_INPUT, 1, mobHouseSource);
     net.connect(a, [5, 10]);
     net.connect(b, [5, 12]);
@@ -505,7 +522,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(9);
+    expect(snap!.you).toHaveLength(10);
   });
 
   it('kill a brute with the third blow, and send what it has left', () => {

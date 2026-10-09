@@ -50,6 +50,13 @@ export class Camera {
     );
   }
 
+  /** The world point under a point of the screen (CSS pixels), where the last follow() put the world. */
+  toWorld(x: number, y: number): { x: number; y: number } {
+    const left = Math.round((this.width * this.dpr) / 2 - this.centreX * this.zoom) / this.dpr;
+    const top = Math.round((this.height * this.dpr) / 2 - this.centreY * this.zoom) / this.dpr;
+    return { x: ((x - left) * this.dpr) / this.zoom, y: ((y - top) * this.dpr) / this.zoom };
+  }
+
   /** The part of the world that is on the screen, in world pixels. */
   view(): Rect {
     const width = (this.width * this.dpr) / this.zoom;

@@ -20,6 +20,24 @@ export const ATTACK_STYLES: readonly AttackStyle[] = ['slash', 'thrust', 'bash',
 /** Frames of an attack in a sheet. */
 export const ATTACK_FRAMES = 4;
 
+/** The effects (fx.ts) are drawn turned by 0, 22.5, 45 and 67.5 degrees: `fx/<style>/<turn>/<i>`. */
+export const FX_TURNS = 4;
+
+/**
+ * How the game shows an effect in the direction `aim` (radians, y down), in 16 steps of 22.5
+ * degrees: the drawing `fx/<style>/<turn>/<i>`, then a mirror (x to -x, first) and a rotation
+ * by quarter turns (radians, clockwise). Both keep the pixel grid. The right half is the drawings
+ * turned; the left half is the right half mirrored, so a blow from above stays from above.
+ * `angle` is the direction shown.
+ */
+export function fxPlacement(aim: number): { readonly turn: number; readonly mirror: boolean; readonly rotation: number; readonly angle: number } {
+  const step = ((Math.round(aim / (Math.PI / 8)) % 16) + 16) % 16;
+  const mirror = step > 4 && step < 12;
+  const right = mirror ? (24 - step) % 16 : step;
+  const quarters = Math.floor(right / 4);
+  return { turn: right % FX_TURNS, mirror, rotation: ((mirror ? -quarters : quarters) * Math.PI) / 2, angle: (step * Math.PI) / 8 };
+}
+
 /**
  * The style of a skin, from its class and what it carries. Fighters, paladins, barbarians (an
  * axe or a sword) and clerics (a mace) slash; bards (a rapier), rogues and rangers (a dagger)

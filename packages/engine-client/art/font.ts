@@ -220,6 +220,37 @@ const MORE = ['#####', '.###.', '..#..'];
 const SIGN = ['.#####.', '#lllll#', '#wwwww#', '#wWwww#', '#wwwWw#', '#wwwww#', '.#####.'];
 const SIGN_COLOURS = { '#': rgb('#140d09'), l: rgb('#5a3f2a'), w: rgb('#3d2a1c'), W: rgb('#33231a') };
 
+// ---------------------------------------------------------------- mouse cursor
+
+/**
+ * The mouse cursor over the world: a short sword that points up and left, its tip on the top-left
+ * pixel (the hot spot). A parchment edge on the steel (lit from the top left), a brass guard with
+ * a wine-red stone, and a dark outline, so it reads on dark and on lit ground.
+ */
+const CURSOR = [
+  'WKK.......',
+  'KWSK......',
+  'KDWSK..K..',
+  '.KDWSKKGK.',
+  '..KDWKGK..',
+  '...KKRK...',
+  '...KgKLK..',
+  '..KgK.KlK.',
+  '...K...KGK',
+  '........K.',
+];
+const CURSOR_COLOURS = {
+  K: rgb('#0b0809'),
+  W: rgb('#d8ccb0'),
+  S: rgb('#a39c90'),
+  D: rgb('#5f5954'),
+  R: rgb('#b03a3e'),
+  G: rgb('#9a7a44'),
+  g: rgb('#5e4626'),
+  L: rgb('#4a3224'),
+  l: rgb('#2c1d15'),
+};
+
 export function fontFrames(): Frame[] {
   const frames: Frame[] = Object.entries(GLYPHS).map(([ch, spec]) => ({ name: `font/${ch.charCodeAt(0)}`, image: glyph(spec, ch) }));
   frames.push({ name: FONT.fallback, image: glyph(FALLBACK, 'fallback') });
@@ -229,5 +260,7 @@ export function fontFrames(): Frame[] {
   frames.push({ name: 'ui/bubble-tail', image: grid(BUBBLE_TAIL, BUBBLE), anchor: { x: 0.5, y: 0 } });
   frames.push({ name: 'ui/more', image: grid(MORE, { '#': 0xd8ccb0ff }) });
   frames.push({ name: 'ui/sign', image: grid(SIGN, SIGN_COLOURS) });
+  // The hot spot is the centre of the top-left pixel.
+  frames.push({ name: 'ui/cursor', image: grid(CURSOR, CURSOR_COLOURS), anchor: { x: 0.5 / CURSOR[0]!.length, y: 0.5 / CURSOR.length } });
   return frames;
 }

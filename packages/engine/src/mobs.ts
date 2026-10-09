@@ -353,13 +353,13 @@ export class Horde {
   }
 
   /**
-   * An attack from `attacker` (the player `attackerId`) towards `facing` hits every living mob in
-   * its reach. `at` can give another position of a mob (where the attacker saw it, a moment ago):
-   * a hit there counts too. A blow takes one of a mob's health and pushes it away: the last one
+   * An attack from `attacker` (the player `attackerId`) in the direction `aim` (radians) hits
+   * every living mob in its reach. `at` can give another position of a mob (where the attacker saw
+   * it, a moment ago): a hit there counts too. A blow takes one of a mob's health and pushes it away: the last one
    * kills it; another one makes it reel (`hurt`), and then it goes for the attacker. Returns the
    * mobs that it hit: the dead ones are `dying`.
    */
-  strike(attacker: { readonly x: number; readonly y: number }, facing: Facing, at?: (mob: Mob) => { x: number; y: number } | null, attackerId?: number): Mob[] {
+  strike(attacker: { readonly x: number; readonly y: number }, aim: number, at?: (mob: Mob) => { x: number; y: number } | null, attackerId?: number): Mob[] {
     const struck: Mob[] = [];
     let killed = 0;
     for (const mob of this.mobs) {
@@ -367,7 +367,7 @@ export class Horde {
       const radius = MOB_STATS[mob.kind].radius;
       const then = at?.(mob) ?? null;
       const hit =
-        attackHits(attacker.x, attacker.y, facing, mob.x, mob.y, radius) || (then !== null && attackHits(attacker.x, attacker.y, facing, then.x, then.y, radius));
+        attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius) || (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius));
       if (!hit) continue;
       const brain = this.brains.get(mob.id)!;
       const dx = mob.x - attacker.x;

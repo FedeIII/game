@@ -4,6 +4,7 @@ import { stepPlayer, type MoveInput, type PlayerState } from '../player.ts';
 import type { World } from '../world.ts';
 import {
   INPUT_BATCH_TICKS,
+  aimFromCode,
   facingFromCode,
   fromWireInput,
   toWireInput,
@@ -125,12 +126,13 @@ export class Prediction {
     if (snapshot.doors) this.serverDoors = snapshot.doors;
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard] = snapshot.you;
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim] = snapshot.you;
     player.x = x;
     player.y = y;
     player.vx = vx;
     player.vy = vy;
     player.facing = facingFromCode(facing);
+    player.aim = aimFromCode(aim);
     player.attack = attack;
     player.cooldown = cooldown;
     player.stun = stun;

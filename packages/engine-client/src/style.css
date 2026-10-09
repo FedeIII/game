@@ -52,6 +52,12 @@ body {
   display: block;
 }
 
+/* The mouse over the world: the game draws its own cursor (src/input/mouse.ts). */
+#game.own-cursor,
+#game.own-cursor canvas {
+  cursor: none;
+}
+
 /* ---------------------------------------------------------------- joystick */
 
 #stick {

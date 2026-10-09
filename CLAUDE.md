@@ -145,9 +145,13 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
-  `speech-bubble.ts` (pages of text over a head, above the darkness).
+  `speech-bubble.ts` (pages of text over a head, above the darkness), `cursor.ts` (the mouse
+  cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
+  filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
-  form field are ignored) and `joystick.ts` (floating touch stick).
+  form field are ignored), `joystick.ts` (floating touch stick) and `mouse.ts` (the mouse over
+  `#game`: where it points, and a left click on the world, which attacks towards it; over the
+  world the system cursor hides (class `own-cursor`) and `render/cursor.ts` draws the game's).
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
@@ -239,7 +243,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All attacks reach as far:
   only the look differs.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
-  style (`fx/<style>/<0-3>`, facing right; the game turns it) and the star of a stun (`fx/star`).
+  style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
+  degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
+  (`fx/star`). `fxPlacement()` (`attacks.ts`) gives the 16 directions: a drawn turn, then a
+  mirror and quarter turns, which keep the pixel grid. Do not rotate an effect by another angle.
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, cobblestones)
   and the ragged edge pieces. `decor.ts`: small decor as text grids.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
@@ -250,8 +257,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _`; frames `smallfont/<char code>`;
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
   one; it is for the names over other players. Also the bubble
-  (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`) and the sign board
-  (`ui/sign`).
+  (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
+  (`ui/sign`) and the mouse cursor (`ui/cursor`: a short sword, 10 x 10, its tip on the hot spot
+  at the top-left pixel).
 
 Look at art before you commit it: a preview PNG, or a screenshot of the game with `?nolight`.
 Read the PNG with the Read tool. Check a wide patch of ground tiles, not one tile.
@@ -366,7 +374,8 @@ it loses the player for 1.5 s or is 18 tiles from home, and walks home. New mobs
 time, 17 to 25 tiles from every player (out of sight), up to the world's population round each
 player; a wandering mob 36 tiles from every player goes away.
 
-The player's attack is part of the input (`MoveInput.attack`: the side to strike), so
+The player's attack is part of the input (`MoveInput.attack`: the direction to strike, an angle
+in radians; `PlayerState.aim` keeps it, and the body faces the nearest side), so
 `stepPlayer` stays the one rule for prediction: an attack lasts `ATTACK_TICKS` (the player stands
 still), and the next can start `ATTACK_COOLDOWN_TICKS` after it. `stepPlayer` returns true when
 an attack starts; the caller asks the horde what it hits (`Horde.strike`: in reach, in front;
@@ -384,8 +393,10 @@ and it shows a kill at once (the server confirms it, or after 0.7 s the mob live
 lunge, the attack frames of the skin and the effect of its style, in the colour of the style (a
 spell in the colour of the skin's orb; spells, flames and palms glow and give a short light),
 the red flash of a hit, stars over the head while stunned, a blink while guarded) and
-`ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A press is kept for
-150 ms, and the attack turns to the nearest mob in reach. `?mob=imp,brute` puts mobs next to the
+`ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A left click on the
+world attacks towards the mouse pointer, from the player's chest (`input/mouse.ts`). A press is
+kept for 150 ms. The button and Space aim at the nearest mob in reach, else the way the player
+walks or faces. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
 player at the start (single-player worlds); `?nomobs` turns them off.
 
 ## Fixtures, content and actions
@@ -543,7 +554,8 @@ game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-
 `fight` in a world with mobs), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
-`?attackpose=<tick>,<facing>` (the player frozen at that tick of an attack: a screenshot of it),
+`?attackpose=<tick>,<facing or degrees>` (the player frozen at that tick of an attack in that
+direction, degrees clockwise from east: a screenshot of it),
 `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
 SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[data-speech=dialog]` (the

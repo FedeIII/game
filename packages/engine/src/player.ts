@@ -10,10 +10,11 @@ export interface MoveInput {
   readonly x: number;
   readonly y: number;
   /**
-   * An attack in this tick, towards this side. The client picks the side (the way the player
-   * faces, or the nearest mob), so the server repeats the same step.
+   * An attack in this tick, in this direction: an angle in radians (0 east, PI / 2 south: y goes
+   * down). The client picks it (the mouse, the nearest mob, or the way the player walks or faces),
+   * so the server repeats the same step.
    */
-  readonly attack?: Facing;
+  readonly attack?: number;
 }
 
 export const NO_INPUT: MoveInput = { x: 0, y: 0 };
@@ -28,6 +29,8 @@ export interface PlayerState {
   vx: number;
   vy: number;
   facing: Facing;
+  /** The direction of the attack in progress or of the last attack (radians, as MoveInput.attack). */
+  aim: number;
   /** Ticks left of the attack in progress (0: none). The player stands still while it strikes. */
   attack: number;
   /** Ticks before the player can attack again. */
@@ -56,7 +59,7 @@ export const PLAYER_HALF_WIDTH = 5;
 export const PLAYER_HALF_HEIGHT = 3;
 
 export function createPlayer(x: number, y: number): PlayerState {
-  return { x, y, vx: 0, vy: 0, facing: 'down', attack: 0, cooldown: 0, stun: 0, guard: 0 };
+  return { x, y, vx: 0, vy: 0, facing: 'down', aim: facingAngle('down'), attack: 0, cooldown: 0, stun: 0, guard: 0 };
 }
 
 /** Whether the player can start an attack in its next tick. */
@@ -77,35 +80,49 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.vy = 0;
 }
 
-/** A unit vector for a facing, in world pixels (y down). */
-export function facingVector(facing: Facing): readonly [number, number] {
-  return facing === 'left' ? [-1, 0] : facing === 'right' ? [1, 0] : facing === 'up' ? [0, -1] : [0, 1];
+/** An angle in (-PI, PI]. */
+export function normalAngle(angle: number): number {
+  const a = angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
+  return a === -Math.PI ? Math.PI : a;
+}
+
+/** The angle of a facing, in radians (y down). */
+export function facingAngle(facing: Facing): number {
+  return facing === 'right' ? 0 : facing === 'down' ? Math.PI / 2 : facing === 'left' ? Math.PI : -Math.PI / 2;
+}
+
+/** The facing nearest to a direction (radians). An exact diagonal faces up or down. */
+export function facingOfAngle(angle: number): Facing {
+  const a = normalAngle(angle);
+  if (Math.abs(a) < Math.PI / 4) return 'right';
+  if (Math.abs(a) > (3 * Math.PI) / 4) return 'left';
+  return a > 0 ? 'down' : 'up';
 }
 
 /**
- * Whether an attack from (px, py) towards `facing` hits a thing at (x, y) with radius `radius`:
- * close enough, and in front (or so close that the side does not matter).
+ * Whether an attack from (px, py) in the direction `aim` (radians) hits a thing at (x, y) with
+ * radius `radius`: close enough, and in front (or so close that the direction does not matter).
  */
-export function attackHits(px: number, py: number, facing: Facing, x: number, y: number, radius: number): boolean {
+export function attackHits(px: number, py: number, aim: number, x: number, y: number, radius: number): boolean {
   const dx = x - px;
   const dy = y - py;
   const d = Math.hypot(dx, dy);
   if (d > ATTACK_REACH + radius) return false;
   if (d <= radius + 4) return true;
-  const [fx, fy] = facingVector(facing);
-  return (dx * fx + dy * fy) / d >= Math.cos(ATTACK_ARC);
+  return (dx * Math.cos(aim) + dy * Math.sin(aim)) / d >= Math.cos(ATTACK_ARC);
 }
 
 /**
- * Makes an input safe to use: it replaces values that are not finite with 0 and limits the
- * length to 1. The server must apply this to every input from a client.
+ * Makes an input safe to use: it replaces values that are not finite with 0, limits the length
+ * to 1, puts the direction of an attack in (-PI, PI], and drops an attack without a finite
+ * direction. The server must apply this to every input from a client.
  */
 export function clampInput(input: MoveInput): MoveInput {
   const x = Number.isFinite(input.x) ? input.x : 0;
   const y = Number.isFinite(input.y) ? input.y : 0;
   const length = Math.hypot(x, y);
   const move = length > 1 ? { x: x / length, y: y / length } : { x, y };
-  return input.attack ? { ...move, attack: input.attack } : move;
+  return input.attack !== undefined && Number.isFinite(input.attack) ? { ...move, attack: normalAngle(input.attack) } : move;
 }
 
 /**
@@ -181,10 +198,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: SolidMa
     return false;
   }
   const move = clampInput(input);
-  if (move.attack && player.cooldown === 0) {
+  if (move.attack !== undefined && player.cooldown === 0) {
     player.attack = ATTACK_TICKS;
     player.cooldown = ATTACK_COOLDOWN_TICKS;
-    player.facing = move.attack;
+    player.aim = move.attack;
+    player.facing = facingOfAngle(move.attack);
     player.vx = 0;
     player.vy = 0;
     return true;

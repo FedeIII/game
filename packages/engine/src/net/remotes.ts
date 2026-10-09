@@ -2,7 +2,7 @@ import { TICK_SECONDS } from '../constants.ts';
 import { MOB_KINDS, MOB_STATES, type MobKind, type MobState } from '../mobs.ts';
 import type { Facing } from '../player.ts';
 import type { NpcPose } from '../npc.ts';
-import { facingFromCode, type SnapshotMessage } from './protocol.ts';
+import { aimFromCode, facingFromCode, type SnapshotMessage } from './protocol.ts';
 
 /**
  * The other players are drawn this far in the past, between two snapshots that have both
@@ -26,6 +26,8 @@ export interface RemotePlayer {
   readonly vx: number;
   readonly vy: number;
   readonly facing: Facing;
+  /** The direction of its attack (radians, as PlayerState.aim). */
+  readonly aim: number;
   /** Ticks left of its attack, its stun and its guard (as in PlayerState), at the time shown. */
   readonly attack: number;
   readonly stun: number;
@@ -59,6 +61,8 @@ interface Sample {
   readonly a?: number;
   readonly b?: number;
   readonly c?: number;
+  /** A player's aim code (aimCode). */
+  readonly d?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -124,7 +128,7 @@ export class Remotes {
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -134,7 +138,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // A player that is not in the snapshot has left.
@@ -238,6 +242,7 @@ export class Remotes {
         vx: s.vx,
         vy: s.vy,
         facing: facingFromCode(s.facing),
+        aim: aimFromCode(since.d ?? 0),
         attack: ticksAt(since.a, since, t),
         stun: ticksAt(since.b, since, t),
         guard: ticksAt(since.c, since, t),

@@ -36,10 +36,10 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
 | client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
-| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the facing code of its side), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
+| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks), the others (positions to 0.1 px, their skin seeds, and their attack, stun and guard ticks), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, or `account` (a server with accounts: no session, no character, or not the visitor's own) |
 | server to client | `pong` | the client's clock, back |
 
@@ -114,6 +114,14 @@ last health dies (`predicted`): it dies on the screen; when the
 server's snapshot says that it dies too, the death goes on with the local timing; if the server
 has not said so after 0.7 s, the mob shows alive again.
 
+**Attack directions (protocol 8, 2026-10-10).** An attack goes in any direction, not only to one
+of the four sides: the mouse aims it. `MoveInput.attack` is an angle in radians, and on the wire
+it is a code from 0 to 255 (`aimCode()`, `aimFromCode()`). The client applies the code that it
+sends, so the server repeats the same step. `PlayerState.aim` keeps the direction; the facing
+(the four views of the body) is the side nearest to it (`facingOfAngle()`). The snapshots carry
+the aim code of every player (the last field of `WirePlayer` and of `you`), so the others see the
+effect of the blow in its direction.
+
 ## Limits on the server
 
 - Inputs: a token bucket per player, 1.1 x `TICK_RATE` per second with a burst of 1.5 s. An input
@@ -161,7 +169,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":7,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":8,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 

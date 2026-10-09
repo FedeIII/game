@@ -7,7 +7,7 @@ import type { Ability, CharacterClass, Gender, Interactable, Race } from '@game/
  */
 export const STRINGS = {
   hintKeyboard: 'WASD or arrow keys to move · E to act',
-  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Space to attack',
+  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Click to attack',
   attack: 'Attack',
   hintTouch: 'Touch and drag anywhere to move',
   doorBlocked: 'Step out of the doorway first.',

@@ -18,10 +18,11 @@ import {
   canAttack,
   clampInput,
   createPlayer,
-  facingFor,
+  facingAngle,
   findInteraction,
   stepPlayer,
   useDoor,
+  facingOfAngle,
   type Character,
   type Facing,
   type Fixture,
@@ -33,9 +34,11 @@ import {
 import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard } from './input/keyboard.ts';
+import { Mouse } from './input/mouse.ts';
 import { FixedStep } from './loop.ts';
 import { Buildings } from './render/buildings.ts';
 import { Camera } from './render/camera.ts';
+import { CursorView } from './render/cursor.ts';
 import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Fixtures } from './render/fixtures.ts';
 import { NetSession } from './net/session.ts';
@@ -92,6 +95,8 @@ export interface GameOptions {
 const ATTACK_BUFFER_MS = 150;
 /** The attack turns to a mob this much beyond the reach of the attack (world pixels). */
 const AIM_SLACK = 10;
+/** A click closer than this to the player's chest (world pixels) gives no direction: the attack goes the way the player faces. */
+const MOUSE_DEAD_ZONE = 3;
 /** A hit shakes the camera for this long (ms), by about this much (world pixels). */
 const SHAKE = { ms: 220, amount: 2 } as const;
 /** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
@@ -180,7 +185,9 @@ async function run(options: GameOptions): Promise<void> {
   scene.addChild(groundLayer, entityLayer, ghostLayer);
   worldLayer.addChild(scene);
   textLayer.addChild(textScene);
-  app.stage.addChild(worldLayer, textLayer);
+  // The mouse cursor over the world: above everything, without a filter, like the GUI.
+  const cursorView = new CursorView(art);
+  app.stage.addChild(worldLayer, textLayer, cursorView.root);
 
   const font = new PixelFont(art);
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
@@ -207,11 +214,14 @@ async function run(options: GameOptions): Promise<void> {
     if (ready) apply(ready);
   };
   const playerView = new PlayerView(art, atlasPlayerTextures(art), true);
-  // ?attackpose=<tick>,<facing> shows the player frozen at that tick of an attack, facing that
-  // way: a screenshot of an attack on a slow machine.
-  const [poseTick, poseFacing] = (params.get('attackpose') ?? '').split(',');
+  // ?attackpose=<tick>,<direction> shows the player frozen at that tick of an attack in that
+  // direction (a facing, or degrees clockwise from east): a screenshot of an attack on a slow machine.
+  const [poseTick, poseWay] = (params.get('attackpose') ?? '').split(',');
+  const poseAim = (['down', 'up', 'left', 'right'] as const).includes(poseWay as Facing)
+    ? facingAngle(poseWay as Facing)
+    : Number.isFinite(Number.parseFloat(poseWay ?? '')) ? (Number.parseFloat(poseWay!) * Math.PI) / 180 : facingAngle('down');
   const attackPose = Number.isFinite(Number.parseInt(poseTick ?? '', 10))
-    ? { attack: ATTACK_TICKS - Number.parseInt(poseTick!, 10), facing: (['down', 'up', 'left', 'right'].includes(poseFacing ?? '') ? poseFacing : 'down') as Facing }
+    ? { attack: ATTACK_TICKS - Number.parseInt(poseTick!, 10), aim: poseAim, facing: facingOfAngle(poseAim) }
     : null;
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
@@ -299,7 +309,7 @@ async function run(options: GameOptions): Promise<void> {
     for (const mob of net?.mobsAt(now) ?? []) {
       if (mob.state === 'dying' || predicted.has(mob.id)) continue;
       // Only a clear hit: a blow at the edge of the reach waits for the server's word.
-      if (!attackHits(player.x, player.y, player.facing, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
+      if (!attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
       if (mob.health > 1) {
         reeling.set(mob.id, { at: now, seen: false });
         continue;
@@ -346,14 +356,32 @@ async function run(options: GameOptions): Promise<void> {
     for (const id of reeling.keys()) if (!present.has(id)) reeling.delete(id);
     return out;
   };
-  // An attack: the button (or Space) asks for it, and the next tick in which the player can
-  // attack starts it, towards the nearest mob in reach, else the way the player walks or faces.
+  // An attack: a click on the world, the button or Space asks for it, and the next tick in which
+  // the player can attack starts it. A click aims at the point clicked (from the player's chest);
+  // the button and Space aim at the nearest mob in reach, else the way the player walks or faces.
   const attackButton = mobRules ? new AttackButton() : null;
   let attackAskedAt = -Infinity;
+  /** The point of the screen (CSS pixels) that a click asked to attack, or null for the button or Space. */
+  let attackClick: { readonly x: number; readonly y: number } | null = null;
   attackButton?.onPress(() => {
     attackAskedAt = performance.now();
+    attackClick = null;
   });
-  const aim = (move: MoveInput): Facing => {
+  const mouse = new Mouse(document.getElementById('game')!);
+  if (mobRules) {
+    mouse.onPress((at) => {
+      attackAskedAt = performance.now();
+      attackClick = at;
+    });
+  }
+  /** The direction from the player's chest to a point of the screen: where the visitor sees it. */
+  const aimAt = (at: { readonly x: number; readonly y: number }): number => {
+    const point = camera.toWorld(at.x, at.y);
+    const dx = point.x - shown.x;
+    const dy = point.y - (shown.y - playerView.chestHeight);
+    return Math.hypot(dx, dy) < MOUSE_DEAD_ZONE ? facingAngle(player.facing) : Math.atan2(dy, dx);
+  };
+  const aim = (move: MoveInput): number => {
     let best: MobLook | null = null;
     let bestD = Infinity;
     for (const mob of mobsNow()) {
@@ -364,12 +392,9 @@ async function run(options: GameOptions): Promise<void> {
         bestD = d;
       }
     }
-    if (best) {
-      const dx = best.x - player.x;
-      const dy = best.y - player.y;
-      return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
-    }
-    return facingFor(player.facing, move);
+    if (best) return Math.atan2(best.y - player.y, best.x - player.x);
+    if (Math.hypot(move.x, move.y) > 0.01) return Math.atan2(move.y, move.x);
+    return facingAngle(player.facing);
   };
 
   if (net) new PresenceLabel(net);
@@ -537,13 +562,13 @@ async function run(options: GameOptions): Promise<void> {
     previous.y = player.y;
     let input: MoveInput = readInput();
     if (performance.now() - attackAskedAt < ATTACK_BUFFER_MS && canAttack(player)) {
-      input = { ...input, attack: aim(input) };
+      input = { ...input, attack: attackClick ? aimAt(attackClick) : aim(input) };
       attackAskedAt = -Infinity;
     }
     if (net) {
       if (net.tick(input)) predictKills();
     } else if (stepPlayer(player, input, world) && horde) {
-      kills += horde.strike(player, player.facing, undefined, 0).filter((mob) => mob.state === 'dying').length;
+      kills += horde.strike(player, player.aim, undefined, 0).filter((mob) => mob.state === 'dying').length;
     }
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]);
@@ -591,6 +616,7 @@ async function run(options: GameOptions): Promise<void> {
     attackButton?.setReady(player.stun === 0);
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
+    cursorView.update(mouse.at, camera.zoom, app.renderer.resolution);
 
     const npcsNow = npcPoses(now);
     npcViews?.update(npcsNow, seconds);
@@ -643,7 +669,7 @@ async function run(options: GameOptions): Promise<void> {
       `char    ${character ? `${character.id}` : 'guest'}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
-      `facing  ${player.facing}`,
+      `facing  ${player.facing}, aim ${Math.round((player.aim * 180) / Math.PI)} deg${mouse.at ? `, mouse ${Math.round(mouse.at.x)},${Math.round(mouse.at.y)}` : ''}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       ...(net
         ? [
