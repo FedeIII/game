@@ -343,6 +343,8 @@ describe('accounts: the shared world', () => {
     await closed;
     expect(a.messages.find((m) => m.t === 'refused')).toEqual({ t: 'refused', reason: 'elsewhere' });
     await a.close();
+    // The server gets the close (and saves the place) a moment after the client: on a slow machine, wait for it.
+    for (let i = 0; i < 100 && started.players().shared !== 0; i++) await new Promise((r) => setTimeout(r, 20));
     expect(started.players()).toEqual({ shared: 0 });
     // The laptop goes on from where the phone was.
     const kept = (await laptop.request('POST', `/api/characters/${id}/play`)).json.character.place as { x: number; y: number };
