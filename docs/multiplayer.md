@@ -151,12 +151,13 @@ has not said so after 0.7 s, the mob shows alive again.
 it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
-npm run server                       # local, port 3008, allows the Vite origins
-curl -s http://127.0.0.1:3008/healthz   # {"ok":true,"protocol":6,"players":{}} (one count per shared world)
-pm2 logs game-server                  # one line per arrival and departure; no addresses
+npm run server                       # local, port 3020, allows the Vite origins
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":6,"players":{}} (one count per shared world)
+pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 
-`npm run dev` and `npm run preview` send `/ws` to `GAME_SERVER` (default `ws://127.0.0.1:3008`).
+`npm run dev` and `npm run preview` send `/ws` to `GAME_SERVER` (default `ws://127.0.0.1:3020`).
+The development ports are 3019 (Vite) and 3020 (server); production is on 3008.
 
 ## Production
 

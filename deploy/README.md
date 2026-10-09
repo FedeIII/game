@@ -86,5 +86,5 @@ nothing from this repository's folders, and `game-server` accepts the origin
 - `/assets/*` has `max-age=31536000, immutable`. That is safe only because Vite puts a
   content hash in every file name. Do not put a file with a fixed name under `/assets/`.
 - Everything else, `index.html` included, has `no-store`.
-- Files in `packages/client/public/` (none yet) keep their names. If you add one, do not put
+- Files in `apps/game/public/` (none yet) keep their names. If you add one, do not put
   it under `/assets/`, and expect the browser to revalidate it.

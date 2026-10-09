@@ -6,6 +6,7 @@ import { WORLDS } from '../src/worlds.ts';
  * sends wss://game.azyr.io/ws to it. It hosts the worlds with `multiplayer: true`; since the town
  * left (2026-10-09) there is none, so it waits with no room. Settings come from the environment:
  *   PORT (3008), HOST (127.0.0.1), ORIGINS (comma-separated, default https://game.azyr.io).
+ * The defaults are production's. `npm run server` sets PORT 3020 and the local origins.
  */
 const port = Number(process.env.PORT ?? 3008);
 const host = process.env.HOST ?? '127.0.0.1';

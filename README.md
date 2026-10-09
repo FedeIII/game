@@ -20,10 +20,10 @@ poison cloud, a palm strike or a punch), and every attack reaches as far.
 
 ```bash
 npm install
-npm run dev        # http://127.0.0.1:5173
+npm run dev        # http://127.0.0.1:3019
 npm run check      # type check + tests
 npm run build      # production build in apps/game/dist
-npm run server     # the multiplayer server (for shared worlds; none now), port 3008
+npm run server     # the multiplayer server (for shared worlds; none now), port 3020
 ```
 
 Debug panel: press F3, or open `/?debug`. Other switches: `/?seed=42` (the

@@ -13,33 +13,58 @@ change the stack.
 
 **The game and the Town of Azyr are separate (Fede's decision, 2026-10-09).** The town is the
 landing page of https://azyr.io. It left this branch at commit `57060cc` and lives on as a
-frozen copy of the engine: the branch `town` of this repository, checked out in
-`/opt/azyr-town`, with its own PM2 process (`town-server`, port 3009) and its own web root
+frozen copy of the engine: the branch `town` of this repository. On the VPS, the town has its own
+checkout (`/opt/azyr-town`), its own PM2 process (`town-server`, port 3009) and its own web root
 (`/var/www/azyr.io/town`). Thus:
 
 - New work on the game goes here (`main`), into the Wilds on game.azyr.io. It never reaches
-  azyr.io, and it must not: do not touch `/opt/azyr-town` or `town-server` for the game.
+  azyr.io, and it must not: do not touch the branch `town`, `/opt/azyr-town` or `town-server`
+  for the game.
 - The town changes only when Fede asks for a town change, and only on the branch `town`. Do not
-  merge `main` into `town`. See `/opt/azyr-town/CLAUDE.md`.
+  merge `main` into `town`. See the town's `CLAUDE.md` (`git show origin/town:CLAUDE.md`; on
+  the VPS, `/opt/azyr-town/CLAUDE.md`).
 
-The engine is meant to carry more applications on this box (games, demos). Keep the line
+The engine is meant to carry more applications on the VPS (games, demos). Keep the line
 between engine and content clean: the engine never knows a world's content, and a world never
 reaches into the renderer.
 
+## Where you run
+
+Claude Code works on this repository in two places. Find out which one you are in before you
+use the paths, ports and processes in this file: the working directory `/opt/game` is the VPS,
+and `uname` gives `Darwin` on the laptop.
+
+- **The VPS** (host `azyrio`, Ubuntu, checkout `/opt/game`): production. The live site, nginx,
+  PM2 and the deploy are there. `/root/CLAUDE.md` on the VPS describes the box.
+- **A laptop** (Fede's MacBook, macOS, clone `~/Projects/game`): development only. It has no
+  nginx, PM2, `/opt` or `/var/www`, and it does not deploy. The `vps` MCP server gives the
+  documents of the VPS (`list_vps_context`, `read_vps_context`). `brief_vps_claude` sends a
+  question to the Claude Code on the VPS: it investigates read-only and then waits for Fede.
+
+Both places can commit to `main`, and GitHub (`FedeIII/game`) is the shared copy. Before you
+start work, run `git fetch` and compare with `origin/main`: the other place can have new commits.
+
 ## Commands
 
-Node 24 (`.nvmrc`). npm workspaces: `packages/*`, `worlds/*`, `apps/*`.
+Node 24 (`.nvmrc`). The VPS has a system Node 24 (`/usr/bin/node`; PM2 uses that path). On the
+laptop, use nvm: `nvm use` (`nvm install` the first time). npm workspaces: `packages/*`,
+`worlds/*`, `apps/*`.
 
 ```bash
 npm install
-npm run dev          # the app's Vite dev server, http://127.0.0.1:5173 (makes the art first)
+npm run dev          # the app's Vite dev server, http://127.0.0.1:3019 (makes the art first)
 npm run check        # type check of every package + Vitest
 npm test             # Vitest only
 npm run art          # make packages/engine-client/src/generated/ again (atlas + icon)
 npm run build        # production build of the app in apps/game/dist
-npm run server       # the multiplayer server, port 3008 (dev and preview send /ws to it)
-scripts/deploy.sh    # on the box: check, build, restart game-server (PM2), publish the client
+npm run server       # the multiplayer server, port 3020 (dev and preview send /ws to it)
+scripts/deploy.sh    # on the VPS only: check, build, restart game-server (PM2), publish the client
 ```
+
+The development ports are 3019 (Vite) and 3020 (the server). They are not production's 3008, and
+on the laptop `~/Projects/LOCAL_PORTS.md` gives them to this game. Do not use 3008 or 3009 for a
+test: on the VPS they are production's `game-server` and `town-server`. Vite does not move to
+another port, because the server refuses an origin that is not in its list.
 
 Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tmp/atlas.png`.
 
@@ -101,8 +126,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `you-section.ts` (the "You" section of the settings: the player's look, "New look", the name), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
-- `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in
-  `.gitignore`; made by `dev`, `build` and `typecheck`). See "Art".
+- `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
+  made again by `dev`, `build` and `typecheck`). See "Art".
 
 ## Art
 
@@ -343,8 +368,8 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into
   them). Tests check 150+ houses for a wall ring, one door and reachable furniture.
-- **The Town of Azyr** is not here any more: it is on the branch `town` (`/opt/azyr-town`,
-  azyr.io), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
+- **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,
+  `/opt/azyr-town`), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
   lines, the arrival intro, signs, building styles), and a world of the game can use it.
 
 ## Rules
@@ -375,24 +400,36 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   down (the shader adds `uOutputFrame.y` times `uResolution`). The filter has a WebGL program
   only, so the renderer is pinned to WebGL.
 - **Overlay UI goes outside `#game`.**
-- Comments and documentation use Simplified Technical English (the rule for this box).
+- Comments and documentation use Simplified Technical English (Fede's rule, on the VPS and on
+  the laptop).
 
 ## Verify a change in a browser
 
-There is no GPU on the box, but headless Chromium renders WebGL with SwiftShader (slowly: 1 to
-6 FPS is normal there; with the CRT at a phone resolution a screenshot takes about a minute:
-give `page.screenshot` a `timeout` of 180000). Playwright is not a dependency of this repo; the
-hidden-agenda checkout has it:
+Playwright is not a dependency of this repo; the hidden-agenda checkout has it, in both places.
 
-```js
-const { chromium } = require('/opt/hidden-agenda/node_modules/playwright');
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-```
+- **On the VPS** there is no GPU, but headless Chromium renders WebGL with SwiftShader (slowly:
+  1 to 6 FPS is normal there; with the CRT at a phone resolution a screenshot takes about a
+  minute: give `page.screenshot` a `timeout` of 180000).
+
+  ```js
+  const { chromium } = require('/opt/hidden-agenda/node_modules/playwright');
+  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  ```
+
+- **On the laptop** the default headless Chromium also uses SwiftShader, but at about 30 FPS,
+  and a screenshot takes less than a second. `channel: 'chromium'` uses the real GPU (Apple M1,
+  Metal) instead.
+
+  ```js
+  const { chromium } = require(process.env.HOME + '/Projects/hidden-agenda/node_modules/playwright');
+  const browser = await chromium.launch({ channel: 'chromium' });   // or no options: SwiftShader
+  ```
 
 Serve the build with `npx vite preview --port 4173` in `apps/game`. For a shared world, also run
-a game server; on the box use another port than production's 3008, for example
-`PORT=3018 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and start the preview
-with `GAME_SERVER=ws://127.0.0.1:3018`. Use one browser **context** per visitor. URL switches:
+the game server with `npm run server` (port 3020; the preview sends `/ws` to it). A second test
+server needs a free port: `PORT=<port> ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`,
+and the preview then needs `GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per
+visitor. URL switches:
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines` and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs), `?offline` (a
@@ -420,8 +457,18 @@ Android viewport (412 x 915, `deviceScaleFactor: 2.625`).
 A deploy changes game.azyr.io only. azyr.io serves the town from its own checkout, server and
 folder (see "What this is"), so nothing here needs to keep azyr.io working.
 
-See `deploy/README.md`. Short form: `scripts/deploy.sh` on the box (it builds `apps/game`,
-restarts the PM2 process `game-server` first, then publishes the client). No nginx reload is
-necessary. Cloudflare Authenticated Origin Pulls is on, so a local `curl -k https://localhost/`
+A deploy runs only on the VPS. See `deploy/README.md`. Short form:
+`cd /opt/game && git pull && scripts/deploy.sh` (it builds `apps/game`, restarts the PM2
+process `game-server` first, then publishes the client). No nginx reload is necessary.
+
+The script deploys the working tree of `/opt/game`. Thus a commit from the laptop goes live only
+after a push to GitHub and a pull on the VPS. Do not deploy from the laptop (for example over
+SSH) unless Fede asks. Push when Fede asks, and then ask Fede to deploy, or give the task to the
+Claude Code on the VPS with `brief_vps_claude`.
+
+On the VPS: Cloudflare Authenticated Origin Pulls is on, so a local `curl -k https://localhost/`
 gets 400; that is correct. The server's health: `curl -s http://127.0.0.1:3008/healthz`.
-**Never run `pm2 update` or `pm2 flush` on this box** (see /root/CLAUDE.md).
+**Never run `pm2 update` or `pm2 flush` on the VPS** (see `/root/CLAUDE.md` there).
+
+From anywhere: `curl -sI https://game.azyr.io/` gives 200 and `cache-control: no-store`, and F3
+in the game (or `/?debug`) shows the commit of the live build.

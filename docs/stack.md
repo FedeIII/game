@@ -65,7 +65,7 @@ textures and a ticker. It does one job well. The game logic stays outside it, in
 ## Why WebSocket and our own protocol
 
 - **WebSocket** goes through the Cloudflare proxy with no special configuration, and
-  hidden-agenda.azyr.io already does this on this box. TCP head-of-line blocking is
+  hidden-agenda.azyr.io already does this on the VPS. TCP head-of-line blocking is
   acceptable for a sandbox game; it is a problem for a fast shooter, which this is not.
 - **WebRTC data channels** (geckos.io and similar) give UDP-like delivery, but they need
   STUN/TURN and open UDP ports. Cloudflare does not proxy them, so they would expose the
@@ -89,7 +89,7 @@ edits as small deltas.
 - Tiles are 16 x 16 pixels (`TILE_SIZE`). Chunks are 32 x 32 tiles (`CHUNK_SIZE`).
 - All frames are in one atlas (`atlas.png` plus `atlas.json`). The JSON is the
   TexturePacker "hash" format that PixiJS reads and that Aseprite exports.
-- For the POC, `packages/client/art/` makes the art by code. Characters, trees and rocks are
+- For the POC, `packages/engine-client/art/` makes the art by code. Characters, trees and rocks are
   "pre-rendered" from simple 3D models (signed distance functions) with one fixed light, as
   Diablo made its sprites from 3D models. Proportions, colours and poses are parameters, so
   the style is easy to change, and an 8-frame walk costs nothing extra. Ground tiles come from
