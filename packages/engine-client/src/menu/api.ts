@@ -21,7 +21,21 @@ export class ApiError extends Error {
   }
 }
 
-/** `keepalive`: the request goes on when the page closes (a small body only). */
+let leaving = false;
+
+/**
+ * The session of the page ended: a sign-in on another device ends it (an account is signed in on
+ * one device at a time). The page goes back to the sign-in screen, which says why (?login=elsewhere).
+ */
+export function backToSignIn(): void {
+  if (leaving) return;
+  leaving = true;
+  const params = new URLSearchParams(location.search);
+  params.set('login', 'elsewhere');
+  location.replace(`${location.pathname}?${params}${location.hash}`);
+}
+
+/** `keepalive`: the request goes on when the page closes (a small body only). A 401 means that the session ended. */
 async function call<T>(method: string, path: string, body?: unknown, keepalive = false): Promise<T> {
   let response: Response;
   try {
@@ -43,6 +57,7 @@ async function call<T>(method: string, path: string, body?: unknown, keepalive =
     // nginx without the /api/ route answers with the page: not JSON.
     throw new ApiError(response.ok ? 502 : response.status, 'not json');
   }
+  if (response.status === 401) backToSignIn();
   if (!response.ok) throw new ApiError(response.status, String((data as { error?: unknown } | null)?.error ?? response.status));
   return data as T;
 }

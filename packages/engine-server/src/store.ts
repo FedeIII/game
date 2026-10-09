@@ -127,10 +127,21 @@ export class AccountStore {
     this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
   }
 
-  /** A new session for a user; returns its token (only the cookie keeps it). */
+  /**
+   * A new session for a user; returns its token (only the cookie keeps it). It ends every other
+   * session of the user: an account is signed in on one device at a time (Fede's rule, 2026-10-10).
+   */
   createSession(userId: number, now: number, lifetimeMs: number): string {
     const token = randomBytes(32).toString('base64url');
-    this.db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)').run(hashToken(token), userId, now, now + lifetimeMs);
+    this.db.exec('BEGIN');
+    try {
+      this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+      this.db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)').run(hashToken(token), userId, now, now + lifetimeMs);
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
     return token;
   }
 

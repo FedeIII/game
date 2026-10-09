@@ -78,6 +78,8 @@ interface Client {
   readonly ip: string;
   /** The signed-in user of the connection (its session cookie), on a server with accounts. */
   readonly user: User | null;
+  /** The token of that session: a sign-in on another device ends it, and the connection with it. */
+  readonly token: string | null;
   /** The id of the character that it plays, on a server with accounts. */
   character: string | null;
   room: Room | null;
@@ -156,13 +158,23 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     // Only the game's own pages: another site must not make its visitors connect here.
     if (options.origins && !options.origins.includes(String(request.headers.origin ?? ''))) return reject('403 Forbidden');
     // The session cookie comes with the upgrade (the page and /ws have one origin).
-    const user = accounts?.userOf(request) ?? null;
-    wss.handleUpgrade(request, socket, head, (ws) => connected(ws, addressOf(request), user));
+    const session = accounts?.sessionOf(request) ?? null;
+    wss.handleUpgrade(request, socket, head, (ws) => connected(ws, addressOf(request), session?.user ?? null, session?.token ?? null));
   });
 
-  function connected(socket: WebSocket, ip: string, user: User | null): void {
+  // A sign-in ends the account's other sessions: their connections end too. The character's place
+  // is saved as the connection closes, so the new device goes on from there.
+  accounts?.onSignIn((user) => {
+    for (const [socket, client] of clients) {
+      if (client.user?.id !== user.id || !client.token || accounts.sessionLives(client.token)) continue;
+      send(socket, { t: 'refused', reason: 'elsewhere' });
+      socket.close(4001, 'elsewhere');
+    }
+  });
+
+  function connected(socket: WebSocket, ip: string, user: User | null, token: string | null): void {
     perAddress.set(ip, (perAddress.get(ip) ?? 0) + 1);
-    const client: Client = { ip, user, character: null, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
+    const client: Client = { ip, user, token, character: null, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
     clients.set(socket, client);
     const helloTimer = setTimeout(() => {
       if (!client.room) socket.close(4000, 'no hello');

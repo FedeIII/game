@@ -23,6 +23,10 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  *
  * A request that changes something (POST, PUT, DELETE) must come from one of the game's pages (the
  * Origin header), and the session cookie is SameSite=Lax: another site cannot act for a visitor.
+ *
+ * An account is signed in on one device at a time: a sign-in ends the account's other sessions
+ * (AccountStore.createSession), and onSignIn() tells the game server, which closes their
+ * connections. A page whose session ended goes back to the sign-in screen.
  */
 
 /** The worlds of the application, for the places of characters. */
@@ -101,6 +105,7 @@ export class Accounts {
   private readonly lifetimeMs: number;
   private readonly pruneTimer: ReturnType<typeof setInterval>;
   private readonly worlds: PlaceWorlds;
+  private readonly signInListeners: ((user: User) => void)[] = [];
 
   /** `origins`: the pages that may change something (null: any, for tests). */
   constructor(options: AccountsOptions, origins: readonly string[] | null, log: (line: string) => void, worlds: PlaceWorlds) {
@@ -126,8 +131,24 @@ export class Accounts {
 
   /** The signed-in user of a request (its session cookie), or null. */
   userOf(request: IncomingMessage): User | null {
+    return this.sessionOf(request)?.user ?? null;
+  }
+
+  /** The session of a request: its user and its token (to ask later if it still lives), or null. */
+  sessionOf(request: IncomingMessage): { user: User; token: string } | null {
     const token = parseCookies(request.headers.cookie).get(SESSION_COOKIE);
-    return token ? (this.store.session(token, this.now())?.user ?? null) : null;
+    const session = token ? this.store.session(token, this.now()) : null;
+    return token && session ? { user: session.user, token } : null;
+  }
+
+  /** Whether a session (its token) still lives: it did not end, and no later sign-in replaced it. */
+  sessionLives(token: string): boolean {
+    return this.store.session(token, this.now()) !== null;
+  }
+
+  /** Calls `listener` after each sign-in, which ended the user's other sessions. */
+  onSignIn(listener: (user: User) => void): void {
+    this.signInListeners.push(listener);
   }
 
   /** A user's character, or null if it has no character with that id. */
@@ -276,7 +297,7 @@ export class Accounts {
       return back('failed', { 'set-cookie': clearLogin });
     }
     const user = this.store.signIn('google', identity.subject, this.now());
-    const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
+    const token = this.startSession(user);
     response.writeHead(302, {
       location: `${this.options.publicOrigin}/`,
       'cache-control': 'no-store',
@@ -291,7 +312,7 @@ export class Accounts {
     const name = typeof body?.name === 'string' && body.name.length <= 4 * NAME_MAX ? cleanName(body.name) : '';
     if (!name) throw new HttpError(400, 'name');
     const user = this.store.signIn('dev', name.toLowerCase(), this.now());
-    const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
+    const token = this.startSession(user);
     this.json(response, 200, { user: { via: user.provider } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
   }
 
@@ -312,6 +333,13 @@ export class Accounts {
   }
 
   // ---------------------------------------------------------------- helpers
+
+  /** A new session for a user, which ends its other sessions (and so their connections). */
+  private startSession(user: User): string {
+    const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
+    for (const listener of this.signInListeners) listener(user);
+    return token;
+  }
 
   private requireUser(request: IncomingMessage): User {
     const user = this.userOf(request);

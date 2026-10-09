@@ -10,7 +10,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -246,7 +246,8 @@ export type WireNpc = readonly [number, number, number, number, number];
 
 /** Why the server does not let a client in. The client then plays alone. */
 /** `account`: the server has accounts, and the visitor is not signed in or the character is not its own. */
-export type RefusalReason = 'version' | 'world' | 'full' | 'busy' | 'account';
+/** `elsewhere`: the account signed in on another device, which ended this session (it can come at any time). */
+export type RefusalReason = 'version' | 'world' | 'full' | 'busy' | 'account' | 'elsewhere';
 
 export interface RefusedMessage {
   readonly t: 'refused';

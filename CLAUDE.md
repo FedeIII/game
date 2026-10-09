@@ -10,8 +10,9 @@ stone houses, and mobs). A visitor signs in with Google, makes a character (D&D 
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
-(`docs/multiplayer.md`); the Wilds are single-player for now (only the local dev environment
-shares them; see "Commands"). Read `docs/stack.md` before you
+(`docs/multiplayer.md`); the Wilds are shared since 2026-10-10 (Fede's decision): every visitor
+is in the same Wilds, and every new character starts in the home, the house of the cell (0, 0).
+An account is signed in on one device at a time. Read `docs/stack.md` before you
 change the stack.
 
 **The game and the Town of Azyr are separate (Fede's decision, 2026-10-09).** The town is the
@@ -75,12 +76,12 @@ when its code changes) and Vite, and it opens the page at **http://localhost:301
 127.0.0.1: the session cookie and the Google redirect belong to that name). The server gets the
 development settings of the accounts: the database `.dev-data/game.db`, the dev sign-in (a name
 only), and `.env.local` (git ignores it) for `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` if
-you want the real Google sign-in on the laptop. It sets `SHARED_WORLDS=wilds`
-for both: `shareWorlds()` in `apps/game/src/worlds.ts` then gives the Wilds `multiplayer: true`,
-so two browser profiles see each other. `--solo` shares nothing (as game.azyr.io now), and
-`--inspect` puts the server under the Node inspector on 127.0.0.1:9669. Without
-`SHARED_WORLDS`, `npm run dev`, `npm run server` and `npm run build` share nothing, and
-`scripts/deploy.sh` clears it. To share the Wilds in production, give their definition
+you want the real Google sign-in on the laptop. The Wilds are shared by their definition
+(`multiplayer: true`), so two browser profiles see each other; `?offline` plays them alone.
+`--inspect` puts the server under the Node inspector on 127.0.0.1:9669. To share a new world in
+development before production, set `SHARED_WORLDS=<ids>` (comma-separated): `shareWorlds()` in
+`apps/game/src/worlds.ts` gives those worlds `multiplayer: true`, for the page and the server.
+`scripts/deploy.sh` clears it; to share a world in production, give its definition
 `multiplayer: true`.
 
 **Cursor (or VS Code)**: the play button (F5) starts "Dev: play" (`.vscode/launch.json`): the
@@ -329,7 +330,7 @@ abilities, one line about each) are in `ui/strings.ts`. The scores do nothing in
 `place`). The game starts it there (`resumePoint()`: the exact point if its feet fit, else the
 nearest open tile, for example when a door that was open is closed now); `?at=` wins over it.
 Who keeps it:
-- In a world that the page runs (the Wilds now), the page sends it with `PUT
+- In a world that the page runs (none now; `?offline`), the page sends it with `PUT
   /api/characters/<id>/place`: every 10 s if the player moved, when the page hides or closes
   (`keepalive`), and before "Main menu" and "Sign out". A guest has no place.
 - In a world that the server shares, the server keeps it: when the player leaves, and at each
@@ -343,7 +344,11 @@ sign-in states, characters as JSON; a schema version and migrations), `accounts.
 see its comment). **Keep personal data to a minimum (Fede's decision, 2026-10-10):** an account
 is only the provider's id (Google's `sub`) and its times; the server never asks for or keeps a
 name, an email or a picture, so the privacy page stays short. `DELETE /api/me` deletes an account
-with everything in it. The session is
+with everything in it. **One device at a time (Fede's rule, 2026-10-10):** a sign-in ends the
+account's other sessions (`AccountStore.createSession`); the server closes their connections
+(`refused` `elsewhere`, protocol 9), and saves the character's place first. A page whose session
+ended (any 401, `/api/me` every 10 s, or that refusal) goes to the sign-in screen with
+`?login=elsewhere`, which says why. Two tabs of one browser share one session. The session is
 the cookie `game_session` (HttpOnly, SameSite=Lax, Secure on https, 30 days, renewed in use).
 A request that changes something must have the Origin of one of the game's pages (`ORIGINS`).
 In a shared world the server takes the look, the name and the place from the stored character
@@ -409,7 +414,7 @@ the red flash of a hit, stars over the head while stunned, a blink while guarded
 world attacks towards the mouse pointer, from the player's chest (`input/mouse.ts`). A press is
 kept for 150 ms. The button and Space aim at the nearest mob in reach, else the way the player
 walks or faces. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
-player at the start (single-player worlds); `?nomobs` turns them off.
+player at the start (single-player worlds, so the Wilds with `?offline`); `?nomobs` turns them off.
 
 ## Fixtures, content and actions
 

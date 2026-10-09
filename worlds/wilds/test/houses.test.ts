@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Decor,
   Ground,
+  Room,
   Structure,
   TICK_RATE,
   TILE_SIZE,
@@ -13,7 +14,7 @@ import {
   useDoor,
   type Building,
 } from '@game/engine';
-import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, WildsSource } from '../src/index.ts';
+import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, WildsSource, wilds } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
 const houseOf = (world: World, cx: number, cy: number) => (world.source as WildsSource).house(cx, cy);
@@ -191,6 +192,16 @@ describe('walls and doors', () => {
 });
 
 describe('the home', () => {
+  it('is where every new player of the shared Wilds starts, and they all start there', () => {
+    expect(wilds.multiplayer).toBe(true);
+    const room = new Room(new World(wilds.createSource(null)), { random: () => 0.9 });
+    const starts = [room.join(0, 1)!, room.join(0, 2)!, room.join(0, 3, [200, -40])!].map((p) => p.state);
+    for (const state of starts) {
+      expect(room.world.insideOf(Math.floor(state.x / TILE_SIZE), Math.floor(state.y / TILE_SIZE))?.id).toBe(HOME_ID);
+      expect(state).toMatchObject(room.world.spawn());
+    }
+  });
+
   const seeds = [DEFAULT_SEED, 1, 7, 42, 1234, 99, 2024, 31337];
 
   it('is a small hut in the middle cell, the same for a seed, and every character starts in it', () => {

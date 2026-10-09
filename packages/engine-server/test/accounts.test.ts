@@ -129,6 +129,24 @@ describe('accounts: sessions', () => {
     await expect(start({ publicOrigin: 'https://game.azyr.io', devLogin: true })).rejects.toThrow(/development only/);
   });
 
+  it('keeps an account signed in on one device: a new sign-in ends the other session', async () => {
+    const { port } = await start();
+    const phone = new Browser(port);
+    const laptop = new Browser(port);
+    await phone.signIn('Fede');
+    const id = (await phone.request('POST', '/api/characters', sheet)).json.character.id as string;
+    await laptop.signIn('Fede');
+    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
+    expect((await phone.request('GET', '/api/me')).json.user).toBeNull();
+    expect((await phone.request('PUT', `/api/characters/${id}/place`, { world: 'solo', x: 1, y: 1 })).status).toBe(401);
+    // The same account, with its characters, on the new device.
+    expect((await laptop.request('GET', '/api/characters')).json.characters.map((c: { id: string }) => c.id)).toEqual([id]);
+    // Another account is not touched.
+    const other = new Browser(port);
+    await other.signIn('Bea');
+    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
+  });
+
   it('ends a session after its lifetime', async () => {
     let now = 1_000_000;
     const { port } = await start({ now: () => now, sessionDays: 1 });
@@ -298,6 +316,40 @@ describe('accounts: the shared world', () => {
     a.close();
     b.close();
     expect(seen).toEqual({ skin: characterSkin(sheet), name: 'Tordek' });
+  });
+
+  it('closes the connection of a session that a sign-in on another device ended, and keeps its place', async () => {
+    const started = await start();
+    const phone = new Browser(started.port);
+    await phone.signIn('Fede');
+    const id = (await phone.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const place = { world: 'shared', x: 40 * 16 + 8, y: 12 * 16 + 8 };
+    started.accounts!.savePlace({ id: 1, provider: 'dev' }, id, place);
+    const a = await phone.hello({ character: id });
+    expect(a.first).toMatchObject({ t: 'welcome', x: place.x, y: place.y });
+    // It walks east a little; then the same account signs in on a laptop.
+    a.send({ t: 'in', s: 1, i: Array.from({ length: 20 }, () => [100, 0]) });
+    await new Promise((r) => setTimeout(r, 200));
+    const closed = new Promise<void>((resolve) => {
+      const wait = setInterval(() => {
+        if (a.messages.some((m) => m.t === 'refused')) {
+          clearInterval(wait);
+          resolve();
+        }
+      }, 10);
+    });
+    const laptop = new Browser(started.port);
+    await laptop.signIn('Fede');
+    await closed;
+    expect(a.messages.find((m) => m.t === 'refused')).toEqual({ t: 'refused', reason: 'elsewhere' });
+    await a.close();
+    expect(started.players()).toEqual({ shared: 0 });
+    // The laptop goes on from where the phone was.
+    const kept = (await laptop.request('POST', `/api/characters/${id}/play`)).json.character.place as { x: number; y: number };
+    expect(kept.x).toBeGreaterThan(place.x + 20);
+    const b = await laptop.hello({ character: id });
+    expect(b.first).toMatchObject({ t: 'welcome', x: kept.x, y: kept.y });
+    await b.close();
   });
 
   it('refuses a visitor without a session, without a character, or with another account’s', async () => {

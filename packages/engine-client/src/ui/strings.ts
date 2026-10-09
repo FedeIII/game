@@ -78,6 +78,7 @@ export const STRINGS = {
     noSignIn: 'Sign-in is not available now. Try again later.',
     loginFailed: 'The sign-in did not work. Try again.',
     loginCancelled: 'The sign-in was cancelled.',
+    loginElsewhere: 'You signed in on another device, so this one was signed out. Sign in again to play here.',
     serverDown: 'The server does not answer. Try again in a moment.',
     failed: 'Something went wrong. Try again.',
     retry: 'Try again',
@@ -165,5 +166,6 @@ export const STRINGS = {
     busy: 'Too many open tabs: this one is alone',
     world: 'This world is not shared now',
     account: 'Sign in to see other visitors',
+    elsewhere: 'You signed in on another device',
   },
 } as const;

@@ -3,7 +3,8 @@
 # The local dev environment of the game: the game server (accounts, characters and the shared
 # worlds; it restarts when its code changes) and the Vite dev server of the page. The page sends
 # /api/, /auth/ and /ws to the server through Vite, as nginx does in production. The Wilds are
-# shared here (SHARED_WORLDS=wilds), so two browser profiles see each other.
+# shared (as on game.azyr.io), so two browser profiles see each other; ?offline plays them alone.
+# SHARED_WORLDS=<ids> shares other worlds too, for the page and the server.
 #
 # The database is a SQLite file in the server process (.dev-data/game.db), so there is no database
 # server to start. The menu has a dev sign-in (a name only). For the real sign-in with Google, put
@@ -12,7 +13,6 @@
 # session cookie belongs to it.
 #
 #   scripts/dev.sh               server + page, and open a browser
-#   scripts/dev.sh --solo        share no world: single-player, as on game.azyr.io now
 #   scripts/dev.sh --inspect     the server under the Node inspector (127.0.0.1:9669)
 #   scripts/dev.sh --no-server   the page only (run the server yourself)
 #   scripts/dev.sh --no-open     do not open a browser
@@ -27,7 +27,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 PAGE_PORT=3019
 SERVER_PORT=3020
 INSPECT_PORT=9669
-SHARED=wilds
+SHARED="${SHARED_WORLDS:-}"
 
 # Cursor and VS Code put these into the terminal of a task, so that their debugger attaches to
 # every Node process below it: Vite too. Then the end of a debug session stops this script. The
@@ -40,7 +40,6 @@ inspect=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--solo) SHARED='' ;;
 		--inspect) inspect=1 ;;
 		--no-server) run_server=0 ;;
 		--no-open) open_browser=0 ;;
@@ -203,7 +202,7 @@ for i in $(seq 1 120); do
 done
 
 URL="http://localhost:$PAGE_PORT/"
-note "shared worlds: ${SHARED:-none (single-player)}"
+note "shared worlds: the Wilds (by their definition)${SHARED:+, and $SHARED (SHARED_WORLDS)}"
 [ "$inspect" -eq 0 ] || note "server inspector: 127.0.0.1:$INSPECT_PORT"
 # The last line of the start: the tasks in .vscode/tasks.json wait for it (endsPattern). It must
 # not contain the first line ("game dev env").

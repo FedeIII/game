@@ -10,9 +10,10 @@ export const DEFAULT_WORLD = 'wilds';
 
 /**
  * The worlds, with each world of `ids` (comma-separated) as a shared world (`multiplayer: true`).
- * The local dev environment (scripts/dev.sh) sets SHARED_WORLDS=wilds for the page and for the
- * server, so that both share the Wilds before game.azyr.io does. Production sets nothing: then the
- * worlds stay as they are.
+ * SHARED_WORLDS gives the ids to the page and to the server, so a new world can be shared in the
+ * local dev environment (`SHARED_WORLDS=<id> scripts/dev.sh`) before game.azyr.io shares it.
+ * Production sets nothing: then the worlds stay as they are. The Wilds are shared by their own
+ * definition since 2026-10-10.
  */
 export function shareWorlds(worlds: typeof WORLDS, ids: string): typeof WORLDS {
   const shared = new Set(ids.split(',').map((id) => id.trim()).filter(Boolean));

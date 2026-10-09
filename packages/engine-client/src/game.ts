@@ -56,7 +56,7 @@ import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/p
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
-import { api } from './menu/api.ts';
+import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
 import { skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
@@ -102,6 +102,8 @@ const MOUSE_DEAD_ZONE = 3;
 const SHAKE = { ms: 220, amount: 2 } as const;
 /** A character in a world that the page runs: its place goes to the server this often (ms), if it moved. */
 const PLACE_SAVE_MS = 10_000;
+/** A page that plays a character asks this often (ms) if its session still lives (a sign-in elsewhere ends it). */
+const SESSION_CHECK_MS = 10_000;
 /** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
 const PREDICTED_KILL_MS = 700;
 /** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
@@ -187,6 +189,26 @@ async function run(options: GameOptions): Promise<void> {
     });
   };
   window.addEventListener('pagehide', () => void savePlace(true));
+  // An account is signed in on one device at a time: a sign-in elsewhere ends this session. The
+  // page asks now and then, and when the tab shows again; a request answered 401 says it at once,
+  // and so does the server of a shared world. Then the page goes back to the sign-in screen.
+  if (character) {
+    const checkSession = () => {
+      if (document.visibilityState !== 'visible') return;
+      api.me().then(
+        (me) => {
+          if (!me.user) backToSignIn();
+        },
+        // No answer (a restart of the server): ask again later.
+        () => {},
+      );
+    };
+    setInterval(checkSession, SESSION_CHECK_MS);
+    document.addEventListener('visibilitychange', checkSession);
+    net?.onChange(() => {
+      if (net.status === 'refused' && net.refusal === 'elsewhere') backToSignIn();
+    });
+  }
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') void savePlace(true);
   });

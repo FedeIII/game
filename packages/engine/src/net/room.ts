@@ -48,7 +48,7 @@ const TRAIL_MS = 700;
 export interface RoomOptions {
   /** The most players at once. Default 50. */
   readonly maxPlayers?: number;
-  /** A random source for the spread of start points. Without it, everyone starts on the spawn. */
+  /** A random source for the seeds of the NPCs and the mobs. */
   readonly random?: () => number;
 }
 
@@ -173,7 +173,8 @@ export class Room {
    *
    * - With a place: the player starts there (resumePoint). When `at` is another tile, close to
    *   the place, the player starts near `at`.
-   * - Without one: near `at` if that is close to the world's spawn, or else near the spawn.
+   * - Without one (a new character): near `at` if that is close to the world's spawn, or else on
+   *   the spawn itself, indoors too (the Wilds: in the home, the house of the cell (0, 0)).
    */
   join(nowMs: number, skin: number, at?: readonly [number, number], name = '', place?: { readonly x: number; readonly y: number }): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
@@ -185,9 +186,7 @@ export class Room {
       ? resumePoint(this.world, place.x, place.y)
       : near
         ? this.world.findSpawn(at[0], at[1], 0)
-        : place
-          ? resumePoint(this.world, place.x, place.y)
-          : this.spread(home[0], home[1]);
+        : resumePoint(this.world, anchor.x, anchor.y);
     const player: RoomPlayer = {
       id: this.nextId++,
       skin,
@@ -355,14 +354,5 @@ export class Room {
     const others: Feet[] = [...(this.npcs?.poses ?? [])];
     for (const p of this.players.values()) if (p !== player) others.push(p.state);
     if (useDoor(this.world, player.state, tx, ty, others) !== 'blocked') this.doorVersion++;
-  }
-
-  /** A start point near the spawn tile, a little apart from the others when there is a random source. */
-  private spread(tx: number, ty: number): { x: number; y: number } {
-    const random = this.random;
-    if (!random) return this.world.findSpawn(tx, ty, 1);
-    const dx = Math.floor(random() * 5) - 2;
-    const dy = Math.floor(random() * 3) - 1;
-    return this.world.findSpawn(tx + dx, ty + dy, 1);
   }
 }

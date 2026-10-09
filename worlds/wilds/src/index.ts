@@ -8,7 +8,11 @@ export { WildsSource } from './source.ts';
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
 
-/** The wilds: an endless dark forest with lakes, paths and lonely stone houses. */
+/**
+ * The wilds: an endless dark forest with lakes, paths and lonely stone houses. Shared since
+ * 2026-10-10 (Fede's decision): every visitor is in the same Wilds, and a new character starts
+ * in the home, the house of the cell (0, 0).
+ */
 export const wilds: WorldDefinition = {
   id: 'wilds',
   name: 'The Wilds',
@@ -23,4 +27,5 @@ export const wilds: WorldDefinition = {
     barrel: 'A barrel of sour wine.',
   },
   darkness: 1,
+  multiplayer: true,
 };

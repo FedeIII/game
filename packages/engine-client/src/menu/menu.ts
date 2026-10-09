@@ -97,7 +97,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       params.delete('login');
       history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
     }
-    let notice = login === 'failed' ? T.loginFailed : login === 'cancelled' ? T.loginCancelled : '';
+    let notice = login === 'failed' ? T.loginFailed : login === 'cancelled' ? T.loginCancelled : login === 'elsewhere' ? T.loginElsewhere : '';
 
     const say = (text: string) => {
       status.textContent = text;
@@ -120,7 +120,12 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       again.addEventListener('click', retry);
       show(el('section', { class: 'menu-screen' }, el('h2', { class: 'menu-title', tabindex: '-1' }, text), el('div', { class: 'menu-actions' }, again)));
     };
-    const loading = (text: string = T.loading) => show(el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
+    const loading = (text: string = T.loading) => {
+      // A notice (a sign-in that failed, a session that ended) waits for the screen after this one.
+      const waiting = notice;
+      show(el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
+      notice = waiting;
+    };
 
     const start = async (character: Character) => {
       loading(T.starting);

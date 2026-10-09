@@ -29,22 +29,6 @@
 			"icon": { "id": "play", "color": "terminal.ansiGreen" }
 		},
 		{
-			// Single-player, as on game.azyr.io now: no world is shared.
-			"label": "dev (solo)",
-			"type": "shell",
-			"command": "scripts/dev.sh --no-open --inspect --solo",
-			"isBackground": true,
-			"problemMatcher": {
-				"pattern": { "regexp": "^__never_matches__$" },
-				"background": {
-					"activeOnStart": true,
-					"beginsPattern": ".*game dev env.*",
-					"endsPattern": ".*dev env ready.*"
-				}
-			},
-			"presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
-		},
-		{
 			"label": "check",
 			"type": "npm",
 			"script": "check",

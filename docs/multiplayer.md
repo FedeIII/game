@@ -3,8 +3,10 @@
 Since 2026-10-07 the engine has multiplayer. A world with `multiplayer: true` in its
 `WorldDefinition` is shared: every visitor of that world sees the others. The Town of Azyr was
 the shared world of game.azyr.io until 2026-10-09; it is now on azyr.io, from the branch `town`
-(its own server, `town-server`). The Wilds are single-player, so the game has no shared world
-now: the server runs with no room until a world of the game sets `multiplayer: true`.
+(its own server, `town-server`). Since 2026-10-10 the Wilds are shared (`multiplayer: true` in
+their definition): every visitor of game.azyr.io is in the same Wilds, and a new character
+starts in the home, the house of the cell (0, 0) (`Room.join` puts a player without a place on
+the world's spawn, indoors too).
 
 ## The model
 
@@ -40,7 +42,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `ping` | the client's clock, for the round trip |
 | server to client | `welcome` | player id, start position, open doors |
 | server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
-| server to client | `refused` | `version`, `world`, `full`, `busy`, or `account` (a server with accounts: no session, no character, or not the visitor's own) |
+| server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
 The client sends a batch every 3 ticks (20 messages a second). It applies the input as it
