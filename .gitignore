@@ -5,3 +5,5 @@ dist/
 .vscode/.chrome/
 .dev-data/
 .env.local
+# Secrets copied from the VPS (for example the backup passphrase). Never commit them.
+.secrets/
