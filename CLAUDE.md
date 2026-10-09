@@ -39,8 +39,8 @@ and `uname` gives `Darwin` on the laptop.
 
 - **The VPS** (host `azyrio`, Ubuntu, checkout `/opt/game`): production. The live site, nginx,
   PM2 and the deploy are there. `/root/CLAUDE.md` on the VPS describes the box.
-- **A laptop** (Fede's MacBook, macOS, clone `~/Projects/game`): development only. It has no
-  nginx, PM2, `/opt` or `/var/www`, and it does not deploy. The `vps` MCP server gives the
+- **A laptop** (Fede's MacBook, macOS, clone `~/Projects/game`): development. It has no nginx,
+  PM2, `/opt` or `/var/www`; it deploys over SSH (see "Deploy"). The `vps` MCP server gives the
   documents of the VPS (`list_vps_context`, `read_vps_context`). `brief_vps_claude` sends a
   question to the Claude Code on the VPS: it investigates read-only and then waits for Fede.
 
@@ -597,9 +597,14 @@ the backup timer), and `scripts/deploy.sh` checks it before it changes anything.
 process `game-server` first, then publishes the client). No nginx reload is necessary.
 
 The script deploys the working tree of `/opt/game`. Thus a commit from the laptop goes live only
-after a push to GitHub and a pull on the VPS. Do not deploy from the laptop (for example over
-SSH) unless Fede asks. Push when Fede asks, and then ask Fede to deploy, or give the task to the
-Claude Code on the VPS with `brief_vps_claude`.
+after a push to GitHub and a pull on the VPS.
+
+**After each development, commit, push and deploy at once, without approval (Fede's decision,
+2026-10-10).** Pull before the push (`git pull --rebase`: the other place commits too). From the
+laptop, deploy over SSH (the host alias `azyr`, through Tailscale):
+`ssh azyr 'cd /opt/game && git pull --ff-only && scripts/deploy.sh'`. Do not brief the VPS
+Claude for a deploy. Then verify (below) and tell Fede the result. This is for `main` only: the
+branch `town` changes only when Fede asks.
 
 On the VPS: Cloudflare Authenticated Origin Pulls is on, so a local `curl -k https://localhost/`
 gets 400; that is correct. The server's health: `curl -s http://127.0.0.1:3008/healthz`.
