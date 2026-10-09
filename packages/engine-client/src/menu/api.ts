@@ -1,4 +1,4 @@
-import type { Character, CharacterSheet } from '@game/engine';
+import type { Character, CharacterPlace, CharacterSheet } from '@game/engine';
 
 /**
  * The accounts API of the game server (packages/engine-server/src/accounts.ts), on the page's own
@@ -21,11 +21,13 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+/** `keepalive`: the request goes on when the page closes (a small body only). */
+async function call<T>(method: string, path: string, body?: unknown, keepalive = false): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
       method,
+      keepalive,
       credentials: 'same-origin',
       headers: body === undefined ? {} : { 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -58,5 +60,7 @@ export const api = {
   characters: async () => (await call<{ characters: Character[] }>('GET', '/api/characters')).characters,
   create: async (sheet: CharacterSheet) => (await call<{ character: Character }>('POST', '/api/characters', sheet)).character,
   play: async (id: string) => (await call<{ character: Character }>('POST', `/api/characters/${encodeURIComponent(id)}/play`)).character,
+  /** Notes where the character is (a world that the page runs). `keepalive` while the page closes. */
+  place: (id: string, place: CharacterPlace, keepalive = false) => call<null>('PUT', `/api/characters/${encodeURIComponent(id)}/place`, place, keepalive),
   remove: (id: string) => call<null>('DELETE', `/api/characters/${encodeURIComponent(id)}`),
 };

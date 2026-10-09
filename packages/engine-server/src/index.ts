@@ -18,7 +18,7 @@ import {
 import { Accounts, type AccountsOptions } from './accounts.ts';
 import type { User } from './store.ts';
 
-export { Accounts, type AccountsOptions } from './accounts.ts';
+export { Accounts, type AccountsOptions, type PlaceWorlds } from './accounts.ts';
 export { AccountStore, type User } from './store.ts';
 export type { GoogleConfig } from './google.ts';
 
@@ -61,7 +61,10 @@ export interface GameServer {
   close(): Promise<void>;
 }
 
-/** The server pings every client this often; a client without a pong since the last ping is dropped. */
+/**
+ * The server pings every client this often; a client without a pong since the last ping is
+ * dropped. At the same time it saves where each character is (a shared world, with accounts).
+ */
 const PING_INTERVAL_MS = 25_000;
 /** A client that has not said hello this long after it connected is dropped. */
 const HELLO_TIMEOUT_MS = 10_000;
@@ -75,6 +78,8 @@ interface Client {
   readonly ip: string;
   /** The signed-in user of the connection (its session cookie), on a server with accounts. */
   readonly user: User | null;
+  /** The id of the character that it plays, on a server with accounts. */
+  character: string | null;
   room: Room | null;
   world: string;
   playerId: number;
@@ -110,7 +115,9 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
   const perAddress = new Map<string, number>();
   const clients = new Map<WebSocket, Client>();
   const players = () => Object.fromEntries([...rooms].map(([id, room]) => [id, room.size]));
-  const accounts = options.accounts ? new Accounts(options.accounts, options.origins, log) : null;
+  const accounts = options.accounts
+    ? new Accounts(options.accounts, options.origins, log, { all: new Set(options.worlds.map((w) => w.id)), shared: new Set(rooms.keys()) })
+    : null;
 
   const send = (socket: WebSocket, message: ServerMessage) => {
     if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -155,7 +162,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
 
   function connected(socket: WebSocket, ip: string, user: User | null): void {
     perAddress.set(ip, (perAddress.get(ip) ?? 0) + 1);
-    const client: Client = { ip, user, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
+    const client: Client = { ip, user, character: null, room: null, world: '', playerId: 0, alive: true, windowStartMs: now(), messages: 0 };
     clients.set(socket, client);
     const helloTimer = setTimeout(() => {
       if (!client.room) socket.close(4000, 'no hello');
@@ -196,14 +203,17 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       if ((perAddress.get(client.ip) ?? 0) > maxPerAddress) return refuse('busy');
       let skin = message.skin;
       let name = message.name;
+      let place: { x: number; y: number } | undefined;
       if (accounts) {
-        // The look and the name of a player come from its stored character, not from the client.
+        // The look, the name and the place of a player come from its stored character, not from the client.
         const character = client.user && message.character ? accounts.characterOf(client.user, message.character) : null;
         if (!character) return refuse('account');
         skin = characterSkin(character);
         name = character.name;
+        if (character.place?.world === message.world) place = character.place;
+        client.character = character.id;
       }
-      const player = room.join(t, skin, message.at, name);
+      const player = room.join(t, skin, message.at, name, place);
       if (!player) return refuse('full');
       client.room = room;
       client.world = message.world;
@@ -220,12 +230,24 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     client.room.input(client.playerId, message, t);
   }
 
+  /** Notes where the character of a client is now (with accounts, in a room). */
+  function savePlace(client: Client): void {
+    const state = client.room?.player(client.playerId)?.state;
+    if (!accounts || !client.user || !client.character || !state) return;
+    try {
+      accounts.savePlace(client.user, client.character, { world: client.world, x: state.x, y: state.y });
+    } catch (error) {
+      log(`place: ${(error as Error).message}`);
+    }
+  }
+
   function left(socket: WebSocket, client: Client): void {
     if (!clients.delete(socket)) return;
     const count = (perAddress.get(client.ip) ?? 1) - 1;
     if (count > 0) perAddress.set(client.ip, count);
     else perAddress.delete(client.ip);
     if (client.room) {
+      savePlace(client);
       client.room.leave(client.playerId);
       sockets.get(client.room)!.delete(client.playerId);
       log(`${client.world}: a visitor left (${client.room.size} here)`);
@@ -258,6 +280,8 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       }
       client.alive = false;
       socket.ping();
+      // A crash loses at most this interval of walking.
+      savePlace(client);
     }
   }, PING_INTERVAL_MS);
 

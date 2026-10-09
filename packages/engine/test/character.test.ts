@@ -10,6 +10,7 @@ import {
   abilityModifier,
   appearanceOf,
   appearanceSeed,
+  checkPlace,
   checkSheet,
   finalScores,
   pointCost,
@@ -122,6 +123,15 @@ describe('checkSheet', () => {
     if (check.ok) {
       expect(Object.keys(check.sheet).sort()).toEqual(['base', 'bonus', 'class', 'gender', 'name', 'race', 'variant']);
       expect(Object.keys(check.sheet.base).sort()).toEqual([...ABILITIES].sort());
+    }
+  });
+});
+
+describe('the place of a character', () => {
+  it('takes a world id and two finite numbers in range, and nothing else', () => {
+    expect(checkPlace({ world: 'wilds', x: 12.5, y: -3, extra: 1 })).toEqual({ world: 'wilds', x: 12.5, y: -3 });
+    for (const bad of [null, 'wilds', {}, { world: 'wilds', x: 1 }, { world: 'Wilds!', x: 1, y: 1 }, { world: 'wilds', x: Number.NaN, y: 1 }, { world: 'wilds', x: '1', y: 1 }, { world: 'wilds', x: 1, y: 1e9 }]) {
+      expect(checkPlace(bad), JSON.stringify(bad)).toBeNull();
     }
   });
 });

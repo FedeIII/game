@@ -15,6 +15,7 @@ import {
   aimCode,
   aimFromCode,
   createPlayer,
+  feetFit,
   fromWireInput,
   cleanName,
   parseClientMessage,
@@ -198,6 +199,30 @@ describe('the multiplayer protocol', () => {
 });
 
 describe('a multiplayer room', () => {
+  it('starts a player at the place of its character, exactly, at any distance', () => {
+    const room = new Room(new World(houseSource()));
+    // Far from the spawn (more than 64 tiles), on open grass.
+    const place = { x: 200 * TILE_SIZE + 5.25, y: 3 * TILE_SIZE + 9.5 };
+    expect(room.join(0, 1, undefined, '', place)!.state).toMatchObject(place);
+    // The client asks for the tile of the place: the same exact point.
+    expect(room.join(0, 1, [200, 3], '', place)!.state).toMatchObject(place);
+    // A client that walked on a little while it was cut off (a reconnection) starts where it is.
+    const on = room.join(0, 1, [203, 5], '', place)!.state;
+    expect([Math.floor(on.x / TILE_SIZE), Math.floor(on.y / TILE_SIZE)]).toEqual([203, 5]);
+    // A tile far from the place is not believed: the place wins.
+    expect(room.join(0, 1, [5, 9], '', place)!.state).toMatchObject(place);
+  });
+
+  it('starts a player on the nearest open tile when its place is blocked now', () => {
+    const room = new Room(new World(houseSource()));
+    // The doorway, stored while the door was open; the door is closed now.
+    const place = { x: 5 * TILE_SIZE + 8, y: 6 * TILE_SIZE + 8 };
+    const state = room.join(0, 1, undefined, '', place)!.state;
+    expect(state).not.toMatchObject(place);
+    expect(feetFit(room.world, state.x, state.y)).toBe(true);
+    expect(Math.hypot(state.x - place.x, state.y - place.y)).toBeLessThanOrEqual(TILE_SIZE * 1.5);
+  });
+
   it('keeps every prediction exact on a clean network, with walls and latency', () => {
     for (const latency of [0, 40, 150]) {
       const net = new SimNetwork(latency);

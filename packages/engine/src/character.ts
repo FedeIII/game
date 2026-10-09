@@ -167,6 +167,13 @@ export interface CharacterSheet {
   readonly bonus: readonly Ability[];
 }
 
+/** Where a character was last: a world, and the centre of its feet there, in world pixels. */
+export interface CharacterPlace {
+  readonly world: string;
+  readonly x: number;
+  readonly y: number;
+}
+
 /** A stored character. */
 export interface Character extends CharacterSheet {
   readonly id: string;
@@ -174,6 +181,22 @@ export interface Character extends CharacterSheet {
   readonly createdAt: number;
   /** When it last started to play, or null. */
   readonly playedAt: number | null;
+  /** Where it was last, or null (it never played, or it played before the game kept places). */
+  readonly place: CharacterPlace | null;
+}
+
+/** The id of a world, as a place names it. */
+const WORLD_ID = /^[a-z0-9-]{1,32}$/;
+/** A place is at most this far from the origin, on each axis (world pixels): a million tiles. */
+export const PLACE_LIMIT = 16_000_000;
+
+/** Checks a place from outside (a request, a stored row): a world id and two finite numbers in range. Null if it is not one. */
+export function checkPlace(raw: unknown): CharacterPlace | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const m = raw as Record<string, unknown>;
+  const inRange = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= PLACE_LIMIT;
+  if (typeof m.world !== 'string' || !WORLD_ID.test(m.world) || !inRange(m.x) || !inRange(m.y)) return null;
+  return { world: m.world, x: m.x, y: m.y };
 }
 
 /** The skin seed of a character. */

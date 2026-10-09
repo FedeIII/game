@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { MAX_CHARACTERS, checkSheet, type Character, type CharacterSheet } from '@game/engine';
+import { MAX_CHARACTERS, checkPlace, checkSheet, type Character, type CharacterPlace, type CharacterSheet } from '@game/engine';
 
 /**
  * The accounts database: one SQLite file (node:sqlite, so no native package), in WAL mode. It
@@ -53,6 +53,8 @@ const MIGRATIONS: readonly string[] = [
   // only the provider's id: the email and the name go.
   `ALTER TABLE users DROP COLUMN email;
    ALTER TABLE users DROP COLUMN name;`,
+  // 2026-10-10: where each character was last (JSON: world, x, y), so it starts there again.
+  `ALTER TABLE characters ADD COLUMN place TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -66,17 +68,20 @@ interface CharacterRow {
   sheet: string;
   created_at: number;
   played_at: number | null;
+  place: string | null;
 }
 
-function toCharacter(row: CharacterRow): Character | null {
-  let raw: unknown;
+function parse(json: string | null): unknown {
   try {
-    raw = JSON.parse(row.sheet);
+    return json === null ? null : (JSON.parse(json) as unknown);
   } catch {
     return null;
   }
-  const check = checkSheet(raw);
-  return check.ok ? { ...check.sheet, id: row.id, createdAt: row.created_at, playedAt: row.played_at } : null;
+}
+
+function toCharacter(row: CharacterRow): Character | null {
+  const check = checkSheet(parse(row.sheet));
+  return check.ok ? { ...check.sheet, id: row.id, createdAt: row.created_at, playedAt: row.played_at, place: checkPlace(parse(row.place)) } : null;
 }
 
 export class AccountStore {
@@ -175,13 +180,13 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
-    const row = this.db.prepare('SELECT id, sheet, created_at, played_at FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
+    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
 
@@ -191,13 +196,19 @@ export class AccountStore {
     if (count >= MAX_CHARACTERS) return 'limit';
     const id = randomBytes(12).toString('hex');
     this.db.prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at) VALUES (?, ?, ?, ?, NULL)').run(id, userId, JSON.stringify(sheet), now);
-    return { ...sheet, id, createdAt: now, playedAt: null };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
   play(userId: number, id: string, now: number): Character | null {
     const result = this.db.prepare('UPDATE characters SET played_at = ? WHERE user_id = ? AND id = ?').run(now, userId, id);
     return result.changes > 0 ? this.character(userId, id) : null;
+  }
+
+  /** Notes where a character is (a checked place); false if it is not the user's. */
+  setPlace(userId: number, id: string, place: CharacterPlace): boolean {
+    const json = JSON.stringify({ world: place.world, x: place.x, y: place.y });
+    return this.db.prepare('UPDATE characters SET place = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
   }
 
   deleteCharacter(userId: number, id: string): boolean {

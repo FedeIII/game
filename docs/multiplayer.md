@@ -33,7 +33,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 
 | Direction | Message | Content |
 |---|---|---|
-| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
+| client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the character's stored place, or else of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
 | client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
 | client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
@@ -67,7 +67,13 @@ and `/ws` have one origin), and `hello` names the character (`character`). The s
 from its database, checks that it belongs to the session's account, and takes the skin seed
 (`characterSkin()`: race, class, gender and variant) and the name from it: what `hello` says
 about them does not count, and `skin` and `name` messages are ignored. A visitor without a
-session or a character of its own gets `refused` `account`. See CLAUDE.md, "Menu, characters
+session or a character of its own gets `refused` `account`.
+
+The place of the character (2026-10-10, no change of the protocol): the player starts where the
+character was last in this world (`Room.join(..., place)`), at any distance from the spawn. When
+`at` is another tile within 64 tiles of the place (a client that walked on while it was cut off),
+the player starts at `at`. The server notes the place when the player leaves and at each
+heartbeat (25 s). See CLAUDE.md, "Menu, characters
 and accounts".
 
 ## Looks and names (protocol 4, 2026-10-08)

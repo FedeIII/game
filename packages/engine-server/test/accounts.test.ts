@@ -9,6 +9,8 @@ import { houseSource } from '../../engine/test/helpers.ts';
 import { AccountStore, startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
 
 const shared: WorldDefinition = { id: 'shared', name: 'Shared', createSource: () => houseSource(), examine: {}, darkness: 0, multiplayer: true };
+/** A world that the page runs (not shared): its places come from the page. */
+const solo: WorldDefinition = { id: 'solo', name: 'Solo', createSource: () => houseSource(), examine: {}, darkness: 0 };
 const ORIGIN = 'http://localhost:3019';
 
 let server: GameServer | null = null;
@@ -19,7 +21,7 @@ afterEach(async () => {
 
 async function start(accounts: Partial<AccountsOptions> = {}): Promise<GameServer> {
   server = await startServer({
-    worlds: [shared],
+    worlds: [shared, solo],
     port: 0,
     origins: [ORIGIN],
     log: () => {},
@@ -71,7 +73,7 @@ class Browser {
    * A WebSocket with this browser's cookies that says hello: the first answer, and every message
    * that it gets (it stays open until close()).
    */
-  async hello(message: Record<string, unknown>): Promise<{ first: ServerMessage; messages: ServerMessage[]; close: () => void }> {
+  async hello(message: Record<string, unknown>): Promise<{ first: ServerMessage; messages: ServerMessage[]; send: (m: unknown) => void; close: () => Promise<void> }> {
     const socket = new WebSocket(`ws://127.0.0.1:${this.port}/ws`, {
       origin: ORIGIN,
       headers: this.cookies.size ? { cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ') } : {},
@@ -88,7 +90,16 @@ class Browser {
       }),
     );
     socket.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, world: 'shared', skin: 1, name: 'Spoof', ...message }));
-    return { first: await first, messages, close: () => socket.close() };
+    const closed = new Promise<void>((resolve) => socket.once('close', () => resolve()));
+    return {
+      first: await first,
+      messages,
+      send: (m) => socket.send(JSON.stringify(m)),
+      close: () => {
+        socket.close();
+        return closed;
+      },
+    };
   }
 }
 
@@ -302,6 +313,67 @@ describe('accounts: the shared world', () => {
   });
 });
 
+describe('accounts: places', () => {
+  const placeOf = async (browser: Browser, id: string) =>
+    ((await browser.request('GET', '/api/characters')).json.characters as { id: string; place: unknown }[]).find((c) => c.id === id)!.place;
+
+  it('keeps where a character is in a world that the page runs', async () => {
+    const { port } = await start();
+    const browser = new Browser(port);
+    await browser.signIn('Fede');
+    const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
+    expect(await placeOf(browser, id)).toBeNull();
+    expect((await browser.request('PUT', `/api/characters/${id}/place`, { world: 'solo', x: 100.5, y: -40 })).status).toBe(204);
+    expect(await placeOf(browser, id)).toEqual({ world: 'solo', x: 100.5, y: -40 });
+    // The menu's "play" gives it to the game.
+    expect((await browser.request('POST', `/api/characters/${id}/play`)).json.character.place).toEqual({ world: 'solo', x: 100.5, y: -40 });
+  });
+
+  it('refuses a bad place, a shared world, another account’s character and another origin', async () => {
+    const { port } = await start();
+    const browser = new Browser(port);
+    await browser.signIn('Fede');
+    const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const put = (body: unknown, origin?: string) => browser.request('PUT', `/api/characters/${id}/place`, body, origin);
+    expect((await put({ world: 'solo', x: 'far', y: 0 })).status).toBe(400);
+    expect((await put({ world: 'nowhere', x: 0, y: 0 })).status).toBe(400);
+    // In a shared world, the server keeps the place itself: a page may not move a character there.
+    expect((await put({ world: 'shared', x: 0, y: 0 })).status).toBe(409);
+    expect((await put({ world: 'solo', x: 0, y: 0 }, 'https://evil.example')).status).toBe(403);
+    const other = new Browser(port);
+    await other.signIn('Bea');
+    expect((await other.request('PUT', `/api/characters/${id}/place`, { world: 'solo', x: 0, y: 0 })).status).toBe(404);
+    expect((await new Browser(port).request('PUT', `/api/characters/${id}/place`, { world: 'solo', x: 0, y: 0 })).status).toBe(401);
+    expect(await placeOf(browser, id)).toBeNull();
+  });
+
+  it('starts a character where it left a shared world, and keeps where it goes', async () => {
+    const started = await start();
+    const browser = new Browser(started.port);
+    await browser.signIn('Fede');
+    const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
+    // A place far from the spawn, on open grass (the server's own record).
+    const place = { world: 'shared', x: 120 * 16 + 5.5, y: 9 * 16 + 7.25 };
+    started.accounts!.savePlace({ id: 1, provider: 'dev' }, id, place);
+    // The client asks for a tile near the spawn: the stored place wins.
+    const a = await browser.hello({ character: id, at: [5, 9] });
+    expect(a.first).toMatchObject({ t: 'welcome', x: place.x, y: place.y });
+    // It walks east for half a second, then leaves: the server notes where it stopped.
+    a.send({ t: 'in', s: 1, i: Array.from({ length: 30 }, () => [100, 0]) });
+    await new Promise((r) => setTimeout(r, 300));
+    await a.close();
+    await new Promise((r) => setTimeout(r, 50));
+    const left = (await placeOf(browser, id)) as { world: string; x: number; y: number };
+    expect(left.world).toBe('shared');
+    expect(left.y).toBe(place.y);
+    expect(left.x).toBeGreaterThan(place.x + 30);
+    // The next visit starts there.
+    const b = await browser.hello({ character: id });
+    expect(b.first).toMatchObject({ t: 'welcome', x: left.x, y: left.y });
+    await b.close();
+  });
+});
+
 describe('accounts: personal data', () => {
   it('deletes an account with its sessions and characters, and only that account', async () => {
     const { port } = await start();
@@ -347,6 +419,8 @@ describe('accounts: personal data', () => {
       const check = new DatabaseSync(file);
       const columns = (check.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
       expect(columns.sort()).toEqual(['created_at', 'id', 'last_login_at', 'provider', 'subject']);
+      // And the later steps ran: a character has a place.
+      expect((check.prepare('PRAGMA table_info(characters)').all() as { name: string }[]).map((c) => c.name)).toContain('place');
       check.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

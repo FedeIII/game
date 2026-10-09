@@ -311,7 +311,8 @@ GUI style, over the whole page (it scrolls on a phone):
   halfling); a half-elf chooses two abilities other than Charisma for +1; the class's main
   abilities are marked. "Create" stores the character and the game starts.
 - **Continue**: the account's characters (the last played first), each with its picture; one
-  plays it, "Delete" asks first.
+  plays it, "Delete" asks first. A character starts where it was last (below, "The place of a
+  character").
 - In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
   the menu comes again) and "Sign out".
 
@@ -322,6 +323,17 @@ GUI style, over the whole page (it scrolls on a phone):
 `CharacterSheet` (name, race, class, gender, variant, base scores, bonus choices) with an id and
 its times. Its skin seed is `characterSkin(sheet)`. Its texts (names of races, classes and
 abilities, one line about each) are in `ui/strings.ts`. The scores do nothing in the game yet.
+
+**The place of a character** (since 2026-10-10): the store keeps where each character was last
+(`Character.place`: world, and the centre of its feet in world pixels; `checkPlace()`; the column
+`place`). The game starts it there (`resumePoint()`: the exact point if its feet fit, else the
+nearest open tile, for example when a door that was open is closed now); `?at=` wins over it.
+Who keeps it:
+- In a world that the page runs (the Wilds now), the page sends it with `PUT
+  /api/characters/<id>/place`: every 10 s if the player moved, when the page hides or closes
+  (`keepalive`), and before "Main menu" and "Sign out". A guest has no place.
+- In a world that the server shares, the server keeps it: when the player leaves, and at each
+  heartbeat (25 s). The route refuses such a world (409), so a page cannot move a character there.
 
 **The accounts** are in the game server (`packages/engine-server/src`): `google.ts` (OpenID
 Connect with the scope `openid` only, the code flow with PKCE and a state bound to the browser by
@@ -334,7 +346,7 @@ name, an email or a picture, so the privacy page stays short. `DELETE /api/me` d
 with everything in it. The session is
 the cookie `game_session` (HttpOnly, SameSite=Lax, Secure on https, 30 days, renewed in use).
 A request that changes something must have the Origin of one of the game's pages (`ORIGINS`).
-In a shared world the server takes the look and the name from the stored character
+In a shared world the server takes the look, the name and the place from the stored character
 (`docs/multiplayer.md`, protocol 7). `apps/game/server/main.ts` reads the settings from the
 environment (its comment lists them): `GAME_DB` turns the accounts on; in production it refuses
 to start without the Google client or with `AUTH_DEV_LOGIN`. Production keeps the secrets in
@@ -475,8 +487,9 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   (0, 0), id `home`: a timber hut with a thatch roof, 7 x 6 tiles, an earth floor, a lit window
   and a chimney, a bed with a chest, a shelf, a table with a candle and a barrel, each with its
   own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
-  dry in any case). Every character starts in it, on the tile north of the door
-  (`WildsSource.spawn()`), facing the door. Houses: 7-11 x 6-9 tiles, never on water; furniture by `furnish()` (bed with a
+  dry in any case). A new character (and a guest) starts in it, on the tile north of the door
+  (`WildsSource.spawn()`), facing the door; a character that played before starts where it was
+  last. Houses: 7-11 x 6-9 tiles, never on water; furniture by `furnish()` (bed with a
   chest at its foot, bookshelves, a table with a candle, barrels) with the door column and the
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into

@@ -175,6 +175,35 @@ export function moveAxis(body: { x: number; y: number }, world: SolidMap, dx: nu
   }
 }
 
+/** Whether a feet box (centre (x, y), half sizes hw and hh) is clear of every solid box. */
+export function feetFit(world: SolidMap, x: number, y: number, hw = PLAYER_HALF_WIDTH, hh = PLAYER_HALF_HEIGHT): boolean {
+  for (let ty = Math.floor((y - hh) / TILE_SIZE); ty <= Math.floor((y + hh) / TILE_SIZE); ty++) {
+    for (let tx = Math.floor((x - hw) / TILE_SIZE); tx <= Math.floor((x + hw) / TILE_SIZE); tx++) {
+      const box = world.solidBox(tx, ty);
+      if (!box) continue;
+      const bx0 = tx * TILE_SIZE + box[0];
+      const by0 = ty * TILE_SIZE + box[1];
+      const bx1 = tx * TILE_SIZE + box[2];
+      const by1 = ty * TILE_SIZE + box[3];
+      if (x + hw > bx0 && x - hw < bx1 && y + hh > by0 && y - hh < by1) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Where a player starts again at a stored point (the place of a character): the point itself if
+ * its feet fit there, else the nearest open tile. The world can differ from when the point was
+ * stored: a door that was open is closed now, for example.
+ */
+export function resumePoint(
+  world: SolidMap & { findSpawn(tx: number, ty: number, clearance?: number): { x: number; y: number } },
+  x: number,
+  y: number,
+): { x: number; y: number } {
+  return feetFit(world, x, y) ? { x, y } : world.findSpawn(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE), 0);
+}
+
 /**
  * Advances one player by one tick. This is the authoritative rule: the client runs it for
  * prediction and the server runs it to decide the true state. A stunned player and a player

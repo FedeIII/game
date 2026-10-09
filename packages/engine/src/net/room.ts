@@ -1,6 +1,6 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, useDoor, type Feet } from '../interact.ts';
-import { createPlayer, stepPlayer, type PlayerState } from '../player.ts';
+import { createPlayer, resumePoint, stepPlayer, type PlayerState } from '../player.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { NpcCrowd } from '../npc.ts';
 import type { World } from '../world.ts';
@@ -29,7 +29,10 @@ import {
  */
 const INPUT_RATE = TICK_RATE * 1.1;
 const INPUT_BURST = TICK_RATE * 1.5;
-/** A start tile from the client (?at=) must be this close to the world's spawn, in tiles. */
+/**
+ * A start tile from the client (`at` in the hello) must be this close to the place of the player's
+ * character, or else to the world's spawn, in tiles.
+ */
 const MAX_START_DISTANCE = 64;
 /** Keep the chunks this far round the players (in chunks) when the room trims its memory. */
 const CHUNK_MARGIN = 2;
@@ -164,15 +167,27 @@ export class Room {
   }
 
   /**
-   * Adds a player with its skin seed, or returns null if the room is full. The player starts
-   * near `at` (a tile) if that is close to the spawn, or else near the world's spawn.
+   * Adds a player with its skin seed, or returns null if the room is full. `place` is where the
+   * player's character was last (the server's own record, at full precision); `at` is the tile
+   * that the client asks for (where it is now: after a reconnection, it may have walked on).
+   *
+   * - With a place: the player starts there (resumePoint). When `at` is another tile, close to
+   *   the place, the player starts near `at`.
+   * - Without one: near `at` if that is close to the world's spawn, or else near the spawn.
    */
-  join(nowMs: number, skin: number, at?: readonly [number, number], name = ''): RoomPlayer | null {
+  join(nowMs: number, skin: number, at?: readonly [number, number], name = '', place?: { readonly x: number; readonly y: number }): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
-    const spawn = this.world.spawn();
-    const home = [Math.floor(spawn.x / TILE_SIZE), Math.floor(spawn.y / TILE_SIZE)] as const;
+    const anchor = place ?? this.world.spawn();
+    const home = [Math.floor(anchor.x / TILE_SIZE), Math.floor(anchor.y / TILE_SIZE)] as const;
     const near = at && Math.max(Math.abs(at[0] - home[0]), Math.abs(at[1] - home[1])) <= MAX_START_DISTANCE;
-    const start = near ? this.world.findSpawn(at[0], at[1], 0) : this.spread(home[0], home[1]);
+    const atPlace = place && (!at || (at[0] === home[0] && at[1] === home[1]));
+    const start = atPlace
+      ? resumePoint(this.world, place.x, place.y)
+      : near
+        ? this.world.findSpawn(at[0], at[1], 0)
+        : place
+          ? resumePoint(this.world, place.x, place.y)
+          : this.spread(home[0], home[1]);
     const player: RoomPlayer = {
       id: this.nextId++,
       skin,

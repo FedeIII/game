@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CHARACTER_ID, NAME_MAX, checkSheet, cleanName, type Character } from '@game/engine';
+import { CHARACTER_ID, NAME_MAX, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace } from '@game/engine';
 import { googleAuthUrl, googleIdentity, newLogin, type GoogleConfig } from './google.ts';
 import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
 
@@ -13,15 +13,25 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  *   GET    /api/characters              the account's characters
  *   POST   /api/characters              a new character (a CharacterSheet as JSON)
  *   POST   /api/characters/<id>/play    the character starts to play (stamps it, returns it)
+ *   PUT    /api/characters/<id>/place   {world, x, y}: where it is now, in a world that the page runs
+ *                                       (in a world that the server shares, the server keeps it)
  *   DELETE /api/characters/<id>
  *   GET    /auth/google                 to Google's sign-in page
  *   GET    /auth/google/callback        back from Google: a session, then to the page
  *   POST   /auth/dev                    {name}: a session without Google (development only)
  *   POST   /auth/logout
  *
- * A request that changes something (POST, DELETE) must come from one of the game's pages (the
+ * A request that changes something (POST, PUT, DELETE) must come from one of the game's pages (the
  * Origin header), and the session cookie is SameSite=Lax: another site cannot act for a visitor.
  */
+
+/** The worlds of the application, for the places of characters. */
+export interface PlaceWorlds {
+  /** Every world's id. A place in another world is refused. */
+  readonly all: ReadonlySet<string>;
+  /** The worlds that this server shares (its Rooms): their places come from the server, not from a page. */
+  readonly shared: ReadonlySet<string>;
+}
 
 export interface AccountsOptions {
   /** The SQLite file (its folder must exist), or ':memory:' for a test. */
@@ -90,9 +100,10 @@ export class Accounts {
   private readonly secure: boolean;
   private readonly lifetimeMs: number;
   private readonly pruneTimer: ReturnType<typeof setInterval>;
+  private readonly worlds: PlaceWorlds;
 
   /** `origins`: the pages that may change something (null: any, for tests). */
-  constructor(options: AccountsOptions, origins: readonly string[] | null, log: (line: string) => void) {
+  constructor(options: AccountsOptions, origins: readonly string[] | null, log: (line: string) => void, worlds: PlaceWorlds) {
     const origin = options.publicOrigin.replace(/\/+$/, '');
     if (!/^https?:\/\/[^/]+$/.test(origin)) throw new Error(`accounts: publicOrigin must be like https://host[:port], not "${options.publicOrigin}"`);
     this.secure = origin.startsWith('https:');
@@ -100,6 +111,7 @@ export class Accounts {
     this.options = { ...options, publicOrigin: origin };
     this.origins = origins;
     this.log = log;
+    this.worlds = worlds;
     this.now = options.now ?? Date.now;
     this.lifetimeMs = (options.sessionDays ?? 30) * DAY_MS;
     this.store = new AccountStore(options.db);
@@ -121,6 +133,12 @@ export class Accounts {
   /** A user's character, or null if it has no character with that id. */
   characterOf(user: User, id: string): Character | null {
     return CHARACTER_ID.test(id) ? this.store.character(user.id, id) : null;
+  }
+
+  /** Notes where a user's character is (the server's word, in a shared world). */
+  savePlace(user: User, id: string, place: CharacterPlace): void {
+    const checked = checkPlace(place);
+    if (checked && CHARACTER_ID.test(id)) this.store.setPlace(user.id, id, checked);
   }
 
   /** Answers a request of /api/ or /auth/. Returns false for any other path (not answered). */
@@ -164,15 +182,24 @@ export class Accounts {
       }
       throw new HttpError(405, 'method');
     }
-    const one = /^\/api\/characters\/([^/]+)(\/play)?$/.exec(path);
+    const one = /^\/api\/characters\/([^/]+)(\/play|\/place)?$/.exec(path);
     if (one) {
       const user = this.requireUser(request);
       const id = one[1]!;
       if (!CHARACTER_ID.test(id)) throw new HttpError(404, 'character');
-      if (one[2] && method === 'POST') {
+      if (one[2] === '/play' && method === 'POST') {
         const character = this.store.play(user.id, id, this.now());
         if (!character) throw new HttpError(404, 'character');
         return this.json(response, 200, { character });
+      }
+      if (one[2] === '/place' && method === 'PUT') {
+        const place = checkPlace(await readJson(request));
+        if (!place || !this.worlds.all.has(place.world)) throw new HttpError(400, 'place');
+        if (this.worlds.shared.has(place.world)) throw new HttpError(409, 'shared world');
+        if (!this.store.setPlace(user.id, id, place)) throw new HttpError(404, 'character');
+        response.writeHead(204, { 'cache-control': 'no-store' });
+        response.end();
+        return;
       }
       if (!one[2] && method === 'DELETE') {
         if (!this.store.deleteCharacter(user.id, id)) throw new HttpError(404, 'character');

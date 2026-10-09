@@ -19,6 +19,7 @@ import {
   clampInput,
   createPlayer,
   facingAngle,
+  resumePoint,
   findInteraction,
   stepPlayer,
   useDoor,
@@ -99,6 +100,8 @@ const AIM_SLACK = 10;
 const MOUSE_DEAD_ZONE = 3;
 /** A hit shakes the camera for this long (ms), by about this much (world pixels). */
 const SHAKE = { ms: 220, amount: 2 } as const;
+/** A character in a world that the page runs: its place goes to the server this often (ms), if it moved. */
+const PLACE_SAVE_MS = 10_000;
 /** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
 const PREDICTED_KILL_MS = 700;
 /** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
@@ -152,9 +155,11 @@ async function run(options: GameOptions): Promise<void> {
 
   const art = await artLoading;
   const world = new World(definition.createSource(Number.isFinite(seed) ? seed : null));
-  // ?at=tx,ty starts on (or next to) that tile, for tests and for a look at one place.
+  // ?at=tx,ty starts on (or next to) that tile, for tests and for a look at one place. Else a
+  // character starts where it was last in this world, and a new one at the world's spawn.
   const at = (params.get('at') ?? '').split(',').map((v) => Number.parseInt(v, 10));
-  const spawn = at.length === 2 && at.every(Number.isFinite) ? world.findSpawn(at[0], at[1], 0) : world.spawn();
+  const place = character?.place?.world === definition.id ? character.place : null;
+  const spawn = at.length === 2 && at.every(Number.isFinite) ? world.findSpawn(at[0], at[1], 0) : place ? resumePoint(world, place.x, place.y) : world.spawn();
   const player = createPlayer(spawn.x, spawn.y);
   const previous = { x: player.x, y: player.y };
   // The interpolated position of the player in this frame: speech over the player follows it.
@@ -167,6 +172,24 @@ async function run(options: GameOptions): Promise<void> {
   const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, character?.id ?? null) : null;
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
+  // Where the character is: in a world that the page runs, the page tells the server now and then
+  // and when it closes; in a shared world the server knows it. A guest has no place.
+  const placeOf = character && !definition.multiplayer ? character.id : null;
+  let placeSent = { x: player.x, y: player.y };
+  let placeSaveAt = performance.now() + PLACE_SAVE_MS;
+  /** Sends the place if the player moved since the last one. `keepalive` while the page closes. */
+  const savePlace = async (keepalive = false): Promise<void> => {
+    if (placeOf === null || (player.x === placeSent.x && player.y === placeSent.y)) return;
+    const sent = (placeSent = { x: player.x, y: player.y });
+    await api.place(placeOf, { world: definition.id, ...sent }, keepalive).catch(() => {
+      // Not saved: the next time, send it again.
+      if (placeSent === sent) placeSent = { x: Number.NaN, y: Number.NaN };
+    });
+  };
+  window.addEventListener('pagehide', () => void savePlace(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void savePlace(true);
+  });
 
   // Two layers, each with its own CRT filter: the world, and the text in the world on top.
   // The world, from the bottom: the ground chunks; walls, fixtures, trees and players sorted by
@@ -237,8 +260,11 @@ async function run(options: GameOptions): Promise<void> {
     },
     {
       // The menu comes at the start of the page.
-      mainMenu: () => location.reload(),
-      signOut: () => void api.signOut().finally(() => location.reload()),
+      mainMenu: () => {
+        savePlace(true);
+        location.reload();
+      },
+      signOut: () => void savePlace().finally(() => api.signOut().finally(() => location.reload())),
     },
   );
   wear(skin);
@@ -586,6 +612,10 @@ async function run(options: GameOptions): Promise<void> {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
     sim.advance(seconds);
+    if (now >= placeSaveAt) {
+      placeSaveAt = now + PLACE_SAVE_MS;
+      void savePlace();
+    }
     if (net) {
       // A correction from the server moves the player: move the interpolation with it, and show
       // a small one gradually instead of as a jump.
