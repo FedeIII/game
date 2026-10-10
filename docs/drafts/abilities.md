@@ -5,8 +5,8 @@ an ID. Fede picks the applications; then we make their mechanics and apply the s
 one ability after the other (STR first). The scores come from the character builder
 (`packages/engine/src/character.ts`); before this work, they do nothing in the game.
 
-Status: Strength is done (2026-10-10, protocol 11). Next: Dexterity, then Constitution,
-Intelligence, Wisdom and Charisma. Decided: Option B (below).
+Status: Strength is done (2026-10-10, protocol 11), Dexterity is done (2026-10-10, protocol 12).
+Next: Constitution, then Intelligence, Wisdom and Charisma. Decided: Option B (below).
 
 ## How the numbers work
 
@@ -178,3 +178,34 @@ The changes:
   (column `pack`), the snapshots carry it, and an input batch can open a chest (`u`). With
   `?offline` the pack stays in the page. A pack button (top right) opens a panel with the slots.
   Item icons `item/<kind>` (16 x 16).
+
+## DEX: the agreed plan (2026-10-10)
+
+Decisions (Fede, 2026-10-10):
+
+1. D1 quicker attacks: the cooldown is 27 - 2 x mod ticks (0.48 s at -1, 0.35 s at +3).
+   D4 a longer guard: 60 + 9 x mod ticks (0.85 s to 1.45 s).
+2. D2 dodge: 2 tiles in 0.25 s, and no mob can hit during all of it; the cooldown is
+   96 - 12 x mod ticks (1.8 s to 1.0 s). Shift on a keyboard, a right click with a mouse, and a
+   third round button on a touch screen.
+3. D2: a real roll, with frames of its own in every skin sheet (SKIN_VERSION goes up).
+4. D3 stealth: the sight of mobs x (1 - 0.08 x mod); half of that while the player sneaks. A slow
+   walk (half speed or less) and standing still are sneaking; `C` toggles the sneak walk on a
+   keyboard; a small push of the joystick is a slow walk.
+5. D3: while the player sneaks, its torch is smaller (radius 96, not 150) and the figure a
+   little darker. When stamina exists (C4), sneaking uses stamina too.
+6. D5 ranged attacks: only the ranger shoots (the bow), with unlimited arrows. The range is
+   5 + 1 x mod tiles, at 240 px/s; an arrow takes the damage of a blow.
+7. D5: every attack of a ranger is an arrow (no melee for the ranger).
+8. D6 pick locks: one chest in three of the houses that are not barred is locked (a gate:
+   DEX 13) and gives better loot. The pick is instant ("The lock clicks open."); each opening needs
+   DEX 13, so a lock keeps no state. Without it: "It is locked. I cannot pick it."
+9. D7 a faster walk: dropped. "An imp is faster than you" stays a rule.
+
+Notes from the implementation (2026-10-10):
+
+- Standing still hides a player from mobs as a slow walk does, but its torch stays full: the
+  torch shrinks only while the player sneaks on purpose (a slow walk, or the sneak walk of C).
+  A torch that shrank at every stop would blink all the time.
+- An arrow takes the damage and the force of the ranger's blow, so a ranger with DEX 16 or 17
+  kills a brute in two arrows.

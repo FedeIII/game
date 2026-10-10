@@ -56,7 +56,23 @@ describe('buildings', () => {
       const chest = b.fixtures.find((f) => f.kind === 'chest');
       const table = chest ? world.source.loot!(chest) : null;
       if (b.id === HOME_ID) expect(table).toBeNull();
-      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 15 : 6);
+      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 15 : chest.lock ? 10 : 6);
+    }
+  });
+
+  it('lock the chest in about one house of three that is not barred, and a locked chest gives more', () => {
+    const open = buildings.filter(({ building: b }) => b.id !== HOME_ID && !b.barred && b.fixtures.some((f) => f.kind === 'chest'));
+    const locked = open.filter(({ building: b }) => b.fixtures.some((f) => f.lock));
+    expect(locked.length / open.length).toBeGreaterThan(0.2);
+    expect(locked.length / open.length).toBeLessThan(0.45);
+    for (const { world, building: b } of buildings) {
+      for (const f of b.fixtures) {
+        if (!f.lock) continue;
+        expect(f.kind).toBe('chest');
+        expect(f.lock).toEqual({ ability: 'dex', min: 13 });
+        expect(b.barred).toBeUndefined();
+        expect(world.source.loot!(f)!.coins).toEqual([3, 10]);
+      }
     }
   });
 

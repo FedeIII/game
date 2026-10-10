@@ -87,6 +87,8 @@ export class Prediction {
     player.cooldown = 0;
     player.stun = 0;
     player.guard = 0;
+    player.dodge = 0;
+    player.dodgeCooldown = 0;
   }
 
   /**
@@ -150,7 +152,7 @@ export class Prediction {
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
     world.setForcedDoors(this.serverForced);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim] = snapshot.you;
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim] = snapshot.you;
     player.x = x;
     player.y = y;
     player.vx = vx;
@@ -161,6 +163,9 @@ export class Prediction {
     player.cooldown = cooldown;
     player.stun = stun;
     player.guard = guard;
+    player.dodge = dodge;
+    player.dodgeCooldown = dodgeCooldown;
+    player.dodgeAim = dodgeAim;
     for (const p of this.pending) {
       for (const [tx, ty, open] of p.doors) wishDoor(world, player, tx, ty, open, others, this.traits);
       stepPlayer(player, fromWireInput(p.input), world, this.traits);

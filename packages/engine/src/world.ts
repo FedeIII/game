@@ -201,6 +201,13 @@ export class World implements TileMap {
     return solidBox(this.ground(tx, ty), this.decor(tx, ty), structure, structure === Structure.Door && this.isDoorOpen(tx, ty));
   }
 
+  /** The part of a tile that stops an arrow (arrows.ts): what is solid, except water. */
+  shotBox(tx: number, ty: number): Box | null {
+    const structure = this.structure(tx, ty);
+    const ground = this.ground(tx, ty);
+    return solidBox(isWet(ground) ? Ground.Grass : ground, this.decor(tx, ty), structure, structure === Structure.Door && this.isDoorOpen(tx, ty));
+  }
+
   isDoorOpen(tx: number, ty: number): boolean {
     return this.openDoors.has(`${tx},${ty}`);
   }

@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js';
-import type { RemotePlayer } from '@game/engine';
+import { isSneaking, type RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
 import { skinName } from '../../art/skins.ts';
 import { attackLook, type SkinStore } from '../skins/skin-store.ts';
@@ -11,8 +11,8 @@ import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './player-v
 
 /** Seconds for another player to fade in when it comes and out when it goes. */
 const FADE_SECONDS = 0.4;
-/** Other players carry a torch too, a smaller one than the local player's (radius 150). */
-const OTHER_TORCH = { radius: 96, colour: 0xff8a3c } as const;
+/** Other players carry a torch too, a smaller one than the local player's (radius 150), and a smaller one again while they sneak. */
+const OTHER_TORCH = { radius: 96, sneaking: 48, colour: 0xff8a3c } as const;
 
 interface OtherView {
   readonly view: PlayerView;
@@ -24,6 +24,8 @@ interface OtherView {
   alpha: number;
   /** False once the player has left: the view fades out, then goes. */
   here: boolean;
+  /** Whether it sneaks on purpose: it walks slowly (standing still does not show). */
+  sneaking: boolean;
 }
 
 /**
@@ -79,7 +81,8 @@ export class OtherPlayers {
       other.here = true;
       other.x = player.x;
       other.y = player.y;
-      other.view.update(player.x, player.y, { ...player, wading: wading(player.x, player.y) }, seconds);
+      other.sneaking = isSneaking(player) && Math.hypot(player.vx, player.vy) > 1;
+      other.view.update(player.x, player.y, { ...player, wading: wading(player.x, player.y), sneaking: other.sneaking }, seconds);
       other.tag.place(player.x, player.y, other.view.headHeight, view, other.alpha);
     }
     const step = seconds / FADE_SECONDS;
@@ -97,7 +100,7 @@ export class OtherPlayers {
     const out: LightSource[] = [];
     for (const [id, other] of this.views) {
       if (other.alpha <= 0) continue;
-      out.push({ x: other.x, y: other.y - 14, radius: OTHER_TORCH.radius, colour: OTHER_TORCH.colour, flicker: true, seed: id * 13 });
+      out.push({ x: other.x, y: other.y - 14, radius: other.sneaking ? OTHER_TORCH.sneaking : OTHER_TORCH.radius, colour: OTHER_TORCH.colour, flicker: true, seed: id * 13 });
       const fx = other.view.fxLight;
       if (fx) out.push(fx);
     }
@@ -109,7 +112,7 @@ export class OtherPlayers {
     this.layer.addChild(view.root);
     this.ghostLayer.addChild(view.ghost);
     this.glowLayer.addChild(view.overlay);
-    const other: OtherView = { view, skin: -1, tag: new NameTag(this.font, this.textLayer), x: player.x, y: player.y, alpha: 0, here: true };
+    const other: OtherView = { view, skin: -1, tag: new NameTag(this.font, this.textLayer), x: player.x, y: player.y, alpha: 0, here: true, sneaking: false };
     this.views.set(player.id, other);
     this.reskin(player.id, other, player.skin);
     return other;

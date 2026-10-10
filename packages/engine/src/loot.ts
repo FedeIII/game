@@ -2,6 +2,7 @@ import { TILE_SIZE } from './constants.ts';
 import type { Fixture } from './fixtures.ts';
 import type { Feet } from './interact.ts';
 import { NO_LOOT, addToPack, lootIsEmpty, rollLoot, type Loot, type Pack } from './items.ts';
+import { meetsGate, type PlayerTraits } from './traits.ts';
 import type { World } from './world.ts';
 
 /** A chest fills again this long after a player emptied it (ms). The chest of a barred house fills when its door is barred again. */
@@ -59,12 +60,15 @@ export class Spoils {
   }
 
   /**
-   * A player with `pack` (and `slots` slots) opens the chest `fixture`: it takes what fits, and
-   * the rest stays in the chest. Null if the fixture gives no loot.
+   * A player with `pack` opens the chest `fixture`: it takes what fits in its `traits.slots`, and
+   * the rest stays in the chest. 'locked' if the chest has a lock that its scores do not pass;
+   * null if the fixture gives no loot.
    */
-  open(fixture: Fixture, pack: Pack, slots: number, nowMs: number): Opened | null {
+  open(fixture: Fixture, pack: Pack, traits: Pick<PlayerTraits, 'scores' | 'slots'>, nowMs: number): Opened | 'locked' | null {
     const table = this.world.source.loot?.(fixture) ?? null;
     if (!table) return null;
+    if (fixture.lock && !meetsGate(traits.scores, fixture.lock)) return 'locked';
+    const slots = traits.slots;
     const key = `${fixture.tx},${fixture.ty}`;
     let chest = this.chests.get(key);
     if (!chest) {

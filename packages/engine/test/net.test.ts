@@ -368,7 +368,7 @@ describe('a multiplayer room', () => {
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
     const remotes = new Remotes();
-    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0]] });
+    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0, 0]] });
     remotes.apply(snap(1000, 0), 5000);
     remotes.apply(snap(1050, 4), 5050);
     remotes.apply(snap(1100, 8), 5100);
@@ -377,7 +377,7 @@ describe('the other players on a client', () => {
     expect(r).toMatchObject({ id: 7, skin: 2, x: 6, y: 50, facing: 'right' });
     // Later than the last snapshot, it stays there and does not guess.
     expect(remotes.at(9000)[0]!.x).toBe(8);
-    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [] }, 5150);
+    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], p: [] }, 5150);
     expect(remotes.count).toBe(0);
   });
 });
@@ -556,7 +556,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(10);
+    expect(snap!.you).toHaveLength(13);
   });
 
   it('kill a brute with the third plain blow, and send what it has left', () => {

@@ -1,4 +1,4 @@
-import { FORCE_GATE, fixtureTiles, hash01, hash2, random, type Building, type Fixture } from '@game/engine';
+import { FORCE_GATE, PICK_GATE, fixtureTiles, hash01, hash2, random, type Building, type Fixture } from '@game/engine';
 
 /**
  * Houses of the wilds. The world is cut into cells of BUILDING_CELL x BUILDING_CELL tiles; a
@@ -18,6 +18,8 @@ const BUILDING_CHANCE = 0.35;
  * every new character finds first.
  */
 const BARRED_CHANCE = 0.25;
+/** The chance that the chest of a house that is not barred has a lock (Fixture.lock): Dexterity 13 picks it. */
+const LOCKED_CHANCE = 1 / 3;
 /** Tiles between a house and the edge of its cell. */
 const CELL_MARGIN = 2;
 const SEED_OFFSET = 31_337;
@@ -100,8 +102,10 @@ export function generateHouse(seed: number, cellX: number, cellY: number, isWate
     for (let tx = x0 - 1; tx <= x1 + 1; tx++) if (isWater(tx, ty)) return null;
   }
   const doorX = x0 + 2 + Math.floor(rand() * (width - 4));
-  const fixtures = furnish(rand, x0, y0, x1, y1, doorX);
+  const furniture = furnish(rand, x0, y0, x1, y1, doorX);
   // Only a house with a chest is barred: forcing the door must be worth it.
-  const barred = !forced && fixtures.some((f) => f.kind === 'chest') && hash01(cellX, cellY, seed + SEED_OFFSET + 2) < BARRED_CHANCE;
+  const barred = !forced && furniture.some((f) => f.kind === 'chest') && hash01(cellX, cellY, seed + SEED_OFFSET + 2) < BARRED_CHANCE;
+  const locked = !barred && hash01(cellX, cellY, seed + SEED_OFFSET + 3) < LOCKED_CHANCE;
+  const fixtures = locked ? furniture.map((f) => (f.kind === 'chest' ? { ...f, lock: PICK_GATE } : f)) : furniture;
   return { id: `${cellX},${cellY}`, x0, y0, x1, y1, doorX, fixtures, ...(barred ? { barred: FORCE_GATE } : {}) };
 }

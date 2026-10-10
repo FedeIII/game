@@ -96,6 +96,8 @@ export interface FigureAction {
   readonly left?: readonly [Vec3, Vec3];
   readonly lean: number;
   readonly weapon?: Weapon;
+  /** 0 to 1: the legs fold up under the body, for a roll (see tumble()). Default 0. */
+  readonly tuck?: number;
 }
 
 /**
@@ -107,7 +109,9 @@ export type Weapon =
   | { readonly kind: 'staff'; readonly dir: Vec3; readonly orb: boolean }
   | { readonly kind: 'lantern' }
   | { readonly kind: 'axe' }
-  | { readonly kind: 'mace' };
+  | { readonly kind: 'mace' }
+  /** The bow held out in the left hand, its string drawn back to the right hand by `draw` (0 to 1), with an arrow on it while drawn. */
+  | { readonly kind: 'bow'; readonly draw: number };
 
 /** The player's hooded wanderer. */
 export const WANDERER: FigureSpec = {
@@ -300,11 +304,13 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   const lean = 0.1 * amount + (action?.lean ?? 0);
   const hipY = HIP_Y * h;
 
+  const tuck = action?.tuck ?? 0;
   const legs = [-1, 1].map((side) => {
     const p = phase + (side < 0 ? 0 : Math.PI);
-    const theta = swing * Math.sin(p);
+    // A tuck folds the thighs up to the front and the shins back under them.
+    const theta = swing * Math.sin(p) + 2.0 * tuck;
     // The knee bends most while the leg swings forward, under the body.
-    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p));
+    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p)) + 2.7 * tuck;
     const hip: Vec3 = [side * HIP_HALF_WIDTH * w, hipY, 0];
     const kneeAt = add(hip, [0, -THIGH * h * Math.cos(theta), THIGH * h * Math.sin(theta)]);
     const shin = theta - knee;
@@ -588,9 +594,24 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
       break;
     }
     case 'bow': {
-      // In the left hand: a tall curve of wood, its middle out to the side, and its string.
       const grip = hands[-1]!;
       const span = 6.6 * h;
+      if (weapon?.kind === 'bow') {
+        // Held out in front: the curve of wood bends away from the archer, and the string goes
+        // back to the right hand as far as it is drawn, with an arrow on it.
+        const bow: Vec3[] = [-1, -0.5, 0, 0.5, 1].map((t) => add(grip, [0.25, span * 0.85 * t, 1.6 * (1 - t * t)]));
+        part(curve(bow, [0.38, 0.46, 0.55, 0.46, 0.38]), FM.wood);
+        const nock = weapon.draw > 0 ? add(right, [0, 0, 0.3]) : add(grip, [0.25, 0, -0.2]);
+        part(C(bow[0]!, nock, 0.24, 0.24), FM.mask);
+        part(C(nock, bow[4]!, 0.24, 0.24), FM.mask);
+        if (weapon.draw > 0) {
+          const tip = add(grip, [0.25, 0.1, 3.4]);
+          part(C(nock, tip, 0.3, 0.3), FM.wood);
+          part(C(tip, add(tip, [0, 0, 0.9]), 0.55, 0.15), FM.metal);
+        }
+        break;
+      }
+      // In the left hand: a tall curve of wood, its middle out to the side, and its string.
       const points: Vec3[] = [-1, -0.5, 0, 0.5, 1].map((t) => add(grip, [-0.3 - 1.7 * (1 - t * t), span * t, 0.25]));
       part(curve(points, [0.38, 0.46, 0.55, 0.46, 0.38]), FM.wood);
       part(C(points[0]!, points[4]!, 0.24, 0.24), FM.mask);
@@ -645,4 +666,39 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   }
 
   return parts;
+}
+
+/**
+ * Turns a figure round the x axis through `pivot` by `angle` (radians): with a positive angle the
+ * top goes forward (+z) and down, a forward roll. For the roll of a dodge, with a tucked pose.
+ */
+export function tumble(parts: readonly Part[], angle: number, pivot: Vec3): Part[] {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const [, py, pz] = pivot;
+  // A point of the turned figure comes from this point of the figure.
+  const back = (y: number, z: number): [number, number] => {
+    const dy = y - py;
+    const dz = z - pz;
+    return [py + dy * cos + dz * sin, pz - dy * sin + dz * cos];
+  };
+  return parts.map((p) => {
+    const sdf: Sdf = (x, y, z) => {
+      const [by, bz] = back(y, z);
+      return p.sdf(x, by, bz);
+    };
+    const material = p.material;
+    const turned: Part['material'] =
+      typeof material === 'number'
+        ? material
+        : (x, y, z, nx, ny, nz) => {
+            const [by, bz] = back(y, z);
+            return material(x, by, bz, nx, ny * cos + nz * sin, -ny * sin + nz * cos);
+          };
+    if (!p.bound) return { sdf, material: turned };
+    const [bx, by, bz, br] = p.bound;
+    const dy = by - py;
+    const dz = bz - pz;
+    return { sdf, material: turned, bound: [bx, py + dy * cos - dz * sin, pz + dy * sin + dz * cos, br] as const };
+  });
 }

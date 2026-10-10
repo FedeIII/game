@@ -5,6 +5,7 @@ import {
   TILE_SIZE,
   fromWirePack,
   fromWireStacks,
+  LOOT_SOURCES,
   parseServerMessage,
   stepPlayer,
   useDoor,
@@ -18,6 +19,7 @@ import {
   type NpcPose,
   type PlayerState,
   type RefusalReason,
+  type RemoteArrow,
   type RemoteMob,
   type RemotePlayer,
   type ServerMessage,
@@ -27,9 +29,9 @@ import {
 /** connecting: no welcome yet; online: in the shared world; offline: waiting to try again; refused: the server said no. */
 export type NetStatus = 'connecting' | 'online' | 'offline' | 'refused';
 
-/** Loot that the server gave the player: from a chest that it opened, or from a mob that it killed. */
+/** Loot that the server gave the player: from a chest that it opened, or from a mob that it killed; or a lock that it could not pick. */
 export interface NetLoot {
-  readonly source: 'chest' | 'drop';
+  readonly source: 'chest' | 'drop' | 'locked';
   readonly loot: Loot;
   /** The pack is full: something stayed in the chest, or was lost. */
   readonly full: boolean;
@@ -74,6 +76,8 @@ export class NetSession {
   private readonly lootListeners: ((loot: NetLoot) => void)[] = [];
   /** What the player carries, in the server's last word (null before the welcome). */
   pack: Pack | null = null;
+  /** The player's id in the shared world (from the welcome), or null. */
+  id: number | null = null;
   private readonly traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
@@ -187,6 +191,11 @@ export class NetSession {
     return this.remotes.npcsAt(nowMs);
   }
 
+  /** The arrows to draw now, from the server (none while not online): those of the other players. */
+  arrowsAt(nowMs: number): RemoteArrow[] {
+    return this.status === 'online' ? this.remotes.arrowsAt(nowMs).filter((a) => a.owner !== this.id) : [];
+  }
+
   /** The mobs to draw now, from the server (none while not online). */
   mobsAt(nowMs: number): RemoteMob[] {
     return this.status === 'online' ? this.remotes.mobsAt(nowMs) : [];
@@ -243,6 +252,7 @@ export class NetSession {
         const before = { x: this.player.x, y: this.player.y };
         this.prediction.reset(this.player, this.world, message);
         this.pack = fromWirePack(message.pk);
+        this.id = message.id;
         this.addJump(this.player.x - before.x, this.player.y - before.y);
         this.status = 'online';
         this.retryMs = RETRY_FIRST_MS;
@@ -260,7 +270,7 @@ export class NetSession {
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
         for (const [source, coins, stacks, full] of message.l ?? []) {
-          const loot: NetLoot = { source: source === 0 ? 'chest' : 'drop', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
+          const loot: NetLoot = { source: LOOT_SOURCES[source] ?? 'chest', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
           for (const listener of this.lootListeners) listener(loot);
         }
         return;

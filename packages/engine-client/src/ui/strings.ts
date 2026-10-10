@@ -7,8 +7,9 @@ import type { Ability, CharacterClass, Gender, Interactable, ItemKind, Race } fr
  */
 export const STRINGS = {
   hintKeyboard: 'WASD or arrow keys to move · E to act',
-  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Click to attack',
+  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Click to attack · Shift to roll · C to sneak',
   attack: 'Attack',
+  dodge: 'Roll',
   hintTouch: 'Touch and drag anywhere to move',
   doorBlocked: 'Step out of the doorway first.',
   doorBlockedByOther: 'Someone is in the doorway.',
@@ -23,6 +24,10 @@ export const STRINGS = {
   forced: 'The boards break.',
   /** A chest that gives loot (loot.ts), and what the player says when it opens it. */
   openChest: 'Open the chest',
+  /** A chest with a lock (Fixture.lock): the label for a character with the Dexterity to pick it, and the lines. */
+  pickLock: 'Pick the lock',
+  picked: 'The lock clicks open.',
+  locked: 'It is locked. I cannot pick it.',
   chestEmpty: 'It is empty.',
   packFull: 'My pack is full.',
   /** A chest in a shared world while the connection is down: the server decides what is in it. */
@@ -60,6 +65,18 @@ export const STRINGS = {
     slotsValue: (n: number): string => `${n} slots`,
     wade: 'Shallow water',
     force: 'Barred doors',
+    attacks: 'Attacks',
+    attacksValue: (seconds: number): string => `one every ${seconds.toFixed(2)} s`,
+    guard: 'Guard after a hit',
+    seconds: (seconds: number): string => `${seconds.toFixed(2)} s`,
+    dodge: 'Roll',
+    dodgeValue: (seconds: number): string => `every ${seconds.toFixed(2)} s`,
+    sight: 'Mobs see you from',
+    sightValue: (share: number, sneaking: number): string => `${Math.round(share * 100)}% (sneaking ${Math.round(sneaking * 100)}%)`,
+    range: 'Arrows fly',
+    rangeValue: (tiles: number): string => `${tiles} tiles`,
+    pick: 'Locked chests',
+    pickYes: 'you pick them',
     from: (ability: string, min: number): string => `from ${ability} ${min}`,
     wadeYes: 'you wade through it',
     forceYes: 'you break them',

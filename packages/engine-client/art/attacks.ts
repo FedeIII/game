@@ -5,17 +5,17 @@
  * No Node imports: the browser renders skins with it.
  */
 import type { CharacterClass } from '@game/engine';
-import type { FigureAction, FigureSpec, Weapon } from './figure.ts';
-import type { Vec3 } from './sdf.ts';
+import { figure, tumble, type FigureAction, type FigureSpec, type Weapon } from './figure.ts';
+import type { Part, Vec3 } from './sdf.ts';
 
 /**
  * slash: a sword swung across. thrust: a rapier or a dagger, straight ahead. bash: a staff
  * brought down with both hands. spell: a burst of magic from an orb staff or the hands. flame: a
  * gout of fire from a lantern. miasma: a cloud of poison thrown ahead. palm: a palm strike with a
- * shock wave. punch: a fist.
+ * shock wave. punch: a fist. shoot: an arrow from a bow (a ranger: the engine flies the arrow).
  */
-export type AttackStyle = 'slash' | 'thrust' | 'bash' | 'spell' | 'flame' | 'miasma' | 'palm' | 'punch';
-export const ATTACK_STYLES: readonly AttackStyle[] = ['slash', 'thrust', 'bash', 'spell', 'flame', 'miasma', 'palm', 'punch'];
+export type AttackStyle = 'slash' | 'thrust' | 'bash' | 'spell' | 'flame' | 'miasma' | 'palm' | 'punch' | 'shoot';
+export const ATTACK_STYLES: readonly AttackStyle[] = ['slash', 'thrust', 'bash', 'spell', 'flame', 'miasma', 'palm', 'punch', 'shoot'];
 
 /** Frames of an attack in a sheet. */
 export const ATTACK_FRAMES = 4;
@@ -40,9 +40,9 @@ export function fxPlacement(aim: number): { readonly turn: number; readonly mirr
 
 /**
  * The style of a skin, from its class and what it carries. Fighters, paladins, barbarians (an
- * axe or a sword) and clerics (a mace) slash; bards (a rapier), rogues and rangers (a dagger)
- * thrust; a staff bashes and an orb staff casts a spell; sorcerers and warlocks cast from the
- * hands too; monks strike with the palm. A lantern throws flame.
+ * axe or a sword) and clerics (a mace) slash; bards (a rapier) and rogues (a dagger) thrust;
+ * rangers shoot their bow; a staff bashes and an orb staff casts a spell; sorcerers and warlocks
+ * cast from the hands too; monks strike with the palm. A lantern throws flame.
  */
 export function attackStyle(cls: CharacterClass, spec: FigureSpec): AttackStyle {
   switch (spec.item ?? 'none') {
@@ -52,8 +52,9 @@ export function attackStyle(cls: CharacterClass, spec: FigureSpec): AttackStyle 
     case 'mace':
       return 'slash';
     case 'dagger':
-    case 'bow':
       return 'thrust';
+    case 'bow':
+      return 'shoot';
     case 'staff':
       return 'bash';
     case 'orbstaff':
@@ -179,6 +180,22 @@ const POSES: Readonly<Record<AttackStyle, StylePoses>> = {
     ],
     lean: [-0.05, 0.22, 0.24, 0.06],
   },
+  // The bow out in front in the left hand; the right hand nocks, draws to the chin, lets go.
+  shoot: {
+    right: [
+      [[0.2, -0.05, 0.98], [-0.3, 0.05, 0.95]],
+      [[0.75, 0.2, -0.25], [-0.7, 0.1, 0.7]],
+      [[0.75, 0.25, -0.45], [0.35, 0.35, -0.85]],
+      [[0.25, -0.55, 0.6], [0.05, -0.3, 0.9]],
+    ],
+    left: [
+      [[-0.12, 0.06, 1], [0.05, 0.04, 1]],
+      [[-0.1, 0.1, 1], [0.05, 0.06, 1]],
+      [[-0.1, 0.1, 1], [0.05, 0.06, 1]],
+      [[-0.2, -0.4, 0.85], [0.0, -0.1, 1]],
+    ],
+    lean: [0.0, 0.03, 0.02, 0.0],
+  },
   punch: {
     right: [
       [[0.3, -0.35, -0.85], [0.0, 0.35, 0.95]],
@@ -215,5 +232,40 @@ export function attackAction(style: AttackStyle, frame: number, spec: FigureSpec
   else if (style === 'thrust') weapon = item === 'sword' ? { kind: 'blade', length: 10, width: 0.3 } : { kind: 'blade', length: 3.6, width: 0.34 };
   else if ((style === 'bash' || style === 'spell') && (item === 'staff' || item === 'orbstaff')) weapon = { kind: 'staff', dir: poses.staff![frame]!, orb: item === 'orbstaff' };
   else if (style === 'flame') weapon = { kind: 'lantern' };
+  else if (style === 'shoot') weapon = { kind: 'bow', draw: [0.4, 1, 0, 0][frame]! };
   return { right, ...(left ? { left } : {}), lean: poses.lean[frame]!, ...(weapon ? { weapon } : {}) };
+}
+
+/** Frames of a roll (a dodge) in a sheet. */
+export const ROLL_FRAMES = 4;
+/** In each frame of a roll: how far the legs fold up, and how far the figure has turned (radians). */
+const ROLL = [
+  [0.85, 0.75],
+  [1, 2.3],
+  [1, 3.9],
+  [0.85, 5.45],
+] as const;
+
+/**
+ * Frame `frame` of a roll: the tucked pose (the arms round the knees, the back bent) and the turn
+ * of the whole figure, forward (figure.ts, tumble()). The game shows the frames in the way the
+ * player rolls.
+ */
+export function rollPose(frame: number): { readonly action: FigureAction; readonly angle: number } {
+  const [tuck, angle] = ROLL[frame]!;
+  const right: ArmPose = [
+    [0.3, -0.45, 0.85],
+    [-0.3, -0.55, 0.75],
+  ];
+  return { action: { right, left: mirror(right), lean: 0.9 * tuck, tuck }, angle };
+}
+
+/** A tucked figure turns round this point (model space; y at the scale of the figure's height). */
+const ROLL_PIVOT_Y = 8;
+const ROLL_PIVOT_Z = 1.5;
+
+/** The parts of frame `frame` of the roll of a figure: tucked, and turned forward round its middle. */
+export function rollParts(spec: FigureSpec, frame: number): Part[] {
+  const { action, angle } = rollPose(frame);
+  return tumble(figure(spec, 0, 0, action), angle, [0, ROLL_PIVOT_Y * spec.height, ROLL_PIVOT_Z]);
 }

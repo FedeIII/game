@@ -4,8 +4,8 @@ import {
   ATTACK_REACH,
   ATTACK_TICKS,
   EMPTY_PACK,
-  GUEST_TRAITS,
   Horde,
+  SNEAK_SPEED,
   MOB_STATS,
   NpcCrowd,
   Spoils,
@@ -29,10 +29,17 @@ import {
   useDoor,
   facingOfAngle,
   addToPack,
+  canDodge,
+  flyArrow,
+  guestTraits,
   inShallows,
+  isSneaking,
+  newArrow,
+  sightOf,
   lootIsEmpty,
   meetsGate,
   sheetTraits,
+  type Arrow,
   type Character,
   type Dialog,
   type Facing,
@@ -46,7 +53,7 @@ import {
 } from '@game/engine';
 import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
-import { Keyboard } from './input/keyboard.ts';
+import { Keyboard, isFormField } from './input/keyboard.ts';
 import { Mouse } from './input/mouse.ts';
 import { FixedStep } from './loop.ts';
 import { Buildings } from './render/buildings.ts';
@@ -60,6 +67,7 @@ import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { MobViews, type MobLook } from './render/mobs.ts';
+import { ArrowViews } from './render/arrows.ts';
 import { LootText } from './render/loot-text.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
@@ -76,6 +84,7 @@ import { skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { AttackButton } from './ui/attack-button.ts';
+import { DodgeButton } from './ui/dodge-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
 import { PackPanel } from './ui/pack-panel.ts';
@@ -107,8 +116,10 @@ export interface GameOptions {
   readonly accounts?: boolean;
 }
 
-/** An attack asked for this recently (ms) still starts when the player becomes able to attack. */
+/** An attack (or a dodge) asked for this recently (ms) still starts when the player becomes able to. */
 const ATTACK_BUFFER_MS = 150;
+/** While the player sneaks on purpose (a slow walk, or the sneak walk of C), its torch has this radius (LIGHTING.radii). */
+const SNEAK_TORCH = 96;
 /** The attack turns to a mob this much beyond the reach of the attack (world pixels). */
 const AIM_SLACK = 10;
 /** A click closer than this to the player's chest (world pixels) gives no direction: the attack goes the way the player faces. */
@@ -212,8 +223,8 @@ async function run(options: GameOptions): Promise<void> {
   // keeps, and the name of its look. ?skin=<n> shows another look. The others see the same.
   const skin = character && !params.has('skin') ? characterSkin(character) : skinSeed(params);
   const name = character?.name ?? '';
-  // What the scores give in the game (traits.ts): a guest has every score at 10.
-  const traits = character ? sheetTraits(character) : GUEST_TRAITS;
+  // What the scores give in the game (traits.ts): a guest has every score at 10, and the class of its look.
+  const traits = character ? sheetTraits(character) : guestTraits(skin);
   // A shared world goes through the multiplayer server; ?offline plays it alone.
   const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, traits, character?.id ?? null) : null;
   // What the player carries. In a shared world the server keeps it (net.pack); in a world that
@@ -389,6 +400,7 @@ async function run(options: GameOptions): Promise<void> {
   const mobRules = params.has('nomobs') ? null : (world.source.mobs?.() ?? null);
   const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
   const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer) : null;
+  const arrowViews = mobRules ? new ArrowViews(art, entityLayer) : null;
   // ?mob=imp,brute puts those mobs near the player at the start, one tile apart, 5 tiles to the
   // east (for tests and for a look at them). Single-player worlds only.
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
@@ -407,18 +419,37 @@ async function run(options: GameOptions): Promise<void> {
   // Mob id -> when, and where the mob was (a kill), or when (a reel).
   const predicted = new Map<number, { at: number; x: number; y: number; confirmed: boolean }>();
   const reeling = new Map<number, { at: number; seen: boolean }>();
+  /** A blow (or an arrow) of this client on a mob, shown at once: a kill if it takes the mob's last health, else a reel. */
+  const predictHit = (mob: MobLook, now: number): void => {
+    if (mob.state === 'dying' || predicted.has(mob.id)) return;
+    if ((mob.health ?? 1) > traits.damage) {
+      reeling.set(mob.id, { at: now, seen: false });
+      return;
+    }
+    predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
+    kills++;
+  };
   const predictKills = (): void => {
     const now = performance.now();
     for (const mob of net?.mobsAt(now) ?? []) {
-      if (mob.state === 'dying' || predicted.has(mob.id)) continue;
       // Only a clear hit: a blow at the edge of the reach waits for the server's word.
-      if (!attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
-      if (mob.health > traits.damage) {
-        reeling.set(mob.id, { at: now, seen: false });
-        continue;
-      }
-      predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
-      kills++;
+      if (attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) predictHit(mob, now);
+    }
+  };
+  // A ranger's arrows in a shared world: the page flies its own at once (the server flies the true
+  // ones), and shows the hit on the mobs as it shows them; the others' arrows come from the server.
+  const ownArrows: Arrow[] = [];
+  let nextOwnArrow = -1;
+  const flyOwnArrows = (dt: number): void => {
+    if (ownArrows.length === 0) return;
+    const now = performance.now();
+    const living = mobsNow().filter((m) => m.state !== 'dying');
+    const targets = living.map((m) => ({ x: m.x, y: m.y, radius: MOB_STATS[m.kind].radius }));
+    for (const arrow of [...ownArrows]) {
+      const hit = flyArrow(arrow, world, dt, targets);
+      if (hit === null) continue;
+      ownArrows.splice(ownArrows.indexOf(arrow), 1);
+      if (hit >= 0) predictHit(living[hit]!, now);
     }
   };
   /** The mobs to draw and to aim at now: the local horde's, or the server's with the kills that this client predicts. */
@@ -463,6 +494,10 @@ async function run(options: GameOptions): Promise<void> {
   // the player can attack starts it. A click aims at the point clicked (from the player's chest);
   // the button and Space aim at the nearest mob in reach, else the way the player walks or faces.
   const attackButton = mobRules ? new AttackButton() : null;
+  // A dodge: Shift, the right mouse button, or the dodge button on a touch screen (with mobs only).
+  const dodgeButton = mobRules ? new DodgeButton() : null;
+  let dodgeAskedAt = -Infinity;
+  dodgeButton?.onPress(() => (dodgeAskedAt = performance.now()));
   let attackAskedAt = -Infinity;
   /** The point of the screen (CSS pixels) that a click asked to attack, or null for the button or Space. */
   let attackClick: { readonly x: number; readonly y: number } | null = null;
@@ -476,6 +511,7 @@ async function run(options: GameOptions): Promise<void> {
       attackAskedAt = performance.now();
       attackClick = at;
     });
+    mouse.onAltPress(() => (dodgeAskedAt = performance.now()));
   }
   /** The direction from the player's chest to a point of the screen: where the visitor sees it. */
   const aimAt = (at: { readonly x: number; readonly y: number }): number => {
@@ -490,7 +526,9 @@ async function run(options: GameOptions): Promise<void> {
     for (const mob of mobsNow()) {
       if (mob.state === 'dying') continue;
       const d = Math.hypot(mob.x - player.x, mob.y - player.y);
-      if (d < bestD && d <= ATTACK_REACH + MOB_STATS[mob.kind].radius + AIM_SLACK) {
+      // A ranger aims at the nearest mob in the range of its arrows.
+      const reach = traits.ranged ? traits.range : ATTACK_REACH + MOB_STATS[mob.kind].radius + AIM_SLACK;
+      if (d < bestD && d <= reach) {
         best = mob;
         bestD = d;
       }
@@ -551,11 +589,20 @@ async function run(options: GameOptions): Promise<void> {
     document.getElementById('stick')!,
     document.getElementById('stick-knob')!,
   );
+  // C turns the sneak walk on and off: the keys walk at SNEAK_SPEED (a small push of the joystick is slow anyway).
+  let sneakWalk = false;
+  window.addEventListener('keydown', (event) => {
+    if (event.code !== 'KeyC' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
+    sneakWalk = !sneakWalk;
+  });
   const readInput = () => {
     const keys = keyboard.vector();
     const stick = joystick.vector();
-    return clampInput({ x: keys.x + stick.x, y: keys.y + stick.y });
+    const scale = sneakWalk ? SNEAK_SPEED : 1;
+    return clampInput({ x: (keys.x + stick.x) * scale, y: (keys.y + stick.y) * scale });
   };
+  /** Whether the player sneaks on purpose: the sneak walk, or a slow walk (standing still also hides it from mobs, but not on purpose). */
+  const sneakingShown = () => isSneaking(player) && (sneakWalk || Math.hypot(player.vx, player.vy) > 1);
 
   const hud = new Hud(params.has('debug'));
   hud.showHint(mobRules ? STRINGS.hintKeyboardFight : STRINGS.hintKeyboard);
@@ -596,10 +643,16 @@ async function run(options: GameOptions): Promise<void> {
     lootText.add(dropLines(result.taken), now);
     if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
   };
+  /** Whether the last chest that this page asked the server to open had a lock (its line starts with the pick). */
+  let pickedLast = false;
   net?.onLoot(({ source, loot, full }) => {
     const now = performance.now();
+    if (source === 'locked') {
+      say(STRINGS.locked, now);
+      return;
+    }
     if (source === 'chest') {
-      say(chestLine(loot, full), now);
+      say(`${pickedLast ? `${STRINGS.picked} ` : ''}${chestLine(loot, full)}`, now);
       return;
     }
     lootText.add(dropLines(loot), now);
@@ -670,14 +723,24 @@ async function run(options: GameOptions): Promise<void> {
       // A chest with loot: the server opens it in a shared world, the page in its own world.
       dialogKey = key;
       linkCard.hide();
+      const lock = target.fixture.lock;
+      if (lock && !meetsGate(traits.scores, lock)) {
+        say(STRINGS.locked, now);
+        return;
+      }
       if (net) {
+        pickedLast = lock !== undefined;
         if (!net.use(target.tx, target.ty)) say(STRINGS.chestOffline, now);
         return;
       }
-      const opened = spoils.open(target.fixture, pack, traits.slots, now);
+      const opened = spoils.open(target.fixture, pack, traits, now);
       if (!opened) return;
+      if (opened === 'locked') {
+        say(STRINGS.locked, now);
+        return;
+      }
       pack = opened.pack;
-      say(chestLine(opened.taken, opened.full), now);
+      say(`${lock ? `${STRINGS.picked} ` : ''}${chestLine(opened.taken, opened.full)}`, now);
       return;
     }
     const content = contentOf(target);
@@ -735,7 +798,7 @@ async function run(options: GameOptions): Promise<void> {
       if (bar) return meetsGate(traits.scores, bar) ? STRINGS.forceDoor : STRINGS.tryDoor;
       return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     }
-    if (t.fixture && spoils.isSource(t.fixture)) return STRINGS.openChest;
+    if (t.fixture && spoils.isSource(t.fixture)) return t.fixture.lock && meetsGate(traits.scores, t.fixture.lock) ? STRINGS.pickLock : STRINGS.openChest;
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
       if (content?.dialog) return STRINGS.conversation.answer;
@@ -766,22 +829,38 @@ async function run(options: GameOptions): Promise<void> {
     // In a conversation the player stands still and does not attack.
     if (conversation.open) attackAskedAt = -Infinity;
     let input: MoveInput = conversation.open ? NO_INPUT : readInput();
-    if (performance.now() - attackAskedAt < ATTACK_BUFFER_MS && canAttack(player)) {
+    if (conversation.open) dodgeAskedAt = -Infinity;
+    if (performance.now() - dodgeAskedAt < ATTACK_BUFFER_MS && canDodge(player)) {
+      input = { ...input, dodge: true };
+      dodgeAskedAt = -Infinity;
+    } else if (performance.now() - attackAskedAt < ATTACK_BUFFER_MS && canAttack(player)) {
       input = { ...input, attack: attackClick ? aimAt(attackClick) : aim(input) };
       attackAskedAt = -Infinity;
     }
     if (net) {
-      if (net.tick(input)) predictKills();
+      if (net.tick(input)) {
+        if (traits.ranged) ownArrows.push(newArrow(nextOwnArrow--, net.id ?? 0, player.x, player.y, player.aim, traits.range, traits));
+        else predictKills();
+      }
+      flyOwnArrows(TICK_SECONDS);
     } else if (stepPlayer(player, input, world, traits) && horde) {
-      for (const mob of horde.strike(player, player.aim, undefined, 0, traits)) {
-        if (mob.state !== 'dying') continue;
-        kills++;
-        takeDrop(horde.drop(mob), performance.now());
+      if (traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
+      else {
+        for (const mob of horde.strike(player, player.aim, undefined, 0, traits)) {
+          if (mob.state !== 'dying') continue;
+          kills++;
+          takeDrop(horde.drop(mob), performance.now());
+        }
       }
     }
     if (!net) spoils.tick(performance.now(), [player]);
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
-    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]);
+    // Mobs see the player from less far with Dexterity, and less again while it sneaks.
+    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player) }]);
+    for (const { mob } of horde?.takeShotKills() ?? []) {
+      kills++;
+      takeDrop(horde!.drop(mob), performance.now());
+    }
   });
 
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
@@ -818,7 +897,7 @@ async function run(options: GameOptions): Promise<void> {
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     const wading = inShallows(world, shown.x, shown.y);
-    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading }, seconds);
+    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading, sneaking: sneakingShown() }, seconds);
     // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
     if (player.stun > 0 && !stunSeen) {
       hitsTaken++;
@@ -828,8 +907,10 @@ async function run(options: GameOptions): Promise<void> {
     const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
     mobViews?.update(mobsNow(), now, seconds);
+    arrowViews?.update([...(horde?.arrows ?? []), ...ownArrows, ...(net?.arrowsAt(now) ?? [])]);
     // No attack from shallow water (stepPlayer).
     attackButton?.setReady(player.stun === 0 && !inShallows(world, player.x, player.y));
+    dodgeButton?.setReady(canDodge(player) && !inShallows(world, player.x, player.y));
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
     cursorView.update(mouse.at, camera.zoom, app.renderer.resolution);
@@ -857,7 +938,8 @@ async function run(options: GameOptions): Promise<void> {
       nextRetainAt = now + 5000;
       skins.retain(new Set([skin, ...(others?.skinsWorn ?? [])]));
     }
-    const torch = { x: shown.x, y: shown.y - 14, radius: TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
+    // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
+    const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
     lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     speech.update(now, view);
@@ -921,6 +1003,7 @@ async function run(options: GameOptions): Promise<void> {
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
       `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
+      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),

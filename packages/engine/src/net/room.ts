@@ -6,7 +6,7 @@ import { createPlayer, resumePoint, stepPlayer, type PlayerState } from '../play
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
-import { GUEST_TRAITS, type PlayerTraits } from '../traits.ts';
+import { guestTraits, sightOf, type PlayerTraits } from '../traits.ts';
 import type { World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
@@ -24,6 +24,7 @@ import {
   type WireDoor,
   type WireLoot,
   type WireMob,
+  type WireArrow,
   type WireNpc,
   type WirePlayer,
   type WireUse,
@@ -80,7 +81,7 @@ export interface RoomPlayer {
   refilledMs: number;
   /** The door version that this player's client has. */
   doorVersion: number;
-  /** What its scores give (from its stored character; GUEST_TRAITS without one). */
+  /** What its scores give (from its stored character; without one, guestTraits() of its look). */
   readonly traits: PlayerTraits;
   /** What it carries. The server saves it with the character. */
   pack: Pack;
@@ -154,8 +155,14 @@ export class Room {
     }
     if (this.horde) {
       // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
-      const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state }));
+      // Mobs see a player from less far with Dexterity, and less again while it sneaks.
+      const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state) }));
       this.hits += this.horde.step(dt, players).length;
+      for (const { mob, owner } of this.horde.takeShotKills()) {
+        this.kills++;
+        const shooter = this.players.get(owner);
+        if (shooter) this.give(shooter, this.horde.drop(mob));
+      }
       this.trail.push({ ms: nowMs, at: new Map(this.horde.mobs.map((m) => [m.id, [m.x, m.y] as const])) });
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
@@ -202,7 +209,7 @@ export class Room {
    *   the spawn itself, indoors too (the Wilds: in the home, the house of the cell (0, 0)).
    *
    * `character` gives the player's traits and pack (from its stored character); without it, the
-   * player has GUEST_TRAITS and an empty pack.
+   * player has guestTraits() of its look and an empty pack.
    */
   join(
     nowMs: number,
@@ -235,7 +242,7 @@ export class Room {
       tokens: INPUT_BURST,
       refilledMs: nowMs,
       doorVersion: this.doorVersion,
-      traits: character?.traits ?? GUEST_TRAITS,
+      traits: character?.traits ?? guestTraits(skin),
       pack: character?.pack ?? EMPTY_PACK,
       packChanged: false,
       loot: [],
@@ -321,6 +328,11 @@ export class Room {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
         const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
+        if (player.traits.ranged) {
+          // A ranger's arrow flies from here; the horde's next steps fly it (and give its kill).
+          this.horde.shoot(player.state, player.state.aim, player.traits.range, player.id, player.traits);
+          return;
+        }
         const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id, player.traits);
         for (const mob of struck) {
           if (mob.state !== 'dying') continue;
@@ -346,8 +358,12 @@ export class Room {
   /** Opens a chest for a player, if it can reach it: what fits goes into its pack, the rest stays in the chest. */
   private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
     const fixture = reachableFixture(this.world, player.state, tx, ty);
-    const opened = fixture ? this.spoils.open(fixture, player.pack, player.traits.slots, nowMs) : null;
+    const opened = fixture ? this.spoils.open(fixture, player.pack, player.traits, nowMs) : null;
     if (!opened) return;
+    if (opened === 'locked') {
+      player.loot.push(toWireLoot('locked', { coins: 0, items: [] }, false));
+      return;
+    }
     player.pack = opened.pack;
     if (!lootIsEmpty(opened.taken)) player.packChanged = true;
     player.loot.push(toWireLoot('chest', opened.taken, opened.full));
@@ -366,7 +382,7 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim)]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge]);
     }
     const doors = this.world.openDoorList();
     const forced = this.world.forcedDoorList();
@@ -375,6 +391,7 @@ export class Room {
     const names: [number, string][] = [];
     for (const p of this.players.values()) if (p.name) names.push([p.id, p.name]);
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
+    const arrows: WireArrow[] = (this.horde?.arrows ?? []).map((a) => [a.id, a.owner, round(a.x), round(a.y), aimCode(a.aim)]);
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;
@@ -396,7 +413,7 @@ export class Room {
         t: 'snap',
         ms,
         a: p.seq,
-        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard, aimCode(s.aim)],
+        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard, aimCode(s.aim), s.dodge, s.dodgeCooldown, s.dodgeAim],
         p: others,
         ...(changed ? { doors, fd: forced } : {}),
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
@@ -406,6 +423,7 @@ export class Room {
         ...(renamed ? { names } : {}),
         // The mobs near this player only: the others are far off its screen.
         ...(mobs ? { m: mobs.filter((m) => Math.hypot(m[2] - s.x, m[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
+        ...(arrows.length > 0 ? { ar: arrows.filter((a) => Math.hypot(a[2] - s.x, a[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
       });
     }
   }

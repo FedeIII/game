@@ -1,4 +1,5 @@
 import type { Dialog } from './dialog.ts';
+import type { Gate } from './traits.ts';
 import type { Box } from './world.ts';
 
 /**
@@ -181,6 +182,11 @@ export interface Fixture {
   /** What acting on it shows. Without content, the world's default line for the kind is used. */
   readonly content?: Interaction;
   readonly light?: Light;
+  /**
+   * A lock (a chest that gives loot, loot.ts): only a character whose scores pass the gate opens
+   * it (Dexterity 13: it picks the lock). The lock keeps no state: each opening needs the gate.
+   */
+  readonly lock?: Gate;
 }
 
 /** The tiles that a fixture covers, with the structure code of each. */

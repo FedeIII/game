@@ -44,6 +44,14 @@ const TRINKETS = [
   ['herbs', 3],
 ] as const;
 const CHEST_LOOT: LootTable = { coins: [1, 6], items: [{ chance: 1, pick: TRINKETS }] };
+/** A locked chest keeps more: more coins, and a second thing in about one of three. */
+const LOCKED_CHEST_LOOT: LootTable = {
+  coins: [3, 10],
+  items: [
+    { chance: 1, pick: TRINKETS },
+    { chance: 0.35, pick: TRINKETS },
+  ],
+};
 /** A barred house was shut with its things inside: more coins, and a second thing in one of two. */
 const BARRED_CHEST_LOOT: LootTable = {
   coins: [5, 15],
@@ -263,13 +271,13 @@ export class WildsSource implements WorldSource {
 
   /**
    * The chests of the houses of the wilds give loot (not the home's: that one is the character's
-   * own); the chest of a barred house gives more.
+   * own); a locked chest gives more, and the chest of a barred house the most.
    */
   loot(fixture: Fixture): LootTable | null {
     if (fixture.kind !== 'chest' || inTown(fixture.tx, fixture.ty)) return null;
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;
-    return house.barred ? BARRED_CHEST_LOOT : CHEST_LOOT;
+    return house.barred ? BARRED_CHEST_LOOT : fixture.lock ? LOCKED_CHEST_LOOT : CHEST_LOOT;
   }
 
   /** The people of Thornwick. */

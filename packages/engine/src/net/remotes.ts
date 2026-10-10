@@ -28,10 +28,21 @@ export interface RemotePlayer {
   readonly facing: Facing;
   /** The direction of its attack (radians, as PlayerState.aim). */
   readonly aim: number;
-  /** Ticks left of its attack, its stun and its guard (as in PlayerState), at the time shown. */
+  /** Ticks left of its attack, its stun, its guard and its dodge (as in PlayerState), at the time shown. */
   readonly attack: number;
   readonly stun: number;
   readonly guard: number;
+  readonly dodge: number;
+}
+
+/** An arrow in flight from the server, where the client draws it now. */
+export interface RemoteArrow {
+  readonly id: number;
+  /** The player who shot it. */
+  readonly owner: number;
+  readonly x: number;
+  readonly y: number;
+  readonly aim: number;
 }
 
 /** A mob from the server, where the client draws it now. */
@@ -61,8 +72,10 @@ interface Sample {
   readonly a?: number;
   readonly b?: number;
   readonly c?: number;
-  /** A player's aim code (aimCode). */
+  /** A player's aim code (aimCode), or an arrow's. */
   readonly d?: number;
+  /** A player's dodge (ticks). */
+  readonly e?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -106,6 +119,8 @@ export class Remotes {
   private npcs: Sample[][] = [];
   /** The mobs near the player, by id: their kind and a short history. Null until a snapshot has mobs. */
   private mobs: Map<number, { kind: MobKind; samples: Sample[] }> | null = null;
+  /** The arrows in flight near the player, by id: their shooter and a short history. */
+  private arrows = new Map<number, { owner: number; samples: Sample[] }>();
   /** Recent (local arrival time - server time) values. Their minimum is the least delayed one. */
   private offsets: { localMs: number; offset: number }[] = [];
 
@@ -119,6 +134,7 @@ export class Remotes {
     this.names = new Map();
     this.npcs = [];
     this.mobs = null;
+    this.arrows.clear();
     this.offsets = [];
   }
 
@@ -128,7 +144,7 @@ export class Remotes {
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -138,7 +154,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // A player that is not in the snapshot has left.
@@ -160,6 +176,23 @@ export class Remotes {
       }
       // A mob that is not in the snapshot is gone (dead and done, or far away).
       for (const id of this.mobs.keys()) if (!here.has(id)) this.mobs.delete(id);
+    }
+    if (snapshot.m) {
+      // Arrows come with the mobs: a snapshot of a world with mobs has every arrow near the player.
+      const flying = new Set<number>();
+      for (const [id, owner, x, y, aim] of snapshot.ar ?? []) {
+        flying.add(id);
+        let arrow = this.arrows.get(id);
+        if (!arrow) {
+          arrow = { owner, samples: [] };
+          this.arrows.set(id, arrow);
+        }
+        if (arrow.samples.length > 0 && arrow.samples[arrow.samples.length - 1]!.ms >= snapshot.ms) continue;
+        arrow.samples.push({ ms: snapshot.ms, x, y, vx: 0, vy: 0, facing: 0, d: aim });
+        while (arrow.samples.length > 2 && arrow.samples[1]!.ms < snapshot.ms - HISTORY_MS) arrow.samples.shift();
+      }
+      // An arrow that is not in the snapshot has hit or stopped; it shows until the time shown passes its last sample.
+      for (const [id, arrow] of this.arrows) if (!flying.has(id) && arrow.samples[arrow.samples.length - 1]!.ms < snapshot.ms - HISTORY_MS) this.arrows.delete(id);
     }
     snapshot.n?.forEach(([x, y, vx, vy, facing], i) => {
       const samples = (this.npcs[i] ??= []);
@@ -213,6 +246,19 @@ export class Remotes {
     return out;
   }
 
+  /** The arrows at local time `localMs`, drawn in the past like the mobs; an arrow goes after its last sample. */
+  arrowsAt(localMs: number): RemoteArrow[] {
+    if (this.offsets.length === 0) return [];
+    const t = this.viewTime(localMs);
+    const out: RemoteArrow[] = [];
+    for (const [id, { owner, samples }] of this.arrows) {
+      if (samples.length === 0 || samples[0]!.ms > t || samples[samples.length - 1]!.ms < t) continue;
+      const s = sampleAt(samples, t);
+      out.push({ id, owner, x: s.x, y: s.y, aim: aimFromCode(s.since.d ?? 0) });
+    }
+    return out;
+  }
+
   /** The NPCs at local time `localMs`, in their order, drawn in the past like the players. */
   npcsAt(localMs: number): NpcPose[] {
     if (this.offsets.length === 0) return [];
@@ -246,6 +292,7 @@ export class Remotes {
         attack: ticksAt(since.a, since, t),
         stun: ticksAt(since.b, since, t),
         guard: ticksAt(since.c, since, t),
+        dodge: ticksAt(since.e, since, t),
       });
     }
     return out;

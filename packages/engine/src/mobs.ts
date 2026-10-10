@@ -1,4 +1,5 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
+import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, attackHits, canBeHit, moveAxis, normalAngle, stunPlayer, type Facing, type PlayerState } from './player.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
@@ -170,6 +171,14 @@ export interface MobRules {
 export interface HordePlayer {
   readonly id: number;
   readonly state: PlayerState;
+  /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
+  readonly sight?: number;
+}
+
+/** A mob that an arrow killed, and the player who shot it: the Room gives the drop to that player. */
+export interface ShotKill {
+  readonly mob: Mob;
+  readonly owner: number;
 }
 
 /** A mob walks at most this far from its home while it wanders (world pixels). */
@@ -314,6 +323,11 @@ export class Horde {
   readonly rules: MobRules;
   /** The mobs, the dying ones too. step() and strike() change them. */
   readonly mobs: Mob[] = [];
+  /** The arrows in flight (arrows.ts): step() flies them. */
+  readonly arrows: Arrow[] = [];
+  private nextArrow = 1;
+  /** Mobs that arrows killed since the last takeShotKills(). */
+  private shotKills: ShotKill[] = [];
   private readonly brains = new Map<number, Brain>();
   private readonly random: () => number;
   /** The world for a mob: a tile that a mob may not step on is solid. */
@@ -383,6 +397,7 @@ export class Horde {
     this.populate(dt, players);
     const byId = new Map(players.map((p) => [p.id, p.state]));
     for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
+    this.flyArrows(dt);
     for (const mob of [...this.mobs]) {
       const brain = this.brains.get(mob.id)!;
       mob.stateMs += dt;
@@ -456,7 +471,6 @@ export class Horde {
     blow: Blow = PLAIN_BLOW,
   ): Mob[] {
     const struck: Mob[] = [];
-    let killed = 0;
     for (const mob of this.mobs) {
       if (mob.state === 'dying') continue;
       const radius = MOB_STATS[mob.kind].radius;
@@ -464,30 +478,70 @@ export class Horde {
       const hit =
         attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius) || (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius));
       if (!hit) continue;
-      const brain = this.brains.get(mob.id)!;
-      const dx = mob.x - attacker.x;
-      const dy = mob.y - attacker.y;
-      const d = Math.hypot(dx, dy) || 1;
-      brain.slideX = dx / d;
-      brain.slideY = dy / d;
-      const stats = MOB_STATS[mob.kind];
-      brain.push = stats.knockback * blow.push;
-      brain.reelMs = stats.hurtMs * blow.stagger;
-      mob.health = Math.max(0, mob.health - blow.damage);
+      this.hit(mob, mob.x - attacker.x, mob.y - attacker.y, blow, attackerId);
       struck.push(mob);
-      if (mob.health <= 0) {
-        this.enter(mob, 'dying');
-        killed++;
-        continue;
-      }
-      // It reels, its wind-up or blow broken, and turns on the one who hit it.
-      if (attackerId !== undefined) brain.target = attackerId;
-      brain.lostMs = 0;
-      mob.facing = facingTo(-dx, -dy, mob.facing);
-      this.enter(mob, 'hurt');
     }
-    if (killed > 0) this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
     return struck;
+  }
+
+  /**
+   * A ranger's attack: an arrow from `from` in the direction `aim`, that flies `range` world
+   * pixels (arrows.ts). The next step() flies it; a kill is in takeShotKills().
+   */
+  shoot(from: { readonly x: number; readonly y: number }, aim: number, range: number, ownerId: number, blow: Blow = PLAIN_BLOW): Arrow {
+    const arrow = newArrow(this.nextArrow++, ownerId, from.x, from.y, aim, range, blow);
+    this.arrows.push(arrow);
+    return arrow;
+  }
+
+  /** The mobs that arrows killed since the last call, with their shooters. */
+  takeShotKills(): ShotKill[] {
+    const kills = this.shotKills;
+    this.shotKills = [];
+    return kills;
+  }
+
+  /**
+   * A blow on a mob from the direction (dx, dy): it takes `blow.damage` of its health and pushes
+   * it away; the blow that takes the last of it kills it; another one makes it reel (`hurt`), and
+   * then it goes for the attacker. Returns whether it died.
+   */
+  private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number): boolean {
+    const brain = this.brains.get(mob.id)!;
+    const d = Math.hypot(dx, dy) || 1;
+    brain.slideX = dx / d;
+    brain.slideY = dy / d;
+    const stats = MOB_STATS[mob.kind];
+    brain.push = stats.knockback * blow.push;
+    brain.reelMs = stats.hurtMs * blow.stagger;
+    mob.health = Math.max(0, mob.health - blow.damage);
+    if (mob.health <= 0) {
+      this.enter(mob, 'dying');
+      this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
+      return true;
+    }
+    // It reels, its wind-up or blow broken, and turns on the one who hit it.
+    if (attackerId !== undefined) brain.target = attackerId;
+    brain.lostMs = 0;
+    mob.facing = facingTo(-dx, -dy, mob.facing);
+    this.enter(mob, 'hurt');
+    return false;
+  }
+
+  /** Flies the arrows: each one hits the first living mob on its way, or a thing stops it. */
+  private flyArrows(dtMs: number): void {
+    if (this.arrows.length === 0) return;
+    const living = this.mobs.filter((m) => m.state !== 'dying');
+    const targets = living.map((m) => ({ x: m.x, y: m.y, radius: MOB_STATS[m.kind].radius }));
+    for (const arrow of [...this.arrows]) {
+      const hit = flyArrow(arrow, this.world, dtMs / 1000, targets);
+      if (hit === null) continue;
+      this.arrows.splice(this.arrows.indexOf(arrow), 1);
+      if (hit < 0) continue;
+      const mob = living[hit]!;
+      if (mob.state === 'dying') continue;
+      if (this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner)) this.shotKills.push({ mob, owner: arrow.owner });
+    }
   }
 
   /** What a mob that a blow just killed drops into its killer's pack (MOB_LOOT), from the horde's own random numbers. */
@@ -523,7 +577,7 @@ export class Horde {
     let bestD = Infinity;
     for (const p of players) {
       const d = Math.hypot(p.state.x - mob.x, p.state.y - mob.y);
-      if (d < bestD && this.sees(mob, p.state)) {
+      if (d < bestD && this.sees(mob, p.state, MOB_STATS[mob.kind].sight * (p.sight ?? 1))) {
         best = p;
         bestD = d;
       }

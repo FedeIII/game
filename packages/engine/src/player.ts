@@ -16,6 +16,8 @@ export interface MoveInput {
    * so the server repeats the same step.
    */
   readonly attack?: number;
+  /** A dodge (a roll) in this tick, the way the input moves (or the way the player faces). */
+  readonly dodge?: boolean;
 }
 
 export const NO_INPUT: MoveInput = { x: 0, y: 0 };
@@ -40,13 +42,32 @@ export interface PlayerState {
   stun: number;
   /** Ticks left after a stun in which no mob can hit the player again. */
   guard: number;
+  /** Ticks left of a dodge (0: none): the player rolls, and no mob can hit it. */
+  dodge: number;
+  /** Ticks before the player can dodge again. */
+  dodgeCooldown: number;
+  /** The direction of the dodge in progress or of the last one (radians). */
+  dodgeAim: number;
 }
 
 /** An attack lasts this many ticks (0.3 s); a new one can start this many ticks after the last. */
 export const ATTACK_TICKS = 18;
 export const ATTACK_COOLDOWN_TICKS = 27;
-/** After a stun, mobs cannot hit the player for this many ticks (1 s). */
+/** After a stun, mobs cannot hit the player for this many ticks (1 s). Dexterity changes it (traits.ts). */
 export const GUARD_TICKS = 60;
+/**
+ * A dodge is a roll of DODGE_DISTANCE world pixels in DODGE_TICKS ticks (2 tiles in 0.25 s:
+ * faster than an imp), in which no mob can hit the player. The next can start DODGE_COOLDOWN_TICKS
+ * after it starts (1.6 s; Dexterity changes it).
+ */
+export const DODGE_TICKS = 15;
+export const DODGE_DISTANCE = 32;
+export const DODGE_COOLDOWN_TICKS = 96;
+/**
+ * A player that walks at this share of PLAYER_SPEED or slower, or stands, sneaks: mobs see it from
+ * half as far (mobs.ts, HordePlayer.sight).
+ */
+export const SNEAK_SPEED = 0.5;
 /** An attack hits a mob whose centre is this close (plus the mob's radius), in front of the player. */
 export const ATTACK_REACH = 22;
 /** "In front": at most this angle (radians) from the side that the attack goes to. */
@@ -62,9 +83,12 @@ export interface PlayerMap extends SolidMap {
   ground?(tx: number, ty: number): Ground;
 }
 
-/** What stepPlayer() needs of the traits of a player. Without traits: a player who cannot wade. */
-export type StepTraits = Pick<PlayerTraits, 'wade'>;
-const NO_WADE: StepTraits = { wade: false };
+/**
+ * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
+ * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS.
+ */
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown'>>;
+const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
 export function inShallows(world: PlayerMap, x: number, y: number): boolean {
@@ -89,17 +113,27 @@ export const PLAYER_HALF_WIDTH = 5;
 export const PLAYER_HALF_HEIGHT = 3;
 
 export function createPlayer(x: number, y: number): PlayerState {
-  return { x, y, vx: 0, vy: 0, facing: 'down', aim: facingAngle('down'), attack: 0, cooldown: 0, stun: 0, guard: 0 };
+  return { x, y, vx: 0, vy: 0, facing: 'down', aim: facingAngle('down'), attack: 0, cooldown: 0, stun: 0, guard: 0, dodge: 0, dodgeCooldown: 0, dodgeAim: 0 };
 }
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.stun === 0 && player.attack === 0 && player.cooldown === 0;
+  return player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
 }
 
-/** Whether a mob can hit the player now: not stunned, and not just after a stun. */
+/** Whether the player can start a dodge in its next tick (not in shallow water: see stepPlayer). */
+export function canDodge(player: PlayerState): boolean {
+  return player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0;
+}
+
+/** Whether a mob can hit the player now: not stunned, not just after a stun, and not in a dodge. */
 export function canBeHit(player: PlayerState): boolean {
-  return player.stun === 0 && player.guard === 0;
+  return player.stun === 0 && player.guard === 0 && player.dodge === 0;
+}
+
+/** Whether the player sneaks: it stands or walks slowly (SNEAK_SPEED), and it does not strike or roll. */
+export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge'>): boolean {
+  return player.attack === 0 && player.dodge === 0 && Math.hypot(player.vx, player.vy) <= PLAYER_SPEED * SNEAK_SPEED + 0.01;
 }
 
 /** A hit: the player stops, its attack ends, and it cannot act for `ticks` ticks. */
@@ -151,8 +185,10 @@ export function clampInput(input: MoveInput): MoveInput {
   const x = Number.isFinite(input.x) ? input.x : 0;
   const y = Number.isFinite(input.y) ? input.y : 0;
   const length = Math.hypot(x, y);
-  const move = length > 1 ? { x: x / length, y: y / length } : { x, y };
-  return input.attack !== undefined && Number.isFinite(input.attack) ? { ...move, attack: normalAngle(input.attack) } : move;
+  const move: { x: number; y: number; attack?: number; dodge?: boolean } = length > 1 ? { x: x / length, y: y / length } : { x, y };
+  if (input.attack !== undefined && Number.isFinite(input.attack)) move.attack = normalAngle(input.attack);
+  if (input.dodge === true) move.dodge = true;
+  return move;
 }
 
 /**
@@ -241,16 +277,22 @@ export function resumePoint(
  * does not attack there. Returns true if an attack starts in this tick: the caller finds what it
  * hits (a client alone, or the server).
  */
-export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = NO_WADE, dt = TICK_SECONDS): boolean {
+export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
+  if (player.dodgeCooldown > 0) player.dodgeCooldown--;
   if (player.stun > 0) {
     player.stun--;
-    if (player.stun === 0) player.guard = GUARD_TICKS;
+    if (player.stun === 0) player.guard = traits.guard ?? GUARD_TICKS;
     player.vx = 0;
     player.vy = 0;
     return false;
   }
   if (player.guard > 0) player.guard--;
+  const solid = traits.wade ? wadeMap(world) : world;
+  if (player.dodge > 0) {
+    roll(player, world, solid, dt);
+    return false;
+  }
   if (player.attack > 0) {
     player.attack--;
     player.vx = 0;
@@ -258,10 +300,19 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     return false;
   }
   const move = clampInput(input);
-  const wading = traits.wade && inShallows(world, player.x, player.y);
+  const wading = traits.wade === true && inShallows(world, player.x, player.y);
+  if (move.dodge && player.dodgeCooldown === 0 && !wading) {
+    // A roll the way the input moves, or the way the player faces when it stands.
+    player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : facingAngle(player.facing);
+    player.facing = facingOfAngle(player.dodgeAim);
+    player.dodge = DODGE_TICKS;
+    player.dodgeCooldown = traits.dodgeCooldown ?? DODGE_COOLDOWN_TICKS;
+    roll(player, world, solid, dt);
+    return false;
+  }
   if (move.attack !== undefined && player.cooldown === 0 && !wading) {
     player.attack = ATTACK_TICKS;
-    player.cooldown = ATTACK_COOLDOWN_TICKS;
+    player.cooldown = traits.cooldown ?? ATTACK_COOLDOWN_TICKS;
     player.aim = move.attack;
     player.facing = facingOfAngle(move.attack);
     player.vx = 0;
@@ -273,8 +324,18 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   player.vy = move.y * speed;
   player.facing = facingFor(player.facing, move);
   // One axis at a time, so the player slides along a wall instead of a full stop.
-  const solid = traits.wade ? wadeMap(world) : world;
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);
   return false;
+}
+
+/** One tick of a dodge: fast along its direction; walls stop it, and shallow water ends it. */
+function roll(player: PlayerState, world: PlayerMap, solid: SolidMap, dt: number): void {
+  player.dodge--;
+  const speed = DODGE_DISTANCE / (DODGE_TICKS * TICK_SECONDS);
+  player.vx = Math.cos(player.dodgeAim) * speed;
+  player.vy = Math.sin(player.dodgeAim) * speed;
+  moveAxis(player, solid, player.vx * dt, 0);
+  moveAxis(player, solid, 0, player.vy * dt);
+  if (inShallows(world, player.x, player.y)) player.dodge = 0;
 }

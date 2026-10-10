@@ -152,8 +152,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
   form field are ignored), `joystick.ts` (floating touch stick) and `mouse.ts` (the mouse over
-  `#game`: where it points, and a left click on the world, which attacks towards it; over the
-  world the system cursor hides (class `own-cursor`) and `render/cursor.ts` draws the game's).
+  `#game`: where it points, a left click on the world, which attacks towards it, and a right
+  click, a dodge; over the world the system cursor hides (class `own-cursor`) and
+  `render/cursor.ts` draws the game's).
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
@@ -208,7 +209,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   shield, a druid's antlers, a ranger's bow and quiver, a wizard's pointed hat). The gender gives
   the shoulders, beards and the hair; the variant picks the rest. Thus every race, class and
   gender has 2^23 looks. `Skin` is `{ seed, appearance, spec, palette }`.
-  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack) frames of 56 x 56
+  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -242,18 +243,21 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   the eyes go dark. Preview the frames when you change a model: poses that look right in one
   view can hide the head in another.
 - `attacks.ts`: how each skin attacks. `attackStyle(class, spec)`: a sword, an axe or a mace
-  slashes (a bard's rapier thrusts), a dagger thrusts (a rogue, a ranger), a staff bashes with
+  slashes (a bard's rapier thrusts), a dagger thrusts (a rogue), a bow shoots (a ranger: the bow
+  held out, the string drawn to the chin, the release; the engine flies the arrow), a staff bashes with
   both hands, an orb staff casts a spell, a lantern throws flame; without an item a sorcerer or a
   warlock casts from the hands and a monk strikes with the palm. A caster's spell takes the
   colour of its `palette.glass` (sorcerer fire, warlock green or violet, wizard blue, druid
   green). Each style has four poses (`attackAction`: arm directions, a lean, the weapon
   in the hand, as a `FigureAction` for `figure()`), rendered as the attack frames of a skin sheet
-  and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All attacks reach as far:
-  only the look differs.
+  and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All melee attacks reach as
+  far: only the look differs. The roll of a dodge: `rollPose()` and `rollParts()` (four frames: the
+  figure tucked, `FigureAction.tuck`, and turned forward round its middle by `tumble()` in
+  `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
-  (`fx/star`). `fxPlacement()` (`attacks.ts`) gives the 16 directions: a drawn turn, then a
+  (`fx/star`), and the arrow in flight (`fx/arrow/<turn>`, tinted `ARROW_TINT`). `fxPlacement()` (`attacks.ts`) gives the 16 directions: a drawn turn, then a
   mirror and quarter turns, which keep the pixel grid. Do not rotate an effect by another angle.
   Also the ripple round a player in shallow water (`fx/ripple/<0-3>`, in its own colours).
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, shallow water,
@@ -292,7 +296,8 @@ For the HTML GUI:
 - Colours and fonts come only from the theme variables at the top of `src/style.css`: dark
   translucent panel, thin dried-blood-red border, 2 px corners, parchment text, wine-red accent
   with a soft glow for "active", Georgia serif for words, monospace for numbers.
-- Bottom left: the joystick at rest. Bottom right: the action button. Bottom centre, above
+- Bottom left: the joystick at rest. Bottom right: the action button, left of it the attack
+  button, left of that the dodge button (a world with mobs). Bottom centre, above
   them: the link card. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
@@ -376,7 +381,7 @@ gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
-one ability at a time (Strength is done; Dexterity, Constitution, Intelligence, Wisdom and
+one ability at a time (Strength and Dexterity are done; Constitution, Intelligence, Wisdom and
 Charisma come next). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
 character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
 a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
@@ -407,10 +412,36 @@ roll of a die.
   again 30 minutes after it was emptied. A forced door gets its boards again after 30 minutes with
   nobody within 30 tiles, and the chest of its house fills again then (only then).
 
+- **Dexterity**: the time between attacks (`cooldown`: 27 - 2 x mod ticks), the guard after a hit
+  (`guard`: 60 + 9 x mod), the time between dodges (`dodgeCooldown`: 96 - 12 x mod), how far mobs
+  see the player (`sight`: 1 - 0.08 x mod, half of that while it sneaks: `sightOf()`), the range of
+  a ranger's arrows (`range`: 5 + mod tiles; `ranged` for a ranger only), and a gate of 13 for
+  locked chests (`PICK_GATE`, `Fixture.lock`).
+- **The dodge** (`player.ts`): `MoveInput.dodge` starts a roll of 32 px in 15 ticks (0.25 s) the
+  way the input moves (or the way the player faces), in which no mob can hit (`canBeHit`); walls
+  stop it, and it does not start in shallow water (it ends there). Shift, the right mouse button
+  or the dodge button (`ui/dodge-button.ts`).
+- **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
+  turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
+  within their sight times `HordePlayer.sight`. On purpose (a slow walk, not standing still) the
+  torch is smaller (96, others' 48) and the figure a little darker. When stamina exists (CON),
+  sneaking uses it too (Fede's note, 2026-10-10).
+- **Arrows** (`arrows.ts`): a ranger's every attack is an arrow (`Horde.shoot()`), 240 px/s, that
+  hits the first living mob on its way (the damage and force of the ranger's blow) or stops at a
+  thing (`World.shotBox()`: what is solid, except water) or at the end of its range; a kill is in
+  `Horde.takeShotKills()`, and the drop goes to the shooter. The page of the shooter flies its own
+  copy at once (`flyArrow()`) and shows the hit; the others draw the server's (`ar` in the
+  snapshot, `render/arrows.ts`).
+- **Locked chests**: one chest in three of the Wilds houses that are not barred has a lock (DEX
+  13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
+  open."), never for one without ("It is locked. I cannot pick it."); it gives more (3 to 10
+  coins, a second thing in about one of three).
+
 In the client: the builder (step 2) and the "You" section show the traits in words and numbers
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
-door". The protocol: `docs/multiplayer.md`, protocol 11.
+door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
+protocol: `docs/multiplayer.md`, protocol 12.
 
 ## Arrival in a world
 
@@ -479,10 +510,10 @@ single-player world runs its own `Horde`; in a shared world the server runs it (
 and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
 lunge, the attack frames of the skin and the effect of its style, in the colour of the style (a
 spell in the colour of the skin's orb; spells, flames and palms glow and give a short light),
-the red flash of a hit, stars over the head while stunned, a blink while guarded) and
-`ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A left click on the
+the red flash of a hit, stars over the head while stunned, a blink while guarded, the roll of a
+dodge) and `ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A left click on the
 world attacks towards the mouse pointer, from the player's chest (`input/mouse.ts`). A press is
-kept for 150 ms. The button and Space aim at the nearest mob in reach, else the way the player
+kept for 150 ms. The button and Space aim at the nearest mob in reach (for a ranger, in the range of its arrows), else the way the player
 walks or faces. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
 player at the start (single-player worlds, so the Wilds with `?offline`); `?nomobs` turns them off.
 
@@ -691,7 +722,8 @@ closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.s
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
-`fight` in a world with mobs; `traits` (what the scores give, and `(wading)`) and `pack`; `doors`
+`fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
+Dexterity traits, the dodge ticks, sneaking, the arrows in flight) and `pack`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),

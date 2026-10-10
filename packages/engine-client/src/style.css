@@ -222,6 +222,38 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden])) #h
     box-shadow 0.2s;
 }
 
+#dodge {
+  position: fixed;
+  right: calc(var(--ui-margin) + 2 * (64px + 14px) + env(safe-area-inset-right));
+  bottom: calc(var(--ui-margin) + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  opacity: 0.4;
+  cursor: pointer;
+  touch-action: none;
+}
+
+#dodge.ready {
+  border-color: var(--ui-accent);
+  opacity: 0.9;
+}
+
+#dodge:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 14px var(--ui-accent-glow);
+}
+
+#dodge .action-key {
+  min-width: 34px;
+}
+
 #attack.ready {
   border-color: var(--ui-accent);
   opacity: 0.9;
@@ -686,6 +718,7 @@ body:has(#pack-button) #worlds-button {
 
 body.conversing #action,
 body.conversing #attack,
+body.conversing #dodge,
 body.conversing #stick,
 body.conversing #link-card {
   visibility: hidden;

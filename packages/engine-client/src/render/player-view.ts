@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, facingAngle, type Facing } from '@game/engine';
+import { ATTACK_TICKS, DODGE_TICKS, facingAngle, type Facing } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -29,7 +29,12 @@ export const ATTACK_TINT: Readonly<Record<AttackStyle, number>> = {
   miasma: 0x8fcf6a,
   palm: 0xffd890,
   punch: 0xeadfcf,
+  shoot: 0xe8e0d0,
 };
+/** The colour of an arrow in flight (render/arrows.ts). */
+export const ARROW_TINT = 0xc8b48c;
+/** A player that sneaks is a little darker (and its torch smaller: game.ts). */
+const SNEAK_TINT = 0x9a948e;
 /** Effects that glow (added to what is under them), and give a little light. */
 const GLOWING: ReadonlySet<AttackStyle> = new Set(['spell', 'flame', 'palm']);
 /** A hit: the body flashes red for this long (ms); then it is a little grey while stunned. */
@@ -60,6 +65,10 @@ export interface PlayerPose {
   readonly guard?: number;
   /** Whether it stands in shallow water (inShallows). */
   readonly wading?: boolean;
+  /** Ticks left of a dodge (a roll), as in PlayerState. */
+  readonly dodge?: number;
+  /** Whether it sneaks (a slow walk): it shows a little darker. */
+  readonly sneaking?: boolean;
 }
 
 /** The frames of one look of the player: a stand, a walk and an attack for each facing. */
@@ -67,6 +76,8 @@ export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
   readonly attack: Readonly<Record<Facing, readonly Texture[]>>;
+  /** The frames of a roll (a dodge). */
+  readonly roll: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -76,12 +87,14 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const stand = {} as Record<Facing, Texture>;
   const walk = {} as Record<Facing, Texture[]>;
   const attack = {} as Record<Facing, Texture[]>;
+  const roll = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
     attack[facing] = art.variants(`player/${facing}/attack`);
+    roll[facing] = art.variants(`player/${facing}/roll`);
   }
-  return { stand, walk, attack, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -203,7 +216,13 @@ export class PlayerView {
     const speed = Math.hypot(state.vx, state.vy);
     let texture: Texture;
     const attack = state.attack ?? 0;
-    if (attack > 0) {
+    const dodge = state.dodge ?? 0;
+    if (dodge > 0) {
+      // The roll, by the ticks since the dodge started.
+      const frames = this.textures.roll[state.facing];
+      texture = frames[Math.min(frames.length - 1, Math.floor(((DODGE_TICKS - 1 - dodge) * frames.length) / (DODGE_TICKS - 1)))]!;
+      this.travelled = 0;
+    } else if (attack > 0) {
       // The attack frames, by the ticks since the attack started.
       const elapsed = ATTACK_TICKS - attack;
       const frame = BODY_FRAME_ENDS.findIndex((end) => elapsed < end);
@@ -276,7 +295,7 @@ export class PlayerView {
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
     this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge) + (this.wading ? WADE_DEPTH : 0));
     if (!this.pending) {
-      this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : 0xffffff;
+      this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;
     }
     // The guard after a stun: the player blinks, so everyone sees that mobs cannot hit it now.

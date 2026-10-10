@@ -1,4 +1,4 @@
-import { FORCE_GATE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { FORCE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -16,6 +16,12 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.slots, t.slotsValue(traits.slots)],
     [t.wade, gate(WADE_GATE, t.wadeYes)],
     [t.force, gate(FORCE_GATE, t.forceYes)],
+    [t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)],
+    [t.guard, t.seconds(traits.guard * TICK_SECONDS)],
+    [t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)],
+    [t.sight, t.sightValue(traits.sight, traits.sight * SNEAK_SIGHT)],
+    ...(traits.ranged ? ([[t.range, t.rangeValue(traits.range / TILE_SIZE)]] as [string, string][]) : []),
+    [t.pick, gate(PICK_GATE, t.pickYes)],
   ];
   const list = document.createElement('dl');
   list.className = 'traits';

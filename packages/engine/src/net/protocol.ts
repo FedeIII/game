@@ -11,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -83,23 +83,28 @@ export function aimFromCode(code: number): number {
 }
 
 /**
- * An input on the wire: each axis as a whole number from -100 to 100, and for an attack a third
- * number, 1 + the code of its direction (aimCode). The client applies the input that it sends,
- * not the one that it read, so the server can repeat the same step.
+ * An input on the wire: each axis as a whole number from -100 to 100; for an attack a third
+ * number, 1 + the code of its direction (aimCode), or 0 for none; for a dodge a fourth number, 1.
+ * The client applies the input that it sends, not the one that it read, so the server can repeat
+ * the same step.
  */
-export type WireInput = readonly [number, number] | readonly [number, number, number];
+export type WireInput = readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number];
 
 const INPUT_SCALE = 100;
 
 export function toWireInput(input: MoveInput): WireInput {
   const q = (v: number) => Math.max(-INPUT_SCALE, Math.min(INPUT_SCALE, Math.round(v * INPUT_SCALE)));
-  const attack = clampInput(input).attack;
-  return attack !== undefined ? [q(input.x), q(input.y), 1 + aimCode(attack)] : [q(input.x), q(input.y)];
+  const { attack, dodge } = clampInput(input);
+  const a = attack !== undefined ? 1 + aimCode(attack) : 0;
+  if (dodge) return [q(input.x), q(input.y), a, 1];
+  return a > 0 ? [q(input.x), q(input.y), a] : [q(input.x), q(input.y)];
 }
 
 export function fromWireInput(wire: WireInput): MoveInput {
-  const move = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
-  return clampInput(wire.length === 3 ? { ...move, attack: aimFromCode(wire[2] - 1) } : move);
+  const move: { x: number; y: number; attack?: number; dodge?: boolean } = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
+  if (wire.length >= 3 && wire[2]! > 0) move.attack = aimFromCode(wire[2]! - 1);
+  if (wire.length === 4 && wire[3] === 1) move.dodge = true;
+  return clampInput(move);
 }
 
 // ---------------------------------------------------------------- client to server
@@ -181,13 +186,19 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 
 /**
  * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard, aim
- * code]: attack, stun and guard are the ticks left, as in PlayerState; the aim code is the
- * direction of its attack (aimCode). Positions to 0.1 px.
+ * code, dodge]: attack, stun, guard and dodge are the ticks left, as in PlayerState; the aim code
+ * is the direction of its attack (aimCode). Positions to 0.1 px.
  */
-export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number];
+export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number];
 
-/** A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code]. */
-export type WireSelf = readonly [number, number, number, number, number, number, number, number, number, number];
+/**
+ * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
+ * dodge, dodge cooldown, dodge direction (radians, exact)].
+ */
+export type WireSelf = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number];
+
+/** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
+export type WireArrow = readonly [number, number, number, number, number];
 
 /** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state, health left]. Positions to 0.1 px. */
 export type WireMob = readonly [number, number, number, number, number, number, number, number, number, number];
@@ -247,13 +258,17 @@ export function fromWirePack(wire: WirePack): Pack {
 
 /**
  * Loot that the player got: [source, coins, stacks, full]. Source 0: a chest that it opened (no
- * coins and no stacks: the chest is empty); 1: what a mob that it killed dropped. Full 1: the
- * pack is full, and something stayed in the chest or was lost.
+ * coins and no stacks: the chest is empty); 1: what a mob that it killed dropped; 2: a chest with
+ * a lock that the player could not pick (no loot). Full 1: the pack is full, and something stayed
+ * in the chest or was lost.
  */
-export type WireLoot = readonly [0 | 1, number, WireStacks, 0 | 1];
+export type WireLoot = readonly [0 | 1 | 2, number, WireStacks, 0 | 1];
 
-export function toWireLoot(source: 'chest' | 'drop', loot: Loot, full: boolean): WireLoot {
-  return [source === 'chest' ? 0 : 1, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
+export const LOOT_SOURCES = ['chest', 'drop', 'locked'] as const;
+export type LootSource = (typeof LOOT_SOURCES)[number];
+
+export function toWireLoot(source: LootSource, loot: Loot, full: boolean): WireLoot {
+  return [LOOT_SOURCES.indexOf(source) as 0 | 1 | 2, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
 }
 
 /** The reply to hello: who the player is, where it starts, which doors are open and forced, and its pack. */
@@ -286,6 +301,8 @@ export interface SnapshotMessage {
   readonly pk?: WirePack;
   /** The loot that the player got since the last snapshot. */
   readonly l?: readonly WireLoot[];
+  /** In a world with mobs: the arrows in flight near this player (within MOB_SEND_RADIUS). */
+  readonly ar?: readonly WireArrow[];
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
   readonly n?: readonly WireNpc[];
   /**
@@ -366,7 +383,13 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (!isInt(m.s, 1, SEQ_LIMIT) || !Array.isArray(m.i) || m.i.length < 1 || m.i.length > MAX_INPUTS_PER_MESSAGE) return null;
       const inputShaped = (v: unknown) =>
         isPair(v, -INPUT_SCALE, INPUT_SCALE) ||
-        (Array.isArray(v) && v.length === 3 && isInt(v[0], -INPUT_SCALE, INPUT_SCALE) && isInt(v[1], -INPUT_SCALE, INPUT_SCALE) && isInt(v[2], 1, AIM_STEPS));
+        (Array.isArray(v) && v.length === 3 && isInt(v[0], -INPUT_SCALE, INPUT_SCALE) && isInt(v[1], -INPUT_SCALE, INPUT_SCALE) && isInt(v[2], 1, AIM_STEPS)) ||
+        (Array.isArray(v) &&
+          v.length === 4 &&
+          isInt(v[0], -INPUT_SCALE, INPUT_SCALE) &&
+          isInt(v[1], -INPUT_SCALE, INPUT_SCALE) &&
+          isInt(v[2], 0, AIM_STEPS) &&
+          v[3] === 1);
       if (!m.i.every(inputShaped)) return null;
       const inputs = m.i as WireInput[];
       let attacks: WireAttack[] | undefined;

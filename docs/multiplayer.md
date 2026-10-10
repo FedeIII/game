@@ -65,6 +65,20 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## Dexterity: the dodge, arrows, sneaking and locks (protocol 12, 2026-10-10)
+
+- The input has a dodge: `[x, y, attack, 1]` (attack 0: none). `stepPlayer(..., traits)` rolls,
+  on the page and in the Room, with the Dexterity of the stored character (its cooldowns and
+  guard too). `WireSelf` carries the dodge ticks, the dodge cooldown and the exact direction of
+  the dodge, so the prediction replays a roll exactly; `WirePlayer` carries the dodge ticks.
+- A ranger's attack is an arrow: the Room flies it in its Horde (`Horde.shoot()`, `flyArrow()`),
+  and its kill drops into the shooter's pack. The snapshots carry the arrows near the player
+  (`ar`: id, shooter, x, y, aim code); a page draws the others' arrows from them, and flies its
+  own copy at once (it skips its own in `ar`).
+- Mobs see a player within their sight times `sightOf(traits, state)`: its Dexterity, and half
+  while it sneaks (the Room reads it from the true state).
+- A locked chest that the player cannot pick: the server answers `l` with source 2.
+
 ## Strength: traits, barred doors, chests and the pack (protocol 11, 2026-10-10)
 
 The ability scores do things in the game (see `docs/drafts/abilities.md` and CLAUDE.md, "Ability
@@ -207,7 +221,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":11,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":12,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 

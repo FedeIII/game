@@ -81,7 +81,7 @@ describe('player skins', () => {
     expect([...styles('cleric')]).toEqual(['slash']);
     expect([...styles('bard')]).toEqual(['thrust']);
     expect([...styles('rogue')]).toEqual(['thrust']);
-    expect([...styles('ranger')]).toEqual(['thrust']);
+    expect([...styles('ranger')]).toEqual(['shoot']);
     expect([...styles('monk')]).toEqual(['palm']);
     expect([...styles('sorcerer')]).toEqual(['spell']);
     expect([...styles('warlock')]).toEqual(['spell']);

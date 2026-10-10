@@ -12,10 +12,16 @@ import {
   random,
   traitsOf,
   useDoor,
+  PLAIN_SCORES,
   type Ability,
+  type Fixture,
+  type Opened,
+  type Pack,
 } from '../src/index.ts';
 import { LOOT_CHEST, lootHouseSource } from './helpers.ts';
 
+/** Opens a chest with a pack of `slots` slots, with every score 10. */
+const open = (spoils: Spoils, fixture: Fixture, pack: Pack, slots: number, nowMs: number) => spoils.open(fixture, pack, { scores: PLAIN_SCORES, slots }, nowMs) as Opened;
 const withStr = (str: number) => traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter');
 /** Someone at the door of the house (5, 6), and someone far away. */
 const AT_DOOR = { x: 5 * TILE_SIZE + 8, y: 7 * TILE_SIZE + 4 };
@@ -24,32 +30,32 @@ const FAR = { x: (REBAR_RADIUS + 10) * TILE_SIZE, y: 0 };
 describe('a chest', () => {
   it('gives its loot once, then it is empty, and it fills again after REFILL_MS', () => {
     const spoils = new Spoils(new World(lootHouseSource()), random(1));
-    const first = spoils.open(LOOT_CHEST, EMPTY_PACK, 6, 0)!;
+    const first = open(spoils, LOOT_CHEST, EMPTY_PACK, 6, 0);
     expect(first.taken).toEqual({ coins: 3, items: [{ kind: 'ring', count: 1 }] });
     expect(first.pack).toEqual({ coins: 3, items: [{ kind: 'ring', count: 1 }] });
     expect(first.full).toBe(false);
-    expect(spoils.open(LOOT_CHEST, first.pack, 6, 1000)!.taken).toEqual({ coins: 0, items: [] });
+    expect(open(spoils, LOOT_CHEST, first.pack, 6, 1000).taken).toEqual({ coins: 0, items: [] });
     spoils.tick(REFILL_MS - 1, []);
-    expect(spoils.open(LOOT_CHEST, first.pack, 6, REFILL_MS - 1)!.taken.coins).toBe(0);
+    expect(open(spoils, LOOT_CHEST, first.pack, 6, REFILL_MS - 1).taken.coins).toBe(0);
     spoils.tick(REFILL_MS + 1000, []);
-    expect(spoils.open(LOOT_CHEST, first.pack, 6, REFILL_MS + 1000)!.taken.coins).toBe(3);
+    expect(open(spoils, LOOT_CHEST, first.pack, 6, REFILL_MS + 1000).taken.coins).toBe(3);
   });
 
   it('keeps what does not fit in a full pack', () => {
     const spoils = new Spoils(new World(lootHouseSource()), random(1));
     const full = { coins: 0, items: [{ kind: 'cup' as const, count: 1 }] };
-    const opened = spoils.open(LOOT_CHEST, full, 1, 0)!;
+    const opened = open(spoils, LOOT_CHEST, full, 1, 0);
     expect(opened.taken).toEqual({ coins: 3, items: [] });
     expect(opened.full).toBe(true);
     // With room, the ring that stayed in it comes out.
-    expect(spoils.open(LOOT_CHEST, opened.pack, 2, 10)!.taken).toEqual({ coins: 0, items: [{ kind: 'ring', count: 1 }] });
+    expect(open(spoils, LOOT_CHEST, opened.pack, 2, 10).taken).toEqual({ coins: 0, items: [{ kind: 'ring', count: 1 }] });
   });
 
   it('is not a source of loot without a loot table', () => {
     const spoils = new Spoils(new World(lootHouseSource()), random(1));
     expect(spoils.isSource(LOOT_CHEST)).toBe(true);
     expect(spoils.isSource({ kind: 'barrel', tx: 3, ty: 3 })).toBe(false);
-    expect(spoils.open({ kind: 'barrel', tx: 3, ty: 3 }, EMPTY_PACK, 6, 0)).toBeNull();
+    expect(open(spoils, { kind: 'barrel', tx: 3, ty: 3 }, EMPTY_PACK, 6, 0)).toBeNull();
   });
 });
 
@@ -75,11 +81,11 @@ describe('a barred door', () => {
     const spoils = new Spoils(world, random(2));
     useDoor(world, createPlayer(AT_DOOR.x, AT_DOOR.y), 5, 6, [], withStr(14));
     spoils.tick(0, [AT_DOOR]);
-    const looted = spoils.open(LOOT_CHEST, EMPTY_PACK, 6, 0)!;
+    const looted = open(spoils, LOOT_CHEST, EMPTY_PACK, 6, 0);
     expect(looted.taken.coins).toBe(3);
     // A chest in a barred house does not fill by itself.
     spoils.tick(REFILL_MS + 1000, [AT_DOOR]);
-    expect(spoils.open(LOOT_CHEST, looted.pack, 6, REFILL_MS + 1000)!.taken.coins).toBe(0);
+    expect(open(spoils, LOOT_CHEST, looted.pack, 6, REFILL_MS + 1000).taken.coins).toBe(0);
     // While someone is near, the boards do not come back.
     expect(spoils.tick(REFILL_MS + REBAR_MS, [AT_DOOR])).toBe(false);
     expect(world.doorBar(5, 6)).toBeNull();
@@ -89,6 +95,6 @@ describe('a barred door', () => {
     expect(spoils.tick(last + REBAR_MS + 1000, [FAR])).toBe(true);
     expect(world.doorBar(5, 6)).toEqual({ ability: 'str', min: 13 });
     expect(world.isDoorOpen(5, 6)).toBe(false);
-    expect(spoils.open(LOOT_CHEST, looted.pack, 6, last + REBAR_MS + 2000)!.taken.coins).toBe(3);
+    expect(open(spoils, LOOT_CHEST, looted.pack, 6, last + REBAR_MS + 2000).taken.coins).toBe(3);
   });
 });

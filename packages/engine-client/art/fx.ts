@@ -223,6 +223,36 @@ function impact(c: Canvas, t: number): Image {
   return c.image;
 }
 
+/** The release of a bow: a small flash at the bow, and short lines of the string's snap. */
+function twang(c: Canvas, t: number): Image {
+  const step = Math.round(t * 4);
+  if (step === 1) return c.image;
+  const fade = [0, 1, 0.75, 0.35][step - 1] ?? 0.35;
+  c.plot(7, 0, 255, fade);
+  for (const [dx, dy] of [
+    [6, -2],
+    [6, 2],
+    [9, -1],
+    [9, 1],
+  ] as const) {
+    if (step >= 3 || Math.abs(dy) < 2) c.plot(dx + (step - 2), dy * (step === 4 ? 2 : 1), 200, fade * 0.8);
+  }
+  return c.image;
+}
+
+/** An arrow in flight, facing right: a pale head, the shaft, and the fletching (the game tints it). */
+function arrow(c: Canvas): Image {
+  for (let dx = -5; dx <= 3; dx++) c.plot(dx, 0, 150, 1);
+  c.plot(4, 0, 245, 1);
+  c.plot(3, -1, 210, 1);
+  c.plot(3, 1, 210, 1);
+  for (const dx of [-6, -5]) {
+    c.plot(dx, -1, 190, 1);
+    c.plot(dx, 1, 190, 1);
+  }
+  return c.image;
+}
+
 const DRAW: Readonly<Record<AttackStyle, (c: Canvas, t: number) => Image>> = {
   slash: (c, t) => sweep(c, t, 15, 3.2, -1.05, 1.05),
   thrust: streak,
@@ -232,6 +262,7 @@ const DRAW: Readonly<Record<AttackStyle, (c: Canvas, t: number) => Image>> = {
   miasma: cloud,
   palm: wave,
   punch: impact,
+  shoot: twang,
 };
 
 /** A small four-pointed star. */
@@ -310,6 +341,8 @@ export function fxFrames(): Frame[] {
     }
   }
   frames.push({ name: 'fx/star', image: star(), anchor: { x: 0.5, y: 0.5 } });
+  // An arrow in flight: one drawing for each turn, placed as the effects are (fxPlacement).
+  for (let turn = 0; turn < FX_TURNS; turn++) frames.push(cropped(`fx/arrow/${turn}`, arrow(new Canvas(turn))));
   frames.push(...ripples());
   return frames;
 }
