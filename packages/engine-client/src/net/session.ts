@@ -146,6 +146,8 @@ export class NetSession {
 
   /** The chunks that the character has seen, in the server's word: "cx,cy". */
   readonly explored = new Set<string>();
+  /** The ids of the mobs that hunt this player now (the last snapshot; Wisdom marks those out of view). */
+  hunters: ReadonlySet<number> = new Set();
 
   /** Calls `listener` with each loot that the server gives the player. */
   onLoot(listener: (loot: NetLoot) => void): void {
@@ -310,6 +312,7 @@ export class NetSession {
         }
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);
+        this.hunters = new Set(message.h ?? []);
         for (const [source, coins, stacks, full] of message.l ?? []) {
           const loot: NetLoot = { source: LOOT_SOURCES[source] ?? 'chest', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
           for (const listener of this.lootListeners) listener(loot);

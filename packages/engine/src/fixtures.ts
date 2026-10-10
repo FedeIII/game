@@ -15,6 +15,8 @@ export interface FixtureTile {
   readonly dy: number;
   /** The solid part of the tile, in tile-local pixels; null for a tile that does not collide. */
   readonly box: Box | null;
+  /** For a tile that does not collide: the part that the player can act on (herbs). Without it, such a tile is not a target. */
+  readonly reach?: Box;
 }
 
 export interface FixtureType {
@@ -99,6 +101,9 @@ export const FIXTURE_TYPES = [
   { id: 25, kind: 'scales', tiles: ONE_TILE([2, 5, 14, 13]), depth: 9 },
   // A wooden post with a board that points the way: the post stands on the east side of the tile.
   { id: 26, kind: 'signpost', tiles: ONE_TILE([9, 10, 12, 14]), depth: 12 },
+  // Low things on the ground that do not collide, but that the player can act on.
+  { id: 27, kind: 'herbpatch', tiles: [{ dx: 0, dy: 0, box: null, reach: [3, 4, 13, 14] }], depth: 6 },
+  { id: 28, kind: 'cache', tiles: [{ dx: 0, dy: 0, box: null, reach: [3, 4, 13, 14] }], depth: 6 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
@@ -200,6 +205,11 @@ export interface Fixture {
    * it (Dexterity 13: it picks the lock). The lock keeps no state: each opening needs the gate.
    */
   readonly lock?: Gate;
+  /**
+   * A thing that only shows close by (herbs, a buried cache): a character sees it within its
+   * `seek` (Wisdom, PlayerTraits). Only the page hides it; acting on it needs no more than reach.
+   */
+  readonly hidden?: boolean;
 }
 
 /** The tiles that a fixture covers, with the structure code of each. */

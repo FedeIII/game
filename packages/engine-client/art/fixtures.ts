@@ -9,7 +9,7 @@
 import { Image } from './png.ts';
 import { cropToContent } from './raster.ts';
 import { MATERIALS, M, hash } from './materials.ts';
-import { box, cylinder, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { box, cylinder, displace, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
 const PIVOT_X = 4;
@@ -421,6 +421,40 @@ function scales(): Part[] {
   ];
 }
 
+// ---------------------------------------------------------------- hidden things of the wilds
+
+/** A patch of wild herbs: low leafy clumps with a few pale buds (Wisdom finds it). */
+function herbpatch(): Part[] {
+  const clumps: [Vec3, number][] = [
+    [[5, 1.4, -6], 2.6],
+    [[10.5, 1.6, -9], 2.8],
+    [[8.5, 1.2, -4.2], 2.2],
+    [[11.8, 1.1, -5], 1.8],
+    [[4.6, 1, -10.4], 1.9],
+  ];
+  const leaves = clumps.map(([c, r], i) => displace(ellipsoid(c, [r, r * 0.75, r]), 1.4, 1.1, 40 + i));
+  const buds: Vec3[] = [
+    [5.4, 3.3, -6.6],
+    [10.2, 3.7, -9.4],
+    [11.4, 3.5, -8.4],
+    [8.2, 2.8, -4.6],
+  ];
+  return [
+    { sdf: union(...leaves), material: (x, y, z) => (noise3(x * 0.9, y * 0.9, z * 0.9, 7) > 0.72 ? M.moss : M.herb) },
+    { sdf: union(...buds.map((b) => sphere(b, 0.7))), material: M.herbFlower },
+  ];
+}
+
+/** Dug earth over a buried box: a low, wide mound, a flat grey stone on it, and a corner of the box. */
+function cache(): Part[] {
+  const mound = displace(ellipsoid([8, -0.6, -8], [6.4, 2.4, 4.8]), 1, 0.8, 61);
+  return [
+    { sdf: mound, material: (x, y, z) => (noise3(x * 0.8, y, z * 0.8, 9) > 0.78 ? M.moss : M.soil) },
+    { sdf: box([3.8, 0.8, -10.4], [8.2, 2.2, -7.4], 0.7), material: M.cap },
+    { sdf: box([9, 0.2, -6.4], [12.6, 2.2, -3.8], 0.25), material: (x) => (Math.abs(x - 10.8) < 0.45 ? M.metal : M.wood) },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -449,5 +483,7 @@ export function fixtureFrames(): Frame[] {
     fixture('crystalball', crystalball(), 24, 32),
     fixture('scales', scales(), 24, 32),
     fixture('signpost', signpost(), 24, 40),
+    fixture('herbpatch', herbpatch(), 24, 24),
+    fixture('cache', cache(), 24, 24),
   ];
 }

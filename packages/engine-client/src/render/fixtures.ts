@@ -6,12 +6,28 @@ import type { LightSource } from './lighting.ts';
 
 /** Look further than the screen for fixtures, so a light appears before its fixture does. */
 const MARGIN_TILES = 12;
+/** A hidden thing fades in over this many world pixels at the edge of the seeker's sight. */
+const SEEK_FADE = 8;
+
+/** Who looks for hidden things (Fixture.hidden): where its feet are, and how far it sees them (PlayerTraits.seek). */
+export interface Seeker {
+  readonly x: number;
+  readonly y: number;
+  readonly range: number;
+}
 
 interface FixtureView {
   readonly fixture: Fixture;
   readonly sprite: Sprite;
   /** The additive glow of a portal, tinted with the colour of its light. */
   readonly glow: Sprite | null;
+}
+
+/** How much of a hidden thing a seeker sees: 1 within its range, 0 beyond it, a fade between. */
+function seen(fixture: Fixture, seeker: Seeker | null): number {
+  if (!seeker) return 0;
+  const d = Math.hypot(fixture.tx * TILE_SIZE + TILE_SIZE / 2 - seeker.x, fixture.ty * TILE_SIZE + TILE_SIZE / 2 - seeker.y);
+  return Math.max(0, Math.min(1, (seeker.range + SEEK_FADE - d) / (2 * SEEK_FADE)));
 }
 
 function key(fixture: Fixture): string {
@@ -40,7 +56,8 @@ export class Fixtures {
     return this.views.size;
   }
 
-  update(view: Rect, seconds: number): void {
+  /** Shows the fixtures in and near `view`. A hidden one shows only within the range of `seeker` (none: never). */
+  update(view: Rect, seconds: number, seeker: Seeker | null = null): void {
     const x0 = Math.floor(view.x / TILE_SIZE) - MARGIN_TILES;
     const y0 = Math.floor(view.y / TILE_SIZE) - MARGIN_TILES;
     const x1 = Math.ceil((view.x + view.width) / TILE_SIZE) + MARGIN_TILES;
@@ -63,6 +80,7 @@ export class Fixtures {
     // Portals breathe: the glow brightens and dims slowly, each one at its own pace.
     for (const built of this.views.values()) {
       if (built.glow) built.glow.alpha = 0.5 + 0.12 * Math.sin(seconds * 1.7 + built.fixture.tx * 0.7);
+      if (built.fixture.hidden) built.sprite.alpha = seen(built.fixture, seeker);
     }
   }
 

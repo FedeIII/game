@@ -22,9 +22,10 @@ import {
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
+import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { Road, signpost } from './road.ts';
-import { Plot, TOWN, TOWN_BUILDINGS, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
+import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
   return tx >= house.doorX - 1 && tx <= house.doorX + 1 && ty > house.y1 && ty <= house.y1 + DOOR_PATH;
@@ -64,6 +65,19 @@ const BARRED_CHEST_LOOT: LootTable = {
   ],
 };
 
+/** A patch of herbs gives a bundle, and grows again 20 minutes after it was picked (Fede's choice, 2026-10-10). */
+const HERB_LOOT: LootTable = { items: [{ chance: 1, pick: [['herbs', 1]] }], refillMs: 20 * 60_000 };
+/** The savings that the old couple of Thornwick buried (the reeve tells of it, to a character with Wisdom 13). */
+const CACHE_LOOT: LootTable = {
+  coins: [8, 20],
+  items: [
+    { chance: 1, pick: [['ring', 1]] },
+    { chance: 0.5, pick: TRINKETS },
+  ],
+};
+/** No patch of herbs grows this close (tiles) to the ground of a house or to the signpost. */
+const HERB_MARGIN = 2;
+
 const CHAPEL = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
 const REFUGES: readonly Refuge[] = [{ id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 }];
 
@@ -74,7 +88,7 @@ const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 const TOWN_MARGIN = 2;
 
 /** Every fixture of the town, in its buildings and in its streets. */
-const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES];
+const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES, TOWN_CACHE];
 /** The same, by each tile of its footprint. */
 const TOWN_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
 for (const fixture of TOWN_FIXTURE_LIST) {
@@ -96,6 +110,7 @@ const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: num
 export class WildsSource implements WorldSource {
   readonly seed: number;
   private readonly houses = new Map<string, Building | null>();
+  private readonly patches = new Map<string, Fixture | null>();
   private roadOf: Road | null = null;
   private signOf: Fixture | null = null;
 
@@ -150,6 +165,41 @@ export class WildsSource implements WorldSource {
     return false;
   }
 
+  /** The patch of herbs of a cell (cached), or null (herbs.ts). */
+  herbs(cellX: number, cellY: number): Fixture | null {
+    const key = `${cellX},${cellY}`;
+    let patch = this.patches.get(key);
+    if (patch === undefined) {
+      patch = herbPatch(
+        this.seed,
+        cellX,
+        cellY,
+        (tx, ty) => this.noHerbsAt(tx, ty),
+        (tx, ty) => inTown(tx, ty) || naturalSolid(this.seed, tx, ty) || this.cellHousesIn(tx, ty, tx, ty).length > 0,
+      );
+      this.patches.set(key, patch);
+    }
+    return patch;
+  }
+
+  /** The patch of herbs on a tile, or null. */
+  private patchAt(tx: number, ty: number): Fixture | null {
+    const patch = this.herbs(Math.floor(tx / BUILDING_CELL), Math.floor(ty / BUILDING_CELL));
+    return patch && patch.tx === tx && patch.ty === ty ? patch : null;
+  }
+
+  /** Where no herbs grow: near the town, on or near the road, near the signpost, and on or near the ground of a house. */
+  private noHerbsAt(tx: number, ty: number): boolean {
+    const m = TOWN_MARGIN + HERB_MARGIN;
+    if (tx >= TOWN.x0 - m && tx <= TOWN.x1 + m && ty >= TOWN.y0 - m && ty <= TOWN.y1 + m) return true;
+    if (this.road.clear(tx, ty)) return true;
+    if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
+    const r = HERB_MARGIN + DOOR_PATH + 1;
+    return this.cellHousesIn(tx - r, ty - r, tx + r, ty + r).some(
+      (h) => tx >= h.x0 - 1 - HERB_MARGIN && tx <= h.x1 + 1 + HERB_MARGIN && ty >= h.y0 - 1 - HERB_MARGIN && ty <= h.y1 + DOOR_PATH + HERB_MARGIN,
+    );
+  }
+
   chunk(cx: number, cy: number): Chunk {
     const chunk = emptyChunk(cx, cy);
     // The houses of the cells that this chunk overlaps, and of the cells next to it: the ground
@@ -171,6 +221,13 @@ export class WildsSource implements WorldSource {
           const natural = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = isWet(natural) ? Ground.Grass : natural;
           chunk.structure[index] = fixtureTiles(sign)[0]![2];
+          continue;
+        }
+        const patch = this.patchAt(tx, ty);
+        if (patch) {
+          // A patch of herbs: on the grass, with nothing else growing on its tile.
+          chunk.ground[index] = naturalGround(this.seed, tx, ty);
+          chunk.structure[index] = fixtureTiles(patch)[0]![2];
           continue;
         }
         const house = houses.find((h) => nearHouse(h, tx, ty));
@@ -218,10 +275,15 @@ export class WildsSource implements WorldSource {
       return;
     }
     // A garden: the grass of the wilds (dry in any case), with tufts and flowers, and a tree only
-    // where the plan has one.
+    // where the plan has one. A buried cache has nothing growing on it.
     const natural = naturalGround(this.seed, tx, ty);
     const ground = isGrass(natural) ? natural : Ground.Grass;
     chunk.ground[index] = ground;
+    const thing = TOWN_FIXTURES.get(`${tx},${ty}`);
+    if (thing) {
+      chunk.structure[index] = thing.code;
+      return;
+    }
     const decor = naturalDecor(this.seed, tx, ty, ground);
     chunk.decor[index] = plot === Plot.Tree && !this.treeOutsideNextTo(tx, ty) ? Decor.Tree : decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
   }
@@ -262,6 +324,8 @@ export class WildsSource implements WorldSource {
   fixtureAt(tx: number, ty: number): Fixture | null {
     if (inTown(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
     if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
+    const patch = this.patchAt(tx, ty);
+    if (patch) return patch;
     const house = this.buildingAt(tx, ty);
     if (!house) return null;
     return house.fixtures.find((f) => fixtureTiles(f).some(([x, y]) => x === tx && y === ty)) ?? null;
@@ -272,14 +336,23 @@ export class WildsSource implements WorldSource {
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
     if (overlaps(TOWN, x0, y0, x1, y1)) out.push(...TOWN_FIXTURE_LIST.filter(within));
     if (within(this.sign)) out.push(this.sign);
+    for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
+      for (let cx = Math.floor(x0 / BUILDING_CELL); cx <= Math.floor(x1 / BUILDING_CELL); cx++) {
+        const patch = this.herbs(cx, cy);
+        if (patch && within(patch)) out.push(patch);
+      }
+    }
     return out;
   }
 
   /**
    * The chests of the houses of the wilds give loot (not the home's: that one is the character's
-   * own); a locked chest gives more, and the chest of a barred house the most.
+   * own); a locked chest gives more, and the chest of a barred house the most. A patch of herbs
+   * gives a bundle, and the buried cache of Thornwick its savings.
    */
   loot(fixture: Fixture): LootTable | null {
+    if (fixture.kind === 'herbpatch') return HERB_LOOT;
+    if (fixture.kind === 'cache') return CACHE_LOOT;
     if (fixture.kind !== 'chest' || inTown(fixture.tx, fixture.ty)) return null;
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;

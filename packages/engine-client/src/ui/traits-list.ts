@@ -1,5 +1,5 @@
-import { FORCE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
-import { LORE_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './gates.ts';
+import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -32,6 +32,12 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.readFoe, meetsGate(traits.scores, READ_OPENING_GATE) ? t.readFoeOpening : meetsGate(traits.scores, READ_FOE_GATE) ? t.readFoeHealth : t.from(STRINGS.abilities.int.short, READ_FOE_GATE.min)],
     [t.map, t.mapValue(traits.scores.int)],
     [t.lore, gate(LORE_GATE, t.loreYes)],
+    [t.sense, t.tiles(traits.sense / TILE_SIZE)],
+    [t.seek, t.tiles(traits.seek / TILE_SIZE)],
+    [t.night, t.nightValue(traits.night)],
+    [t.insight, gate(INSIGHT_GATE, t.insightYes)],
+    [t.medicine, gate(MEDICINE_GATE, t.medicineYes)],
+    [t.homeward, gate(HOMEWARD_GATE, t.homewardYes)],
   ];
   const list = document.createElement('dl');
   list.className = 'traits';

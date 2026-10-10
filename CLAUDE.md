@@ -146,7 +146,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
-  `speech-bubble.ts` (pages of text over a head, above the darkness), `loot-text.ts` (what a kill
+  `speech-bubble.ts` (pages of text over a head, above the darkness), `marks.ts` (the marks at the
+  edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops, "+3 COINS", rising over the player's head in the small font), `cursor.ts` (the mouse
   cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
   filter).
@@ -235,6 +236,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
   client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
   `signpost` points west only (do not mirror it); its post is on the east side of its tile.
+  `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom).
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
@@ -264,6 +266,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   Also the ripple round a player in shallow water (`fx/ripple/<0-3>`, in its own colours).
 - `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, shallow water,
   cobblestones) and the ragged edge pieces. `decor.ts`: small decor as text grids.
+- `marks.ts`: the marks at the edge of the screen, white with a dark outline, tinted by the client:
+  `ui/danger/<0-15>` (a chevron) and `ui/homeward/<0-15>` (an arrow), drawn at each of the 16
+  angles (not turned at run time).
 - `items.ts`: the item icons, SDF models of 16 x 16 (`item/<kind>` for each `ITEM_KINDS`, and
   `item/coin`), with materials of their own, a little lighter than the world's: the pack panel
   shows them at 2x on a dark slot.
@@ -395,8 +400,8 @@ is an admin.
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
-one ability at a time (Strength, Dexterity, Constitution and Intelligence are done; Wisdom and
-Charisma come next). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
+one ability at a time (Strength, Dexterity, Constitution, Intelligence and Wisdom are done;
+Charisma comes next). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
 2026-10-10: the format of `platform-docs` in streaming-platform; index `docs/features/README.md`). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
 character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
 a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
@@ -497,6 +502,20 @@ builder and the "You" section still name every gate.
   generator; names from `WorldSource.landmarks()`. The Room keeps the seen chunks of each
   character (`ex` in the welcome and the snapshot; at most `MAX_EXPLORED`), and the store keeps
   them (column `explored`).
+- **Wisdom**: the damage of the cleric and the druid, and for every class the sense (`sense`: 8 +
+  2 x mod tiles: a red chevron at the screen edge for each mob that hunts the player out of view,
+  `Horde.huntersOf()`, `h` in the snapshot, `render/marks.ts`), the seek (`seek`: 3 + 2 x mod
+  tiles, at least 1: how far it sees a hidden thing, `Fixture.hidden`, `Fixtures.update(...,
+  seeker)`), and the night (`night`: the darkness x (1 - 0.08 x mod), only in the page). Gates of
+  13: insight (`INSIGHT_GATE` in `worlds/wilds/src/dialogs.ts`: one answer each for the watchman,
+  the innkeeper, the apothecary and the reeve), Medicine (`MEDICINE_GATE` in `items.ts`:
+  `DRINKS.herbs`, chew a bundle for 1 HP; the pack shows the dim tag `.pack-gate` 1 or 2 under it)
+  and the way home (`HOMEWARD_GATE` in `ui/gates.ts`: a pale arrow at the screen edge to the home).
+- **Hidden things** of the Wilds: a patch of herbs (`herbpatch`, `herbs.ts`, `WildsSource.herbs()`:
+  in about four cells in five, on open grass away from houses, the road and the town; one bundle,
+  it grows again after 20 minutes, `LootTable.refillMs`) and the buried cache of Thornwick
+  (`cache`, `TOWN_CACHE`: across the lane from the cottage; the reeve tells of it with insight).
+  Neither collides (`FixtureTile.reach`: a target without a solid box).
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
   left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
@@ -506,7 +525,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 14.
+protocol: `docs/multiplayer.md`, protocol 15.
 
 ## Arrival in a world
 
@@ -792,7 +811,8 @@ name, the node and the selected answer) and `intro` in a world with NPCs; `mobs`
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
 Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
-detail, the seen chunks) and `pack`; `doors`
+detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
+marks) and `pack`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,

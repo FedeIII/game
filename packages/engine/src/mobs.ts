@@ -852,6 +852,14 @@ export class Horde {
     return best?.id ?? null;
   }
 
+  /**
+   * The mobs that hunt the player `playerId` now: they chase it, wind up or strike at it, run off
+   * to come back, or reel from its blow (Wisdom: the page marks those out of its view).
+   */
+  huntersOf(playerId: number): Mob[] {
+    return this.mobs.filter((mob) => mob.state !== 'idle' && mob.state !== 'walk' && mob.state !== 'dying' && this.brains.get(mob.id)!.target === playerId);
+  }
+
   /** The mobs that attack the player `playerId` now (in their wind-up or their blow). In a pack their attacks overlap. */
   private attackers(playerId: number): Mob[] {
     return this.mobs.filter((mob) => (mob.state === 'windup' || mob.state === 'strike') && this.brains.get(mob.id)!.target === playerId);

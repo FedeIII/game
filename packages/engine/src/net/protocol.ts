@@ -11,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -348,6 +348,8 @@ export interface SnapshotMessage {
   readonly names?: readonly (readonly [number, string])[];
   /** In a world with mobs: the mobs near this player (within MOB_SEND_RADIUS). */
   readonly m?: readonly WireMob[];
+  /** In a world with mobs: the ids of the mobs that hunt this player (Horde.huntersOf), when there are any. */
+  readonly h?: readonly number[];
 }
 
 /** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */

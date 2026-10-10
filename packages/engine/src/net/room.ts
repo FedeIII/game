@@ -562,6 +562,7 @@ export class Room {
       p.woke = null;
       const explored = p.newlyExplored;
       p.newlyExplored = [];
+      const hunters = this.horde ? this.horde.huntersOf(p.id).map((m) => m.id) : [];
       send(p.id, {
         t: 'snap',
         ms,
@@ -603,6 +604,7 @@ export class Room {
         // The mobs near this player only: the others are far off its screen.
         ...(mobs ? { m: mobs.filter((m) => Math.hypot(m[2] - s.x, m[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
         ...(arrows.length > 0 ? { ar: arrows.filter((a) => Math.hypot(a[2] - s.x, a[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
+        ...(hunters.length > 0 ? { h: hunters } : {}),
       });
     }
   }

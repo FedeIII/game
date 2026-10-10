@@ -61,6 +61,12 @@ export interface PlayerTraits {
   readonly resist: number;
   /** The damage that a blow adds on a mob in its wind-up (INT; never less than 0). */
   readonly opening: number;
+  /** How far it senses a mob that hunts it, out of its view (world pixels; WIS). */
+  readonly sense: number;
+  /** How far it sees a hidden thing: herbs, a buried cache (world pixels; WIS; Fixture.hidden). */
+  readonly seek: number;
+  /** The darkness of the night outside the lights, as a share (WIS). */
+  readonly night: number;
 }
 
 /** A fixed limit on a score: a thing opens for a character with at least `min` in `ability`. */
@@ -94,6 +100,14 @@ export const STAMINA_PER_MOD = 10;
 export const REFILL_PER_MOD = 4;
 /** Each point of the CON modifier: a poison or a drink lasts this share less. */
 export const RESIST_PER_MOD = 0.15;
+/** It senses a mob that hunts it this many tiles away, and this many more for each point of the WIS modifier. */
+export const SENSE_TILES = 8;
+export const SENSE_PER_MOD = 2;
+/** It sees a hidden thing this many tiles away, and this many more for each point of the WIS modifier (at least one tile). */
+export const SEEK_TILES = 3;
+export const SEEK_PER_MOD = 2;
+/** Each point of the WIS modifier: the night is this share less dark. */
+export const NIGHT_PER_MOD = 0.08;
 /** The usual gate: a score of 13 or more. */
 export const GATE_SCORE = 13;
 /** A character with this can walk in shallow water. */
@@ -137,6 +151,7 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   const dex = abilityModifier(scores.dex);
   const con = abilityModifier(scores.con);
   const int = abilityModifier(scores.int);
+  const wis = abilityModifier(scores.wis);
   return {
     scores,
     attack,
@@ -159,6 +174,9 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
     staminaRefill: Math.max(1, STAMINA_REFILL + REFILL_PER_MOD * con),
     resist: Math.max(0.1, 1 - RESIST_PER_MOD * con),
     opening: Math.max(0, int),
+    sense: (SENSE_TILES + SENSE_PER_MOD * wis) * TILE_SIZE,
+    seek: Math.max(1, SEEK_TILES + SEEK_PER_MOD * wis) * TILE_SIZE,
+    night: Math.max(0.1, 1 - NIGHT_PER_MOD * wis),
   };
 }
 

@@ -47,7 +47,7 @@ export class Lighting {
     this.holeTextures = settings.radii.map((radius) => ({ radius, texture: art.frame(`light/hole/${radius}`) }));
     this.glowTexture = art.frame('light/glow');
     this.ambient.tint = settings.ambient;
-    this.ambient.alpha = settings.ambientAlpha * darkness;
+    this.ambient.alpha = Math.min(1, settings.ambientAlpha * darkness);
     this.contents.addChild(this.ambient);
     // The glows go under the darkness, so the darkness also dims a glow at its rim.
     this.root.addChild(this.glows, this.map);

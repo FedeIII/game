@@ -10,6 +10,8 @@ const BYE = { text: 'Goodbye.' } as const;
 
 /** The gate of lore: Intelligence 13 (pages on things, answers in conversations). */
 export const LORE_GATE: Gate = { ability: 'int', min: 13 };
+/** The gate of insight: Wisdom 13 (answers that see what a person hides). */
+export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };
 
 /** Brann, the watchman at the gate: the first person a traveller from the hut meets. */
 export const WATCHMAN: Dialog = {
@@ -47,6 +49,10 @@ export const WATCHMAN: Dialog = {
     },
     lamps: {
       say: 'The priest says it is the chapel candles. I say: do not ask. Just keep them lit.',
+      answers: [{ text: 'Can I come in?', next: 'enter' }, { text: 'You do not believe the priest.', next: 'believe', gate: INSIGHT_GATE }, BYE],
+    },
+    believe: {
+      say: 'No. One winter the candles went out for a week, and the imps still stayed away. Something else keeps them out.',
       answers: [{ text: 'Can I come in?', next: 'enter' }, BYE],
     },
     enter: {
@@ -99,6 +105,10 @@ export const INNKEEPER: Dialog = {
     },
     green: {
       say: 'Nobody knows. It warms you, and then it remembers you. I stopped asking.',
+      answers: [{ text: 'The ale, then. (2 coins)', next: 'ale', deal: ALE }, { text: 'You know what is in it.', next: 'knows', gate: INSIGHT_GATE }, BYE],
+    },
+    knows: {
+      say: 'Ashroot, and a pinch from the green jar. Isolde told me once. I wish she had not.',
       answers: [{ text: 'The ale, then. (2 coins)', next: 'ale', deal: ALE }, BYE],
     },
     room: {
@@ -136,7 +146,16 @@ export const APOTHECARY: Dialog = {
     },
     wounds: {
       say: 'Ashroot, for cuts. Salt, for a scratch from an imp. Wash it, and then wash it again.',
-      answers: [{ text: 'Why salt?', next: 'salt' }, { text: 'Could I brew a remedy myself?', next: 'brew', gate: LORE_GATE }, { text: 'Thank you.' }],
+      answers: [
+        { text: 'Why salt?', next: 'salt' },
+        { text: 'Could I brew a remedy myself?', next: 'brew', gate: LORE_GATE },
+        { text: 'You do not grow your ashroot here. Where do you find it?', next: 'ashroot', gate: INSIGHT_GATE },
+        { text: 'Thank you.' },
+      ],
+    },
+    ashroot: {
+      say: 'You have a good eye. It grows wild, low between the trees. Most people walk over it and never see it.',
+      answers: [{ text: 'Thank you.' }],
     },
     brew: {
       say: 'You have the head for it. Use my cauldron, if you bring your own herbs. Two bundles make a draught for wounds.',
@@ -185,7 +204,15 @@ export const REEVE: Dialog = {
     },
     shut: {
       say: 'The chandler, an old couple, a family I hardly knew. And the granary... the granary is another matter.',
-      answers: [{ text: 'What about the granary?', next: 'granary' }, BYE],
+      answers: [{ text: 'What about the granary?', next: 'granary' }, { text: 'You miss the old couple.', next: 'couple', gate: INSIGHT_GATE }, BYE],
+    },
+    couple: {
+      say: 'I do. They never trusted my strongbox. They buried their savings across the lane from their door, a few steps to the west.',
+      answers: [{ text: 'Nobody dug it up?', next: 'dug' }, BYE],
+    },
+    dug: {
+      say: 'Not I. It is theirs, if they come back. If you find it... I did not tell you.',
+      answers: [BYE],
     },
     granary: {
       say: 'It is barred from the inside. We do not know who barred it. We do not open it.',

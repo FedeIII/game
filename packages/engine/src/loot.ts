@@ -5,7 +5,11 @@ import { NO_LOOT, addToPack, lootIsEmpty, rollLoot, type Loot, type Pack } from 
 import { meetsGate, type PlayerTraits } from './traits.ts';
 import type { World } from './world.ts';
 
-/** A chest fills again this long after a player emptied it (ms). The chest of a barred house fills when its door is barred again. */
+/**
+ * A chest fills again this long after a player emptied it (ms), unless its loot table gives
+ * another time (LootTable.refillMs: herbs grow again sooner). The chest of a barred house fills
+ * when its door is barred again.
+ */
 export const REFILL_MS = 30 * 60_000;
 /** A forced door gets its boards again after this long (ms) with no player within REBAR_RADIUS tiles of it. */
 export const REBAR_MS = 30 * 60_000;
@@ -29,10 +33,13 @@ interface ChestState {
   readonly barred: boolean;
   /** The door of its house. */
   readonly door: string;
+  /** How long after it was emptied it fills again (ms). */
+  readonly refillMs: number;
 }
 
 /**
- * The state of the loot of a world over time: what is left in each chest that a player opened,
+ * The state of the loot of a world over time: what is left in each chest (or other source of
+ * loot: a patch of herbs, a buried cache) that a player opened,
  * and the barred doors that a player forced. One loot per chest for every player of a world: the
  * first one takes it, and the chest fills again later (Fede's choice, 2026-10-10). A forced door
  * gets its boards again after a long time with nobody near, and the chest of its house fills
@@ -73,7 +80,13 @@ export class Spoils {
     let chest = this.chests.get(key);
     if (!chest) {
       const house = this.world.buildingAt(fixture.tx, fixture.ty);
-      chest = { left: rollLoot(table, this.random), emptiedMs: null, barred: house?.barred !== undefined, door: house ? `${house.doorX},${house.y1}` : '' };
+      chest = {
+        left: rollLoot(table, this.random),
+        emptiedMs: null,
+        barred: house?.barred !== undefined,
+        door: house ? `${house.doorX},${house.y1}` : '',
+        refillMs: table.refillMs ?? REFILL_MS,
+      };
       this.chests.set(key, chest);
     }
     if (chest.emptiedMs !== null) return { pack, taken: NO_LOOT, full: false };
@@ -92,7 +105,7 @@ export class Spoils {
     if (nowMs - this.checkedMs < CHECK_MS) return false;
     this.checkedMs = nowMs;
     for (const [key, chest] of this.chests) {
-      if (!chest.barred && chest.emptiedMs !== null && nowMs - chest.emptiedMs >= REFILL_MS) this.chests.delete(key);
+      if (!chest.barred && chest.emptiedMs !== null && nowMs - chest.emptiedMs >= chest.refillMs) this.chests.delete(key);
     }
     let changed = false;
     const forced = this.world.forcedDoorList();

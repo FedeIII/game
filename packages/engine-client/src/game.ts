@@ -30,6 +30,7 @@ import {
   facingOfAngle,
   addToPack,
   ITEM_KINDS,
+  DRINKS,
   blowDamage,
   canDodge,
   canMakeDeal,
@@ -73,6 +74,7 @@ import { Camera } from './render/camera.ts';
 import { CursorView } from './render/cursor.ts';
 import { CRT_TEXT, CrtFilter } from './render/crt.ts';
 import { Fixtures } from './render/fixtures.ts';
+import { EdgeMarks } from './render/marks.ts';
 import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
@@ -88,7 +90,7 @@ import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { ConversationPanel, gateTag } from './ui/conversation.ts';
-import { READ_FOE_GATE, READ_OPENING_GATE } from './ui/gates.ts';
+import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './ui/gates.ts';
 import { MapPanel } from './ui/map-panel.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
@@ -167,6 +169,14 @@ function chestLine(taken: Loot, full: boolean): string {
     ...taken.items.map((s) => (s.count === 1 ? STRINGS.items[s.kind].a : `${s.count} ${STRINGS.items[s.kind].many}`)),
   ];
   return `${STRINGS.found(andList(parts))}${full ? ` ${STRINGS.packFull}` : ''}`;
+}
+
+/** What the player says when it opens a source of loot: a chest (picked, if it has a lock), a patch of herbs, a buried cache. */
+function sourceLine(fixture: Fixture | null, taken: Loot, full: boolean): string {
+  const gone = lootIsEmpty(taken) && !full;
+  if (fixture?.kind === 'herbpatch') return gone ? STRINGS.herbsGone : chestLine(taken, full);
+  if (fixture?.kind === 'cache') return gone ? STRINGS.cacheGone : `${STRINGS.dug} ${chestLine(taken, full)}`;
+  return `${fixture?.lock ? `${STRINGS.picked} ` : ''}${chestLine(taken, full)}`;
 }
 
 /** The lines that rise over the player for a drop: "+3 coins", "+1 imp horn". */
@@ -565,12 +575,23 @@ async function run(options: GameOptions): Promise<void> {
 
   if (net) new PresenceLabel(net);
   // ?nolight shows the world without the darkness, to look at the art.
-  const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness);
+  // The night is less dark for a character with Wisdom (PlayerTraits.night).
+  const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness * traits.night);
   if (lighting) scene.addChild(lighting.root);
   scene.addChild(glowLayer);
   // Text in the world is above the darkness, so it is readable at night.
   const speech = new SpeechBubble(art, font, { name: 'dialog' });
   textScene.addChild(speech.root);
+  // Marks at the edge of the screen (Wisdom): the mobs that hunt the player out of its view, and
+  // the way home (WIS 13). Above the darkness, under the speech.
+  const edgeMarks = new EdgeMarks(art);
+  textScene.addChildAt(edgeMarks.root, textScene.getChildIndex(speech.root));
+  const homeMark = world.source.landmarks?.().find((mark) => mark.kind === 'home') ?? null;
+  /** The mobs that hunt the player now, within the reach of its sense (Wisdom). */
+  const huntersNow = (): MobLook[] => {
+    const hunting = net ? mobsNow().filter((m) => net.hunters.has(m.id)) : (horde?.huntersOf(0) ?? []);
+    return hunting.filter((m) => m.state !== 'dying' && Math.hypot(m.x - player.x, m.y - player.y) <= traits.sense);
+  };
   // The visitor's own name over its head: the one it chose, or else the name of its look. It
   // hides while the player speaks (a bubble over its head).
   const ownTag = new NameTag(smallFont, tagLayer);
@@ -686,8 +707,10 @@ async function run(options: GameOptions): Promise<void> {
   net?.onWoke((lost) => say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now()));
   net?.onRefuges(() => say(STRINGS.refuge, performance.now()));
   const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null, (kind) => {
-    // A drink: the server in a shared world, the page in its own world.
+    // A drink (or herbs to chew, with Medicine): the server in a shared world, the page in its own world.
     const now = performance.now();
+    const gate = DRINKS[kind]?.gate;
+    if (gate && !meetsGate(traits.scores, gate)) return;
     if (net) {
       if (!net.drink(ITEM_KINDS.indexOf(kind))) return;
     } else {
@@ -697,7 +720,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     const line = STRINGS.drank[kind];
     if (line) say(line, now);
-  });
+  }, traits.scores);
   // The map (Intelligence): the chunks that the character has seen; the server keeps them in a shared world.
   const localExplored = new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`));
   const mapPanel = new MapPanel(world, traits.scores.int, net && character ? null : STRINGS.map.alone);
@@ -709,8 +732,8 @@ async function run(options: GameOptions): Promise<void> {
     lootText.add(dropLines(result.taken), now);
     if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
   };
-  /** Whether the last chest that this page asked the server to open had a lock (its line starts with the pick). */
-  let pickedLast = false;
+  /** The last source of loot that this page asked the server to open (its line: a pick, herbs, a cache). */
+  let lastSource: Fixture | null = null;
   net?.onLoot(({ source, loot, full }) => {
     const now = performance.now();
     if (source === 'locked') {
@@ -718,7 +741,7 @@ async function run(options: GameOptions): Promise<void> {
       return;
     }
     if (source === 'chest') {
-      say(`${pickedLast ? `${STRINGS.picked} ` : ''}${chestLine(loot, full)}`, now);
+      say(sourceLine(lastSource, loot, full), now);
       return;
     }
     lootText.add(dropLines(loot), now);
@@ -809,7 +832,7 @@ async function run(options: GameOptions): Promise<void> {
       return;
     }
     if (target.fixture && spoils.isSource(target.fixture)) {
-      // A chest with loot: the server opens it in a shared world, the page in its own world.
+      // A source of loot (a chest, herbs, a cache): the server opens it in a shared world, the page in its own world.
       dialogKey = key;
       linkCard.hide();
       const lock = target.fixture.lock;
@@ -818,7 +841,7 @@ async function run(options: GameOptions): Promise<void> {
         return;
       }
       if (net) {
-        pickedLast = lock !== undefined;
+        lastSource = target.fixture;
         if (!net.use(target.tx, target.ty)) say(STRINGS.chestOffline, now);
         return;
       }
@@ -829,7 +852,7 @@ async function run(options: GameOptions): Promise<void> {
         return;
       }
       pack = opened.pack;
-      say(`${lock ? `${STRINGS.picked} ` : ''}${chestLine(opened.taken, opened.full)}`, now);
+      say(sourceLine(target.fixture, opened.taken, opened.full), now);
       return;
     }
     const content = contentOf(target);
@@ -888,7 +911,11 @@ async function run(options: GameOptions): Promise<void> {
       return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     }
     if (t.fixture?.content?.rest) return STRINGS.rest;
-    if (t.fixture && spoils.isSource(t.fixture)) return t.fixture.lock && meetsGate(traits.scores, t.fixture.lock) ? STRINGS.pickLock : STRINGS.openChest;
+    if (t.fixture && spoils.isSource(t.fixture)) {
+      if (t.fixture.kind === 'herbpatch') return STRINGS.gather;
+      if (t.fixture.kind === 'cache') return STRINGS.dig;
+      return t.fixture.lock && meetsGate(traits.scores, t.fixture.lock) ? STRINGS.pickLock : STRINGS.openChest;
+    }
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
       if (content?.dialog) return STRINGS.conversation.answer;
@@ -968,7 +995,7 @@ async function run(options: GameOptions): Promise<void> {
   camera.follow(scene, player.x, player.y);
   terrain.update(camera.view(), Infinity);
   buildings.update(camera.view(), null, 0);
-  fixtures.update(camera.view(), 0);
+  fixtures.update(camera.view(), 0, { x: player.x, y: player.y, range: traits.seek });
 
   let hintShown = true;
   let nextRetainAt = 0;
@@ -1033,7 +1060,8 @@ async function run(options: GameOptions): Promise<void> {
     const view = camera.view();
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
-    fixtures.update(view, now / 1000);
+    // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
+    fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek });
     others?.update(net!.playersAt(now), seconds, view, (x, y) => inShallows(world, x, y));
     // Free the skins that nobody here wears any more (now and then).
     if (now >= nextRetainAt) {
@@ -1044,6 +1072,7 @@ async function run(options: GameOptions): Promise<void> {
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
     lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
+    edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());
     ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
@@ -1109,6 +1138,7 @@ async function run(options: GameOptions): Promise<void> {
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
       `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
       `int     ${traits.scores.int}: opening +${traits.opening}, read ${meetsGate(traits.scores, READ_OPENING_GATE) ? 'health, wind-up' : meetsGate(traits.scores, READ_FOE_GATE) ? 'health' : '-'}, map ${traits.scores.int >= 15 ? 'secrets' : traits.scores.int >= 13 ? 'names' : traits.scores.int >= 11 ? 'houses' : 'ground'}, seen ${(net && net.explored.size > 0 ? net.explored : localExplored).size} chunks${mapPanel.isOpen ? ' (map open)' : ''}`,
+      `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,

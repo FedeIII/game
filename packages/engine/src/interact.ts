@@ -39,8 +39,11 @@ function interactableAt(world: TileMap, tx: number, ty: number): { kind: Interac
   // An open door has no solid box, but the player can still reach it to close it.
   if (structure === Structure.Door) return { kind: 'door', box: FULL_BOX, fixture: null };
   const decoded = decodeFixture(structure);
-  // A fixture tile without a box (a rug) is not something to act on.
-  if (decoded) return decoded.tile.box ? { kind: decoded.type.kind as FixtureKind, box: decoded.tile.box, fixture: world.fixtureAt(tx, ty) } : null;
+  // A fixture tile without a box (a rug) is not something to act on, unless it has a reach (herbs).
+  if (decoded) {
+    const box = decoded.tile.box ?? decoded.tile.reach;
+    return box ? { kind: decoded.type.kind as FixtureKind, box, fixture: world.fixtureAt(tx, ty) } : null;
+  }
   const byDecor = BY_DECOR[world.decor(tx, ty)];
   const box = byDecor ? world.solidBox(tx, ty) : null;
   return byDecor && box ? { kind: byDecor, box, fixture: null } : null;

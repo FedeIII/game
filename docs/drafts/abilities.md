@@ -1,7 +1,7 @@
 # Abilities in the game (draft)
 
 > **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Approved (STR, DEX,
-> CON and INT built: see `docs/features/abilities/`; WIS and CHA not yet)
+> CON, INT and WIS built: see `docs/features/abilities/`; CHA not yet)
 
 This draft gives the applications of the six ability scores in the game. Each application has
 an ID. Fede picks the applications; then we make their mechanics and apply the scores to them,
@@ -9,7 +9,7 @@ one ability after the other (STR first). The scores come from the character buil
 (`packages/engine/src/character.ts`); before this work, they do nothing in the game.
 
 Status: Strength is done (2026-10-10, protocol 11), Dexterity (protocol 12), Constitution
-(protocol 13), Intelligence (protocol 14). Next: Wisdom, then Charisma. Decided: Option B (below).
+(protocol 13), Intelligence (protocol 14), Wisdom (protocol 15). Next: Charisma. Decided: Option B (below).
 
 ## How the numbers work
 
@@ -282,3 +282,27 @@ Built (2026-10-10, protocol 14): see `docs/features/abilities/intelligence.md`. 
 - The rule of 1 applies to barred doors and locked chests too: with a score 1 or 2 under the gate
   the player says the full line and the tag ("It is locked. I cannot pick it. [DEX 13]"); with a
   lower score only "It is locked.".
+
+## WIS: the agreed plan (2026-10-10)
+
+Decisions (Fede, 2026-10-10: "all recommendations are ok"):
+
+1. W1 sense danger, a scale for every character: a red mark at the screen edge for each mob that
+   hunts the player out of view, within 8 + 2 x mod tiles; only the player's own hunters.
+2. W2 insight (WIS 13, the gate rule): one answer for each of Brann, Marta, Isolde and Aldous;
+   Aldous tells of a buried cache (a hidden box with loot).
+3. W3 the damage of the cleric and the druid: already built with Option B.
+4. W5 hidden herbs: a patch in about each cell, seen within 3 + 2 x mod tiles; one bundle; it grows
+   again after 20 minutes.
+5. W7 Medicine (WIS 13): chew a bundle of herbs for 1 HP.
+6. W6 the way home (WIS 13): an arrow at the screen edge to the home.
+7. W4 eyes for the night: the darkness x (1 - 0.08 x mod), only in the page.
+
+Built (2026-10-10, protocol 15): see `docs/features/abilities/wisdom.md`. Notes:
+
+- On a wide screen the view is often wider than the sense, so the danger marks show mostly above
+  and below the player; on a phone (a narrow view) they show at the sides too.
+- The reeve's line places the cache "across the lane from their door, a few steps to the west",
+  not "by the tree": in about one seed in nine the tree of the plan does not grow there.
+- A patch and the cache stay as they are when they are empty: the page does not know the state of
+  the loot in a shared world. A press says that somebody picked or dug it.

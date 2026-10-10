@@ -160,7 +160,8 @@ which score to raise, without a list of everything that I cannot do.
   for example "[INT 13]" or "[STR 13]", and cannot use the thing.
 - **AC-AS-007.3:** A character with a score 3 or more under the gate sees nothing of it.
 - **AC-AS-007.4:** The rule is the same for every ability and every gate in the world: dialog
-  answers, lore pages, barred doors, locked chests and the recipes of the cauldron.
+  answers, lore pages, barred doors, locked chests, the recipes of the cauldron and the herbs to
+  chew in the pack.
 - **AC-AS-007.5:** The traits list of the builder and of the "You" section is the rule book: it
   names every gate, for every score.
 

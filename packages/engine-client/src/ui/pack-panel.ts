@@ -1,7 +1,8 @@
 import type { Texture } from 'pixi.js';
-import { DRINKS, type ItemKind, type Pack } from '@game/engine';
+import { DRINKS, PLAIN_SCORES, gateView, type ItemKind, type Pack, type Scores } from '@game/engine';
 import type { Art } from '../assets.ts';
 import { isFormField } from '../input/keyboard.ts';
+import { gateTag } from './conversation.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
 
@@ -38,14 +39,18 @@ export class PackPanel {
   private shown = '';
 
   private readonly onDrink: (kind: ItemKind) => void;
+  private readonly scores: Scores;
   private items: Pack['items'] = [];
 
   /**
    * `note`: a line under the slots (a guest's pack, or one that is not saved), or null. `onDrink`:
    * the player drinks a drink of its pack (a click on its slot, or its number while the panel is open).
+   * `scores`: the character's, for a drink behind a gate (herbs: Medicine). It shows as the gate
+   * rule says (gateView): a button, a dim tag of the gate, or a plain slot.
    */
-  constructor(art: Art, note: string | null, onDrink: (kind: ItemKind) => void = () => {}) {
+  constructor(art: Art, note: string | null, onDrink: (kind: ItemKind) => void = () => {}, scores: Scores = PLAIN_SCORES) {
     this.onDrink = onDrink;
+    this.scores = scores;
     const text = STRINGS.pack;
     this.art = art;
     this.button = document.createElement('button');
@@ -102,7 +107,7 @@ export class PackPanel {
       const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code);
       if (digit && !this.panel.hidden && !event.ctrlKey && !event.metaKey && !event.altKey && !isFormField(event.target)) {
         const stack = this.items[Number(digit[1]) - 1];
-        if (stack && DRINKS[stack.kind]) {
+        if (stack && this.usable(stack.kind) === 'open') {
           event.preventDefault();
           this.onDrink(stack.kind);
         }
@@ -117,6 +122,13 @@ export class PackPanel {
     // Give the focus back after a click, so WASD moves the player again at once.
     this.panel.addEventListener('click', () => setTimeout(() => (document.activeElement as HTMLElement | null)?.blur(), 0));
     document.body.append(this.button, this.panel);
+  }
+
+  /** How the use of an item shows: 'open' (a drink that the character can use), 'hint' (a dim gate), or 'hidden' (no use). */
+  private usable(kind: ItemKind): 'open' | 'hint' | 'hidden' {
+    const drink = DRINKS[kind];
+    if (!drink) return 'hidden';
+    return drink.gate ? gateView(this.scores, drink.gate) : 'open';
   }
 
   /** Shows a pack with `slots` slots. */
@@ -141,16 +153,26 @@ export class PackPanel {
         count.className = 'pack-stack';
         count.textContent = stack.count > 1 ? String(stack.count) : '';
         slot.title = stack.count > 1 ? `${stack.count} ${names.many}` : names.a;
-        if (DRINKS[stack.kind]) {
-          // A drink: a press on its slot drinks one.
+        const use = this.usable(stack.kind);
+        const gate = DRINKS[stack.kind]?.gate;
+        if (use === 'open') {
+          // A drink: a press on its slot drinks one (herbs: the character chews one).
           const drink = document.createElement('button');
           drink.type = 'button';
           drink.className = 'pack-drink';
-          drink.title = STRINGS.pack.drink(names.a, i + 1);
+          drink.title = (gate ? STRINGS.pack.chew : STRINGS.pack.drink)(names.a, i + 1);
           drink.setAttribute('aria-label', drink.title);
           drink.addEventListener('click', () => this.onDrink(stack.kind));
           drink.append(icon, count);
           slot.append(drink);
+        } else if (use === 'hint' && gate) {
+          // A use behind a gate, 1 or 2 short of it: a dim tag of the gate, and nothing to press.
+          const tag = document.createElement('span');
+          tag.className = 'pack-gate';
+          tag.textContent = gateTag(gate).replace(/^\[|\]$/g, '');
+          slot.title = `${gateTag(gate)} ${STRINGS.pack.chewHint(names.a)}`;
+          slot.setAttribute('aria-label', slot.title);
+          slot.append(icon, count, tag);
         } else {
           slot.setAttribute('aria-label', slot.title);
           slot.append(icon, count);

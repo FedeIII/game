@@ -540,6 +540,13 @@ export const TOWN_STREET_FIXTURES: readonly Fixture[] = [...tilesOf(MAP, TOWN.x0
 });
 
 /**
+ * The savings of the old couple of the cottage, buried in the garden across the lane from their
+ * door, a few steps to the west (the reeve tells of it, with Wisdom 13: dialogs.ts). It is hidden
+ * (Fixture.hidden): a character sees it only close by.
+ */
+export const TOWN_CACHE: Fixture = { kind: 'cache', tx: TOWN.x0 + 10, ty: TOWN.y0 + 22, hidden: true };
+
+/**
  * What a tile of the town is outside the buildings (inside TOWN). A thing of the streets stands
  * on the ground of the tile north of it: a lamp in the lane on the lane, a lamp in the street on
  * the cobblestones.

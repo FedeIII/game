@@ -1,13 +1,13 @@
 import type { MobKind } from './mobs.ts';
 import type { PlayerState } from './player.ts';
-import type { PlayerTraits } from './traits.ts';
+import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
 
 /**
  * Items and the pack. A character carries coins in a purse and items in the slots of its pack:
  * each slot holds one kind of item, up to the stack of that kind. The number of slots comes from
  * Strength (PlayerTraits.slots). Items come from mobs (a kill can drop one) and from chests
- * (loot.ts). None of them has a use yet: prices, potions and herbs give them uses later (see
- * docs/drafts/abilities.md).
+ * (loot.ts) and from herbs in the woods. Herbs and trophies go into brews at the cauldron
+ * (dialog.ts, Deal), and a character with Medicine chews herbs (DRINKS).
  *
  * In a shared world the server owns the pack (the store keeps it with the character); in a world
  * that the page runs, the page has its own pack, which it does not save.
@@ -31,13 +31,29 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
 };
 
 /**
- * What a drink does (the player drinks it from the pack panel): a healing draught gives back 2
- * hit points, a strong draught all of them, an antidote ends a poison.
+ * A character with this chews a bundle of herbs for a hit point (Medicine). It is here, not in
+ * traits.ts with the other gates, because traits.ts imports this module through player.ts.
  */
-export const DRINKS: Readonly<Partial<Record<ItemKind, { readonly hp?: number; readonly full?: boolean; readonly cure?: boolean }>>> = {
+export const MEDICINE_GATE: Gate = { ability: 'wis', min: 13 };
+
+/** What a drink does, and the gate that a character needs to use it (none for most). */
+export interface Drink {
+  readonly hp?: number;
+  readonly full?: boolean;
+  readonly cure?: boolean;
+  readonly gate?: Gate;
+}
+
+/**
+ * What a drink does (the player uses it from the pack panel): a healing draught gives back 2
+ * hit points, a strong draught all of them, an antidote ends a poison. A character with Medicine
+ * (WIS 13) chews a bundle of herbs for 1 hit point.
+ */
+export const DRINKS: Readonly<Partial<Record<ItemKind, Drink>>> = {
   draught: { hp: 2 },
   'strong-draught': { full: true },
   antidote: { cure: true },
+  herbs: { hp: 1, gate: MEDICINE_GATE },
 };
 
 /** Whether the pack holds all these stacks. */
@@ -63,11 +79,12 @@ export function removeFromPack(pack: Pack, stacks: readonly ItemStack[]): Pack {
 
 /**
  * The player drinks one `kind` from its pack: the drink does its work, and one goes from the pack.
- * Null if it is not a drink, or the pack has none.
+ * Null if it is not a drink, the character does not pass its gate, or the pack has none.
  */
-export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits: Pick<PlayerTraits, 'maxHp'>): Pack | null {
+export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits: Pick<PlayerTraits, 'maxHp' | 'scores'>): Pack | null {
   const drink = DRINKS[kind];
   if (!drink || state.down > 0 || !hasItems(pack, [{ kind, count: 1 }])) return null;
+  if (drink.gate && !meetsGate(traits.scores, drink.gate)) return null;
   if (drink.hp) state.hp = Math.min(traits.maxHp, state.hp + drink.hp);
   if (drink.full) state.hp = traits.maxHp;
   if (drink.cure) {
@@ -168,6 +185,8 @@ export function checkPack(raw: unknown): Pack | null {
 export interface LootTable {
   readonly coins?: readonly [number, number];
   readonly items?: readonly LootRoll[];
+  /** The source fills again this long after a player emptied it (ms); without it, REFILL_MS (loot.ts). */
+  readonly refillMs?: number;
 }
 
 export interface LootRoll {

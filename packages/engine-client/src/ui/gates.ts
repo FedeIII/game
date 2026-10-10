@@ -13,3 +13,10 @@ export const LORE_GATE: Gate = { ability: 'int', min: 13 };
 export const MAP_HOUSES = 11;
 export const MAP_NAMES = 13;
 export const MAP_SECRETS = 15;
+
+/**
+ * The gates of Wisdom that the page applies (Fede's choice, 2026-10-10): the arrow to the home,
+ * and the usual gate of insight (a world gives its own with DialogAnswer.gate; the Wilds use WIS 13).
+ */
+export const HOMEWARD_GATE: Gate = { ability: 'wis', min: 13 };
+export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };

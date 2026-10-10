@@ -3,9 +3,10 @@
 ## Overview
 
 A character carries what it finds in a pack: coins in a purse, and items in slots. A kill drops
-loot into the pack of the killer, and the chests of the houses of the Wilds give loot. Each chest
-holds one loot for every player of a world, and it fills again after a time. No item has a use
-yet: later abilities (prices, potions, herbs) give them uses (`docs/drafts/abilities.md`).
+loot into the pack of the killer. The chests of the houses of the Wilds, the hidden patches of
+herbs in the woods and the buried cache of Thornwick also give loot. Each source holds one loot
+for every player of a world, and it fills again after a time. Herbs and trophies go into brews,
+the brews are drinks, and a character with Medicine chews herbs.
 
 ## Terminology
 
@@ -18,7 +19,8 @@ yet: later abilities (prices, potions, herbs) give them uses (`docs/drafts/abili
 - **Loot table**: the rule that gives loot: a range of coins, and rolls that each give one item
   with a chance.
 - **Drop**: the loot of a kill.
-- **Refill**: a chest fills again with new loot.
+- **Source of loot**: a chest, a patch of herbs or a buried cache.
+- **Refill**: a source fills again with new loot.
 - **A world that the page runs**: a world without the multiplayer server: a world that is not
   shared, or a shared world with `?offline`.
 
@@ -39,7 +41,8 @@ searches give me something.
 - **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into a free slot.
   One kind can fill more than one slot when its stacks are full.
 - **AC-PK-001.5:** The draughts are drinks (REQ-PK-011). Herbs, imp horns and brute tusks go into
-  the brews of the cauldron ([Intelligence](../abilities/intelligence.md), REQ-INT-006). The
+  the brews of the cauldron ([Intelligence](../abilities/intelligence.md), REQ-INT-006). A
+  character with Medicine chews herbs ([Wisdom](../abilities/wisdom.md), REQ-WIS-006). The
   other items have no use yet. The player cannot drop or sell an item.
 
 ---
@@ -95,8 +98,9 @@ world, so that the first player who finds a chest gets its contents.
 **Acceptance Criteria:**
 - **AC-PK-004.1:** The first player who opens a chest takes its loot. After that, the chest is
   empty for every player of the world.
-- **AC-PK-004.2:** A chest fills again 30 minutes after a player emptied it. Its new loot comes
-  from its loot table again, so it can differ from the loot before.
+- **AC-PK-004.2:** A chest fills again 30 minutes after a player emptied it (a patch of herbs: 20
+  minutes, REQ-PK-012). Its new loot comes from its loot table again, so it can differ from the
+  loot before.
 - **AC-PK-004.3:** The chest of a barred house fills again only when the boards of its door come
   back ([Strength](../abilities/strength.md), REQ-STR-006).
 - **AC-PK-004.4:** A chest that still holds something does not fill again. The next player who
@@ -174,7 +178,12 @@ is the same without the server.
   character in a world that the page runs, it says "Played alone: what you find here is not
   saved."
 - **AC-PK-008.8:** The only action in the panel is a drink: a press on the slot of a drink, or its
-  number (1 to 9) while the panel is open, drinks one (REQ-PK-011).
+  number (1 to 9) while the panel is open, drinks one (REQ-PK-011). The tooltip says "Drink a
+  healing draught (1)", or for herbs with Medicine "Chew a bundle of herbs (1)".
+- **AC-PK-008.9:** A use behind a gate follows the gate rule ([Ability Scores](../abilities/ability-scores.md),
+  REQ-AS-007). With a score 1 or 2 under the gate, the slot shows the gate dim in its corner ("WIS
+  13"), and its tooltip says "[WIS 13] You could chew a bundle of herbs, if you knew more of
+  herbs." A press and the number do nothing. With a lower score, the slot is a plain slot.
 
 ---
 
@@ -221,12 +230,36 @@ woods.
   drink.
 - **AC-PK-011.5:** In a shared world the page sends the drink to the server, which checks the pack
   and gives the effect.
+- **AC-PK-011.6:** A character with WIS 13 or more chews a bundle of herbs for 1 hit point. The
+  player says "I chew the bitter leaves. I feel a little better." The server checks the gate too:
+  without WIS 13, nothing changes.
+
+---
+
+### REQ-PK-012: Herbs in the woods and a buried cache
+
+**User Story:** As a player who explores, I want to find things outside the houses, so that the
+woods and the town have more to give.
+
+**Acceptance Criteria:**
+- **AC-PK-012.1:** About four cells of the Wilds in five have a patch of herbs. A press on it
+  ("Gather the herbs") gives one bundle of herbs: "I find a bundle of herbs."
+- **AC-PK-012.2:** A patch gives one bundle for every player of the world. After that, a press says
+  "Somebody picked them. They will grow again." The patch grows again 20 minutes after it was
+  picked.
+- **AC-PK-012.3:** The buried cache of Thornwick ("Dig here") gives 8 to 20 coins, a silver ring,
+  and a second thing (a candle stub, a silver ring, a pewter cup or a bundle of herbs) in one of
+  two: "I dig up a small box. I find 19 coins and a silver ring." After that it says "Somebody
+  dug it up before me.", until it fills again 30 minutes later.
+- **AC-PK-012.4:** Patches and the cache are hidden: a character sees them only close by
+  ([Wisdom](../abilities/wisdom.md), REQ-WIS-004). They do not collide.
 
 ## Feature Behavior & Rules
 
-- **Drinks:** `DRINKS`, `drinkFrom()`, `hasItems()` and `removeFromPack()` in
-  `packages/engine/src/items.ts`; the message `{ t: 'drink', kind }` and `Room.drink()` (protocol
-  14); the slot buttons in `packages/engine-client/src/ui/pack-panel.ts`.
+- **Drinks:** `DRINKS` (`Drink`: `hp`, `full`, `cure`, and `gate` for herbs: `MEDICINE_GATE`),
+  `drinkFrom()`, `hasItems()` and `removeFromPack()` in `packages/engine/src/items.ts`; the message
+  `{ t: 'drink', kind }` and `Room.drink()` (protocol 14); the slot buttons and the dim gate tag
+  (`.pack-gate`) in `packages/engine-client/src/ui/pack-panel.ts`.
 
 - **The pack** (`packages/engine/src/items.ts`): `ITEM_KINDS` (the order is the code on the wire:
   add a new kind at the end), `ITEM_STACK`, `MAX_COINS` (99,999), `MAX_SLOTS` (16: the most slots
@@ -240,7 +273,8 @@ woods.
   (`Room.input()`). It puts the drop of an arrow into the pack of the shooter (`takeShotKills()` in
   `Room.tick()`). In a world that the page runs, `takeDrop()` in `game.ts` does the same.
 - **The chests over time** (`packages/engine/src/loot.ts`): `Spoils` (`isSource()`, `open()`,
-  `tick()`), `REFILL_MS` (30 minutes). `Spoils` knows a chest by its anchor tile. The first
+  `tick()`), `REFILL_MS` (30 minutes), or `LootTable.refillMs` for a source that fills sooner.
+  `Spoils` knows a chest by its anchor tile. The first
   `open()` of a chest rolls its loot (a random roll, not from the seed). `tick()` checks the
   refills once a second.
 - **The state of the chests is in memory.** The Room of a shared world has one `Spoils`, and a page
@@ -251,8 +285,10 @@ woods.
   table for a fixture, or null. A fixture with a table is a target of the action button, also
   without content or an examine line.
 - **The Wilds** (`worlds/wilds/src/source.ts`): `TRINKETS` (candle stub 3, silver ring 1, pewter
-  cup 2, bundle of herbs 3), `CHEST_LOOT`, `LOCKED_CHEST_LOOT` and `BARRED_CHEST_LOOT`. No loot for
-  the home (`HOME_ID`) or in the town (`inTown()`).
+  cup 2, bundle of herbs 3), `CHEST_LOOT`, `LOCKED_CHEST_LOOT` and `BARRED_CHEST_LOOT`. No chest
+  loot for the home (`HOME_ID`) or in the town (`inTown()`). `HERB_LOOT` (one bundle, 20 minutes)
+  for a `herbpatch` (`worlds/wilds/src/herbs.ts`), and `CACHE_LOOT` for `TOWN_CACHE`
+  (`worlds/wilds/src/town.ts`).
 - **The store** (`packages/engine-server/src/store.ts`): `Character.pack` (`character.ts`), the
   column `pack` of the table `characters` (a migration added it; a row without a pack gives
   `EMPTY_PACK`), `AccountStore.setPack()`, and `Accounts.savePack()` (`accounts.ts`), which checks

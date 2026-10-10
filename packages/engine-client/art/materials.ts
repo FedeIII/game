@@ -61,6 +61,9 @@ export const M = {
   canvasIndigo: 43,
   coal: 44,
   brew: 45,
+  herb: 46,
+  herbFlower: 47,
+  soil: 48,
 } as const;
 
 export const MATERIALS: Material[] = [
@@ -110,4 +113,7 @@ export const MATERIALS: Material[] = [
   { ramp: ramp('#0c0c22', '#141836', '#1c244c', '#263262', '#30407a') }, // canvas, indigo stripe
   { ramp: ramp('#5a1a08', '#a0400c', '#e07a1c', '#ffc04a'), bias: 0.85 }, // glowing coals
   { ramp: ramp('#1a3a14', '#2c6a1c', '#4ea02a', '#9ae05a'), bias: 0.7 }, // a green brew, glowing
+  { ramp: ramp('#0f160d', '#172214', '#202f1b', '#2b3d23', '#374c2c', '#455c36'), dither: true }, // wild herbs, sage green
+  { ramp: ramp('#3a3628', '#55503a', '#706a4e', '#8a8262') }, // pale buds of herbs
+  { ramp: ramp('#120d09', '#1d150f', '#2a1f16', '#38291d', '#473425', '#56402e'), dither: true }, // dug earth
 ];

@@ -49,6 +49,7 @@ streaming-platform project):
 | Abilities: Dexterity | `DEX` | [`abilities/dexterity.md`](abilities/dexterity.md) |
 | Abilities: Constitution | `CON` | [`abilities/constitution.md`](abilities/constitution.md) |
 | Abilities: Intelligence | `INT` | [`abilities/intelligence.md`](abilities/intelligence.md) |
+| Abilities: Wisdom | `WIS` | [`abilities/wisdom.md`](abilities/wisdom.md) |
 | Items: Pack and Loot | `PK` | [`items/pack-and-loot.md`](items/pack-and-loot.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
@@ -64,9 +65,10 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [Dexterity](abilities/dexterity.md) | Quicker attacks, a longer guard, the dodge roll (Shift, the right mouse button, the touch button), stealth and sneaking (the sneak walk on C, the smaller torch), the arrows of a ranger (range 5 + mod tiles), and locked chests (pick them with DEX 13) |
 | [Constitution](abilities/constitution.md) | Hit points (4 + mod), a shorter stun, the poison of an imp, recovery out of a fight, a rest in the bed of the home, a defeat at 0 HP and waking at home or in a refuge (the chapel) with half the coins, stamina for the roll and the sneak walk, an ale at the inn for 2 coins, and the HP between sessions |
 | [Intelligence](abilities/intelligence.md) | The wizard's damage, more damage on a wind-up, reading a mob (a health bar at INT 13, a glint at 15), lore on things and clever answers (INT 13, with the gate rule), the cauldron of Thornwick (three brews at INT 10, 13 and 15), and the map of the seen land (more detail with INT) |
+| [Wisdom](abilities/wisdom.md) | The damage of the cleric and the druid, red marks at the screen edge for the mobs that hunt you out of view (6 to 14 tiles), hidden herbs and the buried cache that show only close by (1 to 9 tiles), a lighter night, insight answers in four conversations (WIS 13), Medicine (chew herbs for a hit point, WIS 13), and an arrow that points home (WIS 13) |
 
 ## Items
 
 | Document | Feature |
 |---|---|
-| [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the nine items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel, the coins that a defeat takes, coins for an ale, and drinks |
+| [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the nine items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel, the coins that a defeat takes, coins for an ale, drinks and herbs to chew, and the patches of herbs and the buried cache |
