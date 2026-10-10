@@ -11,6 +11,8 @@ export const STRINGS = {
   attack: 'Attack',
   dodge: 'Roll',
   hintTouch: 'Touch and drag anywhere to move',
+  /** A new build of the game is out (ui/new-build.ts): the page reloads itself. */
+  newBuild: 'A new version of the game is out. Loading it…',
   doorBlocked: 'Step out of the doorway first.',
   doorBlockedByOther: 'Someone is in the doorway.',
   actionLabel: 'Act',

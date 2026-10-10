@@ -22,7 +22,9 @@ before it changes anything if one is missing). Then it runs the type check and t
 (`pm2 startOrReload deploy/pm2.config.cjs`; the first time, `pm2 start` and `pm2 save`), waits
 for its `/healthz`, and then copies the client into the web root. The server goes first, so a
 page with the new client never meets the old server. Each deploy drops the connections for
-about a second; the clients reconnect on their own. Hashed files go first and the entry page
+about a second; the clients reconnect on their own. When the new client is published, each open
+page sees the new build (its main script has another name) and reloads itself at a calm moment;
+the menu then starts the same character again. Hashed files go first and the entry page
 goes last, so a visitor never gets a page that names a missing file. Press F3 in the game (or
 open `/?debug`) to see the deployed commit.
 

@@ -5,6 +5,7 @@ import { ApiError, api, type Me } from './api.ts';
 import { CharacterBuilder } from './builder.ts';
 import { el } from './dom.ts';
 import { SkinPortrait } from './portrait.ts';
+import { takeResume } from './resume.ts';
 
 const T = STRINGS.menu;
 
@@ -298,13 +299,19 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       );
     };
 
-    /** Asks the server who is signed in, and shows the sign-in or the main screen. */
+    /**
+     * Asks the server who is signed in, and shows the sign-in or the main screen. After a reload
+     * for a new build (menu/resume.ts), it starts the same character again at once.
+     */
     const home = async () => {
       loading();
       try {
         me = await api.me();
         if (!me.user) return signIn();
         characters = await api.characters();
+        const resume = takeResume();
+        const again = resume ? characters.find((c) => c.id === resume) : undefined;
+        if (again) return void start(again);
         main();
       } catch (error) {
         fail(error, () => void home());

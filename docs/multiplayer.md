@@ -315,7 +315,9 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
   `$remote_addr`.
 - `scripts/deploy.sh` restarts the server **before** it publishes the client: a page with the
   new client must never meet the old server. Each deploy drops every connection for about a
-  second; the clients come back on their own.
+  second; the clients come back on their own. When the new client is published, every open page
+  reloads itself at a calm moment and comes back to its character (`ui/new-build.ts`,
+  `menu/resume.ts`), so an old page that the new server refuses (`version`) does not stay alone.
 - To make another world shared: set `multiplayer: true` in its definition. The server and the
   client do the rest. Its source must be deterministic (it already must be).
 

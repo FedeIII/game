@@ -129,7 +129,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `menu/`: the menu before the game (see "Menu, characters and accounts"): `menu.ts`
   (`runMenu()`: sign-in, main screen, continue), `builder.ts` (the character builder),
   `portrait.ts` (a skin in the menu, walking or still), `names.ts` (random names per race),
-  `api.ts` (the accounts API), `dom.ts`.
+  `api.ts` (the accounts API), `dom.ts`, `resume.ts` (after a reload for a new build, the menu
+  starts the same character at once: a note in sessionStorage `game.resume.v1`, good for one start
+  within 5 minutes).
 - `skins/`: the skin seed of a guest (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
   localStorage cache of rendered sheets; `cancel()` drops a look that the builder no longer
@@ -166,6 +168,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
   `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack in a fixed order, drinks first; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
+  `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
+  the one that the published page names: every 60 s while it is visible, when it shows again, and
+  every 3 s for 2 minutes after a lost connection; nothing in development),
   `presence.ts` (shared worlds only, and for an admin only (Fede's decision, 2026-10-10): how many
   other visitors are here, or why the visitor is alone; a line under the heading of the "You"
   section, `#presence`; the others see no presence at all).
@@ -347,6 +352,10 @@ GUI style, over the whole page (it scrolls on a phone):
   character").
 - In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
   the menu comes again) and "Sign out".
+- **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page
+  finds the new build (`ui/new-build.ts`) and reloads itself at a calm moment: no conversation, no
+  defeat, no mob that hunts the player. It says "A new version of the game is out. Loading it…"
+  first, and the menu then starts the same character again (`menu/resume.ts`).
 
 **The rules** are in `packages/engine/src/character.ts`, for the page and the server alike:
 `RACES`, `CLASSES`, `GENDERS`, `ABILITIES`, `POINT_BUY`, `RACE_BONUS`, `CLASS_PRIMARY`,
@@ -873,7 +882,8 @@ A deploy runs only on the VPS. See `deploy/README.md`; the accounts need a one-t
 first (the Google OAuth client, `/etc/game/secret.env`, the nginx routes `/api/` and `/auth/`,
 the backup timer), and `scripts/deploy.sh` checks it before it changes anything. Short form:
 `cd /opt/game && git pull && scripts/deploy.sh` (it builds `apps/game`, restarts the PM2
-process `game-server` first, then publishes the client). No nginx reload is necessary.
+process `game-server` first, then publishes the client). No nginx reload is necessary. The open
+pages reload themselves when the new client is published (see "Menu, characters and accounts").
 
 The script deploys the working tree of `/opt/game`. Thus a commit from the laptop goes live only
 after a push to GitHub and a pull on the VPS.

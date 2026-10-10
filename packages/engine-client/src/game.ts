@@ -106,6 +106,7 @@ import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
+import { markResume } from './menu/resume.ts';
 import { skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
@@ -115,6 +116,7 @@ import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
 import { DrinkBelt } from './ui/belt.ts';
 import { PackPanel } from './ui/pack-panel.ts';
+import { BuildWatch } from './ui/new-build.ts';
 import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
@@ -166,6 +168,8 @@ const SESSION_CHECK_MS = 10_000;
 const PREDICTED_KILL_MS = 700;
 /** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
 const PREDICT_MARGIN = 3;
+/** The page shows that it reloads for a new build this long before it does (ms). */
+const RELOAD_DELAY_MS = 1200;
 /** An NPC greets a player with a good name (Charisma) when it comes this close (world pixels). */
 const GREET_RANGE = 2 * TILE_SIZE;
 
@@ -685,6 +689,15 @@ async function run(options: GameOptions): Promise<void> {
   const sneakingShown = () => isSneaking(player) && (sneakWalk || Math.hypot(player.vx, player.vy) > 1);
 
   const hud = new Hud(params.has('debug'));
+  // A deploy publishes a new build: the page reloads itself at a calm moment (in the loop below),
+  // and the menu starts the same character again. A lost connection (a deploy restarts the server
+  // first) makes it ask often for a while.
+  let newBuild = false;
+  let reloading = false;
+  const buildWatch = new BuildWatch(() => (newBuild = true));
+  net?.onChange(() => {
+    if (net.status !== 'online') buildWatch.soon();
+  });
   hud.showHint(mobRules ? STRINGS.hintKeyboardFight : STRINGS.hintKeyboard);
   joystick.onTouchMode(() => hud.showHint(STRINGS.hintTouch));
 
@@ -1175,6 +1188,13 @@ async function run(options: GameOptions): Promise<void> {
     mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
     packPanel.show(packNow(), traits.slots);
     belt.show(packNow());
+    // A new build: reload when it is calm (no conversation, no defeat, no mob that hunts the player).
+    if (newBuild && !reloading && !conversation.open && player.down === 0 && huntersNow().length === 0) {
+      reloading = true;
+      hud.showHint(STRINGS.newBuild);
+      if (character) markResume(character.id);
+      setTimeout(() => location.reload(), RELOAD_DELAY_MS);
+    }
     if (arrivedAt === null) {
       arrivedAt = now;
       introTitle?.start(now);
