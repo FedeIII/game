@@ -221,22 +221,19 @@ describe('mobs that hunt one player', () => {
   }
   const attacking = (mob: Mob) => mob.state === 'windup' || mob.state === 'strike';
 
-  it('take turns: one attacks at a time, the others hound the player out of reach, and each one hits', () => {
+  it('take turns: attacks start one at a time, the others hound the player out of reach, and each one hits', () => {
     for (const kinds of [['imp', 'imp', 'imp'], ['brute', 'imp', 'brute', 'imp']] as Mob['kind'][][]) {
       const { horde, player, mobs } = pack(3, kinds);
       const hitters = new Set<number>();
       let hounded = false;
       run(horde, [player], 30_000, (_t, hits) => {
         for (const [mob] of hits) hitters.add(mob);
-        const attackers = mobs.filter(attacking);
-        expect(attackers.length).toBeLessThanOrEqual(1);
-        if (attackers.length === 0) return;
-        for (const mob of mobs) {
-          if (mob.state !== 'chase') continue;
-          // Out of the reach of its blow while another one attacks.
-          expect(dist(mob, player.state)).toBeGreaterThan(MOB_STATS[mob.kind].hitRange);
-          if (dist(mob, player.state) < MOB_STATS[mob.kind].harass[1] + 8) hounded = true;
-        }
+        // Never two wind-ups that start together.
+        expect(mobs.filter((m) => m.state === 'windup' && m.stateMs <= TICK_MS + 1).length).toBeLessThanOrEqual(1);
+        if (!mobs.some(attacking)) return;
+        // While mobs attack, the others keep out of the reach of their blows: only the next one comes in.
+        expect(mobs.filter((m) => m.state === 'chase' && dist(m, player.state) <= MOB_STATS[m.kind].hitRange).length).toBeLessThanOrEqual(1);
+        for (const mob of mobs) if (mob.state === 'chase' && dist(mob, player.state) < MOB_STATS[mob.kind].harass[1] + 8) hounded = true;
       });
       expect(hounded).toBe(true);
       expect(hitters.size).toBe(kinds.length);
@@ -251,28 +248,54 @@ describe('mobs that hunt one player', () => {
     }
   });
 
-  it('time the next attack to come right after the guard of a hit', () => {
-    const { horde, player, mobs } = pack(1);
-    // The time when the player could be hit again, and when the next wind-up began after it.
-    let free = -1;
-    const gaps: number[] = [];
-    run(horde, [player], 20_000, (t) => {
-      if (canBeHit(player.state) && !mobs.some(attacking)) {
-        if (free < 0) free = t;
-      } else if (mobs.some((m) => m.state === 'windup' && m.stateMs <= TICK_MS + 1) && free >= 0) {
-        gaps.push(t - free);
-        free = -1;
-      } else if (!canBeHit(player.state)) {
-        free = -1;
+  it('overlap their attacks more and more in a bigger pack', () => {
+    // The player dodges every blow (no mob can hit it in the tick of a blow), so the attacks
+    // follow one another without a stun. When a wind-up starts, how much of the attack before it
+    // is left, as a share of its length: at most the overlap of the pack, and nearly that much.
+    const shares = [1, 2, 3, 5].map((size) => {
+      const { horde, player, mobs } = pack(4, Array.from({ length: size }, () => 'imp' as const));
+      const duration = MOB_STATS.imp.windupMs + MOB_STATS.imp.strikeMs;
+      const leftOf = (m: Mob) => (m.state === 'windup' ? MOB_STATS.imp.windupMs - m.stateMs + MOB_STATS.imp.strikeMs : MOB_STATS.imp.strikeMs - m.stateMs);
+      let most = 0;
+      let starts = 0;
+      for (let t = 0; t < 20_000; t += TICK_MS) {
+        stepPlayer(player.state, NO_INPUT, horde.world);
+        if (mobs.some((m) => m.state === 'windup' && m.stateMs + TICK_MS >= MOB_STATS.imp.windupMs)) player.state.guard = 1;
+        const before = mobs.filter(attacking);
+        expect(horde.step(TICK_MS, [player])).toEqual([]);
+        for (const m of mobs.filter((m) => m.state === 'windup' && m.stateMs <= TICK_MS + 1)) {
+          starts++;
+          for (const other of before) if (other !== m) most = Math.max(most, leftOf(other) / duration);
+        }
       }
+      expect(starts, `${size} imps`).toBeGreaterThan(10);
+      return most;
     });
-    // The first one runs in from far away; then each comes within a moment.
-    expect(gaps.length).toBeGreaterThanOrEqual(5);
-    for (const gap of gaps.slice(1)) expect(gap).toBeLessThan(200);
+    expect(shares[0]).toBe(0);
+    const overlap = [0, 0.2, 0.4, 0.75];
+    shares.forEach((share, i) => {
+      expect(share).toBeLessThanOrEqual(overlap[i]! + 0.05);
+      if (i > 0) expect(share).toBeGreaterThan(overlap[i]! - 0.12);
+    });
   });
 
-  it('time the next attack to come right after a blow that misses', () => {
+  it('time the next blow to come right after the guard of a hit, and never in it', () => {
+    const { horde, player } = pack(1);
+    const hitTimes: number[] = [];
+    run(horde, [player], 30_000, (t, hits) => {
+      if (hits.length) hitTimes.push(t);
+    });
+    const guarded = (MOB_STATS.imp.stunTicks + GUARD_TICKS) * TICK_MS;
+    const gaps = hitTimes.slice(1).map((t, i) => t - hitTimes[i]!);
+    expect(gaps.length).toBeGreaterThanOrEqual(8);
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(guarded);
+    // The first ones run in from far away; then the next blow comes within a moment of the guard's end.
+    for (const gap of gaps.slice(2)) expect(gap).toBeLessThan(guarded + 300);
+  });
+
+  it('time the next attack to come right after a blow that misses (in a pack of two, a little before its end)', () => {
     const { horde, player, mobs } = pack(2, ['imp', 'imp']);
+    const duration = MOB_STATS.imp.windupMs + MOB_STATS.imp.strikeMs;
     let first: Mob | null = null;
     let missed = false;
     let over = -1;
@@ -289,13 +312,39 @@ describe('mobs that hunt one player', () => {
       if (first && missed && over < 0 && !attacking(first)) over = t;
       const other = mobs.find((m) => m !== first && attacking(m));
       if (other) {
-        // Not while the first one attacks, and soon after its blow is over.
-        expect(over).toBeGreaterThanOrEqual(0);
+        // Not during the first one's wind-up: at most a fifth of its attack is left.
+        expect(missed).toBe(true);
+        if (over < 0) expect(MOB_STATS.imp.strikeMs - first!.stateMs).toBeLessThanOrEqual(0.2 * duration + TICK_MS);
         next = t;
       }
     }
     expect(next).toBeGreaterThan(0);
-    expect(next - over).toBeLessThan(120);
+    // And if it starts after the end of the first one's blow, then soon after.
+    if (over >= 0) expect(next - over).toBeLessThan(120);
+  });
+
+  it('stay in the fight while the player moves about: the brutes of a pack attack too', () => {
+    const { horde, player, mobs } = pack(6, ['imp', 'imp', 'brute', 'brute']);
+    const windups = new Map(mobs.map((m) => [m.id, 0]));
+    const giveUps = new Map(mobs.map((m) => [m.id, 0]));
+    const was = new Map(mobs.map((m) => [m.id, m.state as string]));
+    for (let t = 0; t < 60_000; t += TICK_MS) {
+      // Slowly round a wide circle, slower than a brute: far from where the mobs came from.
+      const a = t / 6000;
+      stepPlayer(player.state, { x: 0.4 * Math.cos(a), y: 0.4 * Math.sin(a) }, horde.world);
+      horde.step(TICK_MS, [player]);
+      for (const m of mobs) {
+        if (m.state !== was.get(m.id)) {
+          if (m.state === 'windup') windups.set(m.id, windups.get(m.id)! + 1);
+          if (m.state === 'walk') giveUps.set(m.id, giveUps.get(m.id)! + 1);
+          was.set(m.id, m.state);
+        }
+      }
+    }
+    for (const m of mobs) {
+      expect(windups.get(m.id), `${m.kind} ${m.id} attacks`).toBeGreaterThanOrEqual(3);
+      expect(giveUps.get(m.id), `${m.kind} ${m.id} gives up`).toBeLessThanOrEqual(1);
+    }
   });
 
   it('take turns for each player alone: two players can be attacked at once', () => {

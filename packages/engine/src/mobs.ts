@@ -9,9 +9,10 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * player for a while before it comes back for another attack. One attack of a player kills a
  * mob, which dies with an animation.
  *
- * Mobs that hunt the same player take turns: only one attacks it at a time. The others hound
+ * Mobs that hunt the same player take turns: they attack one after the other. The others hound
  * the player from close by, out of the reach of their blows and of the player's attacks, and the
  * next one in the line times its approach, so that its attack comes right after the one before.
+ * In a pack the attacks overlap: the bigger the pack, the sooner the next one starts.
  *
  * Mobs never go into a building, and a world can keep them out of more (a town): see MobRules.
  * They do not collide with players, NPCs or each other, only with the world.
@@ -168,8 +169,14 @@ const PROWL_STEP = 3 * TILE_SIZE;
 const PROWL_NEAREST = 6 * TILE_SIZE;
 /** The most tiles that a prowl searches for its way. */
 const PROWL_SEARCH = 3000;
-/** A mob does not chase further than this from its home (world pixels): then it goes back. */
+/**
+ * A mob does not chase further than this from its home (world pixels): then it goes back. A mob
+ * in the pack round its player (close to it) takes its home with it: the fight goes where the
+ * player goes.
+ */
 const LEASH = 18 * TILE_SIZE;
+/** A mob that gave up a hunt does not look for players for this long (ms): it walks back first. */
+const REST_MS = 3000;
 /** It follows a player that it cannot see any more for this long (ms), to where it saw it last. */
 const MEMORY_MS = 1500;
 /** Mobs of a player are counted this close to it (tiles); new ones come this far from every player (tiles). */
@@ -212,6 +219,15 @@ const HOUND_PULL = 12;
 const SPREAD = 1.1;
 /** The next in the line closes in at this share of its chase speed: it can keep up with its timed distance. */
 const CLOSE_IN = 0.8;
+/**
+ * The attacks of a pack overlap: the next mob may start its wind-up when the attack before it has
+ * this share of its length left, for each mob of the pack after the first, up to OVERLAP_MAX
+ * (one mob: 0, two: 0.2, three: 0.4, four: 0.6). The pack: the mobs that hunt the player within
+ * PACK_RADIUS of it (world pixels).
+ */
+const OVERLAP_STEP = 0.2;
+const OVERLAP_MAX = 0.75;
+const PACK_RADIUS = 8 * TILE_SIZE;
 const TICK_MS = TICK_SECONDS * 1000;
 
 interface Brain {
@@ -250,6 +266,8 @@ interface Brain {
   /** The way round the player (+1 or -1), and for how long more (ms). */
   orbit: number;
   orbitMs: number;
+  /** After it gave up a hunt: how long more it does not look for players (ms). */
+  restMs: number;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -330,6 +348,7 @@ export class Horde {
       ringMs: 0,
       orbit: 1,
       orbitMs: 0,
+      restMs: 0,
     });
     return mob;
   }
@@ -352,7 +371,8 @@ export class Horde {
         case 'idle':
         case 'walk':
           if (this.despawn(mob, players)) break;
-          if (this.notice(mob, brain, players)) break;
+          if (brain.restMs > 0) brain.restMs -= dt;
+          else if (this.notice(mob, brain, players)) break;
           this.wander(mob, brain, dt, players);
           break;
         case 'chase':
@@ -527,8 +547,12 @@ export class Horde {
     } else {
       brain.lostMs += dt;
     }
+    // In the pack round its player, a mob stays in the fight: its home goes with it, and a moment
+    // stuck behind a tree does not end the hunt (it goes the other way round).
+    const close = seen && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.harass[1] + 2 * HOUND_MARGIN;
+    if (close) brain.home = { x: mob.x, y: mob.y };
     const fromHome = Math.hypot(mob.x - brain.home.x, mob.y - brain.home.y);
-    if (brain.lostMs > MEMORY_MS || fromHome > LEASH || brain.stuckMs > GIVE_UP_MS) {
+    if (brain.lostMs > MEMORY_MS || fromHome > LEASH || (!close && brain.stuckMs > GIVE_UP_MS)) {
       this.giveUp(mob, brain);
       return;
     }
@@ -544,7 +568,7 @@ export class Horde {
     const d = Math.hypot(dx, dy);
     if (seen) {
       const wait = this.waitFor(mob, brain.target!, target);
-      if (wait === 0 && d <= stats.reach) {
+      if (wait <= 0 && d <= stats.reach) {
         this.enter(mob, 'windup');
         mob.facing = facingTo(dx, dy, mob.facing);
         brain.timerMs = stats.windupMs;
@@ -642,9 +666,10 @@ export class Horde {
     this.move(mob, brain.slideX * d, brain.slideY * d);
   }
 
-  /** Stops the hunt and walks back home. */
+  /** Stops the hunt and walks back home (it does not look for players for a while). */
   private giveUp(mob: Mob, brain: Brain): void {
     brain.target = null;
+    brain.restMs = REST_MS;
     brain.goal = { x: brain.home.x, y: brain.home.y };
     brain.stuckMs = 0;
     this.enter(mob, 'walk');
@@ -654,18 +679,32 @@ export class Horde {
 
   /**
    * How long the mob must wait for its turn to attack the player `playerId` (ms): 0 if it may
-   * attack now, Infinity if it is not the next in the line. The turn comes when the attack of the
-   * mob before it is over and the player can be hit again (after a stun and its guard).
+   * attack now, Infinity if it is not the next in the line. The turn comes when the attacks of the
+   * mobs before it are over, or in a pack nearly over (overlap()), and when its blow can hit: the
+   * blow comes at the end of the wind-up, so in a pack the wind-up starts a little before the
+   * guard after a stun ends (the blow still comes after it).
    */
   private waitFor(mob: Mob, playerId: number, player: PlayerState): number {
     if (this.nextUp(playerId, player) !== mob.id) return Infinity;
-    let wait = (player.stun > 0 ? player.stun + GUARD_TICKS : player.guard) * TICK_MS;
-    const attacker = this.attacker(playerId);
-    if (attacker) {
+    const overlap = this.overlap(playerId, player);
+    let wait = (player.stun > 0 ? player.stun + GUARD_TICKS : player.guard) * TICK_MS - overlap * MOB_STATS[mob.kind].windupMs;
+    for (const attacker of this.attackers(playerId)) {
+      const stats = MOB_STATS[attacker.kind];
       const timer = this.brains.get(attacker.id)!.timerMs;
-      wait = Math.max(wait, attacker.state === 'windup' ? timer + MOB_STATS[attacker.kind].strikeMs : timer);
+      const left = attacker.state === 'windup' ? timer + stats.strikeMs : timer;
+      wait = Math.max(wait, left - overlap * (stats.windupMs + stats.strikeMs));
     }
-    return wait;
+    return Math.max(0, wait);
+  }
+
+  /** How much the attacks on the player `playerId` overlap (0 to OVERLAP_MAX): more for a bigger pack round it. */
+  private overlap(playerId: number, player: PlayerState): number {
+    let pack = 0;
+    for (const mob of this.mobs) {
+      if (mob.state === 'idle' || mob.state === 'walk' || mob.state === 'dying' || this.brains.get(mob.id)!.target !== playerId) continue;
+      if (Math.hypot(mob.x - player.x, mob.y - player.y) <= PACK_RADIUS) pack++;
+    }
+    return Math.min(OVERLAP_MAX, OVERLAP_STEP * Math.max(0, pack - 1));
   }
 
   /**
@@ -693,12 +732,9 @@ export class Horde {
     return best?.id ?? null;
   }
 
-  /** The mob that attacks the player `playerId` now (in its wind-up or its blow), or null. At most one does. */
-  private attacker(playerId: number): Mob | null {
-    for (const mob of this.mobs) {
-      if ((mob.state === 'windup' || mob.state === 'strike') && this.brains.get(mob.id)!.target === playerId) return mob;
-    }
-    return null;
+  /** The mobs that attack the player `playerId` now (in their wind-up or their blow). In a pack their attacks overlap. */
+  private attackers(playerId: number): Mob[] {
+    return this.mobs.filter((mob) => (mob.state === 'windup' || mob.state === 'strike') && this.brains.get(mob.id)!.target === playerId);
   }
 
   /** Whether the mob is close to the player: within its hounding distance and `margins` times HOUND_MARGIN. */
