@@ -7,8 +7,8 @@ import type { Character, CharacterPlace, CharacterSheet } from '@game/engine';
  */
 
 export interface Me {
-  /** How the visitor signed in (the server keeps no name and no email), or null. */
-  readonly user: { readonly via: 'google' | 'dev' } | null;
+  /** How the visitor signed in, and if it is an admin (it sees the display settings), or null. */
+  readonly user: { readonly via: 'google' | 'dev'; readonly admin: boolean } | null;
   readonly login: { readonly google: boolean; readonly dev: boolean };
 }
 

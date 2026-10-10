@@ -109,7 +109,7 @@ describe('accounts: sessions', () => {
     const browser = new Browser(port);
     expect((await browser.request('GET', '/api/me')).json).toEqual({ user: null, login: { google: false, dev: true } });
     await browser.signIn('  Fede ');
-    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
+    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
     expect((await browser.request('POST', '/auth/logout')).status).toBe(204);
     expect((await browser.request('GET', '/api/me')).json.user).toBeNull();
   });
@@ -136,7 +136,7 @@ describe('accounts: sessions', () => {
     await phone.signIn('Fede');
     const id = (await phone.request('POST', '/api/characters', sheet)).json.character.id as string;
     await laptop.signIn('Fede');
-    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
+    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
     expect((await phone.request('GET', '/api/me')).json.user).toBeNull();
     expect((await phone.request('PUT', `/api/characters/${id}/place`, { world: 'solo', x: 1, y: 1 })).status).toBe(401);
     // The same account, with its characters, on the new device.
@@ -144,7 +144,7 @@ describe('accounts: sessions', () => {
     // Another account is not touched.
     const other = new Browser(port);
     await other.signIn('Bea');
-    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev' });
+    expect((await laptop.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
   });
 
   it('ends a session after its lifetime', async () => {
@@ -238,9 +238,9 @@ describe('accounts: sign-in with Google', () => {
     const fakeFetch = (async (url: string, init: RequestInit) => {
       calls.push({ url, body: init.body as URLSearchParams });
       const exp = Math.floor(Date.now() / 1000) + 3600;
-      return new Response(JSON.stringify({ id_token: idToken({ iss: 'https://accounts.google.com', aud: google.clientId, exp, sub: '1234567890', email: 'fede@example.com', name: 'Fede III' }) }));
+      return new Response(JSON.stringify({ id_token: idToken({ iss: 'https://accounts.google.com', aud: google.clientId, exp, sub: '1234567890', email: 'Fede@Example.com', email_verified: true, name: 'Fede III' }) }));
     }) as unknown as typeof fetch;
-    const { port } = await start({ google, fetch: fakeFetch, devLogin: false });
+    const { port } = await start({ google, fetch: fakeFetch, devLogin: false, admins: ['fede@example.com'] });
     const browser = new Browser(port);
     expect((await browser.request('GET', '/api/me')).json.login).toEqual({ google: true, dev: false });
 
@@ -250,8 +250,8 @@ describe('accounts: sign-in with Google', () => {
     expect(to.origin + to.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth');
     expect(to.searchParams.get('redirect_uri')).toBe(`${ORIGIN}/auth/google/callback`);
     expect(to.searchParams.get('code_challenge_method')).toBe('S256');
-    // Only the account id: no email, no name, no picture.
-    expect(to.searchParams.get('scope')).toBe('openid');
+    // The account id and the email: no name, no picture.
+    expect(to.searchParams.get('scope')).toBe('openid email');
     const state = to.searchParams.get('state')!;
     expect(browser.cookies.get('game_login')).toBe(state);
 
@@ -261,7 +261,8 @@ describe('accounts: sign-in with Google', () => {
     expect(calls[0]!.url).toBe('https://oauth2.googleapis.com/token');
     expect(calls[0]!.body.get('code')).toBe('the-code');
     expect(calls[0]!.body.get('code_verifier')).toMatch(/^[\w-]{43}$/);
-    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'google' });
+    // Its verified email is in the list of the admins (any case).
+    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'google', admin: true });
     // A state works once.
     const again = await new Browser(port).request('GET', `/auth/google/callback?state=${state}&code=the-code`);
     expect(again.headers.get('location')).toBe(`${ORIGIN}/?login=failed`);
@@ -284,6 +285,53 @@ describe('accounts: sign-in with Google', () => {
     expect((await browser.request('GET', '/api/me')).json.user).toBeNull();
     aud = google.clientId;
     expect((await browser.request('GET', '/auth/google/callback?error=access_denied')).headers.get('location')).toBe(`${ORIGIN}/?login=cancelled`);
+  });
+});
+
+describe('accounts: admins', () => {
+  const google = { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'secret' };
+  const idToken = (claims: Record<string, unknown>) => `x.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.sig`;
+
+  it('knows an admin by the verified email of its last sign-in with Google', async () => {
+    let claims: Record<string, unknown> = {};
+    const fakeFetch = (async () => {
+      const exp = Math.floor(Date.now() / 1000) + 3600;
+      return new Response(JSON.stringify({ id_token: idToken({ iss: 'accounts.google.com', aud: google.clientId, exp, sub: '42', ...claims }) }));
+    }) as unknown as typeof fetch;
+    const started = await start({ google, fetch: fakeFetch, admins: [' Boss@example.com ', ''] });
+    /** Signs in with Google: what /api/me says, and the email that the database keeps. */
+    const signIn = async () => {
+      const browser = new Browser(started.port);
+      const state = new URL((await browser.request('GET', '/auth/google')).headers.get('location')!).searchParams.get('state')!;
+      expect((await browser.request('GET', `/auth/google/callback?state=${state}&code=c`)).headers.get('location')).toBe(`${ORIGIN}/`);
+      const kept = started.accounts!.store.session(browser.cookies.get('game_session')!, Date.now())!.user.email;
+      return { user: (await browser.request('GET', '/api/me')).json.user, kept };
+    };
+    // Google did not verify the email: not an admin, and the server keeps no email.
+    claims = { email: 'boss@example.com', email_verified: false };
+    expect(await signIn()).toEqual({ user: { via: 'google', admin: false }, kept: '' });
+    // Verified ("true" as a string in older tokens): an admin.
+    claims = { email: 'Boss@example.com', email_verified: 'true' };
+    expect(await signIn()).toEqual({ user: { via: 'google', admin: true }, kept: 'boss@example.com' });
+    // Another email on the same account replaces it.
+    claims = { email: 'someone@example.com', email_verified: true };
+    expect(await signIn()).toEqual({ user: { via: 'google', admin: false }, kept: 'someone@example.com' });
+  });
+
+  it('signs in with an email in development, and has no admins without the list', async () => {
+    const started = await start({ admins: ['boss@example.com'] });
+    const boss = new Browser(started.port);
+    await boss.signIn('Boss@Example.com');
+    expect((await boss.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: true });
+    // A name is no email.
+    const other = new Browser(started.port);
+    await other.signIn('boss');
+    expect((await other.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
+    await started.close();
+    server = null;
+    const plain = new Browser((await start()).port);
+    await plain.signIn('boss@example.com');
+    expect((await plain.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
   });
 });
 
@@ -324,7 +372,7 @@ describe('accounts: the shared world', () => {
     await phone.signIn('Fede');
     const id = (await phone.request('POST', '/api/characters', sheet)).json.character.id as string;
     const place = { world: 'shared', x: 40 * 16 + 8, y: 12 * 16 + 8 };
-    started.accounts!.savePlace({ id: 1, provider: 'dev' }, id, place);
+    started.accounts!.savePlace({ id: 1, provider: 'dev', email: '' }, id, place);
     const a = await phone.hello({ character: id });
     expect(a.first).toMatchObject({ t: 'welcome', x: place.x, y: place.y });
     // It walks east a little; then the same account signs in on a laptop.
@@ -361,7 +409,7 @@ describe('accounts: the shared world', () => {
     const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
     const listed = async () => ((await browser.request('GET', '/api/characters')).json.characters as { id: string; pack: unknown }[]).find((c) => c.id === id)!.pack;
     expect(await listed()).toEqual({ coins: 0, items: [] });
-    started.accounts!.savePack({ id: 1, provider: 'dev' }, id, { coins: 7, items: [{ kind: 'herbs', count: 2 }] });
+    started.accounts!.savePack({ id: 1, provider: 'dev', email: '' }, id, { coins: 7, items: [{ kind: 'herbs', count: 2 }] });
     expect(await listed()).toEqual({ coins: 7, items: [{ kind: 'herbs', count: 2 }] });
     const a = await browser.hello({ character: id });
     expect(a.first).toMatchObject({ t: 'welcome', pk: [7, [[5, 2]]] });
@@ -422,7 +470,7 @@ describe('accounts: places', () => {
     const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
     // A place far from the spawn, on open grass (the server's own record).
     const place = { world: 'shared', x: 120 * 16 + 5.5, y: 9 * 16 + 7.25 };
-    started.accounts!.savePlace({ id: 1, provider: 'dev' }, id, place);
+    started.accounts!.savePlace({ id: 1, provider: 'dev', email: '' }, id, place);
     // The client asks for a tile near the spawn: the stored place wins.
     const a = await browser.hello({ character: id, at: [5, 9] });
     expect(a.first).toMatchObject({ t: 'welcome', x: place.x, y: place.y });
@@ -465,7 +513,7 @@ describe('accounts: personal data', () => {
     expect((await a.request('GET', '/api/characters')).json.characters).toEqual([]);
   });
 
-  it('keeps no email and no name, and removes them from an old database', () => {
+  it('keeps no name, and removes the name and the email of an old database', () => {
     const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
     try {
       // A database of the first schema, with an email and a name.
@@ -482,11 +530,12 @@ describe('accounts: personal data', () => {
       old.close();
       const store = new AccountStore(file);
       const user = store.signIn('google', '123', 2);
-      expect(user).toEqual({ id: 1, provider: 'google' });
+      // The email of the first schema went; the column came back empty (2026-10-10).
+      expect(user).toEqual({ id: 1, provider: 'google', email: '' });
       store.close();
       const check = new DatabaseSync(file);
       const columns = (check.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
-      expect(columns.sort()).toEqual(['created_at', 'id', 'last_login_at', 'provider', 'subject']);
+      expect(columns.sort()).toEqual(['created_at', 'email', 'id', 'last_login_at', 'provider', 'subject']);
       // And the later steps ran: a character has a place.
       expect((check.prepare('PRAGMA table_info(characters)').all() as { name: string }[]).map((c) => c.name)).toContain('place');
       check.close();

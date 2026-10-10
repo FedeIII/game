@@ -8,7 +8,8 @@
 #
 # The database is a SQLite file in the server process (.dev-data/game.db), so there is no database
 # server to start. The menu has a dev sign-in (a name only). For the real sign-in with Google, put
-# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local (see deploy/README.md). Open the page at
+# GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local (see deploy/README.md). .env.local also
+# keeps ADMIN_EMAILS (the admins; a dev sign-in with one of those emails is an admin). Open the page at
 # http://localhost:3019 (not 127.0.0.1): Google sends the visitor back to that name, and the
 # session cookie belongs to it.
 #

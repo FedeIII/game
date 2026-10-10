@@ -81,10 +81,10 @@ const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
 <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`;
 
 /**
- * The settings: a button in the top-right corner opens a panel. It has the display settings (an
- * on/off switch and a slider for each CRT setting), and the sections that the game adds on top
- * (addSection: the visitor's look and name). Changes apply at once and are saved in this browser.
- * The panel is outside the game surface, so a touch on it never moves the player.
+ * The settings: a button in the top-right corner opens a panel. It has the sections that the game
+ * adds on top (addSection: the visitor's look and name), and for an admin the display settings (an
+ * on/off switch and a slider for each CRT setting). Changes apply at once and are saved in this
+ * browser. The panel is outside the game surface, so a touch on it never moves the player.
  */
 export class SettingsPanel {
   private readonly crt: CrtFilter;
@@ -98,7 +98,8 @@ export class SettingsPanel {
   private readonly query: HTMLElement;
   private readonly copy: HTMLButtonElement;
 
-  constructor(crt: CrtFilter, state: CrtState, linked: readonly CrtFilter[] = []) {
+  /** `controls`: the display settings show (an admin). Without them, the filters keep `state`. */
+  constructor(crt: CrtFilter, state: CrtState, linked: readonly CrtFilter[] = [], controls = true) {
     this.crt = crt;
     this.linked = linked;
     this.state = state;
@@ -116,12 +117,14 @@ export class SettingsPanel {
     this.panel.hidden = true;
     this.panel.setAttribute('aria-label', 'Settings');
 
+    // The display settings: in the panel only for an admin.
+    const display = document.createDocumentFragment();
     const title = document.createElement('label');
     title.className = 'settings-title';
     this.toggle = document.createElement('input');
     this.toggle.type = 'checkbox';
     title.append(this.toggle, ' CRT effect');
-    this.panel.append(title);
+    display.append(title);
 
     for (const slider of SLIDERS) {
       const row = document.createElement('label');
@@ -135,7 +138,7 @@ export class SettingsPanel {
       input.step = String(slider.step);
       const output = document.createElement('output');
       row.append(name, input, output);
-      this.panel.append(row);
+      display.append(row);
       this.inputs.set(slider.key, { input, output });
       input.addEventListener('input', () => {
         this.state.values[slider.key] = Number(input.value);
@@ -149,7 +152,8 @@ export class SettingsPanel {
     this.query = document.createElement('code');
     this.copy = this.smallButton('Copy link', () => void this.copyLink());
     footer.append(this.query, this.copy, this.smallButton('Reset', () => this.reset()));
-    this.panel.append(footer);
+    display.append(footer);
+    if (controls) this.panel.append(display);
 
     this.toggle.addEventListener('change', () => {
       this.state.enabled = this.toggle.checked;

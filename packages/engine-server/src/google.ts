@@ -8,8 +8,9 @@ import { createHash, randomBytes } from 'node:crypto';
  * Thus the token needs no signature check (OpenID Connect Core 1.0, 3.1.3.7); the server checks
  * its issuer, its audience and its expiry.
  *
- * The scope is `openid` only: the token gives the Google account id (`sub`) and no name, email
- * or picture. The game keeps only that id (see apps/game/public/privacy/).
+ * The scope is `openid email`: the token gives the Google account id (`sub`) and the email, but no
+ * name or picture. The game keeps the id and a verified email: the email tells who is an admin
+ * (ADMIN_EMAILS). See apps/game/privacy/.
  */
 
 export interface GoogleConfig {
@@ -39,7 +40,7 @@ export function googleAuthUrl(config: GoogleConfig, redirectUri: string, state: 
     client_id: config.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'openid',
+    scope: 'openid email',
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -51,6 +52,8 @@ export function googleAuthUrl(config: GoogleConfig, redirectUri: string, state: 
 export interface GoogleIdentity {
   /** Google's id of the account (`sub`): it never changes. */
   readonly subject: string;
+  /** The email of the account, in lowercase, if Google verified it; else ''. */
+  readonly email: string;
 }
 
 /** Reads the claims of a JWT without its signature (see the comment at the top). */
@@ -96,5 +99,8 @@ export async function googleIdentity(
   if (!audience.includes(config.clientId)) throw new Error('audience');
   if (typeof claims.exp !== 'number' || claims.exp * 1000 < now - SKEW_MS) throw new Error('expired');
   if (typeof claims.sub !== 'string' || claims.sub.length === 0) throw new Error('subject');
-  return { subject: claims.sub };
+  // A boolean in an ID token; some older tokens have the string "true".
+  const verified = claims.email_verified === true || claims.email_verified === 'true';
+  const email = verified && typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : '';
+  return { subject: claims.sub, email };
 }

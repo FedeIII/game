@@ -279,7 +279,7 @@ export class ConversationPanel {
       if (!event.repeat) this.choose(talk.selected);
     } else if (event.code === 'Escape') this.end();
     // The other keys of the game do nothing while the panel is open.
-    else if (!['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'KeyJ'].includes(event.code)) handled = false;
+    else if (!['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'KeyJ', 'KeyI'].includes(event.code)) handled = false;
     if (!handled) return;
     event.preventDefault();
     event.stopImmediatePropagation();

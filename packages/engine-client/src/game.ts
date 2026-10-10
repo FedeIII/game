@@ -184,8 +184,10 @@ async function run(options: GameOptions): Promise<void> {
   // the chosen look is ready when the game starts.
   const skins = new SkinStore();
   let character: Character | null = null;
+  // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings; a guest never.
+  let admin = false;
   if (options.accounts && !params.has('nomenu')) {
-    character = (await runMenu({ title: definition.name, site: options.title ?? location.host, skins })).character;
+    ({ character, admin } = await runMenu({ title: definition.name, site: options.title ?? location.host, skins }));
   }
 
   // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
@@ -570,15 +572,16 @@ async function run(options: GameOptions): Promise<void> {
   /** Whether the arrival is under way: the title, the wait for the welcome, or the welcome. */
   const arriving = (now: number) => intro !== null && (introTitle!.phase(introClock(now)) !== 'done' || (welcome !== null && (!welcomed || welcome.active)));
   // CRT diffusion. The world filter covers the whole screen; the display settings panel turns
-  // it on and off and changes it, and ?nocrt and ?crt=spread,mix,glow,scanline set it from the
-  // URL. The text filter has its own fixed settings and covers only the text (its bounds plus
-  // padding), so it costs little; the panel's switch turns it on and off too.
+  // it on and off and changes it (an admin only: the others have the defaults, and nothing that
+  // this browser saved), and ?nocrt and ?crt=spread,mix,glow,scanline set it from the URL. The
+  // text filter has its own fixed settings and covers only the text (its bounds plus padding), so
+  // it costs little; the panel's switch turns it on and off too.
   const crt = new CrtFilter();
   worldLayer.filters = [crt];
   worldLayer.filterArea = app.screen;
   const crtText = new CrtFilter(CRT_TEXT, 8);
   textLayer.filters = [crtText];
-  const settings = new SettingsPanel(crt, crtStateFrom(params, loadSavedCrt()), [crtText]);
+  const settings = new SettingsPanel(crt, crtStateFrom(params, admin ? loadSavedCrt() : null), [crtText], admin);
   settings.addSection(you.element);
   // The worlds menu only when there is another world to go to.
   if (options.worlds.length > 1) new WorldMenu(options.worlds, definition);

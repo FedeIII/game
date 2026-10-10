@@ -92,7 +92,11 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
    nano /etc/game/secret.env
    #   GOOGLE_CLIENT_ID=<the client ID>.apps.googleusercontent.com
    #   GOOGLE_CLIENT_SECRET=<the client secret>
+   #   ADMIN_EMAILS=<the emails of the admins, comma-separated>   (optional)
    ```
+
+   An admin sees the display settings in the game. The emails stay here, out of git: the
+   repository is public. A change takes effect at the next restart of game-server.
 
 3. **The data folder** (the server makes it too, but give it these permissions):
    `install -d -m 700 /var/lib/game`. The database file is `/var/lib/game/game.db` (and its
@@ -121,7 +125,7 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
    dated copy, gpg AES256 with a passphrase file, a test decryption, then the plain copy is
    deleted; `/var/backups/game/game-<UTC stamp>.db.gpg`, the newest 14 kept; 03:41 to 03:46,
    after the house-md backup and before the wallet backup). The copies hold the Google account
-   ids of the players (since 2026-10-10 no emails and no names). This is the method of the house-md and wallet backups on the VPS. The script
+   ids and the emails of the players (no names). This is the method of the house-md and wallet backups on the VPS. The script
    refuses to run without the passphrase file, or if the file is not mode 600:
 
    ```bash

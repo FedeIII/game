@@ -46,6 +46,8 @@ export const STRINGS = {
   /** The pack panel (ui/pack-panel.ts). */
   pack: {
     button: 'Pack',
+    /** The tooltip of the button: the key that opens the pack too. */
+    buttonKey: 'Pack (I)',
     heading: 'Pack',
     coins: 'Coins',
     slots: (used: number, all: number): string => `${used} of ${all} slots`,
@@ -149,7 +151,7 @@ export const STRINGS = {
     privacy: 'Privacy',
     signInTitle: 'Sign in to keep your characters',
     google: 'Sign in with Google',
-    devName: 'Name',
+    devName: 'Name or email',
     devSignIn: 'Dev sign-in',
     noSignIn: 'Sign-in is not available now. Try again later.',
     loginFailed: 'The sign-in did not work. Try again.',

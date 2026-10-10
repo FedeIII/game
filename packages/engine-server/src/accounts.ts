@@ -8,7 +8,7 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  * characters (the JSON API that the menu of the page uses). nginx sends /api/ and /auth/ here,
  * as it sends /ws; in development, Vite does.
  *
- *   GET    /api/me                      who is signed in (how, or null), and the ways to sign in
+ *   GET    /api/me                      who is signed in (how, and if an admin; or null), and the ways to sign in
  *   DELETE /api/me                      deletes the account, its sessions and its characters
  *   GET    /api/characters              the account's characters
  *   POST   /api/characters              a new character (a CharacterSheet as JSON)
@@ -18,7 +18,8 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  *   DELETE /api/characters/<id>
  *   GET    /auth/google                 to Google's sign-in page
  *   GET    /auth/google/callback        back from Google: a session, then to the page
- *   POST   /auth/dev                    {name}: a session without Google (development only)
+ *   POST   /auth/dev                    {name}: a session without Google (development only); a name
+ *                                       that is an email signs in with that email, as Google would
  *   POST   /auth/logout
  *
  * A request that changes something (POST, PUT, DELETE) must come from one of the game's pages (the
@@ -27,6 +28,9 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  * An account is signed in on one device at a time: a sign-in ends the account's other sessions
  * (AccountStore.createSession), and onSignIn() tells the game server, which closes their
  * connections. A page whose session ended goes back to the sign-in screen.
+ *
+ * An admin is an account whose email is in `admins` (ADMIN_EMAILS). Only an admin sees the display
+ * settings (the CRT effect) in the game.
  */
 
 /** The worlds of the application, for the places of characters. */
@@ -50,6 +54,8 @@ export interface AccountsOptions {
   readonly google?: GoogleConfig | null;
   /** POST /auth/dev: a sign-in with only a name. Never in production: an https origin refuses it. */
   readonly devLogin?: boolean;
+  /** The emails of the admins (ADMIN_EMAILS). Default none. */
+  readonly admins?: readonly string[];
   /** How long a session lasts without use. Default 30 days. */
   readonly sessionDays?: number;
   /** For tests: the fetch that talks to Google, and the clock. */
@@ -61,6 +67,8 @@ const SESSION_COOKIE = 'game_session';
 const LOGIN_COOKIE = 'game_login';
 const MAX_BODY_BYTES = 16 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** A dev sign-in with a name like this signs in with that email. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseCookies(header: string | undefined): Map<string, string> {
   const out = new Map<string, string>();
@@ -106,6 +114,7 @@ export class Accounts {
   private readonly pruneTimer: ReturnType<typeof setInterval>;
   private readonly worlds: PlaceWorlds;
   private readonly signInListeners: ((user: User) => void)[] = [];
+  private readonly admins: ReadonlySet<string>;
 
   /** `origins`: the pages that may change something (null: any, for tests). */
   constructor(options: AccountsOptions, origins: readonly string[] | null, log: (line: string) => void, worlds: PlaceWorlds) {
@@ -119,6 +128,7 @@ export class Accounts {
     this.worlds = worlds;
     this.now = options.now ?? Date.now;
     this.lifetimeMs = (options.sessionDays ?? 30) * DAY_MS;
+    this.admins = new Set((options.admins ?? []).map((email) => email.trim().toLowerCase()).filter(Boolean));
     this.store = new AccountStore(options.db);
     this.pruneTimer = setInterval(() => this.store.prune(this.now()), 60 * 60 * 1000);
     this.pruneTimer.unref();
@@ -144,6 +154,11 @@ export class Accounts {
   /** Whether a session (its token) still lives: it did not end, and no later sign-in replaced it. */
   sessionLives(token: string): boolean {
     return this.store.session(token, this.now()) !== null;
+  }
+
+  /** Whether a user is an admin: its email is in the list of the admins. */
+  isAdmin(user: User): boolean {
+    return user.email !== '' && this.admins.has(user.email);
   }
 
   /** Calls `listener` after each sign-in, which ended the user's other sessions. */
@@ -255,7 +270,7 @@ export class Accounts {
       response,
       200,
       {
-        user: session ? { via: session.user.provider } : null,
+        user: session ? { via: session.user.provider, admin: this.isAdmin(session.user) } : null,
         login: { google: Boolean(this.options.google), dev: Boolean(this.options.devLogin) },
       },
       headers,
@@ -302,7 +317,7 @@ export class Accounts {
       this.log(`accounts: google sign-in failed: ${(error as Error).message}`);
       return back('failed', { 'set-cookie': clearLogin });
     }
-    const user = this.store.signIn('google', identity.subject, this.now());
+    const user = this.store.signIn('google', identity.subject, this.now(), identity.email);
     const token = this.startSession(user);
     response.writeHead(302, {
       location: `${this.options.publicOrigin}/`,
@@ -315,11 +330,13 @@ export class Accounts {
   private async devSignIn(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (!this.options.devLogin) throw new HttpError(404, 'no dev sign-in');
     const body = (await readJson(request)) as { name?: unknown };
-    const name = typeof body?.name === 'string' && body.name.length <= 4 * NAME_MAX ? cleanName(body.name) : '';
+    const raw = typeof body?.name === 'string' && body.name.length <= 4 * NAME_MAX ? body.name.trim() : '';
+    const email = EMAIL.test(raw) ? raw.toLowerCase() : '';
+    const name = email || cleanName(raw).toLowerCase();
     if (!name) throw new HttpError(400, 'name');
-    const user = this.store.signIn('dev', name.toLowerCase(), this.now());
+    const user = this.store.signIn('dev', name, this.now(), email);
     const token = this.startSession(user);
-    this.json(response, 200, { user: { via: user.provider } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
+    this.json(response, 200, { user: { via: user.provider, admin: this.isAdmin(user) } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
   }
 
   /** The visitor deletes its account: the user, its sessions and its characters, at once. */

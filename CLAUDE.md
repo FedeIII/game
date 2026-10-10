@@ -158,11 +158,11 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
-  map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
+  map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, for an admin only, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon: the coins and the slots of the pack, with the item icons), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, with the item icons), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
@@ -314,7 +314,8 @@ Since 2026-10-09 the game starts on a menu (`startGame({ accounts: true })`, `me
 GUI style, over the whole page (it scrolls on a phone):
 
 - **Sign-in**: "Sign in with Google" (Google's dark button, with the "G"), or in development a
-  dev sign-in with a name only. After Google, the page shows `?login=failed` or `cancelled` once.
+  dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
+  `?login=failed` or `cancelled` once.
 - **Main screen**: "New game", "Continue" (off without characters), and "Signed in with Google
   · Sign out · Delete account · Privacy". "Delete account" asks first, then deletes the account,
   its sessions and all its characters. "Privacy" opens `/privacy/` (`apps/game/privacy/
@@ -356,14 +357,16 @@ Who keeps it:
   heartbeat (25 s). The route refuses such a world (409), so a page cannot move a character there.
 
 **The accounts** are in the game server (`packages/engine-server/src`): `google.ts` (OpenID
-Connect with the scope `openid` only, the code flow with PKCE and a state bound to the browser by
+Connect with the scope `openid email`, the code flow with PKCE and a state bound to the browser by
 a cookie; the ID token comes straight from Google, and the server checks its issuer, audience and
 expiry), `store.ts` (SQLite by `node:sqlite`: users, sessions (only a hash of each token),
 sign-in states, characters as JSON; a schema version and migrations), `accounts.ts` (the routes;
 see its comment). **Keep personal data to a minimum (Fede's decision, 2026-10-10):** an account
-is only the provider's id (Google's `sub`) and its times; the server never asks for or keeps a
-name, an email or a picture, so the privacy page stays short. `DELETE /api/me` deletes an account
-with everything in it. **One device at a time (Fede's rule, 2026-10-10):** a sign-in ends the
+is the provider's id (Google's `sub`), its email and its times; the server never asks for or
+keeps a name or a picture, so the privacy page stays short. The email is the column `email` (since
+2026-10-10, Fede's decision: the server knows the admins by it): each sign-in sets it, and only an
+email that Google verified, in lowercase; else ''. Change the privacy page with the data.
+`DELETE /api/me` deletes an account with everything in it. **One device at a time (Fede's rule, 2026-10-10):** a sign-in ends the
 account's other sessions (`AccountStore.createSession`); the server closes their connections
 (`refused` `elsewhere`, protocol 9), and saves the character's place first. A page whose session
 ended (any 401, `/api/me` every 10 s, or that refusal) goes to the sign-in screen with
@@ -377,6 +380,15 @@ to start without the Google client or with `AUTH_DEV_LOGIN`. Production keeps th
 `/etc/game/secret.env` and the database in `/var/lib/game/game.db`, with a nightly copy that
 gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase`). See
 `deploy/README.md`, "Accounts".
+
+**Admins** (since 2026-10-10): the accounts whose email is in `ADMIN_EMAILS` (comma-separated;
+`Accounts.isAdmin()`). Now Fede is the only admin (Fede's decision). The list is in
+`/etc/game/secret.env` in production and in `.env.local` on the laptop, never in git: the
+repository is public. `/api/me` says `admin`, and the menu gives it to the game. Only an admin sees
+the display settings (the CRT switch and sliders); the others get `CRT_DEFAULTS`, and the game
+ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). The dev sign-in takes
+an email as the name: it then signs in with that email, as Google would, so an admin email there
+is an admin.
 
 ## Ability scores in the game
 
@@ -713,7 +725,8 @@ server` (port 3020; the preview sends `/ws` to it). Or use `scripts/dev.sh --no-
 shared, the page on 3019. A second test server needs a free port: `PORT=<port>
 ORIGINS=http://127.0.0.1:4173 node apps/game/server/main.ts`, and the preview then needs
 `GAME_SERVER=ws://127.0.0.1:<port>`. Use one browser **context** per visitor. The page starts on
-the menu: sign in with the dev sign-in (fill `#dev-name`, click `.dev-sign-in button`), "New
+the menu: sign in with the dev sign-in (fill `#dev-name`, click `.dev-sign-in button`; fill an
+email of `ADMIN_EMAILS` to see the display settings: the server needs the list), "New
 game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-gender-<g>`,
 `#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
 `#builder-create`), and wait for `#menu` to go. A conversation: `#conversation` (hidden when

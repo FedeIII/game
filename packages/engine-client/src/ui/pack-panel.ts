@@ -1,6 +1,7 @@
 import type { Texture } from 'pixi.js';
 import type { Pack } from '@game/engine';
 import type { Art } from '../assets.ts';
+import { isFormField } from '../input/keyboard.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
 
@@ -22,9 +23,9 @@ function drawIcon(canvas: HTMLCanvasElement, texture: Texture): void {
 }
 
 /**
- * The pack: a button in the top-right corner (left of the settings) opens a panel with the coins
- * and the slots of the pack, each with the icon of its item and the count. The slots come from
- * Strength (PlayerTraits.slots). It shows what the game gives it; it changes nothing.
+ * The pack: a button in the top-right corner (left of the settings), or I on a keyboard, opens a
+ * panel with the coins and the slots of the pack, each with the icon of its item and the count. The
+ * slots come from Strength (PlayerTraits.slots). It shows what the game gives it; it changes nothing.
  */
 export class PackPanel {
   private readonly art: Art;
@@ -46,6 +47,8 @@ export class PackPanel {
     this.button.setAttribute('aria-label', text.button);
     this.button.setAttribute('aria-expanded', 'false');
     this.button.setAttribute('aria-controls', 'pack');
+    this.button.setAttribute('aria-keyshortcuts', 'I');
+    this.button.title = text.buttonKey;
     this.button.innerHTML = ICON;
 
     this.panel = document.createElement('section');
@@ -88,6 +91,10 @@ export class PackPanel {
     this.button.addEventListener('click', () => this.open(this.panel.hidden !== false));
     window.addEventListener('keydown', (event) => {
       if (event.code === 'Escape') this.open(false);
+      // I opens and closes it. KeyboardEvent.code, as the other keys: the same key on any layout.
+      if (event.code !== 'KeyI' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
+      event.preventDefault();
+      this.open(this.panel.hidden !== false);
     });
     onOtherPanelOpen('pack', () => this.open(false));
     // Give the focus back after a click, so WASD moves the player again at once.

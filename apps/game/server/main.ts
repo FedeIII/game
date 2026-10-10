@@ -17,6 +17,8 @@ import { WORLDS, shareWorlds } from '../src/worlds.ts';
  *   PUBLIC_ORIGIN   the address of the page (default the first of ORIGINS)
  *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   the OAuth client of the sign-in with Google
  *   AUTH_DEV_LOGIN=1   a sign-in with only a name, for development (refused in production)
+ *   ADMIN_EMAILS    comma-separated emails of the admins (default none): they see the display
+ *                   settings. Production: in /etc/game/secret.env; development: in .env.local
  * `npm run server` and scripts/dev.sh set the development values.
  */
 const env = process.env;
@@ -45,7 +47,8 @@ if (env.GAME_DB) {
   if (production && !google) refuse('NODE_ENV=production needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see deploy/README.md)');
   if (production && devLogin) refuse('AUTH_DEV_LOGIN is for development only');
   if (env.GAME_DB !== ':memory:') mkdirSync(dirname(env.GAME_DB), { recursive: true, mode: 0o700 });
-  accounts = { db: env.GAME_DB, publicOrigin: env.PUBLIC_ORIGIN ?? origins[0] ?? 'https://game.azyr.io', google, devLogin };
+  const admins = (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim()).filter(Boolean);
+  accounts = { db: env.GAME_DB, publicOrigin: env.PUBLIC_ORIGIN ?? origins[0] ?? 'https://game.azyr.io', google, devLogin, admins };
 } else if (production) {
   refuse('NODE_ENV=production needs GAME_DB (the accounts database)');
 }

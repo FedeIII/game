@@ -4,7 +4,7 @@ import { EMPTY_PACK, MAX_CHARACTERS, checkPack, checkPlace, checkSheet, type Cha
 
 /**
  * The accounts database: one SQLite file (node:sqlite, so no native package), in WAL mode. It
- * keeps the accounts (only the provider's id of each: no name, no email), their sessions, the
+ * keeps the accounts (the provider's id and the email of each: no name), their sessions, the
  * short-lived states of a Google sign-in, and their characters. A character's sheet is JSON (checkSheet() checks it on the way in and on the
  * way out), so a new field needs no change of the schema.
  *
@@ -16,6 +16,8 @@ export interface User {
   readonly id: number;
   /** How it signs in: 'google', or 'dev' (development). */
   readonly provider: string;
+  /** The email of its last sign-in, in lowercase (Google verified it), or '' (none). */
+  readonly email: string;
 }
 
 const MIGRATIONS: readonly string[] = [
@@ -57,6 +59,9 @@ const MIGRATIONS: readonly string[] = [
   `ALTER TABLE characters ADD COLUMN place TEXT;`,
   // 2026-10-10: what each character carries (JSON: coins, items), from the shared worlds.
   `ALTER TABLE characters ADD COLUMN pack TEXT;`,
+  // 2026-10-10: the email of each account again (Fede's decision): the sign-in asks for `openid
+  // email`, and the server knows the admins by their email (ADMIN_EMAILS). Each sign-in sets it.
+  `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -116,15 +121,18 @@ export class AccountStore {
 
   // ---------------------------------------------------------------- people and sessions
 
-  /** The user of a provider's subject (Google's `sub`), made on the first sign-in. */
-  signIn(provider: string, subject: string, now: number): User {
+  /**
+   * The user of a provider's subject (Google's `sub`), made on the first sign-in. `email`: the
+   * email of this sign-in (lowercase, verified), or ''; it replaces the one before.
+   */
+  signIn(provider: string, subject: string, now: number, email = ''): User {
     this.db
       .prepare(
-        `INSERT INTO users (provider, subject, created_at, last_login_at) VALUES (?, ?, ?, ?)
-         ON CONFLICT (provider, subject) DO UPDATE SET last_login_at = excluded.last_login_at`,
+        `INSERT INTO users (provider, subject, email, created_at, last_login_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (provider, subject) DO UPDATE SET email = excluded.email, last_login_at = excluded.last_login_at`,
       )
-      .run(provider, subject, now, now);
-    return this.db.prepare('SELECT id, provider FROM users WHERE provider = ? AND subject = ?').get(provider, subject) as unknown as User;
+      .run(provider, subject, email, now, now);
+    return this.db.prepare('SELECT id, provider, email FROM users WHERE provider = ? AND subject = ?').get(provider, subject) as unknown as User;
   }
 
   /** Deletes a user, with its sessions and its characters (ON DELETE CASCADE). */
@@ -153,14 +161,14 @@ export class AccountStore {
   /** The user of a session token and when the session ends, or null (no such session, or it ended). */
   session(token: string, now: number): { user: User; expiresAt: number } | null {
     const row = this.db
-      .prepare('SELECT users.id AS id, users.provider AS provider, sessions.expires_at AS expiresAt FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ?')
-      .get(hashToken(token)) as { id: number; provider: string; expiresAt: number } | undefined;
+      .prepare('SELECT users.id AS id, users.provider AS provider, users.email AS email, sessions.expires_at AS expiresAt FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ?')
+      .get(hashToken(token)) as { id: number; provider: string; email: string; expiresAt: number } | undefined;
     if (!row) return null;
     if (row.expiresAt <= now) {
       this.endSession(token);
       return null;
     }
-    return { user: { id: row.id, provider: row.provider }, expiresAt: row.expiresAt };
+    return { user: { id: row.id, provider: row.provider, email: row.email }, expiresAt: row.expiresAt };
   }
 
   /** Moves the end of a session. */

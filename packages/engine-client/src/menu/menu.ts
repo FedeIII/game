@@ -17,9 +17,10 @@ export interface MenuOptions {
   readonly skins: SkinStore;
 }
 
-/** The chosen character. */
+/** The chosen character, and if the account is an admin. */
 export interface MenuChoice {
   readonly character: Character;
+  readonly admin: boolean;
 }
 
 /** "3 days ago", "yesterday". */
@@ -135,7 +136,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         options.skins.get(characterSkin(played), undefined, true);
         root.classList.add('leaving');
         setTimeout(() => root.remove(), 400);
-        resolve({ character: played });
+        resolve({ character: played, admin: me?.user?.admin === true });
       } catch (error) {
         fail(error, () => void start(character));
       }
@@ -154,7 +155,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         parts.push(el('div', { class: 'menu-actions menu-stack' }, google));
       }
       if (me?.login.dev) {
-        const input = el('input', { type: 'text', id: 'dev-name', maxlength: String(NAME_MAX), autocomplete: 'off', spellcheck: 'false', placeholder: T.devName });
+        // A name, or an email (it signs in with that email, as Google would: ADMIN_EMAILS).
+        const input = el('input', { type: 'text', id: 'dev-name', maxlength: String(4 * NAME_MAX), autocomplete: 'off', spellcheck: 'false', placeholder: T.devName });
         const go = el('button', { type: 'submit', class: 'menu-button' }, T.devSignIn);
         const form = el('form', { class: 'dev-sign-in' }, el('label', { for: 'dev-name', class: 'sr-only' }, T.devName), input, go);
         form.addEventListener('submit', (event) => {
