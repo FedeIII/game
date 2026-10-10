@@ -89,8 +89,8 @@ describe('a deal that takes items (a brew)', () => {
     const p = createPlayer(0, 0);
     expect(canMakeDeal(brew, { coins: 0, items: [{ kind: 'herbs', count: 1 }] }, withInt(10))).toBe(false);
     const full = { coins: 0, items: [{ kind: 'herbs' as const, count: 3 }, { kind: 'ring' as const, count: 1 }] };
-    expect(canMakeDeal(brew, full, { slots: 2 })).toBe(false);
-    expect(makeDeal(brew, full, p, { slots: 2, resist: 1 })).toBeNull();
+    expect(canMakeDeal(brew, full, { slots: 2, buyShare: 1 })).toBe(false);
+    expect(makeDeal(brew, full, p, { slots: 2, resist: 1, buyShare: 1, sellShare: 1 })).toBeNull();
   });
 });
 

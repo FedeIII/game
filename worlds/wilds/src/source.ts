@@ -79,7 +79,15 @@ const CACHE_LOOT: LootTable = {
 const HERB_MARGIN = 2;
 
 const CHAPEL = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
-const REFUGES: readonly Refuge[] = [{ id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 }];
+const INN = TOWN_BUILDINGS.find((b) => b.id === 'inn')!;
+/**
+ * The chapel: a character that has been inside it wakes there after a defeat. The inn: only a
+ * character to whom Marta gave a room (Charisma 13, dialogs.ts), on the tile west of its bed.
+ */
+const REFUGES: readonly Refuge[] = [
+  { id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 },
+  { id: 'inn', building: INN.id, x: (INN.x0 + 7) * TILE_SIZE + TILE_SIZE / 2, y: (INN.y0 + 4) * TILE_SIZE + 12, given: true },
+];
 
 /** Mobs in the wilds: four imps and two brutes round each player. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
@@ -360,9 +368,9 @@ export class WildsSource implements WorldSource {
   }
 
   /**
-   * The chapel of Thornwick is a refuge: a character that has been inside it can wake there after a
-   * defeat, if it is nearer than the home (Fede's choice, 2026-10-10). The point is the tile north
-   * of its door.
+   * The refuges of Thornwick: a character can wake in one after a defeat, if it is nearer than
+   * the home (Fede's choice, 2026-10-10). The chapel, for a character that has been inside it
+   * (the tile north of its door); the inn, for one with a room there (REFUGES).
    */
   refuges(): readonly Refuge[] {
     return REFUGES;

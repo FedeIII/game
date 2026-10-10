@@ -121,6 +121,8 @@ export interface Refuge {
   readonly building: string;
   readonly x: number;
   readonly y: number;
+  /** A refuge that a character gets only from a deal (Deal.refuge: a room at an inn), not when it enters the building. */
+  readonly given?: boolean;
 }
 
 /**
@@ -145,7 +147,7 @@ export function wakePoint(world: World, x: number, y: number, known: readonly st
 export function refugeAt(world: World, x: number, y: number): Refuge | null {
   const building = world.insideOf(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
   if (!building) return null;
-  return world.source.refuges?.().find((r) => r.building === building.id) ?? null;
+  return world.source.refuges?.().find((r) => r.building === building.id && !r.given) ?? null;
 }
 
 /** Anything that can tell which part of a tile is solid. The movement code needs only this. */

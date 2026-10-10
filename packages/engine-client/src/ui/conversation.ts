@@ -155,6 +155,7 @@ export class ConversationPanel {
   private readonly list: HTMLOListElement;
   private readonly events: ConversationEvents;
   private talk: Conversation | null = null;
+  private priceOf: (deal: Deal) => string | null = () => null;
 
   constructor(events: ConversationEvents) {
     this.events = events;
@@ -216,9 +217,14 @@ export class ConversationPanel {
     return this.talk;
   }
 
-  /** Opens the panel at the start of `dialog`, with a close-up from `face` (the NPC's frame), for a player with `scores`. */
-  start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES): void {
+  /**
+   * Opens the panel at the start of `dialog`, with a close-up from `face` (the NPC's frame), for a
+   * player with `scores`. `priceOf` gives the tag after an answer with a deal ("(2 coins)"), or
+   * null for none: the price for this player (Charisma).
+   */
+  start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES, priceOf: (deal: Deal) => string | null = () => null): void {
     this.talk = new Conversation(dialog, scores);
+    this.priceOf = priceOf;
     this.name.textContent = dialog.name;
     if (face) drawCloseup(this.portrait, face);
     this.portrait.hidden = face === null;
@@ -274,7 +280,8 @@ export class ConversationPanel {
         key.textContent = String(i + 1);
         // An answer behind a gate shows the gate: open, or as a dim clue that the player cannot give.
         const tag = answer.gate ? `${gateTag(answer.gate)} ` : '';
-        button.append(key, tag + answer.text);
+        const price = answer.deal ? this.priceOf(answer.deal) : null;
+        button.append(key, tag + answer.text + (price ? ` ${price}` : ''));
         if (talk.dim(i)) {
           button.classList.add('dim');
           button.setAttribute('aria-disabled', 'true');

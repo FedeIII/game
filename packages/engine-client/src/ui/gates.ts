@@ -20,3 +20,10 @@ export const MAP_SECRETS = 15;
  */
 export const HOMEWARD_GATE: Gate = { ability: 'wis', min: 13 };
 export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };
+
+/**
+ * The gates of Charisma that the page applies (Fede's choice, 2026-10-10): the greeting by name,
+ * and the usual gate of persuasion (a world gives its own with DialogAnswer.gate; the Wilds use CHA 13).
+ */
+export const REPUTATION_GATE: Gate = { ability: 'cha', min: 13 };
+export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };

@@ -366,7 +366,7 @@ describe('a multiplayer room', () => {
 });
 
 /** A player's own state on the wire, all zeros. */
-const SELF0 = Array.from({ length: 22 }, () => 0) as unknown as SnapshotMessage['you'];
+const SELF0 = Array.from({ length: 23 }, () => 0) as unknown as SnapshotMessage['you'];
 
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
@@ -559,7 +559,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(22);
+    expect(snap!.you).toHaveLength(23);
   });
 
   it('kill a brute with the third plain blow, and send what it has left', () => {

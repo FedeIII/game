@@ -34,6 +34,11 @@ export interface NpcDef {
   readonly content: Interaction;
   /** Short lines that it says by itself, now and then. Without them, it says nothing. */
   readonly barks?: readonly string[];
+  /**
+   * What it says once to a player with a good name (Charisma: Reputation) who comes close: `{name}`
+   * stands for the name of the player's character. Only the page shows it.
+   */
+  readonly greeting?: string;
 }
 
 /** Where an NPC is and how it moves: the same shape as a player's pose. */

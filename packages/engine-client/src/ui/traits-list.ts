@@ -1,5 +1,5 @@
 import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
-import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './gates.ts';
+import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -38,6 +38,12 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.insight, gate(INSIGHT_GATE, t.insightYes)],
     [t.medicine, gate(MEDICINE_GATE, t.medicineYes)],
     [t.homeward, gate(HOMEWARD_GATE, t.homewardYes)],
+    [t.prices, t.pricesValue(traits.buyShare, traits.sellShare)],
+    [t.presence, t.presenceValue(traits.presence)],
+    [t.daunt, t.dauntValue(traits.daunt)],
+    [t.inspire, t.inspireValue(traits.inspire * TICK_SECONDS)],
+    [t.persuasion, gate(PERSUASION_GATE, t.persuasionYes)],
+    [t.reputation, gate(REPUTATION_GATE, t.reputationYes)],
   ];
   const list = document.createElement('dl');
   list.className = 'traits';

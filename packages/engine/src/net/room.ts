@@ -474,6 +474,12 @@ export class Room {
     if (!pack) return;
     player.pack = pack;
     player.packChanged = true;
+    // A room at the inn: the character gets the refuge (it wakes there, and the bed rests it).
+    const refuge = answer.deal.goods === 'refuge' ? answer.deal.refuge : undefined;
+    if (refuge && !player.refuges.includes(refuge) && this.world.source.refuges?.().some((r) => r.id === refuge)) {
+      player.refuges.push(refuge);
+      player.refugesChanged = true;
+    }
   }
 
   /** The player drinks one item of its pack (a draught): its work is done, and one goes from the pack. */
@@ -501,7 +507,7 @@ export class Room {
   /** Acts on a fixture for a player, if it can reach it: a bed rests it; a chest gives its loot (what fits goes into the pack, the rest stays). */
   private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
     const fixture = reachableFixture(this.world, player.state, tx, ty);
-    if (fixture?.content?.rest) {
+    if (fixture?.content?.rest && (!fixture.content.restFor || player.refuges.includes(fixture.content.restFor))) {
       rest(player.state, player.traits);
       return;
     }
@@ -590,6 +596,7 @@ export class Room {
           s.poisonClock,
           s.drunk,
           s.wading ? 1 : 0,
+          s.inspired,
         ],
         p: others,
         ...(changed ? { doors, fd: forced } : {}),

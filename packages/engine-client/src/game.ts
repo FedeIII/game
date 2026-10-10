@@ -34,6 +34,8 @@ import {
   blowDamage,
   canDodge,
   canMakeDeal,
+  dealPay,
+  dealPrice,
   drinkFrom,
   flyArrow,
   gateView,
@@ -54,6 +56,7 @@ import {
   type Arrow,
   type Character,
   type Gate,
+  type Deal,
   type Dialog,
   type Facing,
   type Fixture,
@@ -90,7 +93,7 @@ import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { ConversationPanel, gateTag } from './ui/conversation.ts';
-import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './ui/gates.ts';
+import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './ui/gates.ts';
 import { MapPanel } from './ui/map-panel.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
@@ -155,6 +158,8 @@ const SESSION_CHECK_MS = 10_000;
 const PREDICTED_KILL_MS = 700;
 /** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
 const PREDICT_MARGIN = 3;
+/** An NPC greets a player with a good name (Charisma) when it comes this close (world pixels). */
+const GREET_RANGE = 2 * TILE_SIZE;
 
 /** "a, b and c". */
 function andList(parts: readonly string[]): string {
@@ -428,6 +433,22 @@ async function run(options: GameOptions): Promise<void> {
     }
   };
   net?.onBarks(sayLines);
+  // Reputation (Charisma 13): each NPC greets the player by name once, when it comes close.
+  const greeted = new Set<string>();
+  const greet = (now: number) => {
+    if (!barkBubbles || !name || !meetsGate(traits.scores, REPUTATION_GATE) || arriving(now)) return;
+    const poses = npcPoses(now);
+    const here = world.insideOf(...tileOf(player));
+    npcDefs.forEach((def, index) => {
+      const pose = poses[index];
+      if (!def.greeting || greeted.has(def.id) || !pose || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return;
+      // Only in the same place: both outside, or in the same building.
+      if (world.insideOf(...tileOf(pose)) !== here) return;
+      greeted.add(def.id);
+      if (talkWith === npcFixture(def)) return;
+      barkBubbles.say(index, def.greeting.replace('{name}', name), () => npcViews!.headOf(index), now);
+    });
+  };
 
   // Mobs: in a world with mob rules. A single-player world runs its own horde (its seed differs
   // per page); a shared world gets them from the server.
@@ -679,6 +700,11 @@ async function run(options: GameOptions): Promise<void> {
     const line = definition.examine[t.kind];
     return line ? { pages: [line] } : null;
   };
+  /** Whether the player may rest in a bed: its own, or one of a refuge that its character has (the room at the inn). */
+  const mayRest = (fixture: Fixture): boolean => {
+    const restFor = fixture.content?.restFor;
+    return !restFor || (net?.refuges ?? localRefuges).includes(restFor);
+  };
   /** A line of a gate that the player does not pass: with a clue of the gate when it is 1 or 2 short (gateView), else the plain line. */
   const shortOf = (gate: Gate, clue: string, plain: string): string => (gateView(traits.scores, gate) === 'hint' ? `${clue} ${gateTag(gate)}` : plain);
   const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) => Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture));
@@ -767,12 +793,20 @@ async function run(options: GameOptions): Promise<void> {
       const next = makeDeal(deal, pack, player, traits);
       if (!next) return false;
       pack = next;
+      // A room at the inn: the character gets the refuge (the server gives it in a shared world).
+      if (deal.goods === 'refuge' && deal.refuge && !localRefuges.includes(deal.refuge)) {
+        localRefuges.push(deal.refuge);
+        say(STRINGS.refuge, performance.now());
+      }
       return true;
     },
   });
   const openTalk = () => {
     if (!pendingTalk || !talkWith) return;
-    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores);
+    // The price of a deal, for this player: Charisma pays less, and gets more for a sale.
+    const priceOf = (deal: Deal): string | null =>
+      deal.goods === 'coins' ? STRINGS.conversation.pay(dealPay(deal, traits)) : deal.price > 0 ? STRINGS.conversation.price(dealPrice(deal, traits)) : null;
+    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores, priceOf);
     pendingTalk = null;
   };
   /** Whether the NPC of the conversation is still close to the player. */
@@ -821,8 +855,8 @@ async function run(options: GameOptions): Promise<void> {
       return;
     }
     const key = targetKey(target);
-    if (target.fixture?.content?.rest) {
-      // The player's own bed: a rest (all hit points and stamina back). The server rests it in a shared world.
+    if (target.fixture?.content?.rest && mayRest(target.fixture)) {
+      // The player's own bed (or its room at the inn): a rest (all hit points and stamina back). The server rests it in a shared world.
       dialogKey = key;
       linkCard.hide();
       if (net) {
@@ -910,7 +944,7 @@ async function run(options: GameOptions): Promise<void> {
       if (bar) return meetsGate(traits.scores, bar) ? STRINGS.forceDoor : STRINGS.tryDoor;
       return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     }
-    if (t.fixture?.content?.rest) return STRINGS.rest;
+    if (t.fixture?.content?.rest && mayRest(t.fixture)) return STRINGS.rest;
     if (t.fixture && spoils.isSource(t.fixture)) {
       if (t.fixture.kind === 'herbpatch') return STRINGS.gather;
       if (t.fixture.kind === 'cache') return STRINGS.dig;
@@ -1076,6 +1110,7 @@ async function run(options: GameOptions): Promise<void> {
     speech.update(now, view);
     ownTag.set(displayName());
     ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
+    greet(now);
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
     vitals.update(player, traits.maxHp, traits.maxStamina);
@@ -1139,6 +1174,7 @@ async function run(options: GameOptions): Promise<void> {
       `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
       `int     ${traits.scores.int}: opening +${traits.opening}, read ${meetsGate(traits.scores, READ_OPENING_GATE) ? 'health, wind-up' : meetsGate(traits.scores, READ_FOE_GATE) ? 'health' : '-'}, map ${traits.scores.int >= 15 ? 'secrets' : traits.scores.int >= 13 ? 'names' : traits.scores.int >= 11 ? 'houses' : 'ground'}, seen ${(net && net.explored.size > 0 ? net.explored : localExplored).size} chunks${mapPanel.isOpen ? ' (map open)' : ''}`,
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
+      `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,

@@ -1,7 +1,7 @@
 # Abilities in the game (draft)
 
-> **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Approved (STR, DEX,
-> CON, INT and WIS built: see `docs/features/abilities/`; CHA not yet)
+> **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Built (all six
+> abilities: see `docs/features/abilities/`)
 
 This draft gives the applications of the six ability scores in the game. Each application has
 an ID. Fede picks the applications; then we make their mechanics and apply the scores to them,
@@ -9,7 +9,8 @@ one ability after the other (STR first). The scores come from the character buil
 (`packages/engine/src/character.ts`); before this work, they do nothing in the game.
 
 Status: Strength is done (2026-10-10, protocol 11), Dexterity (protocol 12), Constitution
-(protocol 13), Intelligence (protocol 14), Wisdom (protocol 15). Next: Charisma. Decided: Option B (below).
+(protocol 13), Intelligence (protocol 14), Wisdom (protocol 15), Charisma (protocol 16). All six
+are done. Decided: Option B (below).
 
 ## How the numbers work
 
@@ -306,3 +307,29 @@ Built (2026-10-10, protocol 15): see `docs/features/abilities/wisdom.md`. Notes:
   not "by the tree": in about one seed in nine the tree of the plan does not grow there.
 - A patch and the cache stay as they are when they are empty: the page does not know the state of
   the loot in a shared world. A press says that somebody picked or dug it.
+
+## CHA: the agreed plan (2026-10-10)
+
+Decisions (Fede, 2026-10-10: "all recommendations are ok"):
+
+1. Ch1 persuasion (CHA 13, the gate rule, the tag "[CHA 13]"): Marta gives a room (the inn becomes
+   a refuge, and its bed rests the character); Isolde a friend's price; Brann and Aldous words.
+2. Ch2 the damage of the sorcerer and the warlock: already built with Option B.
+3. Ch6 prices: Isolde sells the draughts (6, 8, 15 coins); the peddler buys a ring 5, a cup 3, a
+   candle 1, an imp horn 2, a brute tusk 4. A price x (1 - 0.1 x mod), a sale x (1 + 0.1 x mod),
+   rounded, at least 1.
+4. Ch3 presence: the overlap of a pack - 0.05 x mod (never below 0); a mob runs off 10% x mod
+   longer after a hit.
+5. Ch4 inspire: + 0.1 s x mod of guard after a hit for the other players within 3 tiles; a positive
+   modifier only; the best one counts.
+6. Ch5 reputation (CHA 13): each NPC greets the character by name once when it comes close.
+7. Ch7 companions: dropped.
+
+Built (2026-10-10, protocol 16): see `docs/features/abilities/charisma.md`. Notes:
+
+- The ale's price follows Charisma too (1 coin at CHA 16), so Marta's line for a player without
+  coins says "An ale costs coin." and not "Two coins".
+- The deals of Isolde's friend's price have the gate on their own answers: the server checks the
+  gate of the answer with the deal, not of the answer that led to its node.
+- The inn's bed stands by the east wall, rows 3 and 4 of the plan, so the shelf in the north-east
+  corner stays reachable.

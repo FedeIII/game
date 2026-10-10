@@ -43,7 +43,8 @@ searches give me something.
 - **AC-PK-001.5:** The draughts are drinks (REQ-PK-011). Herbs, imp horns and brute tusks go into
   the brews of the cauldron ([Intelligence](../abilities/intelligence.md), REQ-INT-006). A
   character with Medicine chews herbs ([Wisdom](../abilities/wisdom.md), REQ-WIS-006). The
-  other items have no use yet. The player cannot drop or sell an item.
+  peddler buys rings, cups, candle stubs, imp horns and brute tusks (REQ-PK-010). The player
+  cannot drop an item.
 
 ---
 
@@ -200,16 +201,23 @@ is the same without the server.
 
 ---
 
-### REQ-PK-010: Coins buy an ale
+### REQ-PK-010: Coins buy and items sell
 
-**User Story:** As a player with coins, I want to spend them, so that the coins that I find have
-a use.
+**User Story:** As a player with coins and trinkets, I want to buy and to sell, so that the things
+that I find have a use.
 
 **Acceptance Criteria:**
 - **AC-PK-010.1:** An ale at the Crooked Lantern costs 2 coins ([Constitution](../abilities/constitution.md),
   REQ-CON-010).
-- **AC-PK-010.2:** A player with fewer coins than the price buys nothing, and keeps its coins.
-- **AC-PK-010.3:** In a shared world the server takes the coins, and the pack in the next snapshot
+- **AC-PK-010.2:** Isolde, the apothecary, sells a healing draught for 6 coins, an antidote for 8
+  and a strong draught for 15 ([Charisma](../abilities/charisma.md), REQ-CHA-004).
+- **AC-PK-010.3:** Corwin, the peddler, buys a silver ring for 5 coins, a pewter cup for 3, a
+  candle stub for 1, an imp horn for 2 and a brute tusk for 4 (REQ-CHA-005).
+- **AC-PK-010.4:** Charisma changes every price and every sale (REQ-CHA-003). The conversation
+  panel shows the price for the player after the answer: "(2 coins)", "(+7 coins)".
+- **AC-PK-010.5:** A player with fewer coins than the price, without the item to sell, or without
+  room for what it buys, makes no deal and keeps what it has.
+- **AC-PK-010.6:** In a shared world the server makes the deal, and the pack in the next snapshot
   shows it.
 
 ---
@@ -260,6 +268,12 @@ woods and the town have more to give.
   `drinkFrom()`, `hasItems()` and `removeFromPack()` in `packages/engine/src/items.ts`; the message
   `{ t: 'drink', kind }` and `Room.drink()` (protocol 14); the slot buttons and the dim gate tag
   (`.pack-gate`) in `packages/engine-client/src/ui/pack-panel.ts`.
+
+- **Deals** (`packages/engine/src/dialog.ts`): `Deal` (`goods`: `ale`, an item kind, `coins` for
+  a sale, `refuge`; `price`, `items`, `pay`, `refuge`), `dealPrice()` and `dealPay()` (Charisma:
+  `PlayerTraits.buyShare` and `sellShare`), `makeDeal()` and `canMakeDeal()`; `Room.deal()` makes
+  them in a shared world. The Wilds: `ALE`, `ROOM`, `remedy()` and `sell()` in
+  `worlds/wilds/src/dialogs.ts`.
 
 - **The pack** (`packages/engine/src/items.ts`): `ITEM_KINDS` (the order is the code on the wire:
   add a new kind at the end), `ITEM_STACK`, `MAX_COINS` (99,999), `MAX_SLOTS` (16: the most slots

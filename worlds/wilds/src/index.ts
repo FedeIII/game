@@ -6,7 +6,7 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { Road, signpost } from './road.ts';
 export { WildsSource } from './source.ts';
 export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
-export { APOTHECARY, INNKEEPER, INSIGHT_GATE, REEVE, WATCHMAN } from './dialogs.ts';
+export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, WATCHMAN } from './dialogs.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;

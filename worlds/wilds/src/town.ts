@@ -1,5 +1,5 @@
 import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, REEVE, WATCHMAN } from './dialogs.ts';
+import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, PEDDLER, REEVE, WATCHMAN } from './dialogs.ts';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -84,6 +84,8 @@ interface Thing {
   readonly lore?: readonly Lore[];
   /** A conversation with the thing (the cauldron: its recipes). */
   readonly dialog?: Dialog;
+  /** A bed that rests only a character with this refuge (Interaction.restFor: the room at the inn). */
+  readonly restFor?: string;
 }
 
 /**
@@ -99,6 +101,8 @@ interface Person {
   readonly dialog?: Dialog;
   readonly barks: readonly string[];
   readonly doorstep?: boolean;
+  /** What it says once to a player with a good name who comes close (NpcDef.greeting). */
+  readonly greeting?: string;
 }
 
 /**
@@ -138,8 +142,8 @@ const BUILDINGS: readonly Plan[] = [
       '##########',
       '#bbx.aaca#',
       '#........#',
-      '#.tt..tt.#',
-      '#........#',
+      '#.tt..ttB#',
+      '#.......B#',
       '#K..M..gg#',
       '#........#',
       '#+##D##+##',
@@ -151,6 +155,7 @@ const BUILDINGS: readonly Plan[] = [
       c: { kind: 'candelabra' },
       t: { kind: 'table', pages: ['A sticky table. Someone has cut a crow into it.'] },
       g: { kind: 'boardtable', pages: ['A game of dice, left half played.'] },
+      B: { kind: 'bed', pages: ['A narrow bed by the east wall. It is not mine.'], restFor: 'inn' },
     },
     people: {
       K: {
@@ -159,6 +164,7 @@ const BUILDINGS: readonly Plan[] = [
         doorstep: true,
         dialog: INNKEEPER,
         barks: ['Another round?', 'Wipe your boots. The woods come in on them.', 'The fire is free. The ale is not.'],
+        greeting: '{name}! Sit, sit. The fire is warm.',
       },
       M: {
         id: 'minstrel',
@@ -169,6 +175,7 @@ const BUILDINGS: readonly Plan[] = [
           '...Perhaps another night.',
         ],
         barks: ['La la... no. Again.', "Who has a rhyme for 'imp'?", 'One more song, then bed.'],
+        greeting: 'Ah, {name}! I will put you in a song.',
       },
     },
   },
@@ -203,6 +210,7 @@ const BUILDINGS: readonly Plan[] = [
           'Every blade in Thornwick has been through my hands twice.',
         ],
         barks: ['Hot iron waits for nobody.', 'More blades. Always more blades.', 'Where are my tongs?'],
+        greeting: '{name}. Good to see you whole.',
       },
     },
   },
@@ -238,6 +246,7 @@ const BUILDINGS: readonly Plan[] = [
         doorstep: true,
         pages: ['Peace to you, traveller.', 'The candles of this chapel have burned for a hundred years.', 'When the night is long, come in and sit for a while.'],
         barks: ['Peace on this house.', 'The light holds.', 'Pray, and keep to the road.'],
+        greeting: 'Peace, {name}.',
       },
     },
   },
@@ -288,6 +297,7 @@ const BUILDINGS: readonly Plan[] = [
         doorstep: true,
         dialog: APOTHECARY,
         barks: ['Salt, salt and more salt.', 'Who took my ashroot?', 'Do not touch the green jar.'],
+        greeting: '{name}. Still in one piece, I see.',
       },
     },
   },
@@ -338,6 +348,7 @@ const BUILDINGS: readonly Plan[] = [
         look: 'treasurer',
         dialog: REEVE,
         barks: ['Taxes, taxes...', 'Another letter with no answer.', 'The gate, the lamps. Always the lamps.'],
+        greeting: 'Good evening, {name}.',
       },
     },
   },
@@ -462,7 +473,12 @@ function build(plan: Plan, index: number): Building {
     const light = LIGHTS[thing.kind];
     for (const [tx, ty] of anchors(thing.kind, tiles, where)) {
       // A thing with a conversation (the cauldron) says its lines over itself.
-      const said = { ...(thing.pages ? { pages: thing.pages } : {}), ...(thing.lore ? { lore: thing.lore } : {}), ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}) };
+      const said = {
+        ...(thing.pages ? { pages: thing.pages } : {}),
+        ...(thing.lore ? { lore: thing.lore } : {}),
+        ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}),
+        ...(thing.restFor ? { rest: true, restFor: thing.restFor } : {}),
+      };
       const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
       fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}) });
     }
@@ -489,6 +505,7 @@ function build(plan: Plan, index: number): Building {
       area: person.doorstep ? [...floor, ...doorstep] : floor,
       content: { speaker: 'fixture', ...(person.pages ? { pages: person.pages } : {}), ...(person.dialog ? { dialog: person.dialog } : {}) },
       barks: person.barks,
+      ...(person.greeting ? { greeting: person.greeting } : {}),
     });
   }
   FLOORS.set(plan.id, plan.floor);
@@ -592,21 +609,16 @@ const WALKERS: readonly NpcDef[] = [
     area: streetArea(38, 11, 44, 13),
     content: { speaker: 'fixture', dialog: WATCHMAN },
     barks: ['Nothing comes past this gate.', 'Keep to the lamps.', 'A quiet night. Too quiet.'],
+    greeting: 'Evening, {name}. Keep to the lamps.',
   },
   {
     id: 'peddler',
     look: 'dungeonmaster',
     home: at(15, 12),
     area: streetArea(2, 11, 37, 12),
-    content: {
-      speaker: 'fixture',
-      pages: [
-        'Pots! Pins! Candles! Well... I had candles.',
-        'The chandler shut his shop when the roads went bad. Now I sell what I can find.',
-        'Come back when you have coin. Everybody says that.',
-      ],
-    },
+    content: { speaker: 'fixture', dialog: PEDDLER },
     barks: ['Pots and pins!', 'Fine pins, nearly new!', 'Who needs a pot? Anybody?'],
+    greeting: '{name}! My best customer!',
   },
   {
     id: 'widow',
@@ -618,6 +630,7 @@ const WALKERS: readonly NpcDef[] = [
       pages: ['The fountain was dry for three summers.', 'Then one night it filled again. Nobody knows why.', 'I come here to listen to it. It sounds like rain.'],
     },
     barks: ['Listen... like rain.', 'Three summers dry.', 'My husband built that wall.'],
+    greeting: 'Hello, {name}. Listen... like rain.',
   },
   {
     id: 'child',
@@ -629,6 +642,7 @@ const WALKERS: readonly NpcDef[] = [
       pages: ['Are you an adventurer? Have you seen the imps?', 'Mother says they cannot come past the lamps.', 'I am not scared. Much.'],
     },
     barks: ['Catch me if you can!', 'I saw an imp! I think.', 'Not scared, not scared!'],
+    greeting: '{name}! Did you see an imp?',
   },
 ];
 

@@ -400,8 +400,8 @@ is an admin.
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
-one ability at a time (Strength, Dexterity, Constitution, Intelligence and Wisdom are done;
-Charisma comes next). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
+one ability at a time (all six are done: Strength, Dexterity, Constitution, Intelligence, Wisdom
+and Charisma). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
 2026-10-10: the format of `platform-docs` in streaming-platform; index `docs/features/README.md`). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
 character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
 a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
@@ -516,6 +516,20 @@ builder and the "You" section still name every gate.
   it grows again after 20 minutes, `LootTable.refillMs`) and the buried cache of Thornwick
   (`cache`, `TOWN_CACHE`: across the lane from the cottage; the reeve tells of it with insight).
   Neither collides (`FixtureTile.reach`: a target without a solid box).
+- **Charisma**: the damage of the sorcerer and the warlock, and for every class prices
+  (`buyShare` 1 - 0.1 x mod, `sellShare` 1 + 0.1 x mod: `dealPrice()`, `dealPay()`; the panel adds
+  the price to the answer, "(2 coins)", so the answer texts have none), presence (`presence`: the
+  overlap of a pack - 0.05 x mod, `Horde.overlap()`), daunt (`daunt`: a mob runs off x (1 + 0.1 x
+  mod) after its hit) and inspire (`inspire`: max(0, mod) x 6 ticks of guard for the other players
+  within 3 tiles of a hit; `PlayerState.inspired`, in `WireSelf`). Gates of 13: persuasion
+  (`PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`: Marta gives a room, `ROOM`, the refuge `inn`
+  with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price; Brann and
+  Aldous words) and reputation (`REPUTATION_GATE` in `ui/gates.ts`: each NPC says its
+  `NpcDef.greeting` once, with the character's name, within 2 tiles).
+- **Shops**: a deal can take items and give coins (`goods: 'coins'`, `pay`: the peddler Corwin buys
+  rings 5, cups 3, candles 1, imp horns 2, brute tusks 4) or give a refuge (`goods: 'refuge'`).
+  Isolde sells the three draughts (6, 8, 15 coins; her friend's price 4, 6, 11, each answer behind
+  CHA 13 so that the server checks it).
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
   left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
@@ -525,7 +539,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 15.
+protocol: `docs/multiplayer.md`, protocol 16.
 
 ## Arrival in a world
 
@@ -726,9 +740,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   chandler, the cottage, the granary, the house). Ten NPCs (`TOWN_NPCS`): in the buildings the
   innkeeper and the minstrel, the smith, the priest, the apothecary and the reeve (some walk out
   to their doorstep); in the streets the watchman at the gate, the peddler, the widow by the
-  fountain and the child in the lane. Each one has three lines that it says by itself, and
-  something to say: a conversation for the watchman, the innkeeper, the apothecary and the reeve
-  (`dialogs.ts`), three pages for the others.
+  fountain and the child in the lane. Each one has three lines that it says by itself, a greeting
+  by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
+  apothecary, the reeve and the peddler (`dialogs.ts`), three pages for the others. The inn has a
+  bed by its east wall for a character with a room (Charisma).
   Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
   of mud from below the path to the home's door to the gate, also over water; nothing grows on it
   or close to it. **The signpost** stands outside the hut, two tiles below the door on the west
@@ -812,7 +827,8 @@ name, the node and the selected answer) and `intro` in a world with NPCs; `mobs`
 Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
-marks) and `pack`; `doors`
+marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
+`pack`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,

@@ -165,6 +165,8 @@ export interface Interaction {
   readonly dialog?: Dialog;
   /** A bed of the player's own: acting on it rests (all hit points and stamina back, no poison or drink). */
   readonly rest?: boolean;
+  /** A bed that rests only a character with this refuge (a room at the inn); for others, the pages show. */
+  readonly restFor?: string;
   /**
    * Pages behind a gate (lore, for Intelligence): a character that passes the gate reads them
    * after the pages; one 1 or 2 under it reads a clue with the gate (gateView); others nothing.

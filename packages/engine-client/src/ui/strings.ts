@@ -152,6 +152,19 @@ export const STRINGS = {
     medicineYes: 'chew herbs for a hit point',
     homeward: 'The way home',
     homewardYes: 'an arrow points to it',
+    prices: 'Prices',
+    pricesValue: (buy: number, sell: number): string => `you pay ${Math.round(buy * 100)}%, you get ${Math.round(sell * 100)}%`,
+    presence: 'A pack round you',
+    presenceValue: (share: number): string =>
+      Math.abs(share) < 0.005 ? 'normal' : `its attacks overlap ${Math.round(Math.abs(share) * 100)}% ${share > 0 ? 'less' : 'more'}`,
+    daunt: 'A mob after its hit',
+    dauntValue: (share: number): string => (Math.abs(share - 1) < 0.005 ? 'normal' : `runs off ${Math.round(Math.abs(share - 1) * 100)}% ${share > 1 ? 'longer' : 'shorter'}`),
+    inspire: 'Others near you',
+    inspireValue: (seconds: number): string => (seconds > 0 ? `+${seconds.toFixed(1)} s of guard after a hit` : 'nothing'),
+    persuasion: 'Persuasion',
+    persuasionYes: 'you win people over',
+    reputation: 'Reputation',
+    reputationYes: 'people greet you by name',
     from: (ability: string, min: number): string => `from ${ability} ${min}`,
     wadeYes: 'you wade through it',
     forceYes: 'you break them',
@@ -169,6 +182,9 @@ export const STRINGS = {
     answer: 'Answer',
     you: 'You',
     keys: '↑ ↓ to choose · E to answer · Esc to leave',
+    /** After an answer with a deal: what the player pays, or gets for a sale (Charisma changes both). */
+    price: (coins: number): string => (coins === 1 ? '(1 coin)' : `(${coins} coins)`),
+    pay: (coins: number): string => (coins === 1 ? '(+1 coin)' : `(+${coins} coins)`),
   },
   /** The names of things in action labels ("Examine the map table"). */
   names: {

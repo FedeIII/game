@@ -65,6 +65,11 @@ export interface PlayerState {
   drunk: number;
   /** Whether it stands in shallow water (a player who can wade); set by stepPlayer. */
   wading: boolean;
+  /**
+   * Ticks of guard that its next guard gets on top of its own: a hit near a player with Charisma
+   * sets it (Horde, PlayerTraits.inspire), and the end of the stun uses it.
+   */
+  inspired: number;
 }
 
 /** An attack lasts this many ticks (0.3 s); a new one can start this many ticks after the last. */
@@ -173,6 +178,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     poisonClock: 0,
     drunk: 0,
     wading: false,
+    inspired: 0,
   };
 }
 
@@ -189,6 +195,7 @@ export function hitPlayer(player: PlayerState, damage: number, stunTicks: number
   if (player.hp === 0) {
     player.down = DOWN_TICKS;
     player.stun = 0;
+    player.inspired = 0;
     player.dodge = 0;
     player.poison = 0;
     player.poisonClock = 0;
@@ -400,7 +407,10 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   body(player, traits, dt);
   if (player.stun > 0) {
     player.stun--;
-    if (player.stun === 0) player.guard = traits.guard ?? GUARD_TICKS;
+    if (player.stun === 0) {
+      player.guard = (traits.guard ?? GUARD_TICKS) + player.inspired;
+      player.inspired = 0;
+    }
     player.vx = 0;
     player.vy = 0;
     return false;

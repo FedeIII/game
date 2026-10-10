@@ -67,6 +67,18 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## Charisma: prices, a room, presence and inspire (protocol 16, 2026-10-10)
+
+- `WireSelf` has one more number at its end: `inspired`, the extra guard that the player gets when
+  its stun ends (a hit near a player with Charisma; `Horde`). The prediction replays it.
+- The Room makes every deal at the player's price (`dealPrice()`, `dealPay()`: Charisma). A deal can
+  be a sale (`goods: 'coins'`: the Room takes the item and gives the coins) or a room
+  (`goods: 'refuge'`: the Room adds the refuge to the character, and the snapshot has `rf`).
+- A rest (`u` on a bed) with `Interaction.restFor` needs that refuge: the bed of the inn.
+- Presence and daunt change how the Room's horde attacks a player; the messages do not change.
+- The world changed too (Isolde's shop, the peddler's conversation, the bed of the inn), so a page
+  of protocol 15 gets `refused` `version` and reloads.
+
 ## Wisdom: the mobs that hunt a player, herbs and a cache (protocol 15, 2026-10-10)
 
 - A snapshot has `h` when mobs hunt its player: their ids (`Horde.huntersOf()`: a mob that chases
@@ -267,7 +279,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":15,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":16,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 

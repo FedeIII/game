@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, attackHits, canBeHit, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
-import type { PlayerTraits } from './traits.ts';
+import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
 /**
@@ -190,8 +190,26 @@ export interface HordePlayer {
   readonly state: PlayerState;
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
-  /** How it takes a hit: the share of a stun and of a poison (CON), and its guard after a stun (DEX). */
-  readonly traits?: Pick<PlayerTraits, 'stun' | 'resist' | 'guard'>;
+  /**
+   * How it takes a hit: the share of a stun and of a poison (CON), and its guard after a stun
+   * (DEX); how a pack presses it (CHA: presence, daunt); and the guard that it gives to the
+   * players near it when they are hit (CHA: inspire).
+   */
+  readonly traits?: Partial<Pick<PlayerTraits, 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+}
+
+/**
+ * The extra guard that a player who was hit gets from the others: the best `inspire` of a player
+ * within INSPIRE_RANGE of it (not itself, and not one that is defeated).
+ */
+function inspireFor(id: number, hit: PlayerState, players: readonly HordePlayer[]): number {
+  let best = 0;
+  for (const p of players) {
+    if (p.id === id || p.state.down > 0) continue;
+    const inspire = p.traits?.inspire ?? 0;
+    if (inspire > best && Math.hypot(p.state.x - hit.x, p.state.y - hit.y) <= INSPIRE_RANGE) best = inspire;
+  }
+  return best;
 }
 
 /** A mob that an arrow killed, and the player who shot it: the Room gives the drop to that player. */
@@ -349,6 +367,8 @@ export class Horde {
   private shotKills: ShotKill[] = [];
   /** The guard after a stun of each player (ticks), from the last step. */
   private guards = new Map<number, number>();
+  /** The traits of each player that change how mobs fight it, from the last step. */
+  private bodies = new Map<number, NonNullable<HordePlayer['traits']>>();
   private readonly brains = new Map<number, Brain>();
   private readonly random: () => number;
   /** The world for a mob: a tile that a mob may not step on is solid. */
@@ -418,6 +438,7 @@ export class Horde {
     this.populate(dt, players);
     const byId = new Map(players.map((p) => [p.id, p.state]));
     const bodies = new Map(players.map((p) => [p.id, p.traits ?? {}]));
+    this.bodies = bodies;
     this.guards = new Map(players.map((p) => [p.id, p.traits?.guard ?? GUARD_TICKS]));
     for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
     this.flyArrows(dt);
@@ -455,6 +476,8 @@ export class Horde {
           brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           if (brain.hit) {
             hitPlayer(target!, stats.hitDamage, stats.stunTicks, stats.poisonTicks, bodies.get(brain.target!));
+            // A player with Charisma close by gives it more guard after the stun (the best one counts).
+            if (target!.down === 0) target!.inspired = inspireFor(brain.target!, target!, players);
             hits.push([mob.id, brain.target!]);
           }
           this.enter(mob, 'strike');
@@ -727,7 +750,9 @@ export class Horde {
     if (brain.timerMs > 0) return;
     if (brain.hit) {
       this.enter(mob, 'retreat');
-      brain.timerMs = this.between(stats.retreatMs[0], stats.retreatMs[1]);
+      // A player with Charisma daunts it: it runs off longer.
+      const daunt = brain.target === null ? 1 : (this.bodies.get(brain.target)?.daunt ?? 1);
+      brain.timerMs = this.between(stats.retreatMs[0], stats.retreatMs[1]) * daunt;
       brain.curve = this.newCurve();
       return;
     }
@@ -807,7 +832,7 @@ export class Horde {
   private waitFor(mob: Mob, playerId: number, player: PlayerState): number {
     if (this.nextUp(playerId, player) !== mob.id) return Infinity;
     const overlap = this.overlap(playerId, player);
-    let wait = (player.stun > 0 ? player.stun + (this.guards.get(playerId) ?? GUARD_TICKS) : player.guard) * TICK_MS - overlap * MOB_STATS[mob.kind].windupMs;
+    let wait = (player.stun > 0 ? player.stun + (this.guards.get(playerId) ?? GUARD_TICKS) + player.inspired : player.guard) * TICK_MS - overlap * MOB_STATS[mob.kind].windupMs;
     for (const attacker of this.attackers(playerId)) {
       const stats = MOB_STATS[attacker.kind];
       const timer = this.brains.get(attacker.id)!.timerMs;
@@ -824,7 +849,10 @@ export class Horde {
       if (mob.state === 'idle' || mob.state === 'walk' || mob.state === 'dying' || this.brains.get(mob.id)!.target !== playerId) continue;
       if (Math.hypot(mob.x - player.x, mob.y - player.y) <= PACK_RADIUS) pack++;
     }
-    return Math.min(OVERLAP_MAX, OVERLAP_STEP * Math.max(0, pack - 1));
+    if (pack < 2) return 0;
+    // A player with Charisma makes a pack press it less (a negative modifier: more).
+    const presence = this.bodies.get(playerId)?.presence ?? 0;
+    return Math.max(0, Math.min(OVERLAP_MAX, OVERLAP_STEP * (pack - 1) - presence));
   }
 
   /**

@@ -213,7 +213,7 @@ describe('Thornwick', () => {
 
   it('has people who talk with the player: conversations with answers that branch', () => {
     const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
-    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'reeve', 'watchman']);
+    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'watchman']);
     for (const npc of talkers) {
       const dialog = npc.content.dialog!;
       const nodes = Object.values(dialog.nodes);

@@ -1,4 +1,4 @@
-import { addToPack, hasItems, lootIsEmpty, removeFromPack, type ItemKind, type ItemStack, type Pack } from './items.ts';
+import { MAX_COINS, addToPack, hasItems, lootIsEmpty, removeFromPack, type ItemKind, type ItemStack, type Pack } from './items.ts';
 import { ALE_TICKS, type PlayerState } from './player.ts';
 import type { Gate, PlayerTraits } from './traits.ts';
 
@@ -29,33 +29,54 @@ export interface DialogAnswer {
   readonly deal?: Deal;
 }
 
-/** What a deal gives: an ale (a drink, player.ts ALE_TICKS), or an item into the pack (a draught from the cauldron). */
-export type Goods = 'ale' | ItemKind;
+/**
+ * What a deal gives: an ale (a drink, player.ts ALE_TICKS), an item into the pack (a draught),
+ * coins (a sale: `pay`), or a refuge for the character (`refuge`: a room at the inn).
+ */
+export type Goods = 'ale' | 'coins' | 'refuge' | ItemKind;
 
 export interface Deal {
   /** The server finds the deal by it: two answers with the same id must have the same deal. */
   readonly id: string;
   readonly goods: Goods;
-  /** Coins that the player pays (0 for none). */
+  /** Coins that the player pays (0 for none), before Charisma (dealPrice). */
   readonly price: number;
-  /** Items that the player pays (the herbs of a draught). */
+  /** Items that the player pays (the herbs of a draught, the ring of a sale). */
   readonly items?: readonly ItemStack[];
+  /** For goods 'coins': the coins that the player gets, before Charisma (dealPay). */
+  readonly pay?: number;
+  /** For goods 'refuge': the id of the refuge that the character gets (WorldSource.refuges). */
+  readonly refuge?: string;
   /** The node when the player has fewer coins or items than the deal asks, or no room for the goods. */
   readonly poor: string;
 }
 
+/** The coins that a player with `traits` pays for a deal: its price times its buyShare (Charisma), at least 1 if it has a price. */
+export function dealPrice(deal: Deal, traits: Pick<PlayerTraits, 'buyShare'>): number {
+  return deal.price > 0 ? Math.max(1, Math.round(deal.price * traits.buyShare)) : 0;
+}
+
+/** The coins that a player with `traits` gets from a sale: its pay times its sellShare (Charisma), at least 1. */
+export function dealPay(deal: Deal, traits: Pick<PlayerTraits, 'sellShare'>): number {
+  return deal.goods === 'coins' ? Math.max(1, Math.round((deal.pay ?? 0) * traits.sellShare)) : 0;
+}
+
 /**
- * Makes a deal for a player with `pack`: it pays the coins and the items, and gets the goods (an
- * ale: a drink; an item: into the pack). Returns the new pack, or null when the player cannot pay
- * or has no room for the goods (then nothing changes).
+ * Makes a deal for a player with `pack`: it pays the coins (dealPrice) and the items, and gets the
+ * goods (an ale: a drink; an item: into the pack; coins: dealPay into the purse). Returns the new
+ * pack, or null when the player cannot pay or has no room for the goods (then nothing changes).
+ * For a refuge, the caller gives the refuge to the character.
  */
-export function makeDeal(deal: Deal, pack: Pack, state: PlayerState, traits: Pick<PlayerTraits, 'slots' | 'resist'>): Pack | null {
-  if (pack.coins < deal.price || !hasItems(pack, deal.items ?? [])) return null;
-  let next: Pack = removeFromPack({ coins: pack.coins - deal.price, items: pack.items }, deal.items ?? []);
+export function makeDeal(deal: Deal, pack: Pack, state: PlayerState, traits: Pick<PlayerTraits, 'slots' | 'resist' | 'buyShare' | 'sellShare'>): Pack | null {
+  const price = dealPrice(deal, traits);
+  if (pack.coins < price || !hasItems(pack, deal.items ?? [])) return null;
+  let next: Pack = removeFromPack({ coins: pack.coins - price, items: pack.items }, deal.items ?? []);
   if (deal.goods === 'ale') {
     state.drunk = Math.round(ALE_TICKS * traits.resist);
     return next;
   }
+  if (deal.goods === 'coins') return { coins: Math.min(MAX_COINS, next.coins + dealPay(deal, traits)), items: next.items };
+  if (deal.goods === 'refuge') return next;
   const added = addToPack(next, { coins: 0, items: [{ kind: deal.goods, count: 1 }] }, traits.slots);
   if (!lootIsEmpty(added.left)) return null;
   next = added.pack;
@@ -66,9 +87,9 @@ export function makeDeal(deal: Deal, pack: Pack, state: PlayerState, traits: Pic
 export const DEAL_RANGE = 48;
 
 /** Whether a player with `pack` can make the deal now: the coins, the items, and room for the goods. */
-export function canMakeDeal(deal: Deal, pack: Pack, traits: Pick<PlayerTraits, 'slots'>): boolean {
-  if (pack.coins < deal.price || !hasItems(pack, deal.items ?? [])) return false;
-  if (deal.goods === 'ale') return true;
+export function canMakeDeal(deal: Deal, pack: Pack, traits: Pick<PlayerTraits, 'slots' | 'buyShare'>): boolean {
+  if (pack.coins < dealPrice(deal, traits) || !hasItems(pack, deal.items ?? [])) return false;
+  if (deal.goods === 'ale' || deal.goods === 'coins' || deal.goods === 'refuge') return true;
   const after = removeFromPack(pack, deal.items ?? []);
   return lootIsEmpty(addToPack(after, { coins: 0, items: [{ kind: deal.goods, count: 1 }] }, traits.slots).left);
 }
@@ -123,6 +144,8 @@ export function checkDialog(dialog: Dialog): string[] {
       if (answer.next !== undefined && !dialog.nodes[answer.next]) problems.push(`${id}: the answer "${answer.text}" leads to no node "${answer.next}"`);
       if (answer.deal && !dialog.nodes[answer.deal.poor]) problems.push(`${id}: the deal "${answer.deal.id}" leads to no node "${answer.deal.poor}"`);
       if (answer.deal && answer.next === undefined) problems.push(`${id}: the deal "${answer.deal.id}" ends the conversation`);
+      if (answer.deal?.goods === 'coins' && !(answer.deal.pay! > 0)) problems.push(`${id}: the sale "${answer.deal.id}" pays nothing`);
+      if (answer.deal?.goods === 'refuge' && !answer.deal.refuge) problems.push(`${id}: the deal "${answer.deal.id}" gives no refuge`);
     }
   }
   // One deal can be in several answers, but two different deals must not share an id.
@@ -131,7 +154,7 @@ export function checkDialog(dialog: Dialog): string[] {
     for (const { deal } of dialog.nodes[id]!.answers) {
       if (!deal) continue;
       const same = deals.get(deal.id);
-      const shape = JSON.stringify([deal.goods, deal.price, deal.poor]);
+      const shape = JSON.stringify([deal.goods, deal.price, deal.poor, deal.items ?? [], deal.pay ?? 0, deal.refuge ?? '']);
       if (same !== undefined && same !== shape) problems.push(`two deals have the id "${deal.id}"`);
       deals.set(deal.id, shape);
     }

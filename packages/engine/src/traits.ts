@@ -67,6 +67,15 @@ export interface PlayerTraits {
   readonly seek: number;
   /** The darkness of the night outside the lights, as a share (WIS). */
   readonly night: number;
+  /** The share of a price that it pays, and the share of a price that it gets for a sale (CHA). */
+  readonly buyShare: number;
+  readonly sellShare: number;
+  /** How much less the attacks of a pack overlap on it (a share of an attack; CHA; less than 0: more). */
+  readonly presence: number;
+  /** How long a mob runs off after it hits it, as a share (CHA). */
+  readonly daunt: number;
+  /** The ticks of guard that it gives to the other players near it when a mob hits them (CHA; never less than 0). */
+  readonly inspire: number;
 }
 
 /** A fixed limit on a score: a thing opens for a character with at least `min` in `ability`. */
@@ -108,6 +117,15 @@ export const SEEK_TILES = 3;
 export const SEEK_PER_MOD = 2;
 /** Each point of the WIS modifier: the night is this share less dark. */
 export const NIGHT_PER_MOD = 0.08;
+/** Each point of the CHA modifier: a price is this share lower, and a sale gives this share more. */
+export const PRICE_PER_MOD = 0.1;
+/** Each point of the CHA modifier: the attacks of a pack overlap this share less, and a mob runs off this share longer after a hit. */
+export const PRESENCE_PER_MOD = 0.05;
+export const DAUNT_PER_MOD = 0.1;
+/** Each point of the CHA modifier (above 0): this many ticks of guard for the other players within INSPIRE_RANGE. */
+export const INSPIRE_PER_MOD = 6;
+/** Other players this close (world pixels) get the guard of an inspiring player. */
+export const INSPIRE_RANGE = 3 * TILE_SIZE;
 /** The usual gate: a score of 13 or more. */
 export const GATE_SCORE = 13;
 /** A character with this can walk in shallow water. */
@@ -152,6 +170,7 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   const con = abilityModifier(scores.con);
   const int = abilityModifier(scores.int);
   const wis = abilityModifier(scores.wis);
+  const cha = abilityModifier(scores.cha);
   return {
     scores,
     attack,
@@ -177,6 +196,11 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
     sense: (SENSE_TILES + SENSE_PER_MOD * wis) * TILE_SIZE,
     seek: Math.max(1, SEEK_TILES + SEEK_PER_MOD * wis) * TILE_SIZE,
     night: Math.max(0.1, 1 - NIGHT_PER_MOD * wis),
+    buyShare: Math.max(0.5, 1 - PRICE_PER_MOD * cha),
+    sellShare: Math.max(0.5, 1 + PRICE_PER_MOD * cha),
+    presence: PRESENCE_PER_MOD * cha,
+    daunt: Math.max(0.5, 1 + DAUNT_PER_MOD * cha),
+    inspire: Math.max(0, cha) * INSPIRE_PER_MOD,
   };
 }
 

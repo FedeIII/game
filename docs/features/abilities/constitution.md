@@ -154,6 +154,9 @@ home does not send me all the way back.
   "This place feels safe. If I fall, I can wake here."
 - **AC-CON-008.3:** The store keeps the refuges of each character between sessions. A new
   character has none.
+- **AC-CON-008.4:** The Crooked Lantern is a refuge only for a character to whom Marta gave a room
+  ([Charisma](charisma.md), REQ-CHA-002). To come into the inn is not enough. The point to wake
+  there is the tile west of the bed by the east wall.
 
 ---
 
@@ -185,11 +188,12 @@ use.
 
 **Acceptance Criteria:**
 - **AC-CON-010.1:** In the conversation with Marta, the innkeeper, the answer "The ale, then. (2
-  coins)" buys an ale for 2 coins.
-- **AC-CON-010.2:** With 2 coins or more, the coins go, and Marta says "Here. Do not tell me what
-  you think of it. Everybody tells me."
-- **AC-CON-010.3:** With fewer than 2 coins, nothing is bought, and Marta says "Two coins for an
-  ale. Come back when the woods have paid you."
+  coins)" buys an ale for 2 coins. Charisma changes the price ([Charisma](charisma.md),
+  REQ-CHA-003): "(1 coin)" at CHA 16 or 17.
+- **AC-CON-010.2:** With the coins, the coins go, and Marta says "Here. Do not tell me what you
+  think of it. Everybody tells me."
+- **AC-CON-010.3:** With fewer coins, nothing is bought, and Marta says "An ale costs coin. Come
+  back when the woods have paid you."
 - **AC-CON-010.4:** An ale lasts 60 s × (1 − 0.15 × CON modifier), at least 0.1 of it: 69 s at
   CON 8, 60 s at CON 10, 33 s at CON 17.
 - **AC-CON-010.5:** While the drink lasts, the walk sways: its direction turns to and fro, by up

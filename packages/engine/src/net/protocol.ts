@@ -11,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -213,11 +213,11 @@ export type WirePlayer = readonly [number, number, number, number, number, numbe
 /**
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
  * dodge, dodge cooldown, dodge direction (radians, exact), hp, recover, stamina (exact), rest,
- * down, poison, poison clock, drunk, wading (0 or 1)].
+ * down, poison, poison clock, drunk, wading (0 or 1), inspired].
  */
 export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number, number, number,
-  number, number, number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number, number, number,
 ];
 
 /** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
