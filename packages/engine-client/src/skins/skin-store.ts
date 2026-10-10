@@ -1,7 +1,18 @@
 import { Rectangle, Texture } from 'pixi.js';
 import type { Facing } from '@game/engine';
 import type { AttackStyle } from '../../art/attacks.ts';
-import { SKIN_ATTACK_FRAMES, SKIN_FRAME, SKIN_ROLL_FRAMES, SKIN_VERSION, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinAttack, skinFromSeed } from '../../art/skins.ts';
+import {
+  SKIN_ATTACK_FRAMES,
+  SKIN_FALL_FRAMES,
+  SKIN_FRAME,
+  SKIN_ROLL_FRAMES,
+  SKIN_VERSION,
+  SKIN_VIEWS,
+  SKIN_WALK_FRAMES,
+  renderSkinSheet,
+  skinAttack,
+  skinFromSeed,
+} from '../../art/skins.ts';
 import { ATTACK_TINT, type PlayerTextures } from '../render/player-view.ts';
 import type { SkinRequest, SkinResult } from './skin-worker.ts';
 
@@ -191,7 +202,7 @@ export class SkinStore {
       if (wearing.has(seed)) continue;
       for (const facing of Object.keys(textures.stand) as Facing[]) {
         textures.stand[facing].destroy(false);
-        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing]]) frame.destroy(false);
+        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing], ...textures.fall[facing]]) frame.destroy(false);
       }
       this.sheets.get(seed)?.base.destroy(true);
       this.sheets.delete(seed);
@@ -213,12 +224,14 @@ export class SkinStore {
     const walk = {} as Record<Facing, Texture[]>;
     const attack = {} as Record<Facing, Texture[]>;
     const roll = {} as Record<Facing, Texture[]>;
+    const fall = {} as Record<Facing, Texture[]>;
     SKIN_VIEWS.forEach((view, row) => {
       stand[view.name] = frame(0, row);
       walk[view.name] = Array.from({ length: SKIN_WALK_FRAMES }, (_, i) => frame(1 + i, row));
       attack[view.name] = Array.from({ length: SKIN_ATTACK_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + i, row));
       roll[view.name] = Array.from({ length: SKIN_ROLL_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + i, row));
+      fall[view.name] = Array.from({ length: SKIN_FALL_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + i, row));
     });
-    return { stand, walk, attack, roll, headHeight };
+    return { stand, walk, attack, roll, fall, headHeight };
   }
 }

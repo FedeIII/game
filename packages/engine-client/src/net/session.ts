@@ -78,6 +78,10 @@ export class NetSession {
   pack: Pack | null = null;
   /** The player's id in the shared world (from the welcome), or null. */
   id: number | null = null;
+  /** The refuges of the character, in the server's last word (null before the welcome). */
+  refuges: readonly string[] | null = null;
+  private readonly wokeListeners: ((lost: number) => void)[] = [];
+  private readonly refugeListeners: ((refuges: readonly string[]) => void)[] = [];
   private readonly traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
@@ -114,6 +118,23 @@ export class NetSession {
     this.url = url;
     document.addEventListener('visibilitychange', () => this.visibility());
     this.connect();
+  }
+
+  /** Calls `listener` when the player wakes after a defeat, with the coins that it lost. */
+  onWoke(listener: (lost: number) => void): void {
+    this.wokeListeners.push(listener);
+  }
+
+  /** Calls `listener` when the refuges of the character change (it entered a new one). */
+  onRefuges(listener: (refuges: readonly string[]) => void): void {
+    this.refugeListeners.push(listener);
+  }
+
+  /** Buys from an NPC (its index in the world's NPCs) through the server. False while not online. */
+  deal(npc: number, deal: string): boolean {
+    if (this.status !== 'online') return false;
+    this.send({ t: 'deal', npc, deal });
+    return true;
   }
 
   /** Calls `listener` with each loot that the server gives the player. */
@@ -253,6 +274,7 @@ export class NetSession {
         this.prediction.reset(this.player, this.world, message);
         this.pack = fromWirePack(message.pk);
         this.id = message.id;
+        this.refuges = message.rf;
         this.addJump(this.player.x - before.x, this.player.y - before.y);
         this.status = 'online';
         this.retryMs = RETRY_FIRST_MS;
@@ -269,6 +291,12 @@ export class NetSession {
         if (this.remotes.count !== count) this.changed();
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
+        if (message.rf) {
+          const before = this.refuges;
+          this.refuges = message.rf;
+          if (before !== null) for (const listener of this.refugeListeners) listener(message.rf);
+        }
+        if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [source, coins, stacks, full] of message.l ?? []) {
           const loot: NetLoot = { source: LOOT_SOURCES[source] ?? 'chest', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
           for (const listener of this.lootListeners) listener(loot);

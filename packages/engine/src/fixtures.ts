@@ -158,6 +158,8 @@ export interface Interaction {
    * node, and the conversation panel shows its answers (dialog.ts).
    */
   readonly dialog?: Dialog;
+  /** A bed of the player's own: acting on it rests (all hit points and stamina back, no poison or drink). */
+  readonly rest?: boolean;
 }
 
 /** A light that a fixture gives off. */

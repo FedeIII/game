@@ -21,6 +21,12 @@ import {
 import { houseSource, textSource } from './helpers.ts';
 
 const TICK_MS = TICK_SECONDS * 1000;
+/** A player with many hit points: these tests count hits, not defeats. */
+const tough = (x: number, y: number): PlayerState => {
+  const p = createPlayer(x, y);
+  p.hp = 1000;
+  return p;
+};
 const NONE = { imp: 0, brute: 0 } as const;
 const everywhere = (population: MobRules['population'] = NONE): MobRules => ({ roam: () => true, hunt: () => true, population });
 
@@ -45,7 +51,7 @@ describe('mobs', () => {
     const home = at(0, 0);
     const mob = horde.spawn('imp', home.x, home.y);
     // A player far away (30 tiles): the mob stays, but it does not see it or prowl towards it.
-    const far: HordePlayer = { id: 1, state: createPlayer(home.x + 30 * TILE_SIZE, home.y) };
+    const far: HordePlayer = { id: 1, state: tough(home.x + 30 * TILE_SIZE, home.y) };
     let furthest = 0;
     let walked = false;
     run(horde, [far], 60_000, () => {
@@ -63,7 +69,7 @@ describe('mobs', () => {
       const horde = new Horde(new World(textSource([])), everywhere(), seed);
       const start = at(0, 0);
       const mob = horde.spawn('imp', start.x, start.y);
-      const player: HordePlayer = { id: 7, state: createPlayer(start.x + 6 * TILE_SIZE, start.y) };
+      const player: HordePlayer = { id: 7, state: tough(start.x + 6 * TILE_SIZE, start.y) };
       let wound = false;
       let off = 0;
       run(horde, [player], 4000, () => {
@@ -82,11 +88,11 @@ describe('mobs', () => {
     // The house is x 2..8, y 2..6. A mob north of it and a player south of it, 7 tiles apart.
     const north = at(5, 0);
     const mob = horde.spawn('imp', north.x, north.y);
-    const south: HordePlayer = { id: 1, state: createPlayer(at(5, 7).x, at(5, 7).y) };
+    const south: HordePlayer = { id: 1, state: tough(at(5, 7).x, at(5, 7).y) };
     run(horde, [south], 3000);
     expect(mob.state === 'idle' || mob.state === 'walk').toBe(true);
     // A player inside, by the door: the mob does not hunt it either.
-    const inside: HordePlayer = { id: 2, state: createPlayer(at(5, 5).x, at(5, 5).y) };
+    const inside: HordePlayer = { id: 2, state: tough(at(5, 5).x, at(5, 5).y) };
     const outside = at(5, 9);
     const other = horde.spawn('brute', outside.x, outside.y);
     run(horde, [inside], 3000);
@@ -97,7 +103,7 @@ describe('mobs', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 5);
     const start = at(0, 0);
     const mob = horde.spawn('imp', start.x, start.y);
-    const player: HordePlayer = { id: 9, state: createPlayer(start.x + 4 * TILE_SIZE, start.y) };
+    const player: HordePlayer = { id: 9, state: tough(start.x + 4 * TILE_SIZE, start.y) };
     const hitTimes: number[] = [];
     let ranAway = false;
     let bestRetreat = 0;
@@ -123,7 +129,7 @@ describe('mobs', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 2);
     const start = at(0, 0);
     const mob = horde.spawn('brute', start.x, start.y);
-    const state = createPlayer(start.x + 3 * TILE_SIZE, start.y);
+    const state = tough(start.x + 3 * TILE_SIZE, start.y);
     const player: HordePlayer = { id: 4, state };
     let hits = 0;
     let missed = false;
@@ -139,7 +145,7 @@ describe('mobs', () => {
 
   it('die from an attack in front, not from one behind, and are gone after the animation', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 4);
-    const p = createPlayer(at(5, 5).x, at(5, 5).y);
+    const p = tough(at(5, 5).x, at(5, 5).y);
     const front = horde.spawn('imp', p.x + 20, p.y);
     const behind = horde.spawn('brute', p.x - 24, p.y);
     const killed = horde.strike(p, 0);
@@ -148,7 +154,7 @@ describe('mobs', () => {
     expect(behind.state).not.toBe('dying');
     // A second blow does not kill the dying one again.
     expect(horde.strike(p, 0)).toEqual([]);
-    const watcher: HordePlayer = { id: 1, state: createPlayer(p.x, p.y + 20 * TILE_SIZE) };
+    const watcher: HordePlayer = { id: 1, state: tough(p.x, p.y + 20 * TILE_SIZE) };
     run(horde, [watcher], MOB_STATS.imp.deathMs + 50);
     expect(horde.mobs.includes(front)).toBe(false);
     expect(horde.mobs.includes(behind)).toBe(true);
@@ -156,7 +162,7 @@ describe('mobs', () => {
 
   it('die from an attack in any direction: in front of it, not beside it', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 4);
-    const p = createPlayer(0, 0);
+    const p = tough(0, 0);
     // A mob to the south-east, and one to the north-east (90 degrees from it).
     const southEast = horde.spawn('imp', 14, 14);
     const northEast = horde.spawn('imp', 14, -14);
@@ -171,7 +177,7 @@ describe('mobs', () => {
 
   it('can be hit where the attacker saw them a moment ago', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 4);
-    const p = createPlayer(0, 0);
+    const p = tough(0, 0);
     const mob = horde.spawn('imp', 80, 0);
     expect(horde.strike(p, 0)).toEqual([]);
     expect(horde.strike(p, 0, () => ({ x: 18, y: 0 }))).toEqual([mob]);
@@ -179,7 +185,7 @@ describe('mobs', () => {
 
   it('come out of the sight of the players, up to the population of the world', () => {
     const horde = new Horde(new World(textSource([])), everywhere({ imp: 3, brute: 2 }), 8);
-    const player: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    const player: HordePlayer = { id: 1, state: tough(0, 0) };
     const seen = new Set<number>();
     let nearest = Infinity;
     run(horde, [player], 30_000, () => {
@@ -199,7 +205,7 @@ describe('mobs', () => {
     const rules: MobRules = { roam: (tx) => tx < 8, hunt: (tx) => tx < 10, population: NONE };
     const horde = new Horde(new World(houseSource()), rules, 6);
     const mobs = [horde.spawn('imp', at(5, 9).x, at(5, 9).y), horde.spawn('brute', at(1, 1).x, at(1, 1).y)];
-    const player: HordePlayer = { id: 1, state: createPlayer(at(10, 8).x + 1, at(10, 8).y) };
+    const player: HordePlayer = { id: 1, state: tough(at(10, 8).x + 1, at(10, 8).y) };
     run(horde, [player], 20_000, () => {
       for (const mob of mobs) {
         const tx = Math.floor(mob.x / TILE_SIZE);
@@ -215,7 +221,7 @@ describe('mobs that hunt one player', () => {
   /** Three imps round a player who stands still. */
   function pack(seed: number, kinds: Mob['kind'][] = ['imp', 'imp', 'imp']) {
     const horde = new Horde(new World(textSource([])), everywhere(), seed);
-    const player: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    const player: HordePlayer = { id: 1, state: tough(0, 0) };
     const mobs = kinds.map((kind, i) => horde.spawn(kind, Math.cos((i / kinds.length) * 2 * Math.PI) * 90, Math.sin((i / kinds.length) * 2 * Math.PI) * 90));
     return { horde, player, mobs };
   }
@@ -349,8 +355,8 @@ describe('mobs that hunt one player', () => {
 
   it('take turns for each player alone: two players can be attacked at once', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 4);
-    const a: HordePlayer = { id: 1, state: createPlayer(0, 0) };
-    const b: HordePlayer = { id: 2, state: createPlayer(12 * TILE_SIZE, 0) };
+    const a: HordePlayer = { id: 1, state: tough(0, 0) };
+    const b: HordePlayer = { id: 2, state: tough(12 * TILE_SIZE, 0) };
     horde.spawn('imp', a.state.x + 40, a.state.y);
     horde.spawn('imp', b.state.x + 40, b.state.y);
     let both = false;
@@ -364,7 +370,7 @@ describe('mobs that hunt one player', () => {
 describe('a brute in a fight', () => {
   it('takes three plain blows (4 of its 12 points each); each one pushes it away from the attacker and breaks its wind-up', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 21);
-    const p = createPlayer(at(5, 5).x, at(5, 5).y);
+    const p = tough(at(5, 5).x, at(5, 5).y);
     const players: HordePlayer[] = [{ id: 7, state: p }];
     const brute = horde.spawn('brute', p.x + 18, p.y);
     // Let it wind up.
@@ -392,7 +398,7 @@ describe('a brute in a fight', () => {
 
   it('turns on the player who hit it, even if it had not seen that player', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 22);
-    const p = createPlayer(0, 0);
+    const p = tough(0, 0);
     const brute = horde.spawn('brute', 20, 0);
     horde.strike(p, 0, undefined, 3);
     expect(brute.state).toBe('hurt');
@@ -405,7 +411,7 @@ describe('the player in a fight', () => {
   const world = new World(textSource([]));
 
   it('attacks with an input, stands still while it strikes, and waits for the cooldown', () => {
-    const p: PlayerState = createPlayer(0, 0);
+    const p: PlayerState = tough(0, 0);
     expect(stepPlayer(p, { x: 1, y: 0, attack: facingAngle('up') }, world)).toBe(true);
     expect(p.facing).toBe('up');
     expect(p.attack).toBe(ATTACK_TICKS);
@@ -421,22 +427,22 @@ describe('the player in a fight', () => {
   });
 
   it('attacks in the exact direction of the input, and faces the nearest side', () => {
-    const p: PlayerState = createPlayer(0, 0);
+    const p: PlayerState = tough(0, 0);
     expect(stepPlayer(p, { x: 0, y: 0, attack: 2.5 }, world)).toBe(true);
     expect(p.aim).toBe(2.5);
     expect(p.facing).toBe('left');
     // An angle out of range is put in (-PI, PI]; an attack without a finite direction is no attack.
-    const q: PlayerState = createPlayer(0, 0);
+    const q: PlayerState = tough(0, 0);
     expect(stepPlayer(q, { x: 0, y: 0, attack: 2 * Math.PI + 1 }, world)).toBe(true);
     expect(q.aim).toBeCloseTo(1);
     expect(q.facing).toBe('down');
-    expect(stepPlayer(createPlayer(0, 0), { x: 0, y: 0, attack: Number.NaN }, world)).toBe(false);
+    expect(stepPlayer(tough(0, 0), { x: 0, y: 0, attack: Number.NaN }, world)).toBe(false);
   });
 
   it('cannot move or attack while stunned, and cannot be hit just after', () => {
     const horde = new Horde(world, everywhere(), 1);
     const mob = horde.spawn('imp', 12, 0);
-    const p = createPlayer(0, 0);
+    const p = tough(0, 0);
     const players = [{ id: 1, state: p }];
     // Let the imp hit the player.
     for (let i = 0; i < 120 && p.stun === 0; i++) horde.step(TICK_MS, players);
@@ -452,7 +458,7 @@ describe('the player in a fight', () => {
   it('prowl towards a player who stands still, find it and attack', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 12);
     const mob = horde.spawn('brute', 20 * TILE_SIZE, 0);
-    const player: HordePlayer = { id: 1, state: createPlayer(0, 0) };
+    const player: HordePlayer = { id: 1, state: tough(0, 0) };
     let came = false;
     run(horde, [player], 180_000, () => {
       if (mob.state === 'chase') came = true;
@@ -464,7 +470,7 @@ describe('the player in a fight', () => {
 describe('the blow of a player (traits.ts)', () => {
   it('takes its damage: two blows of 6 kill a brute', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 31);
-    const p = createPlayer(0, 0);
+    const p = tough(0, 0);
     const brute = horde.spawn('brute', 18, 0);
     const blow = { damage: 6, push: 1, stagger: 1 };
     horde.strike(p, 0, undefined, 1, blow);
@@ -478,7 +484,7 @@ describe('the blow of a player (traits.ts)', () => {
   it('pushes further and makes it reel longer with more Strength', () => {
     const pushed = (push: number, stagger: number) => {
       const horde = new Horde(new World(textSource([])), everywhere(), 32);
-      const p = createPlayer(0, 0);
+      const p = tough(0, 0);
       const brute = horde.spawn('brute', 18, 0);
       horde.strike(p, 0, undefined, 1, { damage: 1, push, stagger });
       let reel = 0;

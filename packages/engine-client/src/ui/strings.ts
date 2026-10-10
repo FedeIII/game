@@ -43,6 +43,20 @@ export const STRINGS = {
     cup: { a: 'a pewter cup', many: 'pewter cups' },
     herbs: { a: 'a bundle of herbs', many: 'bundles of herbs' },
   } satisfies Record<ItemKind, { a: string; many: string }>,
+  /** The vitals (ui/vitals.ts): hit points, stamina, effects. */
+  vitals: {
+    hp: (hp: number, max: number): string => `${hp} of ${max} hit points`,
+    poisoned: 'Poisoned',
+    drunk: 'Drunk',
+  },
+  /** A bed of the player's own (Interaction.rest). */
+  rest: 'Rest',
+  rested: 'I rest a while. I feel well again.',
+  /** After a defeat: where the player wakes, and what it lost. */
+  woke: 'I wake up, sore and alive.',
+  wokeLost: (coins: number): string => `I wake up, sore and alive. ${coins === 1 ? 'A coin is' : `${coins} coins are`} gone.`,
+  /** The player comes into a refuge (WorldSource.refuges) for the first time. */
+  refuge: 'This place feels safe. If I fall, I can wake here.',
   /** The pack panel (ui/pack-panel.ts). */
   pack: {
     button: 'Pack',
@@ -79,6 +93,13 @@ export const STRINGS = {
     rangeValue: (tiles: number): string => `${tiles} tiles`,
     pick: 'Locked chests',
     pickYes: 'you pick them',
+    hp: 'Hit points',
+    stun: 'Stun from a hit',
+    recover: 'A hit point back',
+    recoverValue: (seconds: number): string => `every ${seconds.toFixed(0)} s`,
+    stamina: 'Stamina',
+    staminaValue: (max: number, refill: number): string => `${max} (${refill} back each second)`,
+    resist: 'Poison and drink',
     from: (ability: string, min: number): string => `from ${ability} ${min}`,
     wadeYes: 'you wade through it',
     forceYes: 'you break them',

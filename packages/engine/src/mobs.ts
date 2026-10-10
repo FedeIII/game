@@ -1,7 +1,8 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, attackHits, canBeHit, moveAxis, normalAngle, stunPlayer, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, attackHits, canBeHit, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import type { PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
 /**
@@ -68,6 +69,10 @@ export interface MobStats {
   readonly knockback: number;
   /** A blow that does not kill stuns it for this long (ms), times Blow.stagger: its wind-up or its blow stops. */
   readonly hurtMs: number;
+  /** The hit points that its hit takes from a player. */
+  readonly hitDamage: number;
+  /** Its hit poisons for this many ticks (times the player's PlayerTraits.resist); 0: no poison. */
+  readonly poisonTicks: number;
 }
 
 /** The small, quick imp and the big, slow brute. The player walks at 80 px/s. */
@@ -94,6 +99,9 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     health: 3,
     knockback: 10,
     hurtMs: 250,
+    hitDamage: 1,
+    // An imp's claws carry a poison (Fede's choice, 2026-10-10).
+    poisonTicks: 360,
   },
   brute: {
     wanderSpeed: 16,
@@ -117,6 +125,8 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     health: 12,
     knockback: 18,
     hurtMs: 320,
+    hitDamage: 2,
+    poisonTicks: 0,
   },
 };
 
@@ -173,6 +183,8 @@ export interface HordePlayer {
   readonly state: PlayerState;
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
+  /** How it takes a hit: the share of a stun and of a poison (CON), and its guard after a stun (DEX). */
+  readonly traits?: Pick<PlayerTraits, 'stun' | 'resist' | 'guard'>;
 }
 
 /** A mob that an arrow killed, and the player who shot it: the Room gives the drop to that player. */
@@ -328,6 +340,8 @@ export class Horde {
   private nextArrow = 1;
   /** Mobs that arrows killed since the last takeShotKills(). */
   private shotKills: ShotKill[] = [];
+  /** The guard after a stun of each player (ticks), from the last step. */
+  private guards = new Map<number, number>();
   private readonly brains = new Map<number, Brain>();
   private readonly random: () => number;
   /** The world for a mob: a tile that a mob may not step on is solid. */
@@ -396,6 +410,8 @@ export class Horde {
     this.clockMs += dt;
     this.populate(dt, players);
     const byId = new Map(players.map((p) => [p.id, p.state]));
+    const bodies = new Map(players.map((p) => [p.id, p.traits ?? {}]));
+    this.guards = new Map(players.map((p) => [p.id, p.traits?.guard ?? GUARD_TICKS]));
     for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
     this.flyArrows(dt);
     for (const mob of [...this.mobs]) {
@@ -431,7 +447,7 @@ export class Horde {
           // The blow: it lands if the player is still close, and not stunned or just after a stun.
           brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           if (brain.hit) {
-            stunPlayer(target!, stats.stunTicks);
+            hitPlayer(target!, stats.hitDamage, stats.stunTicks, stats.poisonTicks, bodies.get(brain.target!));
             hits.push([mob.id, brain.target!]);
           }
           this.enter(mob, 'strike');
@@ -775,7 +791,7 @@ export class Horde {
   private waitFor(mob: Mob, playerId: number, player: PlayerState): number {
     if (this.nextUp(playerId, player) !== mob.id) return Infinity;
     const overlap = this.overlap(playerId, player);
-    let wait = (player.stun > 0 ? player.stun + GUARD_TICKS : player.guard) * TICK_MS - overlap * MOB_STATS[mob.kind].windupMs;
+    let wait = (player.stun > 0 ? player.stun + (this.guards.get(playerId) ?? GUARD_TICKS) : player.guard) * TICK_MS - overlap * MOB_STATS[mob.kind].windupMs;
     for (const attacker of this.attackers(playerId)) {
       const stats = MOB_STATS[attacker.kind];
       const timer = this.brains.get(attacker.id)!.timerMs;
@@ -873,6 +889,8 @@ export class Horde {
 
   /** Whether the mob sees the player: close, out in the open where it may go, and no building between. */
   private sees(mob: Mob, player: PlayerState, range = MOB_STATS[mob.kind].sight): boolean {
+    // A defeated player is out of the fight.
+    if (player.down > 0) return false;
     const dx = player.x - mob.x;
     const dy = player.y - mob.y;
     const d = Math.hypot(dx, dy);

@@ -672,12 +672,13 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
  * Turns a figure round the x axis through `pivot` by `angle` (radians): with a positive angle the
  * top goes forward (+z) and down, a forward roll. For the roll of a dodge, with a tucked pose.
  */
-export function tumble(parts: readonly Part[], angle: number, pivot: Vec3): Part[] {
+export function tumble(parts: readonly Part[], angle: number, pivot: Vec3, drop = 0): Part[] {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const [, py, pz] = pivot;
-  // A point of the turned figure comes from this point of the figure.
-  const back = (y: number, z: number): [number, number] => {
+  // A point of the turned figure comes from this point of the figure (`drop` moves the turned figure down).
+  const back = (y0: number, z: number): [number, number] => {
+    const y = y0 + drop;
     const dy = y - py;
     const dz = z - pz;
     return [py + dy * cos + dz * sin, pz - dy * sin + dz * cos];
@@ -699,6 +700,6 @@ export function tumble(parts: readonly Part[], angle: number, pivot: Vec3): Part
     const [bx, by, bz, br] = p.bound;
     const dy = by - py;
     const dz = bz - pz;
-    return { sdf, material: turned, bound: [bx, py + dy * cos - dz * sin, pz + dy * sin + dz * cos, br] as const };
+    return { sdf, material: turned, bound: [bx, py + dy * cos - dz * sin - drop, pz + dy * sin + dz * cos, br] as const };
   });
 }

@@ -48,6 +48,23 @@ export interface PlayerState {
   dodgeCooldown: number;
   /** The direction of the dodge in progress or of the last one (radians). */
   dodgeAim: number;
+  /** Hit points (CON): a mob's hit takes some; at 0 the player is defeated (`down`). */
+  hp: number;
+  /** Ticks until a hit point comes back (while it has fewer than its most). */
+  recover: number;
+  /** Stamina (CON): a roll and the sneak walk use it. */
+  stamina: number;
+  /** Ticks since stamina was last used (it fills again after STAMINA_REST_TICKS). */
+  rest: number;
+  /** Ticks left of a defeat (0: none): the player lies still; then the caller wakes it (wakePlayer). */
+  down: number;
+  /** Ticks left of a poison (an imp's claws), and the ticks since its last bite. */
+  poison: number;
+  poisonClock: number;
+  /** Ticks left of a drink (ale): the walk sways. */
+  drunk: number;
+  /** Whether it stands in shallow water (a player who can wade); set by stepPlayer. */
+  wading: boolean;
 }
 
 /** An attack lasts this many ticks (0.3 s); a new one can start this many ticks after the last. */
@@ -68,6 +85,26 @@ export const DODGE_COOLDOWN_TICKS = 96;
  * half as far (mobs.ts, HordePlayer.sight).
  */
 export const SNEAK_SPEED = 0.5;
+/** The hit points (HP) and the stamina of a player with CON 10 (traits.ts changes them). */
+export const PLAIN_HP = 4;
+export const PLAIN_STAMINA = 100;
+/** Stamina that comes back each second (CON 10), STAMINA_REST_TICKS after it was last used. */
+export const STAMINA_REFILL = 20;
+export const STAMINA_REST_TICKS = 60;
+/** A roll costs this much stamina; the sneak walk this much each second. */
+export const DODGE_STAMINA = 35;
+export const SNEAK_STAMINA = 8;
+/** After a hit, the first HP comes back this many ticks later (8 s), then one every RECOVER_TICKS (CON 10). */
+export const RECOVER_DELAY_TICKS = 480;
+export const RECOVER_TICKS = 480;
+/** A defeated player lies this many ticks (3 s); it wakes with a guard of WAKE_GUARD_TICKS. */
+export const DOWN_TICKS = 180;
+export const WAKE_GUARD_TICKS = 120;
+/** A poison bites every POISON_EVERY ticks (one HP, never the last). */
+export const POISON_EVERY = 180;
+/** A drink of ale lasts this many ticks (60 s with CON 10); its sway turns the walk by up to DRUNK_SWAY radians. */
+export const ALE_TICKS = 3600;
+export const DRUNK_SWAY = 0.45;
 /** An attack hits a mob whose centre is this close (plus the mob's radius), in front of the player. */
 export const ATTACK_REACH = 22;
 /** "In front": at most this angle (radians) from the side that the attack goes to. */
@@ -87,7 +124,7 @@ export interface PlayerMap extends SolidMap {
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
  * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS.
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown'>>;
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill'>>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -113,27 +150,100 @@ export const PLAYER_HALF_WIDTH = 5;
 export const PLAYER_HALF_HEIGHT = 3;
 
 export function createPlayer(x: number, y: number): PlayerState {
-  return { x, y, vx: 0, vy: 0, facing: 'down', aim: facingAngle('down'), attack: 0, cooldown: 0, stun: 0, guard: 0, dodge: 0, dodgeCooldown: 0, dodgeAim: 0 };
+  return {
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    facing: 'down',
+    aim: facingAngle('down'),
+    attack: 0,
+    cooldown: 0,
+    stun: 0,
+    guard: 0,
+    dodge: 0,
+    dodgeCooldown: 0,
+    dodgeAim: 0,
+    hp: PLAIN_HP,
+    recover: 0,
+    stamina: PLAIN_STAMINA,
+    rest: STAMINA_REST_TICKS,
+    down: 0,
+    poison: 0,
+    poisonClock: 0,
+    drunk: 0,
+    wading: false,
+  };
+}
+
+/**
+ * A mob's hit: a stun (shorter with CON: `traits.stun`), `damage` hit points, and a poison of
+ * `poisonTicks` (shorter with CON: `traits.resist`). The first HP comes back RECOVER_DELAY_TICKS
+ * later. At 0 HP the player is defeated: it lies for DOWN_TICKS, and then its caller wakes it.
+ */
+export function hitPlayer(player: PlayerState, damage: number, stunTicks: number, poisonTicks: number, traits: Partial<Pick<PlayerTraits, 'stun' | 'resist'>> = {}): void {
+  stunPlayer(player, Math.max(1, Math.round(stunTicks * (traits.stun ?? 1))));
+  player.hp = Math.max(0, player.hp - damage);
+  player.recover = RECOVER_DELAY_TICKS;
+  if (poisonTicks > 0) player.poison = Math.max(player.poison, Math.round(poisonTicks * (traits.resist ?? 1)));
+  if (player.hp === 0) {
+    player.down = DOWN_TICKS;
+    player.stun = 0;
+    player.dodge = 0;
+    player.poison = 0;
+    player.poisonClock = 0;
+  }
+}
+
+/** A defeated player wakes at (x, y) with all its HP and stamina, a guard, and no poison or drink. */
+export function wakePlayer(player: PlayerState, x: number, y: number, traits: Partial<Pick<PlayerTraits, 'maxHp' | 'maxStamina'>> = {}): void {
+  player.x = x;
+  player.y = y;
+  player.vx = 0;
+  player.vy = 0;
+  player.down = 0;
+  player.hp = traits.maxHp ?? PLAIN_HP;
+  player.recover = 0;
+  player.stamina = traits.maxStamina ?? PLAIN_STAMINA;
+  player.rest = STAMINA_REST_TICKS;
+  player.guard = WAKE_GUARD_TICKS;
+  player.stun = 0;
+  player.attack = 0;
+  player.dodge = 0;
+  player.poison = 0;
+  player.poisonClock = 0;
+  player.drunk = 0;
 }
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
 }
 
-/** Whether the player can start a dodge in its next tick (not in shallow water: see stepPlayer). */
+/** Whether the player can start a dodge in its next tick: it has the stamina (and it is not in shallow water: see stepPlayer). */
 export function canDodge(player: PlayerState): boolean {
-  return player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
 }
 
-/** Whether a mob can hit the player now: not stunned, not just after a stun, and not in a dodge. */
+/** Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in a dodge. */
 export function canBeHit(player: PlayerState): boolean {
-  return player.stun === 0 && player.guard === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0;
 }
 
-/** Whether the player sneaks: it stands or walks slowly (SNEAK_SPEED), and it does not strike or roll. */
-export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge'>): boolean {
-  return player.attack === 0 && player.dodge === 0 && Math.hypot(player.vx, player.vy) <= PLAYER_SPEED * SNEAK_SPEED + 0.01;
+/** Whether a velocity is a sneak walk: slower than SNEAK_SPEED, but not standing. */
+export function isSneakWalk(vx: number, vy: number): boolean {
+  const speed = Math.hypot(vx, vy);
+  return speed > 1 && speed <= PLAYER_SPEED * SNEAK_SPEED + 0.01;
+}
+
+/**
+ * Whether the player sneaks: it stands, or it walks slowly (SNEAK_SPEED) with stamina left; not in
+ * shallow water (the water makes it slow, not the player), not while it strikes, rolls or lies.
+ */
+export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'>): boolean {
+  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading) return false;
+  if (Math.hypot(player.vx, player.vy) <= 1) return true;
+  return isSneakWalk(player.vx, player.vy) && player.stamina > 0;
 }
 
 /** A hit: the player stops, its attack ends, and it cannot act for `ticks` ticks. */
@@ -280,6 +390,14 @@ export function resumePoint(
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
   if (player.dodgeCooldown > 0) player.dodgeCooldown--;
+  if (player.down > 0) {
+    // Defeated: it lies still. When `down` ends, the caller wakes it at a safe place (wakePlayer).
+    player.down--;
+    player.vx = 0;
+    player.vy = 0;
+    return false;
+  }
+  body(player, traits, dt);
   if (player.stun > 0) {
     player.stun--;
     if (player.stun === 0) player.guard = traits.guard ?? GUARD_TICKS;
@@ -299,9 +417,13 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return false;
   }
-  const move = clampInput(input);
+  const input0 = clampInput(input);
   const wading = traits.wade === true && inShallows(world, player.x, player.y);
-  if (move.dodge && player.dodgeCooldown === 0 && !wading) {
+  // After an ale the walk sways: the direction turns to and fro, slowly.
+  const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
+  if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
+    player.stamina -= DODGE_STAMINA;
+    player.rest = 0;
     // A roll the way the input moves, or the way the player faces when it stands.
     player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : facingAngle(player.facing);
     player.facing = facingOfAngle(player.dodgeAim);
@@ -326,7 +448,49 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   // One axis at a time, so the player slides along a wall instead of a full stop.
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);
+  // The sneak walk uses stamina (not a slow walk in water: the water makes it slow).
+  if (!wading && isSneakWalk(player.vx, player.vy) && player.stamina > 0) {
+    player.stamina = Math.max(0, player.stamina - SNEAK_STAMINA * dt);
+    player.rest = 0;
+  }
+  player.wading = traits.wade === true && inShallows(world, player.x, player.y);
   return false;
+}
+
+/** One tick of the body: hit points come back out of a fight, stamina fills, a poison bites, a drink wears off. */
+function body(player: PlayerState, traits: StepTraits, dt: number): void {
+  const maxHp = traits.maxHp ?? PLAIN_HP;
+  if (player.hp > 0 && player.hp < maxHp) {
+    if (player.recover > 0) player.recover--;
+    if (player.recover === 0) {
+      player.hp++;
+      player.recover = traits.recover ?? RECOVER_TICKS;
+    }
+  }
+  if (player.rest < STAMINA_REST_TICKS) player.rest++;
+  else player.stamina = Math.min(traits.maxStamina ?? PLAIN_STAMINA, player.stamina + (traits.staminaRefill ?? STAMINA_REFILL) * dt);
+  if (player.poison > 0) {
+    player.poison--;
+    player.poisonClock++;
+    if (player.poisonClock >= POISON_EVERY) {
+      // A poison never takes the last hit point.
+      player.poisonClock = 0;
+      if (player.hp > 1) {
+        player.hp--;
+        player.recover = RECOVER_DELAY_TICKS;
+      }
+    }
+    if (player.poison === 0) player.poisonClock = 0;
+  }
+  if (player.drunk > 0) player.drunk--;
+}
+
+/** A move turned by the sway of a drink, which changes slowly with the ticks left. */
+function swayed(move: MoveInput, drunk: number): MoveInput {
+  const turn = DRUNK_SWAY * Math.sin(drunk * 0.05) * Math.sin(drunk * 0.013 + 1);
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  return { ...move, x: move.x * cos - move.y * sin, y: move.x * sin + move.y * cos };
 }
 
 /** One tick of a dodge: fast along its direction; walls stop it, and shallow water ends it. */

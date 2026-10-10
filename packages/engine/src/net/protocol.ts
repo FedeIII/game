@@ -11,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 12;
+export const PROTOCOL_VERSION = 13;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -177,7 +177,18 @@ export interface PingMessage {
   readonly c: number;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage;
+/**
+ * A purchase from an NPC (dialog.ts, Deal): `npc` is its index in WorldSource.npcs(), `deal` the
+ * id of the deal in its dialog. The server checks that the NPC is near and that the player has the
+ * coins, takes them and gives the goods.
+ */
+export interface DealMessage {
+  readonly t: 'deal';
+  readonly npc: number;
+  readonly deal: string;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage;
 
 /** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
 export const SKIN_CHANGE_GAP_MS = 2000;
@@ -186,16 +197,20 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 
 /**
  * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard, aim
- * code, dodge]: attack, stun, guard and dodge are the ticks left, as in PlayerState; the aim code
- * is the direction of its attack (aimCode). Positions to 0.1 px.
+ * code, dodge, down]: attack, stun, guard, dodge and down are the ticks left, as in PlayerState;
+ * the aim code is the direction of its attack (aimCode). Positions to 0.1 px.
  */
-export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number];
+export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number];
 
 /**
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
- * dodge, dodge cooldown, dodge direction (radians, exact)].
+ * dodge, dodge cooldown, dodge direction (radians, exact), hp, recover, stamina (exact), rest,
+ * down, poison, poison clock, drunk, wading (0 or 1)].
  */
-export type WireSelf = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number];
+export type WireSelf = readonly [
+  number, number, number, number, number, number, number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number, number,
+];
 
 /** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
 export type WireArrow = readonly [number, number, number, number, number];
@@ -271,12 +286,15 @@ export function toWireLoot(source: LootSource, loot: Loot, full: boolean): WireL
   return [LOOT_SOURCES.indexOf(source) as 0 | 1 | 2, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
 }
 
-/** The reply to hello: who the player is, where it starts, which doors are open and forced, and its pack. */
+/** The reply to hello: who the player is, where it starts, which doors are open and forced, its pack, HP and refuges. */
 export interface WelcomeMessage {
   readonly t: 'welcome';
   readonly id: number;
   readonly x: number;
   readonly y: number;
+  /** Its hit points now (the server keeps them with the character). */
+  readonly hp: number;
+  readonly rf: readonly string[];
   readonly doors: readonly (readonly [number, number])[];
   /** The barred doors that are forced now (World.forcedDoorList). */
   readonly fd: readonly (readonly [number, number])[];
@@ -303,6 +321,10 @@ export interface SnapshotMessage {
   readonly l?: readonly WireLoot[];
   /** In a world with mobs: the arrows in flight near this player (within MOB_SEND_RADIUS). */
   readonly ar?: readonly WireArrow[];
+  /** The refuges that the player's character has entered, when they changed (WorldSource.refuges). */
+  readonly rf?: readonly string[];
+  /** The coins that a defeat took, when the player woke since the last snapshot. */
+  readonly wk?: number;
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
   readonly n?: readonly WireNpc[];
   /**
@@ -425,6 +447,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return typeof m.name === 'string' && m.name.length <= 4 * NAME_MAX ? { t: 'name', name: cleanName(m.name) } : null;
     case 'ping':
       return typeof m.c === 'number' && Number.isFinite(m.c) ? { t: 'ping', c: m.c } : null;
+    case 'deal':
+      return isInt(m.npc, 0, 1000) && typeof m.deal === 'string' && /^[a-z0-9-]{1,32}$/.test(m.deal) ? { t: 'deal', npc: m.npc, deal: m.deal } : null;
     default:
       return null;
   }

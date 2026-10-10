@@ -97,6 +97,44 @@ export interface WorldSource {
    * loot, and acting on it shows its content as before. See loot.ts.
    */
   loot?(fixture: Fixture): LootTable | null;
+  /**
+   * The refuges of the world: buildings where a defeated character can wake, once it has been
+   * inside them (Character.refuges). The spawn is always a refuge. See wakePoint().
+   */
+  refuges?(): readonly Refuge[];
+}
+
+/** A place where a defeated character can wake: the building that it must have entered, and the point (world pixels). */
+export interface Refuge {
+  readonly id: string;
+  readonly building: string;
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Where a character that was defeated at (x, y) wakes: at the world's spawn (the home), or at
+ * the nearest refuge of `known` (the refuges that it has entered), if one is nearer.
+ */
+export function wakePoint(world: World, x: number, y: number, known: readonly string[]): { x: number; y: number } {
+  let best = world.spawn();
+  let bestD = Math.hypot(best.x - x, best.y - y);
+  for (const refuge of world.source.refuges?.() ?? []) {
+    if (!known.includes(refuge.id)) continue;
+    const d = Math.hypot(refuge.x - x, refuge.y - y);
+    if (d < bestD) {
+      best = { x: refuge.x, y: refuge.y };
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** The refuge whose building a player at (x, y) is inside, or null. */
+export function refugeAt(world: World, x: number, y: number): Refuge | null {
+  const building = world.insideOf(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
+  if (!building) return null;
+  return world.source.refuges?.().find((r) => r.building === building.id) ?? null;
 }
 
 /** Anything that can tell which part of a tile is solid. The movement code needs only this. */

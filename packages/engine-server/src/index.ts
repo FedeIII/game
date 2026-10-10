@@ -228,7 +228,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
         if (character.place?.world === message.world) place = character.place;
         client.character = character.id;
         // What its scores give, and what it carries: from the stored character too.
-        stored = { traits: sheetTraits(character), pack: character.pack };
+        stored = { traits: sheetTraits(character), pack: character.pack, hp: character.hp, refuges: character.refuges };
       }
       const player = room.join(t, skin, message.at, name, place, stored);
       if (!player) return refuse('full');
@@ -244,6 +244,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     // With accounts, the character decides the look and the name: a change is ignored.
     if (message.t === 'skin') return accounts ? undefined : client.room.setSkin(client.playerId, message.skin, t);
     if (message.t === 'name') return accounts ? undefined : client.room.setName(client.playerId, message.name);
+    if (message.t === 'deal') return client.room.deal(client.playerId, message.npc, message.deal);
     client.room.input(client.playerId, message, t);
   }
 
@@ -254,6 +255,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     try {
       accounts.savePlace(client.user, client.character, { world: client.world, x: player.state.x, y: player.state.y });
       accounts.savePack(client.user, client.character, player.pack);
+      accounts.saveVitals(client.user, client.character, player.state.hp, player.refuges);
     } catch (error) {
       log(`place: ${(error as Error).message}`);
     }
@@ -265,6 +267,8 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     if (count > 0) perAddress.set(client.ip, count);
     else perAddress.delete(client.ip);
     if (client.room) {
+      // A player who lies defeated wakes first: the place and the coins that are saved are those after the defeat.
+      client.room.settle(client.playerId);
       savePlace(client);
       client.room.leave(client.playerId);
       sockets.get(client.room)!.delete(client.playerId);

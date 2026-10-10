@@ -22,6 +22,11 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.sight, t.sightValue(traits.sight, traits.sight * SNEAK_SIGHT)],
     ...(traits.ranged ? ([[t.range, t.rangeValue(traits.range / TILE_SIZE)]] as [string, string][]) : []),
     [t.pick, gate(PICK_GATE, t.pickYes)],
+    [t.hp, String(traits.maxHp)],
+    [t.stun, t.share(traits.stun)],
+    [t.recover, t.recoverValue(traits.recover * TICK_SECONDS)],
+    [t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)],
+    [t.resist, t.share(traits.resist)],
   ];
   const list = document.createElement('dl');
   list.className = 'traits';

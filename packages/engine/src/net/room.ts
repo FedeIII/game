@@ -2,12 +2,13 @@ import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, reachableFixture, useDoor, type Feet } from '../interact.ts';
 import { EMPTY_PACK, addToPack, lootIsEmpty, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
-import { createPlayer, resumePoint, stepPlayer, type PlayerState } from '../player.ts';
+import { ALE_TICKS, createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
+import { DEAL_RANGE, findDeal } from '../dialog.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
 import { guestTraits, sightOf, type PlayerTraits } from '../traits.ts';
-import type { World } from '../world.ts';
+import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
   SKIN_CHANGE_GAP_MS,
@@ -61,6 +62,16 @@ export interface RoomOptions {
   readonly random?: () => number;
 }
 
+/** A rest in a bed of the player's own (Interaction.rest): all hit points and stamina back, no poison or drink. */
+export function rest(state: PlayerState, traits: Pick<PlayerTraits, 'maxHp' | 'maxStamina'>): void {
+  state.hp = traits.maxHp;
+  state.recover = 0;
+  state.stamina = traits.maxStamina;
+  state.poison = 0;
+  state.poisonClock = 0;
+  state.drunk = 0;
+}
+
 /** One player in a room, as the server sees it. */
 export interface RoomPlayer {
   readonly id: number;
@@ -88,12 +99,20 @@ export interface RoomPlayer {
   /** Whether the pack changed since the last snapshot, and the loot that it got since then. */
   packChanged: boolean;
   loot: WireLoot[];
+  /** The refuges that its character has entered (WorldSource.refuges), and whether they changed since the last snapshot. */
+  refuges: string[];
+  refugesChanged: boolean;
+  /** The coins that a defeat took, when it woke since the last snapshot (else null). */
+  woke: number | null;
 }
 
-/** The character of a player who joins: its traits and its pack. */
+/** The character of a player who joins: its traits, its pack, its hit points and its refuges. */
 export interface JoinCharacter {
   readonly traits: PlayerTraits;
   readonly pack?: Pack;
+  /** Null or none: all of them. */
+  readonly hp?: number | null;
+  readonly refuges?: readonly string[];
 }
 
 /**
@@ -156,7 +175,7 @@ export class Room {
     if (this.horde) {
       // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
       // Mobs see a player from less far with Dexterity, and less again while it sneaks.
-      const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state) }));
+      const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state), traits: p.traits }));
       this.hits += this.horde.step(dt, players).length;
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
@@ -167,6 +186,14 @@ export class Room {
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
     if (this.spoils.tick(nowMs, [...this.players.values()].map((p) => p.state))) this.doorVersion++;
+    // A character that comes into a refuge (the chapel) can wake there after a defeat.
+    for (const player of this.players.values()) {
+      const refuge = refugeAt(this.world, player.state.x, player.state.y);
+      if (refuge && !player.refuges.includes(refuge.id)) {
+        player.refuges.push(refuge.id);
+        player.refugesChanged = true;
+      }
+    }
   }
 
   /** Where mob `id` was at time `ms` (between two ticks of the trail), or null if the trail does not know. */
@@ -229,6 +256,13 @@ export class Room {
       : near
         ? this.world.findSpawn(at[0], at[1], 0)
         : resumePoint(this.world, anchor.x, anchor.y);
+    const traits = character?.traits ?? guestTraits(skin);
+    const state = createPlayer(start.x, start.y);
+    // A character comes back with the hit points that it had (all of them after a defeat), and all its stamina.
+    const hp = character?.hp ?? null;
+    state.hp = hp === null || hp <= 0 ? traits.maxHp : Math.min(hp, traits.maxHp);
+    if (state.hp < traits.maxHp) state.recover = traits.recover;
+    state.stamina = traits.maxStamina;
     const player: RoomPlayer = {
       id: this.nextId++,
       skin,
@@ -237,22 +271,32 @@ export class Room {
       name: cleanName(name),
       // The first snapshot carries the names of everyone already there.
       namesVersion: -1,
-      state: createPlayer(start.x, start.y),
+      state,
       seq: 0,
       tokens: INPUT_BURST,
       refilledMs: nowMs,
       doorVersion: this.doorVersion,
-      traits: character?.traits ?? guestTraits(skin),
+      traits,
       pack: character?.pack ?? EMPTY_PACK,
       packChanged: false,
       loot: [],
+      refuges: [...(character?.refuges ?? [])],
+      refugesChanged: false,
+      woke: null,
     };
     this.players.set(player.id, player);
     if (player.name) this.namesVersion++;
     return player;
   }
 
+  /** A player who leaves while it lies defeated wakes first: the server saves where it woke, and what it lost. */
+  settle(id: number): void {
+    const player = this.players.get(id);
+    if (player && player.state.down > 0) this.wake(player);
+  }
+
   leave(id: number): void {
+    this.settle(id);
     if (this.players.get(id)?.name) this.namesVersion++;
     this.players.delete(id);
   }
@@ -298,6 +342,8 @@ export class Room {
       doors: this.world.openDoorList(),
       fd: this.world.forcedDoorList(),
       pk: toWirePack(player.pack),
+      hp: player.state.hp,
+      rf: [...player.refuges],
     };
   }
 
@@ -324,7 +370,11 @@ export class Room {
       player.seq = seq;
       if (player.tokens < 1) return;
       player.tokens -= 1;
-      if (stepPlayer(player.state, fromWireInput(wire), this.world, player.traits) && this.horde) {
+      // The last tick of a defeat: after it the player wakes at a safe place.
+      const waking = player.state.down === 1;
+      const struckNow = stepPlayer(player.state, fromWireInput(wire), this.world, player.traits);
+      if (waking) this.wake(player);
+      if (struckNow && this.horde) {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
         const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
@@ -355,9 +405,45 @@ export class Room {
     player.loot.push(toWireLoot('drop', taken, !lootIsEmpty(left)));
   }
 
-  /** Opens a chest for a player, if it can reach it: what fits goes into its pack, the rest stays in the chest. */
+  /**
+   * A defeated player wakes: at its home, or at the nearest refuge that its character has entered,
+   * with all its hit points; a defeat takes half of its coins.
+   */
+  private wake(player: RoomPlayer): void {
+    const at = wakePoint(this.world, player.state.x, player.state.y, player.refuges);
+    wakePlayer(player.state, at.x, at.y, player.traits);
+    const lost = Math.floor(player.pack.coins / 2);
+    if (lost > 0) {
+      player.pack = { coins: player.pack.coins - lost, items: player.pack.items };
+      player.packChanged = true;
+    }
+    player.woke = lost;
+  }
+
+  /**
+   * A purchase from an NPC: the player must be near it, and have the coins; then the coins go, and
+   * the goods come (an ale: a drink).
+   */
+  deal(id: number, npcIndex: number, dealId: string): void {
+    const player = this.players.get(id);
+    const def = this.world.source.npcs?.()[npcIndex];
+    const pose = this.npcs?.poses[npcIndex];
+    if (!player || !def || !pose || player.state.down > 0) return;
+    if (Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return;
+    const deal = def.content.dialog ? findDeal(def.content.dialog, dealId) : null;
+    if (!deal || player.pack.coins < deal.price) return;
+    player.pack = { coins: player.pack.coins - deal.price, items: player.pack.items };
+    player.packChanged = true;
+    if (deal.goods === 'ale') player.state.drunk = Math.round(ALE_TICKS * player.traits.resist);
+  }
+
+  /** Acts on a fixture for a player, if it can reach it: a bed rests it; a chest gives its loot (what fits goes into the pack, the rest stays). */
   private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
     const fixture = reachableFixture(this.world, player.state, tx, ty);
+    if (fixture?.content?.rest) {
+      rest(player.state, player.traits);
+      return;
+    }
     const opened = fixture ? this.spoils.open(fixture, player.pack, player.traits, nowMs) : null;
     if (!opened) return;
     if (opened === 'locked') {
@@ -382,7 +468,7 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down]);
     }
     const doors = this.world.openDoorList();
     const forced = this.world.forcedDoorList();
@@ -409,15 +495,44 @@ export class Room {
       p.packChanged = false;
       const loot = p.loot;
       p.loot = [];
+      const refuges = p.refugesChanged;
+      p.refugesChanged = false;
+      const woke = p.woke;
+      p.woke = null;
       send(p.id, {
         t: 'snap',
         ms,
         a: p.seq,
-        you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard, aimCode(s.aim), s.dodge, s.dodgeCooldown, s.dodgeAim],
+        you: [
+          s.x,
+          s.y,
+          s.vx,
+          s.vy,
+          facingCode(s.facing),
+          s.attack,
+          s.cooldown,
+          s.stun,
+          s.guard,
+          aimCode(s.aim),
+          s.dodge,
+          s.dodgeCooldown,
+          s.dodgeAim,
+          s.hp,
+          s.recover,
+          s.stamina,
+          s.rest,
+          s.down,
+          s.poison,
+          s.poisonClock,
+          s.drunk,
+          s.wading ? 1 : 0,
+        ],
         p: others,
         ...(changed ? { doors, fd: forced } : {}),
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
         ...(loot.length > 0 ? { l: loot } : {}),
+        ...(refuges ? { rf: [...p.refuges] } : {}),
+        ...(woke !== null ? { wk: woke } : {}),
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
         ...(renamed ? { names } : {}),

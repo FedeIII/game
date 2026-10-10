@@ -183,6 +183,11 @@ export class Accounts {
     if (checked && CHARACTER_ID.test(id)) this.store.setPack(user.id, id, checked);
   }
 
+  /** Notes the hit points and the refuges of a user's character (the server's word, in a shared world). */
+  saveVitals(user: User, id: string, hp: number, refuges: readonly string[]): void {
+    if (CHARACTER_ID.test(id) && Number.isFinite(hp)) this.store.setVitals(user.id, id, hp, refuges);
+  }
+
   /** Answers a request of /api/ or /auth/. Returns false for any other path (not answered). */
   async handle(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     const url = new URL(request.url ?? '/', 'http://localhost');

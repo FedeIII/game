@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js';
-import { isSneaking, type RemotePlayer } from '@game/engine';
+import { isSneakWalk, type RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
 import { skinName } from '../../art/skins.ts';
 import { attackLook, type SkinStore } from '../skins/skin-store.ts';
@@ -81,8 +81,9 @@ export class OtherPlayers {
       other.here = true;
       other.x = player.x;
       other.y = player.y;
-      other.sneaking = isSneaking(player) && Math.hypot(player.vx, player.vy) > 1;
-      other.view.update(player.x, player.y, { ...player, wading: wading(player.x, player.y), sneaking: other.sneaking }, seconds);
+      const inWater = wading(player.x, player.y);
+      other.sneaking = !inWater && player.attack === 0 && player.dodge === 0 && player.down === 0 && isSneakWalk(player.vx, player.vy);
+      other.view.update(player.x, player.y, { ...player, wading: inWater, sneaking: other.sneaking }, seconds);
       other.tag.place(player.x, player.y, other.view.headHeight, view, other.alpha);
     }
     const step = seconds / FADE_SECONDS;

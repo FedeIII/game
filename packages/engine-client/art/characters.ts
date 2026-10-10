@@ -4,7 +4,7 @@
  * figure (skins.ts). Change the proportions in figure.ts, not in the frames.
  */
 import { ramp } from './raster.ts';
-import { ATTACK_FRAMES, ATTACK_STANCE, ROLL_FRAMES, attackAction, rollParts } from './attacks.ts';
+import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, fallParts, rollParts } from './attacks.ts';
 import { WANDERER, figure, figureMaterials, type FigureSpec, type Palette } from './figure.ts';
 import { renderModel, type Material, type Part } from './sdf.ts';
 import type { Frame } from './sprites.ts';
@@ -140,6 +140,7 @@ export function playerFrames(): Frame[] {
       frames.push({ name: `player/${view.name}/attack/${i}`, image: render(figure(WANDERER, phase, amount, attackAction('punch', i, WANDERER))), anchor });
     }
     for (let i = 0; i < ROLL_FRAMES; i++) frames.push({ name: `player/${view.name}/roll/${i}`, image: render(rollParts(WANDERER, i)), anchor });
+    for (let i = 0; i < FALL_FRAMES; i++) frames.push({ name: `player/${view.name}/fall/${i}`, image: render(fallParts(WANDERER, i)), anchor });
   }
   return frames;
 }

@@ -209,7 +209,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   shield, a druid's antlers, a ranger's bow and quiver, a wizard's pointed hat). The gender gives
   the shoulders, beards and the hair; the variant picks the rest. Thus every race, class and
   gender has 2^23 looks. `Skin` is `{ seed, appearance, spec, palette }`.
-  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll) frames of 56 x 56
+  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -253,7 +253,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All melee attacks reach as
   far: only the look differs. The roll of a dodge: `rollPose()` and `rollParts()` (four frames: the
   figure tucked, `FigureAction.tuck`, and turned forward round its middle by `tumble()` in
-  `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer.
+  `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer. The fall of
+  a defeat: `fallParts()` (two frames: the figure turns back round its hips, then lies on its
+  back), as `player/<view>/fall/<i>` for the wanderer.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
@@ -393,8 +395,9 @@ is an admin.
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
-one ability at a time (Strength and Dexterity are done; Constitution, Intelligence, Wisdom and
-Charisma come next). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
+one ability at a time (Strength, Dexterity and Constitution are done; Intelligence, Wisdom and
+Charisma come next). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
+2026-10-10: the format of `platform-docs` in streaming-platform; index `docs/features/README.md`). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
 character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
 a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
 pack })`); the page makes the same from the same character, so the prediction stays exact. A
@@ -435,8 +438,9 @@ roll of a die.
   or the dodge button (`ui/dodge-button.ts`).
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
-  within their sight times `HordePlayer.sight`. On purpose (a slow walk, not standing still) the
-  torch is smaller (96, others' 48) and the figure a little darker. When stamina exists (CON),
+  within their sight times `HordePlayer.sight`. On purpose (the sneak walk of C, or a slow walk; not
+  just standing still) the torch is smaller (96, others' 48) and the figure a little darker. A
+  player in shallow water never sneaks. When stamina exists (CON),
   sneaking uses it too (Fede's note, 2026-10-10).
 - **Arrows** (`arrows.ts`): a ranger's every attack is an arrow (`Horde.shoot()`), 240 px/s, that
   hits the first living mob on its way (the damage and force of the ranger's blow) or stops at a
@@ -448,12 +452,35 @@ roll of a die.
   13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
   open."), never for one without ("It is locked. I cannot pick it."); it gives more (3 to 10
   coins, a second thing in about one of three).
+- **Constitution**: hit points (`maxHp` = 4 + mod: 3 to 7; `PlayerState.hp`), a shorter stun
+  (`stun`: x (1 - 0.1 x mod)), recovery (the first HP 8 s after a hit, `RECOVER_DELAY_TICKS`, then
+  one every 8 - mod s), stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per
+  second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
+  roll, and the sneak walk does not hide), and the length of a poison or a drink (`resist`:
+  x (1 - 0.15 x mod)).
+- **A hit** (`hitPlayer()`): `MobStats.hitDamage` HP (imp 1, brute 2) and a stun; an imp's claws
+  also poison (`poisonTicks` 360: one HP every 3 s, never the last one). At 0 HP the player is
+  **defeated** (`down`, 3 s: it falls back and lies, mobs leave it, the screen goes dark); then
+  it wakes (`wakePlayer()`) at home, or at the nearest refuge that its character has entered
+  (`wakePoint()`, `WorldSource.refuges()`: the chapel of Thornwick; `Character.refuges`), with all
+  its HP and a guard of 2 s, and a defeat takes half of its coins. The Room wakes it in a shared
+  world (`Room.wake`, `settle()` before a save), the page in its own world.
+- **Rest**: a fixture with `Interaction.rest` (the bed of the home) gives all HP and stamina
+  back and ends a poison or a drink (`rest()`; the server does it through `u`).
+- **Deals** (`dialog.ts`, `DialogAnswer.deal`): an answer can buy goods for coins (the ale of the
+  Crooked Lantern, 2 coins: `drunk` for 60 s x `resist`, the walk sways); with too few coins the
+  conversation goes to `deal.poor`. In a shared world the page sends `deal` and the server
+  checks the NPC's nearness (`DEAL_RANGE`) and the coins.
+- The store keeps the HP and the refuges of each character (columns `hp`, `refuges`; saved
+  with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
+  left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
+  defeat.
 
 In the client: the builder (step 2) and the "You" section show the traits in words and numbers
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 12.
+protocol: `docs/multiplayer.md`, protocol 13.
 
 ## Arrival in a world
 
@@ -480,7 +507,8 @@ edge). A mob that stays within 8 px of one point for 1.5 s while it wants to mov
 and forth between trees): a walk ends, a chase bends the other way and gives up after 4 s. When it sees a player (close, out in
 the open, no building between), it runs at the player on a curve (an angle off the straight line
 that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
-the player (`stunPlayer`: no move, no attack), and after it the player has a guard of 1 s in which
+the player and takes its hit points (`hitPlayer`: no move, no attack; see "Ability scores in
+the game", Constitution), and after it the player has a guard of 1 s in which
 no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. **Mobs that hunt one
 player take turns** (`Horde.waitFor()`, `nextUp()`): their attacks start one after the other. The
 others hound the player: they keep `MobStats.harass` from it (imp 36 to 50 px, brute 42 to 56 px:
@@ -736,7 +764,8 @@ closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.s
 `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
-Dexterity traits, the dodge ticks, sneaking, the arrows in flight) and `pack`; `doors`
+Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
+stamina, a defeat, poison, drink, refuges) and `pack`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),

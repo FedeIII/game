@@ -65,7 +65,7 @@ export interface Building {
   /**
    * A door with boards nailed across it: it stays closed until a character that passes the gate
    * (a score: Strength 13, for example) forces it. Then it is an ordinary door, until the world
-   * bars it again (loot.ts). NPCs do not walk through it.
+   * bars it again (loot.ts). NpcCrowd does not check it: do not give an NPC an area through it.
    */
   readonly barred?: Gate;
 }

@@ -130,11 +130,16 @@ describe('quicker attacks and a longer guard', () => {
 
 describe('sneaking', () => {
   it('is a slow walk or standing, not a strike or a roll', () => {
-    expect(isSneaking({ vx: 0, vy: 0, attack: 0, dodge: 0 })).toBe(true);
-    expect(isSneaking({ vx: 40, vy: 0, attack: 0, dodge: 0 })).toBe(true);
-    expect(isSneaking({ vx: 80, vy: 0, attack: 0, dodge: 0 })).toBe(false);
-    expect(isSneaking({ vx: 0, vy: 0, attack: 3, dodge: 0 })).toBe(false);
-    expect(sightOf(withDex(17), { vx: 0, vy: 0, attack: 0, dodge: 0 })).toBeCloseTo(0.38);
+    const pose = (vx: number, extra: Partial<{ attack: number; stamina: number; wading: boolean; down: number }> = {}) => ({ vx, vy: 0, attack: 0, dodge: 0, down: 0, stamina: 50, wading: false, ...extra });
+    expect(isSneaking(pose(0))).toBe(true);
+    expect(isSneaking(pose(40))).toBe(true);
+    expect(isSneaking(pose(80))).toBe(false);
+    expect(isSneaking(pose(0, { attack: 3 }))).toBe(false);
+    // Not a slow walk in shallow water, and not a sneak walk without stamina (standing still is).
+    expect(isSneaking(pose(40, { wading: true }))).toBe(false);
+    expect(isSneaking(pose(40, { stamina: 0 }))).toBe(false);
+    expect(isSneaking(pose(0, { stamina: 0 }))).toBe(true);
+    expect(sightOf(withDex(17), pose(0))).toBeCloseTo(0.38);
   });
 
   it('keeps a mob from noticing a player out of its shorter sight', () => {

@@ -15,6 +15,9 @@ import {
   inRect,
   useDoor,
   type HordePlayer,
+  feetFit,
+  refugeAt,
+  findDeal,
 } from '@game/engine';
 import { DEFAULT_SEED, TOWN, TOWN_BUILDINGS, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, WildsSource, inTown } from '../src/index.ts';
 
@@ -253,5 +256,25 @@ describe('Thornwick', () => {
       expect(inTown(Math.floor(imp.x / TILE_SIZE), Math.floor(imp.y / TILE_SIZE))).toBe(false);
     }
     expect(hits).toBe(0);
+  });
+});
+
+describe('Constitution in the Wilds', () => {
+  it('makes the chapel a refuge: its point is open, inside the chapel', () => {
+    const world = new World(new WildsSource(DEFAULT_SEED));
+    const [chapel] = world.source.refuges!();
+    expect(chapel!.id).toBe('chapel');
+    expect(feetFit(world, chapel!.x, chapel!.y)).toBe(true);
+    expect(refugeAt(world, chapel!.x, chapel!.y)?.id).toBe('chapel');
+    // Outside the chapel, no refuge.
+    expect(refugeAt(world, chapel!.x, chapel!.y + 3 * TILE_SIZE)).toBeNull();
+  });
+
+  it('lets the player rest in the bed of the home, and sells ale at the inn', () => {
+    const source = new WildsSource(DEFAULT_SEED);
+    const bed = source.home().fixtures.find((f) => f.kind === 'bed')!;
+    expect(bed.content?.rest).toBe(true);
+    const innkeeper = source.npcs().find((n) => n.id === 'innkeeper')!;
+    expect(findDeal(innkeeper.content.dialog!, 'ale')).toEqual({ id: 'ale', goods: 'ale', price: 2, poor: 'poor' });
   });
 });

@@ -33,7 +33,8 @@ function hut(x0: number, y0: number): Building {
   const say = (kind: keyof typeof TEXTS) => ({ content: { pages: [...TEXTS[kind]] } });
   // The column of the door and the row inside the south wall stay free (a test walks to each thing).
   const fixtures: Fixture[] = [
-    { kind: 'bed', tx: ix0, ty: iy0 + 1, ...say('bed') },
+    // The bed rests the player: all its hit points and stamina back (Interaction.rest).
+    { kind: 'bed', tx: ix0, ty: iy0 + 1, content: { pages: [...TEXTS.bed], rest: true } },
     { kind: 'chest', tx: ix0, ty: iy0 + 2, ...say('chest') },
     { kind: 'bookshelf', tx: ix0 + 4, ty: iy0, ...say('bookshelf') },
     { kind: 'table', tx: ix0 + 3, ty: iy0 + 1, light: CANDLE, ...say('table') },

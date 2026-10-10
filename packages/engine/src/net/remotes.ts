@@ -28,11 +28,12 @@ export interface RemotePlayer {
   readonly facing: Facing;
   /** The direction of its attack (radians, as PlayerState.aim). */
   readonly aim: number;
-  /** Ticks left of its attack, its stun, its guard and its dodge (as in PlayerState), at the time shown. */
+  /** Ticks left of its attack, its stun, its guard, its dodge and its defeat (as in PlayerState), at the time shown. */
   readonly attack: number;
   readonly stun: number;
   readonly guard: number;
   readonly dodge: number;
+  readonly down: number;
 }
 
 /** An arrow in flight from the server, where the client draws it now. */
@@ -74,8 +75,9 @@ interface Sample {
   readonly c?: number;
   /** A player's aim code (aimCode), or an arrow's. */
   readonly d?: number;
-  /** A player's dodge (ticks). */
+  /** A player's dodge and defeat (ticks). */
   readonly e?: number;
+  readonly f?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -144,7 +146,7 @@ export class Remotes {
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -154,7 +156,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // A player that is not in the snapshot has left.
@@ -293,6 +295,7 @@ export class Remotes {
         stun: ticksAt(since.b, since, t),
         guard: ticksAt(since.c, since, t),
         dodge: ticksAt(since.e, since, t),
+        down: ticksAt(since.f, since, t),
       });
     }
     return out;

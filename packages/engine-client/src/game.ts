@@ -1,6 +1,7 @@
 import './style.css';
 import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
+  ALE_TICKS,
   ATTACK_REACH,
   ATTACK_TICKS,
   EMPTY_PACK,
@@ -35,7 +36,11 @@ import {
   inShallows,
   isSneaking,
   newArrow,
+  refugeAt,
+  rest,
   sightOf,
+  wakePlayer,
+  wakePoint,
   lootIsEmpty,
   meetsGate,
   sheetTraits,
@@ -88,6 +93,7 @@ import { DodgeButton } from './ui/dodge-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
 import { PackPanel } from './ui/pack-panel.ts';
+import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
@@ -227,6 +233,14 @@ async function run(options: GameOptions): Promise<void> {
   const name = character?.name ?? '';
   // What the scores give in the game (traits.ts): a guest has every score at 10, and the class of its look.
   const traits = character ? sheetTraits(character) : guestTraits(skin);
+  // The hit points of the character from its last visit (all of them for a new one), and all its stamina.
+  // In a shared world the welcome gives the server's word.
+  const storedHp = character?.hp ?? null;
+  player.hp = storedHp === null || storedHp <= 0 ? traits.maxHp : Math.min(storedHp, traits.maxHp);
+  if (player.hp < traits.maxHp) player.recover = traits.recover;
+  player.stamina = traits.maxStamina;
+  // The refuges that the character has entered, in a world that the page runs (the server keeps them in a shared world).
+  const localRefuges = [...(character?.refuges ?? [])];
   // A shared world goes through the multiplayer server; ?offline plays it alone.
   const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, traits, character?.id ?? null) : null;
   // What the player carries. In a shared world the server keeps it (net.pack); in a world that
@@ -637,6 +651,20 @@ async function run(options: GameOptions): Promise<void> {
   // What the player finds: drops rise over its head; a chest's contents it says. In a shared world
   // the server's word comes a moment after the kill or the press.
   const lootText = new LootText(smallFont, tagLayer);
+  // The hit points, the stamina and the effects (top left); a red flash on a hit, a dark veil on a defeat.
+  const vitals = new Vitals();
+  /** Wakes the player after a defeat, in a world that the page runs: at home or at the nearest refuge; half of the coins go. */
+  const wakeHere = (): void => {
+    const at = wakePoint(world, player.x, player.y, net?.refuges ?? localRefuges);
+    wakePlayer(player, at.x, at.y, traits);
+    previous.x = player.x;
+    previous.y = player.y;
+    const lost = net ? 0 : Math.floor(pack.coins / 2);
+    if (lost > 0) pack = { coins: pack.coins - lost, items: pack.items };
+    say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now());
+  };
+  net?.onWoke((lost) => say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now()));
+  net?.onRefuges(() => say(STRINGS.refuge, performance.now()));
   const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null);
   /** Puts what a kill dropped into the pack of a world that the page runs. */
   const takeDrop = (drop: Loot, now: number) => {
@@ -673,6 +701,15 @@ async function run(options: GameOptions): Promise<void> {
     // Each line stays over the NPC's head as long as the panel shows it.
     line: (say) => speech.show([say], talkAnchor, performance.now(), true),
     end: () => closeDialog(performance.now()),
+    // A purchase (an ale): the server takes the coins in a shared world; the page in its own world.
+    deal: (deal) => {
+      const index = talkWith ? npcIndex.get(talkWith) : undefined;
+      if (index === undefined || packNow().coins < deal.price) return false;
+      if (net) return net.deal(index, deal.id);
+      pack = { coins: pack.coins - deal.price, items: pack.items };
+      if (deal.goods === 'ale') player.drunk = Math.round(ALE_TICKS * traits.resist);
+      return true;
+    },
   });
   const openTalk = () => {
     if (!pendingTalk || !talkWith) return;
@@ -722,6 +759,16 @@ async function run(options: GameOptions): Promise<void> {
       return;
     }
     const key = targetKey(target);
+    if (target.fixture?.content?.rest) {
+      // The player's own bed: a rest (all hit points and stamina back). The server rests it in a shared world.
+      dialogKey = key;
+      linkCard.hide();
+      if (net) {
+        if (!net.use(target.tx, target.ty)) rest(player, traits);
+      } else rest(player, traits);
+      say(STRINGS.rested, now);
+      return;
+    }
     if (target.fixture && spoils.isSource(target.fixture)) {
       // A chest with loot: the server opens it in a shared world, the page in its own world.
       dialogKey = key;
@@ -801,6 +848,7 @@ async function run(options: GameOptions): Promise<void> {
       if (bar) return meetsGate(traits.scores, bar) ? STRINGS.forceDoor : STRINGS.tryDoor;
       return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
     }
+    if (t.fixture?.content?.rest) return STRINGS.rest;
     if (t.fixture && spoils.isSource(t.fixture)) return t.fixture.lock && meetsGate(traits.scores, t.fixture.lock) ? STRINGS.pickLock : STRINGS.openChest;
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
@@ -840,6 +888,8 @@ async function run(options: GameOptions): Promise<void> {
       input = { ...input, attack: attackClick ? aimAt(attackClick) : aim(input) };
       attackAskedAt = -Infinity;
     }
+    // The last tick of a defeat: after it, the player wakes. The server wakes it in a shared world.
+    const waking = player.down === 1 && (!net || net.status !== 'online');
     if (net) {
       if (net.tick(input)) {
         if (traits.ranged) ownArrows.push(newArrow(nextOwnArrow--, net.id ?? 0, player.x, player.y, player.aim, traits.range, traits));
@@ -856,10 +906,19 @@ async function run(options: GameOptions): Promise<void> {
         }
       }
     }
-    if (!net) spoils.tick(performance.now(), [player]);
+    if (waking) wakeHere();
+    if (!net) {
+      spoils.tick(performance.now(), [player]);
+      // A refuge (the chapel) that the character comes into for the first time.
+      const refuge = refugeAt(world, player.x, player.y);
+      if (refuge && !localRefuges.includes(refuge.id)) {
+        localRefuges.push(refuge.id);
+        say(STRINGS.refuge, performance.now());
+      }
+    }
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     // Mobs see the player from less far with Dexterity, and less again while it sneaks.
-    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player) }]);
+    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }]);
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now());
@@ -900,7 +959,7 @@ async function run(options: GameOptions): Promise<void> {
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     const wading = inShallows(world, shown.x, shown.y);
-    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading, sneaking: sneakingShown() }, seconds);
+    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading, sneaking: sneakingShown(), poisoned: player.poison > 0 }, seconds);
     // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
     if (player.stun > 0 && !stunSeen) {
       hitsTaken++;
@@ -925,7 +984,7 @@ async function run(options: GameOptions): Promise<void> {
     if (conversation.open) {
       // The NPC waits for a player who stands close to it; a stun, or an NPC that is not close
       // any more, ends the conversation.
-      if (player.stun > 0 || !talkingClose(now)) closeDialog(now);
+      if (player.stun > 0 || player.down > 0 || !talkingClose(now)) closeDialog(now);
     } else if (dialogKey && (!target || targetKey(target) !== dialogKey)) {
       closeDialog(now);
     }
@@ -950,6 +1009,7 @@ async function run(options: GameOptions): Promise<void> {
     ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
+    vitals.update(player, traits.maxHp, traits.maxStamina);
     packPanel.show(packNow(), traits.slots);
     if (arrivedAt === null) {
       arrivedAt = now;
@@ -1006,6 +1066,7 @@ async function run(options: GameOptions): Promise<void> {
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
       `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
+      `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),

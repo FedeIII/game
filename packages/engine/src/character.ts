@@ -206,6 +206,10 @@ export interface Character extends CharacterSheet {
   readonly place: CharacterPlace | null;
   /** What it carries (items.ts). In a shared world the server keeps it; a page never writes it. */
   readonly pack: Pack;
+  /** Its hit points when it last played, or null: all of them (traits.ts, maxHp). The server keeps it. */
+  readonly hp: number | null;
+  /** The refuges that it has entered (WorldSource.refuges): it can wake there after a defeat. */
+  readonly refuges: readonly string[];
 }
 
 /** The id of a world, as a place names it. */

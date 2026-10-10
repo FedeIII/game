@@ -1,6 +1,17 @@
 import { ABILITIES, ATTACK_ABILITY, abilityModifier, appearanceOf, finalScores, type Ability, type CharacterClass, type CharacterSheet, type Scores } from './character.ts';
 import { TILE_SIZE } from './constants.ts';
-import { ATTACK_COOLDOWN_TICKS, ATTACK_TICKS, DODGE_COOLDOWN_TICKS, GUARD_TICKS, isSneaking, type PlayerState } from './player.ts';
+import {
+  ATTACK_COOLDOWN_TICKS,
+  ATTACK_TICKS,
+  DODGE_COOLDOWN_TICKS,
+  GUARD_TICKS,
+  PLAIN_HP,
+  PLAIN_STAMINA,
+  RECOVER_TICKS,
+  STAMINA_REFILL,
+  isSneaking,
+  type PlayerState,
+} from './player.ts';
 
 /**
  * What the ability scores of a character give in the game: the damage and the force of its blows,
@@ -37,6 +48,17 @@ export interface PlayerTraits {
   /** Whether its attacks are arrows (a ranger's bow), and how far an arrow flies (world pixels; DEX). */
   readonly ranged: boolean;
   readonly range: number;
+  /** Its most hit points (CON). */
+  readonly maxHp: number;
+  /** The length of a stun that a mob gives it, as a share (CON). */
+  readonly stun: number;
+  /** Ticks for each hit point that comes back, out of a fight (CON). */
+  readonly recover: number;
+  /** Its most stamina, and the stamina that comes back each second (CON). */
+  readonly maxStamina: number;
+  readonly staminaRefill: number;
+  /** The length of a poison or of a drink, as a share (CON). */
+  readonly resist: number;
 }
 
 /** A fixed limit on a score: a thing opens for a character with at least `min` in `ability`. */
@@ -61,6 +83,15 @@ export const DODGE_PER_MOD = 12;
 export const SIGHT_PER_MOD = 0.08;
 /** An arrow flies this many tiles, and one more for each point of the DEX modifier. */
 export const RANGE_TILES = 5;
+/** Each point of the CON modifier: one more hit point (PLAIN_HP with 10), a share less of a stun, a second less for each hit point that comes back. */
+export const HP_PER_MOD = 1;
+export const STUN_PER_MOD = 0.1;
+export const RECOVER_PER_MOD = 60;
+/** Each point of the CON modifier: this much more stamina, and this much more of it back each second. */
+export const STAMINA_PER_MOD = 10;
+export const REFILL_PER_MOD = 4;
+/** Each point of the CON modifier: a poison or a drink lasts this share less. */
+export const RESIST_PER_MOD = 0.15;
 /** The usual gate: a score of 13 or more. */
 export const GATE_SCORE = 13;
 /** A character with this can walk in shallow water. */
@@ -74,7 +105,7 @@ export const PICK_GATE: Gate = { ability: 'dex', min: GATE_SCORE };
 export const SNEAK_SIGHT = 0.5;
 
 /** How far mobs see a player now, as a share of their sight (HordePlayer.sight): its Dexterity, and half of that while it sneaks. */
-export function sightOf(traits: Pick<PlayerTraits, 'sight'>, state: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge'>): number {
+export function sightOf(traits: Pick<PlayerTraits, 'sight'>, state: Parameters<typeof isSneaking>[0]): number {
   return traits.sight * (isSneaking(state) ? SNEAK_SIGHT : 1);
 }
 
@@ -88,6 +119,7 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   const attack = ATTACK_ABILITY[cls];
   const str = abilityModifier(scores.str);
   const dex = abilityModifier(scores.dex);
+  const con = abilityModifier(scores.con);
   return {
     scores,
     attack,
@@ -103,6 +135,12 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
     sight: Math.max(0.1, 1 - SIGHT_PER_MOD * dex),
     ranged: cls === 'ranger',
     range: (RANGE_TILES + dex) * TILE_SIZE,
+    maxHp: Math.max(1, PLAIN_HP + HP_PER_MOD * con),
+    stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
+    recover: Math.max(60, RECOVER_TICKS - RECOVER_PER_MOD * con),
+    maxStamina: Math.max(10, PLAIN_STAMINA + STAMINA_PER_MOD * con),
+    staminaRefill: Math.max(1, STAMINA_REFILL + REFILL_PER_MOD * con),
+    resist: Math.max(0.1, 1 - RESIST_PER_MOD * con),
   };
 }
 

@@ -65,6 +65,9 @@ export const WATCHMAN: Dialog = {
   },
 };
 
+/** An ale at the Crooked Lantern: 2 coins, and the walk sways for a while (the engine's ALE_TICKS). */
+const ALE = { id: 'ale', goods: 'ale', price: 2, poor: 'poor' } as const;
+
 /** Marta, who keeps the Crooked Lantern. */
 export const INNKEEPER: Dialog = {
   name: 'Marta, the innkeeper',
@@ -81,15 +84,19 @@ export const INNKEEPER: Dialog = {
     },
     drink: {
       say: 'Ale, cheap and brown. Cider, cheap and yellow. And something green that the apothecary makes.',
-      answers: [{ text: 'The ale, then.', next: 'ale' }, { text: 'What is the green one?', next: 'green' }, { text: 'Nothing for me.' }],
+      answers: [{ text: 'The ale, then. (2 coins)', next: 'ale', deal: ALE }, { text: 'What is the green one?', next: 'green' }, { text: 'Nothing for me.' }],
     },
     ale: {
       say: 'Here. Do not tell me what you think of it. Everybody tells me.',
       answers: [{ text: 'Any news?', next: 'news' }, { text: 'Thank you.' }],
     },
+    poor: {
+      say: 'Two coins for an ale. Come back when the woods have paid you.',
+      answers: [{ text: 'Any news?', next: 'news' }, { text: 'I will.' }],
+    },
     green: {
       say: 'Nobody knows. It warms you, and then it remembers you. I stopped asking.',
-      answers: [{ text: 'The ale, then.', next: 'ale' }, BYE],
+      answers: [{ text: 'The ale, then. (2 coins)', next: 'ale', deal: ALE }, BYE],
     },
     room: {
       say: 'The beds are taken. Folk from the farms sleep here now. The farms are too close to the trees.',

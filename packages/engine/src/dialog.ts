@@ -11,6 +11,34 @@ export interface DialogAnswer {
   readonly text: string;
   /** The node that comes next. Without it, this answer ends the conversation. */
   readonly next?: string;
+  /**
+   * A purchase: the player pays `price` coins for `goods`. With enough coins the conversation goes
+   * on to `next`; without, to `poor`. In a shared world the server checks the coins and the NPC's
+   * nearness again, and takes the coins (Room.deal).
+   */
+  readonly deal?: Deal;
+}
+
+/** What a player can buy from an NPC: an ale (a drink, player.ts ALE_TICKS). */
+export const GOODS = ['ale'] as const;
+export type Goods = (typeof GOODS)[number];
+
+export interface Deal {
+  /** The server finds the deal by it: two answers with the same id must have the same deal. */
+  readonly id: string;
+  readonly goods: Goods;
+  readonly price: number;
+  /** The node when the player has fewer coins than the price. */
+  readonly poor: string;
+}
+
+/** A player must be this close to an NPC to buy from it (world pixels): the conversation's range, with a margin. */
+export const DEAL_RANGE = 48;
+
+/** The deal of the dialog with this id, or null. */
+export function findDeal(dialog: Dialog, id: string): Deal | null {
+  for (const node of Object.values(dialog.nodes)) for (const answer of node.answers) if (answer.deal?.id === id) return answer.deal;
+  return null;
 }
 
 export interface DialogNode {
@@ -49,8 +77,23 @@ export function checkDialog(dialog: Dialog): string[] {
     for (const answer of node.answers) {
       if (!answer.text || answer.text.length > DIALOG_LIMITS.answer) problems.push(`${id}: the answer "${answer.text}" is empty or too long`);
       if (answer.next !== undefined && !dialog.nodes[answer.next]) problems.push(`${id}: the answer "${answer.text}" leads to no node "${answer.next}"`);
+      if (answer.deal && !dialog.nodes[answer.deal.poor]) problems.push(`${id}: the deal "${answer.deal.id}" leads to no node "${answer.deal.poor}"`);
+      if (answer.deal && answer.next === undefined) problems.push(`${id}: the deal "${answer.deal.id}" ends the conversation`);
     }
   }
+  // One deal can be in several answers, but two different deals must not share an id.
+  const deals = new Map<string, string>();
+  for (const id of ids) {
+    for (const { deal } of dialog.nodes[id]!.answers) {
+      if (!deal) continue;
+      const same = deals.get(deal.id);
+      const shape = JSON.stringify([deal.goods, deal.price, deal.poor]);
+      if (same !== undefined && same !== shape) problems.push(`two deals have the id "${deal.id}"`);
+      deals.set(deal.id, shape);
+    }
+  }
+  /** The nodes that an answer leads to: its next, and the node for too few coins. */
+  const leads = (a: DialogAnswer): string[] => [...(a.next !== undefined ? [a.next] : []), ...(a.deal ? [a.deal.poor] : [])];
   // Every node from the start.
   const reached = new Set<string>();
   const queue = dialog.nodes[dialog.start] ? [dialog.start] : [];
@@ -58,7 +101,7 @@ export function checkDialog(dialog: Dialog): string[] {
     const id = queue.pop()!;
     if (reached.has(id)) continue;
     reached.add(id);
-    for (const answer of dialog.nodes[id]!.answers) if (answer.next !== undefined && dialog.nodes[answer.next]) queue.push(answer.next);
+    for (const answer of dialog.nodes[id]!.answers) for (const to of leads(answer)) if (dialog.nodes[to]) queue.push(to);
   }
   for (const id of ids) if (!reached.has(id)) problems.push(`${id}: no answer leads to it`);
   // An end from every node: the nodes that can end, found backwards from the answers that end.
@@ -66,7 +109,7 @@ export function checkDialog(dialog: Dialog): string[] {
   for (let grew = true; grew; ) {
     grew = false;
     for (const id of ids) {
-      if (!ends.has(id) && dialog.nodes[id]!.answers.some((a) => a.next !== undefined && ends.has(a.next))) {
+      if (!ends.has(id) && dialog.nodes[id]!.answers.some((a) => leads(a).some((to) => ends.has(to)))) {
         ends.add(id);
         grew = true;
       }

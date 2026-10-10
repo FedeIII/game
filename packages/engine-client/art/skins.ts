@@ -14,7 +14,7 @@
  * keep rendered skins in localStorage under that version.
  */
 import { appearanceOf, type Appearance, type CharacterClass, type Gender, type Race } from '@game/engine';
-import { ATTACK_FRAMES, ATTACK_STANCE, ROLL_FRAMES, attackAction, attackStyle, rollParts, type AttackStyle } from './attacks.ts';
+import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, attackStyle, fallParts, rollParts, type AttackStyle } from './attacks.ts';
 import {
   figure,
   figureMaterials,
@@ -31,7 +31,7 @@ import {
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel } from './sdf.ts';
 
-export const SKIN_VERSION = 5;
+export const SKIN_VERSION = 6;
 
 /**
  * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
@@ -47,10 +47,11 @@ export const SKIN_VIEWS = [
   { name: 'right', yaw: Math.PI / 2 },
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
-/** Columns of a sheet: the stand, then the walk frames, then the attack frames, then the roll frames. */
+/** Columns of a sheet: the stand, then the walk frames, the attack frames, the roll frames and the fall frames. */
 export const SKIN_WALK_FRAMES = 8;
 export const SKIN_ATTACK_FRAMES = ATTACK_FRAMES;
 export const SKIN_ROLL_FRAMES = ROLL_FRAMES;
+export const SKIN_FALL_FRAMES = FALL_FRAMES;
 
 export interface Skin {
   readonly seed: number;
@@ -60,7 +61,7 @@ export interface Skin {
 }
 
 export interface SkinSheet {
-  /** SKIN_VIEWS rows by 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES columns of SKIN_FRAME. */
+  /** SKIN_VIEWS rows by 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + SKIN_FALL_FRAMES columns of SKIN_FRAME. */
   readonly image: Image;
   /** From the feet to just above the head or hat, in screen pixels: speech goes there. */
   readonly headHeight: number;
@@ -795,10 +796,10 @@ export function skinAttack(skin: Skin): AttackStyle {
   return attackStyle(skin.appearance.class, skin.spec);
 }
 
-/** Renders the sheet of a skin: every view, the stand, the walk, the attack and the roll. */
+/** Renders the sheet of a skin: every view, the stand, the walk, the attack, the roll and the fall. */
 export function renderSkinSheet(skin: Skin): SkinSheet {
   const { width, height } = SKIN_FRAME;
-  const image = new Image(width * (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES), height * SKIN_VIEWS.length);
+  const image = new Image(width * (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + SKIN_FALL_FRAMES), height * SKIN_VIEWS.length);
   const materials = figureMaterials(skin.palette);
   const style = skinAttack(skin);
   SKIN_VIEWS.forEach((view, row) => {
@@ -813,6 +814,10 @@ export function renderSkinSheet(skin: Skin): SkinSheet {
     }
     for (let f = 0; f < SKIN_ROLL_FRAMES; f++) {
       image.draw(renderModel(rollParts(skin.spec, f), materials, { ...SKIN_FRAME, yaw: view.yaw }), (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + f) * width, row * height);
+    }
+    for (let f = 0; f < SKIN_FALL_FRAMES; f++) {
+      const column = 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + f;
+      image.draw(renderModel(fallParts(skin.spec, f), materials, { ...SKIN_FRAME, yaw: view.yaw }), column * width, row * height);
     }
   });
   return { image, headHeight: Math.round(figureTop(skin.spec) * HEIGHT_SCALE) + 4 };

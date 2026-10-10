@@ -17,7 +17,7 @@ function npcTextures(art: Art, look: string): PlayerTextures {
   }
   // NPCs never attack or roll: their attack and their roll are the stand.
   const attack = Object.fromEntries(FACINGS.map((facing) => [facing, [stand[facing]]])) as Record<Facing, Texture[]>;
-  return { stand, walk, attack, roll: attack, headHeight: NPC_HEAD_HEIGHT };
+  return { stand, walk, attack, roll: attack, fall: attack, headHeight: NPC_HEAD_HEIGHT };
 }
 
 /**

@@ -1,12 +1,15 @@
 # Abilities in the game (draft)
 
+> **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Approved (STR, DEX and
+> CON built: see `docs/features/abilities/`; INT, WIS and CHA not yet)
+
 This draft gives the applications of the six ability scores in the game. Each application has
 an ID. Fede picks the applications; then we make their mechanics and apply the scores to them,
 one ability after the other (STR first). The scores come from the character builder
 (`packages/engine/src/character.ts`); before this work, they do nothing in the game.
 
-Status: Strength is done (2026-10-10, protocol 11), Dexterity is done (2026-10-10, protocol 12).
-Next: Constitution, then Intelligence, Wisdom and Charisma. Decided: Option B (below).
+Status: Strength is done (2026-10-10, protocol 11), Dexterity (protocol 12), Constitution
+(protocol 13). Next: Intelligence, then Wisdom and Charisma. Decided: Option B (below).
 
 ## How the numbers work
 
@@ -169,8 +172,8 @@ The changes:
   the lower part of the figure under the water line and shows a ripple (`fx/ripple/<i>`).
 - **S5.** `Building.barred` (a gate). `useDoor()` gives `'forced'` (the boards break; then it is
   an ordinary door) or `'barred'`. The server checks the gate with the stored traits; the
-  welcome and the snapshots carry the forced doors. One Wilds house in four is barred (never the
-  home or the house east of it); art `wall/<walls>/door/boarded`.
+  welcome and the snapshots carry the forced doors. One Wilds house with a chest in four is barred
+  (never the home or the house east of it); art `wall/<walls>/door/boarded`.
 - **S6.** `items.ts`: the item kinds, a pack of slots (6 + 2 x STR mod: 4 to 12), and
   `addToPack()`. The coins go in a purse, not in a slot (decided in the implementation: a weak
   character would lose a quarter of its slots to them). A kill can drop an item into the killer's pack; a chest in a Wilds house gives
@@ -207,5 +210,39 @@ Notes from the implementation (2026-10-10):
 - Standing still hides a player from mobs as a slow walk does, but its torch stays full: the
   torch shrinks only while the player sneaks on purpose (a slow walk, or the sneak walk of C).
   A torch that shrank at every stop would blink all the time.
-- An arrow takes the damage and the force of the ranger's blow, so a ranger with DEX 16 or 17
-  kills a brute in two arrows.
+- An arrow takes the damage and the force of the ranger's blow, so a ranger with DEX 14 or more
+  (a damage of 6 or 7) kills a brute in two arrows.
+
+## CON: the agreed plan (2026-10-10)
+
+Decisions (Fede, 2026-10-10):
+
+1. C1 hit points: HP = 4 + mod (3 to 7); an imp's hit costs 1, a brute's 2; a hit still stuns.
+2. A defeated character wakes at home, unless it has entered the chapel of Thornwick: then it
+   wakes at the nearer of the two. The store keeps which refuges a character has entered.
+3. A defeat costs half of the coins; the items stay.
+4. C3 recovery: after 8 s with no hit, 1 HP every 8 - mod s (5 to 9 s); "Rest" at the bed of the
+   home gives full HP.
+5. HP is saved with the character between sessions.
+6. C4 stamina: only the roll and the sneak walk use it; no sprint. Max 100 + 10 x mod; a roll
+   costs 35, the sneak walk 8 per s; it fills at 20 + 4 x mod per s, 1 s after the last use.
+   Without stamina: no roll, and no stealth bonus from the sneak walk.
+7. C2 a shorter stun: stun x (1 - 0.1 x mod).
+8. C5 effects, now: an imp's claws poison (1 HP every 3 s for 6 s x (1 - 0.15 x mod)); ale from
+   the innkeeper for 2 coins (the walk sways for 60 s x (1 - 0.15 x mod)).
+9. Two fall frames ("falls", "lies") in every skin sheet; red HP pips at the top left, a thin
+   stamina bar under them, a red flash at the screen edges on a hit, a fade to black at a defeat.
+10. A fix to DEX in this step: a walk in shallow water does not count as sneaking.
+
+Fede's rule (2026-10-10): document every feature in `docs/features/` in the REQ/AC format of
+`platform-docs` (streaming-platform).
+
+Notes from the implementation of CON (2026-10-10):
+
+- A poison never takes the last hit point: an imp's claws cannot defeat a character by
+  themselves.
+- A rest also ends a poison and a drink.
+- Found while testing (older than the abilities: it is the same at the commit before STR): a pack
+  of four mobs hits a player who stands still only a few times in the first 10 s, and then it
+  stays in "chase" without new attacks. A player who moves keeps the pack in the fight. To look
+  at with Fede.

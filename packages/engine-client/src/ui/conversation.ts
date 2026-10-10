@@ -1,5 +1,5 @@
 import type { Texture } from 'pixi.js';
-import type { Dialog, DialogAnswer, DialogNode } from '@game/engine';
+import type { Deal, Dialog, DialogAnswer, DialogNode } from '@game/engine';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -40,16 +40,17 @@ export class Conversation {
 
   /**
    * Gives the answer `index`. Returns the next node (the NPC says its line), or null if the
-   * answer ends the conversation (or there is no such answer: then nothing changes).
+   * answer ends the conversation (or there is no such answer: then nothing changes). An answer
+   * with a deal goes on to its `next` node if the player `paid`, else to the deal's `poor` node.
    */
-  choose(index: number): DialogNode | null {
+  choose(index: number, paid = false): DialogNode | null {
     const answer = this.answers[index];
     if (!answer) return null;
     if (answer.next === undefined) {
       this.answered = answer.text;
       return null;
     }
-    this.nodeId = answer.next;
+    this.nodeId = answer.deal && !paid ? answer.deal.poor : answer.next;
     this.answered = answer.text;
     this.selected = 0;
     return this.node;
@@ -110,6 +111,8 @@ export interface ConversationEvents {
   readonly line: (say: string) => void;
   /** The conversation is over (an answer that ends it, Esc, or the close button). */
   readonly end: () => void;
+  /** The player gives an answer with a deal: the game makes the purchase, and says whether the player could pay. */
+  readonly deal?: (deal: Deal) => boolean;
 }
 
 /**
@@ -214,7 +217,8 @@ export class ConversationPanel {
   choose(index: number): void {
     const talk = this.talk;
     if (!talk || index < 0 || index >= talk.answers.length) return;
-    const next = talk.choose(index);
+    const deal = talk.answers[index]!.deal;
+    const next = talk.choose(index, deal ? (this.events.deal?.(deal) ?? false) : false);
     if (!next) {
       this.end();
       return;

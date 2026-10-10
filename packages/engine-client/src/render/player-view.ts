@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, DODGE_TICKS, facingAngle, type Facing } from '@game/engine';
+import { ATTACK_TICKS, DODGE_TICKS, DOWN_TICKS, facingAngle, type Facing } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -35,6 +35,10 @@ export const ATTACK_TINT: Readonly<Record<AttackStyle, number>> = {
 export const ARROW_TINT = 0xc8b48c;
 /** A player that sneaks is a little darker (and its torch smaller: game.ts). */
 const SNEAK_TINT = 0x9a948e;
+/** A poisoned player shows this green now and then. */
+const POISON_TINT = 0x9cc48a;
+/** A defeat shows the falling frame for this many ticks, then the lying one. */
+const FALL_SWITCH = 10;
 /** Effects that glow (added to what is under them), and give a little light. */
 const GLOWING: ReadonlySet<AttackStyle> = new Set(['spell', 'flame', 'palm']);
 /** A hit: the body flashes red for this long (ms); then it is a little grey while stunned. */
@@ -69,6 +73,10 @@ export interface PlayerPose {
   readonly dodge?: number;
   /** Whether it sneaks (a slow walk): it shows a little darker. */
   readonly sneaking?: boolean;
+  /** Ticks left of a defeat, as in PlayerState: it falls and lies. */
+  readonly down?: number;
+  /** Whether a poison is in it: it shows a sick green now and then. */
+  readonly poisoned?: boolean;
 }
 
 /** The frames of one look of the player: a stand, a walk and an attack for each facing. */
@@ -78,6 +86,8 @@ export interface PlayerTextures {
   readonly attack: Readonly<Record<Facing, readonly Texture[]>>;
   /** The frames of a roll (a dodge). */
   readonly roll: Readonly<Record<Facing, readonly Texture[]>>;
+  /** The frames of a defeat: it falls, and it lies. */
+  readonly fall: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -88,13 +98,15 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const walk = {} as Record<Facing, Texture[]>;
   const attack = {} as Record<Facing, Texture[]>;
   const roll = {} as Record<Facing, Texture[]>;
+  const fall = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
     attack[facing] = art.variants(`player/${facing}/attack`);
     roll[facing] = art.variants(`player/${facing}/roll`);
+    fall[facing] = art.variants(`player/${facing}/fall`);
   }
-  return { stand, walk, attack, roll, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, fall, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -217,7 +229,13 @@ export class PlayerView {
     let texture: Texture;
     const attack = state.attack ?? 0;
     const dodge = state.dodge ?? 0;
-    if (dodge > 0) {
+    const down = state.down ?? 0;
+    if (down > 0) {
+      // A defeat: it falls back, then lies.
+      const frames = this.textures.fall[state.facing];
+      texture = frames[DOWN_TICKS - down < FALL_SWITCH ? 0 : frames.length - 1]!;
+      this.travelled = 0;
+    } else if (dodge > 0) {
       // The roll, by the ticks since the dodge started.
       const frames = this.textures.roll[state.facing];
       texture = frames[Math.min(frames.length - 1, Math.floor(((DODGE_TICKS - 1 - dodge) * frames.length) / (DODGE_TICKS - 1)))]!;
@@ -295,7 +313,8 @@ export class PlayerView {
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
     this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge) + (this.wading ? WADE_DEPTH : 0));
     if (!this.pending) {
-      this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
+      const sick = state.poisoned && Math.floor(now / 400) % 3 === 0;
+      this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : sick ? POISON_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;
     }
     // The guard after a stun: the player blinks, so everyone sees that mobs cannot hit it now.

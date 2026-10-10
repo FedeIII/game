@@ -2,6 +2,7 @@ import {
   CHUNK_SIZE,
   Decor,
   Ground,
+  TILE_SIZE,
   emptyChunk,
   fixtureTiles,
   inRect,
@@ -16,6 +17,7 @@ import {
   type LootTable,
   type MobRules,
   type NpcDef,
+  type Refuge,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
@@ -60,6 +62,9 @@ const BARRED_CHEST_LOOT: LootTable = {
     { chance: 0.5, pick: TRINKETS },
   ],
 };
+
+const CHAPEL = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
+const REFUGES: readonly Refuge[] = [{ id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 }];
 
 /** Mobs in the wilds: four imps and two brutes round each player. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
@@ -278,6 +283,15 @@ export class WildsSource implements WorldSource {
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;
     return house.barred ? BARRED_CHEST_LOOT : fixture.lock ? LOCKED_CHEST_LOOT : CHEST_LOOT;
+  }
+
+  /**
+   * The chapel of Thornwick is a refuge: a character that has been inside it can wake there after a
+   * defeat, if it is nearer than the home (Fede's choice, 2026-10-10). The point is the tile north
+   * of its door.
+   */
+  refuges(): readonly Refuge[] {
+    return REFUGES;
   }
 
   /** The people of Thornwick. */

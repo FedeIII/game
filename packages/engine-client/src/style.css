@@ -20,6 +20,7 @@
   --ui-menu-glow: rgb(122 48 46 / 0.14); /* the faint red light behind the menu */
   --ui-portrait: #1a1614; /* behind a picture of a skin */
   --ui-portrait-light: #34302b; /* the faint light behind a figure in the menu, so a dark look reads */
+  --ui-hurt: rgb(150 20 18 / 0.55); /* the red at the screen edges when the player is hit */
   /* Google's dark "Sign in with Google" button (its branding guidelines). */
   --google-fill: #131314;
   --google-stroke: #8e918f;
@@ -900,6 +901,104 @@ body.conversing #link-card {
 
   body:has(#presence) #hint {
     top: calc(60px + env(safe-area-inset-top));
+  }
+}
+
+/* ---------------------------------------------------------------- vitals (ui/vitals.ts) */
+
+#vitals {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 9px 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-light);
+  pointer-events: none;
+}
+
+.vitals-hp {
+  display: flex;
+  gap: 4px;
+}
+
+.vitals-pip {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--ui-border);
+  transform: rotate(45deg) scale(0.8);
+  background: transparent;
+}
+
+.vitals-pip.full {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  box-shadow: 0 0 6px var(--ui-accent-glow);
+}
+
+.vitals-stamina {
+  height: 3px;
+  background: var(--ui-ink-faint);
+}
+
+.vitals-stamina-fill {
+  height: 100%;
+  background: var(--ui-ink);
+  opacity: 0.75;
+  transition: width 0.15s linear;
+}
+
+.vitals-status {
+  font: italic 12px/1.2 var(--ui-serif);
+}
+
+.vitals-status:empty {
+  display: none;
+}
+
+/* A hit: the edges of the screen flash red. */
+#hurt {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 90px 20px var(--ui-hurt);
+  opacity: 0;
+}
+
+#hurt.flash {
+  animation: hurt-flash 0.45s ease-out;
+}
+
+@keyframes hurt-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* A defeat: the screen fades to black until the player wakes. */
+#down-veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--ui-backdrop);
+  opacity: 0;
+  transition: opacity 1.2s ease-in;
+}
+
+#down-veil.on {
+  opacity: 0.92;
+}
+
+/* On a phone the presence label goes under the vitals. */
+@media (max-width: 560px) {
+  body:has(#vitals) #presence {
+    top: calc(64px + env(safe-area-inset-top));
   }
 }
 

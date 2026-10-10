@@ -89,6 +89,11 @@ export class Prediction {
     player.guard = 0;
     player.dodge = 0;
     player.dodgeCooldown = 0;
+    player.hp = welcome.hp;
+    player.down = 0;
+    player.poison = 0;
+    player.poisonClock = 0;
+    player.drunk = 0;
   }
 
   /**
@@ -152,7 +157,8 @@ export class Prediction {
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
     world.setForcedDoors(this.serverForced);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim] = snapshot.you;
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading] =
+      snapshot.you;
     player.x = x;
     player.y = y;
     player.vx = vx;
@@ -166,6 +172,15 @@ export class Prediction {
     player.dodge = dodge;
     player.dodgeCooldown = dodgeCooldown;
     player.dodgeAim = dodgeAim;
+    player.hp = hp;
+    player.recover = recover;
+    player.stamina = stamina;
+    player.rest = rest;
+    player.down = down;
+    player.poison = poison;
+    player.poisonClock = poisonClock;
+    player.drunk = drunk;
+    player.wading = wading === 1;
     for (const p of this.pending) {
       for (const [tx, ty, open] of p.doors) wishDoor(world, player, tx, ty, open, others, this.traits);
       stepPlayer(player, fromWireInput(p.input), world, this.traits);

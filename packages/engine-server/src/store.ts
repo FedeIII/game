@@ -62,6 +62,10 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-10: the email of each account again (Fede's decision): the sign-in asks for `openid
   // email`, and the server knows the admins by their email (ADMIN_EMAILS). Each sign-in sets it.
   `ALTER TABLE users ADD COLUMN email TEXT NOT NULL DEFAULT '';`,
+  // 2026-10-10: the hit points of each character (null: all of them), and the refuges that it
+  // entered (JSON list of ids: it can wake there after a defeat).
+  `ALTER TABLE characters ADD COLUMN hp INTEGER;
+   ALTER TABLE characters ADD COLUMN refuges TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -77,6 +81,13 @@ interface CharacterRow {
   played_at: number | null;
   place: string | null;
   pack: string | null;
+  hp: number | null;
+  refuges: string | null;
+}
+
+/** The refuges of a stored row: a list of short ids, or none. */
+function checkRefuges(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((r): r is string => typeof r === 'string' && /^[a-z0-9-]{1,32}$/.test(r)).slice(0, 32) : [];
 }
 
 function parse(json: string | null): unknown {
@@ -89,9 +100,18 @@ function parse(json: string | null): unknown {
 
 function toCharacter(row: CharacterRow): Character | null {
   const check = checkSheet(parse(row.sheet));
-  return check.ok
-    ? { ...check.sheet, id: row.id, createdAt: row.created_at, playedAt: row.played_at, place: checkPlace(parse(row.place)), pack: checkPack(parse(row.pack)) ?? EMPTY_PACK }
-    : null;
+  if (!check.ok) return null;
+  const hp = Number.isInteger(row.hp) && row.hp! >= 0 && row.hp! <= 100 ? row.hp : null;
+  return {
+    ...check.sheet,
+    id: row.id,
+    createdAt: row.created_at,
+    playedAt: row.played_at,
+    place: checkPlace(parse(row.place)),
+    pack: checkPack(parse(row.pack)) ?? EMPTY_PACK,
+    hp,
+    refuges: checkRefuges(parse(row.refuges)),
+  };
 }
 
 export class AccountStore {
@@ -204,13 +224,13 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
-    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
+    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
 
@@ -220,7 +240,7 @@ export class AccountStore {
     if (count >= MAX_CHARACTERS) return 'limit';
     const id = randomBytes(12).toString('hex');
     this.db.prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at) VALUES (?, ?, ?, ?, NULL)').run(id, userId, JSON.stringify(sheet), now);
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, hp: null, refuges: [] };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -239,6 +259,12 @@ export class AccountStore {
   setPack(userId: number, id: string, pack: Pack): boolean {
     const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => ({ kind: s.kind, count: s.count })) });
     return this.db.prepare('UPDATE characters SET pack = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
+  }
+
+  /** Notes the hit points and the refuges of a character (the server's word, from a shared world); false if it is not the user's. */
+  setVitals(userId: number, id: string, hp: number, refuges: readonly string[]): boolean {
+    const json = JSON.stringify(checkRefuges(refuges));
+    return this.db.prepare('UPDATE characters SET hp = ?, refuges = ? WHERE user_id = ? AND id = ?').run(Math.max(0, Math.min(100, Math.round(hp))), json, userId, id).changes > 0;
   }
 
   deleteCharacter(userId: number, id: string): boolean {

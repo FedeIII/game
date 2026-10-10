@@ -25,7 +25,7 @@ export const wilds: WorldDefinition = {
     bookshelf: 'Old books. The ink has faded.',
     table: 'A candle still burns. Someone was here.',
     bed: 'A narrow bed. The blanket smells of smoke.',
-    chest: "A heavy chest. It's locked.",
+    chest: 'A heavy chest with iron bands.',
     barrel: 'A barrel of sour wine.',
     crate: 'An old crate, nailed shut.',
     lamppost: 'A lamp. Someone keeps it lit.',

@@ -264,6 +264,25 @@ export function rollPose(frame: number): { readonly action: FigureAction; readon
 const ROLL_PIVOT_Y = 8;
 const ROLL_PIVOT_Z = 1.5;
 
+/** Frames of a defeat in a sheet: the figure falls back, then lies on its back. */
+export const FALL_FRAMES = 2;
+/** In each frame of a fall: how far the figure has turned back (radians), and how far down it goes (model pixels). */
+const FALL = [
+  [-0.7, 1.5],
+  [-Math.PI / 2, 11.5],
+] as const;
+
+/** The parts of frame `frame` of the fall of a defeated figure: it turns back round its hips, onto the ground. */
+export function fallParts(spec: FigureSpec, frame: number): Part[] {
+  const [angle, drop] = FALL[frame]!;
+  const arms: ArmPose = [
+    [0.55, -0.6, 0.2],
+    [0.7, -0.2, 0.3],
+  ];
+  const action: FigureAction = { right: arms, left: mirror(arms), lean: -0.1 };
+  return tumble(figure(spec, 0, 0, action), angle, [0, 13 * spec.height, 0], drop * spec.height);
+}
+
 /** The parts of frame `frame` of the roll of a figure: tucked, and turned forward round its middle. */
 export function rollParts(spec: FigureSpec, frame: number): Part[] {
   const { action, angle } = rollPose(frame);

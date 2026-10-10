@@ -40,8 +40,9 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
 | client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11) |
 | client to server | `ping` | the client's clock, for the round trip |
-| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| client to server | `deal` | a purchase from an NPC: its index and the id of the deal in its dialog (protocol 13) |
+| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick), the arrows near it (`ar`: id, shooter, x, y, aim code), the refuges of its character when they changed (`rf`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -64,6 +65,24 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Constitution: hit points, stamina, defeats, refuges and deals (protocol 13, 2026-10-10)
+
+- `WireSelf` carries the player's hit points, recovery, stamina (exact), rest, defeat, poison,
+  poison clock, drink and wading, so the prediction replays all of them. `WirePlayer` carries
+  the defeat ticks (the others see the fall).
+- A mob's hit takes hit points in the Room (`hitPlayer()`, with the player's `stun` and
+  `resist`). The Room wakes a defeated player on its last tick of `down` (`Room.wake`): at home
+  or at the nearest refuge of its character, with half of its coins; the snapshot has `wk` (the
+  coins that it lost). A player who leaves while it lies defeated wakes first (`Room.settle`), so
+  the server saves the place and the coins after the defeat.
+- The welcome has `hp` and `rf` (the refuges of the character); a snapshot has `rf` when a new
+  refuge is entered (the Room checks `refugeAt()` at each tick).
+- A rest goes as `u` on the tile of the bed; the Room rests the player if it is in reach.
+- A new client message, `deal` (`npc`: the index of the NPC, `deal`: the id of the deal in its
+  dialog): the Room checks the nearness (`DEAL_RANGE`) and the coins, takes them, and gives the
+  goods (an ale: `drunk`).
+- The server saves the HP and the refuges of each character with its place.
 
 ## Dexterity: the dodge, arrows, sneaking and locks (protocol 12, 2026-10-10)
 
@@ -221,7 +240,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":12,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":13,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 
