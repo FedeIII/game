@@ -605,7 +605,8 @@ async function run(options: GameOptions): Promise<void> {
     return facingAngle(player.facing);
   };
 
-  if (net) new PresenceLabel(net);
+  // How many other visitors are here: an admin only, in the "You" section of the settings.
+  if (net && admin) you.addLine(new PresenceLabel(net).element);
   // ?nolight shows the world without the darkness, to look at the art.
   // The night is less dark for a character with Wisdom (PlayerTraits.night).
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness * traits.night);

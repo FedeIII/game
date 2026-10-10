@@ -99,6 +99,11 @@ export class YouSection {
     this.element.append(heading, row, traits, actions);
   }
 
+  /** Puts a line under the heading of the section (the presence of other visitors, for an admin). */
+  addLine(line: HTMLElement): void {
+    this.element.querySelector('.settings-heading')!.after(line);
+  }
+
   /** Shows the look: the standing frame of its sheet. */
   showLook(sheet: HTMLCanvasElement | null): void {
     const context = this.preview.getContext('2d')!;

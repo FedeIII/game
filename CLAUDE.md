@@ -166,8 +166,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
   `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack in a fixed order, drinks first; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
-  `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
-  screen, top left on a phone).
+  `presence.ts` (shared worlds only, and for an admin only (Fede's decision, 2026-10-10): how many
+  other visitors are here, or why the visitor is alone; a line under the heading of the "You"
+  section, `#presence`; the others see no presence at all).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 

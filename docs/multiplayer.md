@@ -273,8 +273,8 @@ effect of the blow in its direction.
   a shared world alone.
 - `render/others.ts` (`OtherPlayers`): the other players in their skins, with a fade in and out
   and a smaller torch each.
-- `ui/presence.ts`: the label in the top-left corner ("2 other visitors here", or why the
-  visitor is alone).
+- `ui/presence.ts`: for an admin only, a line in the "You" section of the settings ("2 other
+  visitors here", or why the visitor is alone). The other visitors see no such line.
 - Skins (protocol 2, 2026-10-07; from the character since protocol 7): a skin is a 32-bit seed.
   A character's seed encodes its race, class, gender and variant (`appearanceSeed()`); a guest
   (`?nomenu`) has a random seed that the browser keeps (`game.skin.v1`); `?skin=<n>` shows
@@ -333,5 +333,5 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.
 - In a browser: two Playwright contexts in a shared world (see CLAUDE.md, "Verify a change in a
-  browser"): each sees the other (`#presence`, and the `others` line of `?debug`), and a door
+  browser"): each sees the other (the `others` line of `?debug`; for an admin also `#presence`), and a door
   that one opens is open for the other.

@@ -2,20 +2,21 @@ import type { NetSession } from '../net/session.ts';
 import { STRINGS } from './strings.ts';
 
 /**
- * A small label in the top-left corner of a shared world: how many other visitors are here, or
- * why the visitor is alone (no connection, a new version of the game). Screen readers hear the
- * changes. Single-player worlds do not show it.
+ * A line in the "You" section of the settings panel, for an admin only (Fede's decision,
+ * 2026-10-10): in a shared world, how many other visitors are here, or why the visitor is alone
+ * (no connection, a new version of the game). Screen readers hear the changes. Single-player
+ * worlds do not show it.
  */
 export class PresenceLabel {
-  private readonly element: HTMLElement;
+  readonly element: HTMLElement;
   private readonly session: NetSession;
 
   constructor(session: NetSession) {
     this.session = session;
-    this.element = document.createElement('div');
+    this.element = document.createElement('p');
     this.element.id = 'presence';
+    this.element.className = 'you-presence';
     this.element.setAttribute('role', 'status');
-    document.body.appendChild(this.element);
     session.onChange(() => this.render());
     this.render();
   }
