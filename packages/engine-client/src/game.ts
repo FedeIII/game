@@ -542,7 +542,8 @@ async function run(options: GameOptions): Promise<void> {
   let talkWith: Fixture | null = null;
   let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
   const conversation = new ConversationPanel({
-    line: (say) => speech.show([say], talkAnchor, performance.now()),
+    // Each line stays over the NPC's head as long as the panel shows it.
+    line: (say) => speech.show([say], talkAnchor, performance.now(), true),
     end: () => closeDialog(performance.now()),
   });
   const openTalk = () => {
@@ -624,7 +625,7 @@ async function run(options: GameOptions): Promise<void> {
           : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     if (content.dialog && fixture) {
-      speech.show([content.dialog.nodes[content.dialog.start]!.say], anchor, now);
+      speech.show([content.dialog.nodes[content.dialog.start]!.say], anchor, now, true);
       speaking = false;
       linkCard.hide();
       talkWith = fixture;

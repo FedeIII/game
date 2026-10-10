@@ -41,7 +41,8 @@ export type Anchor = () => { x: number; y: number };
  * A speech bubble, drawn by the game in pixel art: the pixel font in a 9-slice frame with a
  * tail. It shows pages one at a time over a moving anchor (the player's head, an NPC's head); a
  * small triangle blinks while more pages follow. A dialog of one page fades by itself after
- * DURATION; a longer one stays until `next()` closes it or the game calls `hide()`. It lives in
+ * DURATION, unless the game asks it to stay (the line of a conversation); a longer one stays
+ * until `next()` closes it or the game calls `hide()`. It lives in
  * the world (one letter pixel is one game pixel), above the darkness. A hidden HTML live region
  * repeats each page for screen readers.
  */
@@ -61,6 +62,8 @@ export class SpeechBubble {
   private height = 0;
   private shownAt = -Infinity;
   private hideAt = -Infinity;
+  /** Whether a dialog of one page stays until the game closes it. */
+  private stay = false;
 
   constructor(art: Art, font: PixelFont, options: SpeechOptions = {}) {
     this.font = font;
@@ -93,11 +96,16 @@ export class SpeechBubble {
     return this.page < this.pages.length - 1;
   }
 
-  /** Shows the first page of a dialog over `anchor`, from `now` (performance.now()). */
-  show(pages: readonly string[], anchor: Anchor, now: number): void {
+  /**
+   * Shows the first page of a dialog over `anchor`, from `now` (performance.now()). With `stay`,
+   * a dialog of one page does not fade by itself: it stays until the game closes it (the line of
+   * a conversation stays while the conversation panel shows it).
+   */
+  show(pages: readonly string[], anchor: Anchor, now: number, stay = false): void {
     if (pages.length === 0) return;
     // Do not fade in again when a dialog replaces one that is still on screen.
     if (!this.root.visible) this.shownAt = now;
+    this.stay = stay;
     this.pages = pages;
     this.page = 0;
     this.anchor = anchor;
@@ -142,8 +150,8 @@ export class SpeechBubble {
     this.more.position.set(this.width - BORDER - 6, this.height - BORDER - 4);
     this.more.visible = more;
 
-    // One short page goes away by itself; a dialog stays until it is closed.
-    this.hideAt = this.pages.length === 1 ? now + this.duration(line) : Infinity;
+    // One short page goes away by itself; a dialog (or a page that must stay) stays until it is closed.
+    this.hideAt = this.pages.length === 1 && !this.stay ? now + this.duration(line) : Infinity;
     if (this.live) this.live.textContent = line;
   }
 

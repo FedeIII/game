@@ -483,7 +483,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   opens (`ui/conversation.ts`): a close-up of the NPC (14 x 14 pixels of `npc/<look>` from the
   top of its head, at 8x, sharp: `drawCloseup()`), its name, "You: " and the last answer, its
   line, and the numbered answers (an answer that ends it in italics). Each answer makes the NPC
-  say the next line in its bubble too. While the panel is open the player stands still and does
+  say the next line in its bubble too; the line stays over its head as long as the panel shows it
+  (`SpeechBubble.show(..., stay)`), not only the 2.5 s of a short line. While the panel is open the player stands still and does
   not attack, and the panel takes the keys first (capture phase): W S or the arrows choose, E,
   Enter or Space answer, 1 to 9 answer at once, Esc ends it; a tap or a click answers. It ends
   with an answer that ends it, Esc, the close button, a stun, or an NPC more than 40 px away.
