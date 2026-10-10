@@ -171,8 +171,10 @@ loot in them.
 - **AC-DEX-007.3:** With DEX 13 or more, a press opens the chest at once. The line starts with "The
   lock clicks open." and then says what the player found, for example "The lock clicks open. I
   find 4 coins and a pewter cup."
-- **AC-DEX-007.4:** With DEX 12 or less, a press does not open the chest. The player says "It is
-  locked. I cannot pick it."
+- **AC-DEX-007.4:** With DEX 12 or less, a press does not open the chest. With DEX 11 or 12 the
+  player says "It is locked. I cannot pick it. [DEX 13]" (a clue of the gate,
+  [Ability Scores](ability-scores.md), REQ-AS-007). With DEX 10 or less it says only "It is
+  locked."
 - **AC-DEX-007.5:** Each time that a character opens the chest, it needs DEX 13. The lock keeps no
   state: after one character picks it, the chest stays locked for a character with less DEX.
 - **AC-DEX-007.6:** A locked chest gives 3 to 10 coins and one thing, and a second thing in about

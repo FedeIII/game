@@ -42,7 +42,28 @@ export const STRINGS = {
     ring: { a: 'a silver ring', many: 'silver rings' },
     cup: { a: 'a pewter cup', many: 'pewter cups' },
     herbs: { a: 'a bundle of herbs', many: 'bundles of herbs' },
+    draught: { a: 'a healing draught', many: 'healing draughts' },
+    antidote: { a: 'an antidote', many: 'antidotes' },
+    'strong-draught': { a: 'a strong draught', many: 'strong draughts' },
   } satisfies Record<ItemKind, { a: string; many: string }>,
+  /** A drink from the pack (items.ts, DRINKS): what the player says. */
+  drank: {
+    draught: 'The draught is bitter. The wound closes a little.',
+    antidote: 'The antidote burns. The poison is gone.',
+    'strong-draught': 'The strong draught burns all the way down. I feel whole.',
+  } as Readonly<Partial<Record<ItemKind, string>>>,
+  /** Lore that the player cannot read yet (Interaction.lore, a score 1 or 2 under the gate). */
+  loreHint: (tag: string): string => `${tag} There is more here, but I cannot make sense of it.`,
+  /** A barred door or a locked chest without the score: with a clue of the gate, or without (gateView). */
+  barredPlain: 'Boards are nailed across it.',
+  lockedPlain: 'It is locked.',
+  /** The map panel (ui/map-panel.ts). */
+  map: {
+    button: 'Map',
+    heading: 'Map',
+    note: 'What you have seen of the land.',
+    alone: 'Played alone: the map is not saved.',
+  },
   /** The vitals (ui/vitals.ts): hit points, stamina, effects. */
   vitals: {
     hp: (hp: number, max: number): string => `${hp} of ${max} hit points`,
@@ -67,6 +88,7 @@ export const STRINGS = {
     slots: (used: number, all: number): string => `${used} of ${all} slots`,
     empty: 'Your pack is empty.',
     guest: 'A guest: what you find is not saved.',
+    drink: (what: string, slot: number): string => `Drink ${what} (${slot})`,
     offline: 'Played alone: what you find here is not saved.',
   },
   /** What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
@@ -100,6 +122,15 @@ export const STRINGS = {
     stamina: 'Stamina',
     staminaValue: (max: number, refill: number): string => `${max} (${refill} back each second)`,
     resist: 'Poison and drink',
+    opening: 'A blow on a wind-up',
+    openingValue: (n: number): string => (n > 0 ? `+${n} damage` : 'no bonus'),
+    readFoe: 'Read a mob',
+    readFoeHealth: 'its health',
+    readFoeOpening: 'its health and its wind-up',
+    map: 'The map',
+    mapValue: (int: number): string => (int >= 15 ? 'barred houses and locked chests' : int >= 13 ? 'names and refuges' : int >= 11 ? 'houses' : 'the ground'),
+    lore: 'Old writing',
+    loreYes: 'you read it',
     from: (ability: string, min: number): string => `from ${ability} ${min}`,
     wadeYes: 'you wade through it',
     forceYes: 'you break them',

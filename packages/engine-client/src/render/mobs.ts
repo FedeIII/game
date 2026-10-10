@@ -14,9 +14,16 @@ export interface MobLook {
   readonly facing: Facing;
   readonly state: MobState;
   readonly stateMs: number;
-  /** The blows that it can still take (for the debug panel). */
+  /** The health points that it has left (the debug panel; the health bar of INT 13). */
   readonly health?: number;
 }
+
+/** The health bar of a mob (read the foe, INT 13): this wide, this far over its head (world pixels), in these colours. */
+const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
+/** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
+const GLINT_BLINK_MS = 90;
+/** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33 };
 
 /** World pixels of travel for each walk frame. */
 const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5 };
@@ -55,6 +62,10 @@ interface MobView {
   /** When it died (local ms), for the ash; null while it lives. */
   diedAt: number | null;
   seen: boolean;
+  /** The health bar and the glint of a wind-up, above the darkness (Intelligence). */
+  readonly bar: Container;
+  readonly barFill: Sprite;
+  readonly glint: Sprite;
 }
 
 /**
@@ -71,6 +82,15 @@ export class MobViews {
   private readonly frames = new Map<string, Texture[]>();
   /** The atlas name of each frame texture: the eye pixels are listed by it. */
   private readonly names = new Map<Texture, string>();
+  /** What the player reads of a mob (Intelligence): its health (INT 13), and its wind-up (INT 15). */
+  private readHealth = false;
+  private readOpening = false;
+
+  /** Sets what the player reads of the mobs: a health bar over each one, and a glint on a wind-up. */
+  setReading(health: boolean, opening: boolean): void {
+    this.readHealth = health;
+    this.readOpening = opening;
+  }
 
   constructor(art: Art, entityLayer: Container, glowLayer: Container) {
     this.art = art;
@@ -96,6 +116,8 @@ export class MobViews {
       if (view.seen) continue;
       view.root.destroy({ children: true });
       view.eyes.destroy({ children: true });
+      view.bar.destroy({ children: true });
+      view.glint.destroy();
       this.views.delete(id);
     }
     this.updateMotes(now, seconds);
@@ -114,7 +136,21 @@ export class MobViews {
     const eyes = new Container();
     eyes.blendMode = 'add';
     this.glowLayer.addChild(eyes);
-    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true };
+    const bar = new Container();
+    const back = new Sprite(Texture.WHITE);
+    back.tint = BAR.back;
+    back.width = BAR.width + 2;
+    back.height = 3;
+    const barFill = new Sprite(Texture.WHITE);
+    barFill.tint = BAR.fill;
+    barFill.position.set(1, 1);
+    barFill.height = 1;
+    bar.addChild(back, barFill);
+    bar.visible = false;
+    const glint = new Sprite(this.art.frame('fx/star'));
+    glint.visible = false;
+    this.glowLayer.addChild(bar, glint);
+    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint };
     this.views.set(mob.id, view);
     return view;
   }
@@ -188,6 +224,16 @@ export class MobViews {
       view.flash.alpha = 0.85 * (1 - mob.stateMs / FLASH_MS);
     }
     this.placeEyes(view, mob, texture, x, y, name === 'die' && index > 0 ? 0 : alpha);
+    // What the player reads of it (Intelligence): its health over its head, and a glint in its wind-up.
+    const top = y - HEAD[mob.kind];
+    const living = mob.state !== 'dying' && mob.health !== undefined;
+    view.bar.visible = this.readHealth && living;
+    if (view.bar.visible) {
+      view.bar.position.set(x - Math.floor(BAR.width / 2) - 1, top - BAR.gap - 3);
+      view.barFill.width = Math.max(0, Math.round((BAR.width * mob.health!) / stats.health));
+    }
+    view.glint.visible = this.readOpening && mob.state === 'windup' && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
+    if (view.glint.visible) view.glint.position.set(x + 6, top + 3);
   }
 
   /** Puts a glowing pixel (and a dim halo) on each eye pixel of the frame. */

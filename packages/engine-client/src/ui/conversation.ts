@@ -1,5 +1,5 @@
 import type { Texture } from 'pixi.js';
-import type { Deal, Dialog, DialogAnswer, DialogNode } from '@game/engine';
+import { PLAIN_SCORES, gateView, type Deal, type Dialog, type DialogAnswer, type DialogNode, type Gate, type Scores } from '@game/engine';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -9,15 +9,19 @@ import { STRINGS } from './strings.ts';
  */
 export class Conversation {
   readonly dialog: Dialog;
+  /** The scores of the player: they decide which answers behind a gate it sees (gateView). */
+  readonly scores: Scores;
   private nodeId: string;
   /** The index of the selected answer. */
   selected = 0;
   /** What the player answered last (it shows over the NPC's reply), or null at the start. */
   answered: string | null = null;
 
-  constructor(dialog: Dialog) {
+  constructor(dialog: Dialog, scores: Scores = PLAIN_SCORES) {
     this.dialog = dialog;
+    this.scores = scores;
     this.nodeId = dialog.start;
+    this.selected = this.firstOpen();
   }
 
   get id(): string {
@@ -28,14 +32,29 @@ export class Conversation {
     return this.dialog.nodes[this.nodeId]!;
   }
 
+  /** The answers that the player sees: an answer behind a gate shows only open or as a clue (gateView). */
   get answers(): readonly DialogAnswer[] {
-    return this.node.answers;
+    return this.node.answers.filter((a) => !a.gate || gateView(this.scores, a.gate) !== 'hidden');
   }
 
-  /** Moves the selection up (-1) or down (+1), round the list. */
+  /** Whether the answer `index` is a dim clue: behind a gate that the player is 1 or 2 short of. */
+  dim(index: number): boolean {
+    const gate = this.answers[index]?.gate;
+    return gate !== undefined && gateView(this.scores, gate) === 'hint';
+  }
+
+  /** Moves the selection up (-1) or down (+1), round the list, past the dim answers. */
   move(step: number): void {
     const n = this.answers.length;
-    this.selected = (((this.selected + step) % n) + n) % n;
+    for (let i = 0; i < n; i++) {
+      this.selected = (((this.selected + step) % n) + n) % n;
+      if (!this.dim(this.selected)) return;
+    }
+  }
+
+  private firstOpen(): number {
+    const i = this.answers.findIndex((_, k) => !this.dim(k));
+    return Math.max(0, i);
   }
 
   /**
@@ -45,14 +64,14 @@ export class Conversation {
    */
   choose(index: number, paid = false): DialogNode | null {
     const answer = this.answers[index];
-    if (!answer) return null;
+    if (!answer || this.dim(index)) return null;
     if (answer.next === undefined) {
       this.answered = answer.text;
       return null;
     }
     this.nodeId = answer.deal && !paid ? answer.deal.poor : answer.next;
     this.answered = answer.text;
-    this.selected = 0;
+    this.selected = this.firstOpen();
     return this.node;
   }
 
@@ -60,6 +79,11 @@ export class Conversation {
   ends(index: number): boolean {
     return this.answers[index]?.next === undefined;
   }
+}
+
+/** A gate as the player reads it: "[INT 13]". */
+export function gateTag(gate: Gate): string {
+  return `[${STRINGS.abilities[gate.ability].short} ${gate.min}]`;
 }
 
 /** The close-up of an NPC: this many pixels of its frame, a square from the top of its head (CSS scales it up). */
@@ -192,9 +216,9 @@ export class ConversationPanel {
     return this.talk;
   }
 
-  /** Opens the panel at the start of `dialog`, with a close-up from `face` (the NPC's frame). */
-  start(dialog: Dialog, face: Texture | null): void {
-    this.talk = new Conversation(dialog);
+  /** Opens the panel at the start of `dialog`, with a close-up from `face` (the NPC's frame), for a player with `scores`. */
+  start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES): void {
+    this.talk = new Conversation(dialog, scores);
     this.name.textContent = dialog.name;
     if (face) drawCloseup(this.portrait, face);
     this.portrait.hidden = face === null;
@@ -216,7 +240,7 @@ export class ConversationPanel {
   /** Gives the answer `index`: the NPC answers, or the conversation ends. */
   choose(index: number): void {
     const talk = this.talk;
-    if (!talk || index < 0 || index >= talk.answers.length) return;
+    if (!talk || index < 0 || index >= talk.answers.length || talk.dim(index)) return;
     const deal = talk.answers[index]!.deal;
     const next = talk.choose(index, deal ? (this.events.deal?.(deal) ?? false) : false);
     if (!next) {
@@ -248,7 +272,13 @@ export class ConversationPanel {
         key.className = 'conversation-key';
         key.setAttribute('aria-hidden', 'true');
         key.textContent = String(i + 1);
-        button.append(key, answer.text);
+        // An answer behind a gate shows the gate: open, or as a dim clue that the player cannot give.
+        const tag = answer.gate ? `${gateTag(answer.gate)} ` : '';
+        button.append(key, tag + answer.text);
+        if (talk.dim(i)) {
+          button.classList.add('dim');
+          button.setAttribute('aria-disabled', 'true');
+        }
         // Only a pointer that moves selects: the panel can open under a mouse that stands still.
         button.addEventListener('pointermove', () => talk.selected !== i && this.select(i));
         button.addEventListener('click', () => this.choose(i));

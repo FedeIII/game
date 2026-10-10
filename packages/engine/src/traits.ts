@@ -59,6 +59,8 @@ export interface PlayerTraits {
   readonly staminaRefill: number;
   /** The length of a poison or of a drink, as a share (CON). */
   readonly resist: number;
+  /** The damage that a blow adds on a mob in its wind-up (INT; never less than 0). */
+  readonly opening: number;
 }
 
 /** A fixed limit on a score: a thing opens for a character with at least `min` in `ability`. */
@@ -114,12 +116,27 @@ export function meetsGate(scores: Scores, gate: Gate): boolean {
   return scores[gate.ability] >= gate.min;
 }
 
+/** A score this much under a gate, or less, shows a clue of it (Fede's rule, 2026-10-10). */
+export const GATE_HINT = 2;
+
+/**
+ * How a thing behind a gate shows to a character (Fede's rule, 2026-10-10): 'open' with the score
+ * of the gate or more (the character can use it); 'hint' with a score 1 or 2 under it (a dim clue
+ * with the gate, "[INT 13]", that it cannot use); 'hidden' with a lower score (nothing shows).
+ */
+export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden' {
+  const score = scores[gate.ability];
+  if (score >= gate.min) return 'open';
+  return score >= gate.min - GATE_HINT ? 'hint' : 'hidden';
+}
+
 /** The traits of a class with these final scores. */
 export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   const attack = ATTACK_ABILITY[cls];
   const str = abilityModifier(scores.str);
   const dex = abilityModifier(scores.dex);
   const con = abilityModifier(scores.con);
+  const int = abilityModifier(scores.int);
   return {
     scores,
     attack,
@@ -141,6 +158,7 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
     maxStamina: Math.max(10, PLAIN_STAMINA + STAMINA_PER_MOD * con),
     staminaRefill: Math.max(1, STAMINA_REFILL + REFILL_PER_MOD * con),
     resist: Math.max(0.1, 1 - RESIST_PER_MOD * con),
+    opening: Math.max(0, int),
   };
 }
 

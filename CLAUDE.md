@@ -162,7 +162,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, with the item icons), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, with the item icons, and "Drink" on a drink), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
@@ -395,7 +395,7 @@ is an admin.
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
-one ability at a time (Strength, Dexterity and Constitution are done; Intelligence, Wisdom and
+one ability at a time (Strength, Dexterity, Constitution and Intelligence are done; Wisdom and
 Charisma come next). Each built feature has its REQ/AC document in `docs/features/` (Fede's rule,
 2026-10-10: the format of `platform-docs` in streaming-platform; index `docs/features/README.md`). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
 character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
@@ -403,7 +403,10 @@ a guest). The server makes the traits from the stored character (`Room.join(...,
 pack })`); the page makes the same from the same character, so the prediction stays exact. A
 client never sends its traits. Two kinds of effect: a scale (a number changes with the modifier,
 -1 to +3) and a gate (`Gate`: a fixed limit on a score, 13 by default; `meetsGate()`), never a
-roll of a die.
+roll of a die. **How a gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
+gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
+with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
+builder and the "You" section still name every gate.
 
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
@@ -416,7 +419,8 @@ roll of a die.
   `Building.barred`).
 - **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
   stack (`ITEM_STACK`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
-  of herbs; none has a use yet. A kill drops loot into the killer's pack (`MOB_LOOT`,
+  of herbs, and three drinks (healing draught, antidote, strong draught: `DRINKS`, `drinkFrom()`;
+  the pack panel's "Drink" or a digit while it is open; the server through `drink`). A kill drops loot into the killer's pack (`MOB_LOOT`,
   `Horde.drop()`: an imp a horn in one kill of three; a brute 2 to 6 coins, and a tusk in one of
   two); what does not fit is lost, and the player says "My pack is full." In a shared world the
   server owns the pack, and the store keeps it (`Character.pack`, the column `pack`, saved with
@@ -471,8 +475,30 @@ roll of a die.
   Crooked Lantern, 2 coins: `drunk` for 60 s x `resist`, the walk sways); with too few coins the
   conversation goes to `deal.poor`. In a shared world the page sends `deal` and the server
   checks the NPC's nearness (`DEAL_RANGE`) and the coins.
-- The store keeps the HP and the refuges of each character (columns `hp`, `refuges`; saved
-  with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
+- **Intelligence**: the wizard's damage, and for every class the opening (`opening`: + max(0,
+  mod) damage on a mob in its wind-up, `blowDamage()`; arrows too). Gates in the page
+  (`ui/gates.ts`): read a mob (INT 13 a health bar over it, INT 15 a glint on its wind-up;
+  `MobViews.setReading()`), the map (INT 11 houses and paths, 13 names and refuges, 15 barred
+  houses and locked chests), lore (`LORE_GATE`, INT 13 in `worlds/wilds/src/dialogs.ts`).
+- **Lore** (`Interaction.lore`: a gate and pages): after its own pages, a thing shows its lore
+  to a character with the gate, the clue `STRINGS.loreHint` to one 1 or 2 under it (`contentOf()`
+  in `game.ts`). The Wilds: the books of the houses (`BOOKS`, `houses.ts`), and in Thornwick the
+  lectern, the apothecary's shelf, the reeve's ledgers and map table, the notice board.
+- **Gated answers** (`DialogAnswer.gate`): the conversation panel hides, dims (`.dim`, not
+  selectable) or opens each one with `gateView()`. `checkDialog()` wants an answer without a gate
+  in each node, and a way to end without gates. The reeve has two (INT 13), the apothecary one.
+- **The cauldron** of the apothecary (`CAULDRON`, a conversation of a fixture: `Interaction.dialog`
+  with `speaker: 'fixture'`): three recipes (draught INT 10, antidote 13, strong draught 15), each
+  a deal that takes items (`Deal.items`, `goods` an item kind). The page sends `deal` with `at`
+  (a fixture's tile) or `npc`; `Room.deal()` checks nearness (48 px), the answer's gate
+  (`findDealAnswer()`) and the items.
+- **The map** (`ui/map-panel.ts`, M or the map button): 256 x 256 tiles round the player, only
+  the seen chunks (the 3 x 3 chunks round the player, `seenChunks()`), drawn from the world's own
+  generator; names from `WorldSource.landmarks()`. The Room keeps the seen chunks of each
+  character (`ex` in the welcome and the snapshot; at most `MAX_EXPLORED`), and the store keeps
+  them (column `explored`).
+- The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
+  `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
   left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
   defeat.
 
@@ -480,7 +506,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 13.
+protocol: `docs/multiplayer.md`, protocol 14.
 
 ## Arrival in a world
 
@@ -765,8 +791,10 @@ closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.s
 name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
 Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
-stamina, a defeat, poison, drink, refuges) and `pack`; `doors`
-lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `?offline` (a
+stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
+detail, the seen chunks) and `pack`; `doors`
+lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `#map-button` and
+`#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
 `?attackpose=<tick>,<facing or degrees>` (the player frozen at that tick of an attack in that

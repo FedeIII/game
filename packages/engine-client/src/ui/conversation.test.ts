@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Dialog } from '@game/engine';
+import { PLAIN_SCORES, type Dialog } from '@game/engine';
 import { Conversation } from './conversation.ts';
 
 const dialog: Dialog = {
@@ -45,5 +45,35 @@ describe('a conversation', () => {
     expect(talk.id).toBe('halt');
     expect(talk.choose(2)).toBeNull();
     expect(talk.answered).toBe('Goodbye.');
+  });
+});
+
+describe('an answer behind a gate', () => {
+  const gated: Dialog = {
+    name: 'The reeve',
+    start: 'a',
+    nodes: {
+      a: { say: 'Yes?', answers: [{ text: 'The ledgers lie.', next: 'b', gate: { ability: 'int', min: 13 } }, { text: 'Goodbye.' }] },
+      b: { say: 'So you read them.', answers: [{ text: 'Goodbye.' }] },
+    },
+  };
+  const talk = (int: number) => new Conversation(gated, { ...PLAIN_SCORES, int });
+
+  it('is open with the score of the gate, a dim clue 1 or 2 under it, and not there lower', () => {
+    expect(talk(13).answers).toHaveLength(2);
+    expect(talk(13).dim(0)).toBe(false);
+    expect(talk(12).dim(0)).toBe(true);
+    expect(talk(11).dim(0)).toBe(true);
+    expect(talk(10).answers.map((a) => a.text)).toEqual(['Goodbye.']);
+  });
+
+  it('cannot be given as a clue, and the selection goes past it', () => {
+    const t = talk(12);
+    expect(t.selected).toBe(1);
+    expect(t.choose(0)).toBeNull();
+    expect(t.id).toBe('a');
+    t.move(1);
+    expect(t.selected).toBe(1);
+    expect(talk(13).choose(0)?.say).toBe('So you read them.');
   });
 });

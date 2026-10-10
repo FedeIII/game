@@ -1,13 +1,14 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, reachableFixture, useDoor, type Feet } from '../interact.ts';
-import { EMPTY_PACK, addToPack, lootIsEmpty, type Loot, type Pack } from '../items.ts';
+import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
-import { ALE_TICKS, createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
-import { DEAL_RANGE, findDeal } from '../dialog.ts';
+import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
+import { DEAL_RANGE, findDealAnswer, makeDeal, type Dialog } from '../dialog.ts';
+import { CHUNK_PIXELS } from '../constants.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
-import { guestTraits, sightOf, type PlayerTraits } from '../traits.ts';
+import { guestTraits, meetsGate, sightOf, type PlayerTraits } from '../traits.ts';
 import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
@@ -72,6 +73,11 @@ export function rest(state: PlayerState, traits: Pick<PlayerTraits, 'maxHp' | 'm
   state.drunk = 0;
 }
 
+/** A set of chunk keys ("cx,cy") as [cx, cy] pairs. */
+export function exploredList(explored: ReadonlySet<string>): [number, number][] {
+  return [...explored].map((key) => key.split(',').map(Number) as [number, number]);
+}
+
 /** One player in a room, as the server sees it. */
 export interface RoomPlayer {
   readonly id: number;
@@ -104,6 +110,21 @@ export interface RoomPlayer {
   refugesChanged: boolean;
   /** The coins that a defeat took, when it woke since the last snapshot (else null). */
   woke: number | null;
+  /** The chunks that its character has seen ("cx,cy"), and those that it saw since the last snapshot. */
+  readonly explored: Set<string>;
+  newlyExplored: [number, number][];
+}
+
+/** The most chunks that a character keeps as seen (a square of 128 x 128 chunks: 4096 tiles across). */
+export const MAX_EXPLORED = 16_384;
+
+/** The chunks that a player at (x, y) sees: its chunk and the eight round it. */
+export function seenChunks(x: number, y: number): [number, number][] {
+  const cx = Math.floor(x / CHUNK_PIXELS);
+  const cy = Math.floor(y / CHUNK_PIXELS);
+  const out: [number, number][] = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) out.push([cx + dx, cy + dy]);
+  return out;
 }
 
 /** The character of a player who joins: its traits, its pack, its hit points and its refuges. */
@@ -113,6 +134,8 @@ export interface JoinCharacter {
   /** Null or none: all of them. */
   readonly hp?: number | null;
   readonly refuges?: readonly string[];
+  /** The chunks that it has seen, [cx, cy]. */
+  readonly explored?: readonly (readonly [number, number])[];
 }
 
 /**
@@ -186,13 +209,15 @@ export class Room {
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
     if (this.spoils.tick(nowMs, [...this.players.values()].map((p) => p.state))) this.doorVersion++;
-    // A character that comes into a refuge (the chapel) can wake there after a defeat.
+    // A character that comes into a refuge (the chapel) can wake there after a defeat; and it
+    // remembers the land that it sees (the map).
     for (const player of this.players.values()) {
       const refuge = refugeAt(this.world, player.state.x, player.state.y);
       if (refuge && !player.refuges.includes(refuge.id)) {
         player.refuges.push(refuge.id);
         player.refugesChanged = true;
       }
+      this.explore(player);
     }
   }
 
@@ -283,7 +308,11 @@ export class Room {
       refuges: [...(character?.refuges ?? [])],
       refugesChanged: false,
       woke: null,
+      explored: new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`)),
+      newlyExplored: [],
     };
+    this.explore(player);
+    player.newlyExplored = [];
     this.players.set(player.id, player);
     if (player.name) this.namesVersion++;
     return player;
@@ -344,6 +373,7 @@ export class Room {
       pk: toWirePack(player.pack),
       hp: player.state.hp,
       rf: [...player.refuges],
+      ex: exploredList(player.explored),
     };
   }
 
@@ -424,17 +454,48 @@ export class Room {
    * A purchase from an NPC: the player must be near it, and have the coins; then the coins go, and
    * the goods come (an ale: a drink).
    */
-  deal(id: number, npcIndex: number, dealId: string): void {
+  deal(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number] }, dealId: string): void {
     const player = this.players.get(id);
-    const def = this.world.source.npcs?.()[npcIndex];
-    const pose = this.npcs?.poses[npcIndex];
-    if (!player || !def || !pose || player.state.down > 0) return;
-    if (Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return;
-    const deal = def.content.dialog ? findDeal(def.content.dialog, dealId) : null;
-    if (!deal || player.pack.coins < deal.price) return;
-    player.pack = { coins: player.pack.coins - deal.price, items: player.pack.items };
+    if (!player || player.state.down > 0) return;
+    let dialog: Dialog | undefined;
+    if (from.npc !== undefined) {
+      const pose = this.npcs?.poses[from.npc];
+      if (!pose || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return;
+      dialog = this.world.source.npcs?.()[from.npc]?.content.dialog;
+    } else if (from.at) {
+      const [tx, ty] = from.at;
+      const fixture = this.world.fixtureAt(tx, ty);
+      if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return;
+      dialog = fixture.content?.dialog;
+    }
+    const answer = dialog ? findDealAnswer(dialog, dealId) : null;
+    if (!answer?.deal || (answer.gate && !meetsGate(player.traits.scores, answer.gate))) return;
+    const pack = makeDeal(answer.deal, player.pack, player.state, player.traits);
+    if (!pack) return;
+    player.pack = pack;
     player.packChanged = true;
-    if (deal.goods === 'ale') player.state.drunk = Math.round(ALE_TICKS * player.traits.resist);
+  }
+
+  /** The player drinks one item of its pack (a draught): its work is done, and one goes from the pack. */
+  drink(id: number, code: number): void {
+    const player = this.players.get(id);
+    const kind = ITEM_KINDS[code];
+    if (!player || !kind) return;
+    const pack = drinkFrom(player.pack, kind, player.state, player.traits);
+    if (!pack) return;
+    player.pack = pack;
+    player.packChanged = true;
+  }
+
+  /** Notes the chunks that the player sees now, for its map. */
+  private explore(player: RoomPlayer): void {
+    if (player.explored.size >= MAX_EXPLORED) return;
+    for (const [cx, cy] of seenChunks(player.state.x, player.state.y)) {
+      const key = `${cx},${cy}`;
+      if (player.explored.has(key)) continue;
+      player.explored.add(key);
+      player.newlyExplored.push([cx, cy]);
+    }
   }
 
   /** Acts on a fixture for a player, if it can reach it: a bed rests it; a chest gives its loot (what fits goes into the pack, the rest stays). */
@@ -499,6 +560,8 @@ export class Room {
       p.refugesChanged = false;
       const woke = p.woke;
       p.woke = null;
+      const explored = p.newlyExplored;
+      p.newlyExplored = [];
       send(p.id, {
         t: 'snap',
         ms,
@@ -533,6 +596,7 @@ export class Room {
         ...(loot.length > 0 ? { l: loot } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
         ...(woke !== null ? { wk: woke } : {}),
+        ...(explored.length > 0 ? { ex: explored } : {}),
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
         ...(renamed ? { names } : {}),

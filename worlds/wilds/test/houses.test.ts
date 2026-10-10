@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Decor,
   Ground,
+  Horde,
   Room,
   Structure,
   TICK_RATE,
@@ -273,5 +274,25 @@ describe('the home', () => {
     expect(useDoor(world, player, home.doorX, home.y1)).toBe('opened');
     for (let i = 0; i < TICK_RATE; i++) stepPlayer(player, { x: 0, y: 1 }, world);
     expect(Math.floor(player.y / TILE_SIZE)).toBeGreaterThan(home.y1);
+  });
+});
+
+describe('a pack of mobs in the woods', () => {
+  it('keeps its attacks on a player who stands still (a stuck mob gives its turn to the next one)', () => {
+    const world = newWorld(DEFAULT_SEED);
+    const horde = new Horde(world, { ...world.source.mobs!(), population: { imp: 0, brute: 0 } }, 3);
+    const p = createPlayer(8, 40 * TILE_SIZE + 12);
+    p.hp = 1000;
+    for (const kind of ['brute', 'brute', 'imp', 'imp'] as const) {
+      const spot = world.findSpawn(5, 40, 0);
+      horde.spawn(kind, spot.x, spot.y);
+    }
+    let hits = 0;
+    const tick = 1000 / TICK_RATE;
+    for (let t = 0; t < 60_000; t += tick) {
+      stepPlayer(p, { x: 0, y: 0 }, world);
+      hits += horde.step(tick, [{ id: 1, state: p }]).length;
+    }
+    expect(hits).toBeGreaterThan(12);
   });
 });

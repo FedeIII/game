@@ -188,6 +188,11 @@ export class Accounts {
     if (CHARACTER_ID.test(id) && Number.isFinite(hp)) this.store.setVitals(user.id, id, hp, refuges);
   }
 
+  /** Notes the chunks that a user's character has seen (the server's word, in a shared world). */
+  saveExplored(user: User, id: string, explored: readonly (readonly [number, number])[]): void {
+    if (CHARACTER_ID.test(id)) this.store.setExplored(user.id, id, explored);
+  }
+
   /** Answers a request of /api/ or /auth/. Returns false for any other path (not answered). */
   async handle(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     const url = new URL(request.url ?? '/', 'http://localhost');

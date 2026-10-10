@@ -1,5 +1,5 @@
 import type { Texture } from 'pixi.js';
-import type { Pack } from '@game/engine';
+import { DRINKS, type ItemKind, type Pack } from '@game/engine';
 import type { Art } from '../assets.ts';
 import { isFormField } from '../input/keyboard.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
@@ -37,8 +37,15 @@ export class PackPanel {
   private readonly empty: HTMLElement;
   private shown = '';
 
-  /** `note`: a line under the slots (a guest's pack, or one that is not saved), or null. */
-  constructor(art: Art, note: string | null) {
+  private readonly onDrink: (kind: ItemKind) => void;
+  private items: Pack['items'] = [];
+
+  /**
+   * `note`: a line under the slots (a guest's pack, or one that is not saved), or null. `onDrink`:
+   * the player drinks a drink of its pack (a click on its slot, or its number while the panel is open).
+   */
+  constructor(art: Art, note: string | null, onDrink: (kind: ItemKind) => void = () => {}) {
+    this.onDrink = onDrink;
     const text = STRINGS.pack;
     this.art = art;
     this.button = document.createElement('button');
@@ -91,6 +98,16 @@ export class PackPanel {
     this.button.addEventListener('click', () => this.open(this.panel.hidden !== false));
     window.addEventListener('keydown', (event) => {
       if (event.code === 'Escape') this.open(false);
+      // While the panel is open, 1 to 9 drink the drink in that slot.
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code);
+      if (digit && !this.panel.hidden && !event.ctrlKey && !event.metaKey && !event.altKey && !isFormField(event.target)) {
+        const stack = this.items[Number(digit[1]) - 1];
+        if (stack && DRINKS[stack.kind]) {
+          event.preventDefault();
+          this.onDrink(stack.kind);
+        }
+        return;
+      }
       // I opens and closes it. KeyboardEvent.code, as the other keys: the same key on any layout.
       if (event.code !== 'KeyI' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
       event.preventDefault();
@@ -107,6 +124,7 @@ export class PackPanel {
     const key = JSON.stringify([pack, slots]);
     if (key === this.shown) return;
     this.shown = key;
+    this.items = pack.items;
     this.slotsLabel.textContent = STRINGS.pack.slots(pack.items.length, slots);
     this.coins.textContent = String(pack.coins);
     this.grid.replaceChildren();
@@ -123,8 +141,20 @@ export class PackPanel {
         count.className = 'pack-stack';
         count.textContent = stack.count > 1 ? String(stack.count) : '';
         slot.title = stack.count > 1 ? `${stack.count} ${names.many}` : names.a;
-        slot.setAttribute('aria-label', slot.title);
-        slot.append(icon, count);
+        if (DRINKS[stack.kind]) {
+          // A drink: a press on its slot drinks one.
+          const drink = document.createElement('button');
+          drink.type = 'button';
+          drink.className = 'pack-drink';
+          drink.title = STRINGS.pack.drink(names.a, i + 1);
+          drink.setAttribute('aria-label', drink.title);
+          drink.addEventListener('click', () => this.onDrink(stack.kind));
+          drink.append(icon, count);
+          slot.append(drink);
+        } else {
+          slot.setAttribute('aria-label', slot.title);
+          slot.append(icon, count);
+        }
       }
       this.grid.append(slot);
     }

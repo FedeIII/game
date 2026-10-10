@@ -66,6 +66,8 @@ const MIGRATIONS: readonly string[] = [
   // entered (JSON list of ids: it can wake there after a defeat).
   `ALTER TABLE characters ADD COLUMN hp INTEGER;
    ALTER TABLE characters ADD COLUMN refuges TEXT;`,
+  // 2026-10-10: the chunks that each character has seen (JSON: [cx, cy, cx, cy, ...]), for its map.
+  `ALTER TABLE characters ADD COLUMN explored TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -83,6 +85,22 @@ interface CharacterRow {
   pack: string | null;
   hp: number | null;
   refuges: string | null;
+  explored: string | null;
+}
+
+/** The most chunks that a stored character keeps as seen (the Room's MAX_EXPLORED). */
+const MAX_STORED_CHUNKS = 16_384;
+
+/** The seen chunks of a stored row: whole numbers, two by two. */
+function checkExplored(raw: unknown): [number, number][] {
+  if (!Array.isArray(raw)) return [];
+  const out: [number, number][] = [];
+  for (let i = 0; i + 1 < raw.length && out.length < MAX_STORED_CHUNKS; i += 2) {
+    const cx = raw[i];
+    const cy = raw[i + 1];
+    if (Number.isInteger(cx) && Number.isInteger(cy) && Math.abs(cx as number) < 1_000_000 && Math.abs(cy as number) < 1_000_000) out.push([cx as number, cy as number]);
+  }
+  return out;
 }
 
 /** The refuges of a stored row: a list of short ids, or none. */
@@ -111,6 +129,7 @@ function toCharacter(row: CharacterRow): Character | null {
     pack: checkPack(parse(row.pack)) ?? EMPTY_PACK,
     hp,
     refuges: checkRefuges(parse(row.refuges)),
+    explored: checkExplored(parse(row.explored)),
   };
 }
 
@@ -224,13 +243,13 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
-    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
+    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
 
@@ -240,7 +259,7 @@ export class AccountStore {
     if (count >= MAX_CHARACTERS) return 'limit';
     const id = randomBytes(12).toString('hex');
     this.db.prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at) VALUES (?, ?, ?, ?, NULL)').run(id, userId, JSON.stringify(sheet), now);
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, hp: null, refuges: [] };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, hp: null, refuges: [], explored: [] };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -265,6 +284,12 @@ export class AccountStore {
   setVitals(userId: number, id: string, hp: number, refuges: readonly string[]): boolean {
     const json = JSON.stringify(checkRefuges(refuges));
     return this.db.prepare('UPDATE characters SET hp = ?, refuges = ? WHERE user_id = ? AND id = ?').run(Math.max(0, Math.min(100, Math.round(hp))), json, userId, id).changes > 0;
+  }
+
+  /** Notes the chunks that a character has seen (the server's word); false if it is not the user's. */
+  setExplored(userId: number, id: string, explored: readonly (readonly [number, number])[]): boolean {
+    const json = JSON.stringify(explored.slice(0, MAX_STORED_CHUNKS).flat());
+    return this.db.prepare('UPDATE characters SET explored = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
   }
 
   deleteCharacter(userId: number, id: string): boolean {

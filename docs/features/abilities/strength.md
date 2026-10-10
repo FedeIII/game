@@ -102,8 +102,10 @@ go into the house and take what is in its chest.
 - **AC-STR-005.1:** A barred door shows boards nailed across it.
 - **AC-STR-005.2:** At a barred door, the action label is "Force the door" for a character with
   STR 13 or more. For a character with less, it is "Try the door".
-- **AC-STR-005.3:** With STR 12 or less, a press leaves the door closed. The player says "Boards
-  are nailed across it. I am not strong enough to break them."
+- **AC-STR-005.3:** With STR 12 or less, a press leaves the door closed. With STR 11 or 12 the
+  player says "Boards are nailed across it. I am not strong enough to break them. [STR 13]" (a clue
+  of the gate, [Ability Scores](ability-scores.md), REQ-AS-007). With STR 10 or less it says only
+  "Boards are nailed across it."
 - **AC-STR-005.4:** With STR 13 or more, a press breaks the boards and opens the door at once. The
   player says "The boards break.", and the view shakes for 0.22 s.
 - **AC-STR-005.5:** After that, the door is an ordinary door for every player. A character with

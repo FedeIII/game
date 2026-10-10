@@ -162,10 +162,17 @@ export interface Blow {
   readonly damage: number;
   readonly push: number;
   readonly stagger: number;
+  /** The damage that it adds on a mob in its wind-up (Intelligence: the player uses the opening). */
+  readonly opening?: number;
 }
 
 /** The blow of a player whose scores are all 10 (GUEST_TRAITS). */
-export const PLAIN_BLOW: Blow = { damage: 4, push: 1, stagger: 1 };
+export const PLAIN_BLOW: Blow = { damage: 4, push: 1, stagger: 1, opening: 0 };
+
+/** The damage of a blow on this mob now: more on a mob in its wind-up (Blow.opening). */
+export function blowDamage(blow: Blow, mob: Pick<Mob, 'state'>): number {
+  return blow.damage + (mob.state === 'windup' ? (blow.opening ?? 0) : 0);
+}
 
 /** Where the mobs of a world may be, and how many there are. */
 export interface MobRules {
@@ -530,7 +537,7 @@ export class Horde {
     const stats = MOB_STATS[mob.kind];
     brain.push = stats.knockback * blow.push;
     brain.reelMs = stats.hurtMs * blow.stagger;
-    mob.health = Math.max(0, mob.health - blow.damage);
+    mob.health = Math.max(0, mob.health - blowDamage(blow, mob));
     if (mob.health <= 0) {
       this.enter(mob, 'dying');
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
@@ -672,6 +679,15 @@ export class Horde {
     const d = Math.hypot(dx, dy);
     if (seen) {
       const wait = this.waitFor(mob, brain.target!, target);
+      if (wait <= 0 && d > stats.reach && brain.stuckMs > STUCK_MS) {
+        // Its turn, but something keeps it from the player (a pocket between trees): it gives the
+        // turn to the next one and goes to the end of the line. Without this, the whole pack waits for it.
+        brain.queuedMs = this.clockMs;
+        this.nextMob.delete(brain.target!);
+        brain.stuckMs = 0;
+        brain.anchorX = mob.x;
+        brain.anchorY = mob.y;
+      }
       if (wait <= 0 && d <= stats.reach) {
         this.enter(mob, 'windup');
         mob.facing = facingTo(dx, dy, mob.facing);

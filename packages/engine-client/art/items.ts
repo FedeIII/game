@@ -8,12 +8,12 @@
  * to light it. They keep the dark, desaturated colours of the rest of the art.
  */
 import { ramp } from './raster.ts';
-import { cylinder, ellipsoid, renderModel, roundCone, subtract, union, type Material, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { cylinder, ellipsoid, renderModel, roundCone, sphere, subtract, union, type Material, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
 const SIZE = 16;
 
-const I = { gold: 0, silver: 1, pewter: 2, bone: 3, horn: 4, root: 5, wax: 6, wick: 7, leaf: 8, string: 9, garnet: 10 } as const;
+const I = { gold: 0, silver: 1, pewter: 2, bone: 3, horn: 4, root: 5, wax: 6, wick: 7, leaf: 8, string: 9, garnet: 10, red: 11, green: 12, amber: 13, glass: 14 } as const;
 const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#3a2a0c', '#6a4e16', '#9a7624', '#c49c3a', '#e0c060', '#f4dc8a'), bias: 0.15 },
   { ramp: ramp('#2a2e34', '#4e555e', '#78808a', '#a2aab4', '#cdd4dc'), bias: 0.2 },
@@ -26,6 +26,11 @@ const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#14200e', '#223416', '#344c20', '#4a662e', '#64843e'), bias: 0.15 },
   { ramp: ramp('#3a3324', '#5a503a', '#7a6e52', '#9a8d6c'), bias: 0.1 },
   { ramp: ramp('#3a0a10', '#6a1820', '#a02a30', '#d0504a'), bias: 0.4 },
+  // The brews in their bottles: they glow a little, as a lantern's glass.
+  { ramp: ramp('#3a0a0e', '#701820', '#b02a2e', '#e8584a'), bias: 0.35 },
+  { ramp: ramp('#0e2a12', '#1c5022', '#348a3a', '#6cc060'), bias: 0.35 },
+  { ramp: ramp('#3a2408', '#6e4612', '#b07420', '#e8b048'), bias: 0.35 },
+  { ramp: ramp('#2a3036', '#4a545c', '#76828c', '#a8b4bc'), bias: 0.2 },
 ];
 
 /** A ring of radius `major` round the axis z through `c`, with a tube of radius `minor`: it stands facing the viewer. */
@@ -130,6 +135,17 @@ function herbs(): Part[] {
   ];
 }
 
+/** A small bottle with a long neck and a cork, full of a brew of `liquid`: round, or tall (`tall`). */
+function bottle(liquid: number, tall = false): Part[] {
+  const height = tall ? 10 : 7.2;
+  const body = tall ? ellipsoid([0, 5, 0], [3, 5, 3]) : sphere([0, 3.6, 0], 3.6);
+  return [
+    { sdf: body, material: liquid },
+    { sdf: cylinder([0, height + 1.6, 0], 'y', 1.2, 3.6), material: I.glass },
+    { sdf: cylinder([0, height + 3.8, 0], 'y', 1.4, 1.4), material: I.root },
+  ];
+}
+
 export function itemFrames(): Frame[] {
   return [
     icon('coin', coin()),
@@ -139,5 +155,8 @@ export function itemFrames(): Frame[] {
     icon('ring', ring()),
     icon('cup', cup()),
     icon('herbs', herbs()),
+    icon('draught', bottle(I.red)),
+    icon('antidote', bottle(I.green)),
+    icon('strong-draught', bottle(I.amber, true)),
   ];
 }

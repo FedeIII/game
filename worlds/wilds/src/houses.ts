@@ -1,4 +1,5 @@
-import { FORCE_GATE, PICK_GATE, fixtureTiles, hash01, hash2, random, type Building, type Fixture } from '@game/engine';
+import { FORCE_GATE, PICK_GATE, fixtureTiles, hash01, hash2, random, type Building, type Fixture, type Interaction } from '@game/engine';
+import { LORE_GATE } from './dialogs.ts';
 
 /**
  * Houses of the wilds. The world is cut into cells of BUILDING_CELL x BUILDING_CELL tiles; a
@@ -81,6 +82,33 @@ function furnish(rand: () => number, x0: number, y0: number, x1: number, y1: num
   return items;
 }
 
+/**
+ * The books on the shelves of the houses: what anybody reads, and what a character with
+ * Intelligence 13 reads too (Interaction.lore). Each one hints at a rule of the game.
+ */
+const BOOKS: readonly Interaction[] = [
+  {
+    pages: ['A bestiary. The pages are swollen with damp.'],
+    lore: [{ gate: LORE_GATE, pages: ['Of the grey brute: "It raises its club slowly. Strike while it is up, and strike hard."'] }],
+  },
+  {
+    pages: ['A herbal, with pressed leaves between the pages.'],
+    lore: [{ gate: LORE_GATE, pages: ['"Two bundles of herbs, boiled with care, close a wound. With the horn of an imp, they draw out its poison."'] }],
+  },
+  {
+    pages: ['A book of the old roads of the valley.'],
+    lore: [{ gate: LORE_GATE, pages: ['"In the west, a chapel where the lost are found again. Sleep once under its roof, and it remembers you."'] }],
+  },
+  {
+    pages: ['The accounts of a household. Candles, salt, rope.'],
+    lore: [{ gate: LORE_GATE, pages: ['The last page: "We boarded the door and left the box inside. We will come back for it." Nobody came back.'] }],
+  },
+  {
+    pages: ['A book of tales for children, with the pictures cut out.'],
+    lore: [{ gate: LORE_GATE, pages: ['In the margin, in a child\'s hand: "The imps hate the light. Keep to the lamps."'] }],
+  },
+];
+
 /** The light of the candle on a table: centred over the candle, which is on the west tile. */
 export const CANDLE = { radius: 48, colour: 0xffa850, x: 8, y: -24 } as const;
 
@@ -106,6 +134,11 @@ export function generateHouse(seed: number, cellX: number, cellY: number, isWate
   // Only a house with a chest is barred: forcing the door must be worth it.
   const barred = !forced && furniture.some((f) => f.kind === 'chest') && hash01(cellX, cellY, seed + SEED_OFFSET + 2) < BARRED_CHANCE;
   const locked = !barred && hash01(cellX, cellY, seed + SEED_OFFSET + 3) < LOCKED_CHANCE;
-  const fixtures = locked ? furniture.map((f) => (f.kind === 'chest' ? { ...f, lock: PICK_GATE } : f)) : furniture;
+  const fixtures = furniture.map((f) => {
+    if (f.kind === 'chest' && locked) return { ...f, lock: PICK_GATE };
+    // A book on each shelf, picked from the seed and its place (not from `rand`: the furniture keeps its places).
+    if (f.kind === 'bookshelf') return { ...f, content: BOOKS[hash2(f.tx, f.ty, seed + SEED_OFFSET + 4) % BOOKS.length]! };
+    return f;
+  });
   return { id: `${cellX},${cellY}`, x0, y0, x1, y1, doorX, fixtures, ...(barred ? { barred: FORCE_GATE } : {}) };
 }

@@ -11,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -178,17 +178,25 @@ export interface PingMessage {
 }
 
 /**
- * A purchase from an NPC (dialog.ts, Deal): `npc` is its index in WorldSource.npcs(), `deal` the
- * id of the deal in its dialog. The server checks that the NPC is near and that the player has the
- * coins, takes them and gives the goods.
+ * A deal in a conversation (dialog.ts, Deal): with an NPC (`npc`: its index in WorldSource.npcs())
+ * or with a fixture (`at`: a tile of it, the cauldron), and `deal`, the id of the deal in its dialog.
+ * The server checks that the NPC or the fixture is near, the gate of the answer, and the coins and
+ * items; then it takes them and gives the goods.
  */
 export interface DealMessage {
   readonly t: 'deal';
-  readonly npc: number;
+  readonly npc?: number;
+  readonly at?: readonly [number, number];
   readonly deal: string;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage;
+/** The player drinks one item of its pack (items.ts, DRINKS): `kind` is its code (ITEM_KINDS). */
+export interface DrinkMessage {
+  readonly t: 'drink';
+  readonly kind: number;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage;
 
 /** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
 export const SKIN_CHANGE_GAP_MS = 2000;
@@ -295,6 +303,8 @@ export interface WelcomeMessage {
   /** Its hit points now (the server keeps them with the character). */
   readonly hp: number;
   readonly rf: readonly string[];
+  /** The chunks that its character has seen, [cx, cy] (the map). */
+  readonly ex: readonly (readonly [number, number])[];
   readonly doors: readonly (readonly [number, number])[];
   /** The barred doors that are forced now (World.forcedDoorList). */
   readonly fd: readonly (readonly [number, number])[];
@@ -325,6 +335,8 @@ export interface SnapshotMessage {
   readonly rf?: readonly string[];
   /** The coins that a defeat took, when the player woke since the last snapshot. */
   readonly wk?: number;
+  /** Chunks that the player's character saw for the first time, [cx, cy] (the map). */
+  readonly ex?: readonly (readonly [number, number])[];
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
   readonly n?: readonly WireNpc[];
   /**
@@ -447,8 +459,14 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return typeof m.name === 'string' && m.name.length <= 4 * NAME_MAX ? { t: 'name', name: cleanName(m.name) } : null;
     case 'ping':
       return typeof m.c === 'number' && Number.isFinite(m.c) ? { t: 'ping', c: m.c } : null;
-    case 'deal':
-      return isInt(m.npc, 0, 1000) && typeof m.deal === 'string' && /^[a-z0-9-]{1,32}$/.test(m.deal) ? { t: 'deal', npc: m.npc, deal: m.deal } : null;
+    case 'deal': {
+      if (typeof m.deal !== 'string' || !/^[a-z0-9-]{1,32}$/.test(m.deal)) return null;
+      if (isInt(m.npc, 0, 1000) && m.at === undefined) return { t: 'deal', npc: m.npc, deal: m.deal };
+      if (m.npc === undefined && isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'deal', at: m.at as [number, number], deal: m.deal };
+      return null;
+    }
+    case 'drink':
+      return isInt(m.kind, 0, 255) ? { t: 'drink', kind: m.kind } : null;
     default:
       return null;
   }

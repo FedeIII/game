@@ -1,4 +1,4 @@
-import type { Dialog } from '@game/engine';
+import type { Dialog, Gate } from '@game/engine';
 
 /**
  * The conversations of the people of Thornwick (town.ts): what each one says, and what the
@@ -7,6 +7,9 @@ import type { Dialog } from '@game/engine';
  */
 
 const BYE = { text: 'Goodbye.' } as const;
+
+/** The gate of lore: Intelligence 13 (pages on things, answers in conversations). */
+export const LORE_GATE: Gate = { ability: 'int', min: 13 };
 
 /** Brann, the watchman at the gate: the first person a traveller from the hut meets. */
 export const WATCHMAN: Dialog = {
@@ -133,7 +136,15 @@ export const APOTHECARY: Dialog = {
     },
     wounds: {
       say: 'Ashroot, for cuts. Salt, for a scratch from an imp. Wash it, and then wash it again.',
-      answers: [{ text: 'Why salt?', next: 'salt' }, { text: 'Thank you.' }],
+      answers: [{ text: 'Why salt?', next: 'salt' }, { text: 'Could I brew a remedy myself?', next: 'brew', gate: LORE_GATE }, { text: 'Thank you.' }],
+    },
+    brew: {
+      say: 'You have the head for it. Use my cauldron, if you bring your own herbs. Two bundles make a draught for wounds.',
+      answers: [{ text: 'And for poison?', next: 'antidote' }, { text: 'Thank you.' }],
+    },
+    antidote: {
+      say: 'Herbs, and the horn of an imp: what bites you also cures you. The strong draught needs a brute\'s tusk. Do not ask how I know.',
+      answers: [{ text: 'Thank you.' }],
     },
     salt: {
       say: 'Their claws are dirty. And the old women say that the woods do not like salt. Both can be true.',
@@ -178,7 +189,11 @@ export const REEVE: Dialog = {
     },
     granary: {
       say: 'It is barred from the inside. We do not know who barred it. We do not open it.',
-      answers: [{ text: 'Why not?', next: 'why' }, BYE],
+      answers: [{ text: 'Why not?', next: 'why' }, { text: 'Your ledgers say that grain went in all summer, and none came out.', next: 'grain', gate: LORE_GATE }, BYE],
+    },
+    grain: {
+      say: '...You read my ledgers. Then you know why I do not open it. Something in there eats.',
+      answers: [BYE],
     },
     why: {
       say: 'Because I am the reeve, and I say so. ...And because something in there scratches at night.',
@@ -186,7 +201,50 @@ export const REEVE: Dialog = {
     },
     map: {
       say: 'The valley. The woods are inked black, and every year I ink a little more of it.',
+      answers: [{ text: 'What happened to the town?', next: 'happened' }, { text: 'The marks in the black: are they the boarded houses?', next: 'marks', gate: LORE_GATE }, BYE],
+    },
+    marks: {
+      say: 'You read a map well. Yes. The families boarded their doors and left their strongboxes inside. Strong arms could open them. I did not say that.',
       answers: [{ text: 'What happened to the town?', next: 'happened' }, BYE],
+    },
+  },
+};
+
+/** A recipe of the cauldron: what it takes from the pack, what it makes, and the Intelligence that it needs. */
+const brew = (id: 'draught' | 'antidote' | 'strong-draught', text: string, min: number, items: readonly { kind: 'herbs' | 'imp-horn' | 'brute-tusk'; count: number }[]) =>
+  ({ text, next: 'brewed', gate: { ability: 'int', min }, deal: { id, goods: id, price: 0, items, poor: 'short' } }) as const;
+
+/**
+ * The cauldron of Isolde, the apothecary: a conversation with the pot, whose answers are its
+ * recipes (Intelligence 10, 13 and 15; Fede's choice, 2026-10-10). Each one takes items from the
+ * pack and puts a draught in it (dialog.ts, Deal).
+ */
+export const CAULDRON: Dialog = {
+  name: 'The cauldron',
+  start: 'pot',
+  nodes: {
+    pot: {
+      say: 'The cauldron bubbles. Isolde lets you use it, if you bring your own herbs.',
+      answers: [
+        brew('draught', 'Brew a healing draught (2 bundles of herbs).', 10, [{ kind: 'herbs', count: 2 }]),
+        brew('antidote', 'Brew an antidote (herbs and an imp horn).', 13, [
+          { kind: 'herbs', count: 1 },
+          { kind: 'imp-horn', count: 1 },
+        ]),
+        brew('strong-draught', 'Brew a strong draught (2 herbs and a brute tusk).', 15, [
+          { kind: 'herbs', count: 2 },
+          { kind: 'brute-tusk', count: 1 },
+        ]),
+        { text: 'Leave it.' },
+      ],
+    },
+    brewed: {
+      say: 'The brew turns clear. You fill a small bottle and put it in your pack.',
+      answers: [{ text: 'Brew another.', next: 'pot' }, { text: 'Leave it.' }],
+    },
+    short: {
+      say: 'You do not have what the brew needs, or your pack has no room for the bottle.',
+      answers: [{ text: 'Look again.', next: 'pot' }, { text: 'Leave it.' }],
     },
   },
 };

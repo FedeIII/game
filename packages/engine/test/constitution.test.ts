@@ -241,10 +241,10 @@ describe('Constitution in a shared world', () => {
     const far = room.join(0, 3, [30, 30], '', undefined, { traits: withCon(10), pack: { coins: 5, items: [] } })!;
     room.tick(0);
     room.tick(20);
-    room.deal(poor.id, 0, 'ale');
-    room.deal(rich.id, 0, 'ale');
-    room.deal(far.id, 0, 'ale');
-    room.deal(rich.id, 0, 'beer');
+    room.deal(poor.id, { npc: 0 }, 'ale');
+    room.deal(rich.id, { npc: 0 }, 'ale');
+    room.deal(far.id, { npc: 0 }, 'ale');
+    room.deal(rich.id, { npc: 0 }, 'beer');
     expect([poor.pack.coins, rich.pack.coins, far.pack.coins]).toEqual([1, 3, 5]);
     expect(rich.state.drunk).toBe(Math.round(ALE_TICKS * 0.55));
     expect(poor.state.drunk).toBe(0);

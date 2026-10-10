@@ -146,8 +146,29 @@ character can do.
 - **AC-AS-006.3:** For a guest, the section shows no scores, but it shows the list of the guest's
   traits.
 
+---
+
+### REQ-AS-007: How a thing behind a gate shows
+
+**User Story:** As a player, I want to see a clue of a thing that I almost can use, so that I know
+which score to raise, without a list of everything that I cannot do.
+
+**Acceptance Criteria:**
+- **AC-AS-007.1:** A character with the score of a gate or more uses the thing behind it: an
+  answer, a page, a door, a chest, a recipe.
+- **AC-AS-007.2:** A character with a score 1 or 2 under the gate sees a dim clue with the gate,
+  for example "[INT 13]" or "[STR 13]", and cannot use the thing.
+- **AC-AS-007.3:** A character with a score 3 or more under the gate sees nothing of it.
+- **AC-AS-007.4:** The rule is the same for every ability and every gate in the world: dialog
+  answers, lore pages, barred doors, locked chests and the recipes of the cauldron.
+- **AC-AS-007.5:** The traits list of the builder and of the "You" section is the rule book: it
+  names every gate, for every score.
+
 ## Feature Behavior & Rules
 
+- **The display of a gate** is `gateView(scores, gate)` (`traits.ts`): `'open'`, `'hint'` (1 or
+  `GATE_HINT` (2) under it) or `'hidden'` (Fede's rule, 2026-10-10). The page writes the clue
+  with `gateTag()` (`packages/engine-client/src/ui/conversation.ts`).
 - **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class)`,
   `sheetTraits(sheet)` (a stored character), `guestTraits(skin)` (a guest), `GUEST_TRAITS` (every
   score 10 and a fighter: for tests and for a player without a look), `PLAIN_SCORES`, `Gate`,

@@ -33,11 +33,14 @@ searches give me something.
 - **AC-PK-001.1:** Coins go into the purse, up to 99,999 coins. Coins never use a slot.
 - **AC-PK-001.2:** The pack has 4 to 12 slots, from STR ([Strength](../abilities/strength.md),
   REQ-STR-003).
-- **AC-PK-001.3:** There are six kinds of item. Their stacks are: imp horn 10, brute tusk 10,
-  candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10.
+- **AC-PK-001.3:** There are nine kinds of item. Their stacks are: imp horn 10, brute tusk 10,
+  candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10, healing draught 5, antidote 5,
+  strong draught 5.
 - **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into a free slot.
   One kind can fill more than one slot when its stacks are full.
-- **AC-PK-001.5:** No item has a use. The player cannot use, drop or sell an item.
+- **AC-PK-001.5:** The draughts are drinks (REQ-PK-011). Herbs, imp horns and brute tusks go into
+  the brews of the cauldron ([Intelligence](../abilities/intelligence.md), REQ-INT-006). The
+  other items have no use yet. The player cannot drop or sell an item.
 
 ---
 
@@ -170,7 +173,8 @@ is the same without the server.
 - **AC-PK-008.7:** For a guest, the panel says "A guest: what you find is not saved." For a
   character in a world that the page runs, it says "Played alone: what you find here is not
   saved."
-- **AC-PK-008.8:** The panel only shows the pack. It has no action on an item.
+- **AC-PK-008.8:** The only action in the panel is a drink: a press on the slot of a drink, or its
+  number (1 to 9) while the panel is open, drinks one (REQ-PK-011).
 
 ---
 
@@ -199,7 +203,30 @@ a use.
 - **AC-PK-010.3:** In a shared world the server takes the coins, and the pack in the next snapshot
   shows it.
 
+---
+
+### REQ-PK-011: Drinks
+
+**User Story:** As a player, I want to drink the draughts that I brew, so that I can heal in the
+woods.
+
+**Acceptance Criteria:**
+- **AC-PK-011.1:** A healing draught gives back 2 hit points, at most the most of the character.
+  The player says "The draught is bitter. The wound closes a little."
+- **AC-PK-011.2:** An antidote ends a poison. The player says "The antidote burns. The poison is
+  gone."
+- **AC-PK-011.3:** A strong draught gives back all the hit points. The player says "The strong
+  draught burns all the way down. I feel whole."
+- **AC-PK-011.4:** A drink goes from the pack (one of the stack). A defeated character cannot
+  drink.
+- **AC-PK-011.5:** In a shared world the page sends the drink to the server, which checks the pack
+  and gives the effect.
+
 ## Feature Behavior & Rules
+
+- **Drinks:** `DRINKS`, `drinkFrom()`, `hasItems()` and `removeFromPack()` in
+  `packages/engine/src/items.ts`; the message `{ t: 'drink', kind }` and `Room.drink()` (protocol
+  14); the slot buttons in `packages/engine-client/src/ui/pack-panel.ts`.
 
 - **The pack** (`packages/engine/src/items.ts`): `ITEM_KINDS` (the order is the code on the wire:
   add a new kind at the end), `ITEM_STACK`, `MAX_COINS` (99,999), `MAX_SLOTS` (16: the most slots

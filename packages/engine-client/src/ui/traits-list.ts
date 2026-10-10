@@ -1,4 +1,5 @@
 import { FORCE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { LORE_GATE, READ_FOE_GATE, READ_OPENING_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -27,6 +28,10 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.recover, t.recoverValue(traits.recover * TICK_SECONDS)],
     [t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)],
     [t.resist, t.share(traits.resist)],
+    [t.opening, t.openingValue(traits.opening)],
+    [t.readFoe, meetsGate(traits.scores, READ_OPENING_GATE) ? t.readFoeOpening : meetsGate(traits.scores, READ_FOE_GATE) ? t.readFoeHealth : t.from(STRINGS.abilities.int.short, READ_FOE_GATE.min)],
+    [t.map, t.mapValue(traits.scores.int)],
+    [t.lore, gate(LORE_GATE, t.loreYes)],
   ];
   const list = document.createElement('dl');
   list.className = 'traits';

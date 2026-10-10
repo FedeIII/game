@@ -278,3 +278,34 @@ describe('Constitution in the Wilds', () => {
     expect(findDeal(innkeeper.content.dialog!, 'ale')).toEqual({ id: 'ale', goods: 'ale', price: 2, poor: 'poor' });
   });
 });
+
+describe('Intelligence in the Wilds', () => {
+  it('has a cauldron at the apothecary with three recipes behind INT 10, 13 and 15', () => {
+    const cauldron = TOWN_BUILDINGS.flatMap((b) => b.fixtures).find((f) => f.kind === 'cauldron')!;
+    const dialog = cauldron.content!.dialog!;
+    expect(checkDialog(dialog)).toEqual([]);
+    const recipes = dialog.nodes[dialog.start]!.answers.filter((a) => a.deal);
+    expect(recipes.map((a) => [a.deal!.goods, a.gate!.min])).toEqual([
+      ['draught', 10],
+      ['antidote', 13],
+      ['strong-draught', 15],
+    ]);
+  });
+
+  it('puts lore (INT 13) on the books of the houses, and names its places for the map', () => {
+    const source = new WildsSource(DEFAULT_SEED);
+    let shelves = 0;
+    for (let cy = -4; cy < 4; cy++) {
+      for (let cx = -4; cx < 4; cx++) {
+        const house = source.house(cx, cy);
+        if (!house || house.id === 'home') continue;
+        for (const f of house.fixtures.filter((f) => f.kind === 'bookshelf')) {
+          shelves++;
+          expect(f.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+        }
+      }
+    }
+    expect(shelves).toBeGreaterThan(5);
+    expect(source.landmarks().map((l) => l.kind)).toEqual(['home', 'town', 'refuge']);
+  });
+});

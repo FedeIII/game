@@ -17,13 +17,14 @@ import {
   type LootTable,
   type MobRules,
   type NpcDef,
+  type Landmark,
   type Refuge,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { Road, signpost } from './road.ts';
-import { Plot, TOWN, TOWN_BUILDINGS, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
+import { Plot, TOWN, TOWN_BUILDINGS, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
   return tx >= house.doorX - 1 && tx <= house.doorX + 1 && ty > house.y1 && ty <= house.y1 + DOOR_PATH;
@@ -292,6 +293,17 @@ export class WildsSource implements WorldSource {
    */
   refuges(): readonly Refuge[] {
     return REFUGES;
+  }
+
+  /** The named places for the map: the home, Thornwick, and its chapel. */
+  landmarks(): readonly Landmark[] {
+    const home = this.spawn();
+    const town = { x: ((TOWN.x0 + TOWN.x1 + 1) / 2) * TILE_SIZE, y: ((TOWN.y0 + TOWN.y1 + 1) / 2) * TILE_SIZE };
+    return [
+      { name: 'Home', kind: 'home', x: home.x, y: home.y },
+      { name: TOWN_NAME, kind: 'town', ...town },
+      { name: 'Chapel', kind: 'refuge', x: REFUGES[0]!.x, y: REFUGES[0]!.y },
+    ];
   }
 
   /** The people of Thornwick. */

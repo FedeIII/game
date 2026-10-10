@@ -210,6 +210,8 @@ export interface Character extends CharacterSheet {
   readonly hp: number | null;
   /** The refuges that it has entered (WorldSource.refuges): it can wake there after a defeat. */
   readonly refuges: readonly string[];
+  /** The chunks that it has seen, [cx, cy]: its map. The server keeps it. */
+  readonly explored: readonly (readonly [number, number])[];
 }
 
 /** The id of a world, as a place names it. */

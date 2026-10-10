@@ -102,6 +102,17 @@ export interface WorldSource {
    * inside them (Character.refuges). The spawn is always a refuge. See wakePoint().
    */
   refuges?(): readonly Refuge[];
+  /** The named places of the world, for the map (INT 13 shows their names). */
+  landmarks?(): readonly Landmark[];
+}
+
+/** A named place for the map: the home, a town, a refuge. */
+export interface Landmark {
+  readonly name: string;
+  readonly kind: 'home' | 'town' | 'refuge';
+  /** World pixels. */
+  readonly x: number;
+  readonly y: number;
 }
 
 /** A place where a defeated character can wake: the building that it must have entered, and the point (world pixels). */

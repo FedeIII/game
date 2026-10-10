@@ -1,7 +1,6 @@
 import './style.css';
 import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
-  ALE_TICKS,
   ATTACK_REACH,
   ATTACK_TICKS,
   EMPTY_PACK,
@@ -30,8 +29,15 @@ import {
   useDoor,
   facingOfAngle,
   addToPack,
+  ITEM_KINDS,
+  blowDamage,
   canDodge,
+  canMakeDeal,
+  drinkFrom,
   flyArrow,
+  gateView,
+  makeDeal,
+  seenChunks,
   guestTraits,
   inShallows,
   isSneaking,
@@ -46,6 +52,7 @@ import {
   sheetTraits,
   type Arrow,
   type Character,
+  type Gate,
   type Dialog,
   type Facing,
   type Fixture,
@@ -80,7 +87,9 @@ import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
-import { ConversationPanel } from './ui/conversation.ts';
+import { ConversationPanel, gateTag } from './ui/conversation.ts';
+import { READ_FOE_GATE, READ_OPENING_GATE } from './ui/gates.ts';
+import { MapPanel } from './ui/map-panel.ts';
 import { Terrain } from './render/terrain.ts';
 import { skinName } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
@@ -438,7 +447,7 @@ async function run(options: GameOptions): Promise<void> {
   /** A blow (or an arrow) of this client on a mob, shown at once: a kill if it takes the mob's last health, else a reel. */
   const predictHit = (mob: MobLook, now: number): void => {
     if (mob.state === 'dying' || predicted.has(mob.id)) return;
-    if ((mob.health ?? 1) > traits.damage) {
+    if ((mob.health ?? 1) > blowDamage(traits, mob)) {
       reeling.set(mob.id, { at: now, seen: false });
       return;
     }
@@ -636,10 +645,21 @@ async function run(options: GameOptions): Promise<void> {
   // and the panel has the keys; the conversation ends with an answer that ends it, with Esc, or
   // when the NPC is not close any more.
   const contentOf = (t: InteractionTarget): Interaction | null => {
-    if (t.fixture?.content) return t.fixture.content;
+    const content = t.fixture?.content;
+    if (content) {
+      if (!content.lore) return content;
+      // Pages behind a gate (lore): read with the score, a clue with 1 or 2 less, nothing with less (gateView).
+      const extra = content.lore.flatMap((lore) => {
+        const view = gateView(traits.scores, lore.gate);
+        return view === 'open' ? lore.pages : view === 'hint' ? [STRINGS.loreHint(gateTag(lore.gate))] : [];
+      });
+      return { ...content, pages: [...(content.pages ?? []), ...extra] };
+    }
     const line = definition.examine[t.kind];
     return line ? { pages: [line] } : null;
   };
+  /** A line of a gate that the player does not pass: with a clue of the gate when it is 1 or 2 short (gateView), else the plain line. */
+  const shortOf = (gate: Gate, clue: string, plain: string): string => (gateView(traits.scores, gate) === 'hint' ? `${clue} ${gateTag(gate)}` : plain);
   const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) => Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture));
   /** Over the player's head: where it speaks. */
   const playerHead = () => ({ x: shown.x, y: shown.y - playerView.headHeight });
@@ -665,7 +685,22 @@ async function run(options: GameOptions): Promise<void> {
   };
   net?.onWoke((lost) => say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now()));
   net?.onRefuges(() => say(STRINGS.refuge, performance.now()));
-  const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null);
+  const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null, (kind) => {
+    // A drink: the server in a shared world, the page in its own world.
+    const now = performance.now();
+    if (net) {
+      if (!net.drink(ITEM_KINDS.indexOf(kind))) return;
+    } else {
+      const next = drinkFrom(pack, kind, player, traits);
+      if (!next) return;
+      pack = next;
+    }
+    const line = STRINGS.drank[kind];
+    if (line) say(line, now);
+  });
+  // The map (Intelligence): the chunks that the character has seen; the server keeps them in a shared world.
+  const localExplored = new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`));
+  const mapPanel = new MapPanel(world, traits.scores.int, net && character ? null : STRINGS.map.alone);
   /** Puts what a kill dropped into the pack of a world that the page runs. */
   const takeDrop = (drop: Loot, now: number) => {
     if (lootIsEmpty(drop)) return;
@@ -701,25 +736,28 @@ async function run(options: GameOptions): Promise<void> {
     // Each line stays over the NPC's head as long as the panel shows it.
     line: (say) => speech.show([say], talkAnchor, performance.now(), true),
     end: () => closeDialog(performance.now()),
-    // A purchase (an ale): the server takes the coins in a shared world; the page in its own world.
+    // A deal (an ale, a brew at the cauldron): the server makes it in a shared world; the page in its own world.
     deal: (deal) => {
-      const index = talkWith ? npcIndex.get(talkWith) : undefined;
-      if (index === undefined || packNow().coins < deal.price) return false;
-      if (net) return net.deal(index, deal.id);
-      pack = { coins: pack.coins - deal.price, items: pack.items };
-      if (deal.goods === 'ale') player.drunk = Math.round(ALE_TICKS * traits.resist);
+      if (!talkWith || !canMakeDeal(deal, packNow(), traits)) return false;
+      const index = npcIndex.get(talkWith);
+      if (net) return net.deal(index !== undefined ? { npc: index } : { at: [talkWith.tx, talkWith.ty] }, deal.id);
+      const next = makeDeal(deal, pack, player, traits);
+      if (!next) return false;
+      pack = next;
       return true;
     },
   });
   const openTalk = () => {
     if (!pendingTalk || !talkWith) return;
-    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null);
+    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores);
     pendingTalk = null;
   };
   /** Whether the NPC of the conversation is still close to the player. */
   const talkingClose = (now: number): boolean => {
-    const walker = talkWith ? npcIndex.get(talkWith) : undefined;
-    const pose = walker !== undefined ? npcPoses(now)[walker] : undefined;
+    if (!talkWith) return false;
+    const walker = npcIndex.get(talkWith);
+    // A thing that talks (the cauldron) stands still: the middle of its anchor tile.
+    const pose = walker !== undefined ? npcPoses(now)[walker] : { x: talkWith.tx * TILE_SIZE + TILE_SIZE / 2, y: talkWith.ty * TILE_SIZE + TILE_SIZE / 2 };
     return pose !== undefined && Math.hypot(pose.x - player.x, pose.y - player.y) <= TALK_RANGE;
   };
 
@@ -743,7 +781,8 @@ async function run(options: GameOptions): Promise<void> {
       const locked = result === 'locked' ? world.buildingAt(target.tx, target.ty)?.locked : undefined;
       if (result === 'barred' || result === 'forced') {
         // Boards across the door: they hold, or they break (and the view shakes a little).
-        say(result === 'barred' ? STRINGS.barred : STRINGS.forced, now);
+        const bar = world.buildingAt(target.tx, target.ty)?.barred;
+        say(result === 'forced' ? STRINGS.forced : bar ? shortOf(bar, STRINGS.barred, STRINGS.barredPlain) : STRINGS.barred, now);
         if (result === 'forced') shakeUntil = now + SHAKE.ms;
       } else if (locked) {
         // A door that never opens: the player says the building's line.
@@ -775,7 +814,7 @@ async function run(options: GameOptions): Promise<void> {
       linkCard.hide();
       const lock = target.fixture.lock;
       if (lock && !meetsGate(traits.scores, lock)) {
-        say(STRINGS.locked, now);
+        say(shortOf(lock, STRINGS.locked, STRINGS.lockedPlain), now);
         return;
       }
       if (net) {
@@ -968,6 +1007,7 @@ async function run(options: GameOptions): Promise<void> {
     stunSeen = player.stun > 0;
     const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
+    mobViews?.setReading(meetsGate(traits.scores, READ_FOE_GATE), meetsGate(traits.scores, READ_OPENING_GATE));
     mobViews?.update(mobsNow(), now, seconds);
     arrowViews?.update([...(horde?.arrows ?? []), ...ownArrows, ...(net?.arrowsAt(now) ?? [])]);
     // No attack from shallow water (stepPlayer).
@@ -1010,6 +1050,8 @@ async function run(options: GameOptions): Promise<void> {
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
     vitals.update(player, traits.maxHp, traits.maxStamina);
+    if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
+    mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
     packPanel.show(packNow(), traits.slots);
     if (arrivedAt === null) {
       arrivedAt = now;
@@ -1066,6 +1108,7 @@ async function run(options: GameOptions): Promise<void> {
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
       `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
+      `int     ${traits.scores.int}: opening +${traits.opening}, read ${meetsGate(traits.scores, READ_OPENING_GATE) ? 'health, wind-up' : meetsGate(traits.scores, READ_FOE_GATE) ? 'health' : '-'}, map ${traits.scores.int >= 15 ? 'secrets' : traits.scores.int >= 13 ? 'names' : traits.scores.int >= 11 ? 'houses' : 'ground'}, seen ${(net && net.explored.size > 0 ? net.explored : localExplored).size} chunks${mapPanel.isOpen ? ' (map open)' : ''}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,

@@ -1,7 +1,7 @@
 # Abilities in the game (draft)
 
-> **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Approved (STR, DEX and
-> CON built: see `docs/features/abilities/`; INT, WIS and CHA not yet)
+> **Draft** · promotes to `docs/features/abilities/` when built · **Status:** Approved (STR, DEX,
+> CON and INT built: see `docs/features/abilities/`; WIS and CHA not yet)
 
 This draft gives the applications of the six ability scores in the game. Each application has
 an ID. Fede picks the applications; then we make their mechanics and apply the scores to them,
@@ -9,7 +9,7 @@ one ability after the other (STR first). The scores come from the character buil
 (`packages/engine/src/character.ts`); before this work, they do nothing in the game.
 
 Status: Strength is done (2026-10-10, protocol 11), Dexterity (protocol 12), Constitution
-(protocol 13). Next: Intelligence, then Wisdom and Charisma. Decided: Option B (below).
+(protocol 13), Intelligence (protocol 14). Next: Wisdom, then Charisma. Decided: Option B (below).
 
 ## How the numbers work
 
@@ -246,3 +246,39 @@ Notes from the implementation of CON (2026-10-10):
   of four mobs hits a player who stands still only a few times in the first 10 s, and then it
   stays in "chase" without new attacks. A player who moves keeps the pack in the fight. To look
   at with Fede.
+
+## INT: the agreed plan (2026-10-10)
+
+Decisions (Fede, 2026-10-10):
+
+1. **The display of a gate, for every ability** (Fede's rule): with the score of the gate or more,
+   the thing is open (an answer to choose, a page to read, a door to force). With a score 1 or 2
+   under the gate, the player sees a dim clue with the gate ("[INT 13]"), and it cannot use it.
+   With a lower score, the player sees nothing of it. This applies to every gate in the world:
+   answers, pages, barred doors, locked chests, recipes. (The traits list of the builder and of
+   the "You" section is the rule book: it names every gate.)
+2. I3 read the foe: INT 13+ shows a thin bar of the health of each mob; INT 15+ shows a white
+   glint on a mob in its wind-up.
+3. I4 use an opening: a blow (or an arrow) on a mob in its wind-up does + max(0, INT mod) damage,
+   for every class.
+4. I5 map: a map panel (M and a button) of the land that the character has seen; the server
+   keeps the seen chunks. Everyone: the ground and the home; INT 11+: the houses and the road;
+   INT 13+: names and refuges; INT 15+: barred houses and locked chests.
+5. I6 craft at the apothecary's cauldron: INT 10+ a healing draught (2 bundles of herbs: +2 HP);
+   INT 13+ an antidote (a bundle of herbs and an imp horn: ends a poison); INT 15+ a strong
+   draught (2 bundles of herbs and a brute tusk: all HP). The player drinks them from the pack
+   panel (a click, or a number key).
+6. Fix in this step: a pack of mobs stops its attacks on a player who stands still.
+7. I2 lore: gated pages on things and gated answers in conversations (INT 13); at most one gated
+   answer in a node.
+
+Built (2026-10-10, protocol 14): see `docs/features/abilities/intelligence.md`. Notes:
+
+- The fix of 6: a mob that was next in the line but stuck out of its reach kept the turn for ever,
+  so no other mob of the pack attacked. Now it goes to the end of the line (`Horde.chase()`).
+- The rule of 7 changed a little in the build: a node can have more than one gated answer, but
+  never only gated answers, and every node can end the conversation without a gate
+  (`checkDialog()`). The cauldron is such a node: three recipes behind gates, and "Leave it.".
+- The rule of 1 applies to barred doors and locked chests too: with a score 1 or 2 under the gate
+  the player says the full line and the tag ("It is locked. I cannot pick it. [DEX 13]"); with a
+  lower score only "It is locked.".

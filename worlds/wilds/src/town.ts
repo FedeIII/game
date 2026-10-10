@@ -1,5 +1,5 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type NpcDef } from '@game/engine';
-import { APOTHECARY, INNKEEPER, REEVE, WATCHMAN } from './dialogs.ts';
+import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef } from '@game/engine';
+import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, REEVE, WATCHMAN } from './dialogs.ts';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -80,6 +80,10 @@ const LIGHTS: Partial<Record<FixtureKind, Light>> = {
 interface Thing {
   readonly kind: FixtureKind;
   readonly pages?: readonly string[];
+  /** Pages behind a gate (Interaction.lore): for Intelligence. */
+  readonly lore?: readonly Lore[];
+  /** A conversation with the thing (the cauldron: its recipes). */
+  readonly dialog?: Dialog;
 }
 
 /**
@@ -220,7 +224,11 @@ const BUILDINGS: readonly Plan[] = [
     ],
     things: {
       c: { kind: 'candelabra', pages: ['The candles never go out. Someone sees to that.'] },
-      l: { kind: 'lectern', pages: ['An old book of prayers, open at the prayer for travellers.'] },
+      l: {
+        kind: 'lectern',
+        pages: ['An old book of prayers, open at the prayer for travellers.'],
+        lore: [{ gate: LORE_GATE, pages: ['In the margin, in small letters: "Who sleeps once under this roof wakes under it." The chapel keeps the lost.'] }],
+      },
       r: { kind: 'rug' },
     },
     people: {
@@ -264,8 +272,12 @@ const BUILDINGS: readonly Plan[] = [
       '#+#D#+#',
     ],
     things: {
-      a: { kind: 'apothecary', pages: ['Jars of roots, of powders, and of dried things with legs.'] },
-      u: { kind: 'cauldron', pages: ['Something green bubbles. It smells of mint, and of rot.'] },
+      a: {
+        kind: 'apothecary',
+        pages: ['Jars of roots, of powders, and of dried things with legs.'],
+        lore: [{ gate: LORE_GATE, pages: ['Labels in an old hand: "Two bundles of herbs, boiled, close a wound." "With the horn of an imp, they draw out its poison."'] }],
+      },
+      u: { kind: 'cauldron', dialog: CAULDRON },
       w: { kind: 'crystalball', pages: ['Cloudy glass. You see only your own face.'] },
       s: { kind: 'scales', pages: ['Small brass scales, for very small doses.'] },
     },
@@ -307,8 +319,16 @@ const BUILDINGS: readonly Plan[] = [
       '#+#+D+#+#',
     ],
     things: {
-      b: { kind: 'bookshelf', pages: ['Ledgers of taxes, of births and of deaths. More deaths, lately.'] },
-      m: { kind: 'maptable', pages: ['A map of the valley. The woods round the town are inked black.'] },
+      b: {
+        kind: 'bookshelf',
+        pages: ['Ledgers of taxes, of births and of deaths. More deaths, lately.'],
+        lore: [{ gate: LORE_GATE, pages: ['The numbers do not add up. The granary took in grain all summer, and no cart took any out.'] }],
+      },
+      m: {
+        kind: 'maptable',
+        pages: ['A map of the valley. The woods round the town are inked black.'],
+        lore: [{ gate: LORE_GATE, pages: ['Small marks in the black: an X by each house in the woods that its family boarded up.'] }],
+      },
       k: { kind: 'coinchest', pages: ["The town's strongbox. Locked, and nearly empty."] },
       d: { kind: 'desk', pages: ['Letters to the families who left. None of them is sent.'] },
     },
@@ -441,7 +461,10 @@ function build(plan: Plan, index: number): Building {
     if (!thing) throw new Error(`${where}: no thing for '${ch}'`);
     const light = LIGHTS[thing.kind];
     for (const [tx, ty] of anchors(thing.kind, tiles, where)) {
-      fixtures.push({ kind: thing.kind, tx, ty, ...(thing.pages ? { content: { pages: thing.pages } } : {}), ...(light ? { light } : {}) });
+      // A thing with a conversation (the cauldron) says its lines over itself.
+      const said = { ...(thing.pages ? { pages: thing.pages } : {}), ...(thing.lore ? { lore: thing.lore } : {}), ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}) };
+      const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
+      fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}) });
     }
   }
   if (doorX === null) throw new Error(`${where}: a building needs a door`);
@@ -501,6 +524,7 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
     ty: 0,
     content: {
       pages: ['NOTICE. The gate shuts at dusk. Keep to the lamps. By order of the Reeve.', 'Under it, in another hand: LOST, one grey goat. Answers to nothing.'],
+      lore: [{ gate: LORE_GATE, pages: ['A third notice, half torn off: the names of the families who boarded up their houses in the woods. "Goods left inside at the owner\'s risk."'] }],
     },
   },
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },

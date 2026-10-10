@@ -130,12 +130,22 @@ export class NetSession {
     this.refugeListeners.push(listener);
   }
 
-  /** Buys from an NPC (its index in the world's NPCs) through the server. False while not online. */
-  deal(npc: number, deal: string): boolean {
+  /** A deal through the server, with an NPC (its index in the world's NPCs) or a fixture (a tile of it). False while not online. */
+  deal(from: { readonly npc: number } | { readonly at: readonly [number, number] }, deal: string): boolean {
     if (this.status !== 'online') return false;
-    this.send({ t: 'deal', npc, deal });
+    this.send({ t: 'deal', ...from, deal });
     return true;
   }
+
+  /** Drinks one item of the pack (its kind code) through the server. False while not online. */
+  drink(kind: number): boolean {
+    if (this.status !== 'online') return false;
+    this.send({ t: 'drink', kind });
+    return true;
+  }
+
+  /** The chunks that the character has seen, in the server's word: "cx,cy". */
+  readonly explored = new Set<string>();
 
   /** Calls `listener` with each loot that the server gives the player. */
   onLoot(listener: (loot: NetLoot) => void): void {
@@ -275,6 +285,8 @@ export class NetSession {
         this.pack = fromWirePack(message.pk);
         this.id = message.id;
         this.refuges = message.rf;
+        this.explored.clear();
+        for (const [cx, cy] of message.ex) this.explored.add(`${cx},${cy}`);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
         this.status = 'online';
         this.retryMs = RETRY_FIRST_MS;
@@ -297,6 +309,7 @@ export class NetSession {
           if (before !== null) for (const listener of this.refugeListeners) listener(message.rf);
         }
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
+        for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);
         for (const [source, coins, stacks, full] of message.l ?? []) {
           const loot: NetLoot = { source: LOOT_SOURCES[source] ?? 'chest', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
           for (const listener of this.lootListeners) listener(loot);

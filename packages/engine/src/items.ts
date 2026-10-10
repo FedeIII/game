@@ -1,4 +1,6 @@
 import type { MobKind } from './mobs.ts';
+import type { PlayerState } from './player.ts';
+import type { PlayerTraits } from './traits.ts';
 
 /**
  * Items and the pack. A character carries coins in a purse and items in the slots of its pack:
@@ -12,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The kinds of item. The order is the code on the wire: add a new kind at the end. */
-export const ITEM_KINDS = ['imp-horn', 'brute-tusk', 'candle', 'ring', 'cup', 'herbs'] as const;
+export const ITEM_KINDS = ['imp-horn', 'brute-tusk', 'candle', 'ring', 'cup', 'herbs', 'draught', 'antidote', 'strong-draught'] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The most of a kind in one slot. */
@@ -23,7 +25,58 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   ring: 5,
   cup: 5,
   herbs: 10,
+  draught: 5,
+  antidote: 5,
+  'strong-draught': 5,
 };
+
+/**
+ * What a drink does (the player drinks it from the pack panel): a healing draught gives back 2
+ * hit points, a strong draught all of them, an antidote ends a poison.
+ */
+export const DRINKS: Readonly<Partial<Record<ItemKind, { readonly hp?: number; readonly full?: boolean; readonly cure?: boolean }>>> = {
+  draught: { hp: 2 },
+  'strong-draught': { full: true },
+  antidote: { cure: true },
+};
+
+/** Whether the pack holds all these stacks. */
+export function hasItems(pack: Pack, stacks: readonly ItemStack[]): boolean {
+  return stacks.every((need) => pack.items.filter((s) => s.kind === need.kind).reduce((n, s) => n + s.count, 0) >= need.count);
+}
+
+/** The pack without these stacks (the last slots of a kind first); the caller checks hasItems() first. */
+export function removeFromPack(pack: Pack, stacks: readonly ItemStack[]): Pack {
+  const items = pack.items.map((s) => ({ ...s }));
+  for (const need of stacks) {
+    let count = need.count;
+    for (let i = items.length - 1; i >= 0 && count > 0; i--) {
+      const slot = items[i]!;
+      if (slot.kind !== need.kind) continue;
+      const n = Math.min(slot.count, count);
+      slot.count -= n;
+      count -= n;
+    }
+  }
+  return { coins: pack.coins, items: items.filter((s) => s.count > 0) };
+}
+
+/**
+ * The player drinks one `kind` from its pack: the drink does its work, and one goes from the pack.
+ * Null if it is not a drink, or the pack has none.
+ */
+export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits: Pick<PlayerTraits, 'maxHp'>): Pack | null {
+  const drink = DRINKS[kind];
+  if (!drink || state.down > 0 || !hasItems(pack, [{ kind, count: 1 }])) return null;
+  if (drink.hp) state.hp = Math.min(traits.maxHp, state.hp + drink.hp);
+  if (drink.full) state.hp = traits.maxHp;
+  if (drink.cure) {
+    state.poison = 0;
+    state.poisonClock = 0;
+  }
+  if (state.hp >= traits.maxHp) state.recover = 0;
+  return removeFromPack(pack, [{ kind, count: 1 }]);
+}
 
 /** The most coins in a purse. */
 export const MAX_COINS = 99_999;

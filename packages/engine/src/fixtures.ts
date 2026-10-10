@@ -160,6 +160,17 @@ export interface Interaction {
   readonly dialog?: Dialog;
   /** A bed of the player's own: acting on it rests (all hit points and stamina back, no poison or drink). */
   readonly rest?: boolean;
+  /**
+   * Pages behind a gate (lore, for Intelligence): a character that passes the gate reads them
+   * after the pages; one 1 or 2 under it reads a clue with the gate (gateView); others nothing.
+   */
+  readonly lore?: readonly Lore[];
+}
+
+/** Pages that only a character with a score reads (Interaction.lore). */
+export interface Lore {
+  readonly gate: Gate;
+  readonly pages: readonly string[];
 }
 
 /** A light that a fixture gives off. */
