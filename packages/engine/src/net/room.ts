@@ -1,7 +1,8 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
-import { canReachDoor, reachableFixture, useDoor, type Feet } from '../interact.ts';
-import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, type Loot, type Pack } from '../items.ts';
+import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
+import { EMPTY_PACK, ITEM_KINDS, ITEM_STACK, addToPack, drinkFrom, hasItems, lootIsEmpty, removeFromPack, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
+import { Piles, dropPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDealAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
@@ -12,6 +13,7 @@ import { guestTraits, meetsGate, sightOf, type PlayerTraits } from '../traits.ts
 import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
+  PILE_SEND_RADIUS,
   SKIN_CHANGE_GAP_MS,
   cleanName,
   aimCode,
@@ -20,6 +22,7 @@ import {
   toWireLoot,
   toWireMob,
   toWirePack,
+  toWirePile,
   type InputMessage,
   type SnapshotMessage,
   type WelcomeMessage,
@@ -28,6 +31,8 @@ import {
   type WireMob,
   type WireArrow,
   type WireNpc,
+  type WirePick,
+  type WirePile,
   type WirePlayer,
   type WireUse,
 } from './protocol.ts';
@@ -113,6 +118,13 @@ export interface RoomPlayer {
   /** The chunks that its character has seen ("cx,cy"), and those that it saw since the last snapshot. */
   readonly explored: Set<string>;
   newlyExplored: [number, number][];
+  /** The piles near it that its client has, as a key (ids and counts): a snapshot carries them when they change. */
+  pileKey: string;
+}
+
+/** A key for a list of piles on the wire: their ids and counts, so a snapshot carries the piles only when they change. */
+function pileKey(piles: readonly WirePile[]): string {
+  return piles.map((p) => `${p[0]}:${p[4]}`).join(',');
 }
 
 /** The most chunks that a character keeps as seen (a square of 128 x 128 chunks: 4096 tiles across). */
@@ -169,6 +181,8 @@ export class Room {
   kills = 0;
   /** The loot of the world: chests and barred doors. */
   readonly spoils: Spoils;
+  /** The items on the ground. */
+  readonly piles: Piles;
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
@@ -179,6 +193,7 @@ export class Room {
     const rules = world.source.mobs?.();
     this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff)) : null;
     this.spoils = new Spoils(world, random(Math.floor((this.random?.() ?? 0.75) * 0xffffffff)));
+    this.piles = new Piles(world);
   }
 
   /**
@@ -203,12 +218,13 @@ export class Room {
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
         const shooter = this.players.get(owner);
-        if (shooter) this.give(shooter, this.horde.drop(mob));
+        if (shooter) this.give(shooter, this.horde.drop(mob), mob, nowMs);
       }
       this.trail.push({ ms: nowMs, at: new Map(this.horde.mobs.map((m) => [m.id, [m.x, m.y] as const])) });
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
     if (this.spoils.tick(nowMs, [...this.players.values()].map((p) => p.state))) this.doorVersion++;
+    this.piles.tick(nowMs);
     // A character that comes into a refuge (the chapel) can wake there after a defeat; and it
     // remembers the land that it sees (the map).
     for (const player of this.players.values()) {
@@ -310,6 +326,7 @@ export class Room {
       woke: null,
       explored: new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`)),
       newlyExplored: [],
+      pileKey: '',
     };
     this.explore(player);
     player.newlyExplored = [];
@@ -363,6 +380,8 @@ export class Room {
   welcome(player: RoomPlayer): WelcomeMessage {
     player.doorVersion = this.doorVersion;
     player.packChanged = false;
+    const piles = this.pilesNear(player);
+    player.pileKey = pileKey(piles);
     return {
       t: 'welcome',
       id: player.id,
@@ -371,15 +390,22 @@ export class Room {
       doors: this.world.openDoorList(),
       fd: this.world.forcedDoorList(),
       pk: toWirePack(player.pack),
+      pl: piles,
       hp: player.state.hp,
       rf: [...player.refuges],
       ex: exploredList(player.explored),
     };
   }
 
+  /** The piles near a player, as the wire carries them. */
+  private pilesNear(player: RoomPlayer): WirePile[] {
+    return this.piles.near(player.state.x, player.state.y, PILE_SEND_RADIUS).map(toWirePile);
+  }
+
   /**
-   * Applies a batch of inputs from a player, with its door actions and the chests that it opens,
-   * in order. An input that the room has applied before (a repeat) is ignored.
+   * Applies a batch of inputs from a player, with its door actions, the chests that it opens and
+   * the piles that it picks up, in order. An input that the room has applied before (a repeat) is
+   * ignored.
    */
   input(id: number, message: InputMessage, nowMs: number): void {
     const player = this.players.get(id);
@@ -388,15 +414,18 @@ export class Room {
     player.refilledMs = nowMs;
     const doors = message.d ?? [];
     const uses = message.u ?? [];
+    const picks = message.g ?? [];
     const last = message.s + message.i.length - 1;
-    // A door action (or a chest) for an input that the room already has happens now.
+    // A door action (or a chest, or a pile) for an input that the room already has happens now.
     for (const door of doors) if (door[0] <= player.seq) this.door(player, door);
     for (const use of uses) if (use[0] <= player.seq) this.use(player, use, nowMs);
+    for (const pick of picks) if (pick[0] <= player.seq) this.pick(player, pick);
     message.i.forEach((wire, k) => {
       const seq = message.s + k;
       if (seq <= player.seq) return;
       for (const door of doors) if (door[0] === seq) this.door(player, door);
       for (const use of uses) if (use[0] === seq) this.use(player, use, nowMs);
+      for (const pick of picks) if (pick[0] === seq) this.pick(player, pick);
       player.seq = seq;
       if (player.tokens < 1) return;
       player.tokens -= 1;
@@ -417,21 +446,23 @@ export class Room {
         for (const mob of struck) {
           if (mob.state !== 'dying') continue;
           this.kills++;
-          this.give(player, this.horde.drop(mob));
+          this.give(player, this.horde.drop(mob), mob, nowMs);
         }
       }
     });
     // And one for an input that has not come yet happens after this batch.
     for (const door of doors) if (door[0] > Math.max(last, player.seq)) this.door(player, door);
     for (const use of uses) if (use[0] > Math.max(last, player.seq)) this.use(player, use, nowMs);
+    for (const pick of picks) if (pick[0] > Math.max(last, player.seq)) this.pick(player, pick);
   }
 
-  /** Puts what a kill dropped into the killer's pack; what does not fit is lost. */
-  private give(player: RoomPlayer, drop: Loot): void {
+  /** Puts what a kill dropped into the killer's pack; what does not fit falls on the ground at the mob (`at`). */
+  private give(player: RoomPlayer, drop: Loot, at: { readonly x: number; readonly y: number }, nowMs: number): void {
     if (lootIsEmpty(drop)) return;
     const { pack, taken, left } = addToPack(player.pack, drop, player.traits.slots);
     player.pack = pack;
     if (!lootIsEmpty(taken)) player.packChanged = true;
+    if (left.items.length > 0) this.piles.put(at.x, at.y, left.items, nowMs);
     player.loot.push(toWireLoot('drop', taken, !lootIsEmpty(left)));
   }
 
@@ -491,6 +522,33 @@ export class Room {
     if (!pack) return;
     player.pack = pack;
     player.packChanged = true;
+  }
+
+  /**
+   * The player puts `count` items of the kind with code `code` from its pack on the ground, just in
+   * front of it (dropPoint). Nothing happens if its pack does not hold them, or while it lies defeated.
+   */
+  put(id: number, code: number, count: number, nowMs: number): void {
+    const player = this.players.get(id);
+    const kind = ITEM_KINDS[code];
+    if (!player || !kind || player.state.down > 0 || !Number.isInteger(count) || count < 1 || count > ITEM_STACK[kind]) return;
+    const stacks = [{ kind, count }];
+    if (!hasItems(player.pack, stacks)) return;
+    player.pack = removeFromPack(player.pack, stacks);
+    player.packChanged = true;
+    const at = dropPoint(this.world, player.state);
+    this.piles.put(at.x, at.y, stacks, nowMs);
+  }
+
+  /** The player picks up a pile, if it can reach it: what fits goes into the pack, the rest stays on the ground. */
+  private pick(player: RoomPlayer, [, pileId]: WirePick): void {
+    const pile = this.piles.get(pileId);
+    if (!pile || player.state.down > 0 || !canReachPile(player.state, pile)) return;
+    const result = this.piles.take(pileId, player.pack, player.traits.slots);
+    if (!result) return;
+    player.pack = result.pack;
+    if (!lootIsEmpty(result.taken)) player.packChanged = true;
+    player.loot.push(toWireLoot('pile', result.taken, !lootIsEmpty(result.left)));
   }
 
   /** Notes the chunks that the player sees now, for its map. */
@@ -568,6 +626,10 @@ export class Room {
       p.woke = null;
       const explored = p.newlyExplored;
       p.newlyExplored = [];
+      const piles = this.pilesNear(p);
+      const key = pileKey(piles);
+      const pilesChanged = key !== p.pileKey;
+      p.pileKey = key;
       const hunters = this.horde ? this.horde.huntersOf(p.id).map((m) => m.id) : [];
       send(p.id, {
         t: 'snap',
@@ -602,6 +664,7 @@ export class Room {
         ...(changed ? { doors, fd: forced } : {}),
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
         ...(loot.length > 0 ? { l: loot } : {}),
+        ...(pilesChanged ? { pl: piles } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
         ...(woke !== null ? { wk: woke } : {}),
         ...(explored.length > 0 ? { ex: explored } : {}),

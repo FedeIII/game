@@ -98,7 +98,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores give (`traits.ts`), items and the pack (`items.ts`), the loot of chests and the barred doors over time (`loot.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores give (`traits.ts`), items and the pack (`items.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -148,7 +148,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `speech-bubble.ts` (pages of text over a head, above the darkness), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
-  drops, "+3 COINS", rising over the player's head in the small font), `cursor.ts` (the mouse
+  drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `piles.ts` (the items on the
+  ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, and a gold spark now and then
+  above the darkness), `cursor.ts` (the mouse
   cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
   filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
@@ -163,7 +165,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, with the item icons, and "Drink" on a drink), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack in a fixed order, drinks first; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
@@ -271,7 +273,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   angles (not turned at run time).
 - `items.ts`: the item icons, SDF models of 16 x 16 (`item/<kind>` for each `ITEM_KINDS`, and
   `item/coin`), with materials of their own, a little lighter than the world's: the pack panel
-  shows them at 2x on a dark slot.
+  shows them at 2x on a dark slot. The same models at 0.7 of the size, with a shadow, are the
+  items on the ground (`pile/<kind>`, anchor on the point where the item lies), and `pile/glint`
+  is the spark over a pile (white, tinted gold).
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
@@ -305,7 +309,7 @@ For the HTML GUI:
   with a soft glow for "active", Georgia serif for words, monospace for numbers.
 - Bottom left: the joystick at rest. Bottom right: the action button, left of it the attack
   button, left of that the dodge button (a world with mobs). Bottom centre, above
-  them: the link card. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
+  them: the link card. Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
 - Every engine text the player reads goes in `src/ui/strings.ts`; what things say is content and
@@ -425,11 +429,18 @@ builder and the "You" section still name every gate.
 - **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
   stack (`ITEM_STACK`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
   of herbs, and three drinks (healing draught, antidote, strong draught: `DRINKS`, `drinkFrom()`;
-  the pack panel's "Drink" or a digit while it is open; the server through `drink`). A kill drops loot into the killer's pack (`MOB_LOOT`,
+  the drink belt, its keys 1 to 4, or "Drink" in the pack panel; the server through `drink`). A kill drops loot into the killer's pack (`MOB_LOOT`,
   `Horde.drop()`: an imp a horn in one kill of three; a brute 2 to 6 coins, and a tusk in one of
-  two); what does not fit is lost, and the player says "My pack is full." In a shared world the
+  two); what does not fit falls on the ground at the mob, and the player says "My pack is full." In a shared world the
   server owns the pack, and the store keeps it (`Character.pack`, the column `pack`, saved with
   the place); in a world that the page runs, the page has its own, which it does not save.
+- **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
+  "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
+  when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack.
+  Anybody picks a pile up with the action button ("Pick up 4 imp horns"; a pile under the feet
+  comes first). A pile goes after 10 minutes (`PILE_MS`); a world has at most 400. In a shared world
+  the Room keeps them in memory (a restart of the server clears them): `put` and the `g` of an input
+  batch, protocol 17. A page that runs its world keeps its own.
 - **Loot over time** (`loot.ts`, `Spoils`; a Room has one, a page that runs its world has its
   own): `WorldSource.loot(fixture)` gives a loot table for a chest. One loot per chest for
   everybody: the first one takes it (what does not fit stays in the chest), and the chest fills
@@ -539,7 +550,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 16.
+protocol: `docs/multiplayer.md`, protocol 17.
 
 ## Arrival in a world
 
@@ -828,8 +839,9 @@ Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, r
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
-`pack`; `doors`
-lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `#map-button` and
+`pack` and `piles`; `doors`
+lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-pick` in each used slot,
+`.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),

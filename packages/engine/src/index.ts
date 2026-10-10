@@ -12,6 +12,7 @@ export * from './character.ts';
 export * from './traits.ts';
 export * from './items.ts';
 export * from './loot.ts';
+export * from './piles.ts';
 export * from './arrows.ts';
 export * from './dialog.ts';
 export * from './net/protocol.ts';

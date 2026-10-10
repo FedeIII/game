@@ -4,11 +4,17 @@
  * and `item/coin` for the coins of the purse. Each icon is 16 x 16, the model on the ground in
  * the middle, as large as the frame lets it be.
  *
+ * The same models, smaller and with a shadow, are the items on the ground (`pile/<kind>`, anchor
+ * on the point where the item lies), and `pile/glint` is the small spark that shows a pile in the
+ * dark (white: the game tints it).
+ *
  * The icons have materials of their own, a little lighter than the world's: a slot has no torch
- * to light it. They keep the dark, desaturated colours of the rest of the art.
+ * to light it. They keep the dark, desaturated colours of the rest of the art. On the ground the
+ * lighter colours help a player to find what fell.
  */
-import { ramp } from './raster.ts';
-import { cylinder, ellipsoid, renderModel, roundCone, sphere, subtract, union, type Material, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { Image } from './image.ts';
+import { cropToContent, ramp } from './raster.ts';
+import { cylinder, ellipsoid, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
 const SIZE = 16;
@@ -53,6 +59,48 @@ function curve(points: readonly Vec3[], r0: number, r1: number): Sdf {
 function icon(kind: string, parts: Part[]): Frame {
   const image = renderModel(parts, ICON_MATERIALS, { width: SIZE, height: SIZE, pivotX: 8, pivotY: 13, yaw: 0, stepScale: 0.7 });
   return { name: `item/${kind}`, image };
+}
+
+/** An item on the ground is this much smaller than its icon (about 11 px tall: a third of a person). */
+const PILE_SCALE = 0.7;
+
+/** The parts of a model at `k` times their size. */
+function scaled(parts: readonly Part[], k: number): Part[] {
+  return parts.map((part) => {
+    const { sdf, material, bound } = part;
+    const scaledMaterial: MaterialOf = typeof material === 'number' ? material : (x, y, z, nx, ny, nz) => material(x / k, y / k, z / k, nx, ny, nz);
+    return {
+      sdf: (x: number, y: number, z: number) => sdf(x / k, y / k, z / k) * k,
+      material: scaledMaterial,
+      ...(bound ? { bound: [bound[0] * k, bound[1] * k, bound[2] * k, bound[3] * k] as const } : {}),
+    };
+  });
+}
+
+/** An item on the ground: its model, small, with a soft shadow; the anchor is the point where it lies. */
+function pile(kind: string, parts: Part[]): Frame {
+  const width = 14;
+  const height = 14;
+  const image = renderModel(scaled(parts, PILE_SCALE), ICON_MATERIALS, {
+    width,
+    height,
+    pivotX: width / 2,
+    pivotY: height - 3,
+    yaw: 0,
+    stepScale: 0.6,
+    shadow: { radiusX: 4, radiusY: 1.7, alpha: 0x70 },
+  });
+  const cropped = cropToContent(image, width / 2, height - 3);
+  return { name: `pile/${kind}`, image: cropped.image, anchor: cropped.anchor };
+}
+
+/** A spark of 5 x 5 pixels: a bright centre and four short, fainter rays. */
+function glint(): Image {
+  const image = new Image(5, 5);
+  image.set(2, 2, 0xffffffff);
+  for (const [x, y] of [[1, 2], [3, 2], [2, 1], [2, 3]] as const) image.set(x, y, 0xffffffc0);
+  for (const [x, y] of [[0, 2], [4, 2], [2, 0], [2, 4]] as const) image.set(x, y, 0xffffff50);
+  return image;
 }
 
 /** A stack of coins, and one beside it. */
@@ -146,17 +194,24 @@ function bottle(liquid: number, tall = false): Part[] {
   ];
 }
 
+/** The model of each kind of item (ITEM_KINDS). */
+const MODELS: readonly (readonly [string, () => Part[]])[] = [
+  ['imp-horn', impHorn],
+  ['brute-tusk', bruteTusk],
+  ['candle', candle],
+  ['ring', ring],
+  ['cup', cup],
+  ['herbs', herbs],
+  ['draught', () => bottle(I.red)],
+  ['antidote', () => bottle(I.green)],
+  ['strong-draught', () => bottle(I.amber, true)],
+];
+
 export function itemFrames(): Frame[] {
   return [
     icon('coin', coin()),
-    icon('imp-horn', impHorn()),
-    icon('brute-tusk', bruteTusk()),
-    icon('candle', candle()),
-    icon('ring', ring()),
-    icon('cup', cup()),
-    icon('herbs', herbs()),
-    icon('draught', bottle(I.red)),
-    icon('antidote', bottle(I.green)),
-    icon('strong-draught', bottle(I.amber, true)),
+    ...MODELS.map(([kind, model]) => icon(kind, model())),
+    ...MODELS.map(([kind, model]) => pile(kind, model())),
+    { name: 'pile/glint', image: glint(), anchor: { x: 0.5, y: 0.5 } },
   ];
 }

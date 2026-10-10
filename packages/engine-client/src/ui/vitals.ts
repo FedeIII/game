@@ -52,6 +52,11 @@ export class Vitals {
     document.body.append(this.root, this.hurt, this.veil);
   }
 
+  /** The box in the top-left corner, for what goes under the vitals (the drink belt). */
+  get element(): HTMLElement {
+    return this.root;
+  }
+
   /** Shows the vitals of the player: `maxHp` pips, and the stamina as a share of `maxStamina`. */
   update(signs: VitalSigns, maxHp: number, maxStamina: number): void {
     const text = STRINGS.vitals;

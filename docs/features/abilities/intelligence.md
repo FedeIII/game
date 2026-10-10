@@ -117,8 +117,8 @@ trophies have a use.
   have what the brew needs, or your pack has no room for the bottle."
 - **AC-INT-006.5:** In a shared world the server makes the brew only for a player within 48 px of
   the cauldron, with the score of the gate, and with the items.
-- **AC-INT-006.6:** The player drinks the draughts from the pack panel
-  ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-011).
+- **AC-INT-006.6:** The player drinks the draughts from the drink belt or from the pack panel
+  ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-011 and REQ-PK-014).
 
 ---
 

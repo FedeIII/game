@@ -34,6 +34,18 @@ export const wilds: WorldDefinition = {
     candelabra: 'Tall candles in an iron stand.',
     signpost: 'An old signpost.',
   },
+  // What each item is, and what it is for here (the pack panel adds what a drink does).
+  items: {
+    'imp-horn': 'Torn from an imp. Corwin, the peddler of Thornwick, buys it, and the cauldron needs one for an antidote.',
+    'brute-tusk': 'Torn from a brute. Corwin, the peddler of Thornwick, buys it, and the cauldron needs one for a strong draught.',
+    candle: 'A stub of old wax. Corwin, the peddler of Thornwick, buys it.',
+    ring: 'Silver, with a dark red stone. Corwin, the peddler of Thornwick, buys it.',
+    cup: 'Old, dented pewter. Corwin, the peddler of Thornwick, buys it.',
+    herbs: 'Bitter leaves from the woods. The cauldron of Thornwick brews them into draughts.',
+    draught: 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from two bundles of herbs.',
+    antidote: 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from herbs and an imp horn.',
+    'strong-draught': 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from two bundles of herbs and a brute tusk.',
+  },
   darkness: 1,
   multiplayer: true,
 };

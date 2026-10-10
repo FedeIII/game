@@ -1,12 +1,13 @@
 import { Structure } from './buildings.ts';
 import { TILE_SIZE } from './constants.ts';
 import { decodeFixture, type Fixture, type FixtureKind } from './fixtures.ts';
+import { PILE_HALF_HEIGHT, PILE_HALF_WIDTH, type Pile } from './piles.ts';
 import { PLAYER_HALF_HEIGHT, PLAYER_HALF_WIDTH, type PlayerState } from './player.ts';
 import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
 import { Decor, FULL_BOX, type Box, type TileMap } from './world.ts';
 
-/** The things that a player can act on: decor, fixtures, and doors (which open and close). */
-export type Interactable = 'tree' | 'rock' | FixtureKind | 'door';
+/** The things that a player can act on: decor, fixtures, doors (which open and close), and items on the ground. */
+export type Interactable = 'tree' | 'rock' | FixtureKind | 'door' | 'pile';
 
 export interface InteractionTarget {
   readonly kind: Interactable;
@@ -17,6 +18,8 @@ export interface InteractionTarget {
   readonly distance: number;
   /** The fixture, for a fixture target: its own content, if any. */
   readonly fixture?: Fixture;
+  /** The pile, for items on the ground (piles.ts). */
+  readonly pile?: Pile;
 }
 
 /** Says whether a candidate counts: a world leaves out things that have nothing to show. */
@@ -89,17 +92,34 @@ export interface Actor {
   readonly fixture: Fixture;
 }
 
+/** The gap in pixels between someone's feet hitbox and the box of a pile. */
+function gapToPile(player: Feet, pile: Pile): number {
+  const dx = Math.max(pile.x - PILE_HALF_WIDTH - (player.x + PLAYER_HALF_WIDTH), 0, player.x - PLAYER_HALF_WIDTH - (pile.x + PILE_HALF_WIDTH));
+  const dy = Math.max(pile.y - PILE_HALF_HEIGHT - (player.y + PLAYER_HALF_HEIGHT), 0, player.y - PLAYER_HALF_HEIGHT - (pile.y + PILE_HALF_HEIGHT));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Whether the player is close enough to pick up the pile: the same range as every action. A
+ * multiplayer server checks it before it gives a pile to a client.
+ */
+export function canReachPile(player: Feet, pile: Pile): boolean {
+  return gapToPile(player, pile) <= INTERACT_RANGE;
+}
+
 /**
  * Finds the thing that the player can act on now: the nearest interactable thing in range,
  * preferring one in front of the player. `accept` leaves out things that have nothing to show
- * (a door always counts). `actors` are things that move (walking NPCs). This is shared code: the
- * server can use the same rule to check an action that a client sends.
+ * (a door and a pile always count). `actors` are things that move (walking NPCs), and `piles`
+ * the items on the ground. This is shared code: the server can use the same rule to check an
+ * action that a client sends.
  */
 export function findInteraction(
   world: TileMap,
   player: PlayerState,
   accept: AcceptTarget = () => true,
   actors: readonly Actor[] = [],
+  piles: readonly Pile[] = [],
 ): InteractionTarget | null {
   const tx0 = Math.floor((player.x - PLAYER_HALF_WIDTH - INTERACT_RANGE) / TILE_SIZE);
   const tx1 = Math.floor((player.x + PLAYER_HALF_WIDTH + INTERACT_RANGE) / TILE_SIZE);
@@ -135,6 +155,16 @@ export function findInteraction(
     if (score < bestScore) {
       bestScore = score;
       best = { kind: actor.fixture.kind, tx: Math.floor(actor.x / TILE_SIZE), ty: Math.floor(actor.y / TILE_SIZE), distance, fixture: actor.fixture };
+    }
+  }
+  for (const pile of piles) {
+    const distance = gapToPile(player, pile);
+    if (distance > INTERACT_RANGE) continue;
+    // A pile under the feet counts as in front: the player stands on it (it just dropped it, say).
+    const score = distance + (distance === 0 || inFront(player, pile.x, pile.y) ? 0 : INTERACT_RANGE);
+    if (score < bestScore) {
+      bestScore = score;
+      best = { kind: 'pile', tx: Math.floor(pile.x / TILE_SIZE), ty: Math.floor(pile.y / TILE_SIZE), distance, pile };
     }
   }
   return best;

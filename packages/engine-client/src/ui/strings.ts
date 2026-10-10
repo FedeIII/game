@@ -40,18 +40,22 @@ export const STRINGS = {
   chestOffline: 'I cannot open it now. No connection.',
   found: (things: string): string => `I find ${things}.`,
   coins: (n: number): string => (n === 1 ? '1 coin' : `${n} coins`),
-  /** An item: with an article ("a silver ring"), and the plural ("silver rings"). */
+  /** An item: its name (a heading), with an article ("a silver ring"), and the plural ("silver rings"). */
   items: {
-    'imp-horn': { a: 'an imp horn', many: 'imp horns' },
-    'brute-tusk': { a: 'a brute tusk', many: 'brute tusks' },
-    candle: { a: 'a candle stub', many: 'candle stubs' },
-    ring: { a: 'a silver ring', many: 'silver rings' },
-    cup: { a: 'a pewter cup', many: 'pewter cups' },
-    herbs: { a: 'a bundle of herbs', many: 'bundles of herbs' },
-    draught: { a: 'a healing draught', many: 'healing draughts' },
-    antidote: { a: 'an antidote', many: 'antidotes' },
-    'strong-draught': { a: 'a strong draught', many: 'strong draughts' },
-  } satisfies Record<ItemKind, { a: string; many: string }>,
+    'imp-horn': { name: 'Imp horn', a: 'an imp horn', many: 'imp horns' },
+    'brute-tusk': { name: 'Brute tusk', a: 'a brute tusk', many: 'brute tusks' },
+    candle: { name: 'Candle stub', a: 'a candle stub', many: 'candle stubs' },
+    ring: { name: 'Silver ring', a: 'a silver ring', many: 'silver rings' },
+    cup: { name: 'Pewter cup', a: 'a pewter cup', many: 'pewter cups' },
+    herbs: { name: 'Bundle of herbs', a: 'a bundle of herbs', many: 'bundles of herbs' },
+    draught: { name: 'Healing draught', a: 'a healing draught', many: 'healing draughts' },
+    antidote: { name: 'Antidote', a: 'an antidote', many: 'antidotes' },
+    'strong-draught': { name: 'Strong draught', a: 'a strong draught', many: 'strong draughts' },
+  } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
+  /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
+  pickUp: (what: string): string => `Pick up ${what}`,
+  pileOffline: 'I cannot pick it up now. No connection.',
+  dropOffline: 'I cannot drop it now. No connection.',
   /** A drink from the pack (items.ts, DRINKS): what the player says. */
   drank: {
     draught: 'The draught is bitter. The wound closes a little.',
@@ -85,19 +89,41 @@ export const STRINGS = {
   wokeLost: (coins: number): string => `I wake up, sore and alive. ${coins === 1 ? 'A coin is' : `${coins} coins are`} gone.`,
   /** The player comes into a refuge (WorldSource.refuges) for the first time. */
   refuge: 'This place feels safe. If I fall, I can wake here.',
-  /** The pack panel (ui/pack-panel.ts). */
+  /** The pack panel (ui/pack-panel.ts) and the drink belt (ui/belt.ts). */
   pack: {
     button: 'Pack',
     /** The tooltip of the button: the key that opens the pack too. */
     buttonKey: 'Pack (I)',
+    /** The name of the button when every slot is in use. */
+    buttonFull: 'Pack, full',
     heading: 'Pack',
     coins: 'Coins',
     slots: (used: number, all: number): string => `${used} of ${all} slots`,
     empty: 'Your pack is empty.',
     guest: 'A guest: what you find is not saved.',
-    drink: (what: string, slot: number): string => `Drink ${what} (${slot})`,
-    chew: (what: string, slot: number): string => `Chew ${what} (${slot})`,
+    /** Before the player chooses a slot. */
+    choose: 'Choose a thing to see what it does.',
+    /** A slot for a screen reader and as a tooltip: "an imp horn", "3 imp horns". */
+    stack: (n: number, names: { a: string; many: string }): string => (n === 1 ? names.a : `${n} ${names.many}`),
+    count: (n: number): string => `× ${n}`,
+    /** The drink belt and the buttons of the panel: the action with its key. */
+    drink: (what: string, key: number): string => `Drink ${what} (${key})`,
+    chew: (what: string, key: number): string => `Chew ${what} (${key})`,
+    drinkButton: 'Drink',
+    chewButton: 'Chew',
     chewHint: (what: string): string => `You could chew ${what}, if you knew more of herbs.`,
+    /** What a drink does (items.ts, DRINKS): "Drink it: 2 hit points back." */
+    effect: (chew: boolean, parts: readonly string[]): string => `${chew ? 'Chew' : 'Drink'} it: ${parts.join(', ')}.`,
+    hp: (n: number): string => (n === 1 ? '1 hit point back' : `${n} hit points back`),
+    fullHp: 'all your hit points back',
+    cure: 'a poison ends',
+    stackOf: (n: number): string => `Up to ${n} in a slot.`,
+    /** Put items on the ground, where the player stands (piles.ts). */
+    drop: 'Drop',
+    dropOne: 'Drop one',
+    dropAll: 'Drop all',
+    dropWhat: (what: string): string => `Drop ${what}`,
+    belt: 'Drinks',
     offline: 'Played alone: what you find here is not saved.',
   },
   /** What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
@@ -220,6 +246,7 @@ export const STRINGS = {
     signpost: 'signpost',
     herbpatch: 'herbs',
     cache: 'dug earth',
+    pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',
   linkKeyHint: 'or press E',

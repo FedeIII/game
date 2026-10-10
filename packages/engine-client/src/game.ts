@@ -51,6 +51,10 @@ import {
   wakePlayer,
   wakePoint,
   lootIsEmpty,
+  Piles,
+  dropPoint,
+  hasItems,
+  removeFromPack,
   meetsGate,
   sheetTraits,
   type Arrow,
@@ -64,7 +68,9 @@ import {
   type InteractionTarget,
   type Loot,
   type MoveInput,
+  type ItemKind,
   type Pack,
+  type Pile,
   type WorldDefinition,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
@@ -86,6 +92,7 @@ import { WelcomeSpeech } from './render/welcome.ts';
 import { MobViews, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { LootText } from './render/loot-text.ts';
+import { PileViews } from './render/piles.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
@@ -106,6 +113,7 @@ import { AttackButton } from './ui/attack-button.ts';
 import { DodgeButton } from './ui/dodge-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
+import { DrinkBelt } from './ui/belt.ts';
 import { PackPanel } from './ui/pack-panel.ts';
 import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
@@ -192,9 +200,10 @@ function dropLines(taken: Loot): string[] {
   ];
 }
 
-/** A key for "the same target": a fixture by its anchor, anything else by its tile. */
+/** A key for "the same target": a fixture by its anchor, a pile by its id, anything else by its tile. */
 function targetKey(target: InteractionTarget): string {
   const f = target.fixture;
+  if (target.pile) return `pile@${target.pile.id}`;
   return f ? `${f.kind}@${f.tx},${f.ty}` : `${target.kind}@${target.tx},${target.ty}`;
 }
 
@@ -323,12 +332,14 @@ async function run(options: GameOptions): Promise<void> {
   const scene = new Container();
   const textScene = new Container();
   const groundLayer = new Container();
+  // Items on the ground: over the ground, under everything that stands (piles.ts).
+  const pileLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
   // The faint copies of the players that show through trees: above the props, below the darkness.
   const ghostLayer = new Container();
   // What glows above the darkness: the eyes of mobs, embers, the stars of a stun.
   const glowLayer = new Container();
-  scene.addChild(groundLayer, entityLayer, ghostLayer);
+  scene.addChild(groundLayer, pileLayer, entityLayer, ghostLayer);
   worldLayer.addChild(scene);
   textLayer.addChild(textScene);
   // The mouse cursor over the world: above everything, without a filter, like the GUI.
@@ -732,13 +743,13 @@ async function run(options: GameOptions): Promise<void> {
   };
   net?.onWoke((lost) => say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now()));
   net?.onRefuges(() => say(STRINGS.refuge, performance.now()));
-  const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null, (kind) => {
-    // A drink (or herbs to chew, with Medicine): the server in a shared world, the page in its own world.
+  /** A drink (or herbs to chew, with Medicine), from the belt or the pack panel: the server in a shared world, the page in its own world. */
+  const drinkKind = (kind: ItemKind): void => {
     const now = performance.now();
     const gate = DRINKS[kind]?.gate;
     if (gate && !meetsGate(traits.scores, gate)) return;
     if (net) {
-      if (!net.drink(ITEM_KINDS.indexOf(kind))) return;
+      if (!hasItems(packNow(), [{ kind, count: 1 }]) || player.down > 0 || !net.drink(ITEM_KINDS.indexOf(kind))) return;
     } else {
       const next = drinkFrom(pack, kind, player, traits);
       if (!next) return;
@@ -746,16 +757,42 @@ async function run(options: GameOptions): Promise<void> {
     }
     const line = STRINGS.drank[kind];
     if (line) say(line, now);
-  }, traits.scores);
+  };
+  // Items on the ground: the server keeps them in a shared world; the page keeps its own in a world that it runs.
+  const localPiles = new Piles(world);
+  const pilesNow = (): readonly Pile[] => (net ? net.pilesNow() : localPiles.list);
+  const pileViews = new PileViews(art, pileLayer, glowLayer);
+  /** Puts `count` items of `kind` from the pack on the ground, just in front of the player. */
+  const dropItems = (kind: ItemKind, count: number): void => {
+    const stacks = [{ kind, count }];
+    if (player.down > 0 || !hasItems(packNow(), stacks)) return;
+    if (net) {
+      if (!net.put(ITEM_KINDS.indexOf(kind), count)) say(STRINGS.dropOffline, performance.now());
+      return;
+    }
+    pack = removeFromPack(pack, stacks);
+    const at = dropPoint(world, player);
+    localPiles.put(at.x, at.y, stacks, performance.now());
+  };
+  const packPanel = new PackPanel(
+    art,
+    !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null,
+    { drink: drinkKind, drop: dropItems },
+    traits.scores,
+    definition.items,
+  );
+  // The drinks that the character carries, under its hit points: a press or a key (1 to 4) drinks one.
+  const belt = new DrinkBelt(art, vitals.element, traits.scores, drinkKind);
   // The map (Intelligence): the chunks that the character has seen; the server keeps them in a shared world.
   const localExplored = new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`));
   const mapPanel = new MapPanel(world, traits.scores.int, net && character ? null : STRINGS.map.alone);
-  /** Puts what a kill dropped into the pack of a world that the page runs. */
-  const takeDrop = (drop: Loot, now: number) => {
+  /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). */
+  const takeDrop = (drop: Loot, now: number, at: { readonly x: number; readonly y: number }) => {
     if (lootIsEmpty(drop)) return;
     const result = addToPack(pack, drop, traits.slots);
     pack = result.pack;
     lootText.add(dropLines(result.taken), now);
+    if (result.left.items.length > 0) localPiles.put(at.x, at.y, result.left.items, now);
     if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
   };
   /** The last source of loot that this page asked the server to open (its line: a pick, herbs, a cache). */
@@ -770,6 +807,7 @@ async function run(options: GameOptions): Promise<void> {
       say(sourceLine(lastSource, loot, full), now);
       return;
     }
+    // A drop, or a pile that the player picked up: the lines rise over its head.
     lootText.add(dropLines(loot), now);
     if (full) say(STRINGS.packFull, now);
   });
@@ -831,6 +869,20 @@ async function run(options: GameOptions): Promise<void> {
     // The conversation panel has the keys while it is open (and the button is hidden).
     if (!target || conversation.open) return;
     const now = performance.now();
+    if (target.pile) {
+      // Items on the ground: the server gives them in a shared world, the page in its own world.
+      const pile = target.pile;
+      if (net) {
+        if (!net.pick(pile.id)) say(STRINGS.pileOffline, now);
+        return;
+      }
+      const taken = localPiles.take(pile.id, pack, traits.slots);
+      if (!taken) return;
+      pack = taken.pack;
+      lootText.add(dropLines(taken.taken), now);
+      if (!lootIsEmpty(taken.left)) say(STRINGS.packFull, now);
+      return;
+    }
     if (target.kind === 'door') {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
       const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
@@ -939,6 +991,7 @@ async function run(options: GameOptions): Promise<void> {
   });
 
   const actionLabel = (t: InteractionTarget): string => {
+    if (t.pile) return STRINGS.pickUp(STRINGS.pack.stack(t.pile.count, STRINGS.items[t.pile.kind]));
     if (t.kind === 'door') {
       const bar = world.doorBar(t.tx, t.ty);
       if (bar) return meetsGate(traits.scores, bar) ? STRINGS.forceDoor : STRINGS.tryDoor;
@@ -1002,13 +1055,14 @@ async function run(options: GameOptions): Promise<void> {
         for (const mob of horde.strike(player, player.aim, undefined, 0, traits)) {
           if (mob.state !== 'dying') continue;
           kills++;
-          takeDrop(horde.drop(mob), performance.now());
+          takeDrop(horde.drop(mob), performance.now(), mob);
         }
       }
     }
     if (waking) wakeHere();
     if (!net) {
       spoils.tick(performance.now(), [player]);
+      localPiles.tick(performance.now());
       // A refuge (the chapel) that the character comes into for the first time.
       const refuge = refugeAt(world, player.x, player.y);
       if (refuge && !localRefuges.includes(refuge.id)) {
@@ -1021,7 +1075,7 @@ async function run(options: GameOptions): Promise<void> {
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }]);
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
-      takeDrop(horde!.drop(mob), performance.now());
+      takeDrop(horde!.drop(mob), performance.now(), mob);
     }
   });
 
@@ -1080,7 +1134,7 @@ async function run(options: GameOptions): Promise<void> {
 
     const npcsNow = npcPoses(now);
     npcViews?.update(npcsNow, seconds);
-    target = findInteraction(world, player, accept, npcActors(npcDefs, npcsNow));
+    target = findInteraction(world, player, accept, npcActors(npcDefs, npcsNow), pilesNow());
     if (pendingTalk && now >= pendingTalk.at) openTalk();
     if (conversation.open) {
       // The NPC waits for a player who stands close to it; a stun, or an NPC that is not close
@@ -1094,6 +1148,8 @@ async function run(options: GameOptions): Promise<void> {
     const view = camera.view();
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
+    // The spark of a pile shows only where the player can see it: outside, or in its own house.
+    pileViews.update(pilesNow(), now, (pile) => world.insideOf(...tileOf(pile)) === inside);
     // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
     fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek });
     others?.update(net!.playersAt(now), seconds, view, (x, y) => inShallows(world, x, y));
@@ -1117,6 +1173,7 @@ async function run(options: GameOptions): Promise<void> {
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
     mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
     packPanel.show(packNow(), traits.slots);
+    belt.show(packNow());
     if (arrivedAt === null) {
       arrivedAt = now;
       introTitle?.start(now);
@@ -1178,6 +1235,7 @@ async function run(options: GameOptions): Promise<void> {
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
+      `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),

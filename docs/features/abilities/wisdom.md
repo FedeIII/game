@@ -111,8 +111,9 @@ Thornwick tell me more.
 cauldron.
 
 **Acceptance Criteria:**
-- **AC-WIS-006.1:** With WIS 13 or more, the player chews a bundle of herbs from the pack panel for
-  1 hit point ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-011).
+- **AC-WIS-006.1:** With WIS 13 or more, the player chews a bundle of herbs for 1 hit point, from
+  the drink belt (key 4) or from the pack panel ([Pack and Loot](../items/pack-and-loot.md),
+  REQ-PK-011 and REQ-PK-014).
 - **AC-WIS-006.2:** With WIS 11 or 12, the slot of the herbs shows "WIS 13" dim, and nothing can be
   chewed. With less, the slot is plain.
 - **AC-WIS-006.3:** In a shared world the server checks the gate.

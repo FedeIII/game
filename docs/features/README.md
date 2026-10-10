@@ -73,4 +73,4 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 
 | Document | Feature |
 |---|---|
-| [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the nine items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel, the coins that a defeat takes, buying and selling, drinks and herbs to chew, and the patches of herbs and the buried cache |
+| [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the nine items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel (a fixed order, a detail of each item with its uses, drink and drop), the coins that a defeat takes, buying and selling, drinks and herbs to chew, the patches of herbs and the buried cache, items on the ground (drop them, pick them up, the overflow of a kill; 10 minutes), and the drink belt (keys 1 to 4) |

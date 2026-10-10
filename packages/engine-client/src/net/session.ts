@@ -4,6 +4,7 @@ import {
   Remotes,
   TILE_SIZE,
   fromWirePack,
+  fromWirePiles,
   fromWireStacks,
   LOOT_SOURCES,
   parseServerMessage,
@@ -12,6 +13,7 @@ import {
   type ClientMessage,
   type Loot,
   type Pack,
+  type Pile,
   type PlayerTraits,
   type DoorResult,
   type Feet,
@@ -29,11 +31,14 @@ import {
 /** connecting: no welcome yet; online: in the shared world; offline: waiting to try again; refused: the server said no. */
 export type NetStatus = 'connecting' | 'online' | 'offline' | 'refused';
 
-/** Loot that the server gave the player: from a chest that it opened, or from a mob that it killed; or a lock that it could not pick. */
+/**
+ * Loot that the server gave the player: from a chest that it opened, from a mob that it killed, or
+ * from a pile on the ground that it picked up; or a lock that it could not pick.
+ */
 export interface NetLoot {
-  readonly source: 'chest' | 'drop' | 'locked';
+  readonly source: 'chest' | 'drop' | 'locked' | 'pile';
   readonly loot: Loot;
-  /** The pack is full: something stayed in the chest, or was lost. */
+  /** The pack is full: something stayed in the chest or on the ground. */
   readonly full: boolean;
 }
 
@@ -76,6 +81,8 @@ export class NetSession {
   private readonly lootListeners: ((loot: NetLoot) => void)[] = [];
   /** What the player carries, in the server's last word (null before the welcome). */
   pack: Pack | null = null;
+  /** The piles on the ground near the player, in the server's last word. */
+  private piles: Pile[] = [];
   /** The player's id in the shared world (from the welcome), or null. */
   id: number | null = null;
   /** The refuges of the character, in the server's last word (null before the welcome). */
@@ -142,6 +149,25 @@ export class NetSession {
     if (this.status !== 'online') return false;
     this.send({ t: 'drink', kind });
     return true;
+  }
+
+  /** Puts `count` items of a kind (its code) from the pack on the ground, through the server. False while not online. */
+  put(kind: number, count: number): boolean {
+    if (this.status !== 'online') return false;
+    this.send({ t: 'put', kind, count });
+    return true;
+  }
+
+  /** Picks up a pile on the ground through the server, which answers with loot. False while not online. */
+  pick(id: number): boolean {
+    if (this.status !== 'online') return false;
+    this.prediction.pick(id);
+    return true;
+  }
+
+  /** The piles on the ground to draw and to pick up now (none while not online). */
+  pilesNow(): readonly Pile[] {
+    return this.status === 'online' ? this.piles : [];
   }
 
   /** The chunks that the character has seen, in the server's word: "cx,cy". */
@@ -285,6 +311,7 @@ export class NetSession {
         const before = { x: this.player.x, y: this.player.y };
         this.prediction.reset(this.player, this.world, message);
         this.pack = fromWirePack(message.pk);
+        this.piles = fromWirePiles(message.pl ?? []);
         this.id = message.id;
         this.refuges = message.rf;
         this.explored.clear();
@@ -305,6 +332,7 @@ export class NetSession {
         if (this.remotes.count !== count) this.changed();
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
+        if (message.pl) this.piles = fromWirePiles(message.pl);
         if (message.rf) {
           const before = this.refuges;
           this.refuges = message.rf;

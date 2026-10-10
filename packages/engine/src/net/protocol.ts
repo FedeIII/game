@@ -1,6 +1,7 @@
 import { TILE_SIZE } from '../constants.ts';
-import { ITEM_KINDS, type ItemStack, type Loot, type Pack } from '../items.ts';
+import { ITEM_KINDS, ITEM_STACK, type ItemStack, type Loot, type Pack } from '../items.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
+import type { Pile } from '../piles.ts';
 import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
 
 /**
@@ -11,7 +12,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 16;
+export const PROTOCOL_VERSION = 17;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -25,8 +26,12 @@ export const MAX_DOORS_PER_MESSAGE = 4;
 export const MAX_ATTACKS_PER_MESSAGE = 4;
 /** The most chests opened in one message. */
 export const MAX_USES_PER_MESSAGE = 2;
+/** The most piles picked up in one message. */
+export const MAX_PICKS_PER_MESSAGE = 2;
 /** The server sends the mobs this close to a player (world pixels): far beyond the screen. */
 export const MOB_SEND_RADIUS = 30 * TILE_SIZE;
+/** The server sends the piles (items on the ground) this close to a player (world pixels). */
+export const PILE_SEND_RADIUS = 30 * TILE_SIZE;
 /** The largest message, in bytes, in either direction from a client. */
 export const MAX_CLIENT_MESSAGE_BYTES = 2048;
 
@@ -146,6 +151,13 @@ export type WireAttack = readonly [number, number];
  */
 export type WireUse = readonly [number, number, number];
 
+/**
+ * A pile on the ground that the player picks up: [seq, pile id]. It happens just before the input
+ * with sequence number `seq`, as a door action, so the server checks the reach where the player
+ * was. The server answers with loot (WireLoot, source 3).
+ */
+export type WirePick = readonly [number, number];
+
 /** A batch of inputs. `s` is the sequence number of the first input; the others follow it, one per tick. */
 export interface InputMessage {
   readonly t: 'in';
@@ -154,6 +166,7 @@ export interface InputMessage {
   readonly d?: readonly WireDoor[];
   readonly k?: readonly WireAttack[];
   readonly u?: readonly WireUse[];
+  readonly g?: readonly WirePick[];
 }
 
 /**
@@ -196,7 +209,17 @@ export interface DrinkMessage {
   readonly kind: number;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage;
+/**
+ * The player puts `count` items of `kind` (its code, ITEM_KINDS) from its pack on the ground, where
+ * it stands: they lie there as a pile (piles.ts) until someone picks them up.
+ */
+export interface PutMessage {
+  readonly t: 'put';
+  readonly kind: number;
+  readonly count: number;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage;
 
 /** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
 export const SKIN_CHANGE_GAP_MS = 2000;
@@ -282,19 +305,36 @@ export function fromWirePack(wire: WirePack): Pack {
 /**
  * Loot that the player got: [source, coins, stacks, full]. Source 0: a chest that it opened (no
  * coins and no stacks: the chest is empty); 1: what a mob that it killed dropped; 2: a chest with
- * a lock that the player could not pick (no loot). Full 1: the pack is full, and something stayed
- * in the chest or was lost.
+ * a lock that the player could not pick (no loot); 3: a pile on the ground that it picked up.
+ * Full 1: the pack is full, and something stayed in the chest or on the ground.
  */
-export type WireLoot = readonly [0 | 1 | 2, number, WireStacks, 0 | 1];
+export type WireLoot = readonly [0 | 1 | 2 | 3, number, WireStacks, 0 | 1];
 
-export const LOOT_SOURCES = ['chest', 'drop', 'locked'] as const;
+export const LOOT_SOURCES = ['chest', 'drop', 'locked', 'pile'] as const;
 export type LootSource = (typeof LOOT_SOURCES)[number];
 
 export function toWireLoot(source: LootSource, loot: Loot, full: boolean): WireLoot {
-  return [LOOT_SOURCES.indexOf(source) as 0 | 1 | 2, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
+  return [LOOT_SOURCES.indexOf(source) as 0 | 1 | 2 | 3, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
 }
 
-/** The reply to hello: who the player is, where it starts, which doors are open and forced, its pack, HP and refuges. */
+/** A pile on the ground (piles.ts): [id, x, y, item code (ITEM_KINDS), count]. Positions in whole pixels. */
+export type WirePile = readonly [number, number, number, number, number];
+
+export function toWirePile(pile: Pile): WirePile {
+  return [pile.id, pile.x, pile.y, ITEM_KINDS.indexOf(pile.kind), pile.count];
+}
+
+/** The piles of the wire; a pile of a kind that this client does not know is left out. */
+export function fromWirePiles(wire: readonly WirePile[]): Pile[] {
+  const out: Pile[] = [];
+  for (const [id, x, y, code, count] of wire) {
+    const kind = ITEM_KINDS[code];
+    if (kind) out.push({ id, x, y, kind, count });
+  }
+  return out;
+}
+
+/** The reply to hello: who the player is, where it starts, which doors are open and forced, its pack, HP and refuges, and the piles near it. */
 export interface WelcomeMessage {
   readonly t: 'welcome';
   readonly id: number;
@@ -309,6 +349,8 @@ export interface WelcomeMessage {
   /** The barred doors that are forced now (World.forcedDoorList). */
   readonly fd: readonly (readonly [number, number])[];
   readonly pk: WirePack;
+  /** The piles on the ground near the player (within PILE_SEND_RADIUS). */
+  readonly pl: readonly WirePile[];
 }
 
 /**
@@ -329,6 +371,8 @@ export interface SnapshotMessage {
   readonly pk?: WirePack;
   /** The loot that the player got since the last snapshot. */
   readonly l?: readonly WireLoot[];
+  /** The piles on the ground near this player (within PILE_SEND_RADIUS): all of them, when they changed. */
+  readonly pl?: readonly WirePile[];
   /** In a world with mobs: the arrows in flight near this player (within MOB_SEND_RADIUS). */
   readonly ar?: readonly WireArrow[];
   /** The refuges that the player's character has entered, when they changed (WorldSource.refuges). */
@@ -453,7 +497,21 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         if (!Array.isArray(m.u) || m.u.length > MAX_USES_PER_MESSAGE || !m.u.every(useShaped)) return null;
         uses = m.u as WireUse[];
       }
-      return { t: 'in', s: m.s, i: inputs, ...(doors ? { d: doors } : {}), ...(attacks ? { k: attacks } : {}), ...(uses ? { u: uses } : {}) };
+      let picks: WirePick[] | undefined;
+      if (m.g !== undefined) {
+        const pickShaped = (g: unknown) => Array.isArray(g) && g.length === 2 && isInt(g[0], 1, SEQ_LIMIT) && isInt(g[1], 1, SEQ_LIMIT);
+        if (!Array.isArray(m.g) || m.g.length > MAX_PICKS_PER_MESSAGE || !m.g.every(pickShaped)) return null;
+        picks = m.g as WirePick[];
+      }
+      return {
+        t: 'in',
+        s: m.s,
+        i: inputs,
+        ...(doors ? { d: doors } : {}),
+        ...(attacks ? { k: attacks } : {}),
+        ...(uses ? { u: uses } : {}),
+        ...(picks ? { g: picks } : {}),
+      };
     }
     case 'skin':
       return isSkin(m.skin) ? { t: 'skin', skin: m.skin } : null;
@@ -469,6 +527,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'drink':
       return isInt(m.kind, 0, 255) ? { t: 'drink', kind: m.kind } : null;
+    case 'put': {
+      const kind = ITEM_KINDS[m.kind as number];
+      return isInt(m.kind, 0, 255) && kind && isInt(m.count, 1, ITEM_STACK[kind]) ? { t: 'put', kind: m.kind, count: m.count } : null;
+    }
     default:
       return null;
   }

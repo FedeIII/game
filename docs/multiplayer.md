@@ -38,12 +38,13 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the character's stored place, or else of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
 | client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
-| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11) |
+| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11), piles that it picks up `g: [seq, pile id]` (protocol 17) |
 | client to server | `ping` | the client's clock, for the round trip |
 | client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog |
 | client to server | `drink` | the code of a drink in the pack (protocol 14) |
-| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| client to server | `put` | an item code and a count: items from the pack to the ground (protocol 17) |
+| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -66,6 +67,22 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Items on the ground (protocol 17, 2026-10-10)
+
+- A new client message, `put` (`kind`: an item code; `count`: 1 to the stack of that kind): the Room
+  takes the items from the pack (`removeFromPack()`; nothing if the pack does not hold them, or if
+  the player lies defeated) and puts them on the ground 10 px in front of the player
+  (`dropPoint()`, `Piles.put()`).
+- An input batch can carry `g: [seq, pile id]` (at most 2): the player picks up a pile, just before
+  the input `seq`, as a chest's `u`. The Room checks the reach there (`canReachPile()`: the range of
+  every action), puts what fits into the pack, and answers with loot, source 3.
+- A kill whose drop does not fit in the killer's pack puts the rest on the ground at the mob.
+- The welcome has the piles within `PILE_SEND_RADIUS` (30 tiles) of the player (`pl`: `[id, x, y,
+  item code, count]`, whole pixels). A snapshot has them all again when their ids or counts
+  changed (`RoomPlayer.pileKey`), also when the player walked into the range of another pile.
+- The piles are in memory (`Room.piles`). A restart of the server clears them, and a pile goes after
+  10 minutes (`PILE_MS`); a room has at most 400 (`MAX_PILES`).
 
 ## Charisma: prices, a room, presence and inspire (protocol 16, 2026-10-10)
 
@@ -279,7 +296,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":16,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":17,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 
@@ -310,6 +327,8 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
   prediction keeps, only the mobs near a player),
   skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
   a full room, and doors (shared, out of reach, never onto a player).
+- `packages/engine/test/piles.test.ts`: the items on the ground: where a pile lies, a pick-up and
+  its reach, the overflow of a kill, `pl` only when the piles change, and the messages.
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.

@@ -5,6 +5,7 @@ import { GUEST_TRAITS, type PlayerTraits } from '../traits.ts';
 import type { World } from '../world.ts';
 import {
   INPUT_BATCH_TICKS,
+  MAX_PICKS_PER_MESSAGE,
   MAX_USES_PER_MESSAGE,
   aimFromCode,
   facingFromCode,
@@ -16,6 +17,7 @@ import {
   type WireAttack,
   type WireDoor,
   type WireInput,
+  type WirePick,
   type WireUse,
 } from './protocol.ts';
 
@@ -54,6 +56,8 @@ export class Prediction {
   /** Chests opened since the last tick: they go with the next input. */
   private nextUses: (readonly [number, number])[] = [];
   private batchUses: WireUse[] = [];
+  private nextPicks: number[] = [];
+  private batchPicks: WirePick[] = [];
   /** The open and the forced doors in the server's last word. */
   private serverDoors: readonly (readonly [number, number])[] = [];
   private serverForced: readonly (readonly [number, number])[] = [];
@@ -73,6 +77,8 @@ export class Prediction {
     this.batchAttacks = [];
     this.nextUses = [];
     this.batchUses = [];
+    this.nextPicks = [];
+    this.batchPicks = [];
     this.batchFirst = 1;
     this.serverDoors = welcome.doors;
     this.serverForced = welcome.fd;
@@ -109,6 +115,8 @@ export class Prediction {
     this.nextDoors = [];
     for (const [tx, ty] of this.nextUses) this.batchUses.push([this.seq, tx, ty]);
     this.nextUses = [];
+    for (const id of this.nextPicks) this.batchPicks.push([this.seq, id]);
+    this.nextPicks = [];
     if (this.batch.length === 0) this.batchFirst = this.seq;
     this.batch.push(wire);
     const struck = stepPlayer(player, fromWireInput(wire), world, this.traits);
@@ -128,6 +136,11 @@ export class Prediction {
     this.nextUses.push([tx, ty]);
   }
 
+  /** Picks up a pile on the ground (its id): the wish goes with the next input, and the server answers with loot. */
+  pick(id: number): void {
+    this.nextPicks.push(id);
+  }
+
   /** The inputs to send, once every INPUT_BATCH_TICKS ticks; null when it is not time yet. */
   takeBatch(): InputMessage | null {
     if (this.batch.length < INPUT_BATCH_TICKS) return null;
@@ -138,11 +151,13 @@ export class Prediction {
       ...(this.batchDoors.length > 0 ? { d: this.batchDoors } : {}),
       ...(this.batchAttacks.length > 0 ? { k: this.batchAttacks } : {}),
       ...(this.batchUses.length > 0 ? { u: this.batchUses.slice(0, MAX_USES_PER_MESSAGE) } : {}),
+      ...(this.batchPicks.length > 0 ? { g: this.batchPicks.slice(0, MAX_PICKS_PER_MESSAGE) } : {}),
     };
     this.batch = [];
     this.batchDoors = [];
     this.batchAttacks = [];
     this.batchUses = [];
+    this.batchPicks = [];
     return message;
   }
 

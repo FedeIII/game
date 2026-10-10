@@ -4,7 +4,7 @@ import { decodeFixture, type Fixture } from './fixtures.ts';
 import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
 import type { Gate } from './traits.ts';
-import type { LootTable } from './items.ts';
+import type { ItemKind, LootTable } from './items.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
 export const Ground = {
@@ -392,6 +392,11 @@ export interface WorldDefinition {
   readonly examine: Readonly<Record<string, string>>;
   /** How dark the night is, from 0 (no darkness) to 1 (full). */
   readonly darkness: number;
+  /**
+   * A line about each kind of item, for the pack panel: what it is, and what it is for in this
+   * world (who buys it, what it goes into). The engine adds what a drink does.
+   */
+  readonly items?: Readonly<Partial<Record<ItemKind, string>>>;
   /**
    * Whether visitors share this world through the multiplayer server: each one sees the others,
    * and the server owns the state (positions, doors). Without it, the world is single-player.

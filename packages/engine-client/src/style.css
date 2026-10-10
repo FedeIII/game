@@ -410,6 +410,25 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
   cursor: pointer;
 }
 
+/* Every slot is in use: a small red mark in the corner of the button. */
+#pack-button.full::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: var(--ui-accent);
+  box-shadow: 0 0 6px var(--ui-accent-glow);
+}
+
+/* Something came into the pack: the button shines a moment. */
+#pack-button.gain {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 12px var(--ui-accent-glow);
+}
+
 /* With a pack button, the worlds button goes one place to the left (two with a map button too). */
 body:has(#pack-button) #worlds-button {
   right: calc(108px + env(safe-area-inset-right));
@@ -489,6 +508,11 @@ body:has(#pack-button):has(#map-button) #worlds-button {
   right: calc(12px + env(safe-area-inset-right));
   box-sizing: border-box;
   width: min(300px, calc(100vw - 24px));
+  /* It scrolls on a short screen (the page itself never scrolls). */
+  max-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 10px 14px 12px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
@@ -520,7 +544,8 @@ body:has(#pack-button):has(#map-button) #worlds-button {
 }
 
 .pack-coins canvas,
-.pack-slot canvas {
+.pack-slot canvas,
+.belt-drink canvas {
   width: 32px;
   height: 32px;
   image-rendering: pixelated;
@@ -558,7 +583,9 @@ body:has(#pack-button):has(#map-button) #worlds-button {
   background: transparent;
 }
 
-.pack-drink {
+/* A used slot is a button: a press chooses it, and the detail under the slots shows it. */
+.pack-pick {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -570,9 +597,172 @@ body:has(#pack-button):has(#map-button) #worlds-button {
   cursor: pointer;
 }
 
-.pack-drink:hover,
-.pack-drink:focus-visible {
+.pack-pick:hover,
+.pack-pick:focus-visible {
   box-shadow: inset 0 0 0 1px var(--ui-accent);
+}
+
+.pack-slot.chosen {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+/* The detail of the chosen slot: its icon, its name, what it does, the world's line, its actions. */
+.pack-detail {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.pack-detail[hidden] {
+  display: none;
+}
+
+.pack-detail-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.pack-detail-icon {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-portrait);
+  image-rendering: pixelated;
+}
+
+.pack-detail p {
+  margin: 0 0 3px;
+}
+
+.pack-detail-name {
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+.pack-detail-count {
+  font: 13px var(--ui-mono);
+  opacity: 0.75;
+}
+
+.pack-detail-use {
+  font-size: 14px;
+}
+
+.pack-detail-use.dim,
+.pack-detail-stack {
+  opacity: 0.55;
+}
+
+.pack-detail-about {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.pack-detail-stack {
+  font-size: 12px;
+}
+
+.pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pack-action {
+  position: relative;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: inherit;
+  font: 14px var(--ui-serif);
+  cursor: pointer;
+}
+
+.pack-action:hover,
+.pack-action:focus-visible {
+  border-color: var(--ui-accent);
+}
+
+.pack-action.main {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 8px var(--ui-accent-glow);
+}
+
+/* The key of an action or of a drink of the belt; a touch screen has no keys. */
+.pack-key,
+.belt-key {
+  font: 10px var(--ui-mono);
+  opacity: 0.6;
+}
+
+.pack-key {
+  margin-left: 6px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .pack-key,
+  .belt-key {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- belt (ui/belt.ts) */
+
+/* The drinks under the hit points, in the vitals box (which takes no touch itself). */
+#belt {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+  pointer-events: auto;
+}
+
+#belt[hidden] {
+  display: none;
+}
+
+.belt-drink {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-portrait);
+  color: var(--ui-ink);
+  cursor: pointer;
+}
+
+.belt-drink:hover,
+.belt-drink:focus-visible {
+  border-color: var(--ui-accent);
+}
+
+.belt-drink:active {
+  transform: scale(0.94);
+}
+
+.belt-count {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font: 11px var(--ui-mono);
+  text-shadow: 1px 1px 0 var(--ui-backdrop);
+}
+
+.belt-key {
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  text-shadow: 1px 1px 0 var(--ui-backdrop);
 }
 
 /* A use behind a gate, 1 or 2 short of it (herbs without Medicine): the gate, dim, in a corner. */
