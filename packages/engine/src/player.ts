@@ -1,5 +1,6 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
-import type { SolidMap } from './world.ts';
+import type { PlayerTraits } from './traits.ts';
+import { Ground, type SolidMap } from './world.ts';
 
 /**
  * The movement intent for one tick. Each axis is in [-1, 1] and the length is at most 1. A
@@ -53,6 +54,35 @@ export const ATTACK_ARC = 1.25;
 
 /** The speed at full input, in world pixels per second (5 tiles per second). */
 export const PLAYER_SPEED = 80;
+/** In shallow water a player who can wade walks at this share of the speed, and cannot attack. */
+export const WADE_SPEED = 0.5;
+
+/** A map for the movement of a player: what is solid, and (to wade) the ground of a tile. */
+export interface PlayerMap extends SolidMap {
+  ground?(tx: number, ty: number): Ground;
+}
+
+/** What stepPlayer() needs of the traits of a player. Without traits: a player who cannot wade. */
+export type StepTraits = Pick<PlayerTraits, 'wade'>;
+const NO_WADE: StepTraits = { wade: false };
+
+/** Whether the centre of a player's feet is in shallow water. */
+export function inShallows(world: PlayerMap, x: number, y: number): boolean {
+  return world.ground?.(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE)) === Ground.Shallows;
+}
+
+const wadeMaps = new WeakMap<PlayerMap, SolidMap>();
+
+/** The map as a player who can wade sees it: shallow water is open (nothing else stands in it). */
+function wadeMap(world: PlayerMap): SolidMap {
+  if (!world.ground) return world;
+  let map = wadeMaps.get(world);
+  if (!map) {
+    map = { solidBox: (tx, ty) => (world.ground!(tx, ty) === Ground.Shallows ? null : world.solidBox(tx, ty)) };
+    wadeMaps.set(world, map);
+  }
+  return map;
+}
 
 /** The feet hitbox is 10 x 6 pixels. Only the feet collide, so the head can overlap a wall. */
 export const PLAYER_HALF_WIDTH = 5;
@@ -207,10 +237,11 @@ export function resumePoint(
 /**
  * Advances one player by one tick. This is the authoritative rule: the client runs it for
  * prediction and the server runs it to decide the true state. A stunned player and a player
- * that strikes stand still. Returns true if an attack starts in this tick: the caller finds
- * what it hits (a client alone, or the server).
+ * that strikes stand still. A player who can wade (`traits`) walks in shallow water, slowly, and
+ * does not attack there. Returns true if an attack starts in this tick: the caller finds what it
+ * hits (a client alone, or the server).
  */
-export function stepPlayer(player: PlayerState, input: MoveInput, world: SolidMap, dt = TICK_SECONDS): boolean {
+export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = NO_WADE, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
   if (player.stun > 0) {
     player.stun--;
@@ -227,7 +258,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: SolidMa
     return false;
   }
   const move = clampInput(input);
-  if (move.attack !== undefined && player.cooldown === 0) {
+  const wading = traits.wade && inShallows(world, player.x, player.y);
+  if (move.attack !== undefined && player.cooldown === 0 && !wading) {
     player.attack = ATTACK_TICKS;
     player.cooldown = ATTACK_COOLDOWN_TICKS;
     player.aim = move.attack;
@@ -236,11 +268,13 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: SolidMa
     player.vy = 0;
     return true;
   }
-  player.vx = move.x * PLAYER_SPEED;
-  player.vy = move.y * PLAYER_SPEED;
+  const speed = wading ? PLAYER_SPEED * WADE_SPEED : PLAYER_SPEED;
+  player.vx = move.x * speed;
+  player.vy = move.y * speed;
   player.facing = facingFor(player.facing, move);
   // One axis at a time, so the player slides along a wall instead of a full stop.
-  moveAxis(player, world, player.vx * dt, 0);
-  moveAxis(player, world, 0, player.vy * dt);
+  const solid = traits.wade ? wadeMap(world) : world;
+  moveAxis(player, solid, player.vx * dt, 0);
+  moveAxis(player, solid, 0, player.vy * dt);
   return false;
 }

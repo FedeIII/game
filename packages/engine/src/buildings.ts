@@ -1,4 +1,5 @@
 import { fixtureTiles, type Fixture } from './fixtures.ts';
+import type { Gate } from './traits.ts';
 
 /**
  * The building model: a rectangle of walls with one door in the south wall, a floor inside, and
@@ -61,6 +62,12 @@ export interface Building {
    * (the player says it) and the door stays closed. NPCs do not walk through it.
    */
   readonly locked?: string;
+  /**
+   * A door with boards nailed across it: it stays closed until a character that passes the gate
+   * (a score: Strength 13, for example) forces it. Then it is an ordinary door, until the world
+   * bars it again (loot.ts). NPCs do not walk through it.
+   */
+  readonly barred?: Gate;
 }
 
 export function inRect(building: Building, tx: number, ty: number): boolean {

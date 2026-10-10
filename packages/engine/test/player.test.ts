@@ -4,13 +4,17 @@ import {
   PLAYER_SPEED,
   TICK_RATE,
   TILE_SIZE,
+  WADE_SPEED,
+  World,
   clampInput,
   createPlayer,
   facingFor,
+  inShallows,
   stepPlayer,
   type Box,
   type SolidMap,
 } from '../src/index.ts';
+import { textSource } from './helpers.ts';
 
 const OPEN: SolidMap = { solidBox: () => null };
 const FULL: Box = [0, 0, TILE_SIZE, TILE_SIZE];
@@ -86,5 +90,43 @@ describe('facingFor', () => {
     expect(facingFor('right', { x: Math.SQRT1_2, y: Math.SQRT1_2 })).toBe('right');
     expect(facingFor('down', { x: Math.SQRT1_2, y: Math.SQRT1_2 })).toBe('down');
     expect(facingFor('up', { x: Math.SQRT1_2, y: Math.SQRT1_2 })).toBe('down');
+  });
+});
+
+describe('shallow water', () => {
+  // Grass, then three tiles of shallow water, then deep water.
+  const world = new World(textSource([',,,~', ',,,~', ',,,~']));
+  const wader = { wade: true };
+  /** A player on the grass west of the water, at the height of row 1. */
+  const onShore = () => createPlayer(-8, TILE_SIZE + 8);
+
+  it('stops a player who cannot wade', () => {
+    const player = onShore();
+    steps(TICK_RATE, () => stepPlayer(player, { x: 1, y: 0 }, world));
+    expect(player.x).toBeCloseTo(-PLAYER_HALF_WIDTH, 6);
+  });
+
+  it('lets a wader in, at half speed, and deep water stops it too', () => {
+    const player = createPlayer(TILE_SIZE / 2, TILE_SIZE + 8);
+    stepPlayer(player, { x: 1, y: 0 }, world, wader);
+    expect(player.vx).toBe(PLAYER_SPEED * WADE_SPEED);
+    steps(3 * TICK_RATE, () => stepPlayer(player, { x: 1, y: 0 }, world, wader));
+    expect(player.x).toBeCloseTo(3 * TILE_SIZE - PLAYER_HALF_WIDTH, 6);
+    expect(inShallows(world, player.x, player.y)).toBe(true);
+  });
+
+  it('walks at full speed on land', () => {
+    const player = onShore();
+    player.x = -40;
+    stepPlayer(player, { x: 1, y: 0 }, world, wader);
+    expect(player.vx).toBe(PLAYER_SPEED);
+  });
+
+  it('does not let a wader attack', () => {
+    const player = createPlayer(TILE_SIZE / 2, TILE_SIZE + 8);
+    expect(stepPlayer(player, { x: 0, y: 0, attack: 0 }, world, wader)).toBe(false);
+    expect(player.attack).toBe(0);
+    const dry = onShore();
+    expect(stepPlayer(dry, { x: 0, y: 0, attack: 0 }, world, wader)).toBe(true);
   });
 });

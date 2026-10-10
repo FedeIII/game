@@ -3,10 +3,15 @@ import {
   Prediction,
   Remotes,
   TILE_SIZE,
+  fromWirePack,
+  fromWireStacks,
   parseServerMessage,
   stepPlayer,
   useDoor,
   type ClientMessage,
+  type Loot,
+  type Pack,
+  type PlayerTraits,
   type DoorResult,
   type Feet,
   type MoveInput,
@@ -21,6 +26,14 @@ import {
 
 /** connecting: no welcome yet; online: in the shared world; offline: waiting to try again; refused: the server said no. */
 export type NetStatus = 'connecting' | 'online' | 'offline' | 'refused';
+
+/** Loot that the server gave the player: from a chest that it opened, or from a mob that it killed. */
+export interface NetLoot {
+  readonly source: 'chest' | 'drop';
+  readonly loot: Loot;
+  /** The pack is full: something stayed in the chest, or was lost. */
+  readonly full: boolean;
+}
 
 /** With more unconfirmed inputs than this (5 s), the connection has stalled: start a new one. */
 const MAX_UNCONFIRMED = 300;
@@ -58,6 +71,10 @@ export class NetSession {
   private readonly remotes = new Remotes();
   private readonly listeners: (() => void)[] = [];
   private readonly barkListeners: ((barks: readonly (readonly [number, number])[]) => void)[] = [];
+  private readonly lootListeners: ((loot: NetLoot) => void)[] = [];
+  /** What the player carries, in the server's last word (null before the welcome). */
+  pack: Pack | null = null;
+  private readonly traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
   private retryMs = RETRY_FIRST_MS;
@@ -69,10 +86,22 @@ export class NetSession {
 
   /**
    * `character`: the id of the account's character that the visitor plays. A server with accounts
-   * takes the look and the name from it (and refuses a visitor without one).
+   * takes the look and the name from it (and refuses a visitor without one). `traits`: what its
+   * scores give; the server makes the same from the stored character.
    */
-  constructor(worldId: string, skin: number, name: string, player: PlayerState, world: World, character: string | null = null, url = serverUrl()) {
+  constructor(
+    worldId: string,
+    skin: number,
+    name: string,
+    player: PlayerState,
+    world: World,
+    traits: PlayerTraits,
+    character: string | null = null,
+    url = serverUrl(),
+  ) {
     this.worldId = worldId;
+    this.traits = traits;
+    this.prediction.traits = traits;
     this.skin = skin;
     this.name = name;
     this.character = character;
@@ -81,6 +110,11 @@ export class NetSession {
     this.url = url;
     document.addEventListener('visibilitychange', () => this.visibility());
     this.connect();
+  }
+
+  /** Calls `listener` with each loot that the server gives the player. */
+  onLoot(listener: (loot: NetLoot) => void): void {
+    this.lootListeners.push(listener);
   }
 
   /** Calls `listener` with the lines that the server's NPCs say: [npc index, line index]. */
@@ -100,7 +134,7 @@ export class NetSession {
 
   /** One tick of the local player. Returns whether an attack starts in it. */
   tick(input: MoveInput): boolean {
-    if (this.status !== 'online') return stepPlayer(this.player, input, this.world);
+    if (this.status !== 'online') return stepPlayer(this.player, input, this.world, this.traits);
     const struck = this.prediction.step(this.player, this.world, input, this.remotes.viewTime(performance.now()));
     const batch = this.prediction.takeBatch();
     if (batch) this.send(batch);
@@ -115,8 +149,15 @@ export class NetSession {
 
   /** Opens or closes a door: at once here, and through the server for everyone. */
   door(tx: number, ty: number, others: readonly Feet[]): DoorResult {
-    if (this.status !== 'online') return useDoor(this.world, this.player, tx, ty);
+    if (this.status !== 'online') return useDoor(this.world, this.player, tx, ty, [], this.traits);
     return this.prediction.door(this.player, this.world, tx, ty, others);
+  }
+
+  /** Opens a chest (a tile of it) through the server, which answers with loot. False while not online. */
+  use(tx: number, ty: number): boolean {
+    if (this.status !== 'online') return false;
+    this.prediction.use(tx, ty);
+    return true;
   }
 
   /** The other players to draw now. */
@@ -201,6 +242,7 @@ export class NetSession {
       case 'welcome': {
         const before = { x: this.player.x, y: this.player.y };
         this.prediction.reset(this.player, this.world, message);
+        this.pack = fromWirePack(message.pk);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
         this.status = 'online';
         this.retryMs = RETRY_FIRST_MS;
@@ -216,6 +258,11 @@ export class NetSession {
         this.remotes.apply(message, now);
         if (this.remotes.count !== count) this.changed();
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
+        if (message.pk) this.pack = fromWirePack(message.pk);
+        for (const [source, coins, stacks, full] of message.l ?? []) {
+          const loot: NetLoot = { source: source === 0 ? 'chest' : 'drop', loot: { coins, items: fromWireStacks(stacks) }, full: full === 1 };
+          for (const listener of this.lootListeners) listener(loot);
+        }
         return;
       }
       case 'refused':

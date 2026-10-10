@@ -1,4 +1,4 @@
-import { Container, Sprite, type Texture } from 'pixi.js';
+import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import { ATTACK_TICKS, facingAngle, type Facing } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
@@ -39,6 +39,11 @@ const DAZED_TINT = 0xb4aaa6;
 /** The stars of a stun circle this high over the head, this wide. */
 const STAR_COUNT = 3;
 const STAR_TINT = 0xffe7a0;
+/** In shallow water the figure sinks this far (world pixels), and its frame ends at the water line. */
+const WADE_DEPTH = 5;
+/** The ripple round a wader: one frame for this long (ms), faster while it walks. */
+const RIPPLE_MS = 220;
+const RIPPLE_WALK_MS = 120;
 
 const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 
@@ -53,6 +58,8 @@ export interface PlayerPose {
   readonly attack?: number;
   readonly stun?: number;
   readonly guard?: number;
+  /** Whether it stands in shallow water (inShallows). */
+  readonly wading?: boolean;
 }
 
 /** The frames of one look of the player: a stand, a walk and an attack for each facing. */
@@ -109,18 +116,31 @@ export class PlayerView {
   private pending = false;
   private wasStunned = false;
   private hitAt = -Infinity;
+  private readonly shadow: Sprite;
+  /** The ripple round the legs of a wader, in front of the body. */
+  private readonly ripple: Sprite;
+  private readonly rippleFrames: Texture[];
+  /** The anchor of every frame (the feet), and the frames cut at the water line, made once each. */
+  private readonly anchor: { readonly x: number; readonly y: number };
+  private readonly wadeFrames = new Map<Texture, Texture>();
+  private wading = false;
 
   constructor(art: Art, textures: PlayerTextures, pending = false) {
     this.textures = textures;
     this.body = new Sprite(textures.stand.down);
     this.ghost = new Sprite(textures.stand.down);
+    this.anchor = { x: this.body.anchor.x, y: this.body.anchor.y };
     this.ghost.alpha = PlayerView.GHOST_ALPHA;
     this.art = art;
     this.slashFrames = PlayerView.effectFrames(art, 'punch');
     this.slash = new Sprite(this.slashFrames[0]![0]);
     this.slash.visible = false;
     this.setAttackStyle('punch');
-    this.root.addChild(new Sprite(art.frame('player/shadow')), this.body, this.slash);
+    this.shadow = new Sprite(art.frame('player/shadow'));
+    this.rippleFrames = art.variants('fx/ripple');
+    this.ripple = new Sprite(this.rippleFrames[0]);
+    this.ripple.visible = false;
+    this.root.addChild(this.shadow, this.body, this.slash, this.ripple);
     for (let i = 0; i < STAR_COUNT; i++) {
       const star = new Sprite(art.frame('fx/star'));
       star.tint = STAR_TINT;
@@ -175,7 +195,8 @@ export class PlayerView {
     // The centre of the feet is also the line that sorts the player against trees and rocks.
     this.root.position.set(x, y);
     this.root.zIndex = y;
-    this.ghost.position.set(x, y);
+    this.wading = state.wading === true;
+    this.ghost.position.set(x, y + (this.wading ? WADE_DEPTH : 0));
     const now = performance.now();
     this.fight(state, now);
 
@@ -197,8 +218,28 @@ export class PlayerView {
       const frames = this.textures.walk[state.facing];
       texture = frames[Math.floor(this.travelled / STRIDE) % frames.length]!;
     }
-    this.body.texture = texture;
-    this.ghost.texture = texture;
+    // In shallow water: the figure lower, its frame cut at the water line, a ripple round it.
+    const shown = this.wading ? this.wadeFrame(texture) : texture;
+    const anchorY = this.wading ? (this.anchor.y * texture.height) / shown.height : this.anchor.y;
+    for (const sprite of [this.body, this.ghost]) {
+      sprite.texture = shown;
+      sprite.anchor.set(this.anchor.x, anchorY);
+    }
+    this.shadow.visible = !this.wading;
+    this.ripple.visible = this.wading;
+    if (this.wading) this.ripple.texture = this.rippleFrames[Math.floor(now / (speed < 1 ? RIPPLE_MS : RIPPLE_WALK_MS)) % this.rippleFrames.length]!;
+  }
+
+  /** A frame without its rows below the water line: WADE_DEPTH above the feet. */
+  private wadeFrame(texture: Texture): Texture {
+    let cut = this.wadeFrames.get(texture);
+    if (!cut) {
+      const { x, y, width } = texture.frame;
+      const height = Math.max(1, Math.round(this.anchor.y * texture.height) - WADE_DEPTH);
+      cut = new Texture({ source: texture.source, frame: new Rectangle(x, y, width, height) });
+      this.wadeFrames.set(texture, cut);
+    }
+    return cut;
   }
 
   /** The attack (an arc and a small lunge), a hit (a red flash), a stun (stars) and the guard after it (a blink). */
@@ -233,7 +274,7 @@ export class PlayerView {
     this.wasStunned = stun > 0;
     const sinceHit = now - this.hitAt;
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
-    this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge));
+    this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge) + (this.wading ? WADE_DEPTH : 0));
     if (!this.pending) {
       this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;

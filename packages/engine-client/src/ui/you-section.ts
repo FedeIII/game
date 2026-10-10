@@ -1,6 +1,7 @@
-import { ABILITIES, type Scores } from '@game/engine';
+import { ABILITIES, type PlayerTraits, type Scores } from '@game/engine';
 import { SKIN_PORTRAIT } from '../../art/skins.ts';
 import { STRINGS } from './strings.ts';
+import { traitsList } from './traits-list.ts';
 
 export interface YouInfo {
   /** The name over the player's head. */
@@ -9,6 +10,8 @@ export interface YouInfo {
   readonly kind: string;
   /** The final ability scores, for a character of an account. */
   readonly scores?: Scores;
+  /** What the scores give in the game. */
+  readonly traits: PlayerTraits;
   /** Whether the character belongs to an account (else it is a guest: nothing is saved). */
   readonly account: boolean;
 }
@@ -21,7 +24,8 @@ export interface YouCallbacks {
 
 /**
  * The "You" section of the settings panel: a picture of the character (standing, facing south),
- * its name, race and class, its ability scores, and the way back to the menu.
+ * its name, race and class, its ability scores, what they give in the game, and the way back to
+ * the menu.
  */
 export class YouSection {
   readonly element: HTMLElement;
@@ -68,6 +72,9 @@ export class YouSection {
       about.append(scores);
     }
     row.append(this.preview, about);
+    const traits = document.createElement('div');
+    traits.className = 'you-traits';
+    traits.append(traitsList(info.traits));
 
     const actions = document.createElement('div');
     actions.className = 'you-actions';
@@ -89,7 +96,7 @@ export class YouSection {
       actions.append(out);
     }
 
-    this.element.append(heading, row, actions);
+    this.element.append(heading, row, traits, actions);
   }
 
   /** Shows the look: the standing frame of its sheet. */

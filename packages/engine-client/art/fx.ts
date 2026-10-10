@@ -273,6 +273,35 @@ function cropped(name: string, image: Image): Frame {
   return { name, image: out, anchor: { x: (CANVAS.pivotX - x0) / out.width, y: (CANVAS.pivotY - y0) / out.height } };
 }
 
+/**
+ * The ripple round the legs of a player in shallow water (fx/ripple/<i>): a broken ring at the
+ * water line, which grows and fades over the frames. It is drawn in its own colours (not tinted):
+ * the pale moonlight on the water, brighter in front.
+ */
+const RIPPLE_FRAMES = 4;
+function ripples(): Frame[] {
+  const W = 19;
+  const H = 7;
+  const frames: Frame[] = [];
+  for (let i = 0; i < RIPPLE_FRAMES; i++) {
+    const image = new Image(W, H);
+    const rx = 5.5 + i * 0.9;
+    const ry = 1.7 + i * 0.35;
+    const alpha = [0xd0, 0xb0, 0x88, 0x60][i]!;
+    for (let k = 0; k < 64; k++) {
+      const angle = (k / 64) * Math.PI * 2;
+      // The ring is broken, and its gaps move round as it grows.
+      if (Math.sin(angle * 3 + i * 1.3) < -0.55) continue;
+      const x = Math.round((W - 1) / 2 + Math.cos(angle) * rx);
+      const y = Math.round((H - 1) / 2 + Math.sin(angle) * ry);
+      const front = Math.sin(angle) > 0;
+      image.set(x, y, (((front ? 0x8aa6aa : 0x5c7478) << 8) | (front ? alpha : Math.round(alpha * 0.7))) >>> 0);
+    }
+    frames.push({ name: `fx/ripple/${i}`, image, anchor: { x: 0.5, y: 0.5 } });
+  }
+  return frames;
+}
+
 export function fxFrames(): Frame[] {
   const frames: Frame[] = [];
   for (const style of ATTACK_STYLES) {
@@ -281,5 +310,6 @@ export function fxFrames(): Frame[] {
     }
   }
   frames.push({ name: 'fx/star', image: star(), anchor: { x: 0.5, y: 0.5 } });
+  frames.push(...ripples());
   return frames;
 }

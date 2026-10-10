@@ -1,4 +1,4 @@
-import type { Ability, CharacterClass, Gender, Interactable, Race } from '@game/engine';
+import type { Ability, CharacterClass, Gender, Interactable, ItemKind, Race } from '@game/engine';
 
 /**
  * Every text of the engine that the player reads, in one place. Do not put a user-facing text in
@@ -15,8 +15,55 @@ export const STRINGS = {
   actionLabel: 'Act',
   openDoor: 'Open the door',
   closeDoor: 'Close the door',
-  /** The label for the door of a building that is shut for good. */
+  /** The label for the door of a building that is shut for good, or barred for a weak character. */
   tryDoor: 'Try the door',
+  /** A barred door (Building.barred): the label for a character strong enough, and what the player says. */
+  forceDoor: 'Force the door',
+  barred: 'Boards are nailed across it. I am not strong enough to break them.',
+  forced: 'The boards break.',
+  /** A chest that gives loot (loot.ts), and what the player says when it opens it. */
+  openChest: 'Open the chest',
+  chestEmpty: 'It is empty.',
+  packFull: 'My pack is full.',
+  /** A chest in a shared world while the connection is down: the server decides what is in it. */
+  chestOffline: 'I cannot open it now. No connection.',
+  found: (things: string): string => `I find ${things}.`,
+  coins: (n: number): string => (n === 1 ? '1 coin' : `${n} coins`),
+  /** An item: with an article ("a silver ring"), and the plural ("silver rings"). */
+  items: {
+    'imp-horn': { a: 'an imp horn', many: 'imp horns' },
+    'brute-tusk': { a: 'a brute tusk', many: 'brute tusks' },
+    candle: { a: 'a candle stub', many: 'candle stubs' },
+    ring: { a: 'a silver ring', many: 'silver rings' },
+    cup: { a: 'a pewter cup', many: 'pewter cups' },
+    herbs: { a: 'a bundle of herbs', many: 'bundles of herbs' },
+  } satisfies Record<ItemKind, { a: string; many: string }>,
+  /** The pack panel (ui/pack-panel.ts). */
+  pack: {
+    button: 'Pack',
+    heading: 'Pack',
+    coins: 'Coins',
+    slots: (used: number, all: number): string => `${used} of ${all} slots`,
+    empty: 'Your pack is empty.',
+    guest: 'A guest: what you find is not saved.',
+    offline: 'Played alone: what you find here is not saved.',
+  },
+  /** What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
+  traits: {
+    heading: 'What your scores give',
+    damage: 'Damage of a blow',
+    damageValue: (n: number, ability: string): string => `${n} (${ability})`,
+    push: 'Knockback',
+    stagger: 'Stagger',
+    share: (share: number): string => (Math.abs(share - 1) < 0.005 ? 'normal' : `${share > 1 ? '+' : '−'}${Math.round(Math.abs(share - 1) * 100)}%`),
+    slots: 'Pack',
+    slotsValue: (n: number): string => `${n} slots`,
+    wade: 'Shallow water',
+    force: 'Barred doors',
+    from: (ability: string, min: number): string => `from ${ability} ${min}`,
+    wadeYes: 'you wade through it',
+    forceYes: 'you break them',
+  },
   readSign: 'Read the sign',
   examine: (name: string): string => `Examine the ${name}`,
   talk: 'Talk',

@@ -1,4 +1,5 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
+import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, attackHits, canBeHit, moveAxis, normalAngle, stunPlayer, type Facing, type PlayerState } from './player.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -6,8 +7,9 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * Mobs: hostile creatures that live in the woods. Each one wanders round its home. When it sees
  * a player, it runs at the player on a curved path, not a straight line; close enough, it winds
  * up and strikes. A hit stuns the player for a moment, and then the mob runs away from the
- * player for a while before it comes back for another attack. One attack of a player kills a
- * mob, which dies with an animation.
+ * player for a while before it comes back for another attack. A player's blow takes health
+ * points from a mob (Blow: the damage comes from the player's scores, traits.ts); the blow that
+ * takes the last one kills it, and it dies with an animation.
  *
  * Mobs that hunt the same player take turns: they attack one after the other. The others hound
  * the player from close by, out of the reach of their blows and of the player's attacks, and the
@@ -59,11 +61,11 @@ export interface MobStats {
   readonly halfHeight: number;
   /** The death animation (ms); then it is gone. */
   readonly deathMs: number;
-  /** The blows that it takes to die. */
+  /** Its health points: a blow takes Blow.damage of them (4 from a player whose scores are all 10). */
   readonly health: number;
-  /** A blow pushes it this far away from the attacker (world pixels), dead or not. */
+  /** A blow pushes it this far away from the attacker (world pixels), dead or not, times Blow.push. */
   readonly knockback: number;
-  /** A blow that does not kill stuns it for this long (ms): its wind-up or its blow stops. */
+  /** A blow that does not kill stuns it for this long (ms), times Blow.stagger: its wind-up or its blow stops. */
   readonly hurtMs: number;
 }
 
@@ -88,7 +90,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 3,
     halfHeight: 2,
     deathMs: 750,
-    health: 1,
+    health: 3,
     knockback: 10,
     hurtMs: 250,
   },
@@ -111,7 +113,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 5,
     halfHeight: 3,
     deathMs: 950,
-    health: 3,
+    health: 12,
     knockback: 18,
     hurtMs: 320,
   },
@@ -137,9 +139,22 @@ export interface Mob {
   state: MobState;
   /** Milliseconds since the state began: the animations need it. */
   stateMs: number;
-  /** The blows that it can still take (MobStats.health at first). */
+  /** The health points that it has left (MobStats.health at first). */
   health: number;
 }
+
+/**
+ * A player's blow (traits.ts): the health points that it takes, and its force as shares of the
+ * mob's MobStats.knockback (the push) and MobStats.hurtMs (the reel).
+ */
+export interface Blow {
+  readonly damage: number;
+  readonly push: number;
+  readonly stagger: number;
+}
+
+/** The blow of a player whose scores are all 10 (GUEST_TRAITS). */
+export const PLAIN_BLOW: Blow = { damage: 4, push: 1, stagger: 1 };
 
 /** Where the mobs of a world may be, and how many there are. */
 export interface MobRules {
@@ -255,9 +270,11 @@ interface Brain {
   stuckMs: number;
   anchorX: number;
   anchorY: number;
-  /** The direction of the blow that killed it. */
+  /** The direction of the last blow, how far it pushes (world pixels), and how long it reels (ms). */
   slideX: number;
   slideY: number;
+  push: number;
+  reelMs: number;
   /** When it joined the line of the mobs that hunt its target (horde ms): the line is in this order. */
   queuedMs: number;
   /** While it hounds: the distance that it keeps from the player, and for how long more (ms). */
@@ -343,6 +360,8 @@ export class Horde {
       anchorY: y,
       slideX: 0,
       slideY: 0,
+      push: 0,
+      reelMs: 0,
       queuedMs: 0,
       ring: MOB_STATS[kind].harass[1],
       ringMs: 0,
@@ -424,11 +443,18 @@ export class Horde {
   /**
    * An attack from `attacker` (the player `attackerId`) in the direction `aim` (radians) hits
    * every living mob in its reach. `at` can give another position of a mob (where the attacker saw
-   * it, a moment ago): a hit there counts too. A blow takes one of a mob's health and pushes it away: the last one
-   * kills it; another one makes it reel (`hurt`), and then it goes for the attacker. Returns the
-   * mobs that it hit: the dead ones are `dying`.
+   * it, a moment ago): a hit there counts too. A blow takes `blow.damage` of a mob's health and
+   * pushes it away: the one that takes the last of it kills it; another one makes it reel
+   * (`hurt`), and then it goes for the attacker. Returns the mobs that it hit: the dead ones are
+   * `dying`.
    */
-  strike(attacker: { readonly x: number; readonly y: number }, aim: number, at?: (mob: Mob) => { x: number; y: number } | null, attackerId?: number): Mob[] {
+  strike(
+    attacker: { readonly x: number; readonly y: number },
+    aim: number,
+    at?: (mob: Mob) => { x: number; y: number } | null,
+    attackerId?: number,
+    blow: Blow = PLAIN_BLOW,
+  ): Mob[] {
     const struck: Mob[] = [];
     let killed = 0;
     for (const mob of this.mobs) {
@@ -444,7 +470,10 @@ export class Horde {
       const d = Math.hypot(dx, dy) || 1;
       brain.slideX = dx / d;
       brain.slideY = dy / d;
-      mob.health--;
+      const stats = MOB_STATS[mob.kind];
+      brain.push = stats.knockback * blow.push;
+      brain.reelMs = stats.hurtMs * blow.stagger;
+      mob.health = Math.max(0, mob.health - blow.damage);
       struck.push(mob);
       if (mob.health <= 0) {
         this.enter(mob, 'dying');
@@ -459,6 +488,11 @@ export class Horde {
     }
     if (killed > 0) this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
     return struck;
+  }
+
+  /** What a mob that a blow just killed drops into its killer's pack (MOB_LOOT), from the horde's own random numbers. */
+  drop(mob: Mob): Loot {
+    return rollLoot(MOB_LOOT[mob.kind], this.random);
   }
 
   /** Whether a mob may be on a tile at all: never in a building, and only where the world lets it hunt. */
@@ -648,7 +682,7 @@ export class Horde {
   /** Reels from a blow: pushed back, facing the attacker; then it goes for the attacker. */
   private reel(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
     this.knock(mob, brain, dt);
-    if (mob.stateMs < MOB_STATS[mob.kind].hurtMs) return;
+    if (mob.stateMs < brain.reelMs) return;
     if (brain.target !== null && players.has(brain.target)) {
       brain.curve = this.newCurve();
       this.enter(mob, 'chase');
@@ -662,7 +696,7 @@ export class Horde {
     const ease = (t: number) => 1 - (1 - Math.max(0, Math.min(1, t))) ** 2;
     const share = ease(mob.stateMs / KNOCKBACK_MS) - ease((mob.stateMs - dt) / KNOCKBACK_MS);
     if (share <= 0) return;
-    const d = share * MOB_STATS[mob.kind].knockback;
+    const d = share * brain.push;
     this.move(mob, brain.slideX * d, brain.slideY * d);
   }
 

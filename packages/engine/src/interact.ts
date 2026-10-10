@@ -2,6 +2,7 @@ import { Structure } from './buildings.ts';
 import { TILE_SIZE } from './constants.ts';
 import { decodeFixture, type Fixture, type FixtureKind } from './fixtures.ts';
 import { PLAYER_HALF_HEIGHT, PLAYER_HALF_WIDTH, type PlayerState } from './player.ts';
+import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
 import { Decor, FULL_BOX, type Box, type TileMap } from './world.ts';
 
 /** The things that a player can act on: decor, fixtures, and doors (which open and close). */
@@ -136,13 +137,19 @@ export function findInteraction(
   return best;
 }
 
-/** A map whose doors can open and close. */
+/** A map whose doors can open and close, and whose barred doors can be forced. */
 export interface DoorMap extends TileMap {
   setDoorOpen(tx: number, ty: number, open: boolean): void;
+  doorBar(tx: number, ty: number): Gate | null;
+  setDoorForced(tx: number, ty: number, forced: boolean): void;
 }
 
-/** What a press on a door did. 'locked': nothing, the door never opens (Building.locked). */
-export type DoorResult = 'opened' | 'closed' | 'blocked' | 'locked';
+/**
+ * What a press on a door did. 'locked': nothing, the door never opens (Building.locked).
+ * 'barred': nothing, the player is not strong enough to force its boards (Building.barred);
+ * 'forced': the boards broke, and the door is open.
+ */
+export type DoorResult = 'opened' | 'closed' | 'blocked' | 'locked' | 'barred' | 'forced';
 
 /**
  * Whether the player is close enough to use the door on (tx, ty): the same range as every
@@ -153,13 +160,39 @@ export function canReachDoor(world: TileMap, player: PlayerState, tx: number, ty
 }
 
 /**
+ * The fixture on (tx, ty) if the player is close enough to act on it there: the same range as
+ * every action. A multiplayer server checks it before it opens a chest for a client.
+ */
+export function reachableFixture(world: TileMap, player: PlayerState, tx: number, ty: number): Fixture | null {
+  const found = interactableAt(world, tx, ty);
+  if (!found?.fixture || gapTo(player, tx, ty, found.box) > INTERACT_RANGE) return null;
+  return found.fixture;
+}
+
+/**
  * Opens or closes the door on (tx, ty). A door does not close on anyone: if the player or one
  * of `others` stands in the doorway, the result is 'blocked' and nothing changes. A locked door
- * stays closed ('locked'). Shared: the client and the multiplayer server apply the same rule.
+ * stays closed ('locked'). A barred door opens only for a player whose scores (`traits`) pass its
+ * gate: then its boards break ('forced'), and it is an ordinary door from then on. Shared: the
+ * client and the multiplayer server apply the same rule.
  */
-export function useDoor(world: DoorMap, player: PlayerState, tx: number, ty: number, others: readonly Feet[] = []): DoorResult {
+export function useDoor(
+  world: DoorMap,
+  player: PlayerState,
+  tx: number,
+  ty: number,
+  others: readonly Feet[] = [],
+  traits?: Pick<PlayerTraits, 'scores'>,
+): DoorResult {
   if (world.structure(tx, ty) !== Structure.Door) throw new Error(`no door at ${tx},${ty}`);
   if (world.isDoorLocked(tx, ty)) return 'locked';
+  const bar = world.doorBar(tx, ty);
+  if (bar) {
+    if (!traits || !meetsGate(traits.scores, bar)) return 'barred';
+    world.setDoorForced(tx, ty, true);
+    world.setDoorOpen(tx, ty, true);
+    return 'forced';
+  }
   if (!world.isDoorOpen(tx, ty)) {
     world.setDoorOpen(tx, ty, true);
     return 'opened';

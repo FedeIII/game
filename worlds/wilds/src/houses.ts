@@ -1,4 +1,4 @@
-import { fixtureTiles, hash01, hash2, random, type Building, type Fixture } from '@game/engine';
+import { FORCE_GATE, fixtureTiles, hash01, hash2, random, type Building, type Fixture } from '@game/engine';
 
 /**
  * Houses of the wilds. The world is cut into cells of BUILDING_CELL x BUILDING_CELL tiles; a
@@ -12,6 +12,12 @@ export const BUILDING_CELL = 24;
  * and the cell east of it always tries, so a house stands near the home.
  */
 const BUILDING_CHANCE = 0.35;
+/**
+ * The chance that a house with a chest has boards nailed across its door (Building.barred): a
+ * character with Strength 13 or more can force them. Never the house east of the home, which
+ * every new character finds first.
+ */
+const BARRED_CHANCE = 0.25;
 /** Tiles between a house and the edge of its cell. */
 const CELL_MARGIN = 2;
 const SEED_OFFSET = 31_337;
@@ -94,5 +100,8 @@ export function generateHouse(seed: number, cellX: number, cellY: number, isWate
     for (let tx = x0 - 1; tx <= x1 + 1; tx++) if (isWater(tx, ty)) return null;
   }
   const doorX = x0 + 2 + Math.floor(rand() * (width - 4));
-  return { id: `${cellX},${cellY}`, x0, y0, x1, y1, doorX, fixtures: furnish(rand, x0, y0, x1, y1, doorX) };
+  const fixtures = furnish(rand, x0, y0, x1, y1, doorX);
+  // Only a house with a chest is barred: forcing the door must be worth it.
+  const barred = !forced && fixtures.some((f) => f.kind === 'chest') && hash01(cellX, cellY, seed + SEED_OFFSET + 2) < BARRED_CHANCE;
+  return { id: `${cellX},${cellY}`, x0, y0, x1, y1, doorX, fixtures, ...(barred ? { barred: FORCE_GATE } : {}) };
 }

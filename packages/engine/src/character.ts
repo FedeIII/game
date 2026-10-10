@@ -1,3 +1,4 @@
+import type { Pack } from './items.ts';
 import { NAME_MAX, cleanName } from './net/protocol.ts';
 
 /**
@@ -109,6 +110,26 @@ export const CLASS_PRIMARY: Readonly<Record<CharacterClass, readonly Ability[]>>
   wizard: ['int'],
 };
 
+/**
+ * The ability that each class attacks with: it gives the damage of a blow (traits.ts). The ability
+ * comes from the class, not from the item in the hand: a wizard with a plain staff strikes with
+ * Intelligence, a cleric with a mace with Wisdom (Fede's decision, 2026-10-10, "Option B").
+ */
+export const ATTACK_ABILITY: Readonly<Record<CharacterClass, Ability>> = {
+  barbarian: 'str',
+  bard: 'dex',
+  cleric: 'wis',
+  druid: 'wis',
+  fighter: 'str',
+  monk: 'dex',
+  paladin: 'str',
+  ranger: 'dex',
+  rogue: 'dex',
+  sorcerer: 'cha',
+  warlock: 'cha',
+  wizard: 'int',
+};
+
 // ---------------------------------------------------------------- the look
 
 /**
@@ -183,6 +204,8 @@ export interface Character extends CharacterSheet {
   readonly playedAt: number | null;
   /** Where it was last, or null (it never played, or it played before the game kept places). */
   readonly place: CharacterPlace | null;
+  /** What it carries (items.ts). In a shared world the server keeps it; a page never writes it. */
+  readonly pack: Pack;
 }
 
 /** The id of a world, as a place names it. */

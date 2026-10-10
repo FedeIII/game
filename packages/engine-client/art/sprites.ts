@@ -14,6 +14,7 @@ import { fixtureFrames } from './fixtures.ts';
 import { fontFrames } from './font.ts';
 import { fxFrames } from './fx.ts';
 import { groundFrames } from './ground.ts';
+import { itemFrames } from './items.ts';
 import { lightFrames } from './lights.ts';
 import { mobFrames } from './mobs.ts';
 import { propFrames } from './props.ts';
@@ -54,6 +55,7 @@ export function buildArt(): Art {
     ...fixtureFrames(),
     ...mobs.frames,
     ...fxFrames(),
+    ...itemFrames(),
   ];
   const walk = (prefix: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `${prefix}/walk/${i}`);
   // Animations: `walk/<view>` for the player, `npcwalk/<look>/<view>` for each NPC look.

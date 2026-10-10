@@ -9,11 +9,13 @@ import {
   SNAPSHOT_RATE,
   World,
   characterSkin,
+  sheetTraits,
   parseClientMessage,
   type ClientMessage,
   type RefusalReason,
   type ServerMessage,
   type WorldDefinition,
+  type JoinCharacter,
 } from '@game/engine';
 import { Accounts, type AccountsOptions } from './accounts.ts';
 import type { User } from './store.ts';
@@ -216,6 +218,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       let skin = message.skin;
       let name = message.name;
       let place: { x: number; y: number } | undefined;
+      let stored: JoinCharacter | undefined;
       if (accounts) {
         // The look, the name and the place of a player come from its stored character, not from the client.
         const character = client.user && message.character ? accounts.characterOf(client.user, message.character) : null;
@@ -224,8 +227,10 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
         name = character.name;
         if (character.place?.world === message.world) place = character.place;
         client.character = character.id;
+        // What its scores give, and what it carries: from the stored character too.
+        stored = { traits: sheetTraits(character), pack: character.pack };
       }
-      const player = room.join(t, skin, message.at, name, place);
+      const player = room.join(t, skin, message.at, name, place, stored);
       if (!player) return refuse('full');
       client.room = room;
       client.world = message.world;
@@ -242,12 +247,13 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     client.room.input(client.playerId, message, t);
   }
 
-  /** Notes where the character of a client is now (with accounts, in a room). */
+  /** Notes where the character of a client is now, and what it carries (with accounts, in a room). */
   function savePlace(client: Client): void {
-    const state = client.room?.player(client.playerId)?.state;
-    if (!accounts || !client.user || !client.character || !state) return;
+    const player = client.room?.player(client.playerId);
+    if (!accounts || !client.user || !client.character || !player) return;
     try {
-      accounts.savePlace(client.user, client.character, { world: client.world, x: state.x, y: state.y });
+      accounts.savePlace(client.user, client.character, { world: client.world, x: player.state.x, y: player.state.y });
+      accounts.savePack(client.user, client.character, player.pack);
     } catch (error) {
       log(`place: ${(error as Error).message}`);
     }

@@ -67,7 +67,8 @@ export class OtherPlayers {
     return n;
   }
 
-  update(players: readonly RemotePlayer[], seconds: number, view: Rect): void {
+  /** `wading` tells if a point (the feet) is in shallow water: then the figure stands in it. */
+  update(players: readonly RemotePlayer[], seconds: number, view: Rect, wading: (x: number, y: number) => boolean = () => false): void {
     const present = new Set<number>();
     for (const player of players) {
       present.add(player.id);
@@ -78,7 +79,7 @@ export class OtherPlayers {
       other.here = true;
       other.x = player.x;
       other.y = player.y;
-      other.view.update(player.x, player.y, player, seconds);
+      other.view.update(player.x, player.y, { ...player, wading: wading(player.x, player.y) }, seconds);
       other.tag.place(player.x, player.y, other.view.headHeight, view, other.alpha);
     }
     const step = seconds / FADE_SECONDS;

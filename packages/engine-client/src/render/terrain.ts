@@ -13,11 +13,13 @@ const GROUND_NAME: Record<Ground, string> = {
   [Ground.Cobble]: 'cobble',
   [Ground.FloorStone]: 'floorstone',
   [Ground.FloorEarth]: 'floorearth',
+  [Ground.Shallows]: 'shallows',
 };
 
 /** A ground type with a higher order draws its edge over a neighbour with a lower order. */
 const BLEND_ORDER: Record<Ground, number> = {
   [Ground.Water]: 0,
+  [Ground.Shallows]: 0.5,
   [Ground.Sand]: 1,
   [Ground.Cobble]: 2,
   [Ground.Dirt]: 3,

@@ -13,8 +13,10 @@ interface GroundStyle {
 }
 
 /** In blend order: a type later in this list draws its edge over a type earlier in it. */
-export const GROUND: Record<'water' | 'sand' | 'cobble' | 'dirt' | 'grass' | 'darkgrass', GroundStyle> = {
+export const GROUND: Record<'water' | 'shallows' | 'sand' | 'cobble' | 'dirt' | 'grass' | 'darkgrass', GroundStyle> = {
   water: { ramp: ramp('#070d10', '#0b1418', '#101b20', '#16242a', '#203339', '#3a525a'), variants: 5 },
+  // Shallow water: lighter than the deep water, with the sandy bottom showing through.
+  shallows: { ramp: ramp('#111816', '#18211e', '#1f2a26', '#27332e', '#33403a', '#4e605a'), variants: 5 },
   sand: { ramp: ramp('#1d1b17', '#26231e', '#2f2b25', '#39342c', '#454036', '#5a554a'), variants: 5 },
   cobble: { ramp: ramp('#0f0e0d', '#191715', '#221f1c', '#2c2824', '#38332e', '#46403a'), variants: 4 },
   dirt: { ramp: ramp('#15110d', '#1c1712', '#241d17', '#2d251d', '#382e24', '#4a4440'), variants: 6 },
@@ -119,12 +121,31 @@ function waterTile(style: GroundStyle, seed: number): Image {
   return image;
 }
 
+/** Shallow water: the mottle, the dark and pale stones of the bottom, and a glint of moonlight. */
+function shallowsTile(style: GroundStyle, seed: number): Image {
+  const rand = random(seed);
+  const image = mottle(style, seed, 1.1);
+  for (let i = 0; i < 7; i++) {
+    const x = int(rand, TILE);
+    const y = int(rand, TILE - 1);
+    image.set(x, y, style.ramp[3]!);
+    image.set(x, y + 1, style.ramp[0]!);
+  }
+  const x = int(rand, TILE);
+  const y = int(rand, TILE);
+  const length = 2 + int(rand, 2);
+  for (let k = 0; k < length; k++) image.set((x + k) % TILE, y, style.ramp[k === 0 || k === length - 1 ? 4 : 5]!);
+  return image;
+}
+
 export function groundTile(name: GroundName, variant: number): Image {
   const style = GROUND[name];
   const seed = 1000 * (Object.keys(GROUND).indexOf(name) + 1) + variant;
   switch (name) {
     case 'water':
       return waterTile(style, seed);
+    case 'shallows':
+      return shallowsTile(style, seed);
     case 'sand':
       return stonyTile(style, seed, 9);
     case 'cobble':

@@ -1,5 +1,5 @@
 import { fbm, hash01 } from './noise.ts';
-import { Decor, Ground } from './world.ts';
+import { Decor, Ground, isWet } from './world.ts';
 
 /**
  * A toolkit for natural terrain from a seed: lakes with sandy shores, winding mud paths, two
@@ -15,10 +15,19 @@ const FOREST = 19_009;
 const SCATTER = 23_011;
 const TREE_PICK = 29_017;
 
+/**
+ * The elevation of the ground: below SHALLOWS it is deep water, below SHORE shallow water (a band
+ * at the shore of each lake, and all of a small pond), below SAND a sandy shore.
+ */
+const SHALLOWS = 0.31;
+const SHORE = 0.34;
+const SAND = 0.37;
+
 export function naturalGround(seed: number, tx: number, ty: number): Ground {
   const elevation = fbm(tx / 56, ty / 56, seed + ELEVATION, 4);
-  if (elevation < 0.34) return Ground.Water;
-  if (elevation < 0.37) return Ground.Sand;
+  if (elevation < SHALLOWS) return Ground.Water;
+  if (elevation < SHORE) return Ground.Shallows;
+  if (elevation < SAND) return Ground.Sand;
   const path = Math.abs(fbm(tx / 44, ty / 44, seed + PATHS, 3) - 0.5);
   if (path < 0.0105) return Ground.Dirt;
   return fbm(tx / 18, ty / 18, seed + LUSH, 3) > 0.55 ? Ground.DarkGrass : Ground.Grass;
@@ -45,7 +54,7 @@ export function hasTree(seed: number, tx: number, ty: number, threshold = 0.53):
 }
 
 export function naturalDecor(seed: number, tx: number, ty: number, ground: Ground, treeThreshold = 0.53): Decor {
-  if (ground === Ground.Water) return Decor.None;
+  if (isWet(ground)) return Decor.None;
   if (isGrass(ground) && hasTree(seed, tx, ty, treeThreshold)) return Decor.Tree;
   const roll = hash01(tx, ty, seed + SCATTER);
   if (roll < 0.006 && ground !== Ground.Sand) return Decor.Rock;

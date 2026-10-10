@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ABILITIES,
+  GUEST_TRAITS,
   INPUT_BATCH_TICKS,
   MAX_INPUTS_PER_MESSAGE,
+  MAX_USES_PER_MESSAGE,
   NO_INPUT,
   MOB_SEND_RADIUS,
   PROTOCOL_VERSION,
@@ -21,14 +24,17 @@ import {
   parseClientMessage,
   random,
   toWireInput,
+  traitsOf,
+  type Ability,
   type InputMessage,
+  type PlayerTraits,
   type MoveInput,
   type PlayerState,
   type ServerMessage,
   type SnapshotMessage,
   type WorldSource,
 } from '../src/index.ts';
-import { houseSource, mobHouseSource } from './helpers.ts';
+import { LOOT_CHEST, houseSource, lootHouseSource, mobHouseSource, textSource } from './helpers.ts';
 
 const TICK_MS = 1000 / TICK_RATE;
 const SNAPSHOT_MS = 1000 / SNAPSHOT_RATE;
@@ -49,11 +55,14 @@ class SimClient {
   /** Ticks per real tick: 2 is a client with a clock twice too fast. */
   readonly speed: number;
   readonly skin = Math.floor(Math.random() * 0xffffffff);
+  readonly traits: PlayerTraits;
 
-  constructor(input: (tick: number) => MoveInput, speed = 1, source: () => WorldSource = houseSource) {
+  constructor(input: (tick: number) => MoveInput, speed = 1, source: () => WorldSource = houseSource, traits: PlayerTraits = GUEST_TRAITS) {
     this.input = input;
     this.speed = speed;
     this.world = new World(source());
+    this.traits = traits;
+    this.prediction.traits = traits;
   }
 
   receive(message: ServerMessage, nowMs: number): void {
@@ -94,7 +103,7 @@ class SimNetwork {
     this.clients.push(client);
     client.nextTickMs = this.nowMs;
     this.later(this.nowMs + this.latencyMs, () => {
-      const player = this.room.join(this.nowMs, client.skin, at);
+      const player = this.room.join(this.nowMs, client.skin, at, '', undefined, { traits: client.traits });
       if (!player) throw new Error('room full');
       const welcome = this.room.welcome(player);
       this.later(this.nowMs + this.latencyMs, () => client.receive(welcome, this.nowMs));
@@ -550,7 +559,7 @@ describe('mobs in a shared world', () => {
     expect(snap!.you).toHaveLength(10);
   });
 
-  it('kill a brute with the third blow, and send what it has left', () => {
+  it('kill a brute with the third plain blow, and send what it has left', () => {
     const room = new Room(new World(mobHouseSource()));
     const p = room.join(0, 1, [5, 10])!;
     const brute = room.horde!.spawn('brute', p.state.x + 20, p.state.y);
@@ -559,7 +568,7 @@ describe('mobs in a shared world', () => {
       room.broadcast(0, (_id, message) => (snap = message));
       return snap!.m!.find((m) => m[0] === brute.id)?.[9];
     };
-    expect(healthSent()).toBe(3);
+    expect(healthSent()).toBe(12);
     // Three attacks, the cooldown apart (no tick between: the brute stays in reach).
     const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
     room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
@@ -569,3 +578,112 @@ describe('mobs in a shared world', () => {
   });
 });
 
+
+const strength = (str: number): PlayerTraits =>
+  traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter');
+/** The last snapshot that the room sends to player `id`. */
+function snapshotOf(room: Room, id: number, nowMs = 0): SnapshotMessage {
+  let found: SnapshotMessage | null = null;
+  room.broadcast(nowMs, (to, m) => {
+    if (to === id) found = m;
+  });
+  return found!;
+}
+
+describe('Strength in a shared world', () => {
+  it('reads chest uses in inputs, at most MAX_USES_PER_MESSAGE', () => {
+    expect(parseClientMessage('{"t":"in","s":1,"i":[[0,0]],"u":[[1,4,4]]}')).toEqual({ t: 'in', s: 1, i: [[0, 0]], u: [[1, 4, 4]] });
+    const many = JSON.stringify(Array(MAX_USES_PER_MESSAGE + 1).fill([1, 4, 4]));
+    for (const bad of ['{"t":"in","s":1,"i":[[0,0]],"u":[[0,4,4]]}', '{"t":"in","s":1,"i":[[0,0]],"u":[[1,4]]}', `{"t":"in","s":1,"i":[[0,0]],"u":${many}}`]) {
+      expect(parseClientMessage(bad), bad).toBeNull();
+    }
+  });
+
+  it('lets a strong client force a barred door, and the others see it forced, with no correction', () => {
+    const net = new SimNetwork(40, () => lootHouseSource(true));
+    const strong = new SimClient(north, 1, () => lootHouseSource(true), strength(14));
+    const weak = new SimClient(() => NO_INPUT, 1, () => lootHouseSource(true), strength(12));
+    net.connect(strong, [5, 8]);
+    net.connect(weak, [6, 9]);
+    net.run(1000);
+    expect(weak.prediction.door(weak.player, weak.world, 5, 6, [])).toBe('barred');
+    expect(strong.prediction.door(strong.player, strong.world, 5, 6, [])).toBe('forced');
+    net.run(1500);
+    expect(net.room.world.forcedDoorList()).toEqual([[5, 6]]);
+    expect(net.room.world.isDoorOpen(5, 6)).toBe(true);
+    expect(weak.world.forcedDoorList()).toEqual([[5, 6]]);
+    expect(weak.world.doorBar(5, 6)).toBeNull();
+    expect(strong.player.y).toBeLessThan(6 * TILE_SIZE);
+    expect(strong.worstCorrection).toBeLessThan(1e-9);
+  });
+
+  it('does not let a weak client through a barred door, whatever it says', () => {
+    const room = new Room(new World(lootHouseSource(true)));
+    const p = room.join(0, 1, [5, 7], '', undefined, { traits: strength(12) })!;
+    p.state.x = 5 * TILE_SIZE + 8;
+    p.state.y = 7 * TILE_SIZE + 4;
+    room.input(p.id, { t: 'in', s: 1, i: [[0, 0]], d: [[1, 5, 6, 1]] }, 0);
+    expect(room.world.isDoorOpen(5, 6)).toBe(false);
+    expect(room.world.forcedDoorList()).toEqual([]);
+  });
+
+  it('predicts a wading client exactly, and the server keeps a weak one on the shore', () => {
+    const source = () => textSource(['....,,,,~~~~', '....,,,,~~~~', '....,,,,~~~~', '....,,,,~~~~']);
+    const east = () => ({ x: 1, y: 0 });
+    const net = new SimNetwork(40, source);
+    const strong = new SimClient(east, 1, source, strength(13));
+    const weak = new SimClient(east, 1, source, strength(12));
+    net.connect(strong, [1, 1]);
+    net.connect(weak, [1, 2]);
+    net.run(3000);
+    // Into the shallows (to the deep water), and no further; the other stopped at the shore.
+    expect(strong.player.x).toBeCloseTo(8 * TILE_SIZE - 5, 3);
+    expect(weak.player.x).toBeCloseTo(4 * TILE_SIZE - 5, 3);
+    expect(strong.worstCorrection).toBeLessThan(1e-9);
+    expect(weak.worstCorrection).toBeLessThan(1e-9);
+  });
+
+  it('opens a chest in reach once: the loot goes into the pack and comes in the next snapshot', () => {
+    const room = new Room(new World(lootHouseSource()));
+    const p = room.join(0, 1, [5, 9])!;
+    expect(room.welcome(p).pk).toEqual([0, []]);
+    expect(room.welcome(p).fd).toEqual([]);
+    // Out of reach: nothing.
+    room.input(p.id, { t: 'in', s: 1, i: [[0, 0]], u: [[1, LOOT_CHEST.tx, LOOT_CHEST.ty]] }, 0);
+    expect(snapshotOf(room, p.id).l).toBeUndefined();
+    // Next to the chest (the corridor tile east of it).
+    p.state.x = 5 * TILE_SIZE + 8;
+    p.state.y = 4 * TILE_SIZE + 8;
+    room.input(p.id, { t: 'in', s: 2, i: [[0, 0]], u: [[2, LOOT_CHEST.tx, LOOT_CHEST.ty]] }, 10);
+    const got = snapshotOf(room, p.id);
+    expect(got.l).toEqual([[0, 3, [[3, 1]], 0]]);
+    expect(got.pk).toEqual([3, [[3, 1]]]);
+    expect(p.pack).toEqual({ coins: 3, items: [{ kind: 'ring', count: 1 }] });
+    // The pack goes only when it changes; the chest is empty now.
+    room.input(p.id, { t: 'in', s: 3, i: [[0, 0]], u: [[3, LOOT_CHEST.tx, LOOT_CHEST.ty]] }, 20);
+    const again = snapshotOf(room, p.id);
+    expect(again.l).toEqual([[0, 0, [], 0]]);
+    expect(again.pk).toBeUndefined();
+  });
+
+  it('starts a player with the pack of its character', () => {
+    const room = new Room(new World(houseSource()));
+    const p = room.join(0, 1, undefined, '', undefined, { traits: strength(10), pack: { coins: 9, items: [{ kind: 'cup', count: 2 }] } })!;
+    expect(room.welcome(p).pk).toEqual([9, [[4, 2]]]);
+  });
+
+  it("gives the coins of a brute to the client that killed it", () => {
+    const room = new Room(new World(mobHouseSource()));
+    const p = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10) })!;
+    room.horde!.spawn('brute', p.state.x + 20, p.state.y);
+    const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
+    room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
+    expect(room.kills).toBe(1);
+    const snap = snapshotOf(room, p.id);
+    expect(snap.l).toHaveLength(1);
+    expect(snap.l![0]![0]).toBe(1);
+    expect(p.pack.coins).toBeGreaterThanOrEqual(2);
+    expect(p.pack.coins).toBeLessThanOrEqual(6);
+    expect(snap.pk![0]).toBe(p.pack.coins);
+  });
+});

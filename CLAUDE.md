@@ -98,7 +98,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores give (`traits.ts`), items and the pack (`items.ts`), the loot of chests and the barred doors over time (`loot.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -146,7 +146,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
-  `speech-bubble.ts` (pages of text over a head, above the darkness), `cursor.ts` (the mouse
+  `speech-bubble.ts` (pages of text over a head, above the darkness), `loot-text.ts` (what a kill
+  drops, "+3 COINS", rising over the player's head in the small font), `cursor.ts` (the mouse
   cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
   filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
@@ -159,7 +160,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
-  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, "Main menu" and "Sign out"), `panels.ts` (one top-right panel at a time),
+  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
+  `pack-panel.ts` (top right, left of the settings, a bag icon: the coins and the slots of the pack, with the item icons), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
@@ -253,14 +255,18 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
   (`fx/star`). `fxPlacement()` (`attacks.ts`) gives the 16 directions: a drawn turn, then a
   mirror and quarter turns, which keep the pixel grid. Do not rotate an effect by another angle.
-- `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, cobblestones)
-  and the ragged edge pieces. `decor.ts`: small decor as text grids.
+  Also the ripple round a player in shallow water (`fx/ripple/<0-3>`, in its own colours).
+- `ground.ts`: ground tiles from tiling noise (grass, moss, mud, gravel, water, shallow water,
+  cobblestones) and the ragged edge pieces. `decor.ts`: small decor as text grids.
+- `items.ts`: the item icons, SDF models of 16 x 16 (`item/<kind>` for each `ITEM_KINDS`, and
+  `item/coin`), with materials of their own, a little lighter than the world's: the pack panel
+  shows them at 2x on a dark slot.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
   tints; frames `font/<char code>`; metrics in `meta.font`), with Spanish lowercase accents,
   ñ, ¿, ¡, ·, dashes. Accented capitals and curly quotes draw as plain ones. The small font
-  (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _`; frames `smallfont/<char code>`;
+  (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _ +`; frames `smallfont/<char code>`;
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
   one; it is for the names over other players. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
@@ -287,7 +293,7 @@ For the HTML GUI:
   translucent panel, thin dried-blood-red border, 2 px corners, parchment text, wine-red accent
   with a soft glow for "active", Georgia serif for words, monospace for numbers.
 - Bottom left: the joystick at rest. Bottom right: the action button. Bottom centre, above
-  them: the link card. Top right: the worlds button and the settings button. Bottom centre, over
+  them: the link card. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
 - Every engine text the player reads goes in `src/ui/strings.ts`; what things say is content and
@@ -330,7 +336,8 @@ GUI style, over the whole page (it scrolls on a phone):
 (`appearanceSeed()` / `appearanceOf()`, see `skins.ts` under "Art"). A character is a
 `CharacterSheet` (name, race, class, gender, variant, base scores, bonus choices) with an id and
 its times. Its skin seed is `characterSkin(sheet)`. Its texts (names of races, classes and
-abilities, one line about each) are in `ui/strings.ts`. The scores do nothing in the game yet.
+abilities, one line about each) are in `ui/strings.ts`. What the scores do in the game: "Ability
+scores in the game", below.
 
 **The place of a character** (since 2026-10-10): the store keeps where each character was last
 (`Character.place`: world, and the centre of its feet in world pixels; `checkPlace()`; the column
@@ -365,6 +372,45 @@ to start without the Google client or with `AUTH_DEV_LOGIN`. Production keeps th
 `/etc/game/secret.env` and the database in `/var/lib/game/game.db`, with a nightly copy that
 gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase`). See
 `deploy/README.md`, "Accounts".
+
+## Ability scores in the game
+
+The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
+one ability at a time (Strength is done; Dexterity, Constitution, Intelligence, Wisdom and
+Charisma come next). `packages/engine/src/traits.ts` gives `PlayerTraits`, what the scores of a
+character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` (every score 10:
+a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
+pack })`); the page makes the same from the same character, so the prediction stays exact. A
+client never sends its traits. Two kinds of effect: a scale (a number changes with the modifier,
+-1 to +3) and a gate (`Gate`: a fixed limit on a score, 13 by default; `meetsGate()`), never a
+roll of a die.
+
+- **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
+  ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
+  ranger, rogue; WIS cleric, druid; INT wizard; CHA sorcerer, warlock. The class decides, not the
+  item in the hand. A blow takes `damage` = 4 + that modifier from a mob's health.
+- **Strength**, for every class: the push of a blow (`push`: `knockback` x (1 + 0.15 x mod)), how
+  long a mob reels (`stagger`: `hurtMs` x (1 + 0.2 x mod)), the slots of the pack (6 + 2 x mod: 4
+  to 12), and two gates of 13: wading through shallow water (`WADE_GATE`; `stepPlayer(...,
+  traits)`: half speed, no attack there) and forcing a barred door (`FORCE_GATE`,
+  `Building.barred`).
+- **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
+  stack (`ITEM_STACK`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
+  of herbs; none has a use yet. A kill drops loot into the killer's pack (`MOB_LOOT`,
+  `Horde.drop()`: an imp a horn in one kill of three; a brute 2 to 6 coins, and a tusk in one of
+  two); what does not fit is lost, and the player says "My pack is full." In a shared world the
+  server owns the pack, and the store keeps it (`Character.pack`, the column `pack`, saved with
+  the place); in a world that the page runs, the page has its own, which it does not save.
+- **Loot over time** (`loot.ts`, `Spoils`; a Room has one, a page that runs its world has its
+  own): `WorldSource.loot(fixture)` gives a loot table for a chest. One loot per chest for
+  everybody: the first one takes it (what does not fit stays in the chest), and the chest fills
+  again 30 minutes after it was emptied. A forced door gets its boards again after 30 minutes with
+  nobody within 30 tiles, and the chest of its house fills again then (only then).
+
+In the client: the builder (step 2) and the "You" section show the traits in words and numbers
+(`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
+player says what it found; a barred door says "Force the door" (strong enough) or "Try the
+door". The protocol: `docs/multiplayer.md`, protocol 11.
 
 ## Arrival in a world
 
@@ -416,10 +462,13 @@ in radians; `PlayerState.aim` keeps it, and the body faces the nearest side), so
 `stepPlayer` stays the one rule for prediction: an attack lasts `ATTACK_TICKS` (the player stands
 still), and the next can start `ATTACK_COOLDOWN_TICKS` after it. `stepPlayer` returns true when
 an attack starts; the caller asks the horde what it hits (`Horde.strike`: in reach, in front;
-`attackHits`). A blow takes one of the mob's `health` (imp 1, brute 3) and pushes it away from
-the attacker (`knockback`: imp 10 px, brute 18 px, over 0.2 s). The last blow kills it: it
+`attackHits`). A blow (`Blow`, from the player's traits) takes `damage` health points from the
+mob (imp 3, brute 12; a blow does 3 to 7) and pushes it away from the attacker (`knockback`: imp
+10 px, brute 18 px, over 0.2 s, times the Strength of the attacker). The blow that takes the last
+of it kills it, and drops loot into the killer's pack (see "Ability scores in the game"): it
 flashes white, falls, fades, and ash rises. Another blow makes it reel (state `hurt`: a flash and
-a recoil frame, `hurtMs`): its wind-up or its blow breaks off, and then it goes for the attacker.
+a recoil frame, `hurtMs` times the Strength of the attacker): its wind-up or its blow breaks off,
+and then it goes for the attacker.
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
@@ -509,7 +558,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall)
   and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge), and `locked` (a
   building that is shut for good: its door never opens, `World.isDoorLocked()`, and a press on it
-  shows that line; NPCs may not have its door in their area). The engine does not read the style
+  shows that line; NPCs may not have its door in their area), and `barred` (a gate: boards are
+  nailed across the door, and only a character whose scores pass the gate forces it: `useDoor()`
+  gives `'forced'` or `'barred'`; then it is an ordinary door, `World.doorBar()` is null, and
+  `World.forcedDoorList()` has it, until `Spoils` bars it again). The engine does not read the style
   or the roof props. `structureIn()` gives the structure code of each tile;
   `isInside()` says if a tile is in the interior or the doorway.
 - **Collision:** walls and a closed door are full tiles; fixtures have their boxes; an open
@@ -535,12 +587,18 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
   dry in any case). A new character (and a guest) starts in it, on the tile north of the door
   (`WildsSource.spawn()`), facing the door; a character that played before starts where it was
-  last. Houses: 7-11 x 6-9 tiles, never on water; furniture by `furnish()` (bed with a
+  last. Houses: 7-11 x 6-9 tiles, never on water (deep or shallow); furniture by `furnish()` (bed with a
   chest at its foot, bookshelves, a table with a candle, barrels) with the door column and the
   row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
   path leads to the door. A chunk also reads the next cells (a house's ground can reach into
   them). Tests check 150+ houses for a wall ring, one door and reachable furniture. A cell has no
-  house where the house's ground would touch the town, the road or the signpost.
+  house where the house's ground would touch the town, the road or the signpost. About one house
+  with a chest in four is barred (Strength 13; never the house east of the home); the chest of a
+  house gives 1 to 6 coins and a candle stub, a silver ring, a pewter cup or a bundle of herbs,
+  and the chest of a barred house more (5 to 15 coins, and a second thing in one of two). The
+  home's chest is the character's own: no loot. Every lake has a band of shallow water at its
+  shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all
+  shallow: a character with Strength 13 wades through it.
 - **Thornwick** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
   fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) west of
   the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.
@@ -633,7 +691,8 @@ closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.s
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
-`fight` in a world with mobs), `?offline` (a
+`fight` in a world with mobs; `traits` (what the scores give, and `(wading)`) and `pack`; `doors`
+lists the forced doors too), `#pack-button` and `#pack` (the pack panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
 `?attackpose=<tick>,<facing or degrees>` (the player frozen at that tick of an attack in that

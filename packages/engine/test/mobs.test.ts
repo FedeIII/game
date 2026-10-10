@@ -362,7 +362,7 @@ describe('mobs that hunt one player', () => {
 });
 
 describe('a brute in a fight', () => {
-  it('takes three blows; each one pushes it away from the attacker and breaks its wind-up', () => {
+  it('takes three plain blows (4 of its 12 points each); each one pushes it away from the attacker and breaks its wind-up', () => {
     const horde = new Horde(new World(textSource([])), everywhere(), 21);
     const p = createPlayer(at(5, 5).x, at(5, 5).y);
     const players: HordePlayer[] = [{ id: 7, state: p }];
@@ -377,7 +377,7 @@ describe('a brute in a fight', () => {
       const startX = brute.x;
       expect(horde.strike(p, 0, undefined, 7)).toEqual([brute]);
       expect(brute.state).toBe('hurt');
-      expect(brute.health).toBe(3 - blow);
+      expect(brute.health).toBe(12 - 4 * blow);
       for (let t = 0; t < MOB_STATS.brute.hurtMs; t += TICK_MS) horde.step(TICK_MS, players);
       // Pushed back east, away from the player, and then after the player again.
       expect(brute.x - startX).toBeGreaterThan(MOB_STATS.brute.knockback - 2);
@@ -458,5 +458,41 @@ describe('the player in a fight', () => {
       if (mob.state === 'chase') came = true;
     });
     expect(came).toBe(true);
+  });
+});
+
+describe('the blow of a player (traits.ts)', () => {
+  it('takes its damage: two blows of 6 kill a brute', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 31);
+    const p = createPlayer(0, 0);
+    const brute = horde.spawn('brute', 18, 0);
+    const blow = { damage: 6, push: 1, stagger: 1 };
+    horde.strike(p, 0, undefined, 1, blow);
+    expect(brute.health).toBe(6);
+    expect(brute.state).toBe('hurt');
+    p.x = brute.x - 18;
+    horde.strike(p, 0, undefined, 1, blow);
+    expect(brute.state).toBe('dying');
+  });
+
+  it('pushes further and makes it reel longer with more Strength', () => {
+    const pushed = (push: number, stagger: number) => {
+      const horde = new Horde(new World(textSource([])), everywhere(), 32);
+      const p = createPlayer(0, 0);
+      const brute = horde.spawn('brute', 18, 0);
+      horde.strike(p, 0, undefined, 1, { damage: 1, push, stagger });
+      let reel = 0;
+      while (brute.state === 'hurt') {
+        horde.step(TICK_MS, [{ id: 1, state: p }]);
+        reel += TICK_MS;
+      }
+      return { push: brute.x - 18, reel };
+    };
+    const plain = pushed(1, 1);
+    const strong = pushed(1.45, 1.6);
+    expect(plain.push).toBeCloseTo(MOB_STATS.brute.knockback, 0);
+    expect(strong.push).toBeCloseTo(MOB_STATS.brute.knockback * 1.45, 0);
+    expect(plain.reel).toBeCloseTo(MOB_STATS.brute.hurtMs, -2);
+    expect(strong.reel).toBeCloseTo(MOB_STATS.brute.hurtMs * 1.6, -2);
   });
 });

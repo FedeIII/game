@@ -3,9 +3,12 @@ import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
   ATTACK_REACH,
   ATTACK_TICKS,
+  EMPTY_PACK,
+  GUEST_TRAITS,
   Horde,
   MOB_STATS,
   NpcCrowd,
+  Spoils,
   TICK_SECONDS,
   TILE_SIZE,
   NO_INPUT,
@@ -25,13 +28,20 @@ import {
   stepPlayer,
   useDoor,
   facingOfAngle,
+  addToPack,
+  inShallows,
+  lootIsEmpty,
+  meetsGate,
+  sheetTraits,
   type Character,
   type Dialog,
   type Facing,
   type Fixture,
   type Interaction,
   type InteractionTarget,
+  type Loot,
   type MoveInput,
+  type Pack,
   type WorldDefinition,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
@@ -50,6 +60,7 @@ import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { MobViews, type MobLook } from './render/mobs.ts';
+import { LootText } from './render/loot-text.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
 import { OtherPlayers } from './render/others.ts';
@@ -67,6 +78,7 @@ import { ActionButton, type PressSource } from './ui/action-button.ts';
 import { AttackButton } from './ui/attack-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
+import { PackPanel } from './ui/pack-panel.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
@@ -115,6 +127,29 @@ const SESSION_CHECK_MS = 10_000;
 const PREDICTED_KILL_MS = 700;
 /** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
 const PREDICT_MARGIN = 3;
+
+/** "a, b and c". */
+function andList(parts: readonly string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
+
+/** What the player says when it opens a chest: what it found, that it is empty, or that the pack is full. */
+function chestLine(taken: Loot, full: boolean): string {
+  if (lootIsEmpty(taken)) return full ? STRINGS.packFull : STRINGS.chestEmpty;
+  const parts = [
+    ...(taken.coins > 0 ? [STRINGS.coins(taken.coins)] : []),
+    ...taken.items.map((s) => (s.count === 1 ? STRINGS.items[s.kind].a : `${s.count} ${STRINGS.items[s.kind].many}`)),
+  ];
+  return `${STRINGS.found(andList(parts))}${full ? ` ${STRINGS.packFull}` : ''}`;
+}
+
+/** The lines that rise over the player for a drop: "+3 coins", "+1 imp horn". */
+function dropLines(taken: Loot): string[] {
+  return [
+    ...(taken.coins > 0 ? [`+${STRINGS.coins(taken.coins)}`] : []),
+    ...taken.items.map((s) => `+${s.count} ${s.count === 1 ? STRINGS.items[s.kind].a.replace(/^an? /, '') : STRINGS.items[s.kind].many}`),
+  ];
+}
 
 /** A key for "the same target": a fixture by its anchor, anything else by its tile. */
 function targetKey(target: InteractionTarget): string {
@@ -177,8 +212,16 @@ async function run(options: GameOptions): Promise<void> {
   // keeps, and the name of its look. ?skin=<n> shows another look. The others see the same.
   const skin = character && !params.has('skin') ? characterSkin(character) : skinSeed(params);
   const name = character?.name ?? '';
+  // What the scores give in the game (traits.ts): a guest has every score at 10.
+  const traits = character ? sheetTraits(character) : GUEST_TRAITS;
   // A shared world goes through the multiplayer server; ?offline plays it alone.
-  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, character?.id ?? null) : null;
+  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, traits, character?.id ?? null) : null;
+  // What the player carries. In a shared world the server keeps it (net.pack); in a world that
+  // the page runs, the page has its own, which it does not save.
+  let pack: Pack = character?.pack ?? EMPTY_PACK;
+  const packNow = (): Pack => net?.pack ?? pack;
+  // The chests and the barred doors of a world that the page runs (a shared world: the server's).
+  const spoils = new Spoils(world, Math.random);
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
   // Where the character is: in a world that the page runs, the page tells the server now and then
@@ -289,6 +332,7 @@ async function run(options: GameOptions): Promise<void> {
       name: name || skinName(skin),
       kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}`,
       ...(character ? { scores: finalScores(character.base, character.race, character.bonus) } : {}),
+      traits,
       account: character !== null,
     },
     {
@@ -369,7 +413,7 @@ async function run(options: GameOptions): Promise<void> {
       if (mob.state === 'dying' || predicted.has(mob.id)) continue;
       // Only a clear hit: a blow at the edge of the reach waits for the server's word.
       if (!attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) continue;
-      if (mob.health > 1) {
+      if (mob.health > traits.damage) {
         reeling.set(mob.id, { at: now, seen: false });
         continue;
       }
@@ -532,7 +576,35 @@ async function run(options: GameOptions): Promise<void> {
     const line = definition.examine[t.kind];
     return line ? { pages: [line] } : null;
   };
-  const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) => Boolean(fixture?.content ?? definition.examine[kind]);
+  const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) => Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture));
+  /** Over the player's head: where it speaks. */
+  const playerHead = () => ({ x: shown.x, y: shown.y - playerView.headHeight });
+  /** The player says a line (a door, a chest, a full pack). */
+  const say = (line: string, now: number) => {
+    speech.show([line], playerHead, now);
+    speaking = true;
+  };
+  // What the player finds: drops rise over its head; a chest's contents it says. In a shared world
+  // the server's word comes a moment after the kill or the press.
+  const lootText = new LootText(smallFont, tagLayer);
+  const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null);
+  /** Puts what a kill dropped into the pack of a world that the page runs. */
+  const takeDrop = (drop: Loot, now: number) => {
+    if (lootIsEmpty(drop)) return;
+    const result = addToPack(pack, drop, traits.slots);
+    pack = result.pack;
+    lootText.add(dropLines(result.taken), now);
+    if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
+  };
+  net?.onLoot(({ source, loot, full }) => {
+    const now = performance.now();
+    if (source === 'chest') {
+      say(chestLine(loot, full), now);
+      return;
+    }
+    lootText.add(dropLines(loot), now);
+    if (full) say(STRINGS.packFull, now);
+  });
   const action = new ActionButton();
   const linkCard = new LinkCard();
   let target: InteractionTarget | null = null;
@@ -574,9 +646,13 @@ async function run(options: GameOptions): Promise<void> {
     if (target.kind === 'door') {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
       const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
-      const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people);
+      const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people, traits);
       const locked = result === 'locked' ? world.buildingAt(target.tx, target.ty)?.locked : undefined;
-      if (locked) {
+      if (result === 'barred' || result === 'forced') {
+        // Boards across the door: they hold, or they break (and the view shakes a little).
+        say(result === 'barred' ? STRINGS.barred : STRINGS.forced, now);
+        if (result === 'forced') shakeUntil = now + SHAKE.ms;
+      } else if (locked) {
         // A door that never opens: the player says the building's line.
         speech.show([locked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
         speaking = true;
@@ -589,9 +665,23 @@ async function run(options: GameOptions): Promise<void> {
       buildings.refreshDoor(target.tx, target.ty);
       return;
     }
+    const key = targetKey(target);
+    if (target.fixture && spoils.isSource(target.fixture)) {
+      // A chest with loot: the server opens it in a shared world, the page in its own world.
+      dialogKey = key;
+      linkCard.hide();
+      if (net) {
+        if (!net.use(target.tx, target.ty)) say(STRINGS.chestOffline, now);
+        return;
+      }
+      const opened = spoils.open(target.fixture, pack, traits.slots, now);
+      if (!opened) return;
+      pack = opened.pack;
+      say(chestLine(opened.taken, opened.full), now);
+      return;
+    }
     const content = contentOf(target);
     if (!content) return;
-    const key = targetKey(target);
     if (key === dialogKey) {
       // A second press while the NPC says its first line opens the answers at once.
       if (content.dialog) {
@@ -640,7 +730,12 @@ async function run(options: GameOptions): Promise<void> {
   });
 
   const actionLabel = (t: InteractionTarget): string => {
-    if (t.kind === 'door') return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
+    if (t.kind === 'door') {
+      const bar = world.doorBar(t.tx, t.ty);
+      if (bar) return meetsGate(traits.scores, bar) ? STRINGS.forceDoor : STRINGS.tryDoor;
+      return world.isDoorLocked(t.tx, t.ty) ? STRINGS.tryDoor : world.isDoorOpen(t.tx, t.ty) ? STRINGS.closeDoor : STRINGS.openDoor;
+    }
+    if (t.fixture && spoils.isSource(t.fixture)) return STRINGS.openChest;
     const content = contentOf(t);
     if (targetKey(t) === dialogKey) {
       if (content?.dialog) return STRINGS.conversation.answer;
@@ -677,9 +772,14 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (net) {
       if (net.tick(input)) predictKills();
-    } else if (stepPlayer(player, input, world) && horde) {
-      kills += horde.strike(player, player.aim, undefined, 0).filter((mob) => mob.state === 'dying').length;
+    } else if (stepPlayer(player, input, world, traits) && horde) {
+      for (const mob of horde.strike(player, player.aim, undefined, 0, traits)) {
+        if (mob.state !== 'dying') continue;
+        kills++;
+        takeDrop(horde.drop(mob), performance.now());
+      }
     }
+    if (!net) spoils.tick(performance.now(), [player]);
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player }]);
   });
@@ -717,7 +817,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
-    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : player, seconds);
+    const wading = inShallows(world, shown.x, shown.y);
+    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading }, seconds);
     // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
     if (player.stun > 0 && !stunSeen) {
       hitsTaken++;
@@ -727,7 +828,8 @@ async function run(options: GameOptions): Promise<void> {
     const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
     mobViews?.update(mobsNow(), now, seconds);
-    attackButton?.setReady(player.stun === 0);
+    // No attack from shallow water (stepPlayer).
+    attackButton?.setReady(player.stun === 0 && !inShallows(world, player.x, player.y));
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
     cursorView.update(mouse.at, camera.zoom, app.renderer.resolution);
@@ -749,7 +851,7 @@ async function run(options: GameOptions): Promise<void> {
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
     fixtures.update(view, now / 1000);
-    others?.update(net!.playersAt(now), seconds, view);
+    others?.update(net!.playersAt(now), seconds, view, (x, y) => inShallows(world, x, y));
     // Free the skins that nobody here wears any more (now and then).
     if (now >= nextRetainAt) {
       nextRetainAt = now + 5000;
@@ -762,6 +864,8 @@ async function run(options: GameOptions): Promise<void> {
     ownTag.set(displayName());
     ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
     barkBubbles?.update(now, view);
+    lootText.update(now, shown.x, shown.y, playerView.headHeight);
+    packPanel.show(packNow(), traits.slots);
     if (arrivedAt === null) {
       arrivedAt = now;
       introTitle?.start(now);
@@ -810,12 +914,14 @@ async function run(options: GameOptions): Promise<void> {
       ...(mobRules
         ? [
             `mobs    ${mobsNow()
-              .map((m) => `${m.kind}${m.health !== undefined && MOB_STATS[m.kind].health > 1 ? ` ${m.health}/${MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
+              .map((m) => `${m.kind}${m.health !== undefined ? ` ${m.health}/${MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
               .join('; ') || '-'}`,
             `fight   kills ${kills}${net ? ` (${confirmed} confirmed)` : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
           ]
         : []),
-      `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}`,
+      `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
+      `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
+      `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),

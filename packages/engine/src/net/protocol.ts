@@ -1,4 +1,5 @@
 import { TILE_SIZE } from '../constants.ts';
+import { ITEM_KINDS, type ItemStack, type Loot, type Pack } from '../items.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
 import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
 
@@ -10,7 +11,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -22,6 +23,8 @@ export const MAX_INPUTS_PER_MESSAGE = 30;
 export const MAX_DOORS_PER_MESSAGE = 4;
 /** The most attacks in one message (an attack and its cooldown take 27 ticks). */
 export const MAX_ATTACKS_PER_MESSAGE = 4;
+/** The most chests opened in one message. */
+export const MAX_USES_PER_MESSAGE = 2;
 /** The server sends the mobs this close to a player (world pixels): far beyond the screen. */
 export const MOB_SEND_RADIUS = 30 * TILE_SIZE;
 /** The largest message, in bytes, in either direction from a client. */
@@ -132,6 +135,12 @@ export type WireDoor = readonly [number, number, number, number];
  */
 export type WireAttack = readonly [number, number];
 
+/**
+ * A chest that the player opens: [seq, tx, ty], a tile of the chest. It happens just before the
+ * input with sequence number `seq`, as a door action. The server answers with loot (WireLoot).
+ */
+export type WireUse = readonly [number, number, number];
+
 /** A batch of inputs. `s` is the sequence number of the first input; the others follow it, one per tick. */
 export interface InputMessage {
   readonly t: 'in';
@@ -139,6 +148,7 @@ export interface InputMessage {
   readonly i: readonly WireInput[];
   readonly d?: readonly WireDoor[];
   readonly k?: readonly WireAttack[];
+  readonly u?: readonly WireUse[];
 }
 
 /**
@@ -207,13 +217,55 @@ export function toWireMob(mob: Mob): WireMob {
   ];
 }
 
-/** The reply to hello: who the player is, where it starts, and which doors are open. */
+/** Items on the wire: [item code (ITEM_KINDS), count]. */
+export type WireStacks = readonly (readonly [number, number])[];
+
+/** A pack on the wire: [coins, stacks]. */
+export type WirePack = readonly [number, WireStacks];
+
+export function toWireStacks(items: readonly ItemStack[]): WireStacks {
+  return items.map((s) => [ITEM_KINDS.indexOf(s.kind), s.count] as const);
+}
+
+/** The stacks of the wire; a code that this client does not know is left out. */
+export function fromWireStacks(wire: WireStacks): ItemStack[] {
+  const out: ItemStack[] = [];
+  for (const [code, count] of wire) {
+    const kind = ITEM_KINDS[code];
+    if (kind) out.push({ kind, count });
+  }
+  return out;
+}
+
+export function toWirePack(pack: Pack): WirePack {
+  return [pack.coins, toWireStacks(pack.items)];
+}
+
+export function fromWirePack(wire: WirePack): Pack {
+  return { coins: wire[0], items: fromWireStacks(wire[1]) };
+}
+
+/**
+ * Loot that the player got: [source, coins, stacks, full]. Source 0: a chest that it opened (no
+ * coins and no stacks: the chest is empty); 1: what a mob that it killed dropped. Full 1: the
+ * pack is full, and something stayed in the chest or was lost.
+ */
+export type WireLoot = readonly [0 | 1, number, WireStacks, 0 | 1];
+
+export function toWireLoot(source: 'chest' | 'drop', loot: Loot, full: boolean): WireLoot {
+  return [source === 'chest' ? 0 : 1, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
+}
+
+/** The reply to hello: who the player is, where it starts, which doors are open and forced, and its pack. */
 export interface WelcomeMessage {
   readonly t: 'welcome';
   readonly id: number;
   readonly x: number;
   readonly y: number;
   readonly doors: readonly (readonly [number, number])[];
+  /** The barred doors that are forced now (World.forcedDoorList). */
+  readonly fd: readonly (readonly [number, number])[];
+  readonly pk: WirePack;
 }
 
 /**
@@ -228,6 +280,12 @@ export interface SnapshotMessage {
   readonly you: WireSelf;
   readonly p: readonly WirePlayer[];
   readonly doors?: readonly (readonly [number, number])[];
+  /** The forced doors: it comes with `doors`. */
+  readonly fd?: readonly (readonly [number, number])[];
+  /** The player's pack, when it changed. */
+  readonly pk?: WirePack;
+  /** The loot that the player got since the last snapshot. */
+  readonly l?: readonly WireLoot[];
   /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
   readonly n?: readonly WireNpc[];
   /**
@@ -317,17 +375,26 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         if (!Array.isArray(m.k) || m.k.length > MAX_ATTACKS_PER_MESSAGE || !m.k.every(attackShaped)) return null;
         attacks = m.k as WireAttack[];
       }
-      if (m.d === undefined) return attacks ? { t: 'in', s: m.s, i: inputs, k: attacks } : { t: 'in', s: m.s, i: inputs };
-      if (!Array.isArray(m.d) || m.d.length > MAX_DOORS_PER_MESSAGE) return null;
-      const doorShaped = (d: unknown) =>
-        Array.isArray(d) &&
-        d.length === 4 &&
-        isInt(d[0], 1, SEQ_LIMIT) &&
-        isInt(d[1], -TILE_LIMIT, TILE_LIMIT) &&
-        isInt(d[2], -TILE_LIMIT, TILE_LIMIT) &&
-        isInt(d[3], 0, 1);
-      if (!m.d.every(doorShaped)) return null;
-      return attacks ? { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[], k: attacks } : { t: 'in', s: m.s, i: inputs, d: m.d as WireDoor[] };
+      let doors: WireDoor[] | undefined;
+      if (m.d !== undefined) {
+        const doorShaped = (d: unknown) =>
+          Array.isArray(d) &&
+          d.length === 4 &&
+          isInt(d[0], 1, SEQ_LIMIT) &&
+          isInt(d[1], -TILE_LIMIT, TILE_LIMIT) &&
+          isInt(d[2], -TILE_LIMIT, TILE_LIMIT) &&
+          isInt(d[3], 0, 1);
+        if (!Array.isArray(m.d) || m.d.length > MAX_DOORS_PER_MESSAGE || !m.d.every(doorShaped)) return null;
+        doors = m.d as WireDoor[];
+      }
+      let uses: WireUse[] | undefined;
+      if (m.u !== undefined) {
+        const useShaped = (u: unknown) =>
+          Array.isArray(u) && u.length === 3 && isInt(u[0], 1, SEQ_LIMIT) && isInt(u[1], -TILE_LIMIT, TILE_LIMIT) && isInt(u[2], -TILE_LIMIT, TILE_LIMIT);
+        if (!Array.isArray(m.u) || m.u.length > MAX_USES_PER_MESSAGE || !m.u.every(useShaped)) return null;
+        uses = m.u as WireUse[];
+      }
+      return { t: 'in', s: m.s, i: inputs, ...(doors ? { d: doors } : {}), ...(attacks ? { k: attacks } : {}), ...(uses ? { u: uses } : {}) };
     }
     case 'skin':
       return isSkin(m.skin) ? { t: 'skin', skin: m.skin } : null;

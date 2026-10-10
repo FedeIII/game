@@ -10,6 +10,7 @@ import {
   createPlayer,
   findInteraction,
   fixtureTiles,
+  isWet,
   stepPlayer,
   useDoor,
   type Building,
@@ -42,6 +43,23 @@ describe('buildings', () => {
     expect(new WildsSource(1).house(2, 3)).toEqual(new WildsSource(1).house(2, 3));
   });
 
+  it('about one in four with a chest is barred, never the home or the house next to it, and its chest gives more', () => {
+    const withChest = buildings.filter(({ building: b }) => b.id !== HOME_ID && b.id !== '1,0' && b.fixtures.some((f) => f.kind === 'chest'));
+    const barred = withChest.filter(({ building: b }) => b.barred);
+    expect(barred.length / withChest.length).toBeGreaterThan(0.15);
+    expect(barred.length / withChest.length).toBeLessThan(0.35);
+    for (const { building: b } of buildings) {
+      if (b.barred) expect(b.barred).toEqual({ ability: 'str', min: 13 });
+      if (b.id === HOME_ID || b.id === '1,0' || !b.fixtures.some((f) => f.kind === 'chest')) expect(b.barred).toBeUndefined();
+    }
+    for (const { world, building: b } of buildings) {
+      const chest = b.fixtures.find((f) => f.kind === 'chest');
+      const table = chest ? world.source.loot!(chest) : null;
+      if (b.id === HOME_ID) expect(table).toBeNull();
+      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 15 : 6);
+    }
+  });
+
   it('there is the home in the middle, and a house next to it', () => {
     const source = new WildsSource(DEFAULT_SEED);
     expect(source.house(0, 0)?.id).toBe(HOME_ID);
@@ -63,7 +81,7 @@ describe('buildings', () => {
           if (!inRect) {
             expect(structure).toBe(Structure.None);
             expect(world.decor(tx, ty), `nothing grows next to building ${b.id}`).toBe(Decor.None);
-            expect(world.ground(tx, ty)).not.toBe(Ground.Water);
+            expect(isWet(world.ground(tx, ty))).toBe(false);
             continue;
           }
           expect(world.ground(tx, ty)).toBe(b.id === HOME_ID ? Ground.FloorEarth : Ground.Floor);
@@ -217,8 +235,8 @@ describe('the home', () => {
       expect(world.structure(tx, ty)).toBe(Structure.Floor);
       expect([tx, ty]).toEqual([home.doorX, home.y1 - 1]);
       // Dry all round, and on the approach to its door.
-      for (let y = home.y0 - 1; y <= home.y1 + 1; y++) for (let x = home.x0 - 1; x <= home.x1 + 1; x++) expect(world.ground(x, y), `${seed}: ${x},${y}`).not.toBe(Ground.Water);
-      for (let y = home.y1 + 1; y <= home.y1 + 3; y++) for (let x = home.doorX - 1; x <= home.doorX + 1; x++) expect(world.ground(x, y), `${seed}: ${x},${y}`).not.toBe(Ground.Water);
+      for (let y = home.y0 - 1; y <= home.y1 + 1; y++) for (let x = home.x0 - 1; x <= home.x1 + 1; x++) expect(isWet(world.ground(x, y)), `${seed}: ${x},${y}`).toBe(false);
+      for (let y = home.y1 + 1; y <= home.y1 + 3; y++) for (let x = home.doorX - 1; x <= home.doorX + 1; x++) expect(isWet(world.ground(x, y)), `${seed}: ${x},${y}`).toBe(false);
     }
   });
 

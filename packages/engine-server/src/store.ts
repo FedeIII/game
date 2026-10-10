@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { MAX_CHARACTERS, checkPlace, checkSheet, type Character, type CharacterPlace, type CharacterSheet } from '@game/engine';
+import { EMPTY_PACK, MAX_CHARACTERS, checkPack, checkPlace, checkSheet, type Character, type CharacterPlace, type CharacterSheet, type Pack } from '@game/engine';
 
 /**
  * The accounts database: one SQLite file (node:sqlite, so no native package), in WAL mode. It
@@ -55,6 +55,8 @@ const MIGRATIONS: readonly string[] = [
    ALTER TABLE users DROP COLUMN name;`,
   // 2026-10-10: where each character was last (JSON: world, x, y), so it starts there again.
   `ALTER TABLE characters ADD COLUMN place TEXT;`,
+  // 2026-10-10: what each character carries (JSON: coins, items), from the shared worlds.
+  `ALTER TABLE characters ADD COLUMN pack TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -69,6 +71,7 @@ interface CharacterRow {
   created_at: number;
   played_at: number | null;
   place: string | null;
+  pack: string | null;
 }
 
 function parse(json: string | null): unknown {
@@ -81,7 +84,9 @@ function parse(json: string | null): unknown {
 
 function toCharacter(row: CharacterRow): Character | null {
   const check = checkSheet(parse(row.sheet));
-  return check.ok ? { ...check.sheet, id: row.id, createdAt: row.created_at, playedAt: row.played_at, place: checkPlace(parse(row.place)) } : null;
+  return check.ok
+    ? { ...check.sheet, id: row.id, createdAt: row.created_at, playedAt: row.played_at, place: checkPlace(parse(row.place)), pack: checkPack(parse(row.pack)) ?? EMPTY_PACK }
+    : null;
 }
 
 export class AccountStore {
@@ -191,13 +196,13 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
-    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
+    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
 
@@ -207,7 +212,7 @@ export class AccountStore {
     if (count >= MAX_CHARACTERS) return 'limit';
     const id = randomBytes(12).toString('hex');
     this.db.prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at) VALUES (?, ?, ?, ?, NULL)').run(id, userId, JSON.stringify(sheet), now);
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -220,6 +225,12 @@ export class AccountStore {
   setPlace(userId: number, id: string, place: CharacterPlace): boolean {
     const json = JSON.stringify({ world: place.world, x: place.x, y: place.y });
     return this.db.prepare('UPDATE characters SET place = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
+  }
+
+  /** Notes what a character carries (the server's word, from a shared world); false if it is not the user's. */
+  setPack(userId: number, id: string, pack: Pack): boolean {
+    const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => ({ kind: s.kind, count: s.count })) });
+    return this.db.prepare('UPDATE characters SET pack = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
   }
 
   deleteCharacter(userId: number, id: string): boolean {

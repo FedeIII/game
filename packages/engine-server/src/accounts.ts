@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CHARACTER_ID, NAME_MAX, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace } from '@game/engine';
+import { CHARACTER_ID, NAME_MAX, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Pack } from '@game/engine';
 import { googleAuthUrl, googleIdentity, newLogin, type GoogleConfig } from './google.ts';
 import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
 
@@ -160,6 +160,12 @@ export class Accounts {
   savePlace(user: User, id: string, place: CharacterPlace): void {
     const checked = checkPlace(place);
     if (checked && CHARACTER_ID.test(id)) this.store.setPlace(user.id, id, checked);
+  }
+
+  /** Notes what a user's character carries (the server's word, in a shared world). */
+  savePack(user: User, id: string, pack: Pack): void {
+    const checked = checkPack(pack);
+    if (checked && CHARACTER_ID.test(id)) this.store.setPack(user.id, id, checked);
   }
 
   /** Answers a request of /api/ or /auth/. Returns false for any other path (not answered). */

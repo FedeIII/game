@@ -3,6 +3,8 @@ import { CHUNK_SIZE, TILE_SIZE } from './constants.ts';
 import { decodeFixture, type Fixture } from './fixtures.ts';
 import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
+import type { Gate } from './traits.ts';
+import type { LootTable } from './items.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
 export const Ground = {
@@ -19,8 +21,18 @@ export const Ground = {
   FloorStone: 7,
   /** Packed earth with straw, the floor of a hut or a tent. */
   FloorEarth: 8,
+  /**
+   * Shallow water: the band of a lake at its shore. It is solid like water, except for a player
+   * strong enough to wade (traits.ts, WADE_GATE).
+   */
+  Shallows: 9,
 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
+
+/** Whether a ground is water, deep or shallow. */
+export function isWet(ground: Ground): boolean {
+  return ground === Ground.Water || ground === Ground.Shallows;
+}
 
 /** Whether a ground is the floor of a building (any kind). */
 export function isFloor(ground: Ground): boolean {
@@ -80,6 +92,11 @@ export interface WorldSource {
   npcs?(): readonly NpcDef[];
   /** Where the mobs of this world may be, and how many (mobs.ts). Without it, the world has none. */
   mobs?(): MobRules;
+  /**
+   * What a fixture gives when a player opens it (a chest), or null: then it is not a source of
+   * loot, and acting on it shows its content as before. See loot.ts.
+   */
+  loot?(fixture: Fixture): LootTable | null;
 }
 
 /** Anything that can tell which part of a tile is solid. The movement code needs only this. */
@@ -114,7 +131,7 @@ export function solidBox(ground: Ground, decor: Decor, structure: number = Struc
   if (structure === Structure.Door) return doorOpen ? null : FULL_BOX;
   const fixture = decodeFixture(structure);
   if (fixture) return fixture.tile.box;
-  if (ground === Ground.Water) return FULL_BOX;
+  if (isWet(ground)) return FULL_BOX;
   if (decor === Decor.Tree) return TREE_BOX;
   if (decor === Decor.Rock) return ROCK_BOX;
   return null;
@@ -134,6 +151,8 @@ export class World implements TileMap {
    * the server will own it.
    */
   private readonly openDoors = new Set<string>();
+  /** The barred doors that a player forced (Building.barred): they are ordinary doors until the world bars them again. */
+  private readonly forcedDoors = new Set<string>();
 
   constructor(source: WorldSource) {
     this.source = source;
@@ -188,6 +207,29 @@ export class World implements TileMap {
 
   isDoorLocked(tx: number, ty: number): boolean {
     return this.structure(tx, ty) === Structure.Door && this.buildingAt(tx, ty)?.locked !== undefined;
+  }
+
+  /** The gate of the boards on the door on (tx, ty), or null: no door, not barred, or forced. */
+  doorBar(tx: number, ty: number): Gate | null {
+    if (this.structure(tx, ty) !== Structure.Door) return null;
+    const gate = this.buildingAt(tx, ty)?.barred;
+    return gate && !this.forcedDoors.has(`${tx},${ty}`) ? gate : null;
+  }
+
+  setDoorForced(tx: number, ty: number, forced: boolean): void {
+    if (forced) this.forcedDoors.add(`${tx},${ty}`);
+    else this.forcedDoors.delete(`${tx},${ty}`);
+  }
+
+  /** The forced doors, as [tx, ty] pairs. A multiplayer server sends them with the open doors. */
+  forcedDoorList(): [number, number][] {
+    return [...this.forcedDoors].map((key) => key.split(',').map(Number) as [number, number]);
+  }
+
+  /** Forces exactly the doors of the list: the state from a server. */
+  setForcedDoors(doors: readonly (readonly [number, number])[]): void {
+    this.forcedDoors.clear();
+    for (const [tx, ty] of doors) this.forcedDoors.add(`${tx},${ty}`);
   }
 
   setDoorOpen(tx: number, ty: number, open: boolean): void {

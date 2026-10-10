@@ -19,6 +19,7 @@ import {
   pointCost,
   pointsSpent,
   raceBonus,
+  traitsOf,
   type Ability,
   type CharacterClass,
   type CharacterSheet,
@@ -28,6 +29,7 @@ import {
 } from '@game/engine';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
+import { traitsList } from '../ui/traits-list.ts';
 import { el } from './dom.ts';
 import { randomName } from './names.ts';
 import { SkinPortrait } from './portrait.ts';
@@ -312,6 +314,7 @@ export class CharacterBuilder {
       this.bonus = [];
       this.render();
     });
+    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls)));
     const missing = choosing > 0 && this.bonus.length < choosing;
     const create = el('button', { type: 'button', id: 'builder-create', class: 'menu-button menu-primary' }, this.busy ?? T.create);
     create.disabled = missing || this.busy !== null;
@@ -324,6 +327,7 @@ export class CharacterBuilder {
       points,
       notes,
       table,
+      traits,
       el('p', { class: 'builder-note', 'aria-live': 'polite' }, note),
       el('div', { class: 'menu-actions' }, back, reset, create),
     ];

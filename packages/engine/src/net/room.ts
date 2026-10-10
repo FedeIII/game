@@ -1,8 +1,12 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
-import { canReachDoor, useDoor, type Feet } from '../interact.ts';
+import { canReachDoor, reachableFixture, useDoor, type Feet } from '../interact.ts';
+import { EMPTY_PACK, addToPack, lootIsEmpty, type Loot, type Pack } from '../items.ts';
+import { Spoils } from '../loot.ts';
 import { createPlayer, resumePoint, stepPlayer, type PlayerState } from '../player.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
+import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
+import { GUEST_TRAITS, type PlayerTraits } from '../traits.ts';
 import type { World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
@@ -11,14 +15,18 @@ import {
   aimCode,
   facingCode,
   fromWireInput,
+  toWireLoot,
   toWireMob,
+  toWirePack,
   type InputMessage,
   type SnapshotMessage,
   type WelcomeMessage,
   type WireDoor,
+  type WireLoot,
   type WireMob,
   type WireNpc,
   type WirePlayer,
+  type WireUse,
 } from './protocol.ts';
 
 /**
@@ -72,6 +80,19 @@ export interface RoomPlayer {
   refilledMs: number;
   /** The door version that this player's client has. */
   doorVersion: number;
+  /** What its scores give (from its stored character; GUEST_TRAITS without one). */
+  readonly traits: PlayerTraits;
+  /** What it carries. The server saves it with the character. */
+  pack: Pack;
+  /** Whether the pack changed since the last snapshot, and the loot that it got since then. */
+  packChanged: boolean;
+  loot: WireLoot[];
+}
+
+/** The character of a player who joins: its traits and its pack. */
+export interface JoinCharacter {
+  readonly traits: PlayerTraits;
+  readonly pack?: Pack;
 }
 
 /**
@@ -103,6 +124,8 @@ export class Room {
   /** Mob hits on players and mob kills so far (for the logs and tests). */
   hits = 0;
   kills = 0;
+  /** The loot of the world: chests and barred doors. */
+  readonly spoils: Spoils;
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
@@ -112,6 +135,7 @@ export class Room {
     this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
     const rules = world.source.mobs?.();
     this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff)) : null;
+    this.spoils = new Spoils(world, random(Math.floor((this.random?.() ?? 0.75) * 0xffffffff)));
   }
 
   /**
@@ -135,6 +159,7 @@ export class Room {
       this.trail.push({ ms: nowMs, at: new Map(this.horde.mobs.map((m) => [m.id, [m.x, m.y] as const])) });
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
+    if (this.spoils.tick(nowMs, [...this.players.values()].map((p) => p.state))) this.doorVersion++;
   }
 
   /** Where mob `id` was at time `ms` (between two ticks of the trail), or null if the trail does not know. */
@@ -175,8 +200,18 @@ export class Room {
    *   the place, the player starts near `at`.
    * - Without one (a new character): near `at` if that is close to the world's spawn, or else on
    *   the spawn itself, indoors too (the Wilds: in the home, the house of the cell (0, 0)).
+   *
+   * `character` gives the player's traits and pack (from its stored character); without it, the
+   * player has GUEST_TRAITS and an empty pack.
    */
-  join(nowMs: number, skin: number, at?: readonly [number, number], name = '', place?: { readonly x: number; readonly y: number }): RoomPlayer | null {
+  join(
+    nowMs: number,
+    skin: number,
+    at?: readonly [number, number],
+    name = '',
+    place?: { readonly x: number; readonly y: number },
+    character?: JoinCharacter,
+  ): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
     const anchor = place ?? this.world.spawn();
     const home = [Math.floor(anchor.x / TILE_SIZE), Math.floor(anchor.y / TILE_SIZE)] as const;
@@ -200,6 +235,10 @@ export class Room {
       tokens: INPUT_BURST,
       refilledMs: nowMs,
       doorVersion: this.doorVersion,
+      traits: character?.traits ?? GUEST_TRAITS,
+      pack: character?.pack ?? EMPTY_PACK,
+      packChanged: false,
+      loot: [],
     };
     this.players.set(player.id, player);
     if (player.name) this.namesVersion++;
@@ -243,12 +282,21 @@ export class Room {
   /** The first message for a new player. */
   welcome(player: RoomPlayer): WelcomeMessage {
     player.doorVersion = this.doorVersion;
-    return { t: 'welcome', id: player.id, x: player.state.x, y: player.state.y, doors: this.world.openDoorList() };
+    player.packChanged = false;
+    return {
+      t: 'welcome',
+      id: player.id,
+      x: player.state.x,
+      y: player.state.y,
+      doors: this.world.openDoorList(),
+      fd: this.world.forcedDoorList(),
+      pk: toWirePack(player.pack),
+    };
   }
 
   /**
-   * Applies a batch of inputs from a player, with its door actions, in order. An input that the
-   * room has applied before (a repeat) is ignored.
+   * Applies a batch of inputs from a player, with its door actions and the chests that it opens,
+   * in order. An input that the room has applied before (a repeat) is ignored.
    */
   input(id: number, message: InputMessage, nowMs: number): void {
     const player = this.players.get(id);
@@ -256,26 +304,53 @@ export class Room {
     player.tokens = Math.min(INPUT_BURST, player.tokens + (Math.max(0, nowMs - player.refilledMs) / 1000) * INPUT_RATE);
     player.refilledMs = nowMs;
     const doors = message.d ?? [];
+    const uses = message.u ?? [];
     const last = message.s + message.i.length - 1;
-    // A door action for an input that the room already has happens now.
+    // A door action (or a chest) for an input that the room already has happens now.
     for (const door of doors) if (door[0] <= player.seq) this.door(player, door);
+    for (const use of uses) if (use[0] <= player.seq) this.use(player, use, nowMs);
     message.i.forEach((wire, k) => {
       const seq = message.s + k;
       if (seq <= player.seq) return;
       for (const door of doors) if (door[0] === seq) this.door(player, door);
+      for (const use of uses) if (use[0] === seq) this.use(player, use, nowMs);
       player.seq = seq;
       if (player.tokens < 1) return;
       player.tokens -= 1;
-      if (stepPlayer(player.state, fromWireInput(wire), this.world) && this.horde) {
+      if (stepPlayer(player.state, fromWireInput(wire), this.world, player.traits) && this.horde) {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;
         const then = Math.max(nowMs - MAX_REWIND_MS, Math.min(nowMs, view));
-        const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id);
-        this.kills += struck.filter((mob) => mob.state === 'dying').length;
+        const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id, player.traits);
+        for (const mob of struck) {
+          if (mob.state !== 'dying') continue;
+          this.kills++;
+          this.give(player, this.horde.drop(mob));
+        }
       }
     });
     // And one for an input that has not come yet happens after this batch.
     for (const door of doors) if (door[0] > Math.max(last, player.seq)) this.door(player, door);
+    for (const use of uses) if (use[0] > Math.max(last, player.seq)) this.use(player, use, nowMs);
+  }
+
+  /** Puts what a kill dropped into the killer's pack; what does not fit is lost. */
+  private give(player: RoomPlayer, drop: Loot): void {
+    if (lootIsEmpty(drop)) return;
+    const { pack, taken, left } = addToPack(player.pack, drop, player.traits.slots);
+    player.pack = pack;
+    if (!lootIsEmpty(taken)) player.packChanged = true;
+    player.loot.push(toWireLoot('drop', taken, !lootIsEmpty(left)));
+  }
+
+  /** Opens a chest for a player, if it can reach it: what fits goes into its pack, the rest stays in the chest. */
+  private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
+    const fixture = reachableFixture(this.world, player.state, tx, ty);
+    const opened = fixture ? this.spoils.open(fixture, player.pack, player.traits.slots, nowMs) : null;
+    if (!opened) return;
+    player.pack = opened.pack;
+    if (!lootIsEmpty(opened.taken)) player.packChanged = true;
+    player.loot.push(toWireLoot('chest', opened.taken, opened.full));
   }
 
   /**
@@ -294,6 +369,7 @@ export class Room {
       packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim)]);
     }
     const doors = this.world.openDoorList();
+    const forced = this.world.forcedDoorList();
     const barks = this.barks;
     this.barks = [];
     const names: [number, string][] = [];
@@ -312,13 +388,19 @@ export class Room {
       p.doorVersion = this.doorVersion;
       const renamed = p.namesVersion !== this.namesVersion;
       p.namesVersion = this.namesVersion;
+      const pack = p.packChanged;
+      p.packChanged = false;
+      const loot = p.loot;
+      p.loot = [];
       send(p.id, {
         t: 'snap',
         ms,
         a: p.seq,
         you: [s.x, s.y, s.vx, s.vy, facingCode(s.facing), s.attack, s.cooldown, s.stun, s.guard, aimCode(s.aim)],
         p: others,
-        ...(changed ? { doors } : {}),
+        ...(changed ? { doors, fd: forced } : {}),
+        ...(pack ? { pk: toWirePack(p.pack) } : {}),
+        ...(loot.length > 0 ? { l: loot } : {}),
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
         ...(renamed ? { names } : {}),
@@ -353,7 +435,7 @@ export class Room {
     // A door never closes on anyone: the other players, or an NPC in the doorway.
     const others: Feet[] = [...(this.npcs?.poses ?? [])];
     for (const p of this.players.values()) if (p !== player) others.push(p.state);
-    const result = useDoor(this.world, player.state, tx, ty, others);
-    if (result === 'opened' || result === 'closed') this.doorVersion++;
+    const result = useDoor(this.world, player.state, tx, ty, others, player.traits);
+    if (result === 'opened' || result === 'closed' || result === 'forced') this.doorVersion++;
   }
 }

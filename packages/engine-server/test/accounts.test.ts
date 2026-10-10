@@ -354,6 +354,20 @@ describe('accounts: the shared world', () => {
     await b.close();
   });
 
+  it('gives a player the pack of its stored character, and the list of characters shows it', async () => {
+    const started = await start();
+    const browser = new Browser(started.port);
+    await browser.signIn('Fede');
+    const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const listed = async () => ((await browser.request('GET', '/api/characters')).json.characters as { id: string; pack: unknown }[]).find((c) => c.id === id)!.pack;
+    expect(await listed()).toEqual({ coins: 0, items: [] });
+    started.accounts!.savePack({ id: 1, provider: 'dev' }, id, { coins: 7, items: [{ kind: 'herbs', count: 2 }] });
+    expect(await listed()).toEqual({ coins: 7, items: [{ kind: 'herbs', count: 2 }] });
+    const a = await browser.hello({ character: id });
+    expect(a.first).toMatchObject({ t: 'welcome', pk: [7, [[5, 2]]] });
+    await a.close();
+  });
+
   it('refuses a visitor without a session, without a character, or with another account’s', async () => {
     const { port } = await start();
     const owner = new Browser(port);

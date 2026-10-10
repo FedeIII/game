@@ -6,12 +6,14 @@ import {
   fixtureTiles,
   inRect,
   isGrass,
+  isWet,
   naturalDecor,
   naturalGround,
   structureIn,
   type Building,
   type Chunk,
   type Fixture,
+  type LootTable,
   type MobRules,
   type NpcDef,
   type WorldSource,
@@ -33,6 +35,23 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
   const ring = tx >= house.x0 - 1 && tx <= house.x1 + 1 && ty >= house.y0 - 1 && ty <= house.y1 + 1;
   return ring || onApproach(house, tx, ty);
 }
+
+/** What a chest in a house of the wilds holds: some coins and one small thing (Fede's choice, 2026-10-10). */
+const TRINKETS = [
+  ['candle', 3],
+  ['ring', 1],
+  ['cup', 2],
+  ['herbs', 3],
+] as const;
+const CHEST_LOOT: LootTable = { coins: [1, 6], items: [{ chance: 1, pick: TRINKETS }] };
+/** A barred house was shut with its things inside: more coins, and a second thing in one of two. */
+const BARRED_CHEST_LOOT: LootTable = {
+  coins: [5, 15],
+  items: [
+    { chance: 1, pick: TRINKETS },
+    { chance: 0.5, pick: TRINKETS },
+  ],
+};
 
 /** Mobs in the wilds: four imps and two brutes round each player. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
@@ -90,7 +109,7 @@ export class WildsSource implements WorldSource {
     const key = `${cellX},${cellY}`;
     let house = this.houses.get(key);
     if (house === undefined) {
-      const isWater = (tx: number, ty: number) => naturalGround(this.seed, tx, ty) === Ground.Water;
+      const isWater = (tx: number, ty: number) => isWet(naturalGround(this.seed, tx, ty));
       if (cellX === HOME_CELL[0] && cellY === HOME_CELL[1]) {
         house = generateHome(isWater);
       } else {
@@ -136,7 +155,7 @@ export class WildsSource implements WorldSource {
         }
         if (tx === sign.tx && ty === sign.ty) {
           const natural = naturalGround(this.seed, tx, ty);
-          chunk.ground[index] = natural === Ground.Water ? Ground.Grass : natural;
+          chunk.ground[index] = isWet(natural) ? Ground.Grass : natural;
           chunk.structure[index] = fixtureTiles(sign)[0]![2];
           continue;
         }
@@ -144,7 +163,7 @@ export class WildsSource implements WorldSource {
         if (!house && road.clear(tx, ty)) {
           // The road: mud (over water too), and nothing grows on it or close to it.
           const natural = naturalGround(this.seed, tx, ty);
-          const ground = road.on(tx, ty) ? Ground.Dirt : natural === Ground.Water ? Ground.Sand : natural;
+          const ground = road.on(tx, ty) ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
           chunk.ground[index] = ground;
           const decor = road.on(tx, ty) ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
           chunk.decor[index] = decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
@@ -152,7 +171,7 @@ export class WildsSource implements WorldSource {
         }
         const natural = naturalGround(this.seed, tx, ty);
         // The ground of the home is always dry (it stands where it must, see home.ts).
-        const ground = house?.id === HOME_ID && natural === Ground.Water ? Ground.Grass : natural;
+        const ground = house?.id === HOME_ID && isWet(natural) ? Ground.Grass : natural;
         if (house && inRect(house, tx, ty)) {
           // The home is a hut: packed earth with straw. The other houses have wooden floors.
           chunk.ground[index] = house.id === HOME_ID ? Ground.FloorEarth : Ground.Floor;
@@ -242,6 +261,17 @@ export class WildsSource implements WorldSource {
     return out;
   }
 
+  /**
+   * The chests of the houses of the wilds give loot (not the home's: that one is the character's
+   * own); the chest of a barred house gives more.
+   */
+  loot(fixture: Fixture): LootTable | null {
+    if (fixture.kind !== 'chest' || inTown(fixture.tx, fixture.ty)) return null;
+    const house = this.buildingAt(fixture.tx, fixture.ty);
+    if (!house || house.id === HOME_ID) return null;
+    return house.barred ? BARRED_CHEST_LOOT : CHEST_LOOT;
+  }
+
   /** The people of Thornwick. */
   npcs(): readonly NpcDef[] {
     return TOWN_NPCS;
@@ -267,7 +297,7 @@ export class WildsSource implements WorldSource {
     const nearTown = (tx: number, ty: number) => tx >= TOWN.x0 - TOWN_MARGIN && tx <= TOWN.x1 + TOWN_MARGIN && ty >= TOWN.y0 - TOWN_MARGIN && ty <= TOWN.y1 + TOWN_MARGIN;
     return {
       roam: (tx, ty) =>
-        naturalGround(this.seed, tx, ty) !== Ground.Water &&
+        !isWet(naturalGround(this.seed, tx, ty)) &&
         !nearTown(tx, ty) &&
         !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
       hunt: (tx, ty) => !inTown(tx, ty),

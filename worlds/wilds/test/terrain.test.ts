@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHUNK_SIZE, Decor, Ground, World } from '@game/engine';
+import { CHUNK_SIZE, Decor, Ground, World, isWet } from '@game/engine';
 import { DEFAULT_SEED, WildsSource } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
@@ -50,7 +50,7 @@ describe('world generation', () => {
     const world = newWorld(DEFAULT_SEED);
     for (let ty = -64; ty < 64; ty++) {
       for (let tx = -64; tx < 64; tx++) {
-        if (world.ground(tx, ty) === Ground.Water) expect(world.decor(tx, ty)).toBe(Decor.None);
+        if (isWet(world.ground(tx, ty))) expect(world.decor(tx, ty)).toBe(Decor.None);
       }
     }
   });

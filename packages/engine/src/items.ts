@@ -1,0 +1,153 @@
+import type { MobKind } from './mobs.ts';
+
+/**
+ * Items and the pack. A character carries coins in a purse and items in the slots of its pack:
+ * each slot holds one kind of item, up to the stack of that kind. The number of slots comes from
+ * Strength (PlayerTraits.slots). Items come from mobs (a kill can drop one) and from chests
+ * (loot.ts). None of them has a use yet: prices, potions and herbs give them uses later (see
+ * docs/drafts/abilities.md).
+ *
+ * In a shared world the server owns the pack (the store keeps it with the character); in a world
+ * that the page runs, the page has its own pack, which it does not save.
+ */
+
+/** The kinds of item. The order is the code on the wire: add a new kind at the end. */
+export const ITEM_KINDS = ['imp-horn', 'brute-tusk', 'candle', 'ring', 'cup', 'herbs'] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+/** The most of a kind in one slot. */
+export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
+  'imp-horn': 10,
+  'brute-tusk': 10,
+  candle: 5,
+  ring: 5,
+  cup: 5,
+  herbs: 10,
+};
+
+/** The most coins in a purse. */
+export const MAX_COINS = 99_999;
+/** The most slots that any pack can have (the slots of STR 17, with some room). */
+export const MAX_SLOTS = 16;
+
+export interface ItemStack {
+  readonly kind: ItemKind;
+  readonly count: number;
+}
+
+/** What a character carries: coins, and a stack in each used slot (at most `slots` of them). */
+export interface Pack {
+  readonly coins: number;
+  readonly items: readonly ItemStack[];
+}
+
+export const EMPTY_PACK: Pack = { coins: 0, items: [] };
+
+/** Things to put in a pack: coins and stacks (a chest's contents, a drop). */
+export interface Loot {
+  readonly coins: number;
+  readonly items: readonly ItemStack[];
+}
+
+export const NO_LOOT: Loot = { coins: 0, items: [] };
+
+export function isItemKind(value: unknown): value is ItemKind {
+  return typeof value === 'string' && (ITEM_KINDS as readonly string[]).includes(value);
+}
+
+export function lootIsEmpty(loot: Loot): boolean {
+  return loot.coins === 0 && loot.items.length === 0;
+}
+
+/**
+ * Puts loot into a pack with `slots` slots: the coins always (up to MAX_COINS), each item on a
+ * stack of its kind first, then in a free slot. Returns the new pack, what went in, and what did
+ * not fit.
+ */
+export function addToPack(pack: Pack, loot: Loot, slots: number): { pack: Pack; taken: Loot; left: Loot } {
+  const coins = Math.min(MAX_COINS, pack.coins + loot.coins);
+  const items = pack.items.map((s) => ({ ...s }));
+  const taken: ItemStack[] = [];
+  const left: ItemStack[] = [];
+  for (const stack of loot.items) {
+    let count = stack.count;
+    for (const slot of items) {
+      if (count === 0) break;
+      if (slot.kind !== stack.kind) continue;
+      const room = ITEM_STACK[slot.kind] - slot.count;
+      const n = Math.min(room, count);
+      slot.count += n;
+      count -= n;
+    }
+    while (count > 0 && items.length < slots) {
+      const n = Math.min(ITEM_STACK[stack.kind], count);
+      items.push({ kind: stack.kind, count: n });
+      count -= n;
+    }
+    if (stack.count - count > 0) taken.push({ kind: stack.kind, count: stack.count - count });
+    if (count > 0) left.push({ kind: stack.kind, count });
+  }
+  return { pack: { coins, items }, taken: { coins: coins - pack.coins, items: taken }, left: { coins: loot.coins - (coins - pack.coins), items: left } };
+}
+
+/** Checks a pack from outside (a stored row): known kinds, counts within their stacks, at most MAX_SLOTS. Null if it is not one. */
+export function checkPack(raw: unknown): Pack | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const m = raw as Record<string, unknown>;
+  if (!Number.isInteger(m.coins) || (m.coins as number) < 0 || (m.coins as number) > MAX_COINS) return null;
+  if (!Array.isArray(m.items) || m.items.length > MAX_SLOTS) return null;
+  const items: ItemStack[] = [];
+  for (const raw of m.items as unknown[]) {
+    if (!raw || typeof raw !== 'object') return null;
+    const s = raw as Record<string, unknown>;
+    if (!isItemKind(s.kind) || !Number.isInteger(s.count) || (s.count as number) < 1 || (s.count as number) > ITEM_STACK[s.kind]) return null;
+    items.push({ kind: s.kind, count: s.count as number });
+  }
+  return { coins: m.coins as number, items };
+}
+
+// ---------------------------------------------------------------- loot tables
+
+/**
+ * What a source of loot gives: coins from `coins[0]` to `coins[1]`, then each roll of `items`
+ * (with its chance) gives one item, picked by weight.
+ */
+export interface LootTable {
+  readonly coins?: readonly [number, number];
+  readonly items?: readonly LootRoll[];
+}
+
+export interface LootRoll {
+  readonly chance: number;
+  readonly pick: readonly (readonly [ItemKind, number])[];
+}
+
+/** What a kill drops into the killer's pack (Fede's choice, 2026-10-10). */
+export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
+  imp: { items: [{ chance: 1 / 3, pick: [['imp-horn', 1]] }] },
+  brute: { coins: [2, 6], items: [{ chance: 1 / 2, pick: [['brute-tusk', 1]] }] },
+};
+
+/** Rolls a loot table with a random source: the same source gives the same loot. */
+export function rollLoot(table: LootTable, random: () => number): Loot {
+  const [min, max] = table.coins ?? [0, 0];
+  const coins = min + Math.floor(random() * (max - min + 1));
+  const items: ItemStack[] = [];
+  for (const roll of table.items ?? []) {
+    if (random() >= roll.chance) continue;
+    const total = roll.pick.reduce((sum, [, w]) => sum + w, 0);
+    let x = random() * total;
+    let kind = roll.pick[roll.pick.length - 1]![0];
+    for (const [k, weight] of roll.pick) {
+      x -= weight;
+      if (x < 0) {
+        kind = k;
+        break;
+      }
+    }
+    const same = items.findIndex((s) => s.kind === kind);
+    if (same >= 0) items[same] = { kind, count: items[same]!.count + 1 };
+    else items.push({ kind, count: 1 });
+  }
+  return { coins, items };
+}

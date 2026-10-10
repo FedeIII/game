@@ -22,6 +22,8 @@ const LOOK_SEED = 0x6b1d;
 /** A lit window throws a little warm light onto the street. */
 const WINDOW_LIGHT = { radius: 48, colour: 0xffa850, y: -17 } as const;
 
+type DoorState = 'open' | 'closed' | 'boarded';
+
 interface BuildingView {
   readonly building: Building;
   readonly sprites: Sprite[];
@@ -31,7 +33,7 @@ interface BuildingView {
   readonly sign: Container | null;
   readonly door: Sprite;
   /** The door state that the door sprite shows. */
-  doorOpen: boolean;
+  doorState: DoorState;
   readonly roof: Container;
   alpha: number;
 }
@@ -87,8 +89,7 @@ export class Buildings {
     const step = Math.min(1, seconds * FADE_RATE);
     for (const built of this.views.values()) {
       // A door can change without this client: another visitor, an NPC, the server.
-      const open = this.world.isDoorOpen(built.building.doorX, built.building.y1);
-      if (open !== built.doorOpen) this.refreshDoor(built.building.doorX, built.building.y1);
+      if (this.doorState(built.building, built.building.doorX, built.building.y1) !== built.doorState) this.refreshDoor(built.building.doorX, built.building.y1);
       const target = built.building === inside ? 0 : 1;
       built.alpha += (target - built.alpha) * step;
       if (Math.abs(target - built.alpha) < 0.01) built.alpha = target;
@@ -108,8 +109,8 @@ export class Buildings {
     const building = this.world.buildingAt(tx, ty);
     const built = building && this.views.get(building.id);
     if (!built) return;
-    built.door.texture = this.doorTexture(built.building, tx, ty);
-    built.doorOpen = this.world.isDoorOpen(tx, ty);
+    built.doorState = this.doorState(built.building, tx, ty);
+    built.door.texture = this.doorTexture(built.building, built.doorState);
   }
 
   /** The lights of the lit windows of the buildings that are shown, in world pixels. */
@@ -130,11 +131,14 @@ export class Buildings {
     return out;
   }
 
-  /** The door open, closed, or boarded up (a building that is shut for good). */
-  private doorTexture(building: Building, tx: number, ty: number): Texture {
-    const walls = (building.style ?? DEFAULT_STYLE).walls;
-    const state = building.locked !== undefined ? 'boarded' : this.world.isDoorOpen(tx, ty) ? 'open' : 'closed';
-    return this.art.frame(`wall/${walls}/door/${state}`);
+  /** The door open, closed, or boarded up (a building that is shut for good, or barred and not forced). */
+  private doorState(building: Building, tx: number, ty: number): DoorState {
+    if (building.locked !== undefined || this.world.doorBar(tx, ty)) return 'boarded';
+    return this.world.isDoorOpen(tx, ty) ? 'open' : 'closed';
+  }
+
+  private doorTexture(building: Building, state: DoorState): Texture {
+    return this.art.frame(`wall/${(building.style ?? DEFAULT_STYLE).walls}/door/${state}`);
   }
 
   private wallTexture(building: Building, tx: number, ty: number): Texture {
@@ -205,7 +209,7 @@ export class Buildings {
       for (let tx = x0; tx <= x1; tx++) {
         if (tx !== x0 && tx !== x1 && ty !== y0 && ty !== y1) continue;
         const isDoor = tx === doorX && ty === y1;
-        const sprite = place(new Sprite(isDoor ? this.doorTexture(building, tx, ty) : this.wallTexture(building, tx, ty)), tx, ty, 8);
+        const sprite = place(new Sprite(isDoor ? this.doorTexture(building, this.doorState(building, tx, ty)) : this.wallTexture(building, tx, ty)), tx, ty, 8);
         if (ty === y1) front.push(sprite);
         if (isDoor) door = sprite;
       }
@@ -243,6 +247,6 @@ export class Buildings {
     this.layer.addChild(roof);
 
     if (!door) throw new Error(`building ${building.id} has no door`);
-    return { building, sprites, front, sign, door, doorOpen: this.world.isDoorOpen(doorX, y1), roof, alpha: 1 };
+    return { building, sprites, front, sign, door, doorState: this.doorState(building, doorX, y1), roof, alpha: 1 };
   }
 }

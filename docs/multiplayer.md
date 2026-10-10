@@ -38,10 +38,10 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the character's stored place, or else of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
 | client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
-| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]` |
+| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11) |
 | client to server | `ping` | the client's clock, for the round trip |
-| server to client | `welcome` | player id, start position, open doors |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed, the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -64,6 +64,32 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Strength: traits, barred doors, chests and the pack (protocol 11, 2026-10-10)
+
+The ability scores do things in the game (see `docs/drafts/abilities.md` and CLAUDE.md, "Ability
+scores in the game"). The server makes each player's traits (`sheetTraits()`) from its stored
+character, as it takes the look and the name: a client never sends them. The page makes the same
+traits from the same character, so its prediction stays exact:
+
+- `stepPlayer(..., traits)`: a player with Strength 13 walks in shallow water, at half speed, and
+  does not attack there. The prediction and the Room run the same rule.
+- A blow (`Horde.strike(..., blow)`) takes `traits.damage` health points (the attack ability of
+  the class) and pushes and staggers by Strength. Mob health is in points now (imp 3, brute 12):
+  the client predicts a kill when the health is not more than its damage. That changed the meaning
+  of the health in `WireMob`, so the version went up.
+- A barred door (`Building.barred`): a door wish on it forces it if the player's scores pass its
+  gate (`useDoor(..., traits)`), on the client (prediction) and in the Room. The welcome and the
+  snapshots with the doors carry the forced doors (`fd`). The Room's `Spoils` bars a forced door
+  again after 30 minutes with nobody within 30 tiles.
+- A chest (`u` in an input batch, just before the input `seq`, as a door wish): the Room checks
+  the reach (`reachableFixture()`), takes the loot of the chest (`Spoils.open()`: one loot per
+  chest for everybody, which fills again 30 minutes after it was emptied) into the player's pack,
+  and sends `l` (source 0) and the pack (`pk`) in the next snapshot. The client does not predict
+  it: the player says what it found when the snapshot comes.
+- A kill drops loot into the killer's pack (`Horde.drop()`, `MOB_LOOT`): `l` with source 1.
+- The pack belongs to the character: the store keeps it (the column `pack`), and the server saves
+  it with the place (when the player leaves, and at each heartbeat). A page never writes it.
 
 ## Characters and accounts (protocol 7, 2026-10-09)
 
@@ -121,7 +147,7 @@ client sends the server time of what it shows (`Remotes.viewTime()`) with the at
 the room checks the hit against the mobs now **and** where they were at that time (`Room` keeps
 700 ms of their positions). It never goes back more than 500 ms; without a time, 150 ms. The
 client shows the blow at once when the hit is clear (3 px inside the reach; `game.ts`): a mob
-with more than one health left reels (`reeling`; the server's push follows), and a mob on its
+with more health left than the blow's damage reels (`reeling`; the server's push follows), and a mob on its
 last health dies (`predicted`): it dies on the screen; when the
 server's snapshot says that it dies too, the death goes on with the local timing; if the server
 has not said so after 0.7 s, the mob shows alive again.
@@ -181,7 +207,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":8,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":11,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 
