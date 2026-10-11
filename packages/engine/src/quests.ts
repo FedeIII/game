@@ -90,6 +90,8 @@ export interface QuestEffect {
   readonly flag?: string;
   /** Items that the character gives (the lever that it brings). It must have them. */
   readonly take?: readonly ItemStack[];
+  /** Coins that the character pays (a fine). It must have them. */
+  readonly cost?: number;
   /** Coins and items that the character gets. What does not fit in the pack falls at its feet. */
   readonly give?: Loot;
 }
@@ -98,7 +100,7 @@ export interface QuestEffect {
 export function canApply(effect: QuestEffect, book: QuestBook, pack: Pack): boolean {
   const entry = book[effect.quest];
   const fromOk = effect.from ? entry !== undefined && effect.from.includes(entry.step) : entry === undefined;
-  return fromOk && hasItems(pack, effect.take ?? []);
+  return fromOk && hasItems(pack, effect.take ?? []) && pack.coins >= (effect.cost ?? 0);
 }
 
 /**
@@ -115,7 +117,8 @@ export function applyEffect(effect: QuestEffect, book: QuestBook, pack: Pack, sl
     ...book,
     [effect.quest]: { step: effect.to, flags: effect.flag && !flags.includes(effect.flag) ? [...flags, effect.flag].slice(-MAX_FLAGS) : flags, n },
   };
-  const paid = removeFromPack(pack, effect.take ?? []);
+  const taken = removeFromPack(pack, effect.take ?? []);
+  const paid = effect.cost ? { ...taken, coins: taken.coins - effect.cost } : taken;
   const added = addToPack(paid, effect.give ?? { coins: 0, items: [] }, slots);
   return { book: next, pack: added.pack, taken: added.taken, left: added.left };
 }
@@ -178,6 +181,7 @@ export function checkEffect(effect: QuestEffect, quests: readonly QuestDef[]): s
   const problems: string[] = [];
   for (const step of [effect.to, ...(effect.from ?? [])]) if (!questStep(quest, step)) problems.push(`${effect.id}: no step "${step}" in ${quest.id}`);
   if (effect.flag !== undefined && !QUEST_ID.test(effect.flag)) problems.push(`${effect.id}: the flag "${effect.flag}" is not good`);
+  if (effect.cost !== undefined && (!Number.isInteger(effect.cost) || effect.cost < 0)) problems.push(`${effect.id}: the cost is not a whole number of coins`);
   return problems;
 }
 

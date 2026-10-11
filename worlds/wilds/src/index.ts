@@ -8,9 +8,9 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
-export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
+export { CARAVAN_MEET, CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
-export { ARGUMENT, IRONHOLD, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
+export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
@@ -21,6 +21,7 @@ export {
   INSIGHT_GATE,
   JEWELLER,
   KASMUT,
+  KEEN_GATE,
   MERCHANT,
   MILITIA,
   MITHRIL_COST,
@@ -34,12 +35,22 @@ export {
   SOLDIER,
   SURVIVOR_HALE,
   SURVIVOR_TANNER,
+  WAGON_DRIVER,
   WATCHMAN,
   smithPays,
 } from './dialogs.ts';
 export {
   ASHES,
   ASHES_SYMBOL,
+  CARAVAN,
+  CARAVAN_FINE,
+  CARAVAN_FINE_COINS,
+  CARAVAN_HEARD,
+  CARAVAN_LOST,
+  CARAVAN_REWARD,
+  CARAVAN_ROB,
+  CARAVAN_ROBBED,
+  CARAVAN_SAVED,
   CART,
   CART_HELP,
   CART_LEVER,

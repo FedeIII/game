@@ -4,6 +4,7 @@ import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
 import { NameTag } from './name-tag.ts';
+import { tw } from '../i18n.ts';
 import { npcTextures } from './npcs.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { PlayerView } from './player-view.ts';
@@ -61,7 +62,7 @@ export class CompanionViews {
         shown = undefined;
       }
       shown ??= this.add(companion);
-      shown.tag.set(companion.name);
+      shown.tag.set(tw(companion.name));
       shown.x = companion.x;
       shown.y = companion.y;
       shown.view.update(companion.x, companion.y, companion, seconds);

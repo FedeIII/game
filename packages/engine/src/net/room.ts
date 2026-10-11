@@ -12,6 +12,8 @@ import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
 import { Ambushes } from '../ambushes.ts';
 import { Escorts } from '../escorts.ts';
+import { Convoys } from '../convoys.ts';
+import { Guards, type GuardEvent } from '../guards.ts';
 import { fixtureContent } from '../fixtures.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
@@ -212,6 +214,9 @@ export class Room {
   readonly ambushes: Ambushes;
   /** The escorts of the story (escorts.ts): Himo, whom a character takes home. */
   readonly escorts: Escorts;
+  /** The NPCs that fight (guards.ts: the militia and the wagon of a caravan), and the convoys that they walk in (convoys.ts). */
+  readonly guards: Guards;
+  readonly convoys: Convoys;
   /** The players whose quest book the room changed by itself (an ambush that ended), for the server to save. */
   private questSaves = new Set<number>();
   /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
@@ -251,6 +256,8 @@ export class Room {
     this.companions = new Companions(world);
     this.ambushes = new Ambushes(world, world.source.ambushes?.() ?? []);
     this.escorts = new Escorts(world.source.escorts?.() ?? []);
+    this.guards = new Guards(world);
+    this.convoys = new Convoys(world, world.source.convoys?.() ?? []);
   }
 
   /**
@@ -300,6 +307,12 @@ export class Room {
       this.companionEvents.push(...companionEvents);
       if (this.companions.takeDoors()) this.doorVersion++;
     }
+    // The guards fight and walk (before the mobs, which hunt them too); an outlaw is a foe of their convoy.
+    let guardEvents: GuardEvent[] = [];
+    if (this.guards.list.length > 0) {
+      const guardPlayers = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, outlaw: this.convoys.outlawOf(p), traits: p.traits }));
+      guardEvents = this.guards.step(dt, this.horde, guardPlayers, this.dice, this.convoys.anchors());
+    }
     if (this.escorts.defs.length > 0) {
       // The escorts: a character at the step gets its companion; one that comes home or falls ends the escort.
       const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
@@ -309,7 +322,7 @@ export class Room {
       // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
       // Mobs see a player from less far with Dexterity, and less again while it sneaks.
       const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state), traits: p.traits }));
-      players.push(...this.companions.targets());
+      players.push(...this.companions.targets(), ...this.guards.targets());
       // The attacks that hit (a miss glances off: the player's state shows its spark).
       this.hits += this.horde.step(dt, players).filter((hit) => hit[2] > 0).length;
       for (const result of this.horde.takeShotResults()) this.players.get(result.owner)?.blows.push(toWireBlow(result));
@@ -318,6 +331,8 @@ export class Room {
       for (const { player: id, effect } of this.ambushes.step(this.horde, people)) this.applyStory(id, effect, nowMs);
       // During a raid, the people of the town take shelter.
       this.npcs?.setAlarm(this.ambushes.sheltered);
+      // The convoys: they start, meet their attackers, and end (saved, lost, robbed).
+      if (this.convoys.defs.length > 0) for (const { player: id, effect } of this.convoys.step(this.horde, this.guards, people, guardEvents)) this.applyStory(id, effect, nowMs);
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
         const shooter = this.players.get(owner);
@@ -576,6 +591,9 @@ export class Room {
           return;
         }
         const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id, player.traits);
+        // A robber's blow also hits the guards of the convoy that it robs.
+        const outlaw = this.convoys.outlawOf(player);
+        if (outlaw.length > 0) this.guards.strike(player.state, player.state.aim, player.id, player.traits, outlaw, this.dice);
         for (const result of struck) {
           // Its client shows what the dice did (a number, a miss) when this comes.
           player.blows.push(toWireBlow(result));
@@ -636,6 +654,8 @@ export class Room {
     }
     const answer = dialog ? findDealAnswer(dialog, dealId) : null;
     if (!answer?.deal || (answer.gate && !meetsGate(player.traits.scores, answer.gate)) || !holds(answer.when, player.quests, player.pack)) return;
+    // A person who does not deal with this character (a wanted robber).
+    if (dialog?.refuse && holds(dialog.refuse.when, player.quests, player.pack)) return;
     const pack = makeDeal(answer.deal, player.pack, player.state, player.traits);
     if (!pack) return;
     player.pack = pack;
@@ -657,11 +677,17 @@ export class Room {
    * It changes the book and the pack: the reward goes into the pack (the client shows it), and what
    * does not fit falls at the player's feet. Returns whether the book changed (the server saves it).
    */
-  quest(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number]; readonly scene?: string }, effectId: string, nowMs: number): boolean {
+  quest(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number]; readonly scene?: string; readonly guard?: number }, effectId: string, nowMs: number): boolean {
     const player = this.players.get(id);
     if (!player || player.state.down > 0) return false;
     let found: { readonly effect?: QuestEffect; readonly gate?: Gate; readonly when?: Conditions } | null = null;
-    if (from.npc !== undefined) {
+    if (from.guard !== undefined) {
+      // A guard that talks (the driver of the wagon).
+      const guard = this.guards.list.find((g) => g.id === from.guard);
+      if (!guard || guard.state.down > 0 || Math.hypot(guard.state.x - player.state.x, guard.state.y - player.state.y) > DEAL_RANGE) return false;
+      const dialog = guard.def.content?.dialog;
+      found = dialog ? findEffectAnswer(dialog, effectId) : null;
+    } else if (from.npc !== undefined) {
       const pose = this.npcs?.poses[from.npc];
       if (!pose || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return false;
       const dialog = this.world.source.npcs?.()[from.npc]?.content.dialog;
@@ -832,6 +858,8 @@ export class Room {
     const looks: [number, WireLook][] = [...this.players.values()].map((p) => [p.id, toWireLook(shownGear(p.gear))]);
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
     const arrows: WireArrow[] = (this.horde?.arrows ?? []).map((a) => [a.id, a.owner, round(a.x), round(a.y), aimCode(a.aim)]);
+    // The guards go as companions without a leader (leader 0).
+    const guards: WireCompanion[] = this.guards.list.map(({ id, def, state: c }) => [id, def.look, def.name, round(c.x), round(c.y), Math.round(c.vx), Math.round(c.vy), facingCode(c.facing), c.hp, def.hp, c.stun, c.guard, c.down, 0]);
     const companions: WireCompanion[] = this.companions.list.map(({ id, def, state: c, leader }) => [
       id,
       def.look,
@@ -848,6 +876,7 @@ export class Room {
       c.down,
       leader,
     ]);
+    companions.push(...guards);
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;

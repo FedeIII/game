@@ -88,8 +88,61 @@ export const RAID: QuestDef = {
   ],
 };
 
+/** The coins of a caravan that a character saves (the chapter: the Enclave thanks it, with coins and a healing draught). */
+export const CARAVAN_REWARD = 15;
+/** The fine that a robber of the caravan pays to the reeve of Ironhold or to Kasmut. */
+export const CARAVAN_FINE_COINS = 60;
+
+/**
+ * The Caravan Ambush (chapter 1.5.1, "Asalto a la Caravana"; story phase 5): soldiers of the
+ * Sovereignty send hobgoblins against a caravan of Silverspring. A character who overhears the plot
+ * in the Crooked Lantern can defend the caravan, or rob it (then it is wanted until it pays a fine).
+ */
+export const CARAVAN: QuestDef = {
+  id: 'caravan',
+  title: 'The Caravan Ambush',
+  steps: [
+    // The meeting point: the north road, at four fifths of its length (source.ts, CARAVAN_MEET; a test checks it).
+    {
+      id: 'heard',
+      journal: 'In the Crooked Lantern I overheard a plot: soldiers of the Sovereignty send hobgoblins against a caravan of Silverspring, half a day down the north road.',
+      at: [127, -161],
+    },
+    { id: 'saved', journal: 'I saved the caravan of Silverspring from the hobgoblins. Its driver thanked me in the name of the Enclave.', end: true },
+    { id: 'lost', journal: 'The hobgoblins broke the wagon of the caravan of Silverspring. Its cargo is lost.', end: true },
+    { id: 'robbing', journal: 'I attack the caravan of Silverspring for its cargo. Ironhold and Silverspring want me for it: their guards and traders do not deal with me.' },
+    { id: 'robbed', journal: 'I took the cargo of the caravan of Silverspring. I am wanted in Ironhold and Silverspring until I pay a fine to the reeve or to Kasmut.' },
+    { id: 'pardoned', journal: 'I paid the fine for the caravan. Ironhold and Silverspring deal with me again.', end: true },
+  ],
+};
+
 /** The quests of the Wilds, in the order of the journal. */
-export const QUESTS: readonly QuestDef[] = [ASHES, CART, RAID];
+export const QUESTS: readonly QuestDef[] = [ASHES, CART, RAID, CARAVAN];
+
+/** The end of the scene in the Crooked Lantern (town.ts, PLOT): the character heard of the plot. */
+export const CARAVAN_HEARD: QuestEffect = { id: 'caravan-heard', quest: 'caravan', to: 'heard' };
+/** Every attacker of the caravan fell, and its wagon lives. */
+export const CARAVAN_SAVED: QuestEffect = { id: 'caravan-saved', quest: 'caravan', to: 'saved', from: ['heard'], give: { coins: CARAVAN_REWARD, items: [{ kind: 'draught', count: 1 }] } };
+/** The attackers broke the wagon. */
+export const CARAVAN_LOST: QuestEffect = { id: 'caravan-lost', quest: 'caravan', to: 'lost', from: ['heard'] };
+/** The character tells the driver to hand over the cargo: its militia fight it (it is an outlaw of the caravan). */
+export const CARAVAN_ROB: QuestEffect = { id: 'caravan-rob', quest: 'caravan', to: 'robbing', from: ['heard', 'saved'] };
+/** The militia fell to the robber: the cargo is its (the chapter: furs, spices, and a small chest of mithril nuggets). */
+export const CARAVAN_ROBBED: QuestEffect = {
+  id: 'caravan-robbed',
+  quest: 'caravan',
+  to: 'robbed',
+  from: ['robbing'],
+  give: {
+    coins: 20,
+    items: [
+      { kind: 'badger-fur', count: 3 },
+      { kind: 'mithril', count: 5 },
+    ],
+  },
+};
+/** The robber pays its fine. */
+export const CARAVAN_FINE: QuestEffect = { id: 'caravan-fine', quest: 'caravan', to: 'pardoned', from: ['robbing', 'robbed'], cost: CARAVAN_FINE_COINS };
 
 /** The letter on the table of the home: to read it starts the story. */
 export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'ashes', to: 'letter' };

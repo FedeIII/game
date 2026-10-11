@@ -51,6 +51,13 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
     content(fixture.variant?.content);
   }
   for (const mark of source.landmarks?.() ?? []) add(mark.name);
+  // The guards of the convoys: their names over their heads, and what they say.
+  for (const convoy of source.convoys?.() ?? []) {
+    for (const member of convoy.members) {
+      add(member.name);
+      content(member.content);
+    }
+  }
   for (const scene of source.scenes?.() ?? []) for (const line of scene.lines) add(line.text);
   for (const quest of definition.quests ?? []) {
     add(quest.title);

@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 30;
+export const PROTOCOL_VERSION = 31;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -249,6 +249,8 @@ export interface QuestMessage {
   readonly npc?: number;
   readonly at?: readonly [number, number];
   readonly scene?: string;
+  /** A guard that talks (guards.ts, GuardDef.content: the wagon of the caravan), by its id (protocol 31). */
+  readonly guard?: number;
   readonly effect: string;
 }
 
@@ -673,9 +675,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'quest': {
       if (typeof m.effect !== 'string' || !QUEST_ID.test(m.effect)) return null;
-      const from = [m.npc, m.at, m.scene].filter((v) => v !== undefined).length;
+      const from = [m.npc, m.at, m.scene, m.guard].filter((v) => v !== undefined).length;
       if (from !== 1) return null;
       if (isInt(m.npc, 0, 1000)) return { t: 'quest', npc: m.npc, effect: m.effect };
+      if (isInt(m.guard, 0, 0x7fffffff)) return { t: 'quest', guard: m.guard, effect: m.effect };
       if (isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'quest', at: m.at as [number, number], effect: m.effect };
       if (typeof m.scene === 'string' && QUEST_ID.test(m.scene)) return { t: 'quest', scene: m.scene, effect: m.effect };
       return null;

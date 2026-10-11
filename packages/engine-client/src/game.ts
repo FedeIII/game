@@ -19,6 +19,14 @@ import {
   finalScores,
   fixtureContent,
   Escorts,
+  Guards,
+  Convoys,
+  GUARD_IDS,
+  NPC_HALF_WIDTH,
+  NPC_HALF_HEIGHT,
+  type Actor,
+  type GuardDef,
+  type GuardEvent,
   type CompanionEvent,
   npcActors,
   npcFixture,
@@ -249,6 +257,11 @@ function dropLines(taken: Loot): string[] {
 }
 
 /** A key for "the same target": a fixture by its anchor, a pile by its id, anything else by its tile. */
+/** The row of the keys of the guards that talk: no tile is on it (targetKey). */
+const GUARD_KEY_ROW = -1_000_000_000;
+/** A guard that talks says its lines this high over its feet (world pixels): the driver on the wagon. */
+const GUARD_HEAD = 30;
+
 function targetKey(target: InteractionTarget): string {
   const f = target.fixture;
   if (target.pile) return `pile@${target.pile.id}`;
@@ -567,6 +580,24 @@ async function run(options: GameOptions): Promise<void> {
   const localAmbushes = horde ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
   // The escorts of the story (escorts.ts: Himo) in a world that the page runs, with its companions.
   const localEscorts = localCompanions ? new Escorts(world.source.escorts?.() ?? []) : null;
+  // The NPCs that fight and the convoys that they walk in (guards.ts, convoys.ts: the caravan), in a world that the page runs.
+  const localGuards = net ? null : new Guards(world);
+  const localConvoys = horde && localGuards ? new Convoys(world, world.source.convoys?.() ?? []) : null;
+  /** The kinds of guard that talk (the driver of the wagon), by their look: a guard of the server comes with its look only. */
+  const talkingGuards = new Map((world.source.convoys?.() ?? []).flatMap((c) => c.members.filter((m) => m.content)).map((m) => [m.look, m] as const));
+  /** A guard that talks, as a target of the action button: one fixture for each guard (by its id), so a dialog stays with it. */
+  const guardFixtures = new Map<number, Fixture>();
+  const guardOf = new Map<Fixture, number>();
+  const guardFixture = (id: number, def: GuardDef): Fixture => {
+    let fixture = guardFixtures.get(id);
+    if (!fixture) {
+      // Its key (targetKey) is its id: no tile has it.
+      fixture = { kind: 'npc', tx: id, ty: GUARD_KEY_ROW, look: def.look, content: def.content! };
+      guardFixtures.set(id, fixture);
+      guardOf.set(fixture, id);
+    }
+    return fixture;
+  };
   const companionLook = params.get('companion');
   if (localCompanions && companionLook && art.tryFrame(`npc/${companionLook}/down/stand`)) {
     localCompanions.add({ id: 'test', name: STRINGS.companion, look: companionLook, hp: PLAIN_HP, fallen: 'wakes' }, 0, player.x - TILE_SIZE, player.y);
@@ -576,7 +607,15 @@ async function run(options: GameOptions): Promise<void> {
   const companionsNow = (now: number): CompanionPose[] =>
     net
       ? net.companionsAt(now)
-      : (localCompanions?.list ?? []).map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down }));
+      : [...(localCompanions?.list ?? []), ...(localGuards?.list ?? [])].map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down }));
+  /** The guards that talk, as targets of the action button (their place now). */
+  const guardActors = (now: number): Actor[] =>
+    companionsNow(now).flatMap((c) => {
+      const def = c.id >= GUARD_IDS && c.down === 0 ? talkingGuards.get(c.look) : undefined;
+      return def ? [{ x: c.x, y: c.y, halfWidth: NPC_HALF_WIDTH, halfHeight: NPC_HALF_HEIGHT, fixture: guardFixture(c.id, def) }] : [];
+    });
+  /** Where a guard is now (its feet), or null when it is gone. */
+  const guardAt = (id: number, now: number): { x: number; y: number } | null => companionsNow(now).find((c) => c.id === id) ?? null;
   let kills = 0;
   let blows = 0;
   let hitsTaken = 0;
@@ -997,7 +1036,7 @@ async function run(options: GameOptions): Promise<void> {
    * shows the book as it will be until the server's word comes), the page in its own world.
    * Returns whether it went.
    */
-  const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] } | { readonly scene: string }): boolean => {
+  const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] } | { readonly scene: string } | { readonly guard: number }): boolean => {
     const book = questsNow();
     if (!canApply(effect, book, packNow())) return false;
     if (net) {
@@ -1043,7 +1082,8 @@ async function run(options: GameOptions): Promise<void> {
     effect: (effect) => {
       if (!talkWith) return false;
       const index = npcIndex.get(talkWith);
-      return applyQuest(effect, index !== undefined ? { npc: index } : { at: [talkWith.tx, talkWith.ty] });
+      const guard = guardOf.get(talkWith);
+      return applyQuest(effect, index !== undefined ? { npc: index } : guard !== undefined ? { guard } : { at: [talkWith.tx, talkWith.ty] });
     },
   });
   const openTalk = () => {
@@ -1058,9 +1098,10 @@ async function run(options: GameOptions): Promise<void> {
   const talkingClose = (now: number): boolean => {
     if (!talkWith) return false;
     const walker = npcIndex.get(talkWith);
-    // A thing that talks (the cauldron) stands still: the middle of its anchor tile.
-    const pose = walker !== undefined ? npcPoses(now)[walker] : { x: talkWith.tx * TILE_SIZE + TILE_SIZE / 2, y: talkWith.ty * TILE_SIZE + TILE_SIZE / 2 };
-    return pose !== undefined && Math.hypot(pose.x - player.x, pose.y - player.y) <= TALK_RANGE;
+    const guard = guardOf.get(talkWith);
+    // A thing that talks (the cauldron) stands still: the middle of its anchor tile. A guard walks.
+    const pose = walker !== undefined ? npcPoses(now)[walker] : guard !== undefined ? guardAt(guard, now) : { x: talkWith.tx * TILE_SIZE + TILE_SIZE / 2, y: talkWith.ty * TILE_SIZE + TILE_SIZE / 2 };
+    return pose !== undefined && pose !== null && Math.hypot(pose.x - player.x, pose.y - player.y) <= TALK_RANGE;
   };
 
   const closeDialog = (now: number) => {
@@ -1176,11 +1217,17 @@ async function run(options: GameOptions): Promise<void> {
     if (talking !== undefined) barkBubbles?.hush(talking, now);
     if (talking !== undefined && talking === hostIndex) welcome?.stop(now);
     const walker = fixture ? npcIndex.get(fixture) : undefined;
+    const guard = fixture ? guardOf.get(fixture) : undefined;
     const anchor =
       content.speaker === 'fixture' && fixture
         ? walker !== undefined
           ? () => npcViews!.headOf(walker)
-          : () => Fixtures.headOf(fixture)
+          : guard !== undefined
+            ? () => {
+                const at = guardAt(guard, performance.now()) ?? shown;
+                return { x: at.x, y: at.y - GUARD_HEAD };
+              }
+            : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     if (content.dialog && fixture) {
       speech.show([content.dialog.nodes[startNode(content.dialog, questsNow(), packNow())]!.say], anchor, now, true);
@@ -1268,6 +1315,9 @@ async function run(options: GameOptions): Promise<void> {
           kills++;
           takeDrop(horde.drop(result.mob), performance.now(), result.mob);
         }
+        // A robber's blow also hits the guards of the convoy that it robs.
+        const outlaw = localConvoys?.outlawOf({ quests: localQuests, pack }) ?? [];
+        if (outlaw.length > 0) localGuards?.strike(player, player.aim, 0, traits, outlaw, LOCAL_DICE);
       }
     }
     if (waking) wakeHere();
@@ -1291,13 +1341,20 @@ async function run(options: GameOptions): Promise<void> {
     }
     // The end of an escort (home, or a fall) moves the quest on.
     if (localCompanions && localEscorts?.defs.length) for (const { effect } of localEscorts.step(localCompanions, [{ id: 0, state: player, quests: localQuests, pack }], companionEvents)) applyQuest(effect, { scene: 'escort' });
-    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? [])]);
+    // The guards fight and walk; an outlaw (a robber) is a foe of its convoy.
+    let guardEvents: GuardEvent[] = [];
+    if (localGuards && localConvoys && localGuards.list.length > 0) {
+      guardEvents = localGuards.step(TICK_SECONDS * 1000, horde, [{ id: 0, state: player, outlaw: localConvoys.outlawOf({ quests: localQuests, pack }), traits }], LOCAL_DICE, localConvoys.anchors());
+    }
+    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? []), ...(localGuards?.targets() ?? [])]);
     // An ambush that ends moves the quest on (here the page applies it: where does not matter).
     if (horde && localAmbushes) {
       for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
       // During a raid, the people of the town take shelter.
       localNpcs?.setAlarm(localAmbushes.sheltered);
     }
+    // The convoys start, meet their attackers and end.
+    if (horde && localGuards && localConvoys?.defs.length) for (const { effect } of localConvoys.step(horde, localGuards, [{ id: 0, state: player, quests: localQuests, pack }], guardEvents)) applyQuest(effect, { scene: 'convoy' });
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now(), mob);
@@ -1361,7 +1418,7 @@ async function run(options: GameOptions): Promise<void> {
 
     const npcsNow = npcPoses(now);
     npcViews?.update(npcsNow, seconds);
-    target = findInteraction(world, player, accept, npcActors(npcDefs, npcsNow), pilesNow());
+    target = findInteraction(world, player, accept, [...npcActors(npcDefs, npcsNow), ...guardActors(now)], pilesNow());
     if (pendingTalk && now >= pendingTalk.at) openTalk();
     if (conversation.open) {
       // The NPC waits for a player who stands close to it; a stun, or an NPC that is not close

@@ -153,25 +153,14 @@ export class Ambushes {
     const route = def.march?.route.map(([x, y]) => ({ x: x * TILE_SIZE, y: y * TILE_SIZE }));
     const [fx, fy] = route ? [0, 0] : [...def.from].sort((a, b) => Math.hypot(b[0] * TILE_SIZE - at.x, b[1] * TILE_SIZE - at.y) - Math.hypot(a[0] * TILE_SIZE - at.x, a[1] * TILE_SIZE - at.y))[0]!;
     const walkers = members.filter((m) => m.rides === undefined).length;
-    const mobs: Mob[] = [];
     let walker = 0;
-    members.forEach((member, i) => {
-      const mount = member.rides === undefined ? undefined : mobs[member.rides];
-      if (mount) {
-        mobs[i] = horde.spawnRider(member.kind, mount, member.seat ?? 0);
-        return;
-      }
-      if (route) {
-        // The column: the first mob at the head, the others behind it on the route.
-        const p = route[Math.min(route.length - 1, (walkers - 1 - walker++) * MARCH_GAP)]!;
-        const spot = this.world.findSpawn(Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE), 0);
-        mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
-        horde.march(mobs[i]!, route, def.march!.speed);
-        return;
-      }
-      const spot = this.world.findSpawn(fx + (i % 3) * 2 - 2, fy + Math.floor(i / 3) * 2, 0);
-      mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
+    const mobs = spawnMembers(horde, members, (_member, i) => {
+      if (!route) return this.world.findSpawn(fx + (i % 3) * 2 - 2, fy + Math.floor(i / 3) * 2, 0);
+      // The column: the first mob at the head, the others behind it on the route.
+      const p = route[Math.min(route.length - 1, (walkers - 1 - walker++) * MARCH_GAP)]!;
+      return this.world.findSpawn(Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE), 0);
     });
+    if (route) for (const mob of mobs) if (mob.mount === undefined) horde.march(mob, route, def.march!.speed);
     if (def.raid) for (const mob of mobs) horde.unleash(mob);
     return mobs.map((m) => m.id);
   }
@@ -185,3 +174,22 @@ export class Ambushes {
 }
 
 const tileOf = (v: number) => Math.floor(v / TILE_SIZE);
+
+/**
+ * Puts the members of an encounter into the horde: a rider on the mob at index `rides` of the list
+ * (its mount), the others where `place` says (world pixels; it gets the member and its index).
+ */
+export function spawnMembers(horde: Horde, members: readonly AmbushMember[], place: (member: AmbushMember, index: number) => { readonly x: number; readonly y: number }): Mob[] {
+  const mobs: Mob[] = [];
+  members.forEach((member, i) => {
+    const mount = member.rides === undefined ? undefined : mobs[member.rides];
+    if (mount) {
+      mobs[i] = horde.spawnRider(member.kind, mount, member.seat ?? 0);
+      return;
+    }
+    const spot = place(member, i);
+    mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
+  });
+  return mobs;
+}
+

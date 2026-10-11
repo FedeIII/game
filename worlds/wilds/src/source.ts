@@ -19,9 +19,12 @@ import {
   type NpcDef,
   type Landmark,
   type Refuge,
+  dice,
   type AmbushDef,
   type AmbushMember,
+  type ConvoyDef,
   type EscortDef,
+  type GuardDef,
   type SceneDef,
   type WorldSource,
 } from '@game/engine';
@@ -29,8 +32,8 @@ import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
-import { MERCHANT } from './dialogs.ts';
-import { HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
+import { CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -178,6 +181,29 @@ const BAND_UNITS: readonly (readonly AmbushMember[])[] = [
 ];
 /** The band marches at this pace (px/s): a slow walk (a character walks at 80). */
 const BAND_SPEED = 36;
+
+/**
+ * Other hobgoblins of the clan (story phase 5, Fede's decision): they attack the caravan of
+ * Silverspring when the character already killed the scouts and the war band. A hobgoblin with a
+ * goblin archer, then another hobgoblin, a worg with a goblin on its back, the bugbear, and more.
+ */
+const CLAN_UNITS: readonly (readonly AmbushMember[])[] = [
+  [{ kind: 'hobgoblin' }, { kind: 'goblin' }],
+  [{ kind: 'hobgoblin' }],
+  [{ kind: 'worg' }, { kind: 'goblin', rides: 3, seat: 1 }],
+  [{ kind: 'bugbear' }],
+  [{ kind: 'hobgoblin' }],
+  [{ kind: 'goblin' }],
+];
+/** The militia of the caravan of Silverspring (5e: a guard: AC 16, 11 hit points, a spear +3, 1d6+1). */
+const CARAVAN_MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
+/** The wagon of the caravan (a cart and two horses: 30 hit points, AC 11), with its driver to talk to. */
+const CARAVAN_WAGON: GuardDef = { id: 'wagon', name: 'Caravan', look: 'wagon', hp: 30, ac: 11, speed: 0.55, content: { speaker: 'fixture', dialog: WAGON_DRIVER } };
+/** The caravan meets its attackers at this share of the north road (from Ironhold): half a day from Silverspring. A character this near starts it (`CARAVAN_AREA`). */
+export const CARAVAN_MEET = 0.8;
+const CARAVAN_AREA = { span: [0.7, 0.97], radius: 12 } as const;
+/** A character at this step of the caravan meets the scouts and the band at the caravan, not in the grove or on the road. */
+const NOT_AT_THE_CARAVAN = { quest: 'caravan', at: ['heard'], not: true } as const;
 
 /** No tree or rock grows this close to the camp of the war band and to the burned homesteads (tiles): they stand in clearings. */
 const CAMP_CLEARING = 2;
@@ -606,14 +632,14 @@ export class WildsSource implements WorldSource {
       const grove = this.grove;
       const north = this.north;
       const tile = ([x, y]: readonly [number, number]) => [Math.floor(x), Math.floor(y)] as const;
-      const scouts: AmbushDef = { id: 'scouts', inArea: (tx, ty) => grove.has(tx, ty), when: { quest: 'raid', at: ['asked'] }, from: [tile(grove.start), tile(grove.end)], units: SCOUT_UNITS, effect: RAID_SCOUTS };
+      const scouts: AmbushDef = { id: 'scouts', inArea: (tx, ty) => grove.has(tx, ty), when: [{ quest: 'raid', at: ['asked'] }, NOT_AT_THE_CARAVAN], from: [tile(grove.start), tile(grove.end)], units: SCOUT_UNITS, effect: RAID_SCOUTS };
       // The war band marches from beyond the grove to the gate of Silverspring (road.ts, BAND_SPAN).
       const marchArea = new RoadStretch(north, BAND_AREA.span, BAND_AREA.radius);
       const first = Math.floor(north.points.length * BAND_SPAN[0]);
       const band: AmbushDef = {
         id: 'band',
         inArea: (tx, ty) => marchArea.has(tx, ty) && !townAt(tx, ty),
-        when: { quest: 'raid', at: ['scouts'] },
+        when: [{ quest: 'raid', at: ['scouts'] }, NOT_AT_THE_CARAVAN],
         from: [],
         units: BAND_UNITS,
         effect: RAID_BAND,
@@ -635,6 +661,39 @@ export class WildsSource implements WorldSource {
       this.ambushList = [scouts, band, raid];
     }
     return this.ambushList;
+  }
+
+  /**
+   * The caravan of Silverspring (story phase 5; chapter 1.5.1, "Asalto a la Caravana"): for a character
+   * who overheard the plot (quests.ts, caravan at `heard`) and comes down the north road near the
+   * meeting point, a wagon and two militia leave Silverspring for Ironhold. At four fifths of the road
+   * (from Ironhold) the attackers come: the scouts and then the war band of the raid, if they still
+   * live for the party (their fall moves the raid on, as in the grove); else other hobgoblins of the
+   * clan (Fede's decision). The driver gives the cargo to nobody: a character who demands it is an
+   * outlaw of the caravan, and its militia fight it.
+   */
+  convoys(): readonly ConvoyDef[] {
+    const north = this.north;
+    const area = new RoadStretch(north, CARAVAN_AREA.span, CARAVAN_AREA.radius);
+    return [
+      {
+        id: 'caravan',
+        when: { quest: 'caravan', at: ['heard'] },
+        inArea: (tx, ty) => area.has(tx, ty) && !townAt(tx, ty),
+        route: [...north.points].reverse(),
+        members: [CARAVAN_WAGON, CARAVAN_MILITIA, CARAVAN_MILITIA],
+        meet: 1 - CARAVAN_MEET,
+        waves: [
+          { when: { quest: 'raid', at: ['asked'] }, units: SCOUT_UNITS, effect: RAID_SCOUTS },
+          { when: { quest: 'raid', at: ['asked', 'scouts'] }, units: BAND_UNITS, effect: RAID_BAND },
+          { when: { quest: 'raid', at: ['asked', 'scouts'], not: true }, units: CLAN_UNITS },
+        ],
+        outlaw: { quest: 'caravan', at: ['robbing'] },
+        saved: CARAVAN_SAVED,
+        lost: CARAVAN_LOST,
+        robbed: CARAVAN_ROBBED,
+      },
+    ];
   }
 
   /**

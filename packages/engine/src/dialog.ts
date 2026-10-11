@@ -132,11 +132,17 @@ export interface Dialog {
   readonly start: string;
   /** Other first nodes, by the quests (quests.ts): the first whose conditions hold, else `start`. An NPC greets a character by its step. */
   readonly starts?: readonly { readonly when: Conditions; readonly node: string }[];
+  /**
+   * A person who does not deal with a character for whom the conditions hold (a wanted robber, story
+   * phase 5): the conversation starts at `node` before any other, and the server refuses its deals.
+   */
+  readonly refuse?: { readonly when: Conditions; readonly node: string };
   readonly nodes: Readonly<Record<string, DialogNode>>;
 }
 
 /** The node that a conversation starts with for a character with `book` and `pack` (Dialog.starts, else Dialog.start). */
 export function startNode(dialog: Dialog, book: QuestBook, pack: Pack): string {
+  if (dialog.refuse && holds(dialog.refuse.when, book, pack)) return dialog.refuse.node;
   const i = firstThatHolds(dialog.starts ?? [], book, pack);
   return i >= 0 ? dialog.starts![i]!.node : dialog.start;
 }
@@ -168,6 +174,7 @@ export function checkDialog(dialog: Dialog): string[] {
   if (!dialog.name || dialog.name.length > DIALOG_LIMITS.name) problems.push(`the name "${dialog.name}" is empty or too long`);
   if (!dialog.nodes[dialog.start]) problems.push(`no start node "${dialog.start}"`);
   for (const { node } of dialog.starts ?? []) if (!dialog.nodes[node]) problems.push(`no start node "${node}"`);
+  if (dialog.refuse && !dialog.nodes[dialog.refuse.node]) problems.push(`no refuse node "${dialog.refuse.node}"`);
   for (const id of ids) {
     const node = dialog.nodes[id]!;
     if (!node.say || node.say.length > DIALOG_LIMITS.say) problems.push(`${id}: the line is empty or too long`);
@@ -209,7 +216,7 @@ export function checkDialog(dialog: Dialog): string[] {
   const leads = (a: DialogAnswer): string[] => [...(a.next !== undefined ? [a.next] : []), ...(a.deal ? [a.deal.poor] : [])];
   // Every node from the start.
   const reached = new Set<string>();
-  const queue = [dialog.start, ...(dialog.starts ?? []).map((s) => s.node)].filter((n) => dialog.nodes[n]);
+  const queue = [dialog.start, ...(dialog.starts ?? []).map((s) => s.node), ...(dialog.refuse ? [dialog.refuse.node] : [])].filter((n) => dialog.nodes[n]);
   while (queue.length) {
     const id = queue.pop()!;
     if (reached.has(id)) continue;

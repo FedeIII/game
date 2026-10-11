@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_SYMBOL, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_SYMBOL, CARAVAN_FINE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -21,6 +21,18 @@ const BYE = { text: 'Goodbye.' } as const;
 export const LORE_GATE: Gate = { ability: 'int', min: 13 };
 /** The gate of insight: Wisdom 13 (answers that see what a person hides). */
 export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };
+/** A keen ear: Wisdom 15 (the first lines of the plot in the Crooked Lantern). */
+export const KEEN_GATE: Gate = { ability: 'wis', min: 15 };
+
+/**
+ * A character who robbed the caravan of Silverspring (quests.ts, caravan; story phase 5) is wanted:
+ * the guards and the traders of Ironhold and Silverspring do not deal with it (Dialog.refuse), until
+ * it pays its fine to the reeve or to Kasmut.
+ */
+const WANTED = { quest: 'caravan', at: ['robbing', 'robbed'] } as const;
+/** A person who refuses a wanted character starts at its node `wanted` (Dialog.refuse), with its line. */
+const REFUSE = { when: WANTED, node: 'wanted' } as const;
+const wanted = (say: string) => ({ say, answers: [{ text: 'I will go.' }] }) as const;
 /** The gate of athletics: Strength 13 (answers that lift or push what is heavy). */
 export const ATHLETICS_GATE: Gate = { ability: 'str', min: 13 };
 /** The gate of persuasion: Charisma 13 (answers that win a person over). */
@@ -30,7 +42,9 @@ export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };
 export const WATCHMAN: Dialog = {
   name: 'Brann, the watchman',
   start: 'halt',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('I know your face: the robber of the caravan of Silverspring. Pay your fine to the reeve. Until then, I have nothing to say to you.'),
     halt: {
       say: 'Halt! Who walks the road at night?',
       answers: [
@@ -104,7 +118,9 @@ const ROOM = { id: 'room', goods: 'refuge', refuge: 'inn', price: 0, poor: 'room
 export const INNKEEPER: Dialog = {
   name: 'Marta, the innkeeper',
   start: 'welcome',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('I do not serve thieves. Pay your fine to the reeve, and then we talk.'),
     welcome: {
       say: 'Welcome to the Crooked Lantern! Sit down before you fall down.',
       answers: [
@@ -161,9 +177,11 @@ const remedy = (id: string, text: string, goods: 'draught' | 'antidote' | 'stron
 export const APOTHECARY: Dialog = {
   name: 'Isolde, the apothecary',
   start: 'careful',
+  refuse: REFUSE,
   // A character who found the three burned homesteads (quests.ts, ashes at `ruins`): her story of the phoenix.
   starts: [{ when: { quest: 'ashes', at: ['ruins'] }, node: 'phoenix' }],
   nodes: {
+    wanted: wanted('My remedies are not for robbers. Pay your fine to the reeve first.'),
     phoenix: {
       say: 'You smell of smoke. The burned homesteads? Everybody talks of them.',
       answers: [{ text: 'A phoenix is burned into each of them. Do you know the sign?', next: 'raiders', effect: ASHES_SYMBOL }, { text: 'Something else.', next: 'careful' }, BYE],
@@ -257,6 +275,8 @@ export const REEVE: Dialog = {
   // A character who heard the argument in her house (town.ts, ARGUMENT; quests.ts, raid), or who
   // goes to warn Silverspring; else a character with the letter of Thrain Steelforge (ashes).
   starts: [
+    // A character who robbed the caravan pays its fine here (quests.ts, CARAVAN_FINE).
+    { when: WANTED, node: 'fine' },
     { when: { quest: 'raid', at: ['heard'] }, node: 'warn' },
     { when: { quest: 'raid', at: ['asked'] }, node: 'go' },
     { when: { quest: 'raid', at: ['home'] }, node: 'himo' },
@@ -264,6 +284,14 @@ export const REEVE: Dialog = {
     { when: { quest: 'ashes', at: ['letter'] }, node: 'letter' },
   ],
   nodes: {
+    fine: {
+      say: 'You robbed the caravan of Silverspring. No trader of Ironhold deals with you until you pay the fine: sixty coins.',
+      answers: [{ text: 'I will pay the fine.', next: 'paid', effect: CARAVAN_FINE }, { text: 'Not now.' }],
+    },
+    paid: {
+      say: 'Paid. The traders of Ironhold will deal with you again. Do not do it twice.',
+      answers: [BYE],
+    },
     himo: {
       say: 'Himo is home! His mother has not slept for a week. Ironhold owes you more than it can pay.',
       answers: [{ text: 'His family paid me.', next: 'family' }, { text: 'Tell me about the town.', next: 'reeve' }, BYE],
@@ -468,6 +496,7 @@ const scrap = (kind: SmithWare, text: string) =>
 export const SMITH: Dialog = {
   name: 'The smith',
   start: 'forge',
+  refuse: REFUSE,
   // A character who helps the merchant on the road (quests.ts, cart), without a lever.
   starts: [
     { when: [{ quest: 'cart', at: ['met', 'lever'] }, { has: 'crowbar', not: true }], node: 'cart' },
@@ -475,6 +504,7 @@ export const SMITH: Dialog = {
     { when: { has: 'mithril' }, node: 'mithril' },
   ],
   nodes: {
+    wanted: wanted('No iron for a thief. Pay the reeve your fine.'),
     mithril: {
       say: 'Is that mithril in your pack? From Silverspring? I pay you ten coins a nugget, and I ask no questions.',
       answers: [
@@ -592,7 +622,9 @@ const sell = (id: string, text: string, kind: 'ring' | 'cup' | 'candle' | 'imp-h
 export const PEDDLER: Dialog = {
   name: 'Corwin, the peddler',
   start: 'wares',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('Even I do not buy from the robber of a caravan. Pay your fine to the reeve.'),
     wares: {
       say: 'Pots! Pins! Candles! Well... I had candles. I buy what the woods give you.',
       answers: [
@@ -634,11 +666,13 @@ export const PEDDLER: Dialog = {
 export const MERCHANT: Dialog = {
   name: 'The merchant',
   start: 'cart',
+  refuse: REFUSE,
   starts: [
     { when: { quest: 'cart', at: ['met', 'lever'] }, node: 'again' },
     { when: { quest: 'cart', at: ['done'] }, node: 'thanks' },
   ],
   nodes: {
+    wanted: wanted('Stay away from my cart, robber of caravans. Pay your fine first.'),
     cart: {
       say: 'Careful, the mud is deep here. The wheel came off, and I cannot lift the cart and put the wheel on at once.',
       answers: [{ text: 'Can I help?', next: 'help', effect: CART_HELP }, { text: 'Where are you going?', next: 'where' }, BYE],
@@ -703,8 +737,10 @@ export const MERCHANT: Dialog = {
 export const SOLDIER: Dialog = {
   name: 'A soldier of the Sovereignty',
   start: 'move',
+  refuse: REFUSE,
   starts: [{ when: { quest: 'raid', at: ['heard', 'asked'] }, node: 'stay' }],
   nodes: {
+    wanted: wanted('The robber of the caravan. Pay your fine to the reeve, or keep out of my way.'),
     move: {
       say: "Move along, traveller. The reeve's house is no place to stand about.",
       answers: [{ text: 'Who do you serve?', next: 'serve' }, { text: 'What is happening in the hills?', next: 'hills' }, BYE],
@@ -749,6 +785,7 @@ export const KASMUT: Dialog = {
   name: 'Kasmut Parnika, of the Enclave',
   start: 'hello',
   starts: [
+    { when: WANTED, node: 'fine' },
     { when: { quest: 'raid', at: ['title'] }, node: 'guard' },
     { when: { quest: 'raid', at: ['home', 'lost'] }, node: 'early' },
     { when: { quest: 'raid', at: ['defended'] }, node: 'held' },
@@ -756,6 +793,15 @@ export const KASMUT: Dialog = {
     { when: { quest: 'raid', at: ['asked', 'scouts'] }, node: 'road' },
   ],
   nodes: {
+    // A character who robbed the caravan of the Enclave (story phase 5) pays its fine here.
+    fine: {
+      say: 'You robbed our caravan. Sixty coins for the Enclave, or get out of my town.',
+      answers: [{ text: 'I will pay the fine.', next: 'paid', effect: CARAVAN_FINE }, { text: 'Not now.' }],
+    },
+    paid: {
+      say: 'Done. Silverspring forgives you. Once.',
+      answers: [BYE],
+    },
     // The end of the raid (story phase 4d): the war band fell on the road, before Silverspring knew.
     early: {
       say: 'You again. The war band... dead on the road? Before it came near us?',
@@ -858,7 +904,9 @@ const TROUT_ROOM = { id: 'room', goods: 'refuge', refuge: 'trout', price: 0, poo
 export const HOST: Dialog = {
   name: 'Tova, of the Silver Trout',
   start: 'welcome',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('Not you. You robbed our caravan. Pay Kasmut your fine, and then come back.'),
     welcome: {
       say: 'Welcome to the Silver Trout! Shut the door, the wind off the stream is cold.',
       answers: [
@@ -899,7 +947,9 @@ export const HOST: Dialog = {
 export const MILITIA: Dialog = {
   name: 'Doran, of the militia',
   start: 'halt',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('You! You robbed our caravan! Pay your fine to Kasmut.'),
     halt: {
       say: 'Halt! ...Oh. A traveller. We do not see many from the west.',
       answers: [{ text: 'What is this place?', next: 'place' }, { text: 'Who are you?', next: 'who' }, BYE],
@@ -927,7 +977,9 @@ const PERMIT = { has: 'mithril-permit' } as const;
 export const JEWELLER: Dialog = {
   name: 'Ilsa, the jeweller',
   start: 'shop',
+  refuse: REFUSE,
   nodes: {
+    wanted: wanted('Out. Robbers of caravans buy nothing here. Pay your fine to Kasmut.'),
     shop: {
       say: 'Rings of mithril, light as a breath. The Enclave buys nearly all of them.',
       answers: [{ text: 'How do you work it?', next: 'craft' }, { text: 'Will you sell me mithril?', next: 'sell' }, BYE],
@@ -1034,6 +1086,43 @@ export const SURVIVOR_TANNER: Dialog = {
     calm: {
       say: 'They asked Mother for "the old book". We have no book. They looked under the hearthstone anyway, and then they burned everything.',
       answers: [{ text: 'Your mother will come back. Wait here.' }],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the caravan of Silverspring (story phase 5)
+
+/**
+ * The driver of the caravan of Silverspring (source.ts, the convoy CARAVAN): a character tells it to
+ * hand over the cargo, and its militia fight that character (it is an outlaw of the caravan).
+ */
+export const WAGON_DRIVER: Dialog = {
+  name: 'The driver of the caravan',
+  start: 'road',
+  starts: [
+    { when: { quest: 'caravan', at: ['robbing'] }, node: 'thief' },
+    { when: { quest: 'caravan', at: ['saved'] }, node: 'thanks' },
+  ],
+  nodes: {
+    road: {
+      say: 'Keep your distance, stranger. We take goods of the Enclave to Ironhold.',
+      answers: [{ text: 'What do you carry?', next: 'cargo' }, { text: 'Hand over the cargo.', next: 'rob', effect: CARAVAN_ROB }, { text: 'Safe road.' }],
+    },
+    cargo: {
+      say: 'Furs, spices, and a small chest that is none of your business.',
+      answers: [{ text: 'Hand over the cargo.', next: 'rob', effect: CARAVAN_ROB }, { text: 'Safe road.' }],
+    },
+    rob: {
+      say: 'Never! Militia, to me!',
+      answers: [{ text: 'So be it.' }],
+    },
+    thanks: {
+      say: 'You again! Without you, we were dead on this road. Kasmut will hear your name.',
+      answers: [{ text: 'Safe road.' }, { text: 'Hand over the cargo.', next: 'rob', effect: CARAVAN_ROB }],
+    },
+    thief: {
+      say: 'Thief! Militia, to me!',
+      answers: [{ text: 'So be it.' }],
     },
   },
 };

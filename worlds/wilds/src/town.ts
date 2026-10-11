@@ -1,6 +1,6 @@
 import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
-import { RAID_HEARD } from './quests.ts';
+import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, KEEN_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
+import { CARAVAN_HEARD, RAID_HEARD } from './quests.ts';
 import { LAMP, Town, type Plan, type Tile } from './towns.ts';
 
 /**
@@ -63,9 +63,9 @@ const BUILDINGS: readonly Plan[] = [
     plan: [
       '##########',
       '#bbx.aaca#',
-      '#........#',
+      '#.S......#',
       '#.tt..ttB#',
-      '#.......B#',
+      '#.V.....B#',
       '#K..M..gg#',
       '#........#',
       '#+##D##+##',
@@ -98,6 +98,21 @@ const BUILDINGS: readonly Plan[] = [
         ],
         barks: ['La la... no. Again.', "Who has a rhyme for 'imp'?", 'One more song, then bed.'],
         greeting: 'Ah, {name}! I will put you in a song.',
+      },
+      // A soldier of the Sovereignty and a villager at a table: they plot against the caravan of Silverspring (the scene PLOT).
+      S: {
+        id: 'inn-soldier',
+        look: 'soldier',
+        pages: ['Drink your ale, and mind your own business.', 'The Sovereignty pays for my ale. It pays well.'],
+        barks: ['Another round.', 'Quiet, you.', 'Not here. Later.'],
+        greeting: '{name}. Keep walking.',
+      },
+      V: {
+        id: 'drinker',
+        look: 'farmer',
+        pages: ['I only came in for an ale.', 'Nobody saw me here. Understand?'],
+        barks: ['Hm.', 'Another one, Marta.', 'Who is asking?'],
+        greeting: 'Evening, {name}. ...Did you hear something?',
       },
     },
   },
@@ -448,5 +463,30 @@ export const ARGUMENT: SceneDef = {
   effect: RAID_HEARD,
 };
 
+const INN_HOUSE = TOWN_BUILDINGS.find((b) => b.id === 'inn')!;
+
+/**
+ * The plot in the Crooked Lantern (chapter 1.5.1, "Asalto a la Caravana"; story phase 5): a character
+ * who knows of the hobgoblins (the raid at `asked` or later) hears a soldier of the Sovereignty and a
+ * villager plan to send the hobgoblins against a caravan of Silverspring. The chapter has three lines
+ * at three difficulties: with Wisdom 15 the character hears all of them, with 13 two, and else the
+ * last one; and if it listens on, where the attack will be. At its end, the quest of the caravan starts.
+ */
+export const PLOT: SceneDef = {
+  id: 'plot',
+  area: { x0: INN_HOUSE.x0, y0: INN_HOUSE.y0, x1: INN_HOUSE.x1, y1: INN_HOUSE.y1 + 2 },
+  when: [{ quest: 'raid', at: ['asked', 'scouts', 'band', 'escort', 'home', 'lost', 'raid', 'defended', 'title'] }, { quest: 'caravan', not: true }],
+  lines: [
+    { npc: 'drinker', text: '...and you think that they go without an escort?', gate: KEEN_GATE },
+    { npc: 'inn-soldier', text: 'Two militia, badly trained by an old woman of the Enclave. Nothing that troubles us.', gate: KEEN_GATE },
+    { npc: 'drinker', text: 'How many men do we need to... finish the job?', gate: INSIGHT_GATE },
+    { npc: 'inn-soldier', text: 'That is the beauty of it. With the right word, we send the hobgoblins straight at the caravan. They do the dirty work.', gate: INSIGHT_GATE },
+    { npc: 'drinker', text: 'And the Sovereignty knows of this?' },
+    { npc: 'inn-soldier', text: 'My friend, it was the idea of the Sovereignty. They want no part of the cargo, only proof that the caravan never came.' },
+    { npc: 'inn-soldier', text: 'It leaves Silverspring by the north road. Half a day out, the hobgoblins wait for it.' },
+  ],
+  effect: CARAVAN_HEARD,
+};
+
 /** The scenes of the town. */
-export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT];
+export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT, PLOT];

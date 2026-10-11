@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dice,
   AVERAGE_DICE,
   EMPTY_BOOK,
   PLAIN_GEAR,
@@ -25,6 +26,13 @@ import {
   type SnapshotMessage,
 } from '@game/engine';
 import {
+  CARAVAN,
+  CARAVAN_FINE,
+  CARAVAN_FINE_COINS,
+  CARAVAN_MEET,
+  CARAVAN_REWARD,
+  CARAVAN_ROB,
+  PLOT,
   ASHES,
   ASHES_SYMBOL,
   HALE,
@@ -55,6 +63,7 @@ import {
   SOLDIER,
   QUESTS,
   TOWN,
+  TOWN_BUILDINGS,
   TOWN_GATE,
   TOWN_NPCS,
   WildsSource,
@@ -104,6 +113,8 @@ describe('the quests of the Wilds', () => {
     expect(effects.map((e) => e.id).sort()).toEqual([
       'ashes-symbol',
       'ashes-symbol',
+      'caravan-fine',
+      'caravan-fine',
       'cart-help',
       'cart-help',
       'cart-lever',
@@ -128,13 +139,18 @@ describe('the quests of the Wilds', () => {
       for (const effect of [ambush.effect, ...(ambush.march?.arrive ? [ambush.march.arrive] : [])]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
       expect(checkConditions(ambush.when, QUESTS)).toEqual([]);
     }
+    for (const convoy of source.convoys()) {
+      for (const effect of [convoy.saved, convoy.lost, convoy.robbed, ...convoy.waves.flatMap((w) => (w.effect ? [w.effect] : []))]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
+      for (const when of [convoy.when, convoy.outlaw, ...convoy.waves.map((w) => w.when)]) expect(checkConditions(when, QUESTS)).toEqual([]);
+      for (const member of convoy.members) if (member.content?.dialog) expect(checkDialog(member.content.dialog)).toEqual([]);
+    }
     for (const escort of source.escorts()) {
       for (const effect of [escort.arrive, escort.fall]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
       expect(checkConditions(escort.when, QUESTS)).toEqual([]);
     }
-    // The scenes: the argument in the house of the reeve.
+    // The scenes: the argument in the house of the reeve, and the plot in the Crooked Lantern.
     expect(checkScenes(source.scenes(), source.npcs().map((n) => n.id), QUESTS)).toEqual([]);
-    expect(source.scenes().map((s) => s.id)).toEqual(['argument']);
+    expect(source.scenes().map((s) => s.id)).toEqual(['argument', 'plot']);
     for (const effect of effects) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
     for (const when of conditions) expect(checkConditions(when, QUESTS)).toEqual([]);
     for (const dialog of dialogs) expect(checkDialog(dialog), dialog.name).toEqual([]);
@@ -626,5 +642,108 @@ describe('the burned homesteads', () => {
       for (const a of calm) expect(a.gate).toEqual({ ability: 'wis', min: 13 });
       expect(RUINS.some((r) => r.has(npc.home[0], npc.home[1]))).toBe(true);
     }
+  });
+});
+
+describe('the caravan of Silverspring', () => {
+  /** A player of `room` on the north road at share `share`, with `quests`. */
+  const onRoad = (room: Room, share: number, quests: Record<string, { step: string; flags: string[]; n: number }>) => {
+    const p = onNorthRoad(room, share);
+    p.quests = quests;
+    p.state.hp = 10_000;
+    return p;
+  };
+
+  it('is plotted in the Crooked Lantern: a character who knows of the hobgoblins overhears where it is attacked', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const inn = TOWN_BUILDINGS.find((b) => b.id === 'inn')!;
+    const p = join(room, { x: inn.doorX * TILE_SIZE + 8, y: (inn.y1 - 1) * TILE_SIZE + 12 });
+    expect(room.quest(p.id, { scene: 'plot' }, PLOT.effect.id, 0)).toBe(false);
+    p.quests = { raid: { step: 'asked', flags: [], n: 1 } };
+    expect(room.quest(p.id, { scene: 'plot' }, PLOT.effect.id, 0)).toBe(true);
+    expect(p.quests.caravan?.step).toBe('heard');
+    // The first lines need a keen ear (WIS 15, then 13); the last ones are for everybody.
+    expect(PLOT.lines.map((l) => l.gate?.min ?? 0)).toEqual([15, 15, 13, 13, 0, 0, 0]);
+    // The map marks the meeting point.
+    const [mx, my] = source.north.points[Math.floor(source.north.points.length * CARAVAN_MEET)]!;
+    expect(CARAVAN.steps[0]!.at).toEqual([Math.floor(mx), Math.floor(my)]);
+  });
+
+  it('leaves Silverspring for a character at `heard` near the meeting point, and the scouts wait for it instead of the grove', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = onRoad(room, 0.9, { raid: { step: 'asked', flags: [], n: 1 }, caravan: { step: 'heard', flags: [], n: 2 } });
+    room.tick(0);
+    room.tick(50);
+    expect(room.guards.list.map((g) => g.def.id)).toEqual(['wagon', 'militia', 'militia']);
+    const wagon = room.guards.list[0]!;
+    expect(Math.hypot(wagon.state.x - SILVERSPRING_SITE.tx * TILE_SIZE, wagon.state.y - SILVERSPRING_SITE.ty * TILE_SIZE)).toBeLessThan(4 * TILE_SIZE);
+    // In the grove, no scouts for this character: they wait at the caravan.
+    const q = join(room, { x: Math.floor(source.grove.start[0]) * TILE_SIZE + 8, y: Math.floor(source.grove.start[1]) * TILE_SIZE + 12 });
+    q.quests = p.quests;
+    room.tick(100);
+    expect(room.horde!.mobs.filter((m) => m.kind === 'worg')).toEqual([]);
+  });
+
+  it('meets the scouts and the war band if they live, and other hobgoblins of the clan if not; saved, it pays', () => {
+    for (const [raid, first] of [
+      ['asked', 'worg'],
+      ['title', 'hobgoblin'],
+    ] as const) {
+      const room = new Room(new World(source), { dice: AVERAGE_DICE });
+      const p = onRoad(room, 0.82, { raid: { step: raid, flags: [], n: 1 }, caravan: { step: 'heard', flags: [], n: 2 } });
+      let t = 0;
+      room.tick(t);
+      // The caravan walks to the meeting point; the character waits there.
+      let attackers: string[] = [];
+      for (; t < 120_000 && attackers.length === 0; t += 50) {
+        room.tick(t);
+        attackers = room.horde!.mobs.filter((m) => room.convoys.mobs.includes(m.id)).map((m) => m.kind);
+      }
+      expect(attackers[0], raid).toBe(first);
+      // The waves fall, one after the other.
+      for (let wave = 0; wave < 4 && p.quests.caravan?.step === 'heard'; wave++) {
+        for (const mob of room.horde!.mobs.filter((m) => room.convoys.mobs.includes(m.id))) {
+          mob.health = 1;
+          room.horde!.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+        }
+        for (let end = t + 3000; t < end && p.quests.caravan?.step === 'heard'; t += 50) room.tick(t);
+      }
+      expect(p.quests.caravan?.step, raid).toBe('saved');
+      expect(p.pack.coins, raid).toBe(CARAVAN_REWARD);
+      expect(p.pack.items, raid).toContainEqual({ kind: 'draught', count: 1 });
+      if (raid === 'asked') expect(p.quests.raid?.step).toBe('band');
+    }
+  }, 120_000);
+
+  it('can be robbed: the driver refuses, the militia fight; when they fall, the cargo is the robber\'s, and it is wanted until it pays its fine', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = onRoad(room, 0.95, { raid: { step: 'title', flags: [], n: 1 }, caravan: { step: 'heard', flags: [], n: 2 } });
+    room.tick(0);
+    room.tick(50);
+    const wagon = room.guards.list[0]!;
+    Object.assign(p.state, { x: wagon.state.x + 12, y: wagon.state.y });
+    expect(room.quest(p.id, { guard: wagon.id }, CARAVAN_ROB.id, 100)).toBe(true);
+    expect(p.quests.caravan?.step).toBe('robbing');
+    const kill = { toHit: 99, damage: dice(0, 0, 99), push: 1, stagger: 1, opening: 0 };
+    for (const militia of room.guards.list.filter((g) => g.def.blow)) room.guards.strike({ x: militia.state.x - 12, y: militia.state.y }, 0, p.id, kill, ['caravan'], AVERAGE_DICE);
+    for (let t = 150; t < 5000 && p.quests.caravan?.step === 'robbing'; t += 50) room.tick(t);
+    expect(p.quests.caravan?.step).toBe('robbed');
+    expect(p.pack.items).toEqual(expect.arrayContaining([{ kind: 'mithril', count: 5 }, { kind: 'badger-fur', count: 3 }]));
+    expect(room.guards.list).toHaveLength(0);
+    // Wanted: Marta does not sell an ale; the reeve takes the fine, and then she does.
+    goTo(p, 'innkeeper');
+    const coins = p.pack.coins;
+    room.deal(p.id, { npc: npcIndex('innkeeper') }, 'ale');
+    expect(p.pack.coins).toBe(coins);
+    const innkeeper = source.npcs()[npcIndex('innkeeper')]!.content.dialog!;
+    expect(startNode(innkeeper, p.quests, p.pack)).toBe('wanted');
+    p.pack = { ...p.pack, coins: 100 };
+    goTo(p, 'reeve');
+    expect(room.quest(p.id, { npc: npcIndex('reeve') }, CARAVAN_FINE.id, 200)).toBe(true);
+    expect(p.pack.coins).toBe(100 - CARAVAN_FINE_COINS);
+    expect(p.quests.caravan?.step).toBe('pardoned');
+    goTo(p, 'innkeeper');
+    room.deal(p.id, { npc: npcIndex('innkeeper') }, 'ale');
+    expect(p.pack.coins).toBeLessThan(100 - CARAVAN_FINE_COINS);
   });
 });

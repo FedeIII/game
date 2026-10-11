@@ -212,7 +212,7 @@ describe('Silverspring', () => {
     const dialog = kasmut.content.dialog!;
     expect(dialog.name).toBe('Kasmut Parnika, of the Enclave');
     expect(checkDialog(dialog)).toEqual([]);
-    expect(dialog.starts?.map((st) => st.node)).toEqual(['guard', 'early', 'held', 'himo', 'road']);
+    expect(dialog.starts?.map((st) => st.node)).toEqual(['fine', 'guard', 'early', 'held', 'himo', 'road']);
     expect(SILVERSPRING_NPCS.map((n) => n.id)).toEqual(['kasmut', 'host', 'jeweller', 'militia', 'prospector']);
   });
 

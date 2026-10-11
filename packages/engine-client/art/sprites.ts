@@ -18,6 +18,7 @@ import { itemFrames } from './items.ts';
 import { markFrames } from './marks.ts';
 import { lightFrames } from './lights.ts';
 import { mobFrames } from './mobs.ts';
+import { OTHER_LOOKS, wagonFrames } from './wagon.ts';
 import { propFrames } from './props.ts';
 import { shadowEllipse } from './raster.ts';
 
@@ -49,6 +50,7 @@ export function buildArt(): Art {
     ...propFrames(),
     ...playerFrames(),
     ...npcFrames(),
+    ...wagonFrames(),
     playerShadow(),
     ...lightFrames(),
     ...fontFrames(),
@@ -62,7 +64,7 @@ export function buildArt(): Art {
   const walk = (prefix: string): string[] => Array.from({ length: WALK_FRAMES }, (_, i) => `${prefix}/walk/${i}`);
   // Animations: `walk/<view>` for the player, `npcwalk/<look>/<view>` for each NPC look.
   const animations: Record<string, string[]> = Object.fromEntries(VIEWS.map((view) => [`walk/${view.name}`, walk(`player/${view.name}`)]));
-  for (const look of Object.keys(NPC_LOOKS)) {
+  for (const look of [...Object.keys(NPC_LOOKS), ...OTHER_LOOKS]) {
     for (const view of VIEWS) animations[`npcwalk/${look}/${view.name}`] = walk(`npc/${look}/${view.name}`);
   }
   return { frames, animations, mobEyes: mobs.eyes };

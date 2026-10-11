@@ -8,6 +8,7 @@ import type { ItemKind, LootTable } from './items.ts';
 import type { QuestDef } from './quests.ts';
 import type { SceneDef } from './scenes.ts';
 import type { AmbushDef } from './ambushes.ts';
+import type { ConvoyDef } from './convoys.ts';
 import type { EscortDef } from './escorts.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
@@ -100,6 +101,8 @@ export interface WorldSource {
   ambushes?(): readonly AmbushDef[];
   /** The escorts of the story (escorts.ts): companions that a step gives a character, until they come home. Without it, none. */
   escorts?(): readonly EscortDef[];
+  /** The convoys of the story (convoys.ts): guards that walk a route, and the attackers that wait for them. Without it, none. */
+  convoys?(): readonly ConvoyDef[];
   /** Where the mobs of this world may be, and how many (mobs.ts). Without it, the world has none. */
   mobs?(): MobRules;
   /**
