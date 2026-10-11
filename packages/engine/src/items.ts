@@ -58,23 +58,62 @@ export const DRINKS: Readonly<Partial<Record<ItemKind, Drink>>> = {
 
 /** Whether the pack holds all these stacks. */
 export function hasItems(pack: Pack, stacks: readonly ItemStack[]): boolean {
-  return stacks.every((need) => pack.items.filter((s) => s.kind === need.kind).reduce((n, s) => n + s.count, 0) >= need.count);
+  return stacks.every((need) => stacksOf(pack).filter((s) => s.kind === need.kind).reduce((n, s) => n + s.count, 0) >= need.count);
 }
 
-/** The pack without these stacks (the last slots of a kind first); the caller checks hasItems() first. */
+/**
+ * The pack without these stacks (the last slots of a kind first); the caller checks hasItems()
+ * first. A slot that becomes empty stays in its place as a free slot.
+ */
 export function removeFromPack(pack: Pack, stacks: readonly ItemStack[]): Pack {
-  const items = pack.items.map((s) => ({ ...s }));
+  const items = [...pack.items];
   for (const need of stacks) {
     let count = need.count;
     for (let i = items.length - 1; i >= 0 && count > 0; i--) {
-      const slot = items[i]!;
-      if (slot.kind !== need.kind) continue;
+      const slot = items[i];
+      if (!slot || slot.kind !== need.kind) continue;
       const n = Math.min(slot.count, count);
-      slot.count -= n;
+      items[i] = n === slot.count ? null : { kind: slot.kind, count: slot.count - n };
       count -= n;
     }
   }
-  return { coins: pack.coins, items: items.filter((s) => s.count > 0) };
+  return { coins: pack.coins, items: trimmed(items) };
+}
+
+/**
+ * The pack without `count` items of slot `slot`, which must hold at least that many of `kind`;
+ * else null. A slot that becomes empty stays in its place as a free slot.
+ */
+export function removeFromSlot(pack: Pack, slot: number, kind: ItemKind, count: number): Pack | null {
+  const stack = pack.items[slot];
+  if (!stack || stack.kind !== kind || !Number.isInteger(count) || count < 1 || count > stack.count) return null;
+  const items = [...pack.items];
+  items[slot] = count === stack.count ? null : { kind, count: stack.count - count };
+  return { coins: pack.coins, items: trimmed(items) };
+}
+
+/**
+ * The player moves the stack of slot `from` onto slot `to` (one of its `slots` slots). On a free
+ * slot, the stack goes there. On a stack of another kind, the two stacks change places. On a stack
+ * of the same kind, it fills that stack, and what does not fit stays in `from`; when that stack is
+ * full already, the two change places. Null when nothing moves.
+ */
+export function moveInPack(pack: Pack, from: number, to: number, slots: number): Pack | null {
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from === to || to < 0 || to >= slots) return null;
+  const moving = pack.items[from];
+  if (!moving) return null;
+  const items = [...pack.items];
+  while (items.length <= to) items.push(null);
+  const there = items[to] ?? null;
+  const room = there && there.kind === moving.kind ? Math.min(ITEM_STACK[there.kind] - there.count, moving.count) : 0;
+  if (there && room > 0) {
+    items[to] = { kind: there.kind, count: there.count + room };
+    items[from] = room === moving.count ? null : { kind: moving.kind, count: moving.count - room };
+  } else {
+    items[to] = moving;
+    items[from] = there;
+  }
+  return { coins: pack.coins, items: trimmed(items) };
 }
 
 /**
@@ -105,13 +144,37 @@ export interface ItemStack {
   readonly count: number;
 }
 
-/** What a character carries: coins, and a stack in each used slot (at most `slots` of them). */
+/** One slot of a pack: the stack in it, or null for a free slot. */
+export type PackSlot = ItemStack | null;
+
+/**
+ * What a character carries: coins, and its slots in order (at most `slots` of them). Each slot
+ * holds a stack or nothing (null): the player puts each stack where it wants it (moveInPack), and
+ * a stack keeps its slot until it goes. The list never ends with a free slot.
+ */
 export interface Pack {
   readonly coins: number;
-  readonly items: readonly ItemStack[];
+  readonly items: readonly PackSlot[];
 }
 
 export const EMPTY_PACK: Pack = { coins: 0, items: [] };
+
+/** The stacks of a pack in the order of their slots, without the free slots. */
+export function stacksOf(pack: Pack): ItemStack[] {
+  return pack.items.filter((s): s is ItemStack => s !== null);
+}
+
+/** How many slots of a pack hold a stack. */
+export function usedSlots(pack: Pack): number {
+  return pack.items.reduce((n, s) => (s ? n + 1 : n), 0);
+}
+
+/** The slots without the free slots at the end. */
+function trimmed(items: readonly PackSlot[]): PackSlot[] {
+  let end = items.length;
+  while (end > 0 && items[end - 1] === null) end--;
+  return items.slice(0, end);
+}
 
 /** Things to put in a pack: coins and stacks (a chest's contents, a drop). */
 export interface Loot {
@@ -131,27 +194,29 @@ export function lootIsEmpty(loot: Loot): boolean {
 
 /**
  * Puts loot into a pack with `slots` slots: the coins always (up to MAX_COINS), each item on a
- * stack of its kind first, then in a free slot. Returns the new pack, what went in, and what did
- * not fit.
+ * stack of its kind first, then in the first free slot. Returns the new pack, what went in, and
+ * what did not fit.
  */
 export function addToPack(pack: Pack, loot: Loot, slots: number): { pack: Pack; taken: Loot; left: Loot } {
   const coins = Math.min(MAX_COINS, pack.coins + loot.coins);
-  const items = pack.items.map((s) => ({ ...s }));
+  const items = [...pack.items];
   const taken: ItemStack[] = [];
   const left: ItemStack[] = [];
   for (const stack of loot.items) {
     let count = stack.count;
-    for (const slot of items) {
-      if (count === 0) break;
-      if (slot.kind !== stack.kind) continue;
-      const room = ITEM_STACK[slot.kind] - slot.count;
-      const n = Math.min(room, count);
-      slot.count += n;
+    for (let i = 0; i < items.length && count > 0; i++) {
+      const slot = items[i];
+      if (!slot || slot.kind !== stack.kind) continue;
+      const n = Math.min(ITEM_STACK[slot.kind] - slot.count, count);
+      items[i] = { kind: slot.kind, count: slot.count + n };
       count -= n;
     }
-    while (count > 0 && items.length < slots) {
+    while (count > 0) {
+      const hole = items.indexOf(null);
+      const at = hole >= 0 && hole < slots ? hole : items.length < slots ? items.length : -1;
+      if (at < 0) break;
       const n = Math.min(ITEM_STACK[stack.kind], count);
-      items.push({ kind: stack.kind, count: n });
+      items[at] = { kind: stack.kind, count: n };
       count -= n;
     }
     if (stack.count - count > 0) taken.push({ kind: stack.kind, count: stack.count - count });
@@ -160,20 +225,27 @@ export function addToPack(pack: Pack, loot: Loot, slots: number): { pack: Pack; 
   return { pack: { coins, items }, taken: { coins: coins - pack.coins, items: taken }, left: { coins: loot.coins - (coins - pack.coins), items: left } };
 }
 
-/** Checks a pack from outside (a stored row): known kinds, counts within their stacks, at most MAX_SLOTS. Null if it is not one. */
+/**
+ * Checks a pack from outside (a stored row): known kinds, counts within their stacks, null for a
+ * free slot, at most MAX_SLOTS slots. Null if it is not one.
+ */
 export function checkPack(raw: unknown): Pack | null {
   if (!raw || typeof raw !== 'object') return null;
   const m = raw as Record<string, unknown>;
   if (!Number.isInteger(m.coins) || (m.coins as number) < 0 || (m.coins as number) > MAX_COINS) return null;
   if (!Array.isArray(m.items) || m.items.length > MAX_SLOTS) return null;
-  const items: ItemStack[] = [];
+  const items: PackSlot[] = [];
   for (const raw of m.items as unknown[]) {
-    if (!raw || typeof raw !== 'object') return null;
+    if (raw === null) {
+      items.push(null);
+      continue;
+    }
+    if (typeof raw !== 'object') return null;
     const s = raw as Record<string, unknown>;
     if (!isItemKind(s.kind) || !Number.isInteger(s.count) || (s.count as number) < 1 || (s.count as number) > ITEM_STACK[s.kind]) return null;
     items.push({ kind: s.kind, count: s.count as number });
   }
-  return { coins: m.coins as number, items };
+  return { coins: m.coins as number, items: trimmed(items) };
 }
 
 // ---------------------------------------------------------------- loot tables

@@ -247,7 +247,8 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     if (message.t === 'name') return accounts ? undefined : client.room.setName(client.playerId, message.name);
     if (message.t === 'deal') return client.room.deal(client.playerId, message, message.deal);
     if (message.t === 'drink') return client.room.drink(client.playerId, message.kind);
-    if (message.t === 'put') return client.room.put(client.playerId, message.kind, message.count, t);
+    if (message.t === 'put') return client.room.put(client.playerId, message, t);
+    if (message.t === 'move') return client.room.move(client.playerId, message.from, message.to);
     client.room.input(client.playerId, message, t);
   }
 

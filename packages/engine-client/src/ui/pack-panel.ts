@@ -1,4 +1,4 @@
-import { DRINKS, ITEM_STACK, PLAIN_SCORES, type ItemKind, type ItemStack, type Pack, type Scores } from '@game/engine';
+import { DRINKS, ITEM_STACK, PLAIN_SCORES, usedSlots, type ItemKind, type Pack, type PackSlot, type Scores } from '@game/engine';
 import type { Art } from '../assets.ts';
 import { isFormField } from '../input/keyboard.ts';
 import { beltKey, drinkTitle, drinkView } from './belt.ts';
@@ -14,43 +14,48 @@ const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
 const DETAIL_SCALE = 3;
 /** The pack button shines this long when something comes into the pack (ms). */
 const GAIN_MS = 700;
-
-/** The order of the slots in the panel: drinks first, then what goes into brews, then trinkets. */
-const ORDER: Readonly<Record<ItemKind, number>> = {
-  draught: 0,
-  'strong-draught': 1,
-  antidote: 2,
-  herbs: 3,
-  'imp-horn': 4,
-  'brute-tusk': 5,
-  ring: 6,
-  cup: 7,
-  candle: 8,
-};
-
-/**
- * The stacks of a pack in the order of the panel: by kind (ORDER), and the fuller stack of a kind
- * first. Only the panel uses this order: the pack itself stays as the server keeps it.
- */
-export function packOrder(items: readonly ItemStack[]): ItemStack[] {
-  return [...items].sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || b.count - a.count);
-}
+/** A press on a slot becomes a drag when the pointer moves this far (CSS pixels). */
+const DRAG_START = 6;
 
 /** What the player can do from the panel. */
 export interface PackActions {
   /** Drink (or chew) one item of this kind. */
   readonly drink: (kind: ItemKind) => void;
-  /** Put `count` items of this kind on the ground, where the player stands. */
-  readonly drop: (kind: ItemKind, count: number) => void;
+  /**
+   * Put `count` items of slot `slot` (of `kind`) on the ground: in front of the player, or, with
+   * `at` (a point of the screen, in CSS pixels), tossed towards the point where the player dragged them.
+   */
+  readonly drop: (slot: number, kind: ItemKind, count: number, at?: { readonly x: number; readonly y: number }) => void;
+  /** Move the stack of slot `from` onto slot `to`. */
+  readonly move: (from: number, to: number) => void;
+}
+
+/** A stack that the player drags from its slot. */
+interface Drag {
+  readonly pointer: number;
+  readonly from: number;
+  readonly kind: ItemKind;
+  readonly startX: number;
+  readonly startY: number;
+  /** The icon under the pointer; null until the pointer moves DRAG_START from where it pressed. */
+  ghost: HTMLElement | null;
+  /** The slot under the pointer, or null. */
+  over: number | null;
+  /** Whether the pointer is over the world, and where it is (CSS pixels). */
+  world: boolean;
+  x: number;
+  y: number;
 }
 
 /**
  * The pack: a button in the top-right corner (left of the settings), or I on a keyboard, opens a
- * panel with the coins and the slots of the pack (Strength gives the slots), drinks first. A press
- * on a slot chooses it, and the detail under the slots says what it is, what it does and what it is
- * for (the world's line), with its actions: "Drink" (or "Chew", by the gate rule), "Drop one" and
- * "Drop all". A dropped stack lies on the ground until someone picks it up (piles.ts). The button
- * shows a mark when every slot is in use, and it shines when something comes into the pack.
+ * panel with the coins and the slots of the pack (Strength gives the slots), each stack in its own
+ * slot. A press on a slot chooses it, and the detail under the slots says what it is, what it does
+ * and what it is for (the world's line), with its actions: "Drink" (or "Chew", by the gate rule),
+ * "Drop one" and "Drop all". The player drags a stack (a mouse or a finger) onto another slot to
+ * move it there (moveInPack), or out of the panel onto the world to toss it there (tossPoint). A
+ * dropped stack lies on the ground until someone picks it up (piles.ts). The button shows a mark
+ * when every slot is in use, and it shines when something comes into the pack.
  */
 export class PackPanel {
   private readonly art: Art;
@@ -65,8 +70,15 @@ export class PackPanel {
   private readonly scores: Scores;
   private readonly lines: Readonly<Partial<Record<ItemKind, string>>>;
   private shown = '';
-  private stacks: ItemStack[] = [];
+  /** The slots of the pack, in order: a stack, or null for a free slot. */
+  private stacks: PackSlot[] = [];
   private slots = 0;
+  /** The stack that the player drags now, or null. */
+  private drag: Drag | null = null;
+  /** The click that ends a drag does not choose the slot. */
+  private dragged = false;
+  /** The pack changed during a press: draw the slots again when it ends. */
+  private stale = false;
   /** The chosen slot (in the order of the panel), and its kind, so the choice follows its stack. */
   private chosen: { index: number; kind: ItemKind } | null = null;
   /** How many items the pack held at the last show, to see a gain; null before the first. */
@@ -142,6 +154,11 @@ export class PackPanel {
 
     this.button.addEventListener('click', () => this.open(this.panel.hidden !== false));
     window.addEventListener('keydown', (event) => {
+      // Esc ends a drag first, then it closes the panel.
+      if (event.code === 'Escape' && this.drag) {
+        this.endDrag(false);
+        return;
+      }
       if (event.code === 'Escape') this.open(false);
       // I opens and closes it. KeyboardEvent.code, as the other keys: the same key on any layout.
       if (event.code !== 'KeyI' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
@@ -154,36 +171,46 @@ export class PackPanel {
     document.body.append(this.button, this.panel);
   }
 
+  /** Whether the player drags a stack now. */
+  get dragging(): boolean {
+    return this.drag?.ghost != null;
+  }
+
   /** Shows a pack with `slots` slots. */
   show(pack: Pack, slots: number): void {
     const key = JSON.stringify([pack, slots]);
     if (key === this.shown) return;
     this.shown = key;
-    const carried = pack.coins + pack.items.reduce((n, s) => n + s.count, 0);
+    const carried = pack.coins + pack.items.reduce((n, s) => n + (s?.count ?? 0), 0);
     if (this.carried !== null && carried > this.carried) this.shine();
     this.carried = carried;
-    this.stacks = packOrder(pack.items);
+    this.stacks = [...pack.items];
     this.slots = slots;
     // The choice follows its stack: the same slot if it still holds that kind, else the first slot of the kind.
     if (this.chosen && this.stacks[this.chosen.index]?.kind !== this.chosen.kind) {
-      const index = this.stacks.findIndex((s) => s.kind === this.chosen!.kind);
+      const index = this.stacks.findIndex((s) => s?.kind === this.chosen!.kind);
       this.chosen = index >= 0 ? { index, kind: this.chosen.kind } : null;
     }
-    const full = pack.items.length >= slots;
+    const used = usedSlots(pack);
+    const full = used >= slots;
     this.button.classList.toggle('full', full);
     this.button.setAttribute('aria-label', full ? STRINGS.pack.buttonFull : STRINGS.pack.button);
-    this.slotsLabel.textContent = STRINGS.pack.slots(pack.items.length, slots);
+    this.slotsLabel.textContent = STRINGS.pack.slots(used, slots);
     this.coins.textContent = String(pack.coins);
-    this.empty.hidden = pack.items.length > 0 || pack.coins > 0;
-    this.render();
+    this.empty.hidden = used > 0 || pack.coins > 0;
+    // Not during a press or a drag: the slots under the pointer stay as they are until it ends.
+    if (this.drag) this.stale = true;
+    else this.render();
   }
 
   private render(): void {
+    this.stale = false;
     this.grid.replaceChildren();
-    for (let i = 0; i < this.slots; i++) {
+    for (let i = 0; i < Math.max(this.slots, this.stacks.length); i++) {
       const stack = this.stacks[i];
       const slot = document.createElement('li');
       slot.className = stack ? 'pack-slot' : 'pack-slot pack-slot-free';
+      slot.dataset.slot = String(i);
       if (stack) {
         const names = STRINGS.items[stack.kind];
         const button = document.createElement('button');
@@ -209,9 +236,11 @@ export class PackPanel {
           button.append(tag);
         }
         button.addEventListener('click', () => {
+          if (this.dragged) return;
           this.chosen = { index: i, kind: stack.kind };
           this.render();
         });
+        button.addEventListener('pointerdown', (event) => this.press(event, i, stack.kind));
         slot.append(button);
       }
       this.grid.append(slot);
@@ -270,9 +299,10 @@ export class PackPanel {
       use.append(key);
       buttons.append(use);
     }
-    if (stack.count > 1) buttons.append(this.action(STRINGS.pack.dropOne, STRINGS.pack.dropWhat(names.a), () => this.actions.drop(stack.kind, 1)));
+    const slot = this.chosen!.index;
+    if (stack.count > 1) buttons.append(this.action(STRINGS.pack.dropOne, STRINGS.pack.dropWhat(names.a), () => this.actions.drop(slot, stack.kind, 1)));
     const all = STRINGS.pack.stack(stack.count, names);
-    buttons.append(this.action(stack.count > 1 ? STRINGS.pack.dropAll : STRINGS.pack.drop, STRINGS.pack.dropWhat(all), () => this.actions.drop(stack.kind, stack.count)));
+    buttons.append(this.action(stack.count > 1 ? STRINGS.pack.dropAll : STRINGS.pack.drop, STRINGS.pack.dropWhat(all), () => this.actions.drop(slot, stack.kind, stack.count)));
     this.detail.append(top, buttons);
   }
 
@@ -292,6 +322,115 @@ export class PackPanel {
     button.setAttribute('aria-label', title);
     button.addEventListener('click', run);
     return button;
+  }
+
+  /**
+   * A press on a used slot (the main button of a mouse, a finger or a pen): it becomes a drag when
+   * the pointer moves DRAG_START, and else it is a click, which chooses the slot.
+   */
+  private press(event: PointerEvent, from: number, kind: ItemKind): void {
+    if (this.drag || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    this.dragged = false;
+    this.drag = { pointer: event.pointerId, from, kind, startX: event.clientX, startY: event.clientY, ghost: null, over: null, world: false, x: event.clientX, y: event.clientY };
+    window.addEventListener('pointermove', this.onMove);
+    window.addEventListener('pointerup', this.onUp);
+    window.addEventListener('pointercancel', this.onCancel);
+  }
+
+  private readonly onMove = (event: PointerEvent): void => {
+    const drag = this.drag;
+    if (!drag || event.pointerId !== drag.pointer) return;
+    if (!drag.ghost) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < DRAG_START) return;
+      drag.ghost = this.ghost(drag);
+      this.slotElement(drag.from)?.classList.add('dragging');
+      document.body.classList.add('pack-dragging');
+    }
+    event.preventDefault();
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    drag.ghost.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+    // What is under the pointer: a slot of the panel, the world (the game's surface), or other GUI.
+    const under = document.elementFromPoint(event.clientX, event.clientY);
+    const slot = under?.closest<HTMLElement>('.pack-slot');
+    const over = slot && this.grid.contains(slot) ? Number(slot.dataset.slot) : null;
+    if (over !== drag.over) {
+      if (drag.over !== null) this.slotElement(drag.over)?.classList.remove('drop-target');
+      if (over !== null && over !== drag.from) this.slotElement(over)?.classList.add('drop-target');
+      drag.over = over;
+    }
+    drag.world = !slot && under?.closest('#game') != null;
+    drag.ghost.classList.toggle('to-ground', drag.world);
+  };
+
+  private readonly onUp = (event: PointerEvent): void => {
+    if (this.drag && event.pointerId === this.drag.pointer) this.endDrag(true);
+  };
+
+  private readonly onCancel = (event: PointerEvent): void => {
+    if (this.drag && event.pointerId === this.drag.pointer) this.endDrag(false);
+  };
+
+  /**
+   * Ends the drag. With `act`: onto another slot, the stack moves there; onto the world, the player
+   * tosses the stack (all of it, as the slot holds it now) towards that point.
+   */
+  private endDrag(act: boolean): void {
+    const drag = this.drag;
+    if (!drag) return;
+    this.drag = null;
+    window.removeEventListener('pointermove', this.onMove);
+    window.removeEventListener('pointerup', this.onUp);
+    window.removeEventListener('pointercancel', this.onCancel);
+    document.body.classList.remove('pack-dragging');
+    if (!drag.ghost) {
+      // A press that did not move: its click chooses the slot. The slots stay until the click comes.
+      if (this.stale) {
+        setTimeout(() => {
+          if (!this.drag) this.render();
+        }, 0);
+      }
+      return;
+    }
+    // The click that comes after this press does not choose the slot.
+    this.dragged = true;
+    setTimeout(() => (this.dragged = false), 0);
+    drag.ghost.remove();
+    const stack = this.stacks[drag.from];
+    if (act && stack?.kind === drag.kind) {
+      if (drag.over !== null && drag.over !== drag.from) {
+        // The choice follows the stacks that moved (a stack of the same kind stays: it fills).
+        if (this.chosen?.index === drag.from) this.chosen = { index: drag.over, kind: drag.kind };
+        else if (this.chosen?.index === drag.over && this.chosen.kind !== drag.kind) this.chosen = { index: drag.from, kind: this.chosen.kind };
+        this.actions.move(drag.from, drag.over);
+      } else if (drag.world) {
+        this.actions.drop(drag.from, drag.kind, stack.count, { x: drag.x, y: drag.y });
+      }
+    }
+    this.render();
+  }
+
+  /** The icon of a dragged stack, under the pointer; it does not take the pointer's events. */
+  private ghost(drag: Drag): HTMLElement {
+    const stack = this.stacks[drag.from];
+    const ghost = document.createElement('div');
+    ghost.className = 'pack-ghost';
+    ghost.setAttribute('aria-hidden', 'true');
+    const icon = document.createElement('canvas');
+    drawIcon(icon, this.art.frame(`item/${drag.kind}`));
+    ghost.append(icon);
+    if (stack && stack.count > 1) {
+      const count = document.createElement('span');
+      count.className = 'pack-stack';
+      count.textContent = String(stack.count);
+      ghost.append(count);
+    }
+    document.body.append(ghost);
+    return ghost;
+  }
+
+  private slotElement(index: number): HTMLElement | null {
+    return this.grid.querySelector<HTMLElement>(`.pack-slot[data-slot="${index}"]`);
   }
 
   /** The button shines a moment: something came into the pack. */

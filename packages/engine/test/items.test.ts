@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_PACK, ITEM_STACK, MAX_COINS, MOB_LOOT, addToPack, checkPack, random, rollLoot, type Pack } from '../src/index.ts';
+import { EMPTY_PACK, ITEM_STACK, MAX_COINS, MOB_LOOT, addToPack, checkPack, moveInPack, random, removeFromPack, removeFromSlot, rollLoot, usedSlots, type Pack } from '../src/index.ts';
 
 describe('a pack', () => {
   it('puts coins in the purse and an item on its stack first, then in a free slot', () => {
@@ -37,6 +37,49 @@ describe('a pack', () => {
     expect(checkPack({ coins: 0, items: [{ kind: 'sword', count: 1 }] })).toBeNull();
     expect(checkPack({ coins: 0, items: [{ kind: 'ring', count: ITEM_STACK.ring + 1 }] })).toBeNull();
     expect(checkPack('pack')).toBeNull();
+    // A free slot is null; the free slots at the end go.
+    expect(checkPack({ coins: 0, items: [null, { kind: 'cup', count: 1 }, null] })).toEqual({ coins: 0, items: [null, { kind: 'cup', count: 1 }] });
+    expect(checkPack({ coins: 0, items: [0] })).toBeNull();
+  });
+
+  it('keeps each stack in its slot: a stack that goes leaves a free slot, and a new one takes the first free slot', () => {
+    const ring = { kind: 'ring' as const, count: 2 };
+    const cup = { kind: 'cup' as const, count: 1 };
+    const herbs = { kind: 'herbs' as const, count: 3 };
+    let pack: Pack = { coins: 0, items: [ring, cup, herbs] };
+    pack = removeFromPack(pack, [{ kind: 'cup', count: 1 }]);
+    expect(pack.items).toEqual([ring, null, herbs]);
+    expect(usedSlots(pack)).toBe(2);
+    pack = removeFromSlot(pack, 2, 'herbs', 3)!;
+    expect(pack.items).toEqual([ring]);
+    expect(removeFromSlot(pack, 0, 'cup', 1)).toBeNull();
+    expect(removeFromSlot(pack, 0, 'ring', 3)).toBeNull();
+    expect(removeFromSlot(pack, 1, 'ring', 1)).toBeNull();
+    pack = { coins: 0, items: [null, ring, null] };
+    expect(addToPack(pack, { coins: 0, items: [cup, herbs] }, 4).pack.items).toEqual([cup, ring, herbs]);
+    // Every slot is in use, but for one beyond the slots of this pack.
+    expect(addToPack({ coins: 0, items: [ring, cup] }, { coins: 0, items: [herbs] }, 2).left.items).toEqual([herbs]);
+  });
+
+  it('moves a stack to another slot', () => {
+    const pack: Pack = { coins: 1, items: [{ kind: 'ring', count: 4 }, { kind: 'cup', count: 1 }, null, { kind: 'ring', count: 3 }] };
+    // Onto a free slot, onto a stack of another kind, onto a stack of its kind (the rest stays).
+    expect(moveInPack(pack, 1, 2, 6)!.items).toEqual([{ kind: 'ring', count: 4 }, null, { kind: 'cup', count: 1 }, { kind: 'ring', count: 3 }]);
+    expect(moveInPack(pack, 1, 5, 6)!.items).toEqual([{ kind: 'ring', count: 4 }, null, null, { kind: 'ring', count: 3 }, null, { kind: 'cup', count: 1 }]);
+    expect(moveInPack(pack, 0, 1, 6)!.items).toEqual([{ kind: 'cup', count: 1 }, { kind: 'ring', count: 4 }, null, { kind: 'ring', count: 3 }]);
+    expect(moveInPack(pack, 0, 3, 6)!.items).toEqual([{ kind: 'ring', count: 2 }, { kind: 'cup', count: 1 }, null, { kind: 'ring', count: 5 }]);
+    expect(moveInPack(pack, 3, 0, 6)!.items).toEqual([{ kind: 'ring', count: 5 }, { kind: 'cup', count: 1 }, null, { kind: 'ring', count: 2 }]);
+    // The last stack to a slot before it: the free slots at the end go.
+    expect(moveInPack(pack, 3, 2, 6)!.items).toEqual([{ kind: 'ring', count: 4 }, { kind: 'cup', count: 1 }, { kind: 'ring', count: 3 }]);
+    expect(moveInPack(pack, 3, 2, 6)!.coins).toBe(1);
+    // A full stack of its kind: the two change places.
+    const full: Pack = { coins: 0, items: [{ kind: 'ring', count: ITEM_STACK.ring }, { kind: 'ring', count: 1 }] };
+    expect(moveInPack(full, 1, 0, 4)!.items).toEqual([{ kind: 'ring', count: 1 }, { kind: 'ring', count: ITEM_STACK.ring }]);
+    // Nothing to move, the same slot, or a slot beyond the pack.
+    expect(moveInPack(pack, 2, 0, 6)).toBeNull();
+    expect(moveInPack(pack, 1, 1, 6)).toBeNull();
+    expect(moveInPack(pack, 1, 6, 6)).toBeNull();
+    expect(moveInPack(pack, 1, -1, 6)).toBeNull();
   });
 });
 

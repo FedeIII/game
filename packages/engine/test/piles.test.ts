@@ -9,6 +9,7 @@ import {
   Piles,
   Room,
   TILE_SIZE,
+  TOSS_REACH,
   World,
   canReachPile,
   createPlayer,
@@ -17,6 +18,7 @@ import {
   fromWirePiles,
   parseClientMessage,
   toWirePile,
+  tossPoint,
   traitsOf,
   type Ability,
   type ItemStack,
@@ -136,10 +138,17 @@ describe('piles on the ground', () => {
 
 describe('piles in a shared world', () => {
   it('reads the messages to drop and to pick up', () => {
-    expect(parseClientMessage('{"t":"put","kind":3,"count":2}')).toEqual({ t: 'put', kind: 3, count: 2 });
-    expect(parseClientMessage('{"t":"put","kind":3,"count":6}')).toBeNull();
-    expect(parseClientMessage('{"t":"put","kind":99,"count":1}')).toBeNull();
-    expect(parseClientMessage('{"t":"put","kind":"0","count":1}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":0,"kind":3,"count":2}')).toEqual({ t: 'put', slot: 0, kind: 3, count: 2 });
+    expect(parseClientMessage('{"t":"put","slot":2,"kind":3,"count":2,"at":[40,-8]}')).toEqual({ t: 'put', slot: 2, kind: 3, count: 2, at: [40, -8] });
+    expect(parseClientMessage('{"t":"put","kind":3,"count":2}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":16,"kind":3,"count":2}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":0,"kind":3,"count":6}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":0,"kind":99,"count":1}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":0,"kind":"0","count":1}')).toBeNull();
+    expect(parseClientMessage('{"t":"put","slot":0,"kind":3,"count":1,"at":[1.5,2]}')).toBeNull();
+    expect(parseClientMessage('{"t":"move","from":0,"to":3}')).toEqual({ t: 'move', from: 0, to: 3 });
+    expect(parseClientMessage('{"t":"move","from":2,"to":2}')).toBeNull();
+    expect(parseClientMessage('{"t":"move","from":0,"to":16}')).toBeNull();
     expect(parseClientMessage('{"t":"in","s":1,"i":[[0,0]],"g":[[1,5]]}')).toEqual({ t: 'in', s: 1, i: [[0, 0]], g: [[1, 5]] });
     expect(parseClientMessage('{"t":"in","s":1,"i":[[0,0]],"g":[[1,5],[1,6],[1,7]]}')).toBeNull();
     expect(parseClientMessage('{"t":"in","s":1,"i":[[0,0]],"g":[[1,-5]]}')).toBeNull();
@@ -150,10 +159,13 @@ describe('piles in a shared world', () => {
     const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items: [stack('ring', 3)] } })!;
     const b = room.join(0, 2, [5, 10], '', undefined, { traits: strength(10) })!;
     expect(room.welcome(b).pl).toEqual([]);
-    room.put(a.id, ITEM_KINDS.indexOf('ring'), 2, 0);
+    const ring = ITEM_KINDS.indexOf('ring');
+    room.put(a.id, { slot: 0, kind: ring, count: 2 }, 0);
     expect(a.pack.items).toEqual([stack('ring', 1)]);
-    // More than the pack holds: nothing happens.
-    room.put(a.id, ITEM_KINDS.indexOf('ring'), 2, 0);
+    // More than the slot holds, another kind, or a free slot: nothing happens.
+    room.put(a.id, { slot: 0, kind: ring, count: 2 }, 0);
+    room.put(a.id, { slot: 0, kind: ITEM_KINDS.indexOf('cup'), count: 1 }, 0);
+    room.put(a.id, { slot: 1, kind: ring, count: 1 }, 0);
     expect(a.pack.items).toEqual([stack('ring', 1)]);
     const [pile] = room.piles.list;
     expect(pile).toMatchObject({ kind: 'ring', count: 2 });
@@ -164,6 +176,8 @@ describe('piles in a shared world', () => {
     const seen = snapshotOf(room, b.id);
     expect(seen.pk).toBeUndefined();
     expect(seen.pl).toEqual([toWirePile(pile!)]);
+    // The other player sees the rings fall from the feet of the player who dropped them.
+    expect(seen.ts).toEqual([[pile!.id, a.state.x, a.state.y]]);
     // The piles go only when they change.
     expect(snapshotOf(room, b.id).pl).toBeUndefined();
     room.input(b.id, { t: 'in', s: 1, i: [[0, 0]], g: [[1, pile!.id]] }, 10);
@@ -177,7 +191,7 @@ describe('piles in a shared world', () => {
     const room = new Room(new World(houseSource()));
     const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items: [stack('cup', 1)] } })!;
     const far = room.join(0, 2, [12, 10], '', undefined, { traits: strength(10) })!;
-    room.put(a.id, ITEM_KINDS.indexOf('cup'), 1, 0);
+    room.put(a.id, { slot: 0, kind: ITEM_KINDS.indexOf('cup'), count: 1 }, 0);
     room.input(far.id, { t: 'in', s: 1, i: [[0, 0]], g: [[1, room.piles.list[0]!.id]] }, 10);
     expect(far.pack).toEqual(EMPTY_PACK);
     expect(room.piles.size).toBe(1);
@@ -202,7 +216,62 @@ describe('piles in a shared world', () => {
     const [pile] = room.piles.list;
     expect(pile).toMatchObject({ kind: 'brute-tusk', count: 1 });
     expect(Math.abs(pile!.x - (p.state.x + 20))).toBeLessThanOrEqual(20);
+    // It falls out of the mob.
+    const [toss] = snapshotOf(room, p.id).ts ?? [];
+    expect(toss?.[0]).toBe(pile!.id);
+    expect(Math.hypot(toss![1] - pile!.x, toss![2] - pile!.y)).toBeLessThanOrEqual(2 * 8);
     expect(p.pack.items).toEqual(full.items);
     expect(p.pack.coins).toBeGreaterThan(0);
+  });
+
+  it('lets a player toss a stack towards a point, and move its stacks between slots', () => {
+    const room = new Room(new World(houseSource()));
+    const items = [stack('ring', 3), stack('cup', 2), null, stack('ring', 4)];
+    const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items } })!;
+    snapshotOf(room, a.id);
+    // Onto a stack of its kind: it fills that stack, and the rest stays.
+    room.move(a.id, 0, 3);
+    expect(a.pack.items).toEqual([stack('ring', 2), stack('cup', 2), null, stack('ring', 5)]);
+    // Onto a free slot: it goes there. The pack never ends with a free slot.
+    room.move(a.id, 1, 5);
+    expect(a.pack.items).toEqual([stack('ring', 2), null, null, stack('ring', 5), null, stack('cup', 2)]);
+    room.move(a.id, 5, 1);
+    expect(a.pack.items).toEqual([stack('ring', 2), stack('cup', 2), null, stack('ring', 5)]);
+    // Onto another kind: the two change places.
+    room.move(a.id, 0, 1);
+    expect(a.pack.items).toEqual([stack('cup', 2), stack('ring', 2), null, stack('ring', 5)]);
+    // Beyond the slots of the pack, or from a free slot: nothing moves; the snapshot still gives the pack.
+    room.move(a.id, 0, strength(10).slots);
+    room.move(a.id, 2, 0);
+    expect(a.pack.items).toEqual([stack('cup', 2), stack('ring', 2), null, stack('ring', 5)]);
+    const ring = ITEM_KINDS.indexOf('ring');
+    const cup = ITEM_KINDS.indexOf('cup');
+    expect(snapshotOf(room, a.id).pk).toEqual([0, [[cup, 2], [ring, 2], null, [ring, 5]]]);
+    // A toss lands towards the point, at most TOSS_REACH away; its slot stays free.
+    room.put(a.id, { slot: 0, kind: cup, count: 2, at: [Math.round(a.state.x), Math.round(a.state.y) + 200] }, 0);
+    expect(a.pack.items).toEqual([null, stack('ring', 2), null, stack('ring', 5)]);
+    const [pile] = room.piles.list;
+    expect(pile).toMatchObject({ kind: 'cup', count: 2 });
+    expect(Math.abs(pile!.x - a.state.x)).toBeLessThanOrEqual(1);
+    expect(pile!.y - a.state.y).toBeGreaterThan(TOSS_REACH / 2);
+    expect(pile!.y - a.state.y).toBeLessThanOrEqual(TOSS_REACH);
+  });
+});
+
+describe('a toss', () => {
+  it('lands towards the point, short of a rock, across water but never on it', () => {
+    const world = new World(textSource(['..R', '~~~', '...', '~~~~']));
+    const player = { x: 8, y: 10 };
+    expect(tossPoint(world, player, 20, 10)).toEqual({ x: 20, y: 10 });
+    // The rock of tile (2, 0) stops it.
+    expect(tossPoint(world, player, 48, 10)).toEqual({ x: 32, y: 10 });
+    // Over the water of row 1, onto the grass of row 2.
+    expect(tossPoint(world, player, 8, 40)).toEqual({ x: 8, y: 40 });
+    // Not farther than TOSS_REACH, and not on the water of row 3: on the grass before it.
+    const far = tossPoint(world, player, 8, 1000);
+    expect(far.x).toBe(8);
+    expect(far.y).toBeLessThan(48);
+    expect(far.y).toBeGreaterThanOrEqual(44);
+    expect(TOSS_REACH).toBe(3 * TILE_SIZE);
   });
 });

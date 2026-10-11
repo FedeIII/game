@@ -1,8 +1,8 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
-import { EMPTY_PACK, ITEM_KINDS, ITEM_STACK, addToPack, drinkFrom, hasItems, lootIsEmpty, removeFromPack, type Loot, type Pack } from '../items.ts';
+import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, moveInPack, removeFromSlot, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
-import { Piles, dropPoint } from '../piles.ts';
+import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDealAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
@@ -23,6 +23,7 @@ import {
   toWireMob,
   toWirePack,
   toWirePile,
+  toWireToss,
   type InputMessage,
   type SnapshotMessage,
   type WelcomeMessage,
@@ -462,7 +463,7 @@ export class Room {
     const { pack, taken, left } = addToPack(player.pack, drop, player.traits.slots);
     player.pack = pack;
     if (!lootIsEmpty(taken)) player.packChanged = true;
-    if (left.items.length > 0) this.piles.put(at.x, at.y, left.items, nowMs);
+    if (left.items.length > 0) this.piles.put(at.x, at.y, left.items, nowMs, at);
     player.loot.push(toWireLoot('drop', taken, !lootIsEmpty(left)));
   }
 
@@ -525,19 +526,32 @@ export class Room {
   }
 
   /**
-   * The player puts `count` items of the kind with code `code` from its pack on the ground, just in
-   * front of it (dropPoint). Nothing happens if its pack does not hold them, or while it lies defeated.
+   * The player puts `count` items of slot `slot` of its pack (of the kind with code `code`) on the
+   * ground: just in front of it (dropPoint), or tossed towards `at` (tossPoint). Nothing happens if
+   * the slot does not hold them, or while the player lies defeated.
    */
-  put(id: number, code: number, count: number, nowMs: number): void {
+  put(id: number, request: { readonly slot: number; readonly kind: number; readonly count: number; readonly at?: readonly [number, number] }, nowMs: number): void {
     const player = this.players.get(id);
-    const kind = ITEM_KINDS[code];
-    if (!player || !kind || player.state.down > 0 || !Number.isInteger(count) || count < 1 || count > ITEM_STACK[kind]) return;
-    const stacks = [{ kind, count }];
-    if (!hasItems(player.pack, stacks)) return;
-    player.pack = removeFromPack(player.pack, stacks);
+    if (!player) return;
+    // Its client changed its own pack at once: the next snapshot gives the truth, also when nothing happens.
     player.packChanged = true;
-    const at = dropPoint(this.world, player.state);
-    this.piles.put(at.x, at.y, stacks, nowMs);
+    const kind = ITEM_KINDS[request.kind];
+    if (!kind || player.state.down > 0) return;
+    const pack = removeFromSlot(player.pack, request.slot, kind, request.count);
+    if (!pack) return;
+    player.pack = pack;
+    const at = request.at ? tossPoint(this.world, player.state, request.at[0], request.at[1]) : dropPoint(this.world, player.state);
+    this.piles.put(at.x, at.y, [{ kind, count: request.count }], nowMs, player.state);
+  }
+
+  /** The player moves the stack of slot `from` of its pack onto slot `to` (moveInPack). */
+  move(id: number, from: number, to: number): void {
+    const player = this.players.get(id);
+    if (!player) return;
+    // Its client moved the stack at once: the next snapshot gives the truth, also when nothing moves.
+    player.packChanged = true;
+    const pack = moveInPack(player.pack, from, to, player.traits.slots);
+    if (pack) player.pack = pack;
   }
 
   /** The player picks up a pile, if it can reach it: what fits goes into the pack, the rest stays on the ground. */
@@ -599,6 +613,10 @@ export class Room {
     const forced = this.world.forcedDoorList();
     const barks = this.barks;
     this.barks = [];
+    const tosses = this.piles.takeTosses().flatMap((toss) => {
+      const pile = this.piles.get(toss.pile);
+      return pile ? [{ wire: toWireToss(toss), x: pile.x, y: pile.y }] : [];
+    });
     const names: [number, string][] = [];
     for (const p of this.players.values()) if (p.name) names.push([p.id, p.name]);
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
@@ -630,6 +648,7 @@ export class Room {
       const key = pileKey(piles);
       const pilesChanged = key !== p.pileKey;
       p.pileKey = key;
+      const tossed = tosses.filter((t) => Math.hypot(t.x - s.x, t.y - s.y) <= PILE_SEND_RADIUS).map((t) => t.wire);
       const hunters = this.horde ? this.horde.huntersOf(p.id).map((m) => m.id) : [];
       send(p.id, {
         t: 'snap',
@@ -665,6 +684,7 @@ export class Room {
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
         ...(loot.length > 0 ? { l: loot } : {}),
         ...(pilesChanged ? { pl: piles } : {}),
+        ...(tossed.length > 0 ? { ts: tossed } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
         ...(woke !== null ? { wk: woke } : {}),
         ...(explored.length > 0 ? { ex: explored } : {}),

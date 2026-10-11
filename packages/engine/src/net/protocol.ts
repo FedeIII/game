@@ -1,7 +1,7 @@
 import { TILE_SIZE } from '../constants.ts';
-import { ITEM_KINDS, ITEM_STACK, type ItemStack, type Loot, type Pack } from '../items.ts';
+import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemStack, type Loot, type Pack, type PackSlot } from '../items.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
-import type { Pile } from '../piles.ts';
+import type { Pile, Toss } from '../piles.ts';
 import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
 
 /**
@@ -12,7 +12,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -210,16 +210,27 @@ export interface DrinkMessage {
 }
 
 /**
- * The player puts `count` items of `kind` (its code, ITEM_KINDS) from its pack on the ground, where
- * it stands: they lie there as a pile (piles.ts) until someone picks them up.
+ * The player puts `count` items from slot `slot` of its pack on the ground; the slot must hold
+ * them, of `kind` (its code, ITEM_KINDS). Without `at`, they fall just in front of the player
+ * (dropPoint); with `at` (a point of the world, in whole pixels), the player tosses them towards it
+ * (tossPoint). They lie there as a pile (piles.ts) until someone picks them up.
  */
 export interface PutMessage {
   readonly t: 'put';
+  readonly slot: number;
   readonly kind: number;
   readonly count: number;
+  readonly at?: readonly [number, number];
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage;
+/** The player moves the stack of slot `from` of its pack onto slot `to` (moveInPack). */
+export interface MoveMessage {
+  readonly t: 'move';
+  readonly from: number;
+  readonly to: number;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage;
 
 /** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
 export const SKIN_CHANGE_GAP_MS = 2000;
@@ -277,8 +288,11 @@ export function toWireMob(mob: Mob): WireMob {
 /** Items on the wire: [item code (ITEM_KINDS), count]. */
 export type WireStacks = readonly (readonly [number, number])[];
 
-/** A pack on the wire: [coins, stacks]. */
-export type WirePack = readonly [number, WireStacks];
+/** The slots of a pack on the wire, in order: [item code, count], or null for a free slot. */
+export type WireSlots = readonly (readonly [number, number] | null)[];
+
+/** A pack on the wire: [coins, slots]. */
+export type WirePack = readonly [number, WireSlots];
 
 export function toWireStacks(items: readonly ItemStack[]): WireStacks {
   return items.map((s) => [ITEM_KINDS.indexOf(s.kind), s.count] as const);
@@ -295,11 +309,18 @@ export function fromWireStacks(wire: WireStacks): ItemStack[] {
 }
 
 export function toWirePack(pack: Pack): WirePack {
-  return [pack.coins, toWireStacks(pack.items)];
+  return [pack.coins, pack.items.map((s) => (s ? ([ITEM_KINDS.indexOf(s.kind), s.count] as const) : null))];
 }
 
+/** A pack of the wire; a slot with a code that this client does not know shows as free. */
 export function fromWirePack(wire: WirePack): Pack {
-  return { coins: wire[0], items: fromWireStacks(wire[1]) };
+  return {
+    coins: wire[0],
+    items: wire[1].map((slot): PackSlot => {
+      const kind = slot ? ITEM_KINDS[slot[0]] : undefined;
+      return slot && kind ? { kind, count: slot[1] } : null;
+    }),
+  };
 }
 
 /**
@@ -332,6 +353,17 @@ export function fromWirePiles(wire: readonly WirePile[]): Pile[] {
     if (kind) out.push({ id, x, y, kind, count });
   }
   return out;
+}
+
+/** A toss (piles.ts): [pile id, x, y]: items fell from (x, y) onto that pile. Positions in whole pixels. */
+export type WireToss = readonly [number, number, number];
+
+export function toWireToss(toss: Toss): WireToss {
+  return [toss.pile, toss.fromX, toss.fromY];
+}
+
+export function fromWireToss([pile, fromX, fromY]: WireToss): Toss {
+  return { pile, fromX, fromY };
 }
 
 /** The reply to hello: who the player is, where it starts, which doors are open and forced, its pack, HP and refuges, and the piles near it. */
@@ -373,6 +405,8 @@ export interface SnapshotMessage {
   readonly l?: readonly WireLoot[];
   /** The piles on the ground near this player (within PILE_SEND_RADIUS): all of them, when they changed. */
   readonly pl?: readonly WirePile[];
+  /** The tosses onto piles near this player since the last snapshot: the client shows the items fall. */
+  readonly ts?: readonly WireToss[];
   /** In a world with mobs: the arrows in flight near this player (within MOB_SEND_RADIUS). */
   readonly ar?: readonly WireArrow[];
   /** The refuges that the player's character has entered, when they changed (WorldSource.refuges). */
@@ -529,8 +563,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isInt(m.kind, 0, 255) ? { t: 'drink', kind: m.kind } : null;
     case 'put': {
       const kind = ITEM_KINDS[m.kind as number];
-      return isInt(m.kind, 0, 255) && kind && isInt(m.count, 1, ITEM_STACK[kind]) ? { t: 'put', kind: m.kind, count: m.count } : null;
+      if (!isInt(m.slot, 0, MAX_SLOTS - 1) || !isInt(m.kind, 0, 255) || !kind || !isInt(m.count, 1, ITEM_STACK[kind])) return null;
+      if (m.at !== undefined && !isPair(m.at, -TILE_LIMIT * TILE_SIZE, TILE_LIMIT * TILE_SIZE)) return null;
+      return { t: 'put', slot: m.slot, kind: m.kind, count: m.count, ...(m.at === undefined ? {} : { at: m.at as [number, number] }) };
     }
+    case 'move':
+      return isInt(m.from, 0, MAX_SLOTS - 1) && isInt(m.to, 0, MAX_SLOTS - 1) && m.from !== m.to ? { t: 'move', from: m.from, to: m.to } : null;
     default:
       return null;
   }

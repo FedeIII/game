@@ -54,7 +54,9 @@ import {
   Piles,
   dropPoint,
   hasItems,
-  removeFromPack,
+  moveInPack,
+  removeFromSlot,
+  tossPoint,
   meetsGate,
   sheetTraits,
   type Arrow,
@@ -775,23 +777,36 @@ async function run(options: GameOptions): Promise<void> {
   // Items on the ground: the server keeps them in a shared world; the page keeps its own in a world that it runs.
   const localPiles = new Piles(world);
   const pilesNow = (): readonly Pile[] => (net ? net.pilesNow() : localPiles.list);
-  const pileViews = new PileViews(art, pileLayer, glowLayer);
-  /** Puts `count` items of `kind` from the pack on the ground, just in front of the player. */
-  const dropItems = (kind: ItemKind, count: number): void => {
-    const stacks = [{ kind, count }];
-    if (player.down > 0 || !hasItems(packNow(), stacks)) return;
+  const pileViews = new PileViews(art, pileLayer, entityLayer, glowLayer);
+  /**
+   * Puts `count` items of slot `slot` (of `kind`) on the ground: just in front of the player, or
+   * tossed towards `screen` (a point of the screen: the player dragged them onto the world there).
+   */
+  const dropItems = (slot: number, kind: ItemKind, count: number, screen?: { readonly x: number; readonly y: number }): void => {
+    const toward = screen ? camera.toWorld(screen.x, screen.y) : undefined;
+    if (player.down > 0) return;
     if (net) {
-      if (!net.put(ITEM_KINDS.indexOf(kind), count)) say(STRINGS.dropOffline, performance.now());
+      if (!net.put(slot, kind, count, toward)) say(STRINGS.dropOffline, performance.now());
       return;
     }
-    pack = removeFromPack(pack, stacks);
-    const at = dropPoint(world, player);
-    localPiles.put(at.x, at.y, stacks, performance.now());
+    const next = removeFromSlot(pack, slot, kind, count);
+    if (!next) return;
+    pack = next;
+    const at = toward ? tossPoint(world, player, toward.x, toward.y) : dropPoint(world, player);
+    localPiles.put(at.x, at.y, [{ kind, count }], performance.now(), player);
+  };
+  /** Moves the stack of slot `from` onto slot `to`. */
+  const moveItems = (from: number, to: number): void => {
+    if (net) {
+      net.move(from, to);
+      return;
+    }
+    pack = moveInPack(pack, from, to, traits.slots) ?? pack;
   };
   const packPanel = new PackPanel(
     art,
     !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null,
-    { drink: drinkKind, drop: dropItems },
+    { drink: drinkKind, drop: dropItems, move: moveItems },
     traits.scores,
     definition.items,
   );
@@ -806,7 +821,7 @@ async function run(options: GameOptions): Promise<void> {
     const result = addToPack(pack, drop, traits.slots);
     pack = result.pack;
     lootText.add(dropLines(result.taken), now);
-    if (result.left.items.length > 0) localPiles.put(at.x, at.y, result.left.items, now);
+    if (result.left.items.length > 0) localPiles.put(at.x, at.y, result.left.items, now, at);
     if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
   };
   /** The last source of loot that this page asked the server to open (its line: a pick, herbs, a cache). */
@@ -1144,7 +1159,8 @@ async function run(options: GameOptions): Promise<void> {
     dodgeButton?.setReady(canDodge(player) && !inShallows(world, player.x, player.y));
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
-    cursorView.update(mouse.at, camera.zoom, app.renderer.resolution);
+    // While the player drags a stack from the pack, the icon under the pointer is the cursor.
+    cursorView.update(packPanel.dragging ? null : mouse.at, camera.zoom, app.renderer.resolution);
 
     const npcsNow = npcPoses(now);
     npcViews?.update(npcsNow, seconds);
@@ -1163,6 +1179,7 @@ async function run(options: GameOptions): Promise<void> {
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
     buildings.update(view, inside, seconds);
     // The spark of a pile shows only where the player can see it: outside, or in its own house.
+    pileViews.toss(net ? net.takeTosses(now) : localPiles.takeTosses(), now);
     pileViews.update(pilesNow(), now, (pile) => world.insideOf(...tileOf(pile)) === inside);
     // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
     fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek });
@@ -1255,7 +1272,7 @@ async function run(options: GameOptions): Promise<void> {
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
-      `pack    ${packNow().coins} coins; ${packNow().items.map((s) => `${s.kind} ${s.count}`).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
+      `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),

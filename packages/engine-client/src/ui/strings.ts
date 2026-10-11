@@ -104,7 +104,7 @@ export const STRINGS = {
     empty: 'Your pack is empty.',
     guest: 'A guest: what you find is not saved.',
     /** Before the player chooses a slot. */
-    choose: 'Choose a thing to see what it does.',
+    choose: 'Choose a thing to see what it does. Drag it to another slot, or out onto the ground.',
     /** A slot for a screen reader and as a tooltip: "an imp horn", "3 imp horns". */
     stack: (n: number, names: { a: string; many: string }): string => (n === 1 ? names.a : `${n} ${names.many}`),
     count: (n: number): string => `× ${n}`,
@@ -120,7 +120,7 @@ export const STRINGS = {
     fullHp: 'all your hit points back',
     cure: 'a poison ends',
     stackOf: (n: number): string => `Up to ${n} in a slot.`,
-    /** Put items on the ground, where the player stands (piles.ts). */
+    /** Put items on the ground, where the player stands (piles.ts), or where the player drags them. */
     drop: 'Drop',
     dropOne: 'Drop one',
     dropAll: 'Drop all',

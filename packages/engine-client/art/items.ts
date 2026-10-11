@@ -6,14 +6,16 @@
  *
  * The same models, smaller and with a shadow, are the items on the ground (`pile/<kind>`, anchor
  * on the point where the item lies), and `pile/glint` is the small spark that shows a pile in the
- * dark (white: the game tints it).
+ * dark (white: the game tints it). `pile/<kind>/bare` is the same item without its shadow, and
+ * `pile/shadow` the shadow alone: an item in the air (a drop that falls), and the faint shine of a
+ * pile.
  *
  * The icons have materials of their own, a little lighter than the world's: a slot has no torch
  * to light it. They keep the dark, desaturated colours of the rest of the art. On the ground the
  * lighter colours help a player to find what fell.
  */
 import { Image } from './image.ts';
-import { cropToContent, ramp } from './raster.ts';
+import { cropToContent, ramp, shadowEllipse } from './raster.ts';
 import { cylinder, ellipsoid, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
@@ -77,21 +79,34 @@ function scaled(parts: readonly Part[], k: number): Part[] {
   });
 }
 
-/** An item on the ground: its model, small, with a soft shadow; the anchor is the point where it lies. */
-function pile(kind: string, parts: Part[]): Frame {
-  const width = 14;
-  const height = 14;
-  const image = renderModel(scaled(parts, PILE_SCALE), ICON_MATERIALS, {
-    width,
-    height,
-    pivotX: width / 2,
-    pivotY: height - 3,
-    yaw: 0,
-    stepScale: 0.6,
-    shadow: { radiusX: 4, radiusY: 1.7, alpha: 0x70 },
-  });
-  const cropped = cropToContent(image, width / 2, height - 3);
-  return { name: `pile/${kind}`, image: cropped.image, anchor: cropped.anchor };
+/** The frame of an item on the ground, and its pivot: the point where it lies. */
+const PILE_FRAME = { width: 14, height: 14, pivotX: 7, pivotY: 11 } as const;
+/** The soft shadow under an item on the ground. */
+const PILE_SHADOW = { radiusX: 4, radiusY: 1.7, alpha: 0x70 } as const;
+
+/**
+ * An item on the ground: its model, small, with a soft shadow (`pile/<kind>`), and without it
+ * (`pile/<kind>/bare`); the anchor of both is the point where it lies.
+ */
+function pile(kind: string, parts: Part[]): Frame[] {
+  const { width, height, pivotX, pivotY } = PILE_FRAME;
+  const render = (shadow: boolean): Image =>
+    renderModel(scaled(parts, PILE_SCALE), ICON_MATERIALS, { width, height, pivotX, pivotY, yaw: 0, stepScale: 0.6, ...(shadow ? { shadow: PILE_SHADOW } : {}) });
+  const shadowed = cropToContent(render(true), pivotX, pivotY);
+  const bare = cropToContent(render(false), pivotX, pivotY);
+  return [
+    { name: `pile/${kind}`, image: shadowed.image, anchor: shadowed.anchor },
+    { name: `pile/${kind}/bare`, image: bare.image, anchor: bare.anchor },
+  ];
+}
+
+/** The shadow of an item on the ground, alone (`pile/shadow`): under an item in the air. */
+function pileShadow(): Frame {
+  const { width, height, pivotX, pivotY } = PILE_FRAME;
+  const image = new Image(width, height);
+  shadowEllipse(image, pivotX, pivotY, PILE_SHADOW.radiusX, PILE_SHADOW.radiusY, PILE_SHADOW.alpha);
+  const cropped = cropToContent(image, pivotX, pivotY);
+  return { name: 'pile/shadow', image: cropped.image, anchor: cropped.anchor };
 }
 
 /** A spark of 5 x 5 pixels: a bright centre and four short, fainter rays. */
@@ -211,7 +226,8 @@ export function itemFrames(): Frame[] {
   return [
     icon('coin', coin()),
     ...MODELS.map(([kind, model]) => icon(kind, model())),
-    ...MODELS.map(([kind, model]) => pile(kind, model())),
+    ...MODELS.flatMap(([kind, model]) => pile(kind, model())),
+    pileShadow(),
     { name: 'pile/glint', image: glint(), anchor: { x: 0.5, y: 0.5 } },
   ];
 }

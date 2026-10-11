@@ -151,8 +151,10 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `speech-bubble.ts` (pages of text over a head, above the darkness), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `piles.ts` (the items on the
-  ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, and a gold spark now and then
-  above the darkness), `cursor.ts` (the mouse
+  ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, a gold spark now and then
+  above the darkness, and a very faint shine now and then; a toss shows the items fly from the hands, or out of a
+  mob, on an arc to their pile, with one small hop: `pile/<kind>/bare` depth-sorted in `entityLayer`, `pile/shadow`
+  under it), `cursor.ts` (the mouse
   cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
   filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
@@ -167,7 +169,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack in a fixed order, drinks first; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
   `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
   the one that the published page names: every 60 s while it is visible, when it shows again, and
   every 3 s for 2 minutes after a lost connection; nothing in development),
@@ -280,8 +282,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `items.ts`: the item icons, SDF models of 16 x 16 (`item/<kind>` for each `ITEM_KINDS`, and
   `item/coin`), with materials of their own, a little lighter than the world's: the pack panel
   shows them at 2x on a dark slot. The same models at 0.7 of the size, with a shadow, are the
-  items on the ground (`pile/<kind>`, anchor on the point where the item lies), and `pile/glint`
-  is the spark over a pile (white, tinted gold).
+  items on the ground (`pile/<kind>`, anchor on the point where the item lies); `pile/<kind>/bare`
+  is the same without the shadow and `pile/shadow` the shadow alone (an item in the air, the
+  shine), and `pile/glint` is the spark over a pile (white, tinted gold).
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
@@ -437,7 +440,10 @@ builder and the "You" section still name every gate.
   traits)`: half speed, no attack there) and forcing a barred door (`FORCE_GATE`,
   `Building.barred`).
 - **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
-  stack (`ITEM_STACK`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
+  stack (`ITEM_STACK`). `Pack.items` is the slots in order, null for a free slot (never at the
+  end): a stack keeps its slot until it goes, a new one takes the first free slot (`addToPack`),
+  and the player moves stacks (`moveInPack`: onto a free slot, a swap, or onto a stack of its kind,
+  which it fills; the message `move`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
   of herbs, and three drinks (healing draught, antidote, strong draught: `DRINKS`, `drinkFrom()`;
   the drink belt, its keys 1 to 4, or "Drink" in the pack panel; the server through `drink`). A kill drops loot into the killer's pack (`MOB_LOOT`,
   `Horde.drop()`: an imp a horn in one kill of three; a brute 2 to 6 coins, and a tusk in one of
@@ -446,11 +452,15 @@ builder and the "You" section still name every gate.
   the place); in a world that the page runs, the page has its own, which it does not save.
 - **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
   "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
-  when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack.
-  Anybody picks a pile up with the action button ("Pick up 4 imp horns"; a pile under the feet
-  comes first). A pile goes after 10 minutes (`PILE_MS`); a world has at most 400. In a shared world
-  the Room keeps them in memory (a restart of the server clears them): `put` and the `g` of an input
-  batch, protocol 17. A page that runs its world keeps its own.
+  when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack. A
+  stack that the player drags out of the panel onto the world lands towards that point, at most 3
+  tiles away (`tossPoint()`, `TOSS_REACH`: short of a wall, a door, a tree or a thing, across water
+  but never on it). Each drop is a toss (`Toss`, `Piles.takeTosses()`; `ts` in a snapshot): every
+  page near it shows the items fall. Anybody picks a pile up with the action button ("Pick up 4
+  imp horns"; a pile under the feet comes first). A pile goes after 10 minutes (`PILE_MS`); a world
+  has at most 400. In a shared world the Room keeps them in memory (a restart of the server clears
+  them): `put` (a slot, its kind, a count, and `at` for a toss) and the `g` of an input batch,
+  protocol 18. A page that runs its world keeps its own.
 - **Loot over time** (`loot.ts`, `Spoils`; a Room has one, a page that runs its world has its
   own): `WorldSource.loot(fixture)` gives a loot table for a chest. One loot per chest for
   everybody: the first one takes it (what does not fit stays in the chest), and the chest fills
@@ -560,7 +570,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 17.
+protocol: `docs/multiplayer.md`, protocol 18.
 
 ## Arrival in a world
 
@@ -850,8 +860,9 @@ stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
 `pack` and `piles`; `doors`
-lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-pick` in each used slot,
-`.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
+lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
+for each slot, `.pack-pick` in each used one (drag it with the mouse, or with touch events: a
+`.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),

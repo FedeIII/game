@@ -1,4 +1,5 @@
 import {
+  ITEM_KINDS,
   PROTOCOL_VERSION,
   Prediction,
   Remotes,
@@ -6,6 +7,9 @@ import {
   fromWirePack,
   fromWirePiles,
   fromWireStacks,
+  fromWireToss,
+  moveInPack,
+  removeFromSlot,
   LOOT_SOURCES,
   parseServerMessage,
   stepPlayer,
@@ -13,8 +17,10 @@ import {
   type ClientMessage,
   type Loot,
   type Pack,
+  type ItemKind,
   type Pile,
   type PlayerTraits,
+  type Toss,
   type DoorResult,
   type Feet,
   type MoveInput,
@@ -47,6 +53,9 @@ const MAX_UNCONFIRMED = 300;
 const PING_INTERVAL_MS = 2000;
 const RETRY_FIRST_MS = 1000;
 const RETRY_MAX_MS = 30_000;
+/** A toss older than this when the view takes it is not shown (ms); at most MAX_TOSSES wait. */
+const TOSS_STALE_MS = 1000;
+const MAX_TOSSES = 64;
 /** A page that is hidden this long leaves the shared world; it comes back when it is shown. */
 const HIDDEN_LEAVE_MS = 60_000;
 /** A correction longer than this is a jump (a new start point), not something to smooth. */
@@ -83,6 +92,8 @@ export class NetSession {
   pack: Pack | null = null;
   /** The piles on the ground near the player, in the server's last word. */
   private piles: Pile[] = [];
+  /** The tosses onto those piles since the view last took them, with the time when each one came. */
+  private tosses: { toss: Toss; at: number }[] = [];
   /** The player's id in the shared world (from the welcome), or null. */
   id: number | null = null;
   /** The refuges of the character, in the server's last word (null before the welcome). */
@@ -151,11 +162,39 @@ export class NetSession {
     return true;
   }
 
-  /** Puts `count` items of a kind (its code) from the pack on the ground, through the server. False while not online. */
-  put(kind: number, count: number): boolean {
-    if (this.status !== 'online') return false;
-    this.send({ t: 'put', kind, count });
+  /**
+   * Puts `count` items of slot `slot` of the pack (of `kind`) on the ground, through the server: in
+   * front of the player, or tossed towards `at` (a point of the world). The pack shows it at once;
+   * the next snapshot gives the server's word. False while not online.
+   */
+  put(slot: number, kind: ItemKind, count: number, at?: { readonly x: number; readonly y: number }): boolean {
+    if (this.status !== 'online' || !this.pack) return false;
+    const pack = removeFromSlot(this.pack, slot, kind, count);
+    if (!pack) return true;
+    this.pack = pack;
+    this.send({ t: 'put', slot, kind: ITEM_KINDS.indexOf(kind), count, ...(at ? { at: [Math.round(at.x), Math.round(at.y)] as const } : {}) });
     return true;
+  }
+
+  /** Moves the stack of slot `from` onto slot `to`, through the server; the pack shows it at once. False while not online. */
+  move(from: number, to: number): boolean {
+    if (this.status !== 'online' || !this.pack) return false;
+    const pack = moveInPack(this.pack, from, to, this.traits.slots);
+    if (!pack) return true;
+    this.pack = pack;
+    this.send({ t: 'move', from, to });
+    return true;
+  }
+
+  /**
+   * The tosses onto the piles near the player since the last call (none while not online). A toss
+   * that came more than TOSS_STALE_MS ago is left out: the page was hidden, and the items lie on
+   * the ground already.
+   */
+  takeTosses(now: number): Toss[] {
+    const tosses = this.tosses;
+    this.tosses = [];
+    return this.status === 'online' ? tosses.filter((t) => now - t.at < TOSS_STALE_MS).map((t) => t.toss) : [];
   }
 
   /** Picks up a pile on the ground through the server, which answers with loot. False while not online. */
@@ -333,6 +372,8 @@ export class NetSession {
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
         if (message.pl) this.piles = fromWirePiles(message.pl);
+        for (const toss of message.ts ?? []) this.tosses.push({ toss: fromWireToss(toss), at: now });
+        if (this.tosses.length > MAX_TOSSES) this.tosses.splice(0, this.tosses.length - MAX_TOSSES);
         if (message.rf) {
           const before = this.refuges;
           this.refuges = message.rf;

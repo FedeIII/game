@@ -31,7 +31,7 @@ export function drinkTitle(kind: ItemKind): string {
 
 /** How many items of `kind` a pack holds, in all its slots. */
 export function countOf(pack: Pack, kind: ItemKind): number {
-  return pack.items.reduce((n, s) => (s.kind === kind ? n + s.count : n), 0);
+  return pack.items.reduce((n, s) => (s?.kind === kind ? n + s.count : n), 0);
 }
 
 /**

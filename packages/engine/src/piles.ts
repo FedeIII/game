@@ -4,9 +4,10 @@ import type { Facing } from './player.ts';
 import { isWet, type TileMap } from './world.ts';
 
 /**
- * Items on the ground. A player drops a stack from its pack, and a kill drops at the mob what does
- * not fit in the killer's pack. Each stack lies as a pile at one point of the world, and any player
- * can pick it up with the action button. A pile goes after PILE_MS.
+ * Items on the ground. A player drops a stack from its pack (in front of it, or tossed towards a
+ * point: tossPoint), and a kill drops at the mob what does not fit in the killer's pack. Each stack
+ * lies as a pile at one point of the world, and any player can pick it up with the action button. A
+ * pile goes after PILE_MS.
  *
  * In a shared world the Room keeps the piles, in memory: a restart of the server clears them. In a
  * world that the page runs, the page keeps its own.
@@ -32,6 +33,10 @@ export const PILE_HALF_HEIGHT = 4;
 const PILE_GAP = 8;
 /** A player drops a stack this far in front of its feet (world pixels), so it does not stand on it and hide it. */
 const DROP_AHEAD = 10;
+/** The farthest that a player tosses a stack from its feet, towards a point that it chose (world pixels). */
+export const TOSS_REACH = 3 * TILE_SIZE;
+/** The most tosses that wait for the next snapshot (or frame): more are not shown. */
+const MAX_TOSSES = 64;
 /** A line between two points is clear when every point this far apart on it is open ground. */
 const LINE_STEP = 4;
 /** Where a new pile may lie round the point where it falls: the point, then two rings. */
@@ -94,9 +99,45 @@ export function dropPoint(world: TileMap, player: { readonly x: number; readonly
   return openPoint(world, x, y) && clearLine(world, player.x, player.y, x, y) ? { x, y } : { x: player.x, y: player.y };
 }
 
+/**
+ * Where a stack lands that a player tosses towards (x, y): it dragged the stack from its pack onto
+ * the world there. The point, but at most TOSS_REACH from the player's feet; nearer when something
+ * stands in the way (a wall, a door, a tree, a thing): the farthest point of open ground on the line
+ * before it. Water does not stop a toss, but a stack does not land on it. At the feet when no point
+ * is open.
+ */
+export function tossPoint(world: TileMap, player: { readonly x: number; readonly y: number }, x: number, y: number): { x: number; y: number } {
+  let dx = x - player.x;
+  let dy = y - player.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance > TOSS_REACH) {
+    dx *= TOSS_REACH / distance;
+    dy *= TOSS_REACH / distance;
+  }
+  const steps = Math.max(1, Math.ceil(Math.min(distance, TOSS_REACH) / LINE_STEP));
+  let best = { x: Math.round(player.x), y: Math.round(player.y) };
+  for (let i = 1; i <= steps; i++) {
+    const px = Math.round(player.x + (dx * i) / steps);
+    const py = Math.round(player.y + (dy * i) / steps);
+    if (blockingPoint(world, px, py)) break;
+    if (openPoint(world, px, py)) best = { x: px, y: py };
+  }
+  return best;
+}
+
 interface Lying {
   pile: Pile;
   until: number;
+}
+
+/**
+ * Items fell onto a pile: from (fromX, fromY), the feet of the player who dropped them or the mob
+ * that died. The screen shows them fly from there to the pile (render/piles.ts).
+ */
+export interface Toss {
+  readonly pile: number;
+  readonly fromX: number;
+  readonly fromY: number;
 }
 
 /** What a player took from a pile: the new pack, what went in, and what stayed on the ground. */
@@ -110,6 +151,7 @@ export interface Taken {
 export class Piles {
   private readonly world: TileMap;
   private lying: Lying[] = [];
+  private tosses: Toss[] = [];
   private nextId = 1;
   /** Goes up each time a pile comes, changes or goes. */
   version = 0;
@@ -141,9 +183,9 @@ export class Piles {
   /**
    * Puts stacks on the ground round (x, y): each one first onto a pile of its kind close by that
    * has room, then as a new pile on a free spot of open ground near the point. Returns the piles
-   * that came or changed.
+   * that came or changed. With `from` (where the items come from), each of them is a toss too.
    */
-  put(x: number, y: number, stacks: readonly ItemStack[], nowMs: number): Pile[] {
+  put(x: number, y: number, stacks: readonly ItemStack[], nowMs: number, from?: { readonly x: number; readonly y: number }): Pile[] {
     const changed: Pile[] = [];
     const px = Math.round(x);
     const py = Math.round(y);
@@ -171,7 +213,18 @@ export class Piles {
       }
     }
     if (changed.length > 0) this.version++;
+    if (from) {
+      for (const id of new Set(changed.map((p) => p.id))) this.tosses.push({ pile: id, fromX: Math.round(from.x), fromY: Math.round(from.y) });
+      if (this.tosses.length > MAX_TOSSES) this.tosses.splice(0, this.tosses.length - MAX_TOSSES);
+    }
     return changed;
+  }
+
+  /** The tosses since the last call, the oldest first. */
+  takeTosses(): Toss[] {
+    const tosses = this.tosses;
+    this.tosses = [];
+    return tosses;
   }
 
   /**

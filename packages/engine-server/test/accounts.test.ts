@@ -414,6 +414,13 @@ describe('accounts: the shared world', () => {
     const a = await browser.hello({ character: id });
     expect(a.first).toMatchObject({ t: 'welcome', pk: [7, [[5, 2]]] });
     await a.close();
+    // When the player has left (the server saves its pack then), a free slot stays in its place.
+    for (let i = 0; i < 100 && started.players().shared !== 0; i++) await new Promise((r) => setTimeout(r, 20));
+    started.accounts!.savePack({ id: 1, provider: 'dev', email: '' }, id, { coins: 1, items: [null, { kind: 'ring', count: 3 }] });
+    expect(await listed()).toEqual({ coins: 1, items: [null, { kind: 'ring', count: 3 }] });
+    const b = await browser.hello({ character: id });
+    expect(b.first).toMatchObject({ t: 'welcome', pk: [1, [null, [3, 3]]] });
+    await b.close();
   });
 
   it('refuses a visitor without a session, without a character, or with another account’s', async () => {

@@ -276,7 +276,7 @@ export class AccountStore {
 
   /** Notes what a character carries (the server's word, from a shared world); false if it is not the user's. */
   setPack(userId: number, id: string, pack: Pack): boolean {
-    const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => ({ kind: s.kind, count: s.count })) });
+    const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => (s ? { kind: s.kind, count: s.count } : null)) });
     return this.db.prepare('UPDATE characters SET pack = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
   }
 

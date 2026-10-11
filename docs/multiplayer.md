@@ -42,9 +42,10 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `ping` | the client's clock, for the round trip |
 | client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog |
 | client to server | `drink` | the code of a drink in the pack (protocol 14) |
-| client to server | `put` | an item code and a count: items from the pack to the ground (protocol 17) |
-| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| client to server | `put` | a slot of the pack, the item code of its stack, a count, and an optional point `at`: items from the pack to the ground (protocol 17; the slot and `at`: protocol 18) |
+| client to server | `move` | two slots of the pack, `from` and `to`: the player moves a stack (protocol 18) |
+| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11; null for a free slot, protocol 18), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -67,6 +68,26 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Slots and tosses (protocol 18, 2026-10-10)
+
+- The pack keeps each stack in its slot (`Pack.items`: the slots in order, null for a free slot,
+  never a free slot at the end). `pk` (in the welcome and the snapshots) is `[coins, slots]`, each
+  slot `[item code, count]` or null. The store keeps the same list (JSON, with null).
+- A new client message, `move` (`from`, `to`: slots, 0 to 15): the Room moves the stack
+  (`moveInPack()`: onto a free slot, a swap with another kind, or onto a stack of the same kind,
+  which it fills). The next snapshot has the pack, also when nothing moved.
+- `put` has `slot` and `kind` (the slot must hold `count` items of that kind: `removeFromSlot()`),
+  and an optional `at` (`[x, y]`, whole pixels): the player dragged the stack onto the world there.
+  The items land towards it, at most 3 tiles from the feet (`tossPoint()`). Without `at`, in front
+  of the player, as before. The next snapshot has the pack, also when nothing happened.
+- The page changes its own pack at once for a `move` or a `put` (`NetSession.move()`, `put()`); the
+  next snapshot gives the server's word.
+- Every drop is a toss (`Piles.put(..., from)`, `Piles.takeTosses()`): a snapshot carries the
+  tosses onto the piles within 30 tiles of the player since the last one (`ts`: `[pile id, x, y]`,
+  from the feet of the player who dropped the items, or from the mob that died). The page shows
+  the items fly onto the pile (`render/piles.ts`). A page that misses a snapshot misses the toss;
+  the pile shows anyway.
 
 ## Items on the ground (protocol 17, 2026-10-10)
 

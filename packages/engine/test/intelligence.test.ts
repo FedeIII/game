@@ -67,7 +67,7 @@ describe('drinks', () => {
     expect(a.items[0]).toEqual({ kind: 'draught', count: 1 });
     const b = drinkFrom(a, 'antidote', p, traits)!;
     expect(p.poison).toBe(0);
-    expect(b.items.some((s) => s.kind === 'antidote')).toBe(false);
+    expect(b.items.some((s) => s?.kind === 'antidote')).toBe(false);
     drinkFrom(b, 'strong-draught', p, traits);
     expect(p.hp).toBe(traits.maxHp);
     expect(drinkFrom(pack, 'herbs', p, traits)).toBeNull();

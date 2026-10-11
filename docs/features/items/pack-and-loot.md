@@ -7,16 +7,18 @@ loot into the pack of the killer. The chests of the houses of the Wilds, the hid
 herbs in the woods and the buried cache of Thornwick also give loot. Each source holds one loot
 for every player of a world, and it fills again after a time. Herbs and trophies go into brews,
 the brews are drinks, and a character with Medicine chews herbs. The pack panel shows what each
-thing is and what it is for. A player drinks from a belt under its hit points, and it can put
-items on the ground, where any player can pick them up again. What does not fit in the pack after
-a kill falls on the ground.
+thing is and what it is for, and the player puts each stack in the slot that it wants with a drag.
+A player drinks from a belt under its hit points, and it can put items on the ground (also with a
+drag out of the panel), where any player can pick them up again. What does not fit in the pack
+after a kill falls on the ground. The items fall to the ground on the screen, and an item on the
+ground shines a little now and then.
 
 ## Terminology
 
 - **Pack**: what a character carries: a purse and slots.
 - **Purse**: the coins of a character. It uses no slot.
 - **Slot**: one place in the pack. It holds one kind of item, up to the stack of that kind. The
-  number of slots comes from Strength (STR).
+  number of slots comes from Strength (STR). A **free slot** holds nothing.
 - **Stack**: the most items of one kind in one slot.
 - **Loot**: coins and items that go into a pack: the contents of a chest, or the drop of a kill.
 - **Loot table**: the rule that gives loot: a range of coins, and rolls that each give one item
@@ -24,6 +26,10 @@ a kill falls on the ground.
 - **Drop**: the loot of a kill. The buttons "Drop one" and "Drop all" of the pack panel are a
   different thing: they put items on the ground (a pile).
 - **Pile**: items of one kind that lie on the ground at one point. Any player can pick it up.
+- **Drag**: the player presses a used slot (with the mouse or a finger) and moves the pointer
+  before it lets go.
+- **Toss**: items go from the hands of a player (or out of a mob that died) onto a pile. A toss
+  towards a point: the player drags a stack out of the pack panel onto the world.
 - **Drink belt**: the row of drink buttons under the hit points.
 - **Source of loot**: a chest, a patch of herbs or a buried cache.
 - **Refill**: a source fills again with new loot.
@@ -44,8 +50,10 @@ searches give me something.
 - **AC-PK-001.3:** There are nine kinds of item. Their stacks are: imp horn 10, brute tusk 10,
   candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10, healing draught 5, antidote 5,
   strong draught 5.
-- **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into a free slot.
-  One kind can fill more than one slot when its stacks are full.
+- **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into the first free
+  slot. One kind can fill more than one slot when its stacks are full.
+- **AC-PK-001.6:** A stack stays in its slot until it goes. When a stack goes (a drink, a deal, a
+  drop), its slot becomes free, and the other stacks stay where they are.
 - **AC-PK-001.5:** The draughts are drinks (REQ-PK-011). Herbs, imp horns and brute tusks go into
   the brews of the cauldron ([Intelligence](../abilities/intelligence.md), REQ-INT-006). A
   character with Medicine chews herbs ([Wisdom](../abilities/wisdom.md), REQ-WIS-006). The
@@ -182,9 +190,8 @@ choose what to keep, what to use and what to drop.
   slots ("2 of 8 slots"). It also shows the coins with a coin icon.
 - **AC-PK-008.4:** The panel shows one cell for each slot. A used cell shows the icon of its item at
   2x, and the number when the stack has more than one item. A free cell is empty.
-- **AC-PK-008.5:** The cells are in a fixed order: the drinks (healing draught, strong draught,
-  antidote), then the things for brews (bundle of herbs, imp horn, brute tusk), then the trinkets
-  (silver ring, pewter cup, candle stub). Of two stacks of one kind, the fuller one is first.
+- **AC-PK-008.5:** Each cell shows the slot of the same place in the pack: a stack stays in its cell
+  until the player moves it (REQ-PK-015) or it goes (AC-PK-001.6).
 - **AC-PK-008.6:** A used cell names its stack for a screen reader and as a tooltip, for example
   "an imp horn" or "3 imp horns".
 - **AC-PK-008.7:** With no coins and no items, the panel says "Your pack is empty."
@@ -194,14 +201,15 @@ choose what to keep, what to use and what to drop.
 - **AC-PK-008.9:** A press on a used cell chooses it, and the cell gets a red border. Under the
   cells, the detail shows the icon at 3x, the name and the count ("Healing draught × 3"), what a
   drink does, the line of the world about the item, and the stack ("Up to 5 in a slot."). Before a
-  choice, the detail says "Choose a thing to see what it does."
+  choice, the detail says "Choose a thing to see what it does. Drag it to another slot, or out
+  onto the ground."
 - **AC-PK-008.10:** What a drink does: "Drink it: 2 hit points back.", "Drink it: all your hit
   points back.", "Drink it: a poison ends.", and for herbs with WIS 13 "Chew it: 1 hit point back."
 - **AC-PK-008.11:** The detail of a drink that the character can use has the button "Drink" (for
   herbs "Chew"), with the key of the drink on the belt (REQ-PK-014). A press drinks one
   (REQ-PK-011).
 - **AC-PK-008.12:** The detail has the button "Drop all" ("Drop" for one item), and "Drop one" for a
-  stack of more than one item (REQ-PK-013).
+  stack of more than one item (REQ-PK-013). They take the items from the chosen slot.
 - **AC-PK-008.13:** A use behind a gate follows the gate rule ([Ability Scores](../abilities/ability-scores.md),
   REQ-AS-007). With a score 1 or 2 under the gate, the cell shows the gate dim in its corner ("WIS
   13"). The detail then says "[WIS 13] You could chew a bundle of herbs, if you knew more of
@@ -305,6 +313,18 @@ again later, so that I can make room without losing what I found.
 - **AC-PK-013.2:** A pile shows its item on the ground, small. A pile of 2 or more shows two
   copies, and a pile of 5 or more three. A small gold spark shows over each pile for 0.4 s in each
   2.6 s, above the darkness, when the player can see the pile (outside, or in the same building).
+- **AC-PK-013.11:** Each pile also shines a little: once in each 4.7 s, its items get lighter and
+  dark again over 1.9 s, at most 22% lighter. Each pile shines at its own moment. The shine is so
+  faint that a player sees it only when it looks at the pile.
+- **AC-PK-013.12:** Items that fall onto a pile fly there on the screen: from the hands of the player
+  who dropped them (12 px over its feet), or out of the mob that died, on an arc that goes a little
+  up first, down to the pile, with one hop of 2 px when they land. The flight takes 0.23 s, and
+  4 ms more for each pixel of the way, at most 0.46 s. The item in the air is in front of what
+  stands behind its point on the ground, and its shadow moves on the ground under it.
+- **AC-PK-013.13:** A new pile shows when its items land. A pile that gets more items keeps its
+  look until they land.
+- **AC-PK-013.14:** Every player near a pile sees the items fall, also the items that another player
+  drops. A page that was hidden does not show old falls.
 - **AC-PK-013.3:** A pile holds one kind of item, up to the stack of that kind. Items that fall
   within 8 px of a pile of their kind go onto it while it has room. A new pile lies on open ground,
   at least 8 px from the other piles, within 16 px of the point where it fell, and with no wall,
@@ -347,6 +367,39 @@ the next blow.
   count, for example "Drink a healing draught (1), 3 healing draughts".
 - **AC-PK-014.5:** Without a drink to use, the belt does not show.
 
+---
+
+### REQ-PK-015: Moving and dropping stacks with a drag
+
+**User Story:** As a player, I want to put my things where I want them in the pack, and to throw a
+thing out of the pack with one move, so that the pack is in my order and I can make room fast.
+
+**Acceptance Criteria:**
+- **AC-PK-015.1:** A press on a used cell that moves 6 px or more is a drag, with the mouse (its main
+  button) or a finger. A press that does not move is a click: it chooses the cell (AC-PK-008.9).
+- **AC-PK-015.2:** During a drag, the icon of the stack (with its count) follows the pointer, its cell
+  goes dim, and a cell under the pointer gets a red border. Over the world, only the icon follows
+  the pointer, and the game's cursor does not show.
+- **AC-PK-015.3:** A drag that ends on a free cell moves the stack into that slot.
+- **AC-PK-015.4:** A drag that ends on a stack of another kind makes the two stacks change places.
+- **AC-PK-015.5:** A drag that ends on a stack of the same kind fills that stack up to its size; what
+  does not fit stays in the first cell. When that stack is full already, the two change places.
+- **AC-PK-015.6:** A drag that ends on the world (not on the GUI) puts all of the stack on the
+  ground: towards that point, at most 3 tiles (48 px) from the feet of the player. When a wall, a
+  door, a tree, a rock or a thing stands between, the pile lands on the last open ground before it.
+  A toss goes across water, but it does not land on it. The pile then follows AC-PK-013.3, and the
+  items fall as AC-PK-013.12 says.
+- **AC-PK-015.7:** A drag that ends on another part of the panel or the GUI, Esc, or a cancelled
+  touch does nothing.
+- **AC-PK-015.8:** The choice follows the stack that moved: a chosen stack that moves is still chosen
+  in its new cell.
+- **AC-PK-015.9:** In a shared world, the server moves the stack and keeps the order with the pack
+  (the store keeps it). The panel shows a move or a drop at once; the next snapshot gives the
+  server's pack, also when the server did nothing.
+- **AC-PK-015.10:** A drag works also while the pack changes (a pick-up, a drink): the cells stay as
+  they are until the drag ends. A drop takes all the items that the slot holds then, and nothing
+  happens when the slot does not hold that kind any more.
+
 ## Feature Behavior & Rules
 
 - **Drinks:** `DRINKS` (`Drink`: `hp`, `full`, `cure`, and `gate` for herbs: `MEDICINE_GATE`),
@@ -377,22 +430,36 @@ the next blow.
   (`Room.input()`). It puts the drop of an arrow into the pack of the shooter (`takeShotKills()` in
   `Room.tick()`). What does not fit goes on the ground at the mob (`Piles.put()`). In a world that
   the page runs, `takeDrop()` in `game.ts` does the same.
+- **Slots** (`packages/engine/src/items.ts`): `Pack.items` is the slots in order, `PackSlot` a stack
+  or null (a free slot; never at the end of the list). `stacksOf()`, `usedSlots()`,
+  `removeFromSlot()` (a drop), `moveInPack()` (a move: onto a free slot, a swap, or onto a stack of
+  its kind), `removeFromPack()` (leaves free slots), `addToPack()` (the first free slot), and
+  `checkPack()` (null for a free slot).
 - **Piles** (`packages/engine/src/piles.ts`): `Pile` (id, a point in whole pixels, kind, count),
-  `Piles` (`put()`, `take()`, `tick()`, `near()`, `get()`, `version`), `PILE_MS` (10 minutes),
-  `MAX_PILES` (400), `PILE_HALF_WIDTH` and `PILE_HALF_HEIGHT` (the box for the reach),
-  `dropPoint()` (10 px ahead, when `clearLine()` finds no wall, door, tree or thing; water does not
-  stop a pile). `canReachPile()` and the argument `piles` of `findInteraction()` are in
+  `Piles` (`put()`, `take()`, `tick()`, `near()`, `get()`, `takeTosses()`, `version`), `PILE_MS`
+  (10 minutes), `MAX_PILES` (400), `PILE_HALF_WIDTH` and `PILE_HALF_HEIGHT` (the box for the
+  reach), `dropPoint()` (10 px ahead, when `clearLine()` finds no wall, door, tree or thing; water
+  does not stop a pile), `tossPoint()` and `TOSS_REACH` (48 px). `Piles.put(..., from)` notes a
+  `Toss` for each pile that it changed. `canReachPile()` and the argument `piles` of `findInteraction()` are in
   `interact.ts`: the target kind is `'pile'`, with `InteractionTarget.pile`.
-- **Piles in a shared world:** `Room.piles`; `Room.put()` (the message `put`); `pick()` (the input
-  batch `g: [seq, pile id]`, as the `u` of a chest, so the server checks the reach where the player
-  was). The piles within `PILE_SEND_RADIUS` (30 tiles) go in the welcome (`pl`), and in a snapshot
-  when their ids or counts change (`RoomPlayer.pileKey`). A pick-up is loot with source 3. The page:
-  `NetSession.put()`, `pick()` and `pilesNow()`; in a world that it runs, `localPiles` in
-  `game.ts`. Protocol 17 (`docs/multiplayer.md`).
+- **Piles in a shared world:** `Room.piles`; `Room.put()` (the message `put`: `slot`, `kind`,
+  `count`, and `at` for a toss) and `Room.move()` (the message `move`); `pick()` (the input batch
+  `g: [seq, pile id]`, as the `u` of a chest, so the server checks the reach where the player was).
+  The piles within `PILE_SEND_RADIUS` (30 tiles) go in the welcome (`pl`), and in a snapshot when
+  their ids or counts change (`RoomPlayer.pileKey`). The tosses onto them go in the next snapshot
+  (`ts: [pile id, x, y]`). A pick-up is loot with source 3. The page: `NetSession.put()`, `move()`
+  (both change the page's pack at once), `pick()`, `pilesNow()` and `takeTosses()` (not older than
+  1 s); in a world that it runs, `localPiles`, `dropItems()` and `moveItems()` in `game.ts`.
+  Protocol 18 (`docs/multiplayer.md`).
 - **Piles on the screen** (`packages/engine-client/src/render/piles.ts`, `PileViews`): the frames
-  `pile/<kind>` (the item models at `PILE_SCALE` 0.7, with a shadow) and `pile/glint`
-  (`packages/engine-client/art/items.ts`), on `pileLayer` between the ground and the depth-sorted
-  things; the spark on `glowLayer`.
+  `pile/<kind>` (the item models at `PILE_SCALE` 0.7, with a shadow), `pile/<kind>/bare` (without
+  it), `pile/shadow` and `pile/glint` (`packages/engine-client/art/items.ts`), on `pileLayer`
+  between the ground and the depth-sorted things; the spark on `glowLayer`. The shine
+  (`SHINE_EVERY_MS`, `SHINE_MS`, `SHINE_ALPHA`) is a copy of the bare items, added to their light.
+  `PileViews.toss()` takes the tosses; an item in the air is a `pile/<kind>/bare` in `entityLayer`
+  (its `zIndex` is its point on the ground), over a `pile/shadow` on `pileLayer` (`TOSS_LIFT`,
+  `TOSS_MS`, `TOSS_MS_PER_PIXEL`, `TOSS_MAX_MS`, `TOSS_ARC`, `TOSS_ARC_PER_PIXEL`, `BOUNCE_HEIGHT`,
+  `BOUNCE_MS`).
 - **The chests over time** (`packages/engine/src/loot.ts`): `Spoils` (`isSource()`, `open()`,
   `tick()`), `REFILL_MS` (30 minutes), or `LootTable.refillMs` for a source that fills sooner.
   `Spoils` knows a chest by its anchor tile. The first
@@ -431,14 +498,18 @@ the next blow.
   `RISE` (12 px), `LIFE_MS` (1600), `FADE_MS` (500), in the small font, above the darkness. The
   code writes "+3 coins"; the small font draws lowercase letters as capitals. Only a drop and a
   pick-up rise: the player says the contents of a chest in its speech bubble.
-- **The pack panel** (`packages/engine-client/src/ui/pack-panel.ts`, `PackPanel`, `PackActions`,
-  `packOrder()`): the icons are the frames `item/<kind>` and `item/coin` (16 x 16,
+- **The pack panel** (`packages/engine-client/src/ui/pack-panel.ts`, `PackPanel`, `PackActions`:
+  `drink`, `drop` and `move`): the icons are the frames `item/<kind>` and `item/coin` (16 x 16,
   `packages/engine-client/art/items.ts`; `drawIcon()` in `ui/icons.ts`). The panel takes `KeyI`
   (`KeyboardEvent.code`), but not in a form field or with Ctrl, Meta or Alt. After a click on the
   panel, the focus goes back to the game, so WASD moves the player again. The cells are
   `.pack-slot` (`.chosen`) with a `.pack-pick` button, the detail `.pack-detail`, its buttons
   `.pack-action` (`.main` for the drink), the dim gate tag `.pack-gate`; the pack button gets
-  `.full` and `.gain`. The order is only on the screen: the pack stays as the server keeps it.
+  `.full` and `.gain`. Each cell has `data-slot`. A drag uses pointer events on `window`
+  (`DRAG_START`, 6 px): `.pack-ghost` (`.to-ground` over the world) follows the pointer, the cell
+  gets `.dragging`, the cell under the pointer `.drop-target`, and the body `.pack-dragging`;
+  `document.elementFromPoint()` finds a cell or `#game`. `.pack-pick` has `touch-action: none`.
+  `PackPanel.dragging` hides the game's cursor.
 - **The line of the world about each item:** `WorldDefinition.items` (`packages/engine/src/world.ts`);
   the Wilds' lines are in `worlds/wilds/src/index.ts`. A test keeps "Corwin" in the lines of
   exactly the items that the peddler buys (`worlds/wilds/test/items.test.ts`).

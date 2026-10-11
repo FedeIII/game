@@ -607,6 +607,64 @@ body:has(#pack-button):has(#map-button) #worlds-button {
   box-shadow: 0 0 10px var(--ui-accent-glow);
 }
 
+/*
+ * A drag of a stack (ui/pack-panel.ts): a press on a slot that moves becomes a drag, not a scroll.
+ * Its slot dims, the slot under the pointer lights, and the icon follows the pointer.
+ */
+.pack-pick {
+  touch-action: none;
+}
+
+.pack-slot.dragging .pack-pick {
+  opacity: 0.3;
+}
+
+.pack-slot.drop-target {
+  border-style: solid;
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+.pack-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  box-sizing: border-box;
+  border: 1px solid var(--ui-accent);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+  pointer-events: none;
+}
+
+.pack-ghost canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+/* Over the world: the item alone, as it leaves the hands. */
+.pack-ghost.to-ground {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pack-ghost.to-ground .pack-stack {
+  opacity: 0;
+}
+
+body.pack-dragging,
+body.pack-dragging * {
+  cursor: grabbing !important;
+}
+
 /* The detail of the chosen slot: its icon, its name, what it does, the world's line, its actions. */
 .pack-detail {
   margin-top: 10px;
