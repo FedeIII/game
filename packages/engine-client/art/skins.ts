@@ -776,7 +776,8 @@ const HELD: Readonly<Partial<Record<ItemKind, { readonly item: Item; readonly st
  */
 export function dressSkin(skin: Skin, shown: ShownGear): Skin {
   const cls = skin.appearance.class;
-  const main = shown.main;
+  // A magic weapon looks like its plain one (a longsword +1 is a longsword).
+  const main = shown.main ? (WEARABLES[shown.main]?.base ?? shown.main) : null;
   const held = main ? HELD[main] : undefined;
   const focus = main ? WEARABLES[main]?.weapon?.focus : undefined;
   let hands: { readonly item: Item; readonly style: AttackStyle };

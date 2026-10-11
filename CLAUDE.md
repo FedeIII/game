@@ -467,6 +467,10 @@ builder and the "You" section still name every gate.
   armour, studded leather, scale mail, chain mail, splint armour, plate armour, a shield, longsword, shortsword, rapier, greataxe,
   mace, longbow, an arcane staff and a druid staff (a focus), the luck amulet (+1 to each score for
   every gate: `PlayerTraits.luck`, on `traits.scores`; attunement), and the silver ring on a finger.
+  Nine magic items of the SRD (phase 4b; rare loot: `MAGIC_ITEMS` in `source.ts`): a longsword +1,
+  a cloak and a ring of protection (AC +1), bracers of defence (AC +2 without armour or shield),
+  gauntlets of ogre power, a headband of intellect and an amulet of health (STR, INT, CON 19:
+  `wornScores()`), a belt of dwarvenkind (CON +2), boots of elvenkind (quiet steps).
   The 5e rules: proficiency by class (`PROFICIENCY`, `canUse()`), the hands (a two-handed weapon
   takes the off hand off), at most 3 attuned items. **AC** (`armourClass()`: 10 + DEX, the armour,
   a shield +2, a barbarian + CON, a monk + WIS) gives **glancing blows** (`glanceShare()`: 5% for
@@ -794,7 +798,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   house where the house's ground would touch the town, the road or the signpost. About one house
   with a chest in four is barred (Strength 13; never the house east of the home); the chest of a
   house gives 1 to 6 coins and a candle stub, a silver ring, a pewter cup or a bundle of herbs,
-  and the chest of a barred house more (5 to 15 coins, and a second thing in one of two). The
+  and the chest of a barred house more (5 to 15 coins, and a second thing in one of two; a magic
+  item in one of 8, a locked chest one in 16, the buried cache one in 6). The
   home's chest is the character's own: no loot. Every lake has a band of shallow water at its
   shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all
   shallow: a character with Strength 13 wades through it.

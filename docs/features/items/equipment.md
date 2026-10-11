@@ -52,7 +52,7 @@ as it does at the table.
 - **AC-EQ-002.1:** There are sixteen new kinds of item, each one item in a slot of the pack:
   leather armour, studded leather, scale mail, chain mail, splint armour, plate armour, shield,
   longsword, shortsword, rapier, greataxe, mace, longbow, arcane staff, druid staff and luck
-  amulet.
+  amulet; and nine magic items (REQ-EQ-020).
 - **AC-EQ-002.2:** The armour: leather armour is light, AC 11. Studded leather is light, AC 12.
   Scale mail is medium, AC 14, noisy. Chain mail is heavy, AC 16, STR 13, noisy. Splint armour is
   heavy, AC 17, STR 15, noisy. Plate armour is heavy, AC 18, STR 15, noisy. A shield adds AC 2.
@@ -371,6 +371,38 @@ do not use, so that the gear grows with my character.
 
 ---
 
+### REQ-EQ-020: Magic items
+
+**User Story:** As a player who explores, I want rare magic items, so that a locked chest or a barred
+house can give me something that changes my character.
+
+**Acceptance Criteria:**
+- **AC-EQ-020.1:** There are nine magic items of the SRD: a longsword +1, a cloak of protection, a
+  ring of protection, bracers of defence, gauntlets of ogre power, a headband of intellect, an
+  amulet of health, a belt of dwarvenkind and boots of elvenkind.
+- **AC-EQ-020.2:** A longsword +1 is a longsword with 1 more damage: every class that can use a
+  longsword can use it, and the figure holds a sword.
+- **AC-EQ-020.3:** A cloak of protection and a ring of protection add AC 1 each. Bracers of
+  defence add AC 2 while the character wears no armour and no shield.
+- **AC-EQ-020.4:** Gauntlets of ogre power make STR 19, a headband of intellect INT 19, an amulet of
+  health CON 19, while the character wears them, if the score is lower. A belt of dwarvenkind adds 2
+  to CON, at most 20. The raised score counts for everything: the damage, the slots, the hit
+  points, the gates. A heavy armour is not too heavy with STR 19.
+- **AC-EQ-020.5:** When an amulet of health or a belt comes off, the hit points over the new most
+  go.
+- **AC-EQ-020.6:** Boots of elvenkind give quiet steps: mobs see a sneaking character from 35% of
+  their sight. In a noisy armour the two cancel out: 50%.
+- **AC-EQ-020.7:** All of them except the longsword +1 and the boots need attunement (REQ-EQ-005).
+- **AC-EQ-020.8:** The detail says what each does, for example "Magic: AC +1.", "Magic: +1
+  damage.", "Without armour and a shield: AC +2.", "Your STR is 19 while you wear it, if it is
+  lower.", "+2 CON while you wear it, at most 20.", "Quiet steps: when you sneak, the mobs see you
+  only from nearby.".
+- **AC-EQ-020.9:** They are rare loot: a locked chest gives one in 16, the chest of a barred house
+  one in 8, the buried cache of Thornwick one in 6. A longsword +1, a cloak of protection and boots
+  of elvenkind come most often, an amulet of health least often. Nobody sells or buys them.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The model** (`packages/engine/src/gear.ts`): `GEAR_SLOTS` (the order on the wire), `Gear` (an
@@ -448,4 +480,11 @@ do not use, so that the gear grows with my character.
   `sell-shield`, `sell-weapon`, `sell-weapon-2`, `sell-staff`, `forged`, `short`, `scrapped`,
   `none`); the smith of `town.ts` has it. Tests: `worlds/wilds/test/smith.test.ts`. The icons
   of the two armours of phase 3: `studs()` on the leather cuirass, and the plate of `cuirass()`.
-- **Not yet** (`docs/drafts/equipment.md`): magic items and reach weapons (phase 4).
+- **Magic items** (phase 4b): in `WEARABLES`, the fields `bonus`, `base` (the plain item: for
+  `canUse()` and `dressSkin()`), `unarmoured`, `sets`, `adds` (`MAX_RAISED` 20) and `quiet`
+  (`QUIET_SIGHT` 0.35). `wornScores()` raises the scores before `traitsOf()` uses them; `isQuiet()`.
+  `Room.dress()` and `followGear()` cut the hit points and the stamina to the new most. The loot:
+  `MAGIC_ITEMS` and `MAGIC_CHANCE` in `worlds/wilds/src/source.ts`. The icons: `magicSword()`,
+  `cloak()`, `stoneRing()`, `bracers()`, `gauntlet()`, `headband()`, `belt()`, `boots()`, the
+  material `cloth`, and `torusY()`.
+- **Not yet** (`docs/drafts/equipment.md`): reach weapons (phase 4c).

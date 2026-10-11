@@ -1,6 +1,7 @@
 import {
   CASTER_FOCUS,
   DRINKS,
+  MAX_RAISED,
   EMPTY_GEAR,
   GEAR_SLOTS,
   GUEST_TRAITS,
@@ -15,6 +16,7 @@ import {
   usedSlots,
   wearProblem,
   wearSlotFor,
+  type Ability,
   type Gear,
   type ItemKind,
   type Pack,
@@ -619,6 +621,11 @@ export function wearLines(kind: ItemKind, traits: Pick<PlayerTraits, 'class'>): 
     if (weapon.ranged) lines.push(g.ranged);
     if (weapon.focus && CASTER_FOCUS[traits.class] === weapon.focus) lines.push(g.focus);
   }
+  if (item.bonus) lines.push(item.weapon ? g.magicDamage(item.bonus) : g.magicAc(item.bonus));
+  if (item.unarmoured) lines.push(g.unarmoured(item.unarmoured));
+  for (const [ability, score] of Object.entries(item.sets ?? {}) as [Ability, number][]) lines.push(g.sets(STRINGS.abilities[ability].short, score));
+  for (const [ability, n] of Object.entries(item.adds ?? {}) as [Ability, number][]) lines.push(g.adds(STRINGS.abilities[ability].short, n, MAX_RAISED));
+  if (item.quiet) lines.push(g.quiet);
   if (item.luck) lines.push(g.luck(item.luck));
   if (item.attune) lines.push(g.attune);
   return lines;

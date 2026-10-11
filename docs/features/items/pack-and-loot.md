@@ -98,7 +98,8 @@ visit to a house has a reward.
   ring, a pewter cup or a bundle of herbs.
 - **AC-PK-003.5:** A locked chest gives 3 to 10 coins and one thing, and a second thing in about
   one of three. The chest of a barred house gives 5 to 15 coins and one thing, and a second thing
-  in one of two.
+  in one of two. A locked chest also gives a magic item in one of 16, the chest of a barred house
+  in one of 8 ([Equipment](equipment.md), REQ-EQ-020).
 - **AC-PK-003.6:** Of the four things, a candle stub and a bundle of herbs come most often (3 in 9
   each). A pewter cup comes 2 in 9, and a silver ring 1 in 9.
 - **AC-PK-003.7:** The player says what it found in one line, for example "I find 4 coins and a
@@ -297,7 +298,8 @@ woods and the town have more to give.
 - **AC-PK-012.3:** The buried cache of Thornwick ("Dig here") gives 8 to 20 coins, a silver ring,
   and a second thing (a candle stub, a silver ring, a pewter cup or a bundle of herbs) in one of
   two: "I dig up a small box. I find 19 coins and a silver ring." After that it says "Somebody
-  dug it up before me.", until it fills again 30 minutes later.
+  dug it up before me.", until it fills again 30 minutes later. In one of six it also gives a
+  magic item ([Equipment](equipment.md), REQ-EQ-020).
 - **AC-PK-012.4:** Patches and the cache are hidden: a character sees them only close by
   ([Wisdom](../abilities/wisdom.md), REQ-WIS-004). They do not collide.
 

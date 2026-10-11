@@ -43,6 +43,7 @@ const I = {
   wood: 18,
   arcane: 19,
   dark: 20,
+  cloth: 21,
 } as const;
 const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#3a2a0c', '#6a4e16', '#9a7624', '#c49c3a', '#e0c060', '#f4dc8a'), bias: 0.15 },
@@ -69,6 +70,8 @@ const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#3a2814', '#5a4024', '#7a5a36', '#9a7648', '#b48e5a'), bias: 0.15 },
   { ramp: ramp('#14204a', '#24387a', '#3e5cb0', '#7a9ae0'), bias: 0.4 },
   { ramp: ramp('#0c0a0a', '#181414', '#241e1c') },
+  // The grey cloth of an elven cloak and boots.
+  { ramp: ramp('#1c2024', '#30363c', '#4a525a', '#66707a', '#8892a0'), bias: 0.15 },
 ];
 
 /** A ring of radius `major` round the axis z through `c`, with a tube of radius `minor`: it stands facing the viewer. */
@@ -377,6 +380,83 @@ function amulet(): Part[] {
   ];
 }
 
+/** A ring of radius `major` round the axis y through `c` (it lies flat), with a tube of radius `minor`. */
+function torusY(c: Vec3, major: number, minor: number): Sdf {
+  const [cx, cy, cz] = c;
+  return (x, y, z) => Math.hypot(Math.hypot(x - cx, z - cz) - major, y - cy) - minor;
+}
+
+/** A longsword +1: the longsword, with a blue stone in its pommel and its guard. */
+function magicSword(): Part[] {
+  const parts = sword(12, 2.4);
+  return [parts[0]!, { ...parts[1]!, material: I.arcane }, parts[2]!, { ...parts[3]!, material: I.arcane }];
+}
+
+/** A cloak, folded over a hook: grey cloth that widens to its hem, and a gold clasp at the neck. */
+function cloak(): Part[] {
+  const cloth: Sdf = (x, y, z) => {
+    // A tall shape that widens from the neck (y 12) to the hem (y 1), thin in z, with soft folds.
+    const t = Math.min(1, Math.max(0, (12 - y) / 11));
+    const half = 1.6 + 4 * t + 0.35 * Math.sin(x * 2.2);
+    return Math.max(Math.abs(x) - half, Math.abs(z) - 1.1 - 0.4 * Math.sin(x * 1.6 + 1), y - 12, 0.8 - y);
+  };
+  return [
+    { sdf: cloth, material: I.cloth },
+    { sdf: sphere([0, 11.4, 1.2], 1.1), material: I.gold },
+  ];
+}
+
+/** A ring with a stone of `stone`, standing. */
+function stoneRing(stone: number): Part[] {
+  return [
+    { sdf: torusZ([0, 5.4, 0], 3.7, 1.5), material: I.silver },
+    { sdf: ellipsoid([0, 10.2, 0.6], [1.7, 1.4, 1.4]), material: stone },
+  ];
+}
+
+/** A pair of cuffs: leather with silver bands, side by side. */
+function bracers(): Part[] {
+  const cuff = (x: number): Part[] => [
+    { sdf: subtract(cylinder([x, 5.6, 0], 'y', 2.2, 9), cylinder([x, 5.6, 0], 'y', 1.4, 10)), material: I.leather },
+    { sdf: union(torusY([x, 2.2, 0], 2.25, 0.4), torusY([x, 9, 0], 2.25, 0.4)), material: I.silver },
+  ];
+  return [...cuff(-2.8), ...cuff(2.8)];
+}
+
+/** A big gauntlet: a cuff, the back of the hand and four thick fingers of iron. */
+function gauntlet(): Part[] {
+  const fingers = union(...[-2.1, -0.7, 0.7, 2.1].map((x) => roundCone([x, 7.4, 0], [x * 1.1, 11.6, 0.4], 0.75, 0.65)));
+  return [
+    { sdf: cylinder([0, 2.4, 0], 'y', 3, 4.6), material: I.leather },
+    { sdf: box([-3, 4.4, -1.4], [3, 8, 1.4], 1), material: I.iron },
+    { sdf: fingers, material: I.iron },
+    { sdf: roundCone([3, 5.6, 0], [5, 8.4, 0.4], 0.8, 0.7), material: I.iron },
+  ];
+}
+
+/** A headband: a band of gold that stands as on a head, and a blue gem on its front. */
+function headband(): Part[] {
+  return [
+    { sdf: (x, y, z) => Math.max(Math.abs(Math.hypot(x / 5.2, z / 3.6) * 3.6 - 3.6) - 0.6, Math.abs(y - 5) - 1), material: I.gold },
+    { sdf: ellipsoid([0, 5.4, 3.8], [1.5, 1.9, 1]), material: I.arcane },
+  ];
+}
+
+/** A broad belt that lies in a loop, with a big gold buckle in front. */
+function belt(): Part[] {
+  const loop = subtract((x, y, z) => Math.max(Math.hypot(x / 5.6, z / 4.4) * 4.4 - 4.4, Math.abs(y - 3) - 1.4), (x, y, z) => Math.hypot(x / 4.6, z / 3.4) * 3.4 - 3.4);
+  return [
+    { sdf: loop, material: I.leather },
+    { sdf: box([-1.6, 1.2, 3.6], [1.6, 4.8, 4.8], 0.4), material: I.gold },
+  ];
+}
+
+/** A pair of soft boots of grey leather, side by side, the toes to the right. */
+function boots(): Part[] {
+  const boot = (x: number, z: number): Sdf => union(cylinder([x, 6.6, z], 'y', 1.5, 8.6), ellipsoid([x + 1.6, 1.6, z], [2.8, 1.6, 1.6]));
+  return [{ sdf: union(boot(-3.4, -0.6), boot(0.8, 0.6)), material: I.cloth }];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -415,6 +495,15 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
         { sdf: union(ellipsoid([-4.2, 9.8, 0], [2.4, 1.6, 2.2]), ellipsoid([4.2, 9.8, 0], [2.4, 1.6, 2.2])), material: I.steel },
       ]),
   ],
+  ['longsword-plus-1', magicSword],
+  ['cloak-of-protection', cloak],
+  ['ring-of-protection', () => stoneRing(I.arcane)],
+  ['bracers-of-defence', bracers],
+  ['gauntlets-of-ogre-power', gauntlet],
+  ['headband-of-intellect', headband],
+  ['amulet-of-health', () => [...amulet().slice(0, 2), { sdf: sphere([0, 4.2, 0.6], 1.2), material: I.red }]],
+  ['belt-of-dwarvenkind', belt],
+  ['boots-of-elvenkind', boots],
 ];
 
 export function itemFrames(): Frame[] {

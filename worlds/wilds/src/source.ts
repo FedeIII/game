@@ -48,12 +48,29 @@ const TRINKETS = [
   ['herbs', 3],
 ] as const;
 const CHEST_LOOT: LootTable = { coins: [1, 6], items: [{ chance: 1, pick: TRINKETS }] };
+/**
+ * The magic items of the SRD (gear.ts), by weight: rare loot in a locked chest (1 in 16), a barred
+ * house (1 in 8) and the buried cache of Thornwick (1 in 6). The common ones come more often.
+ */
+export const MAGIC_ITEMS = [
+  ['longsword-plus-1', 3],
+  ['cloak-of-protection', 3],
+  ['boots-of-elvenkind', 3],
+  ['ring-of-protection', 2],
+  ['bracers-of-defence', 2],
+  ['gauntlets-of-ogre-power', 2],
+  ['headband-of-intellect', 2],
+  ['belt-of-dwarvenkind', 2],
+  ['amulet-of-health', 1],
+] as const;
+export const MAGIC_CHANCE = { locked: 1 / 16, barred: 1 / 8, cache: 1 / 6 } as const;
 /** A locked chest keeps more: more coins, and a second thing in about one of three. */
 const LOCKED_CHEST_LOOT: LootTable = {
   coins: [3, 10],
   items: [
     { chance: 1, pick: TRINKETS },
     { chance: 0.35, pick: TRINKETS },
+    { chance: MAGIC_CHANCE.locked, pick: MAGIC_ITEMS },
   ],
 };
 /** A barred house was shut with its things inside: more coins, and a second thing in one of two. */
@@ -62,6 +79,7 @@ const BARRED_CHEST_LOOT: LootTable = {
   items: [
     { chance: 1, pick: TRINKETS },
     { chance: 0.5, pick: TRINKETS },
+    { chance: MAGIC_CHANCE.barred, pick: MAGIC_ITEMS },
   ],
 };
 
@@ -73,6 +91,7 @@ const CACHE_LOOT: LootTable = {
   items: [
     { chance: 1, pick: [['ring', 1]] },
     { chance: 0.5, pick: TRINKETS },
+    { chance: MAGIC_CHANCE.cache, pick: MAGIC_ITEMS },
   ],
 };
 /** No patch of herbs grows this close (tiles) to the ground of a house or to the signpost. */

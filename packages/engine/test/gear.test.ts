@@ -500,3 +500,65 @@ describe('the gear in a shared world', () => {
     expect(new Map(snaps.get(b.id)!.lk).has(a.id)).toBe(false);
   });
 });
+
+describe('the magic items', () => {
+  it('add AC: a cloak and a ring of protection +1 each; bracers of defence +2 without armour and a shield', () => {
+    const s = scores({ dex: 10 });
+    expect(armourClass(gear({ cloak: 'cloak-of-protection', 'ring-left': 'ring-of-protection' }), s, 'wizard')).toBe(12);
+    expect(armourClass(gear({ bracers: 'bracers-of-defence' }), s, 'wizard')).toBe(12);
+    expect(armourClass(gear({ bracers: 'bracers-of-defence', armour: 'leather-armour' }), s, 'fighter')).toBe(11);
+    expect(armourClass(gear({ bracers: 'bracers-of-defence', off: 'shield' }), s, 'fighter')).toBe(12);
+  });
+
+  it('raise scores: gauntlets of ogre power STR 19, a headband of intellect INT 19, an amulet of health CON 19, a belt of dwarvenkind CON + 2', () => {
+    const weak = scores({ str: 8, int: 8, con: 8 });
+    const gauntlets = traitsOf(weak, 'fighter', gear({ main: 'rapier', gloves: 'gauntlets-of-ogre-power' }));
+    expect(gauntlets.scores.str).toBe(19);
+    expect(gauntlets.damage).toBe(4 + 4);
+    // A score that is higher already stays.
+    expect(traitsOf(scores({ str: 20 }), 'fighter', gear({ gloves: 'gauntlets-of-ogre-power' })).scores.str).toBe(20);
+    // With STR 19 the plate is not too heavy.
+    expect(traitsOf(weak, 'fighter', gear({ armour: 'plate-armour', gloves: 'gauntlets-of-ogre-power' })).speed).toBe(1);
+    const headband = traitsOf(weak, 'wizard', gear({ head: 'headband-of-intellect' }));
+    expect(headband.scores.int).toBe(19);
+    expect(headband.opening).toBe(4);
+    expect(traitsOf(weak, 'wizard', gear({ neck: 'amulet-of-health' })).maxHp).toBe(8);
+    expect(traitsOf(scores({ con: 15 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(17);
+    expect(traitsOf(scores({ con: 19 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(20);
+  });
+
+  it('give quiet steps: boots of elvenkind; with noisy armour they cancel out', () => {
+    const still = createPlayer(0, 0);
+    expect(sightOf(traitsOf(scores(), 'rogue', gear({ feet: 'boots-of-elvenkind' })), still)).toBeCloseTo(0.35);
+    expect(sightOf(traitsOf(scores(), 'fighter', gear({ feet: 'boots-of-elvenkind', armour: 'chain-mail' })), still)).toBeCloseTo(0.5);
+  });
+
+  it('make a longsword +1 a longsword with 1 more damage, for every class that can use a longsword', () => {
+    const s = scores();
+    expect(traitsOf(s, 'fighter', gear({ main: 'longsword-plus-1', off: 'shield' })).damage).toBe(5);
+    expect(canUse('bard', 'longsword-plus-1')).toBe(true);
+    expect(canUse('wizard', 'longsword-plus-1')).toBe(false);
+  });
+
+  it('need attunement, at most three', () => {
+    const three = gear({ cloak: 'cloak-of-protection', 'ring-left': 'ring-of-protection', neck: 'amulet-of-health' });
+    expect(wearProblem(three, 'headband-of-intellect', 'head', 'wizard')).toBe('attuned');
+    expect(wear({ pack: pack('headband-of-intellect'), gear: three }, 0, 'head', 6, 'wizard')).toBe('attuned');
+    // A fourth item without attunement goes on.
+    expect(wearProblem(three, 'boots-of-elvenkind', 'feet', 'wizard')).toBeNull();
+    // Another attuned item in the same slot takes the place of the first.
+    expect(wearProblem(three, 'luck-amulet', 'neck', 'wizard')).toBeNull();
+  });
+
+  it('take their hit points with them when they come off, on the server', () => {
+    const room = new Room(new World(textSource([])));
+    const s = scores({ con: 10 });
+    const worn = gear({ neck: 'amulet-of-health' });
+    const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'wizard', worn), traitsFor: (g) => traitsOf(s, 'wizard', g), gear: worn })!;
+    expect(p.state.hp).toBe(8);
+    room.move(p.id, gearAddress('neck'), 0);
+    expect(p.traits.maxHp).toBe(4);
+    expect(p.state.hp).toBe(4);
+  });
+});
+

@@ -113,9 +113,22 @@ export interface Wearable {
   readonly attune?: boolean;
   /** It adds this to each score for every gate (traits.ts): a luck charm. */
   readonly luck?: number;
-  /** A magic bonus: to the AC of an armour or a shield, to the damage of a weapon or a focus. */
+  /** A magic bonus: to the AC (an armour, a shield, a cloak, a ring), or to the damage of a weapon or a focus. */
   readonly bonus?: number;
+  /** The plain item that a magic one is (a longsword +1 is a longsword): for proficiency and for the look. */
+  readonly base?: ItemKind;
+  /** AC that it adds while the character wears no armour and no shield (bracers of defence). */
+  readonly unarmoured?: number;
+  /** Scores that it raises to these values, when they are lower (gauntlets of ogre power: STR 19). */
+  readonly sets?: Partial<Scores>;
+  /** Scores that it adds to, at most MAX_RAISED (a belt of dwarvenkind: CON + 2). */
+  readonly adds?: Partial<Scores>;
+  /** Quiet steps (boots of elvenkind): mobs see a sneaking character from QUIET_SIGHT. */
+  readonly quiet?: boolean;
 }
+
+/** A score that an item adds to goes at most this high (5e: 20). */
+export const MAX_RAISED = 20;
 
 /** The items that a character can wear (SRD 5.1). The other kinds of ITEM_KINDS are not worn. */
 export const WEARABLES: Readonly<Partial<Record<ItemKind, Wearable>>> = {
@@ -138,6 +151,16 @@ export const WEARABLES: Readonly<Partial<Record<ItemKind, Wearable>>> = {
   'druid-staff': { place: 'hand', weapon: { die: 6, versatile: 8, focus: 'druidic' } },
   // A stone of good luck (5e: +1 to ability checks): +1 for every gate.
   'luck-amulet': { place: 'neck', attune: true, luck: 1 },
+  // Magic items of the SRD: rare loot.
+  'longsword-plus-1': { place: 'hand', base: 'longsword', bonus: 1, weapon: { die: 8, versatile: 10, martial: true } },
+  'cloak-of-protection': { place: 'cloak', attune: true, bonus: 1 },
+  'ring-of-protection': { place: 'ring', attune: true, bonus: 1 },
+  'bracers-of-defence': { place: 'bracers', attune: true, unarmoured: 2 },
+  'gauntlets-of-ogre-power': { place: 'gloves', attune: true, sets: { str: 19 } },
+  'headband-of-intellect': { place: 'head', attune: true, sets: { int: 19 } },
+  'amulet-of-health': { place: 'neck', attune: true, sets: { con: 19 } },
+  'belt-of-dwarvenkind': { place: 'belt', attune: true, adds: { con: 2 } },
+  'boots-of-elvenkind': { place: 'feet', quiet: true },
 };
 
 /** The item as a wearable, or null. */
@@ -183,7 +206,7 @@ export function canUse(cls: CharacterClass, kind: ItemKind): boolean {
   const p = PROFICIENCY[cls];
   if (item.armour) return p.armour.includes(item.armour.type);
   if (item.shield) return p.shield;
-  if (item.weapon) return p.weapons.includes(kind) || (item.weapon.martial ? p.martial : p.simple);
+  if (item.weapon) return p.weapons.includes(item.base ?? kind) || (item.weapon.martial ? p.martial : p.simple);
   return true;
 }
 
@@ -230,6 +253,8 @@ export const HEAVY_TICKS = 4;
 export const HEAVY_SPEED = 0.75;
 /** In a noisy armour, mobs see a sneaking character from this share of their sight (not SNEAK_SIGHT). */
 export const NOISY_SIGHT = 0.75;
+/** With quiet steps (boots of elvenkind), from this share; quiet steps in a noisy armour: SNEAK_SIGHT (5e: advantage and disadvantage cancel). */
+export const QUIET_SIGHT = 0.35;
 /** Each point of AC over 10 turns this share of the mob hits into glancing blows. */
 export const GLANCE_PER_AC = 0.05;
 /** The most of the hits that can glance. */
@@ -293,6 +318,8 @@ export function armourClass(gear: Gear, scores: Scores, cls: CharacterClass): nu
   for (const slot of GEAR_SLOTS) {
     const item = wearableOf(gear[slot]);
     if (item?.bonus && !item.weapon) bonus += item.bonus;
+    // Bracers of defence: only without armour and a shield.
+    if (item?.unarmoured && !armour?.armour && shield === 0) bonus += item.unarmoured;
   }
   return ac + shield + bonus;
 }
@@ -316,6 +343,24 @@ export function tooHeavy(gear: Gear, scores: Scores): ArmourDef | null {
 /** Whether the worn armour is noisy. */
 export function isNoisy(gear: Gear): boolean {
   return wearableOf(gear.armour)?.armour?.noisy === true;
+}
+
+/** Whether the character steps quietly (boots of elvenkind). */
+export function isQuiet(gear: Gear): boolean {
+  return GEAR_SLOTS.some((slot) => wearableOf(gear[slot])?.quiet === true);
+}
+
+/** The scores with what the worn items set and add (gauntlets of ogre power, a belt of dwarvenkind). */
+export function wornScores(scores: Scores, gear: Gear): Scores {
+  let out: Record<keyof Scores, number> | null = null;
+  for (const slot of GEAR_SLOTS) {
+    const item = wearableOf(gear[slot]);
+    if (!item?.sets && !item?.adds) continue;
+    out ??= { ...scores };
+    for (const [ability, value] of Object.entries(item.sets ?? {}) as [keyof Scores, number][]) out[ability] = Math.max(out[ability], value);
+    for (const [ability, value] of Object.entries(item.adds ?? {}) as [keyof Scores, number][]) out[ability] = Math.max(out[ability], Math.min(MAX_RAISED, out[ability] + value));
+  }
+  return out ?? scores;
 }
 
 /** How many worn items need attunement. */

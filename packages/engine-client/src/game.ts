@@ -860,6 +860,9 @@ async function run(options: GameOptions): Promise<void> {
     traitsGear = worn;
     traits = traitsFor(worn);
     net?.setTraits(traits);
+    // An amulet of health that comes off takes its hit points with it (the server does the same).
+    player.hp = Math.min(player.hp, traits.maxHp);
+    player.stamina = Math.min(player.stamina, traits.maxStamina);
     belt.setScores(traits.scores);
     mapPanel.setInt(traits.scores.int);
     you.setTraits(traits);

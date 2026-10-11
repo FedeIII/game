@@ -4,14 +4,17 @@ import {
   EMPTY_GEAR,
   HEAVY_SPEED,
   NOISY_SIGHT,
+  QUIET_SIGHT,
   SNEAK_ATTACK,
   armourClass,
   attackGear,
   gearLuck,
   glanceShare,
   isNoisy,
+  isQuiet,
   kitOf,
   tooHeavy,
+  wornScores,
   type AttackGear,
   type Gear,
 } from './gear.ts';
@@ -197,8 +200,13 @@ export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden'
   return score >= gate.min - GATE_HINT ? 'hint' : 'hidden';
 }
 
-/** The traits of a class with these final scores and this gear. */
-export function traitsOf(scores: Scores, cls: CharacterClass, gear: Gear): PlayerTraits {
+/**
+ * The traits of a class with these final scores and this gear. The worn items can raise the scores
+ * first (wornScores: gauntlets of ogre power, a belt of dwarvenkind): the scales and the gates use
+ * the raised scores.
+ */
+export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): PlayerTraits {
+  const scores = wornScores(final, gear);
   const attack = ATTACK_ABILITY[cls];
   const strike = attackGear(gear, cls);
   const luck = gearLuck(gear);
@@ -220,7 +228,8 @@ export function traitsOf(scores: Scores, cls: CharacterClass, gear: Gear): Playe
     ac,
     glance: glanceShare(ac),
     speed: tooHeavy(gear, scores) ? HEAVY_SPEED : 1,
-    sneakSight: isNoisy(gear) ? NOISY_SIGHT : SNEAK_SIGHT,
+    // Noisy armour and quiet steps together cancel out (5e: disadvantage and advantage).
+    sneakSight: isNoisy(gear) === isQuiet(gear) ? SNEAK_SIGHT : isNoisy(gear) ? NOISY_SIGHT : QUIET_SIGHT,
     push: 1 + PUSH_PER_MOD * str,
     stagger: 1 + STAGGER_PER_MOD * str,
     wade: meetsGate(scores, WADE_GATE),

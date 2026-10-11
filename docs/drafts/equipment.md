@@ -130,5 +130,5 @@ New kinds (stack 1), each with an icon and a line of the world:
 3. **The smith of Thornwick** (built 2026-10-11) sells armour, shields and weapons, and buys them
    back for half. Plate and studded leather came with him.
 4. **More** (2026-10-11, one deploy each): (a) the armour on the figure (built, protocol 21);
-   (b) magic items; (c) reach weapons. Ammunition waits for a decision of Fede: it changes the
+   (b) magic items (built: nine items of the SRD as rare loot); (c) reach weapons. Ammunition waits for a decision of Fede: it changes the
    play of the archers. A helmet has no rule in 5e, so the head slot waits for a magic item.

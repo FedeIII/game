@@ -4,7 +4,7 @@ import { WildsSource } from './source.ts';
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { Road, signpost } from './road.ts';
-export { WildsSource } from './source.ts';
+export { MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
 
@@ -61,6 +61,15 @@ export const wilds: WorldDefinition = {
     'luck-amulet': 'A charm of bone with a drop of amber. They say that it brings luck.',
     'studded-leather': 'Leather set with rivets of iron. Light, and a little harder to cut.',
     'plate-armour': 'Shaped plates of steel from head to foot. The best armour in the land, and the heaviest.',
+    'longsword-plus-1': 'An old blade that never dulls. A faint blue light runs along its edge.',
+    'cloak-of-protection': 'A grey cloak that is never wet. Blows slide off it.',
+    'ring-of-protection': 'A plain band with a blue stone. The air round it is a little cold.',
+    'bracers-of-defence': 'Two cuffs of dark leather and silver. They turn blows from bare arms.',
+    'gauntlets-of-ogre-power': 'Heavy gloves of iron and hide. In them, your grip could crush a stone.',
+    'headband-of-intellect': 'A thin band of silver with a clear gem. Thoughts come quick and sharp.',
+    'amulet-of-health': 'A red stone on a chain. Its warmth goes into the blood.',
+    'belt-of-dwarvenkind': 'A broad belt with a buckle of a bearded face. It makes you hardy.',
+    'boots-of-elvenkind': 'Soft boots of grey leather. Your steps make no sound in them.',
   },
   darkness: 1,
   multiplayer: true,

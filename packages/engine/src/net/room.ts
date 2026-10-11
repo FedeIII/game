@@ -607,7 +607,11 @@ export class Room {
     if (!sameShown(shownGear(player.gear), shownGear(gear))) this.looksVersion++;
     player.gear = gear;
     player.gearChanged = true;
-    if (player.traitsFor) player.traits = player.traitsFor(gear);
+    if (!player.traitsFor) return;
+    player.traits = player.traitsFor(gear);
+    // An amulet of health that comes off takes its hit points with it.
+    player.state.hp = Math.min(player.state.hp, player.traits.maxHp);
+    player.state.stamina = Math.min(player.state.stamina, player.traits.maxStamina);
   }
 
   /** The player picks up a pile, if it can reach it: what fits goes into the pack, the rest stays on the ground. */

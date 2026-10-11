@@ -44,6 +44,16 @@ export const ITEM_KINDS = [
   // The smith of Thornwick sells them too (2026-10-11).
   'studded-leather',
   'plate-armour',
+  // Magic items of the SRD (gear.ts), rare loot (2026-10-11).
+  'longsword-plus-1',
+  'cloak-of-protection',
+  'ring-of-protection',
+  'bracers-of-defence',
+  'gauntlets-of-ogre-power',
+  'headband-of-intellect',
+  'amulet-of-health',
+  'belt-of-dwarvenkind',
+  'boots-of-elvenkind',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -74,6 +84,15 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'luck-amulet': 1,
   'studded-leather': 1,
   'plate-armour': 1,
+  'longsword-plus-1': 1,
+  'cloak-of-protection': 1,
+  'ring-of-protection': 1,
+  'bracers-of-defence': 1,
+  'gauntlets-of-ogre-power': 1,
+  'headband-of-intellect': 1,
+  'amulet-of-health': 1,
+  'belt-of-dwarvenkind': 1,
+  'boots-of-elvenkind': 1,
 };
 
 /**

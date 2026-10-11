@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, WEARABLES, World, checkDialog, gearAddress, kitOf, traitsOf, type DialogAnswer, type ItemKind, type Pack } from '@game/engine';
-import { DEFAULT_SEED, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
+import { DEFAULT_SEED, MAGIC_CHANCE, MAGIC_ITEMS, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
 
 const answers = (): DialogAnswer[] => Object.values(SMITH.nodes).flatMap((n) => n.answers);
 const deals = (prefix: 'buy-' | 'sell-') => answers().flatMap((a) => (a.deal?.id.startsWith(prefix) ? [a.deal] : []));
@@ -72,3 +72,14 @@ describe('the smith of Thornwick', () => {
     expect(kinds).toEqual([]);
   });
 });
+
+describe('magic items in the Wilds', () => {
+  it('are items to wear, and the smith neither sells nor buys them', () => {
+    for (const [kind] of MAGIC_ITEMS) {
+      expect(WEARABLES[kind], kind).toBeDefined();
+      expect(kind in SMITH_PRICES, kind).toBe(false);
+    }
+    expect(MAGIC_CHANCE).toEqual({ locked: 1 / 16, barred: 1 / 8, cache: 1 / 6 });
+  });
+});
+
