@@ -21,11 +21,20 @@ export const ASHES: QuestDef = {
       journal: 'Thrain Steelforge asks me to find out who burns the homesteads of the Wilds. His letter says: begin with Elama Rothenel, the reeve of Ironhold.',
       npc: 'reeve',
     },
+    // The burned homesteads (story phase 6, ruins.ts; a test checks the tiles): each one points to the next.
     {
       id: 'reeve',
-      journal: 'Elama Rothenel, the reeve of Ironhold, says that three homesteads burned since the spring. Nobody saw who burned them. Each house was searched before the fire.',
+      journal: 'Elama Rothenel, the reeve of Ironhold, says that three homesteads burned since the spring. Each house was searched before the fire. The nearest is the Hale homestead, north of my hut.',
+      at: [15, -32],
     },
-    // The end of the story comes with its later steps (the ruins, the symbol, the dream).
+    { id: 'ruin1', journal: 'In the ashes of the Hale homestead, a phoenix is burned into a plank. Tracks lead east, to the Marrow homestead.', at: [57, -2] },
+    { id: 'ruin2', journal: 'The Marrow homestead burned too, with the same phoenix. Its tracks go south-west, to the Tanner homestead.', at: [-15, 28] },
+    { id: 'ruins', journal: 'Three burned homesteads, three phoenixes. The priest or the apothecary of Ironhold may know the sign.', npc: 'priest' },
+    {
+      id: 'symbol',
+      journal: 'The priest of Ironhold calls the phoenix the sign of a god older than the gods. The apothecary says that raiders call themselves the Ashen Seekers. The stories do not agree.',
+    },
+    // The end of the story comes with its later steps (the next homestead, the captive, the relic, the dream).
     { id: 'found', journal: 'I know now who burns the homesteads of the Wilds.', end: true },
   ],
 };
@@ -86,6 +95,13 @@ export const QUESTS: readonly QuestDef[] = [ASHES, CART, RAID];
 export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'ashes', to: 'letter' };
 /** The reeve hears that Thrain sent the character. */
 export const TELL_REEVE: QuestEffect = { id: 'tell-reeve', quest: 'ashes', to: 'reeve', from: ['letter'] };
+
+/** The phoenix of each burned homestead (ruins.ts), in the order of the reeve's word and of the tracks. */
+export const RUIN_HALE: QuestEffect = { id: 'ruin-hale', quest: 'ashes', to: 'ruin1', from: ['reeve'] };
+export const RUIN_MARROW: QuestEffect = { id: 'ruin-marrow', quest: 'ashes', to: 'ruin2', from: ['ruin1'] };
+export const RUIN_TANNER: QuestEffect = { id: 'ruin-tanner', quest: 'ashes', to: 'ruins', from: ['ruin2'] };
+/** The priest or the apothecary of Ironhold tells what it knows of the phoenix. */
+export const ASHES_SYMBOL: QuestEffect = { id: 'ashes-symbol', quest: 'ashes', to: 'symbol', from: ['ruins'] };
 
 /** The character offers the merchant its help. */
 export const CART_HELP: QuestEffect = { id: 'cart-help', quest: 'cart', to: 'met' };

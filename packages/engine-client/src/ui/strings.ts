@@ -389,6 +389,7 @@ const EN = {
     cart: 'cart',
     stake: 'post',
     campfire: 'campfire',
+    brand: 'burned plank',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

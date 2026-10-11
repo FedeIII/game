@@ -1,5 +1,5 @@
 import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, LORE_GATE, PEDDLER, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
+import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
 import { RAID_HEARD } from './quests.ts';
 import { LAMP, Town, type Plan, type Tile } from './towns.ts';
 
@@ -163,7 +163,8 @@ const BUILDINGS: readonly Plan[] = [
         id: 'priest',
         look: 'priest',
         doorstep: true,
-        pages: ['Peace to you, traveller.', 'The candles of this chapel have burned for a hundred years.', 'When the night is long, come in and sit for a while.'],
+        // The old books of the chapel know the phoenix of the burned homesteads (dialogs.ts).
+        dialog: PRIEST,
         barks: ['Peace on this house.', 'The light holds.', 'Pray, and keep to the road.'],
         greeting: 'Peace, {name}.',
       },

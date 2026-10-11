@@ -25,6 +25,16 @@ import {
   type SnapshotMessage,
 } from '@game/engine';
 import {
+  ASHES,
+  ASHES_SYMBOL,
+  HALE,
+  MARROW,
+  RUINS,
+  RUIN_HALE,
+  RUIN_MARROW,
+  RUIN_TANNER,
+  TANNER,
+  brandTile,
   CAMP,
   CAMP_GATE,
   CAMP_STAKE,
@@ -92,6 +102,8 @@ describe('the quests of the Wilds', () => {
     expect(checkQuestDefs(QUESTS)).toEqual([]);
     const { effects, conditions, dialogs } = contentOfTheWilds();
     expect(effects.map((e) => e.id).sort()).toEqual([
+      'ashes-symbol',
+      'ashes-symbol',
       'cart-help',
       'cart-help',
       'cart-lever',
@@ -104,6 +116,9 @@ describe('the quests of the Wilds', () => {
       'raid-title',
       'raid-title-permit',
       'read-letter',
+      'ruin-hale',
+      'ruin-marrow',
+      'ruin-tanner',
       'tell-reeve',
       'tell-reeve',
       'tell-reeve',
@@ -552,5 +567,64 @@ describe('the end of the raid', () => {
     expect(room.quest(p.id, { npc: npcIndex('kasmut') }, RAID_TITLE.id, 0)).toBe(true);
     expect(p.quests.raid?.step).toBe('title');
     expect(p.pack.items).toEqual([]);
+  });
+});
+
+describe('the burned homesteads', () => {
+  it('stand on dry ground off the roads, each a shell with no roof and a phoenix that the map marks in order', () => {
+    const world = new World(source);
+    const steps = ASHES.steps;
+    expect(RUINS.map((r) => brandTile(r))).toEqual([steps.find((s) => s.id === 'reeve')!.at, steps.find((s) => s.id === 'ruin1')!.at, steps.find((s) => s.id === 'ruin2')!.at]);
+    for (const ruin of RUINS) {
+      const [house] = ruin.buildings;
+      expect(house!.style).toEqual({ walls: 'charred', roof: 'none' });
+      expect(house!.locked).toBeUndefined();
+      for (let ty = ruin.y0 - 2; ty <= ruin.y1 + 2; ty++) {
+        for (let tx = ruin.x0 - 2; tx <= ruin.x1 + 2; tx++) {
+          expect(source.road.clear(tx, ty) || source.north.clear(tx, ty) || source.trail.clear(tx, ty), `${ruin.name} ${tx},${ty}`).toBe(false);
+          if (ruin.has(tx, ty)) expect(world.ground(tx, ty), `${ruin.name} ${tx},${ty}`).not.toBe(Ground.Water);
+        }
+      }
+      const [bx, by] = brandTile(ruin);
+      expect(world.fixtureAt(bx, by)?.kind).toBe('brand');
+      // The mark reads more with INT 13.
+      expect(world.fixtureAt(bx, by)?.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+    }
+  });
+
+  it('move the story on in order: the Hale, the Marrow and the Tanner homestead, then the priest or the apothecary', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [hx, hy] = brandTile(HALE);
+    const p = join(room, { x: hx * TILE_SIZE + 8, y: (hy + 1) * TILE_SIZE + 8 });
+    p.quests = { ashes: { step: 'reeve', flags: [], n: 2 } };
+    const read = (ruin: typeof HALE, id: string) => {
+      const [tx, ty] = brandTile(ruin);
+      Object.assign(p.state, { x: tx * TILE_SIZE + 8, y: (ty + 1) * TILE_SIZE + 8 });
+      return room.quest(p.id, { at: [tx, ty] }, id, 0);
+    };
+    // Out of order, nothing happens.
+    expect(read(MARROW, RUIN_MARROW.id)).toBe(false);
+    expect(read(HALE, RUIN_HALE.id)).toBe(true);
+    expect(read(MARROW, RUIN_MARROW.id)).toBe(true);
+    expect(read(TANNER, RUIN_TANNER.id)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('ruins');
+    room.tick(0);
+    goTo(p, 'priest');
+    const priest = source.npcs()[npcIndex('priest')]!.content.dialog!;
+    expect(startNode(priest, p.quests, p.pack)).toBe('troubled');
+    expect(room.quest(p.id, { npc: npcIndex('priest') }, ASHES_SYMBOL.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('symbol');
+  });
+
+  it('have survivors who saw only shadows; Wisdom 13 calms them, and they tell more', () => {
+    for (const id of ['hale-survivor', 'tanner-survivor']) {
+      const npc = source.npcs()[npcIndex(id)]!;
+      const dialog = npc.content.dialog!;
+      expect(checkDialog(dialog)).toEqual([]);
+      const calm = Object.values(dialog.nodes).flatMap((n) => n.answers).filter((a) => a.next === 'calm');
+      expect(calm.length, id).toBeGreaterThan(0);
+      for (const a of calm) expect(a.gate).toEqual({ ability: 'wis', min: 13 });
+      expect(RUINS.some((r) => r.has(npc.home[0], npc.home[1]))).toBe(true);
+    }
   });
 });

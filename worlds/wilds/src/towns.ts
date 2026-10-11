@@ -1,4 +1,4 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef } from '@game/engine';
+import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef, type QuestEffect } from '@game/engine';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -45,6 +45,8 @@ export interface Thing {
   readonly dialog?: Dialog;
   /** A bed that rests only a character with this refuge (Interaction.restFor: the room at the inn). */
   readonly restFor?: string;
+  /** What reading it does to a quest (Interaction.effect: the phoenix of a burned homestead). */
+  readonly effect?: QuestEffect;
 }
 
 /**
@@ -275,6 +277,7 @@ export class Town {
           ...(thing.lore ? { lore: thing.lore } : {}),
           ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}),
           ...(thing.restFor ? { rest: true, restFor: thing.restFor } : {}),
+          ...(thing.effect ? { effect: thing.effect } : {}),
         };
         const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
         fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}) });

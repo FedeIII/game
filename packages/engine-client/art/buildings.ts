@@ -288,6 +288,28 @@ const painted: WallStyle = {
   glass: () => M.lanternGlass,
 };
 
+// A burned house (story phase 6): planks charred black and split, grey with ash in places, and no
+// roof (the roof style 'none'). The door hangs scorched.
+const charred: WallStyle = {
+  variants: 2,
+  relief(x, y, _z, face, variant) {
+    if (face === 'top') return 0.4 * noise3(x * 0.6, variant, 0, 33);
+    const board = Math.floor(mod(x, TILE) / BOARD);
+    if (mod(x, TILE) - board * BOARD < 0.6) return 0.9;
+    return 0.35 * Math.sin(y * 0.3 + board * 2.7 + variant) + 0.3 * noise3(x * 0.8, y * 0.5, variant, 34);
+  },
+  material(x, y, z, _nx, ny) {
+    if (ny > 0.6) return M.blackStone;
+    const n = noise3(x * 0.35, y * 0.25, z * 0.35, 35);
+    return n > 0.72 ? M.greyWood : n > 0.38 ? M.blackStone : M.woodDark;
+  },
+  rough: 0.3,
+  arch: 'square',
+  leaf: plankDoor(M.blackStone, M.woodDark),
+  frame: M.blackStone,
+  glass: () => M.blackStone,
+};
+
 export const WALL_STYLES: Record<string, WallStyle> = {
   stone,
   timber,
@@ -297,6 +319,7 @@ export const WALL_STYLES: Record<string, WallStyle> = {
   gothic,
   canvas: canvas(M.canvasWine, M.canvasBone),
   painted,
+  charred,
 };
 
 /** A wall block on a tile (dx, dz tiles from the centre tile), with the style's relief. */

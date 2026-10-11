@@ -336,6 +336,44 @@ that my deed has a reward.
 
 ---
 
+### REQ-QST-017: The burned homesteads
+
+**User Story:** As a player sent by Thrain Steelforge, I want to find the burned homesteads and the
+sign that their burners left, so that I can follow the trail of who burns them.
+
+**Acceptance Criteria:**
+- **AC-QST-017.1:** Three burned homesteads stand in clearings of the Wilds, the same for every
+  seed: the Hale homestead north of the home, the Marrow homestead east of it, the Tanner homestead
+  south-west of it. Each is a house of charred planks with no roof and an open door.
+- **AC-QST-017.2:** In each one, a charred plank shows a burned phoenix: "A plank, charred black.
+  Burned into it, deeper than the rest: a phoenix that rises from ashes." With INT 13, the character
+  also reads that magic made the mark.
+- **AC-QST-017.3:** At `reeve`, the reeve names the Hale homestead, and the map marks its phoenix.
+  Reading it moves the quest `ashes` to `ruin1`, and the map marks the phoenix of the Marrow
+  homestead; reading that one moves it to `ruin2` (the Tanner homestead), and that one to `ruins`.
+  A phoenix out of order does nothing.
+- **AC-QST-017.4:** A survivor lives in the ashes of the Hale and of the Tanner homestead. Each one saw
+  only shadows; with WIS 13, the character calms it, and it tells more (what the burners took or looked
+  for).
+
+---
+
+### REQ-QST-018: The sign of the phoenix
+
+**User Story:** As a player who found the three phoenixes, I want the people of Ironhold to tell me
+what they know of the sign, so that the mystery deepens.
+
+**Acceptance Criteria:**
+- **AC-QST-018.1:** At `ruins`, the map marks the priest of Ironhold. The priest and the apothecary
+  each start with the burned homesteads.
+- **AC-QST-018.2:** The priest calls the phoenix the sign of a god before the gods; with INT 13, the
+  character learns of "those who seek in the ashes". The apothecary says that raiders from the south
+  call themselves the Ashen Seekers. The stories do not agree.
+- **AC-QST-018.3:** Either of them moves the quest to `symbol`. The later steps of the story come with
+  its later phases.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -367,8 +405,8 @@ that my deed has a reward.
   `journalEntries()`, `questMarks()`), `render/quest-banner.ts` (`QuestBanner`, `BANNER_TIMING`),
   `ui/map-panel.ts` (`setMarks()`), `STRINGS.journal`. The debug panel (`?debug`) has a line
   `quests`.
-- **The Wilds** (`worlds/wilds/src/quests.ts`): `ASHES` (steps `letter`, `reeve`, `found`; `found`
-  ends it and comes with the later phases of the story), `CART` (`met`, `lever`, `done`),
+- **The Wilds** (`worlds/wilds/src/quests.ts`): `ASHES` (steps `letter`, `reeve`, `ruin1`, `ruin2`,
+  `ruins`, `symbol`, `found`; `found` ends it and comes with the later phases of the story), `CART` (`met`, `lever`, `done`),
   `QUESTS`, the effects `READ_LETTER`, `TELL_REEVE`, `CART_HELP`, `CART_LEVER`, `CART_LIFT` (flag
   `lifted`), `CART_MEND` (flag `lever`), `CART_REWARD` (10). The letter: `home.ts`. The dialogs:
   `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT` (`dialogs.ts`); `ATHLETICS_GATE` (STR
@@ -427,6 +465,16 @@ that my deed has a reward.
   `JEWELLER` (`MITHRIL_COST` 5); `SMITH` (start `mithril`, `MITHRIL_PRICE` 10); `REEVE` (starts `himo`,
   `himo-lost`). The items `mithril` (stacks of 10) and `mithril-permit`. The server checks the
   condition (`when`) of an answer with a deal (`Room.deal()`).
+- **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6): `HALE` (9, -35), `MARROW`
+  (51, -5), `TANNER` (-21, 25) (each a `Town` of 11 x 11 tiles; `RUINS`, `brandTile()`), the style
+  `{ walls: 'charred', roof: 'none' }` (the page draws no roof: `ROOFLESS` in `render/buildings.ts`;
+  the art: `charred` in `art/buildings.ts`), the fixture `brand` (code 32), `RUIN_NPCS`
+  (`hale-survivor`, `tanner-survivor`, look `survivor`; protocol 30). The steps `reeve` (at the
+  phoenix of the Hale homestead), `ruin1`, `ruin2`, `ruins`, `symbol`; the effects `RUIN_HALE`,
+  `RUIN_MARROW`, `RUIN_TANNER` (`Thing.effect` of `towns.ts`), `ASHES_SYMBOL`. The dialogs `PRIEST`,
+  `SURVIVOR_HALE`, `SURVIVOR_TANNER`, the start `phoenix` of `APOTHECARY`, and the node `where` of
+  `REEVE`. They stand in `CLEARINGS` of `source.ts` (no tree or rock within 2 tiles; mobs as in the
+  woods).
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

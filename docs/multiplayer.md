@@ -70,6 +70,13 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The burned homesteads (protocol 30, 2026-10-11)
+
+Protocol 30 changes no message: the Wilds got three burned homesteads (story phase 6,
+`docs/features/game/quests.md`), with two survivors. Their NPCs come after the people of
+Silverspring in `WorldSource.npcs()`, so the snapshots carry two more poses, and a page of protocol 29
+has another list of NPCs. The fixture type `brand` (code 32) is new too.
+
 ## The war band (protocol 29, 2026-10-11)
 
 - A new mob kind, the Hobgoblin Devastator (`devastator`, code 6 of `MOB_KINDS`), and a new state,

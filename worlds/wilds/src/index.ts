@@ -7,6 +7,7 @@ export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
+export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
 export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
@@ -26,15 +27,19 @@ export {
   MITHRIL_PRICE,
   PEDDLER,
   PERSUASION_GATE,
+  PRIEST,
   REEVE,
   SMITH,
   SMITH_PRICES,
   SOLDIER,
+  SURVIVOR_HALE,
+  SURVIVOR_TANNER,
   WATCHMAN,
   smithPays,
 } from './dialogs.ts';
 export {
   ASHES,
+  ASHES_SYMBOL,
   CART,
   CART_HELP,
   CART_LEVER,
@@ -56,6 +61,9 @@ export {
   RAID_TITLE,
   RAID_TITLE_PERMIT,
   READ_LETTER,
+  RUIN_HALE,
+  RUIN_MARROW,
+  RUIN_TANNER,
   TELL_REEVE,
 } from './quests.ts';
 
@@ -87,6 +95,7 @@ export const wilds: WorldDefinition = {
     cart: "A merchant's cart, loaded with crates and a sack.",
     stake: 'A thick post, driven deep into the ground.',
     campfire: 'A fire in a ring of stones.',
+    brand: 'A charred plank.',
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {

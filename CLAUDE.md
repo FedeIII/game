@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 29.
+protocol: `docs/multiplayer.md`, protocol 30.
 
 ## Language
 
@@ -951,6 +951,11 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   (`TOWNS` in `source.ts`), except the war band during the raid. `?at=180,-179` starts in its main
   street. **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
   `PLACES`): off the north road at (91, -146), with a trail; `?at=92,-141` starts next to the post.
+- **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6, 2026-10-11): the Hale, the
+  Marrow and the Tanner homestead, fixed, north, east and south-west of the home; roofless charred
+  houses (`{ walls: 'charred', roof: 'none' }`), each with a phoenix (the fixture `brand`) that moves
+  `ashes` on in order; survivors at Hale and Tanner (WIS 13 calms them); then the priest (`PRIEST`)
+  or the apothecary tells of the phoenix (`symbol`). `?at=14,-26` starts at the Hale homestead.
 - **Barks** are heard only within 18 tiles (`BARK_HEARING` in `game.ts`): with two towns, the lines of
   a far town would sit on the edge of the screen.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,

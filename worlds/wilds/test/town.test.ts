@@ -142,7 +142,7 @@ describe('Ironhold', () => {
 
   it('has people who talk with the player: conversations with answers that branch', () => {
     const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
-    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'smith', 'soldier', 'watchman']);
+    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'priest', 'reeve', 'smith', 'soldier', 'watchman']);
     for (const npc of talkers) {
       const dialog = npc.content.dialog!;
       const nodes = Object.values(dialog.nodes);
@@ -153,10 +153,10 @@ describe('Ironhold', () => {
     }
   });
 
-  it('comes first in the list of NPCs: then the merchant on the road, then the people of Silverspring', () => {
+  it('comes first in the list of NPCs: then the merchant on the road, the people of Silverspring and the survivors of the burned homesteads', () => {
     // The order is the code of each NPC on the wire.
     expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
-    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id)]);
+    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id), 'hale-survivor', 'tanner-survivor']);
   });
 });
 

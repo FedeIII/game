@@ -3,7 +3,8 @@
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
 > **Status:** Phases 1 to 3 built (2026-10-11: `docs/features/game/language.md`,
 > `docs/features/game/quests.md`, `docs/features/game/combat.md`); phase 4 built
-> (`docs/features/game/towns.md`, REQ-QST-013 to 016, REQ-CMB-007); phases 5 and 6 planned
+> (`docs/features/game/towns.md`, REQ-QST-013 to 016, REQ-CMB-007); phase 6 built (REQ-QST-017 and
+> 018); phase 5 planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -353,7 +354,12 @@ before the next one.
    character at `raid` comes near the town. Two soldiers who turn on the character (needs companions
    that fight) stay for later.
 5. **The caravan** (the convoy of S6), with Q3.
-6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`.
+6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`. Built 2026-10-11 (protocol 30).
+   What changed from the plan: three fixed burned homesteads (the reeve's "three homesteads"), not a
+   share of the houses of the seed, so that the map can mark each one: the reeve names the first, and
+   the tracks at each one lead to the next (Hale, Marrow, Tanner). A survivor lives at two of them (an
+   NPC, so the steps of other characters do not change it). The houses of the seed stay as they are;
+   more ruins can come later.
 
 Later: the rest of Q4, A.1 with a mountain terrain, and the next chapters.
 

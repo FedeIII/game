@@ -9,6 +9,8 @@ import { tw } from '../i18n.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
 const FRONT_WALL_INSIDE_ALPHA = 0.35;
+/** The roof style of a building without a roof (a burned homestead): nothing is drawn over it. */
+const ROOFLESS = 'none';
 /** How fast the roof and the front wall fade (per second, as a fraction of what remains). */
 const FADE_RATE = 10;
 /** Wall tops are drawn 32 pixels above the ground; the roof sits on them. */
@@ -221,7 +223,8 @@ export class Buildings {
     // Seen from the south, the back slope shows above the ridge and the front slope below it.
     const roof = new Container();
     const roofStyle = (building.style ?? DEFAULT_STYLE).roof;
-    const rows = y1 - y0 + 1;
+    // A burned house has no roof (the style 'none'): its walls stand open to the sky.
+    const rows = roofStyle === ROOFLESS ? 0 : y1 - y0 + 1;
     const ridge = Math.max(1, Math.round(rows / 2 - 1));
     for (let r = 0; r < rows; r++) {
       const row = r === 0 ? 'top' : r < ridge ? 'back' : r === ridge ? 'ridge' : r === rows - 1 ? 'eave' : 'front';
@@ -232,7 +235,7 @@ export class Buildings {
         roof.addChild(tile);
       }
     }
-    for (let tx = x0; tx <= x1; tx++) {
+    for (let tx = x0; tx <= x1 && rows > 0; tx++) {
       const shadow = new Sprite(this.art.frame('roof/shadow'));
       shadow.position.set(tx * TILE_SIZE, (y1 + 1) * TILE_SIZE - WALL_HEIGHT);
       roof.addChild(shadow);

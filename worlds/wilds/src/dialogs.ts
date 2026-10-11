@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_SYMBOL, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -161,7 +161,21 @@ const remedy = (id: string, text: string, goods: 'draught' | 'antidote' | 'stron
 export const APOTHECARY: Dialog = {
   name: 'Isolde, the apothecary',
   start: 'careful',
+  // A character who found the three burned homesteads (quests.ts, ashes at `ruins`): her story of the phoenix.
+  starts: [{ when: { quest: 'ashes', at: ['ruins'] }, node: 'phoenix' }],
   nodes: {
+    phoenix: {
+      say: 'You smell of smoke. The burned homesteads? Everybody talks of them.',
+      answers: [{ text: 'A phoenix is burned into each of them. Do you know the sign?', next: 'raiders', effect: ASHES_SYMBOL }, { text: 'Something else.', next: 'careful' }, BYE],
+    },
+    raiders: {
+      say: 'Travellers say that raiders from the south leave it: cutthroats who call themselves the Ashen Seekers. They burn the houses to hide what they steal.',
+      answers: [{ text: 'Is that all that people say?', next: 'rumours' }, BYE],
+    },
+    rumours: {
+      say: 'Some say they are monks, some say ghosts. A peddler swore to me that they pay in coins older than the Sovereignty. Nobody agrees.',
+      answers: [BYE],
+    },
     careful: {
       say: 'Careful with that shelf. Half of it heals and half of it kills.',
       answers: [
@@ -306,6 +320,10 @@ export const REEVE: Dialog = {
     },
     searched: {
       say: 'Every house was searched before the fire. The chests, the floors, even the hearths. Whoever it is, they look for something.',
+      answers: [{ text: 'Where are the homesteads?', next: 'where' }, { text: 'I will find out who.' }],
+    },
+    where: {
+      say: 'The nearest is the Hale homestead, north of your hut. Old Hale would not leave the ashes. Start there.',
       answers: [{ text: 'I will find out who.' }],
     },
     fear: {
@@ -933,6 +951,89 @@ export const JEWELLER: Dialog = {
     poor: {
       say: 'Five coins, friend, and room in your pack. Mithril is not given away.',
       answers: [BYE],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the burned homesteads (ruins.ts)
+
+/**
+ * The priest of the chapel of Ironhold. For a character who found the three burned homesteads
+ * (quests.ts, ashes at `ruins`), the old books of the chapel know the phoenix; with Intelligence 13,
+ * also a name in their margins.
+ */
+export const PRIEST: Dialog = {
+  name: 'The priest',
+  start: 'peace',
+  starts: [{ when: { quest: 'ashes', at: ['ruins'] }, node: 'troubled' }],
+  nodes: {
+    peace: {
+      say: 'Peace to you, traveller. The candles of this chapel have burned for a hundred years.',
+      answers: [{ text: 'Who keeps them lit?', next: 'candles' }, { text: 'Who built the chapel?', next: 'built' }, BYE],
+    },
+    built: {
+      say: 'The first settlers of the valley, before Ironhold had walls. They brought the book of prayers on the lectern from far away.',
+      answers: [{ text: 'Who keeps the candles lit?', next: 'candles' }, BYE],
+    },
+    candles: {
+      say: 'I do, and the one before me did. When the night is long, come in and sit for a while. The light holds.',
+      answers: [BYE],
+    },
+    troubled: {
+      say: 'You look troubled, traveller. What did you find out there?',
+      answers: [{ text: 'A phoenix, burned into three homesteads.', next: 'sign', effect: ASHES_SYMBOL }, { text: 'Nothing. Peace to you.' }],
+    },
+    sign: {
+      say: 'A phoenix... The old books of this chapel speak of it. The sign of a god before the gods: one that burns, to be born again.',
+      answers: [{ text: 'Who follows such a god?', next: 'seekers', gate: LORE_GATE }, { text: 'Thank you, Father.' }],
+    },
+    seekers: {
+      say: 'In a margin, a later hand wrote: "those who seek in the ashes". Heretics, the book says. It does not say what they seek.',
+      answers: [{ text: 'Thank you, Father.' }],
+    },
+  },
+};
+
+/** The survivor of the Hale homestead: an old man who would not leave the ashes. Wisdom 13 calms him. */
+export const SURVIVOR_HALE: Dialog = {
+  name: 'Old Hale',
+  start: 'away',
+  nodes: {
+    away: {
+      say: 'Go away! ...Unless the reeve sent you. Did the reeve send you?',
+      answers: [{ text: 'The reeve sent me. What happened here?', next: 'night' }, { text: 'You are safe now. Breathe.', next: 'calm', gate: INSIGHT_GATE }, BYE],
+    },
+    night: {
+      say: 'They came in the night. Shadows. I hid in the well. I saw nothing, I heard nothing. Go away.',
+      answers: [{ text: 'You are safe now. Breathe.', next: 'calm', gate: INSIGHT_GATE }, BYE],
+    },
+    calm: {
+      say: '...One of the shadows sang. Low, like a priest. They took no hens and no coins. They took the box from under the hearth. My father\'s box.',
+      answers: [{ text: 'What was in the box?', next: 'box' }, BYE],
+    },
+    box: {
+      say: 'A stone, black and smooth, with marks on it. Father found it in the old ruins by the river. He said it was older than the gods.',
+      answers: [{ text: 'Thank you.' }],
+    },
+  },
+};
+
+/** The survivor of the Tanner homestead: a girl who waits for her mother. Wisdom 13 calms her. */
+export const SURVIVOR_TANNER: Dialog = {
+  name: 'The Tanner girl',
+  start: 'mother',
+  nodes: {
+    mother: {
+      say: 'Are you my mother? ...No. She went to Ironhold for help. She will come back.',
+      answers: [{ text: 'Who burned your house?', next: 'bird' }, { text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: INSIGHT_GATE }, BYE],
+    },
+    bird: {
+      say: 'People in long cloaks. They had a bird of fire on them. I hid under the hides.',
+      answers: [{ text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: INSIGHT_GATE }, BYE],
+    },
+    calm: {
+      say: 'They asked Mother for "the old book". We have no book. They looked under the hearthstone anyway, and then they burned everything.',
+      answers: [{ text: 'Your mother will come back. Wait here.' }],
     },
   },
 };

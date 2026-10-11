@@ -343,6 +343,7 @@ export const ES: Strings = {
     cart: 'el carro',
     stake: 'el poste',
     campfire: 'la hoguera',
+    brand: 'el tablón quemado',
     pile: 'las cosas del suelo',
   },
   linkClose: 'Cerrar',

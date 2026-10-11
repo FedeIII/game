@@ -177,6 +177,13 @@ export const NPC_LOOKS: Record<string, Look> = {
     leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
     spec: { cloak: 'short', pauldrons: false, quiver: true, item: 'dagger' },
   },
+  /** A survivor of a burned homestead (story phase 6): a long cloak grey with ash, its hood up, a little bent. */
+  survivor: {
+    cloak: ramp('#121110', '#1d1b19', '#2a2724', '#383430', '#47423d', '#57514b'),
+    hood: true,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { height: 0.92, cloak: 'long', pauldrons: false },
+  },
   /** A child: small, with a big head and a short cloak. */
   child: {
     cloak: ramp('#141008', '#221b0e', '#332915', '#45381d', '#584826', '#6b5930'),

@@ -556,6 +556,28 @@ function campfire(): Part[] {
   return parts;
 }
 
+/**
+ * A charred plank against the north wall of a burned homestead, with the phoenix of the Ashen Seekers
+ * burned into it (story phase 6): wings up in a V, a body, a head, a tail of flame. The mark still
+ * glows a little, in the colour of embers.
+ */
+function brand(): Part[] {
+  const face = -4.4;
+  const phoenix = (x: number, y: number): boolean => {
+    const dx = Math.abs(x - 8);
+    if (dx < 0.6 && y > 4.6 && y < 11.2) return true;
+    if (y > 7 && y < 12.4 && Math.abs(dx - (y - 7) * 1.05) < 0.55) return true;
+    if (Math.hypot(x - 8, y - 12) < 0.85) return true;
+    return y > 3.4 && y < 5.2 && Math.abs(dx - (5.2 - y) * 0.9) < 0.5;
+  };
+  return [
+    {
+      sdf: box([2.6, 0, -6.2], [13.4, 15, -4.4], 0.3),
+      material: (x, y, z) => (z > face - 0.35 && phoenix(x, y) ? M.flame : noise3(x * 0.6, y * 0.4, z, 36) > 0.6 ? M.greyWood : M.blackStone),
+    },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -591,5 +613,6 @@ export function fixtureFrames(): Frame[] {
     fixture('stake', stake(), 24, 48),
     stakeBound(),
     fixture('campfire', campfire(), 24, 32),
+    fixture('brand', brand(), 24, 32),
   ];
 }

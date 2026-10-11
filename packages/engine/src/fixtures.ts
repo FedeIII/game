@@ -111,6 +111,8 @@ export const FIXTURE_TYPES = [
   // The camp of the war band (story phase 4b): a post where they tie a prisoner, and a fire in a ring of stones.
   { id: 30, kind: 'stake', tiles: ONE_TILE([5, 8, 11, 14]), depth: 10 },
   { id: 31, kind: 'campfire', tiles: ONE_TILE([2, 4, 14, 14]), depth: 6 },
+  // A charred plank with the phoenix of the Ashen Seekers burned into it (the ruins, story phase 6).
+  { id: 32, kind: 'brand', tiles: ONE_TILE([3, 2, 13, 10]), depth: 4 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
