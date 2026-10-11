@@ -353,7 +353,16 @@ before the next one.
    on, and a band that comes to the gate goes from the world and comes back as the raid when a
    character at `raid` comes near the town. Two soldiers who turn on the character (needs companions
    that fight) stay for later.
-5. **The caravan** (the convoy of S6), with Q3.
+5. **The caravan** (the convoy of S6), with Q3. Fede's decisions (2026-10-11):
+   - **Attackers:** if the character has not killed them yet, the scouts and the war band of Q2 attack
+     the caravan (the chapter); if it has, other hobgoblins of the clan attack it. The story and the
+     rewards follow each case (the scouts and the band that fall at the caravan move Q2 on too).
+   - **The caravan walks the road** from Silverspring: a wagon and two militia of the Enclave with hit
+     points. The mobs attack them; if all of them fall, the cargo is lost.
+   - **Robbery:** the character must fight the two militia too, so NPCs that fight are new in the
+     engine (militia that fight the hobgoblins, and a character who attacks them).
+   - **Wanted:** a robber is wanted (guards and traders of both towns refuse to deal, and do not
+     attack it) until it pays a fine to the reeve of Ironhold or to Kasmut.
 6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`. Built 2026-10-11 (protocol 30).
    What changed from the plan: three fixed burned homesteads (the reeve's "three homesteads"), not a
    share of the houses of the seed, so that the map can mark each one: the reeve names the first, and
@@ -379,4 +388,4 @@ Decided on 2026-10-11 too:
   planned in `docs/drafts/companions.md`, and it comes before the story.
 - **The journal:** a panel of its own, with a button at the top right.
 
-Nothing is open now.
+Nothing is open now. (Phase 5's questions were answered on 2026-10-11: see the phase.)
