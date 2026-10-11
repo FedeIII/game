@@ -22,6 +22,7 @@ export * from './quests.ts';
 export * from './scenes.ts';
 export * from './encounters.ts';
 export * from './ambushes.ts';
+export * from './escorts.ts';
 export * from './dialog.ts';
 export * from './net/protocol.ts';
 export * from './net/room.ts';

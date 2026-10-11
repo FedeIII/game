@@ -89,6 +89,8 @@ const EN = {
     glaive: { name: 'Glaive', a: 'a glaive', many: 'glaives' },
     crowbar: { name: 'Lever', a: 'a lever', many: 'levers' },
     'badger-fur': { name: 'Badger fur', a: 'a badger fur', many: 'badger furs' },
+    mithril: { name: 'Mithril', a: 'a nugget of mithril', many: 'nuggets of mithril' },
+    'mithril-permit': { name: 'Permit of Silverspring', a: 'the permit of Silverspring', many: 'permits of Silverspring' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -385,6 +387,8 @@ const EN = {
     herbpatch: 'herbs',
     cache: 'dug earth',
     cart: 'cart',
+    stake: 'post',
+    campfire: 'campfire',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

@@ -7,7 +7,8 @@
  * tile) to -16 per tile northwards, y up. The pivot is the anchor tile's south-west corner.
  */
 import { Image } from './png.ts';
-import { cropToContent } from './raster.ts';
+import { boundFigure, PLAYER_FRAME } from './characters.ts';
+import { cropToContent, rgb } from './raster.ts';
 import { MATERIALS, M, hash } from './materials.ts';
 import { box, cylinder, displace, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
@@ -498,6 +499,63 @@ function cart(mended: boolean): Part[] {
   ];
 }
 
+/** A post of the war band's camp (story phase 4b): dark wood, sharpened at the top, with a coil of rope at its foot. */
+function stake(): Part[] {
+  return [
+    { sdf: cylinder([8, 17, -7], 'y', 1.3, 34), material: M.woodDark },
+    { sdf: roundCone([8, 34, -7], [8, 36.5, -7], 1.3, 0.3), material: M.woodDark },
+    { sdf: subtract(cylinder([8, 0.6, -7], 'y', 3.4, 1.2), cylinder([8, 0.6, -7], 'y', 2.0, 2)), material: M.linen },
+    { sdf: subtract(cylinder([8, 22, -7], 'y', 1.9, 1.0), cylinder([8, 22, -7], 'y', 1.2, 2)), material: M.linen },
+  ];
+}
+
+/**
+ * The post with Himo tied to it (`stake-bound`, the frame of a character at the step: Fixture.variant):
+ * the figure of the scout stands just south of the post, its arms behind its back, with two turns
+ * of rope round it. The figure is drawn over the post, its feet on the ground point (8, -5).
+ */
+function stakeBound(): Frame {
+  const width = 24;
+  const height = 48;
+  const pivotY = height - MARGIN_BELOW;
+  const image = render(stake(), width, height);
+  const body = boundFigure('scout');
+  const ox = PIVOT_X + 8 - PLAYER_FRAME.pivotX;
+  const oy = pivotY - 5 - PLAYER_FRAME.pivotY;
+  for (let y = 0; y < body.height; y++) {
+    for (let x = 0; x < body.width; x++) {
+      const pixel = body.get(x, y);
+      if ((pixel & 0xff) > 0) image.set(x + ox, y + oy, pixel);
+    }
+  }
+  // Two turns of rope: across the chest and the waist, only over the body.
+  const rope = [rgb('#6e6248'), rgb('#9a8a64')];
+  for (const [rise, shade] of [
+    [15, 1],
+    [10, 0],
+  ] as const) {
+    const y = PLAYER_FRAME.pivotY - rise;
+    for (let x = 0; x < body.width; x++) if ((body.get(x, y) & 0xff) > 0) image.set(x + ox, y + oy, rope[(x + shade) % 2]!);
+  }
+  const cropped = cropToContent(image, PIVOT_X, pivotY);
+  return { name: 'fixture/stake-bound', image: cropped.image, anchor: cropped.anchor };
+}
+
+/** A fire in a ring of stones, with two crossed logs, coals and flames (the camp of the war band). */
+function campfire(): Part[] {
+  const parts: Part[] = [];
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * 2 * Math.PI;
+    parts.push({ sdf: displace(ellipsoid([8 + Math.cos(a) * 5.4, 1.1, -8 + Math.sin(a) * 4.6], [1.7, 1.3, 1.4]), 0.3, 0.9, 40 + i), material: i % 2 === 0 ? M.stoneA : M.stoneC });
+  }
+  parts.push(
+    { sdf: union(cylinder([8, 1.4, -8], 'x', 0.9, 8), cylinder([8, 2.2, -8], 'z', 0.9, 7)), material: M.woodDark },
+    { sdf: ellipsoid([8, 0.8, -8], [3.2, 0.6, 2.8]), material: M.coal },
+    { sdf: union(roundCone([8, 2, -8], [8, 8.5, -8.2], 2.2, 0.3), roundCone([6.6, 2, -7.4], [6.2, 6, -7.6], 1.4, 0.2), roundCone([9.6, 2, -8.6], [10, 6.6, -8.8], 1.4, 0.2)), material: M.flame },
+  );
+  return parts;
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -530,5 +588,8 @@ export function fixtureFrames(): Frame[] {
     fixture('cache', cache(), 24, 24),
     fixture('cart', cart(false), 48, 40),
     { ...fixture('cart', cart(true), 48, 40), name: 'fixture/cart-mended' },
+    fixture('stake', stake(), 24, 48),
+    stakeBound(),
+    fixture('campfire', campfire(), 24, 32),
   ];
 }

@@ -17,6 +17,9 @@ import {
   appearanceOf,
   characterSkin,
   finalScores,
+  fixtureContent,
+  Escorts,
+  type CompanionEvent,
   npcActors,
   npcFixture,
   attackHits,
@@ -558,6 +561,8 @@ async function run(options: GameOptions): Promise<void> {
   const localCompanions = net ? null : new Companions(world);
   // The ambushes of the story (ambushes.ts) in a world that the page runs; the server runs them in a shared world.
   const localAmbushes = horde ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
+  // The escorts of the story (escorts.ts: Himo) in a world that the page runs, with its companions.
+  const localEscorts = localCompanions ? new Escorts(world.source.escorts?.() ?? []) : null;
   const companionLook = params.get('companion');
   if (localCompanions && companionLook && art.tryFrame(`npc/${companionLook}/down/stand`)) {
     localCompanions.add({ id: 'test', name: STRINGS.companion, look: companionLook, hp: PLAIN_HP, fallen: 'wakes' }, 0, player.x - TILE_SIZE, player.y);
@@ -783,7 +788,8 @@ async function run(options: GameOptions): Promise<void> {
   // and the panel has the keys; the conversation ends with an answer that ends it, with Esc, or
   // when the NPC is not close any more.
   const contentOf = (t: InteractionTarget): Interaction | null => {
-    const content = t.fixture?.content;
+    // A thing with a variant says and does something else for a character at its step (Fixture.variant.content).
+    const content = t.fixture ? fixtureContent(t.fixture, questsNow(), packNow()) : undefined;
     if (content) {
       if (!content.lore) return content;
       // Pages behind a gate (lore): read with the score, a clue with 1 or 2 less, nothing with less (gateView).
@@ -1274,13 +1280,20 @@ async function run(options: GameOptions): Promise<void> {
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     // Mobs see the player from less far with Dexterity, and less again while it sneaks.
     // Companions follow the player (before the mobs, which hunt them too).
+    let companionEvents: CompanionEvent[] = [];
     if (localCompanions && localCompanions.list.length > 0) {
-      localCompanions.step(TICK_SECONDS * 1000, new Map([[0, player]]));
+      companionEvents = localCompanions.step(TICK_SECONDS * 1000, new Map([[0, player]]));
       localCompanions.takeDoors();
     }
+    // The end of an escort (home, or a fall) moves the quest on.
+    if (localCompanions && localEscorts?.defs.length) for (const { effect } of localEscorts.step(localCompanions, [{ id: 0, state: player, quests: localQuests, pack }], companionEvents)) applyQuest(effect, { scene: 'escort' });
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? [])]);
     // An ambush that ends moves the quest on (here the page applies it: where does not matter).
-    if (horde && localAmbushes) for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
+    if (horde && localAmbushes) {
+      for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
+      // During a raid, the people of the town take shelter.
+      localNpcs?.setAlarm(localAmbushes.sheltered);
+    }
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now(), mob);

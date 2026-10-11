@@ -1,5 +1,6 @@
 import type { Dialog } from './dialog.ts';
-import type { Conditions, QuestEffect } from './quests.ts';
+import type { Pack } from './items.ts';
+import { holds, type Conditions, type QuestBook, type QuestEffect } from './quests.ts';
 import type { Gate } from './traits.ts';
 import type { Box } from './world.ts';
 
@@ -107,6 +108,9 @@ export const FIXTURE_TYPES = [
   { id: 28, kind: 'cache', tiles: [{ dx: 0, dy: 0, box: null, reach: [3, 4, 13, 14] }], depth: 6 },
   // A two-wheeled cart, two tiles wide (the merchant's, on the road to Ironhold: 2026-10-11).
   { id: 29, kind: 'cart', tiles: TWO_WIDE(4, 13), depth: 8 },
+  // The camp of the war band (story phase 4b): a post where they tie a prisoner, and a fire in a ring of stones.
+  { id: 30, kind: 'stake', tiles: ONE_TILE([5, 8, 11, 14]), depth: 10 },
+  { id: 31, kind: 'campfire', tiles: ONE_TILE([2, 4, 14, 14]), depth: 6 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
@@ -224,8 +228,19 @@ export interface Fixture {
   /**
    * Another frame for the characters for whom the conditions hold (quests.ts): the cart that a
    * character mended shows mended to that character. Only the page draws it; the footprint stays.
+   * With `content`, the thing also says and does something else for those characters (the post of
+   * the hobgoblin camp, where only a character at the step sees Himo tied: fixtureContent()).
    */
-  readonly variant?: { readonly when: Conditions; readonly frame: string };
+  readonly variant?: { readonly when: Conditions; readonly frame: string; readonly content?: Interaction };
+}
+
+/**
+ * What a thing says and does for a character with `book` and `pack`: the content of its variant when
+ * the conditions of the variant hold and it has one, else its own content.
+ */
+export function fixtureContent(fixture: Fixture, book: QuestBook, pack: Pack): Interaction | undefined {
+  const variant = fixture.variant;
+  return variant?.content && holds(variant.when, book, pack) ? variant.content : fixture.content;
 }
 
 /** The tiles that a fixture covers, with the structure code of each. */

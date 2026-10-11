@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 28;
+export const PROTOCOL_VERSION = 29;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -305,7 +305,11 @@ export type WireCompanion = readonly [number, string, string, number, number, nu
 export type WireArrow = readonly [number, number, number, number, number];
 
 /** A mob: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state, health left]. Positions to 0.1 px. */
-export type WireMob = readonly [number, number, number, number, number, number, number, number, number, number];
+/**
+ * A mob on the wire: [id, kind code, x, y, vx, vy, facing code, state code, ms in the state, health,
+ * runes left in a rite (0 outside one), 1 while its weapon burns else 0] (the last two: protocol 29).
+ */
+export type WireMob = readonly [number, number, number, number, number, number, number, number, number, number, number, number];
 
 export function mobKindCode(kind: MobKind): number {
   return MOB_KINDS.indexOf(kind);
@@ -329,6 +333,8 @@ export function toWireMob(mob: Mob): WireMob {
     mobStateCode(mob.state),
     Math.round(mob.stateMs),
     mob.health,
+    mob.runes ?? 0,
+    mob.burning !== undefined ? 1 : 0,
   ];
 }
 

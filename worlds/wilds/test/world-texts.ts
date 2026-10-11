@@ -46,7 +46,10 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
     add(building.locked);
     for (const fixture of building.fixtures) content(fixture.content);
   }
-  for (const fixture of source.fixturesIn(-radius, -radius, radius, radius)) content(fixture.content);
+  for (const fixture of source.fixturesIn(-radius, -radius, radius, radius)) {
+    content(fixture.content);
+    content(fixture.variant?.content);
+  }
   for (const mark of source.landmarks?.() ?? []) add(mark.name);
   for (const scene of source.scenes?.() ?? []) for (const line of scene.lines) add(line.text);
   for (const quest of definition.quests ?? []) {

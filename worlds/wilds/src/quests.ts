@@ -9,6 +9,8 @@ import type { QuestDef, QuestEffect } from '@game/engine';
 
 /** The coins that the merchant pays for the help with the cart. */
 export const CART_REWARD = 10;
+/** The coins that the family of Himo pays when the character brings him home (the chapter: 20 gold). */
+export const HIMO_REWARD = 20;
 
 export const ASHES: QuestDef = {
   id: 'ashes',
@@ -57,8 +59,22 @@ export const RAID: QuestDef = {
       // The site of Silverspring at the end of the north road (road.ts, SILVERSPRING_SITE; a test checks it).
       at: [171, -179],
     },
-    // The scouts wait in the grove on the north road (source.ts, the ambush SCOUTS). The later steps come with Silverspring (story phase 4).
-    { id: 'scouts', journal: 'I killed the scouts of the hobgoblins in the grove on the road to Silverspring. Their war band goes on.', at: [171, -179] },
+    // The scouts wait in the grove on the north road (source.ts, the ambush SCOUTS). Then the war band
+    // marches on the road to Silverspring, for each party (story phase 4b, the ambush BAND).
+    {
+      id: 'scouts',
+      journal: 'I killed the scouts of the hobgoblins in the grove. Their war band marches on Silverspring along the north road. If I catch it on the road, Himo may still live.',
+      at: [171, -179],
+    },
+    // The band fell on the road: Himo is tied to the post of its camp (camp.ts; a test checks the tile).
+    { id: 'band', journal: 'The war band fell on the north road. Its camp is in the hills off the road, and Himo may be a prisoner there.', at: [92, -143] },
+    // Himo follows the character (source.ts, the escort HIMO) to Ironhold (its gate, town.ts: TOWN_GATE).
+    { id: 'escort', journal: 'Himo is free. I must take Himo home to Ironhold, through the woods.', at: [-7, 3] },
+    { id: 'home', journal: 'Himo is home in Ironhold, and his family paid me. Silverspring must hear that the war band is dead.', npc: 'kasmut' },
+    { id: 'lost', journal: 'Himo fell on the way home. The war band is dead all the same: Silverspring must hear of it.', npc: 'kasmut' },
+    // The band came to Silverspring first: the raid on the town (story phase 4c, the ambush RAID).
+    { id: 'raid', journal: 'The war band came to Silverspring before me. The hobgoblins attack the town!', at: [192, -179] },
+    { id: 'defended', journal: 'The war band fell in the streets of Silverspring. Himo died in its camp, the panners say. Kasmut wants to see me.', npc: 'kasmut' },
     { id: 'title', journal: 'Silverspring gave me a title in its guard, and a bed in the town.', end: true },
   ],
 };
@@ -95,3 +111,29 @@ export const RAID_ASKED: QuestEffect = { id: 'raid-asked', quest: 'raid', to: 'a
 
 /** The end of the ambush in the grove: the scouts fell. Their packs had badger furs. */
 export const RAID_SCOUTS: QuestEffect = { id: 'raid-scouts', quest: 'raid', to: 'scouts', from: ['asked'], give: { coins: 0, items: [{ kind: 'badger-fur', count: 2 }] } };
+/** The war band fell on the north road, before it came to Silverspring. */
+export const RAID_BAND: QuestEffect = { id: 'raid-band', quest: 'raid', to: 'band', from: ['scouts'] };
+/** The war band came to the gate of Silverspring first: the raid begins. */
+export const RAID_ARRIVED: QuestEffect = { id: 'raid-arrived', quest: 'raid', to: 'raid', from: ['scouts'] };
+/** The character cuts the ropes of Himo at the post of the camp (camp.ts). */
+export const HIMO_FREE: QuestEffect = { id: 'himo-free', quest: 'raid', to: 'escort', from: ['band'] };
+/** Himo comes home to Ironhold with the character: his family pays. */
+export const HIMO_HOME: QuestEffect = { id: 'himo-home', quest: 'raid', to: 'home', from: ['escort'], give: { coins: HIMO_REWARD, items: [] } };
+/** Himo falls on the way home. */
+export const HIMO_LOST: QuestEffect = { id: 'himo-lost', quest: 'raid', to: 'lost', from: ['escort'] };
+/** The war band fell in the streets of Silverspring. */
+export const RAID_DEFENDED: QuestEffect = { id: 'raid-defended', quest: 'raid', to: 'defended', from: ['raid'] };
+/**
+ * Kasmut gives the title in the guard of Silverspring (the flag `title`; the bed at the Silver Trout
+ * goes with it). When the band fell on the road, before the town knew of it, she also gives the
+ * permit of Silverspring: the jeweller sells mithril to the character at cost (the chapter).
+ */
+export const RAID_TITLE_PERMIT: QuestEffect = {
+  id: 'raid-title-permit',
+  quest: 'raid',
+  to: 'title',
+  from: ['home', 'lost'],
+  flag: 'permit',
+  give: { coins: 0, items: [{ kind: 'mithril-permit', count: 1 }] },
+};
+export const RAID_TITLE: QuestEffect = { id: 'raid-title', quest: 'raid', to: 'title', from: ['defended'] };

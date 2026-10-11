@@ -1,5 +1,5 @@
 import { Ground, type Fixture, type NpcDef } from '@game/engine';
-import { HOST, KASMUT, LORE_GATE, MILITIA } from './dialogs.ts';
+import { HOST, JEWELLER, KASMUT, LORE_GATE, MILITIA } from './dialogs.ts';
 import { SILVERSPRING_SITE } from './road.ts';
 import { LAMP, Town, type Plan } from './towns.ts';
 
@@ -156,11 +156,8 @@ const BUILDINGS: readonly Plan[] = [
       K: {
         id: 'jeweller',
         look: 'jeweller',
-        pages: [
-          'Rings of mithril, light as a breath. The Enclave buys nearly all of them.',
-          'Mithril takes a spell as wool takes a dye. I sing to it while it cools. Do not laugh.',
-          'I sell only to the Enclave, or to a friend of the town. Kasmut decides who that is.',
-        ],
+        // She sells mithril to a character with the permit of Silverspring (dialogs.ts).
+        dialog: JEWELLER,
         barks: ['Light as a breath...', 'Steady hands, steady hands.', 'Where are the small tongs?'],
         greeting: '{name}. Mind the dust: it is worth more than you.',
       },
@@ -241,6 +238,8 @@ const WALKERS: readonly NpcDef[] = [
     look: 'prospector',
     home: SILVERSPRING.at(26, 7),
     area: SILVERSPRING.streetArea(25, 5, 33, 12),
+    // During the raid, he hides behind the crates by the inn (NpcDef.shelter).
+    shelter: SILVERSPRING.at(25, 5),
     content: {
       speaker: 'fixture',
       pages: [

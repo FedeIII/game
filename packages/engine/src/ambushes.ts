@@ -13,6 +13,10 @@ import type { World } from './world.ts';
  * (encounters.ts). When all of them have fallen, the quest moves on for every character at the step
  * near the area. If they go away instead (nobody near them any more), the ambush waits again. The
  * Room runs them in a shared world; the page in a world that it runs.
+ *
+ * A band that marches (`march`, the war band of story phase 4b) starts at the beginning of a route
+ * and walks it (Horde.march); its mobs never go away. If one of them comes to the end of the route,
+ * the band is in: the march ends with `arrive` for the characters of the party, and the band goes.
  */
 
 /** A mob of an ambush; it rides the mob at index `rides` of the whole list (its mount), in seat `seat` (0 in front), until the pair hunts. */
@@ -34,7 +38,22 @@ export interface AmbushDef {
   readonly units: readonly (readonly AmbushMember[])[];
   /** What the end does for each character at the step near the area (the quest moves on, a reward). */
   readonly effect: QuestEffect;
+  /**
+   * A band that marches: it starts at the first point of `route` (tiles, as fractions), its mobs in a
+   * column behind it, and walks it at `speed` (px/s) while it does not hunt (`from` does not count).
+   * When one of its mobs comes to the end, `arrive` applies for the characters of the party; without
+   * `arrive`, the band stays there (the raid, in the main street of the town).
+   */
+  readonly march?: { readonly route: readonly (readonly [number, number])[]; readonly speed: number; readonly arrive?: QuestEffect };
+  /**
+   * A raid (an event, the war band in Silverspring): its mobs may go into a town (Horde.unleash,
+   * MobRules.raid), and the NPCs with these ids take shelter while it runs (NpcCrowd.setAlarm).
+   */
+  readonly raid?: { readonly shelter: readonly string[] };
 }
+
+/** How the mobs of a marching band stand in their column: this many points of the route apart (Road: 4 points for each tile). */
+export const MARCH_GAP = 6;
 
 /** A character as the ambushes see it. */
 export interface AmbushPlayer {
@@ -72,6 +91,11 @@ export class Ambushes {
     return this.running.flatMap((r) => r.mobs);
   }
 
+  /** The ids of the NPCs that take shelter now: those of the raids that run. */
+  get sheltered(): Set<string> {
+    return new Set(this.running.flatMap((r) => r.def.raid?.shelter ?? []));
+  }
+
   /**
    * One step: an ambush ends when all its mobs fell (the effects to apply, for the characters), or it
    * stops when they went away; a character at the step in an area starts one (the horde gets the mobs).
@@ -81,6 +105,15 @@ export class Ambushes {
     // An ambush that ends now does not start again in this step: its effects are not applied yet.
     const ended = new Set<AmbushDef>();
     for (const run of [...this.running]) {
+      // A band that came to the end of its route: it goes, and the party gets `arrive`.
+      const arrive = run.def.march?.arrive;
+      if (arrive && run.mobs.some((id) => horde.arrived(id) && horde.mobs.some((m) => m.id === id && m.state !== 'dying'))) {
+        this.running.splice(this.running.indexOf(run), 1);
+        ended.add(run.def);
+        horde.dismiss(run.mobs);
+        for (const p of players) if (run.players.has(p.id) && holds(run.def.when, p.quests, p.pack) && canApply(arrive, p.quests, p.pack)) out.push({ player: p.id, effect: arrive });
+        continue;
+      }
       let alive = 0;
       let fled = false;
       for (const id of run.mobs) {
@@ -110,24 +143,36 @@ export class Ambushes {
     return out;
   }
 
-  /** Puts the mobs of an ambush for `count` characters at its point furthest from (x, y). */
+  /** Puts the mobs of an ambush for `count` characters at its point furthest from (x, y); a band that marches, in its column at the start of its route. */
   private spawn(def: AmbushDef, horde: Horde, at: { readonly x: number; readonly y: number }, count: number): number[] {
-    const [fx, fy] = [...def.from].sort((a, b) => Math.hypot(b[0] * TILE_SIZE - at.x, b[1] * TILE_SIZE - at.y) - Math.hypot(a[0] * TILE_SIZE - at.x, a[1] * TILE_SIZE - at.y))[0]!;
     const units = sizeEncounter(
       def.units.map((u) => u.map((m) => m.kind)),
       count,
     ).length;
     const members = def.units.slice(0, units).flat();
+    const route = def.march?.route.map(([x, y]) => ({ x: x * TILE_SIZE, y: y * TILE_SIZE }));
+    const [fx, fy] = route ? [0, 0] : [...def.from].sort((a, b) => Math.hypot(b[0] * TILE_SIZE - at.x, b[1] * TILE_SIZE - at.y) - Math.hypot(a[0] * TILE_SIZE - at.x, a[1] * TILE_SIZE - at.y))[0]!;
+    const walkers = members.filter((m) => m.rides === undefined).length;
     const mobs: Mob[] = [];
+    let walker = 0;
     members.forEach((member, i) => {
       const mount = member.rides === undefined ? undefined : mobs[member.rides];
       if (mount) {
         mobs[i] = horde.spawnRider(member.kind, mount, member.seat ?? 0);
         return;
       }
+      if (route) {
+        // The column: the first mob at the head, the others behind it on the route.
+        const p = route[Math.min(route.length - 1, (walkers - 1 - walker++) * MARCH_GAP)]!;
+        const spot = this.world.findSpawn(Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE), 0);
+        mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
+        horde.march(mobs[i]!, route, def.march!.speed);
+        return;
+      }
       const spot = this.world.findSpawn(fx + (i % 3) * 2 - 2, fy + Math.floor(i / 3) * 2, 0);
       mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
     });
+    if (def.raid) for (const mob of mobs) horde.unleash(mob);
     return mobs.map((m) => m.id);
   }
 

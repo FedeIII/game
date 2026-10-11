@@ -16,7 +16,8 @@
  */
 import { Image } from './image.ts';
 import { cropToContent, ramp, shadowEllipse } from './raster.ts';
-import { box, cylinder, ellipsoid, intersect, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { box, cylinder, displace, ellipsoid, intersect, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { hash } from './materials.ts';
 import type { Frame } from './sprites.ts';
 
 const SIZE = 16;
@@ -486,6 +487,22 @@ function badgerFur(): Part[] {
   ];
 }
 
+/** A nugget of mithril: a small lump of pale silver with a cold blue gleam. */
+function mithril(): Part[] {
+  return [
+    { sdf: displace(ellipsoid([0, 3, 0], [4.2, 3, 3.4]), 0.9, 1.1, 61), material: (x, y, z) => (hash(Math.floor(x * 2), Math.floor(y * 2), Math.floor(z * 2)) < 0.22 ? I.arcane : I.silver) },
+  ];
+}
+
+/** The permit of Silverspring: a roll of parchment tied with a cord, and a seal of blue wax. */
+function permit(): Part[] {
+  return [
+    { sdf: roundCone([-5.4, 2.2, 0], [5.4, 2.2, 0], 2.1, 2.1), material: I.bone },
+    { sdf: roundCone([0, 2.2, -2.3], [0, 2.2, 2.3], 0.4, 0.4), material: I.string },
+    { sdf: ellipsoid([0, 2.4, 2.4], [1.6, 1.6, 0.6]), material: I.arcane },
+  ];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -536,6 +553,8 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['glaive', glaive],
   ['crowbar', crowbar],
   ['badger-fur', badgerFur],
+  ['mithril', mithril],
+  ['mithril-permit', permit],
 ];
 
 export function itemFrames(): Frame[] {

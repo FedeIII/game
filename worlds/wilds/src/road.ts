@@ -120,31 +120,30 @@ export const GROVE_SPAN = [0.36, 0.46] as const;
 export const GROVE_RADIUS = 7;
 
 /**
- * The grove on the north road (chapter 1.5.1: the scouts of the hobgoblins ambush the characters
- * "when they cross a wooded area"): a stretch where trees grow close on both sides of the road,
- * right to its edge. The road itself stays open.
+ * A stretch of a road: the tiles within `radius` tiles of its middle line between two shares of its
+ * length (from its start). The grove is one; the war band marches on another (source.ts).
  */
-export class Grove {
-  /** For each tile of the grove: its distance to the middle line of the road (tiles). */
+export class RoadStretch {
+  /** For each tile of the stretch: its distance to the middle line of the road (tiles). */
   private readonly near = new Map<string, number>();
   readonly x0: number;
   readonly y0: number;
   readonly x1: number;
   readonly y1: number;
-  /** The points of the road where the grove begins (from Ironhold) and ends (tiles). */
+  /** The points of the road where the stretch begins (from its start) and ends (tiles). */
   readonly start: readonly [number, number];
   readonly end: readonly [number, number];
 
-  constructor(road: Road) {
+  constructor(road: Road, span: readonly [number, number], radius: number) {
     const n = road.points.length;
-    const first = Math.floor(n * GROVE_SPAN[0]);
-    const last = Math.floor(n * GROVE_SPAN[1]);
+    const first = Math.floor(n * span[0]);
+    const last = Math.min(n - 1, Math.floor(n * span[1]));
     for (let i = first; i <= last; i++) {
       const [x, y] = road.points[i]!;
-      for (let ty = Math.floor(y) - GROVE_RADIUS; ty <= Math.floor(y) + GROVE_RADIUS; ty++) {
-        for (let tx = Math.floor(x) - GROVE_RADIUS; tx <= Math.floor(x) + GROVE_RADIUS; tx++) {
+      for (let ty = Math.floor(y) - radius; ty <= Math.floor(y) + radius; ty++) {
+        for (let tx = Math.floor(x) - radius; tx <= Math.floor(x) + radius; tx++) {
           const d = Math.hypot(tx + 0.5 - x, ty + 0.5 - y);
-          if (d > GROVE_RADIUS) continue;
+          if (d > radius) continue;
           const key = `${tx},${ty}`;
           if (d < (this.near.get(key) ?? Infinity)) this.near.set(key, d);
         }
@@ -159,13 +158,54 @@ export class Grove {
     this.y1 = Math.max(...tiles.map(([, y]) => y));
   }
 
-  /** Whether the tile is in the grove. */
+  /** Whether the tile is in the stretch. */
   has(tx: number, ty: number): boolean {
     return this.near.has(`${tx},${ty}`);
   }
 
-  /** The distance of a tile of the grove to the middle line of the road, or Infinity. */
+  /** The distance of a tile of the stretch to the middle line of the road, or Infinity. */
   distance(tx: number, ty: number): number {
     return this.near.get(`${tx},${ty}`) ?? Infinity;
   }
+}
+
+/**
+ * The grove on the north road (chapter 1.5.1: the scouts of the hobgoblins ambush the characters
+ * "when they cross a wooded area"): a stretch where trees grow close on both sides of the road,
+ * right to its edge. The road itself stays open.
+ */
+export class Grove extends RoadStretch {
+  constructor(road: Road) {
+    super(road, GROVE_SPAN, GROVE_RADIUS);
+  }
+}
+
+/**
+ * The war band (story phase 4b) marches on the north road from this share of its length, a little
+ * beyond the grove, to its end at the gate of Silverspring. A character at the step on the road
+ * from the grove to Silverspring (this far from it, tiles) starts it.
+ */
+export const BAND_SPAN = [GROVE_SPAN[1] + 0.07, 1] as const;
+export const BAND_AREA = { span: [GROVE_SPAN[0], 0.97], radius: 10 } as const;
+
+/**
+ * The camp of the war band (story phase 4b; chapter 1.5.1): in the hills off the north road, between
+ * the grove and Silverspring. Its middle is CAMP_OFFSET tiles off the point of the road at CAMP_SHARE
+ * of its length, to the north-west, and a trail leads to it from the road.
+ */
+export const CAMP_SHARE = 0.66;
+export const CAMP_OFFSET = [-13, -13] as const;
+
+/** The middle of the camp of the war band (tiles). */
+export function campSite(): { tx: number; ty: number } {
+  const road = northRoad();
+  const [x, y] = road.points[Math.floor(road.points.length * CAMP_SHARE)]!;
+  return { tx: Math.floor(x) + CAMP_OFFSET[0], ty: Math.floor(y) + CAMP_OFFSET[1] };
+}
+
+/** The trail from the north road to the camp: from the point of the road at CAMP_SHARE to `to` (the camp's way in, tiles). */
+export function campTrail(to: { tx: number; ty: number }): Road {
+  const road = northRoad();
+  const [x, y] = road.points[Math.floor(road.points.length * CAMP_SHARE)]!;
+  return new Road(x, y, to.tx + 0.5, to.ty + 0.5);
 }

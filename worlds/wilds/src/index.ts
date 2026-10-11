@@ -5,14 +5,59 @@ import { TEXTS_ES } from './text-es.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
-export { GROVE_SPAN, Grove, NORTH_ROAD_START, Road, SILVERSPRING_SITE, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
-export { APOTHECARY, ATHLETICS_GATE, HOST, INNKEEPER, INSIGHT_GATE, KASMUT, MERCHANT, MILITIA, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, SOLDIER, WATCHMAN, smithPays } from './dialogs.ts';
-export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, RAID, RAID_ASKED, RAID_HEARD, RAID_SCOUTS, READ_LETTER, TELL_REEVE } from './quests.ts';
+export {
+  APOTHECARY,
+  ATHLETICS_GATE,
+  HOST,
+  INNKEEPER,
+  INSIGHT_GATE,
+  JEWELLER,
+  KASMUT,
+  MERCHANT,
+  MILITIA,
+  MITHRIL_COST,
+  MITHRIL_PRICE,
+  PEDDLER,
+  PERSUASION_GATE,
+  REEVE,
+  SMITH,
+  SMITH_PRICES,
+  SOLDIER,
+  WATCHMAN,
+  smithPays,
+} from './dialogs.ts';
+export {
+  ASHES,
+  CART,
+  CART_HELP,
+  CART_LEVER,
+  CART_LIFT,
+  CART_MEND,
+  CART_REWARD,
+  HIMO_FREE,
+  HIMO_HOME,
+  HIMO_LOST,
+  HIMO_REWARD,
+  QUESTS,
+  RAID,
+  RAID_ARRIVED,
+  RAID_ASKED,
+  RAID_BAND,
+  RAID_DEFENDED,
+  RAID_HEARD,
+  RAID_SCOUTS,
+  RAID_TITLE,
+  RAID_TITLE_PERMIT,
+  READ_LETTER,
+  TELL_REEVE,
+} from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
@@ -40,6 +85,8 @@ export const wilds: WorldDefinition = {
     candelabra: 'Tall candles in an iron stand.',
     signpost: 'An old signpost.',
     cart: "A merchant's cart, loaded with crates and a sack.",
+    stake: 'A thick post, driven deep into the ground.',
+    campfire: 'A fire in a ring of stones.',
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {
@@ -80,6 +127,8 @@ export const wilds: WorldDefinition = {
     glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
     crowbar: "A bar of dark iron from the smith of Ironhold. The merchant on the road needs it for the cart.",
     'badger-fur': 'A thick grey fur from the packs of the hobgoblin scouts. Corwin, the peddler of Ironhold, buys it.',
+    mithril: 'A nugget of mithril from the stream of Silverspring, light as a feather. The smith of Ironhold buys it.',
+    'mithril-permit': 'The permit of Silverspring, sealed by Kasmut Parnika: the jeweller of Silverspring sells mithril at cost to its holder.',
   },
   // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
   quests: QUESTS,

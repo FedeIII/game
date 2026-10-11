@@ -16,6 +16,10 @@ export interface MobLook {
   readonly stateMs: number;
   /** The health points that it has left (the debug panel; the health bar of INT 13). */
   readonly health?: number;
+  /** In a rite (state 'rite'): the runes that it has left. */
+  readonly runes?: number;
+  /** While its weapon burns (a Devastator's rite). */
+  readonly burning?: number;
 }
 
 /** The health bar of a mob (read the foe, INT 13): this wide, this far over its head (world pixels), in these colours. */
@@ -23,7 +27,7 @@ const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
 /** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
 const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
-const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36 };
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29 };
 
 /** From the feet to the top of the head of a mob of this kind (world pixels): numbers and bars go over it. */
 export function mobHead(kind: MobKind): number {
@@ -31,9 +35,9 @@ export function mobHead(kind: MobKind): number {
 }
 
 /** World pixels of travel for each walk frame. */
-const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5 };
+const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4 };
 /** The glow of the eyes, above the darkness. */
-const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30 };
+const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30, devastator: 0xff7a2a };
 /** The ash of a death: how tall and wide the body is (world pixels), and how many motes rise from it. */
 const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly width: number; readonly count: number }>> = {
   imp: { height: 14, width: 8, count: 14 },
@@ -42,7 +46,16 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
   worg: { height: 14, width: 22, count: 22 },
   hobgoblin: { height: 24, width: 12, count: 20 },
   bugbear: { height: 32, width: 16, count: 28 },
+  devastator: { height: 26, width: 12, count: 24 },
 };
+/**
+ * The circle of a rite on the ground (Rite): RING_DOTS points that light up round it as the rite
+ * goes on, and its runes, lit while they are whole and dark when a blow broke them.
+ */
+const RING_DOTS = 72;
+const RING = { lit: 0xff7a2a, dim: 0x5a1e0c, rune: 0xffc070, broken: 0x3a1208 } as const;
+/** The embers of a burning weapon: about this many each second, from the upper body. */
+const BURN_EMBERS = 14;
 /** A rider (state 'ride') sits this far up, on the back of its worg (world pixels). */
 const RIDE_LIFT = 9;
 /** The death: the frames play over this share of the death; the body fades out over the end. */
@@ -82,6 +95,8 @@ interface MobView {
   readonly bar: Container;
   readonly barFill: Sprite;
   readonly glint: Sprite;
+  /** The circle of a rite (a caster only), above the darkness. */
+  ring: Container | null;
 }
 
 /**
@@ -136,6 +151,7 @@ export class MobViews {
       view.eyes.destroy({ children: true });
       view.bar.destroy({ children: true });
       view.glint.destroy();
+      view.ring?.destroy({ children: true });
       this.views.delete(id);
     }
     this.updateMotes(now, seconds);
@@ -168,7 +184,7 @@ export class MobViews {
     const glint = new Sprite(this.art.frame('fx/star'));
     glint.visible = false;
     this.glowLayer.addChild(bar, glint);
-    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint };
+    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint, ring: null };
     this.views.set(mob.id, view);
     return view;
   }
@@ -208,6 +224,11 @@ export class MobViews {
       case 'ride':
         // On the back of its worg: it stands there, raised (below).
         name = 'stand';
+        break;
+      case 'rite':
+        // The staff high over its head; it sways as it chants.
+        name = 'windup';
+        index = Math.floor(mob.stateMs / 420) % 2 === 0 ? 1 : 0;
         break;
       case 'dying': {
         const t = mob.stateMs / stats.deathMs;
@@ -260,6 +281,68 @@ export class MobViews {
     }
     view.glint.visible = this.readOpening && mob.state === 'windup' && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
     if (view.glint.visible) view.glint.position.set(x + 6, top + 3);
+    this.placeRing(view, mob, x, Math.round(mob.y), now);
+    // A burning weapon throws embers up from the upper body.
+    if (mob.burning && mob.state !== 'dying' && Math.random() < BURN_EMBERS * seconds) this.ember(mob.x + (Math.random() - 0.5) * 10, mob.y - HEAD[mob.kind] * (0.35 + Math.random() * 0.4));
+  }
+
+  /** The circle of a rite round a caster: its dots light up as the rite goes on; its runes go dark when blows break them. */
+  private placeRing(view: MobView, mob: MobLook, x: number, y: number, now: number): void {
+    const rite = MOB_STATS[mob.kind].rite;
+    const show = rite !== undefined && mob.state === 'rite';
+    if (!show) {
+      if (view.ring) view.ring.visible = false;
+      return;
+    }
+    if (!view.ring) {
+      view.ring = new Container();
+      view.ring.blendMode = 'add';
+      for (let i = 0; i < RING_DOTS + rite.runes * 5; i++) {
+        const dot = new Sprite(Texture.WHITE);
+        dot.width = 1;
+        dot.height = 1;
+        view.ring.addChild(dot);
+      }
+      this.glowLayer.addChild(view.ring);
+    }
+    view.ring.visible = true;
+    view.ring.position.set(x, y);
+    const dots = view.ring.children as Sprite[];
+    const progress = Math.min(1, mob.stateMs / rite.ms);
+    const pulse = 0.6 + 0.4 * Math.sin(now / 140);
+    for (let i = 0; i < RING_DOTS; i++) {
+      const a = (i / RING_DOTS) * 2 * Math.PI - Math.PI / 2;
+      const dot = dots[i]!;
+      dot.position.set(Math.round(Math.cos(a) * rite.radius), Math.round(Math.sin(a) * rite.radius));
+      const lit = i / RING_DOTS < progress;
+      dot.tint = lit ? RING.lit : RING.dim;
+      dot.alpha = lit ? pulse : 0.5;
+    }
+    // The runes: small crosses, evenly round the circle.
+    const runes = mob.runes ?? 0;
+    for (let r = 0; r < rite.runes; r++) {
+      const a = (r / rite.runes) * 2 * Math.PI - Math.PI / 2;
+      const cx = Math.round(Math.cos(a) * rite.radius);
+      const cy = Math.round(Math.sin(a) * rite.radius);
+      const whole = r < runes;
+      [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy], k) => {
+        const dot = dots[RING_DOTS + r * 5 + k]!;
+        dot.position.set(cx + dx!, cy + dy!);
+        dot.tint = whole ? RING.rune : RING.broken;
+        dot.alpha = whole ? 1 : 0.6;
+      });
+    }
+  }
+
+  /** One ember that rises and fades (a burning weapon). */
+  private ember(x: number, y: number): void {
+    const sprite = new Sprite(Texture.WHITE);
+    sprite.width = 1;
+    sprite.height = 1;
+    sprite.tint = Math.random() < 0.5 ? 0xff7a2a : 0xffb050;
+    sprite.blendMode = 'add';
+    this.glowLayer.addChild(sprite);
+    this.motes.push({ sprite, x, y, vx: (Math.random() - 0.5) * 8, vy: -10 - Math.random() * 12, born: performance.now(), life: 500 + Math.random() * 400 });
   }
 
   /** Puts a glowing pixel (and a dim halo) on each eye pixel of the frame. */

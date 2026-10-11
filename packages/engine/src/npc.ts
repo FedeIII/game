@@ -39,6 +39,11 @@ export interface NpcDef {
    * stands for the name of the player's character. Only the page shows it.
    */
   readonly greeting?: string;
+  /**
+   * Where it takes shelter during a raid (NpcCrowd.setAlarm): a tile of its area, where it goes and
+   * stands until the raid ends. Without it, its home.
+   */
+  readonly shelter?: readonly [number, number];
 }
 
 /** Where an NPC is and how it moves: the same shape as a player's pose. */
@@ -160,6 +165,8 @@ export class NpcCrowd {
   /** The crowd's own clock (the sum of the steps), and when the last line was said. */
   private clock = 0;
   private lastLineAt = -Infinity;
+  /** The NPCs (indices) that take shelter now: a raid on their town (setAlarm). */
+  private alarmed = new Set<number>();
 
   constructor(world: World, defs: readonly NpcDef[], seed: number) {
     this.world = world;
@@ -191,6 +198,28 @@ export class NpcCrowd {
     });
   }
 
+  /**
+   * A raid: the NPCs with these ids go to their shelter (NpcDef.shelter, else their home) and stand
+   * there, silent; the others, and all of them when the set is empty, walk as before.
+   */
+  setAlarm(ids: ReadonlySet<string>): void {
+    const next = new Set<number>();
+    this.defs.forEach((def, i) => ids.has(def.id) && next.add(i));
+    for (const i of next) {
+      if (this.alarmed.has(i)) continue;
+      const brain = this.brains[i]!;
+      const [sx, sy] = this.defs[i]!.shelter ?? this.defs[i]!.home;
+      brain.path = this.route(brain, [sx, sy]);
+      brain.waitMs = Infinity;
+    }
+    for (const i of this.alarmed) {
+      if (next.has(i)) continue;
+      // The raid is over: a short wait, then the walks go on.
+      this.brains[i]!.waitMs = this.between(2000, 6000);
+    }
+    this.alarmed = next;
+  }
+
   /** Moves every NPC by `dtMs` milliseconds. `players` are the feet of the players near or far. */
   step(dtMs: number, players: readonly { readonly x: number; readonly y: number }[]): NpcEvents {
     const dt = Math.min(dtMs, 250);
@@ -200,7 +229,8 @@ export class NpcCrowd {
     this.brains.forEach((brain, i) => {
       const pose = this.poses[i]! as NpcPose;
       if (brain.opened && this.closeBehind(brain, pose, players, dt)) doors = true;
-      const line = this.bark(brain, this.defs[i]!, dt);
+      const alarmed = this.alarmed.has(i);
+      const line = alarmed ? null : this.bark(brain, this.defs[i]!, dt);
       // A player close by: stop, and face the nearest one.
       let nearest: { x: number; y: number } | null = null;
       let best = NPC_HOLD_RADIUS;
@@ -213,7 +243,7 @@ export class NpcCrowd {
       }
       // Never in a doorway, though: there it would keep the door from closing. It stops just after.
       const inDoorway = this.world.structure(Math.floor(pose.x / TILE_SIZE), Math.floor(pose.y / TILE_SIZE)) === Structure.Door;
-      if (nearest && !inDoorway) {
+      if (nearest && !inDoorway && !(alarmed && brain.path.length > 0)) {
         pose.vx = 0;
         pose.vy = 0;
         pose.facing = facingTo(nearest.x - pose.x, nearest.y - pose.y, pose.facing);
@@ -343,9 +373,9 @@ export class NpcCrowd {
     const my = pose.y - startY;
     pose.facing = facingTo(mx, my, pose.facing);
     if (brain.path.length === 0) {
-      // Arrived: a stop of a varied length; now and then a long one.
+      // Arrived: a stop of a varied length; now and then a long one. In shelter, it stays.
       const r = this.random();
-      brain.waitMs = r < 0.7 ? this.between(1500, 6000) : r < 0.95 ? this.between(6000, 14000) : this.between(15000, 25000);
+      brain.waitMs = brain.waitMs === Infinity ? Infinity : r < 0.7 ? this.between(1500, 6000) : r < 0.95 ? this.between(6000, 14000) : this.between(15000, 25000);
       brain.lookMs = this.between(800, 3000);
       pose.vx = 0;
       pose.vy = 0;

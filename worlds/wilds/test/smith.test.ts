@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, WEARABLES, World, checkDialog, gearAddress, kitOf, traitsOf, type DialogAnswer, type ItemKind, type Pack } from '@game/engine';
 import { DEFAULT_SEED, MAGIC_CHANCE, MAGIC_ITEMS, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
+import { MITHRIL_PRICE } from '../src/index.ts';
 
 const answers = (): DialogAnswer[] => Object.values(SMITH.nodes).flatMap((n) => n.answers);
 const deals = (prefix: 'buy-' | 'sell-') => answers().flatMap((a) => (a.deal?.id.startsWith(prefix) ? [a.deal] : []));
@@ -27,7 +28,9 @@ describe('the smith of Ironhold', () => {
   });
 
   it('buys all of it back for half of the price, at least 1 coin, from the pack only', () => {
-    const bought = deals('sell-');
+    // The smith also buys mithril of Silverspring (story phase 4d), at its own price.
+    for (const deal of deals('sell-').filter((d) => d.id === 'sell-mithril')) expect([deal.items, deal.pay]).toEqual([[{ kind: 'mithril', count: 1 }], MITHRIL_PRICE]);
+    const bought = deals('sell-').filter((d) => d.id !== 'sell-mithril');
     expect(new Set(bought.flatMap((d) => d.items!.map((s) => s.kind)))).toEqual(new Set(Object.keys(SMITH_PRICES)));
     for (const deal of bought) {
       const kind = deal.items![0]!.kind as keyof typeof SMITH_PRICES;

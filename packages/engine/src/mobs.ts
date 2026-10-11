@@ -30,10 +30,32 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
 /**
  * The kinds of mobs. The order is the code on the wire: add a kind at the end. The hobgoblin band
  * (story phase 3, chapter 1.5.1 of Kandrax): the goblin (an archer), the worg (a wolf that
- * charges), the hobgoblin (a soldier) and the bugbear (the brute of the band).
+ * charges), the hobgoblin (a soldier) and the bugbear (the brute of the band); and the leader of
+ * its war band, the Hobgoblin Devastator, a caster (story phase 4b: its rite, Rite).
  */
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear';
-export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator';
+export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator'];
+
+/**
+ * The rite of the Hobgoblin Devastator (chapter 1.5.1: "Arma Elemental de Área", a spell of 4 turns
+ * that it casts at the rear of the band). It stands still for `ms` in a circle of `radius` (world
+ * pixels) with `runes` runes on it. Each blow that hits it breaks one rune; when the last one breaks,
+ * the rite fails, and it reels. When the rite ends with runes left, the weapons of the mobs of the
+ * kinds `allies` in the circle burn for `burnMs` (BURN_TO_HIT, BURN_DICE). It begins a rite while it
+ * hunts and an ally whose weapon does not burn stands in the circle, `cooldownMs` after its last one.
+ */
+export interface Rite {
+  readonly ms: number;
+  readonly radius: number;
+  readonly runes: number;
+  readonly allies: readonly MobKind[];
+  readonly burnMs: number;
+  readonly cooldownMs: number;
+}
+
+/** A burning weapon (5e: Elemental Weapon): +1 to hit, and 1d4 more damage of fire. */
+export const BURN_TO_HIT = 1;
+export const BURN_DICE = dice(1, 4);
 
 export interface MobStats {
   /** World pixels per second: walking round its home, running at a player, running away. */
@@ -95,6 +117,8 @@ export interface MobStats {
   readonly arrowRange?: number;
   /** It charges in a straight line, not on a curve (the worg). */
   readonly straight?: boolean;
+  /** A caster's rite (the Hobgoblin Devastator). */
+  readonly rite?: Rite;
 }
 
 /**
@@ -280,15 +304,49 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     hurtMs: 300,
     poisonTicks: 0,
   },
+  // The leader of the war band, a caster with a staff. HP and AC of the Hobgoblin Devastator of
+  // Volo's Guide (45, 13). Its XP is the game's own: Volo's block is CR 4 for its spells (fireball,
+  // fly); here it has its staff and its rite only, about CR 1.
+  devastator: {
+    wanderSpeed: 22,
+    chaseSpeed: 54,
+    retreatSpeed: 46,
+    sight: 130,
+    forget: 220,
+    reach: 18,
+    hitRange: 25,
+    windupMs: 520,
+    strikeMs: 320,
+    windupSpeed: 20,
+    lunge: 6,
+    stunTicks: 70,
+    retreatMs: [1200, 1800],
+    harass: [54, 70],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 1000,
+    health: 45,
+    ac: 13,
+    toHit: 3,
+    damage: dice(1, 6, 1),
+    xp: 200,
+    knockback: 12,
+    hurtMs: 260,
+    poisonTicks: 0,
+    // 15 m in the chapter (10 tiles); 8 tiles in the game, so that the circle fits the screen.
+    rite: { ms: 6000, radius: 128, runes: 3, allies: ['hobgoblin', 'bugbear'], burnMs: 30_000, cooldownMs: 15_000 },
+  },
 };
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
- * strikes, runs away after a hit (retreat), dies, reels from a blow that did not kill it (hurt), or
- * rides another mob (ride: a goblin on a worg, protocol 27). The order is the code on the wire.
+ * strikes, runs away after a hit (retreat), dies, reels from a blow that did not kill it (hurt),
+ * rides another mob (ride: a goblin on a worg, protocol 27), or casts a rite (rite: the Devastator,
+ * protocol 29). The order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite'];
 
 export interface Mob {
   readonly id: number;
@@ -308,6 +366,12 @@ export interface Mob {
   mount?: number;
   /** Where it sits: 0 on the back of its mount, 1 behind (a goblin behind the hobgoblin). */
   seat?: number;
+  /** In a rite (state 'rite'): the runes that it has left. */
+  runes?: number;
+  /** While its weapon burns (a Devastator's rite): the ms left. */
+  burning?: number;
+  /** A mob of a raid (Horde.unleash): it may go into a town (MobRules.raid). */
+  raider?: boolean;
 }
 
 /** A rider sits this far behind the middle of its mount for each seat (world pixels). */
@@ -365,6 +429,11 @@ export interface MobRules {
   roam(tx: number, ty: number): boolean;
   /** Whether a mob may step on a tile while it chases a player or runs away (roam, or a little more). */
   hunt(tx: number, ty: number): boolean;
+  /**
+   * Whether a mob of a raid (Horde.unleash: the war band in Silverspring) may step on a tile: the
+   * towns too. Without it, as `hunt`.
+   */
+  raid?(tx: number, ty: number): boolean;
   /** How many mobs of each kind live round each player (a kind without a number: none). */
   readonly population: Readonly<Partial<Record<MobKind, number>>>;
 }
@@ -529,6 +598,12 @@ interface Brain {
   orbitMs: number;
   /** After it gave up a hunt: how long more it does not look for players (ms). */
   restMs: number;
+  /** A route that it marches while it does not hunt (world pixels; Horde.march), the next point on it, and its pace (px/s). */
+  route: readonly { readonly x: number; readonly y: number }[] | null;
+  routeIndex: number;
+  routeSpeed: number;
+  /** The time until it may begin another rite (ms). */
+  riteMs: number;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -552,6 +627,23 @@ function facingTo(dx: number, dy: number, current: Facing): Facing {
 
 const tileOf = (v: number) => Math.floor(v / TILE_SIZE);
 
+/** A marching mob is at a point of its route this close (world pixels). */
+const ROUTE_REACH = 8;
+
+/** The index of the point of a route nearest to (x, y). */
+function nearestPoint(route: readonly { readonly x: number; readonly y: number }[], at: { readonly x: number; readonly y: number }): number {
+  let best = 0;
+  let bestD = Infinity;
+  route.forEach((p, i) => {
+    const d = Math.hypot(p.x - at.x, p.y - at.y);
+    if (d < bestD) {
+      best = i;
+      bestD = d;
+    }
+  });
+  return best;
+}
+
 /** The mobs of a world: they come, wander, hunt players, and die. */
 export class Horde {
   readonly world: World;
@@ -572,8 +664,9 @@ export class Horde {
   private bodies = new Map<number, NonNullable<HordePlayer['traits']>>();
   private readonly brains = new Map<number, Brain>();
   private readonly random: () => number;
-  /** The world for a mob: a tile that a mob may not step on is solid. */
+  /** The world for a mob: a tile that a mob may not step on is solid. The same for a mob of a raid (raidGround). */
   private readonly ground: SolidMap;
+  private readonly raidGround: SolidMap;
   private nextId = 1;
   private spawnMs = SPAWN_GAP_MS;
   /** The time of the horde (ms): the sum of its steps. */
@@ -588,6 +681,7 @@ export class Horde {
     this.random = rng(seed);
     this.dice = dice ?? rollingDice(rng(seed ^ 0x5bd1e995));
     this.ground = { solidBox: (tx, ty) => (this.passable(tx, ty) ? world.solidBox(tx, ty) : FULL_BOX) };
+    this.raidGround = { solidBox: (tx, ty) => (this.passable(tx, ty, true) ? world.solidBox(tx, ty) : FULL_BOX) };
   }
 
   /** The mobs that are alive (not dying). */
@@ -676,8 +770,40 @@ export class Horde {
       orbit: 1,
       orbitMs: 0,
       restMs: 0,
+      route: null,
+      routeIndex: 0,
+      routeSpeed: 0,
+      riteMs: 0,
     });
     return mob;
+  }
+
+  /**
+   * Sends a mob along a route (world pixels) at `speed` px/s (the war band on the north road): it
+   * walks the route while it does not hunt, and after a hunt it goes on from the point of the route
+   * nearest to it. At the end it stands. A mob with a route never goes away (despawn): it marches on
+   * with nobody near.
+   */
+  march(mob: Mob, route: readonly { readonly x: number; readonly y: number }[], speed: number): void {
+    const brain = this.brains.get(mob.id);
+    if (!brain || route.length === 0) return;
+    brain.route = route;
+    brain.routeIndex = nearestPoint(route, mob);
+    brain.routeSpeed = speed;
+  }
+
+  /** Whether a mob is at the end of its route. */
+  arrived(id: number): boolean {
+    const brain = this.brains.get(id);
+    return brain !== undefined && brain.route !== null && brain.routeIndex >= brain.route.length;
+  }
+
+  /** Takes mobs out of the world at once (no death): the war band that came into Silverspring. */
+  dismiss(ids: readonly number[]): void {
+    for (const id of ids) {
+      const mob = this.mobs.find((m) => m.id === id);
+      if (mob) this.remove(mob);
+    }
   }
 
   /**
@@ -701,13 +827,16 @@ export class Horde {
     for (const mob of [...this.mobs]) {
       const brain = this.brains.get(mob.id)!;
       mob.stateMs += dt;
+      if (brain.riteMs > 0) brain.riteMs -= dt;
+      if (mob.burning !== undefined && (mob.burning -= dt) <= 0) delete mob.burning;
       switch (mob.state) {
         case 'idle':
         case 'walk':
-          if (this.despawn(mob, players)) break;
+          if (!brain.route && this.despawn(mob, players)) break;
           if (brain.restMs > 0) brain.restMs -= dt;
           else if (this.notice(mob, brain, players)) break;
-          this.wander(mob, brain, dt, people);
+          if (brain.route) this.marchOn(mob, brain, dt);
+          else this.wander(mob, brain, dt, people);
           break;
         case 'chase':
           this.chase(mob, brain, byId, dt);
@@ -758,6 +887,9 @@ export class Horde {
           break;
         case 'ride':
           this.ride(mob, brain);
+          break;
+        case 'rite':
+          this.chant(mob, brain, byId, dt);
           break;
       }
     }
@@ -856,6 +988,13 @@ export class Horde {
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
       return { mob, damage, crit };
     }
+    // In a rite, a hit breaks one rune: the rite goes on while runes are left, else it fails.
+    if (mob.state === 'rite' && mob.runes !== undefined && --mob.runes > 0) {
+      if (attackerId !== undefined) brain.target = attackerId;
+      return { mob, damage, crit };
+    }
+    // A rite whose last rune broke fails: the next one waits.
+    if (mob.state === 'rite') brain.riteMs = MOB_STATS[mob.kind].rite?.cooldownMs ?? 0;
     // It reels, its wind-up or blow broken, and turns on the one who hit it.
     if (attackerId !== undefined) brain.target = attackerId;
     brain.lostMs = 0;
@@ -873,7 +1012,8 @@ export class Horde {
   private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
-    const roll = attackRoll(stats.toHit, body?.ac ?? 10, this.dice);
+    const burning = mob.burning !== undefined;
+    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), body?.ac ?? 10, this.dice);
     if (!roll.hit) {
       glancePlayer(target);
       hits.push([mob.id, id, 0]);
@@ -883,6 +1023,7 @@ export class Horde {
     if (stats.allyDice && this.mobs.some((m) => m !== mob && m.state !== 'dying' && Math.hypot(m.x - target.x, m.y - target.y) <= ALLY_RANGE)) {
       damage += rollDice(stats.allyDice, this.dice, roll.crit);
     }
+    if (burning) damage += rollDice(BURN_DICE, this.dice, roll.crit);
     damage = Math.max(1, damage);
     hitPlayer(target, damage, stats.stunTicks, stats.poisonTicks, body);
     if (target.down === 0) target.inspired = inspireFor(id, target, players);
@@ -934,14 +1075,20 @@ export class Horde {
     return rollLoot(MOB_LOOT[mob.kind], this.random);
   }
 
-  /** Whether a mob may be on a tile at all: never in a building, and only where the world lets it hunt. */
-  passable(tx: number, ty: number): boolean {
-    return this.world.buildingAt(tx, ty) === null && this.rules.hunt(tx, ty);
+  /** Whether a mob may be on a tile at all: never in a building, and only where the world lets it hunt (a mob of a raid: MobRules.raid). */
+  passable(tx: number, ty: number, raider = false): boolean {
+    return this.world.buildingAt(tx, ty) === null && (raider && this.rules.raid ? this.rules.raid(tx, ty) : this.rules.hunt(tx, ty));
+  }
+
+  /** Lets a mob go where a raid goes (MobRules.raid): into a town. Only the mobs of an event (the raid on Silverspring). */
+  unleash(mob: Mob): void {
+    mob.raider = true;
   }
 
   // ---------------------------------------------------------------- states
 
   private enter(mob: Mob, state: MobState): void {
+    if (state !== 'rite') delete mob.runes;
     mob.state = state;
     mob.stateMs = 0;
     const brain = this.brains.get(mob.id);
@@ -1039,6 +1186,15 @@ export class Horde {
     const dx = (seen ? target.x : brain.seenX) - mob.x;
     const dy = (seen ? target.y : brain.seenY) - mob.y;
     const d = Math.hypot(dx, dy);
+    // A caster begins its rite when an ally whose weapon does not burn is in its circle.
+    const rite = stats.rite;
+    if (seen && rite && brain.riteMs <= 0 && this.riteAllies(mob, rite).some((m) => m.burning === undefined)) {
+      this.enter(mob, 'rite');
+      mob.runes = rite.runes;
+      mob.facing = facingTo(dx, dy, mob.facing);
+      brain.timerMs = rite.ms;
+      return;
+    }
     if (seen) {
       const wait = this.waitFor(mob, brain.target!, target);
       if (wait <= 0 && d > stats.reach && brain.stuckMs > STUCK_MS) {
@@ -1156,7 +1312,49 @@ export class Horde {
     brain.restMs = REST_MS;
     brain.goal = { x: brain.home.x, y: brain.home.y };
     brain.stuckMs = 0;
+    // A marching mob goes back to its route, from the point nearest to it.
+    if (brain.route) brain.routeIndex = Math.min(brain.routeIndex, nearestPoint(brain.route, mob));
     this.enter(mob, 'walk');
+  }
+
+  /** Walks the route on (Horde.march); at its end, it stands. */
+  private marchOn(mob: Mob, brain: Brain, dt: number): void {
+    const route = brain.route!;
+    while (brain.routeIndex < route.length && Math.hypot(route[brain.routeIndex]!.x - mob.x, route[brain.routeIndex]!.y - mob.y) < ROUTE_REACH) brain.routeIndex++;
+    brain.home = { x: mob.x, y: mob.y };
+    if (brain.routeIndex >= route.length) {
+      if (mob.state !== 'idle') this.enter(mob, 'idle');
+      brain.timerMs = 1000;
+      return;
+    }
+    if (mob.state !== 'walk') this.enter(mob, 'walk');
+    const p = route[brain.routeIndex]!;
+    this.steer(mob, brain, Math.atan2(p.y - mob.y, p.x - mob.x), brain.routeSpeed, dt);
+  }
+
+  /** The allies of a caster in the circle of its rite (alive). */
+  private riteAllies(mob: Mob, rite: Rite): Mob[] {
+    return this.mobs.filter((m) => m !== mob && m.state !== 'dying' && rite.allies.includes(m.kind) && Math.hypot(m.x - mob.x, m.y - mob.y) <= rite.radius);
+  }
+
+  /**
+   * A rite (Rite): the caster stands and faces its target. At its end, the weapons of its allies in
+   * the circle burn; then it hunts again, and its next rite waits.
+   */
+  private chant(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    const rite = MOB_STATS[mob.kind].rite!;
+    mob.vx = 0;
+    mob.vy = 0;
+    const target = brain.target === null ? undefined : players.get(brain.target);
+    if (target) mob.facing = facingTo(target.x - mob.x, target.y - mob.y, mob.facing);
+    brain.timerMs -= dt;
+    if (brain.timerMs > 0) return;
+    for (const ally of this.riteAllies(mob, rite)) ally.burning = rite.burnMs;
+    brain.riteMs = rite.cooldownMs;
+    if (target) {
+      brain.queuedMs = this.clockMs;
+      this.enter(mob, 'chase');
+    } else this.giveUp(mob, brain);
   }
 
   // ---------------------------------------------------------------- turns
@@ -1290,7 +1488,7 @@ export class Horde {
     const dx = player.x - mob.x;
     const dy = player.y - mob.y;
     const d = Math.hypot(dx, dy);
-    if (d > range || !this.passable(tileOf(player.x), tileOf(player.y))) return false;
+    if (d > range || !this.passable(tileOf(player.x), tileOf(player.y), mob.raider)) return false;
     const steps = Math.ceil(d / 8);
     for (let i = 1; i < steps; i++) {
       if (this.world.buildingAt(tileOf(mob.x + (dx * i) / steps), tileOf(mob.y + (dy * i) / steps)) !== null) return false;
@@ -1358,8 +1556,9 @@ export class Horde {
     const { halfWidth, halfHeight } = MOB_STATS[mob.kind];
     const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_MOVE));
     for (let i = 0; i < n; i++) {
-      moveAxis(body, this.ground, dx / n, 0, halfWidth, halfHeight);
-      moveAxis(body, this.ground, 0, dy / n, halfWidth, halfHeight);
+      const ground = mob.raider ? this.raidGround : this.ground;
+      moveAxis(body, ground, dx / n, 0, halfWidth, halfHeight);
+      moveAxis(body, ground, 0, dy / n, halfWidth, halfHeight);
     }
   }
 

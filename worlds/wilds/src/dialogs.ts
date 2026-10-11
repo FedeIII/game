@@ -1,5 +1,13 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, TELL_REEVE } from './quests.ts';
+import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+
+/**
+ * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
+ * character with the permit of Silverspring, and the smith of Ironhold pays MITHRIL_PRICE for it
+ * (the chapter: bought at cost, sold elsewhere for up to two and a half times as much).
+ */
+export const MITHRIL_COST = 5;
+export const MITHRIL_PRICE = 10;
 
 /**
  * The conversations of the people of Ironhold (town.ts) and of Silverspring (silverspring.ts): what
@@ -237,9 +245,23 @@ export const REEVE: Dialog = {
   starts: [
     { when: { quest: 'raid', at: ['heard'] }, node: 'warn' },
     { when: { quest: 'raid', at: ['asked'] }, node: 'go' },
+    { when: { quest: 'raid', at: ['home'] }, node: 'himo' },
+    { when: { quest: 'raid', at: ['lost'] }, node: 'himo-lost' },
     { when: { quest: 'ashes', at: ['letter'] }, node: 'letter' },
   ],
   nodes: {
+    himo: {
+      say: 'Himo is home! His mother has not slept for a week. Ironhold owes you more than it can pay.',
+      answers: [{ text: 'His family paid me.', next: 'family' }, { text: 'Tell me about the town.', next: 'reeve' }, BYE],
+    },
+    family: {
+      say: 'Good people. Now go to Silverspring, and tell them that the war band is dead. They will want to hear it from you.',
+      answers: [BYE],
+    },
+    'himo-lost': {
+      say: 'Himo... fell? So close to home? ...I will tell his mother myself. It is my work.',
+      answers: [{ text: 'I am sorry.' }],
+    },
     warn: {
       say: 'You heard it. Hobgoblins in the hills, on the way to Silverspring. Somebody must warn them, and the soldiers will not go.',
       answers: [
@@ -429,8 +451,27 @@ export const SMITH: Dialog = {
   name: 'The smith',
   start: 'forge',
   // A character who helps the merchant on the road (quests.ts, cart), without a lever.
-  starts: [{ when: [{ quest: 'cart', at: ['met', 'lever'] }, { has: 'crowbar', not: true }], node: 'cart' }],
+  starts: [
+    { when: [{ quest: 'cart', at: ['met', 'lever'] }, { has: 'crowbar', not: true }], node: 'cart' },
+    // Mithril of Silverspring in the pack (story phase 4d): Ironhold wants it.
+    { when: { has: 'mithril' }, node: 'mithril' },
+  ],
   nodes: {
+    mithril: {
+      say: 'Is that mithril in your pack? From Silverspring? I pay you ten coins a nugget, and I ask no questions.',
+      answers: [
+        { text: 'One nugget, then.', next: 'mithril-sold', deal: { id: 'sell-mithril', goods: 'coins', price: 0, pay: MITHRIL_PRICE, items: [{ kind: 'mithril', count: 1 }], poor: 'none' } },
+        { text: 'Something else.', next: 'forge' },
+        BYE,
+      ],
+    },
+    'mithril-sold': {
+      say: 'Light as a feather, and harder than my anvil. Bring me more.',
+      answers: [
+        { text: 'Another one.', next: 'mithril-sold', deal: { id: 'sell-mithril', goods: 'coins', price: 0, pay: MITHRIL_PRICE, items: [{ kind: 'mithril', count: 1 }], poor: 'none' } },
+        { text: 'That is all.' },
+      ],
+    },
     cart: {
       say: 'Mind the forge. It bites. You look like somebody who needs iron.',
       answers: [
@@ -689,8 +730,40 @@ export const SOLDIER: Dialog = {
 export const KASMUT: Dialog = {
   name: 'Kasmut Parnika, of the Enclave',
   start: 'hello',
-  starts: [{ when: { quest: 'raid', at: ['asked', 'scouts'] }, node: 'road' }],
+  starts: [
+    { when: { quest: 'raid', at: ['title'] }, node: 'guard' },
+    { when: { quest: 'raid', at: ['home', 'lost'] }, node: 'early' },
+    { when: { quest: 'raid', at: ['defended'] }, node: 'held' },
+    { when: { quest: 'raid', at: ['band', 'escort'] }, node: 'himo' },
+    { when: { quest: 'raid', at: ['asked', 'scouts'] }, node: 'road' },
+  ],
   nodes: {
+    // The end of the raid (story phase 4d): the war band fell on the road, before Silverspring knew.
+    early: {
+      say: 'You again. The war band... dead on the road? Before it came near us?',
+      answers: [{ text: 'Dead, all of it. Its camp is empty.', next: 'reward', effect: RAID_TITLE_PERMIT }, { text: 'Tell me about Silverspring.', next: 'town' }, BYE],
+    },
+    reward: {
+      say: 'Then Silverspring owes you its life. From today you are of the guard of Silverspring. Tova keeps a bed for you at the Silver Trout. And take this permit: the jeweller sells you mithril at cost.',
+      answers: [{ text: 'Thank you, Kasmut.' }],
+    },
+    // The band came to the town first, and fell in its streets.
+    held: {
+      say: 'You fought in our streets beside my militia. The town stands because of you.',
+      answers: [{ text: 'It was our fight.', next: 'guarded', effect: RAID_TITLE }, BYE],
+    },
+    guarded: {
+      say: 'From today you are of the guard of Silverspring. Tova keeps a bed for you at the Silver Trout. And speak well of our mithril, wherever you go.',
+      answers: [{ text: 'I will.' }],
+    },
+    guard: {
+      say: 'A guard of Silverspring. Ha. It suits you. The hills are quiet, for now.',
+      answers: [{ text: 'Tell me about Silverspring.', next: 'town' }, { text: 'Why is a veteran of the Enclave out here?', next: 'why' }, BYE],
+    },
+    himo: {
+      say: 'The war band is dead? Then their prisoner, the scout of Ironhold... Find him, if he lives, and take him home. Then come back to me.',
+      answers: [{ text: 'I will.' }],
+    },
     hello: {
       say: 'Kasmut Parnika, veteran of the Mithril Enclave. I train the militia of Silverspring. What do you want?',
       answers: [
@@ -760,6 +833,8 @@ export const KASMUT: Dialog = {
 
 /** An ale at the Silver Trout: the last barrel from Ironhold. */
 const TROUT_ALE = { id: 'ale', goods: 'ale', price: 2, poor: 'poor' } as const;
+/** The bed of the guard at the Silver Trout (the title of the raid): the inn becomes the character's refuge. */
+const TROUT_ROOM = { id: 'room', goods: 'refuge', refuge: 'trout', price: 0, poor: 'room' } as const;
 
 /** Tova, who keeps the Silver Trout, the inn of Silverspring. */
 export const HOST: Dialog = {
@@ -789,7 +864,11 @@ export const HOST: Dialog = {
     },
     room: {
       say: 'The rooms are for the guard of the town these days, and for its friends. Kasmut decides who is a friend.',
-      answers: [{ text: 'Any news?', next: 'news' }, BYE],
+      answers: [{ text: 'Kasmut made me one of the guard.', next: 'guest', deal: TROUT_ROOM, when: { quest: 'raid', at: ['title'] } }, { text: 'Any news?', next: 'news' }, BYE],
+    },
+    guest: {
+      say: 'So she did! Then the bed under the blue quilt is yours. If the hills knock you down, wake up here, not out there.',
+      answers: [{ text: 'Thank you, Tova.' }],
     },
     news: {
       say: 'Kasmut drills the militia every dawn. The panners grumble, and then they go. Something in the hills worries her.',
@@ -817,6 +896,42 @@ export const MILITIA: Dialog = {
     },
     charge: {
       say: 'Kasmut Parnika, in the militia hall by the gate. A veteran of the Enclave. She shouts, but she is fair.',
+      answers: [BYE],
+    },
+  },
+};
+
+/** A nugget of mithril, for a character with the permit of Silverspring (story phase 4d). The server checks the condition of each answer with a deal. */
+const MITHRIL = { id: 'buy-mithril', goods: 'mithril', price: MITHRIL_COST, poor: 'poor' } as const;
+const PERMIT = { has: 'mithril-permit' } as const;
+
+/** Ilsa, the jeweller of Silverspring: she sells mithril at cost to a friend of the town (the permit). */
+export const JEWELLER: Dialog = {
+  name: 'Ilsa, the jeweller',
+  start: 'shop',
+  nodes: {
+    shop: {
+      say: 'Rings of mithril, light as a breath. The Enclave buys nearly all of them.',
+      answers: [{ text: 'How do you work it?', next: 'craft' }, { text: 'Will you sell me mithril?', next: 'sell' }, BYE],
+    },
+    craft: {
+      say: 'Mithril takes a spell as wool takes a dye. I sing to it while it cools. Do not laugh.',
+      answers: [{ text: 'Will you sell me mithril?', next: 'sell' }, BYE],
+    },
+    sell: {
+      say: 'I sell only to the Enclave, or to a friend of the town. Kasmut decides who that is.',
+      answers: [{ text: 'Here is the permit of Silverspring.', next: 'nugget', when: PERMIT }, BYE],
+    },
+    nugget: {
+      say: 'The permit of Kasmut! Then you pay what the Enclave pays: five coins a nugget.',
+      answers: [{ text: 'One nugget, then.', next: 'bought', deal: MITHRIL, when: PERMIT }, BYE],
+    },
+    bought: {
+      say: 'Here. When you sell it, tell them where it comes from.',
+      answers: [{ text: 'Another one.', next: 'bought', deal: MITHRIL, when: PERMIT }, { text: 'That is all.' }],
+    },
+    poor: {
+      say: 'Five coins, friend, and room in your pack. Mithril is not given away.',
       answers: [BYE],
     },
   },

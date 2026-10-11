@@ -61,6 +61,9 @@ export const ITEM_KINDS = [
   'crowbar',
   // The loot of the scouts of the hobgoblins (chapter 1.5.1): the peddler buys it.
   'badger-fur',
+  // Silverspring (story phase 4d): a nugget of mithril, and the permit that lets a character buy it at cost.
+  'mithril',
+  'mithril-permit',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -103,6 +106,8 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   glaive: 1,
   crowbar: 1,
   'badger-fur': 5,
+  mithril: 10,
+  'mithril-permit': 1,
 };
 
 /**
@@ -349,6 +354,14 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
   worg: {},
   hobgoblin: { coins: [2, 6] },
   bugbear: { coins: [3, 8] },
+  // The chapter's loot of the war band: a splint armour and the hobgoblin luck amulet.
+  devastator: {
+    coins: [5, 12],
+    items: [
+      { chance: 1, pick: [['luck-amulet', 1]] },
+      { chance: 1, pick: [['splint-armour', 1]] },
+    ],
+  },
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */

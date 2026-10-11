@@ -21,30 +21,39 @@ import {
   type Refuge,
   type AmbushDef,
   type AmbushMember,
+  type EscortDef,
   type SceneDef,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
+import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT } from './dialogs.ts';
-import { RAID_SCOUTS } from './quests.ts';
-import { Grove, Road, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+import { HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
 
-/** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). */
+/** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). No mob comes into them. */
 const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING];
+/** Every fixed place of the Wilds: the towns, and the camp of the war band (camp.ts), where mobs go as in the woods. */
+const PLACES: readonly Town[] = [...TOWNS, CAMP];
+
+/** The fixed place that a tile is in, or null. */
+function placeAt(tx: number, ty: number): Town | null {
+  return PLACES.find((t) => t.has(tx, ty)) ?? null;
+}
 
 /** The town that a tile is in, or null. */
 function townAt(tx: number, ty: number): Town | null {
   return TOWNS.find((t) => t.has(tx, ty)) ?? null;
 }
 
-/** Whether a tile is within `margin` tiles of a town (or in it). */
-function nearTown(tx: number, ty: number, margin: number): boolean {
-  return TOWNS.some((t) => tx >= t.x0 - margin && tx <= t.x1 + margin && ty >= t.y0 - margin && ty <= t.y1 + margin);
+/** Whether a tile is within `margin` tiles of one of `places` (or in it). */
+function nearPlace(tx: number, ty: number, margin: number, places: readonly Town[] = PLACES): boolean {
+  return places.some((t) => tx >= t.x0 - margin && tx <= t.x1 + margin && ty >= t.y0 - margin && ty <= t.y1 + margin);
 }
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
@@ -119,13 +128,17 @@ const HERB_MARGIN = 2;
 
 const CHAPEL = IRONHOLD.buildings.find((b) => b.id === 'chapel')!;
 const INN = IRONHOLD.buildings.find((b) => b.id === 'inn')!;
+const TROUT = SILVERSPRING.buildings.find((b) => b.id === 'trout')!;
 /**
  * The chapel: a character that has been inside it wakes there after a defeat. The inn: only a
- * character to whom Marta gave a room (Charisma 13, dialogs.ts), on the tile west of its bed.
+ * character to whom Marta gave a room (Charisma 13, dialogs.ts), on the tile west of its bed. The
+ * Silver Trout of Silverspring: only a character of the guard of Silverspring (the title of the raid;
+ * Tova gives the bed), on the tile west of its bed.
  */
 const REFUGES: readonly Refuge[] = [
   { id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 },
   { id: 'inn', building: INN.id, x: (INN.x0 + 7) * TILE_SIZE + TILE_SIZE / 2, y: (INN.y0 + 4) * TILE_SIZE + 12, given: true },
+  { id: 'trout', building: TROUT.id, x: (TROUT.x0 + 7) * TILE_SIZE + TILE_SIZE / 2, y: (TROUT.y0 + 2) * TILE_SIZE + 12, given: true },
 ];
 
 /** Mobs in the wilds: four imps and two brutes round each player. */
@@ -146,6 +159,29 @@ const SCOUT_UNITS: readonly (readonly AmbushMember[])[] = [
   [{ kind: 'bugbear', rides: 3, seat: 0 }],
 ];
 
+/**
+ * The war band (story phase 4b; chapter 1.5.1, "el pelotón de ataque"): the Hobgoblin Devastator
+ * with a hobgoblin, then more hobgoblins and a bugbear. Alone, a character meets the Devastator and
+ * one hobgoblin; six characters meet the whole band (encounters.ts: the Devastator, five hobgoblins
+ * and the bugbear). The same band raids Silverspring when it comes there first.
+ */
+const BAND_UNITS: readonly (readonly AmbushMember[])[] = [
+  [{ kind: 'devastator' }, { kind: 'hobgoblin' }],
+  [{ kind: 'hobgoblin' }],
+  [{ kind: 'hobgoblin' }],
+  [{ kind: 'bugbear' }],
+  [{ kind: 'hobgoblin' }],
+  [{ kind: 'hobgoblin' }],
+];
+/** The band marches at this pace (px/s): a slow walk (a character walks at 80). */
+const BAND_SPEED = 36;
+
+/** The raid on Silverspring starts for a character at the step this close to the town (tiles); the band marches this many tiles up the main street. */
+const RAID_MARGIN = 6;
+const RAID_STREET = 20;
+/** Himo, the scout of Ironhold (5e: a scout, 16 hit points, AC 13): he dies if he falls. */
+const HIMO = { id: 'himo', name: 'Himo', look: 'scout', hp: 16, ac: 13, fallen: 'gone' } as const;
+
 /** The trees of the grove: the natural forest with no threshold (terrain.ts, hasTree): a tree at every local pick, also where the woods have a clearing. */
 const GROVE_THRESHOLD = 0;
 /**
@@ -156,8 +192,8 @@ export const CART_SAFE = 4;
 /** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
 const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
 
-/** Every fixture of the towns, in their buildings and in their streets. */
-const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWNS.flatMap((t) => [...t.buildings.flatMap((b) => b.fixtures), ...t.streetFixtures]), TOWN_CACHE];
+/** Every fixture of the fixed places, in their buildings and in their streets. */
+const TOWN_FIXTURE_LIST: readonly Fixture[] = [...PLACES.flatMap((t) => [...t.buildings.flatMap((b) => b.fixtures), ...t.streetFixtures]), TOWN_CACHE];
 /** The same, by each tile of its footprint. */
 const TOWN_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
 for (const fixture of TOWN_FIXTURE_LIST) {
@@ -167,8 +203,8 @@ for (const fixture of TOWN_FIXTURE_LIST) {
     TOWN_FIXTURES.set(key, { fixture, code });
   }
 }
-/** The buildings of all the towns. */
-const TOWN_BUILDINGS: readonly Building[] = TOWNS.flatMap((t) => t.buildings);
+/** The buildings of all the fixed places. */
+const TOWN_BUILDINGS: readonly Building[] = PLACES.flatMap((t) => t.buildings);
 
 const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: number, y0: number, x1: number, y1: number) =>
   b.x1 >= x0 && b.x0 <= x1 && b.y1 >= y0 && b.y0 <= y1;
@@ -185,6 +221,7 @@ export class WildsSource implements WorldSource {
   private readonly patches = new Map<string, Fixture | null>();
   private roadOf: Road | null = null;
   private northOf: Road | null = null;
+  private trailOf: Road | null = null;
   private groveOf: Grove | null = null;
   private signOf: Fixture | null = null;
   private cartOf: Fixture | null = null;
@@ -207,6 +244,17 @@ export class WildsSource implements WorldSource {
     return this.northOf;
   }
 
+  /** The trail from the north road to the camp of the war band (road.ts, camp.ts). */
+  get trail(): Road {
+    this.trailOf ??= campTrail(CAMP_GATE);
+    return this.trailOf;
+  }
+
+  /** The roads: to Ironhold, to Silverspring, and the trail to the camp. */
+  private get roads(): readonly Road[] {
+    return [this.road, this.north, this.trail];
+  }
+
   /** The grove on the north road, where the scouts of the hobgoblins wait (road.ts). */
   get grove(): Grove {
     this.groveOf ??= new Grove(this.north);
@@ -215,7 +263,7 @@ export class WildsSource implements WorldSource {
 
   /** Whether a tile is on a road or close to it, where nothing grows (but in the grove). */
   private roadClear(tx: number, ty: number): boolean {
-    return this.road.clear(tx, ty) || this.north.clear(tx, ty);
+    return this.roads.some((r) => r.clear(tx, ty));
   }
 
   /**
@@ -259,10 +307,10 @@ export class WildsSource implements WorldSource {
     const y0 = house.y0 - 1;
     const x1 = house.x1 + 1;
     const y1 = house.y1 + DOOR_PATH;
-    if (TOWNS.some((t) => overlaps(t, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN))) return true;
+    if (PLACES.some((t) => overlaps(t, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN))) return true;
     const sign = this.sign;
     if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
-    for (const road of [this.road, this.north]) {
+    for (const road of this.roads) {
       if (!overlaps(road, x0, y0, x1, y1)) continue;
       for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (road.clear(tx, ty)) return true;
     }
@@ -282,7 +330,7 @@ export class WildsSource implements WorldSource {
         cellX,
         cellY,
         (tx, ty) => this.noHerbsAt(tx, ty),
-        (tx, ty) => townAt(tx, ty) !== null || naturalSolid(this.seed, tx, ty) || this.cellHousesIn(tx, ty, tx, ty).length > 0,
+        (tx, ty) => placeAt(tx, ty) !== null || naturalSolid(this.seed, tx, ty) || this.cellHousesIn(tx, ty, tx, ty).length > 0,
       );
       this.patches.set(key, patch);
     }
@@ -297,7 +345,7 @@ export class WildsSource implements WorldSource {
 
   /** Where no herbs grow: near a town, on or near a road, near the signpost, and on or near the ground of a house. */
   private noHerbsAt(tx: number, ty: number): boolean {
-    if (nearTown(tx, ty, TOWN_MARGIN + HERB_MARGIN)) return true;
+    if (nearPlace(tx, ty, TOWN_MARGIN + HERB_MARGIN)) return true;
     if (this.roadClear(tx, ty)) return true;
     if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
     const r = HERB_MARGIN + DOOR_PATH + 1;
@@ -314,6 +362,7 @@ export class WildsSource implements WorldSource {
     const houses = this.cellHousesIn(cx * CHUNK_SIZE - reach, cy * CHUNK_SIZE - reach, cx * CHUNK_SIZE + CHUNK_SIZE - 1 + reach, cy * CHUNK_SIZE + CHUNK_SIZE - 1 + reach);
     const road = this.road;
     const north = this.north;
+    const trail = this.trail;
     const grove = this.grove;
     const sign = this.sign;
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
@@ -321,9 +370,9 @@ export class WildsSource implements WorldSource {
         const tx = cx * CHUNK_SIZE + lx;
         const ty = cy * CHUNK_SIZE + ly;
         const index = ly * CHUNK_SIZE + lx;
-        const town = townAt(tx, ty);
-        if (town) {
-          this.townTile(town, chunk, index, tx, ty);
+        const place = placeAt(tx, ty);
+        if (place) {
+          this.townTile(place, chunk, index, tx, ty);
           continue;
         }
         if (tx === sign.tx && ty === sign.ty) {
@@ -348,7 +397,7 @@ export class WildsSource implements WorldSource {
           continue;
         }
         const house = houses.find((h) => nearHouse(h, tx, ty));
-        const onRoad = road.on(tx, ty) || north.on(tx, ty);
+        const onRoad = road.on(tx, ty) || north.on(tx, ty) || trail.on(tx, ty);
         if (!house && !onRoad && grove.has(tx, ty)) {
           // The grove: trees close on both sides of the north road, right to its edge.
           const natural = naturalGround(this.seed, tx, ty);
@@ -358,7 +407,7 @@ export class WildsSource implements WorldSource {
           chunk.decor[index] = naturalDecor(this.seed, tx, ty, ground, GROVE_THRESHOLD);
           continue;
         }
-        if (!house && (road.clear(tx, ty) || north.clear(tx, ty))) {
+        if (!house && (road.clear(tx, ty) || north.clear(tx, ty) || trail.clear(tx, ty))) {
           // A road: mud (over water too), and nothing grows on it or close to it.
           const natural = naturalGround(this.seed, tx, ty);
           const ground = onRoad ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
@@ -425,15 +474,15 @@ export class WildsSource implements WorldSource {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const [x, y] = [tx + dx, ty + dy];
-        if (!townAt(x, y) && naturalDecor(this.seed, x, y, naturalGround(this.seed, x, y)) === Decor.Tree) return true;
+        if (!placeAt(x, y) && naturalDecor(this.seed, x, y, naturalGround(this.seed, x, y)) === Decor.Tree) return true;
       }
     }
     return false;
   }
 
   buildingAt(tx: number, ty: number): Building | null {
-    const town = townAt(tx, ty);
-    if (town) return town.buildings.find((b) => inRect(b, tx, ty)) ?? null;
+    const place = placeAt(tx, ty);
+    if (place) return place.buildings.find((b) => inRect(b, tx, ty)) ?? null;
     const house = this.house(Math.floor(tx / BUILDING_CELL), Math.floor(ty / BUILDING_CELL));
     return house && inRect(house, tx, ty) ? house : null;
   }
@@ -455,7 +504,7 @@ export class WildsSource implements WorldSource {
   }
 
   fixtureAt(tx: number, ty: number): Fixture | null {
-    if (townAt(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
+    if (placeAt(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
     if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
     const cart = this.cart;
     if (ty === cart.ty && (tx === cart.tx || tx === cart.tx + 1)) return cart;
@@ -469,7 +518,7 @@ export class WildsSource implements WorldSource {
   fixturesIn(x0: number, y0: number, x1: number, y1: number): Fixture[] {
     const within = (f: Fixture) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1;
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
-    if (TOWNS.some((t) => overlaps(t, x0, y0, x1, y1))) out.push(...TOWN_FIXTURE_LIST.filter(within));
+    if (PLACES.some((t) => overlaps(t, x0, y0, x1, y1))) out.push(...TOWN_FIXTURE_LIST.filter(within));
     if (within(this.sign)) out.push(this.sign);
     if (within(this.cart)) out.push(this.cart);
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
@@ -489,7 +538,7 @@ export class WildsSource implements WorldSource {
   loot(fixture: Fixture): LootTable | null {
     if (fixture.kind === 'herbpatch') return HERB_LOOT;
     if (fixture.kind === 'cache') return CACHE_LOOT;
-    if (fixture.kind !== 'chest' || townAt(fixture.tx, fixture.ty)) return null;
+    if (fixture.kind !== 'chest' || placeAt(fixture.tx, fixture.ty)) return null;
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;
     return house.barred ? BARRED_CHEST_LOOT : fixture.lock ? LOCKED_CHEST_LOOT : CHEST_LOOT;
@@ -549,10 +598,45 @@ export class WildsSource implements WorldSource {
   ambushes(): readonly AmbushDef[] {
     if (!this.ambushList) {
       const grove = this.grove;
+      const north = this.north;
       const tile = ([x, y]: readonly [number, number]) => [Math.floor(x), Math.floor(y)] as const;
-      this.ambushList = [{ id: 'scouts', inArea: (tx, ty) => grove.has(tx, ty), when: { quest: 'raid', at: ['asked'] }, from: [tile(grove.start), tile(grove.end)], units: SCOUT_UNITS, effect: RAID_SCOUTS }];
+      const scouts: AmbushDef = { id: 'scouts', inArea: (tx, ty) => grove.has(tx, ty), when: { quest: 'raid', at: ['asked'] }, from: [tile(grove.start), tile(grove.end)], units: SCOUT_UNITS, effect: RAID_SCOUTS };
+      // The war band marches from beyond the grove to the gate of Silverspring (road.ts, BAND_SPAN).
+      const marchArea = new RoadStretch(north, BAND_AREA.span, BAND_AREA.radius);
+      const first = Math.floor(north.points.length * BAND_SPAN[0]);
+      const band: AmbushDef = {
+        id: 'band',
+        inArea: (tx, ty) => marchArea.has(tx, ty) && !townAt(tx, ty),
+        when: { quest: 'raid', at: ['scouts'] },
+        from: [],
+        units: BAND_UNITS,
+        effect: RAID_BAND,
+        march: { route: north.points.slice(first), speed: BAND_SPEED, arrive: RAID_ARRIVED },
+      };
+      // It came to Silverspring first: it raids the town for a character at the step there (story phase 4c).
+      const s = SILVERSPRING;
+      const raid: AmbushDef = {
+        id: 'raid',
+        inArea: (tx, ty) => tx >= s.x0 - RAID_MARGIN && tx <= s.x1 + RAID_MARGIN && ty >= s.y0 - RAID_MARGIN && ty <= s.y1 + RAID_MARGIN,
+        when: { quest: 'raid', at: ['raid'] },
+        from: [],
+        units: BAND_UNITS,
+        effect: RAID_DEFENDED,
+        // In at the gate, and up the main street to the middle of the town.
+        march: { route: Array.from({ length: (RAID_STREET + 3) * 4 + 1 }, (_, i) => [s.x0 - 3 + i / 4 + 0.5, s.y0 + 10.5] as const), speed: BAND_SPEED },
+        raid: { shelter: SILVERSPRING_NPCS.map((n) => n.id) },
+      };
+      this.ambushList = [scouts, band, raid];
     }
     return this.ambushList;
+  }
+
+  /**
+   * The escort of Himo (story phase 4b): for a character at the step `escort` of the raid, Himo
+   * follows; in Ironhold he is home and his family pays (HIMO_HOME); if he falls, he dies (HIMO_LOST).
+   */
+  escorts(): readonly EscortDef[] {
+    return [{ companion: HIMO, when: { quest: 'raid', at: ['escort'] }, home: (tx, ty) => IRONHOLD.has(tx, ty), arrive: HIMO_HOME, fall: HIMO_LOST }];
   }
 
   /** The talks that a character overhears: the argument in the house of the reeve (town.ts). */
@@ -582,10 +666,12 @@ export class WildsSource implements WorldSource {
     return {
       roam: (tx, ty) =>
         !isWet(naturalGround(this.seed, tx, ty)) &&
-        !nearTown(tx, ty, TOWN_MARGIN) &&
+        !nearPlace(tx, ty, TOWN_MARGIN, TOWNS) &&
         !nearCart(tx, ty) &&
         !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
       hunt: (tx, ty) => !townAt(tx, ty) && !nearCart(tx, ty),
+      // The mobs of the raid on Silverspring go into the town too (an event: Fede's decision, 2026-10-11).
+      raid: (tx, ty) => !nearCart(tx, ty),
       population: MOB_POPULATION,
     };
   }

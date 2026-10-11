@@ -5,7 +5,8 @@
  */
 import { ramp } from './raster.ts';
 import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, fallParts, rollParts } from './attacks.ts';
-import { WANDERER, figure, figureMaterials, type FigureSpec, type Palette } from './figure.ts';
+import { WANDERER, figure, figureMaterials, type FigureAction, type FigureSpec, type Palette } from './figure.ts';
+import type { Image } from './image.ts';
 import { renderModel, type Material, type Part } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
@@ -169,6 +170,13 @@ export const NPC_LOOKS: Record<string, Look> = {
     leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
     spec: { build: 1.08, hair: 'tail', cloak: 'none', pauldrons: false, pouch: true },
   },
+  /** Himo, a scout of Ironhold (story phase 4b): a hood and a short cloak in the green of the woods, leather, a quiver and a dagger. */
+  scout: {
+    cloak: ramp('#0a0f08', '#11190d', '#192413', '#22301a', '#2c3d22', '#374b2b'),
+    hood: true,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { cloak: 'short', pauldrons: false, quiver: true, item: 'dagger' },
+  },
   /** A child: small, with a big head and a short cloak. */
   child: {
     cloak: ramp('#141008', '#221b0e', '#332915', '#45381d', '#584826', '#6b5930'),
@@ -188,6 +196,26 @@ export const VIEWS = [
   { name: 'right', yaw: Math.PI / 2 },
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
+
+/**
+ * An NPC of the look `name` tied to a post (story phase 4b: Himo in the camp of the war band): it
+ * stands facing south with its arms behind its back, and holds nothing. The frame of PLAYER_FRAME.
+ */
+export function boundFigure(name: string): Image {
+  const { spec, materials } = npcFigure(NPC_LOOKS[name]!);
+  const action: FigureAction = {
+    right: [
+      [0.15, -1, -0.35],
+      [-0.8, 0.2, -0.3],
+    ],
+    left: [
+      [-0.15, -1, -0.35],
+      [0.8, 0.2, -0.3],
+    ],
+    lean: 0,
+  };
+  return renderModel(figure({ ...spec, item: 'none' }, 0, 0, action), materials, { ...PLAYER_FRAME, yaw: 0 });
+}
 
 /** Frames `player/<view>/stand`, `player/<view>/walk/<i>` and `player/<view>/attack/<i>` (a punch): the wanderer, the default player. */
 export function playerFrames(): Frame[] {

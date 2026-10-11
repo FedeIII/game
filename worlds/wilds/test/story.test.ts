@@ -8,6 +8,7 @@ import {
   TILE_SIZE,
   World,
   Decor,
+  Ground,
   checkConditions,
   checkDialog,
   checkEffect,
@@ -23,7 +24,33 @@ import {
   type Scores,
   type SnapshotMessage,
 } from '@game/engine';
-import { CART_REWARD, CART_SAFE, DEFAULT_SEED, NORTH_ROAD_START, RAID, REEVE, SILVERSPRING_SITE, SOLDIER, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
+import {
+  CAMP,
+  CAMP_GATE,
+  CAMP_STAKE,
+  CART_REWARD,
+  CART_SAFE,
+  DEFAULT_SEED,
+  HIMO_FREE,
+  HIMO_REWARD,
+  KASMUT,
+  MITHRIL_COST,
+  NORTH_ROAD_START,
+  RAID,
+  RAID_TITLE,
+  RAID_TITLE_PERMIT,
+  REEVE,
+  SILVERSPRING,
+  SILVERSPRING_SITE,
+  SOLDIER,
+  QUESTS,
+  TOWN,
+  TOWN_GATE,
+  TOWN_NPCS,
+  WildsSource,
+  inTown,
+  wilds,
+} from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
 const npcIndex = (id: string) => source.npcs().findIndex((n) => n.id === id);
@@ -43,7 +70,7 @@ function contentOfTheWilds(): { effects: QuestEffect[]; conditions: Conditions[]
   const conditions: Conditions[] = [];
   const dialogs: Dialog[] = [];
   const fixtures = [...new Set([...source.home().fixtures, ...source.fixturesIn(TOWN.x0 - 200, TOWN.y0 - 200, 200, 200)])];
-  for (const content of [...source.npcs().map((n) => n.content), ...fixtures.map((f) => f.content)]) {
+  for (const content of [...source.npcs().map((n) => n.content), ...fixtures.flatMap((f) => [f.content, f.variant?.content])]) {
     if (content?.effect) effects.push(content.effect);
     if (!content?.dialog) continue;
     dialogs.push(content.dialog);
@@ -71,13 +98,25 @@ describe('the quests of the Wilds', () => {
       'cart-lift',
       'cart-lift',
       'cart-mend',
+      'himo-free',
       'raid-asked',
       'raid-asked',
+      'raid-title',
+      'raid-title-permit',
       'read-letter',
       'tell-reeve',
       'tell-reeve',
       'tell-reeve',
     ]);
+    // The effects of the story that the world applies by itself: the ends of the ambushes and of the escort of Himo.
+    for (const ambush of source.ambushes()) {
+      for (const effect of [ambush.effect, ...(ambush.march?.arrive ? [ambush.march.arrive] : [])]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
+      expect(checkConditions(ambush.when, QUESTS)).toEqual([]);
+    }
+    for (const escort of source.escorts()) {
+      for (const effect of [escort.arrive, escort.fall]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
+      expect(checkConditions(escort.when, QUESTS)).toEqual([]);
+    }
     // The scenes: the argument in the house of the reeve.
     expect(checkScenes(source.scenes(), source.npcs().map((n) => n.id), QUESTS)).toEqual([]);
     expect(source.scenes().map((s) => s.id)).toEqual(['argument']);
@@ -332,5 +371,186 @@ describe('the scouts in the grove', () => {
     room.tick(0);
     room.tick(50);
     expect(room.horde!.mobs.filter((m) => m.kind === 'worg' || m.kind === 'goblin')).toEqual([]);
+  });
+});
+
+describe('the camp of the war band', () => {
+  it('stands in the hills off the north road, between the grove and Silverspring, with a trail to it', () => {
+    const world = new World(source);
+    expect(CAMP.has(CAMP_STAKE[0], CAMP_STAKE[1])).toBe(true);
+    // The map marks the post at the step `band` (quests.ts keeps the tile).
+    expect(RAID.steps.find((s) => s.id === 'band')!.at).toEqual(CAMP_STAKE);
+    expect(RAID.steps.find((s) => s.id === 'escort')!.at).toEqual([TOWN_GATE.tx, TOWN_GATE.ty]);
+    // Off the road: no tile of the camp is on the north road or near it.
+    for (let ty = CAMP.y0 - 2; ty <= CAMP.y1 + 2; ty++) for (let tx = CAMP.x0 - 2; tx <= CAMP.x1 + 2; tx++) expect(source.north.clear(tx, ty), `${tx},${ty}`).toBe(false);
+    // North of the grove, and south-west of Silverspring.
+    expect(CAMP.y1).toBeLessThan(source.grove.y0);
+    expect(CAMP.x1).toBeLessThan(SILVERSPRING_SITE.tx);
+    expect(CAMP.y0).toBeGreaterThan(SILVERSPRING_SITE.ty);
+    // Two tents (shut), the fire with its light, and the post.
+    expect(CAMP.buildings.map((b) => b.locked !== undefined)).toEqual([true, true]);
+    const kinds = CAMP.streetFixtures.map((f) => f.kind);
+    expect(kinds).toEqual(expect.arrayContaining(['campfire', 'stake']));
+    const post = world.fixtureAt(CAMP_STAKE[0], CAMP_STAKE[1])!;
+    expect(post.kind).toBe('stake');
+    expect(post.variant?.when).toEqual({ quest: 'raid', at: ['band'] });
+    expect(post.variant?.content?.effect).toBe(HIMO_FREE);
+    // The trail: mud from the north road to the camp's way in.
+    const trail = source.trail;
+    const [x0, y0] = trail.points[0]!;
+    expect(source.north.on(Math.floor(x0), Math.floor(y0))).toBe(true);
+    expect(trail.on(CAMP_GATE.tx, CAMP_GATE.ty)).toBe(true);
+    expect(world.ground(CAMP_GATE.tx, CAMP_GATE.ty)).toBe(Ground.Dirt);
+    // From the trail, a player reaches the post.
+    expect(world.solidBox(CAMP_GATE.tx, CAMP_GATE.ty)).toBeNull();
+  });
+});
+
+/** A player of `room` on the north road at share `share` of its length (outside the towns). */
+function onNorthRoad(room: Room, share: number) {
+  const north = source.north;
+  const [x, y] = north.points[Math.floor(north.points.length * share)]!;
+  return join(room, { x: Math.floor(x) * TILE_SIZE + 8, y: Math.floor(y) * TILE_SIZE + 12 });
+}
+
+describe('the war band on the north road', () => {
+  it('marches for a character at `scouts`: alone, the Devastator and a hobgoblin; when it falls on the road, the raid moves to `band`', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = onNorthRoad(room, 0.5);
+    p.quests = { raid: { step: 'scouts', flags: [], n: 3 } };
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    const band = horde.mobs.filter((m) => m.kind === 'devastator' || m.kind === 'hobgoblin');
+    expect(band.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin']);
+    for (const mob of band) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+    }
+    for (let t = 100; t < 3000 && p.quests.raid?.step === 'scouts'; t += 50) room.tick(t);
+    expect(p.quests.raid?.step).toBe('band');
+    expect(room.takeQuestSaves()).toEqual([p.id]);
+  });
+
+  it('comes to Silverspring first if nobody stops it: the raid begins, its mobs come into the town, and its people take shelter', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = onNorthRoad(room, 0.95);
+    p.quests = { raid: { step: 'scouts', flags: [], n: 3 } };
+    p.state.hp = 10_000;
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    expect(horde.mobs.some((m) => m.kind === 'devastator')).toBe(true);
+    // The character waits in the town, where the band does not see it.
+    Object.assign(p.state, { x: (SILVERSPRING.x0 + 12) * TILE_SIZE + 8, y: (SILVERSPRING.y0 + 11) * TILE_SIZE + 12 });
+    let t = 100;
+    for (; t < 120_000 && p.quests.raid?.step === 'scouts'; t += 50) room.tick(t);
+    expect(p.quests.raid?.step).toBe('raid');
+    room.tick((t += 50));
+    // The raid: the band again, at the gate, free to come into the town.
+    const raiders = horde.mobs.filter((m) => m.raider);
+    expect(raiders.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin']);
+    for (let end = t + 8000; t < end; t += 50) room.tick(t);
+    expect(raiders.some((m) => SILVERSPRING.has(Math.floor(m.x / TILE_SIZE), Math.floor(m.y / TILE_SIZE)))).toBe(true);
+    // Kasmut has gone into the militia hall, and stays there.
+    const kasmut = room.npcs!.poses[npcIndex('kasmut')]!;
+    const [hx, hy] = source.npcs()[npcIndex('kasmut')]!.home;
+    expect(Math.hypot(kasmut.x - (hx * TILE_SIZE + 8), kasmut.y - (hy * TILE_SIZE + 12))).toBeLessThan(TILE_SIZE);
+    // The raid ends when the band falls in the town.
+    for (const mob of raiders) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+    }
+    for (let end = t + 3000; t < end && p.quests.raid?.step === 'raid'; t += 50) room.tick(t);
+    expect(p.quests.raid?.step).toBe('defended');
+  }, 60_000);
+});
+
+describe('Himo', () => {
+  it('is tied to the post for a character at `band`; cutting the ropes gives the escort, and Himo follows', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, { x: CAMP_STAKE[0] * TILE_SIZE + 8, y: (CAMP_STAKE[1] + 1) * TILE_SIZE + 8 });
+    expect(room.quest(p.id, { at: CAMP_STAKE }, HIMO_FREE.id, 0)).toBe(false);
+    p.quests = { raid: { step: 'band', flags: [], n: 4 } };
+    expect(room.quest(p.id, { at: CAMP_STAKE }, HIMO_FREE.id, 0)).toBe(true);
+    expect(p.quests.raid?.step).toBe('escort');
+    room.tick(0);
+    room.tick(50);
+    expect(room.companions.list.map((c) => [c.def.id, c.def.name, c.leader])).toEqual([['himo', 'Himo', p.id]]);
+  });
+
+  it('comes home to Ironhold with the character: his family pays; or he falls on the way, and he is lost', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, { x: (TOWN_GATE.tx + 6) * TILE_SIZE + 8, y: TOWN_GATE.ty * TILE_SIZE + 12 });
+    p.quests = { raid: { step: 'escort', flags: [], n: 5 } };
+    room.tick(0);
+    room.tick(50);
+    const himo = room.companions.list[0]!;
+    // Into the town, the two of them.
+    Object.assign(p.state, { x: (TOWN_GATE.tx - 4) * TILE_SIZE + 8, y: TOWN_GATE.ty * TILE_SIZE + 12 });
+    Object.assign(himo.state, { x: (TOWN_GATE.tx - 3) * TILE_SIZE + 8, y: TOWN_GATE.ty * TILE_SIZE + 12 });
+    for (let t = 100; t < 2000 && p.quests.raid?.step === 'escort'; t += 50) room.tick(t);
+    expect(p.quests.raid?.step).toBe('home');
+    expect(p.pack.coins).toBe(HIMO_REWARD);
+    expect(room.companions.list).toHaveLength(0);
+
+    const other = new Room(new World(source), { dice: AVERAGE_DICE });
+    const q = join(other, { x: (TOWN_GATE.tx + 30) * TILE_SIZE + 8, y: TOWN_GATE.ty * TILE_SIZE + 12 });
+    q.quests = { raid: { step: 'escort', flags: [], n: 5 } };
+    other.tick(0);
+    other.tick(50);
+    other.companions.list[0]!.state.hp = 0;
+    other.companions.list[0]!.state.down = 1;
+    for (let t = 100; t < 5000 && q.quests.raid?.step === 'escort'; t += 50) other.tick(t);
+    expect(q.quests.raid?.step).toBe('lost');
+    expect(other.companions.list).toHaveLength(0);
+  });
+});
+
+describe('the end of the raid', () => {
+  it('gives the title, the permit of Silverspring and a bed at the Silver Trout when the band fell on the road', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('kasmut'), 10, { coins: 50, items: [] });
+    p.quests = { raid: { step: 'home', flags: [], n: 6 } };
+    room.tick(0);
+    goTo(p, 'kasmut');
+    expect(startNode(KASMUT, p.quests, p.pack)).toBe('early');
+    expect(room.quest(p.id, { npc: npcIndex('kasmut') }, RAID_TITLE_PERMIT.id, 0)).toBe(true);
+    expect(p.quests.raid).toMatchObject({ step: 'title', flags: ['permit'] });
+    expect(p.pack.items).toEqual([{ kind: 'mithril-permit', count: 1 }]);
+    // The jeweller sells mithril at cost to the holder of the permit.
+    goTo(p, 'jeweller');
+    room.deal(p.id, { npc: npcIndex('jeweller') }, 'buy-mithril');
+    expect(p.pack.coins).toBe(50 - MITHRIL_COST);
+    expect(p.pack.items).toContainEqual({ kind: 'mithril', count: 1 });
+    // Tova gives the bed of the guard.
+    goTo(p, 'host');
+    room.deal(p.id, { npc: npcIndex('host') }, 'room');
+    expect(p.refuges).toContain('trout');
+  });
+
+  it('sells no mithril without the permit, and gives no bed before the title', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('jeweller'), 10, { coins: 50, items: [] });
+    room.tick(0);
+    goTo(p, 'jeweller');
+    room.deal(p.id, { npc: npcIndex('jeweller') }, 'buy-mithril');
+    expect(p.pack.coins).toBe(50);
+    goTo(p, 'host');
+    room.deal(p.id, { npc: npcIndex('host') }, 'room');
+    expect(p.refuges).not.toContain('trout');
+  });
+
+  it('gives the title without the permit when the band fell in the town', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('kasmut'));
+    p.quests = { raid: { step: 'defended', flags: [], n: 6 } };
+    room.tick(0);
+    goTo(p, 'kasmut');
+    expect(startNode(KASMUT, p.quests, p.pack)).toBe('held');
+    expect(room.quest(p.id, { npc: npcIndex('kasmut') }, RAID_TITLE_PERMIT.id, 0)).toBe(false);
+    expect(room.quest(p.id, { npc: npcIndex('kasmut') }, RAID_TITLE.id, 0)).toBe(true);
+    expect(p.quests.raid?.step).toBe('title');
+    expect(p.pack.items).toEqual([]);
   });
 });

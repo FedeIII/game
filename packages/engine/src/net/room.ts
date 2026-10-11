@@ -11,6 +11,8 @@ import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type Q
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
 import { Ambushes } from '../ambushes.ts';
+import { Escorts } from '../escorts.ts';
+import { fixtureContent } from '../fixtures.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
@@ -208,6 +210,8 @@ export class Room {
   readonly dice: DiceSource;
   /** The ambushes of the story (ambushes.ts): the scouts in the grove. */
   readonly ambushes: Ambushes;
+  /** The escorts of the story (escorts.ts): Himo, whom a character takes home. */
+  readonly escorts: Escorts;
   /** The players whose quest book the room changed by itself (an ambush that ended), for the server to save. */
   private questSaves = new Set<number>();
   /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
@@ -246,6 +250,25 @@ export class Room {
     this.piles = new Piles(world);
     this.companions = new Companions(world);
     this.ambushes = new Ambushes(world, world.source.ambushes?.() ?? []);
+    this.escorts = new Escorts(world.source.escorts?.() ?? []);
+  }
+
+  /**
+   * An effect of the story that the room applies by itself (the end of an ambush, of an escort):
+   * the book and the pack of player `id` change, what does not fit falls at its feet, and the server
+   * saves the book at once (takeQuestSaves).
+   */
+  private applyStory(id: number, effect: QuestEffect, nowMs: number): void {
+    const player = this.players.get(id);
+    const result = player ? applyEffect(effect, player.quests, player.pack, player.traits.slots) : null;
+    if (!player || !result) return;
+    player.quests = result.book;
+    player.questsChanged = true;
+    player.pack = result.pack;
+    player.packChanged = true;
+    if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
+    if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
+    this.questSaves.add(id);
   }
 
   /** The players whose quest book the room changed by itself since the last call (the server saves them). */
@@ -269,11 +292,18 @@ export class Room {
       if (events.doors) this.doorVersion++;
       this.barks.push(...events.barks);
     }
+    let companionEvents: CompanionEvent[] = [];
     if (this.companions.list.length > 0) {
       // Companions follow their leaders (before the mobs, which hunt them too).
       const leaders = new Map([...this.players.values()].map((p) => [p.id, p.state] as const));
-      this.companionEvents.push(...this.companions.step(dt, leaders));
+      companionEvents = this.companions.step(dt, leaders);
+      this.companionEvents.push(...companionEvents);
       if (this.companions.takeDoors()) this.doorVersion++;
+    }
+    if (this.escorts.defs.length > 0) {
+      // The escorts: a character at the step gets its companion; one that comes home or falls ends the escort.
+      const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
+      for (const { player: id, effect } of this.escorts.step(this.companions, people, companionEvents)) this.applyStory(id, effect, nowMs);
     }
     if (this.horde) {
       // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
@@ -285,18 +315,9 @@ export class Room {
       for (const result of this.horde.takeShotResults()) this.players.get(result.owner)?.blows.push(toWireBlow(result));
       // The ambushes of the story: they start for a character at their step in their area, and their end moves the quest on.
       const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
-      for (const { player: id, effect } of this.ambushes.step(this.horde, people)) {
-        const player = this.players.get(id);
-        const result = player ? applyEffect(effect, player.quests, player.pack, player.traits.slots) : null;
-        if (!player || !result) continue;
-        player.quests = result.book;
-        player.questsChanged = true;
-        player.pack = result.pack;
-        player.packChanged = true;
-        if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
-        if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
-        this.questSaves.add(id);
-      }
+      for (const { player: id, effect } of this.ambushes.step(this.horde, people)) this.applyStory(id, effect, nowMs);
+      // During a raid, the people of the town take shelter.
+      this.npcs?.setAlarm(this.ambushes.sheltered);
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
         const shooter = this.players.get(owner);
@@ -614,7 +635,7 @@ export class Room {
       dialog = fixture.content?.dialog;
     }
     const answer = dialog ? findDealAnswer(dialog, dealId) : null;
-    if (!answer?.deal || (answer.gate && !meetsGate(player.traits.scores, answer.gate))) return;
+    if (!answer?.deal || (answer.gate && !meetsGate(player.traits.scores, answer.gate)) || !holds(answer.when, player.quests, player.pack)) return;
     const pack = makeDeal(answer.deal, player.pack, player.state, player.traits);
     if (!pack) return;
     player.pack = pack;
@@ -649,7 +670,8 @@ export class Room {
       const [tx, ty] = from.at;
       const fixture = this.world.fixtureAt(tx, ty);
       if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return false;
-      const content = fixture.content;
+      // What the thing says and does for this character (its variant, Fixture.variant.content).
+      const content = fixtureContent(fixture, player.quests, player.pack);
       found = content?.effect?.id === effectId ? { effect: content.effect } : content?.dialog ? findEffectAnswer(content.dialog, effectId) : null;
     } else if (from.scene !== undefined) {
       // The end of a scene that the player overheard: it must stand in (or near) its area.

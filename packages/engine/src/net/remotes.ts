@@ -83,6 +83,10 @@ export interface RemoteMob {
   readonly stateMs: number;
   /** The blows that it can still take. */
   readonly health: number;
+  /** In a rite: the runes that it has left (Mob.runes). */
+  readonly runes?: number;
+  /** While its weapon burns (Mob.burning): its time left is not sent. */
+  readonly burning?: number;
 }
 
 interface Sample {
@@ -98,7 +102,7 @@ interface Sample {
   readonly c?: number;
   /** A player's aim code (aimCode), or an arrow's. */
   readonly d?: number;
-  /** A player's dodge and defeat (ticks). */
+  /** A player's dodge and defeat (ticks); a mob's runes left in a rite, and whether its weapon burns. */
   readonly e?: number;
   readonly f?: number;
 }
@@ -210,7 +214,7 @@ export class Remotes {
     if (snapshot.m) {
       this.mobs ??= new Map();
       const here = new Set<number>();
-      for (const [id, kind, x, y, vx, vy, facing, state, stateMs, health] of snapshot.m) {
+      for (const [id, kind, x, y, vx, vy, facing, state, stateMs, health, runes, burning] of snapshot.m) {
         here.add(id);
         let mob = this.mobs.get(id);
         if (!mob) {
@@ -219,7 +223,7 @@ export class Remotes {
         }
         const samples = mob.samples;
         if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-        samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: state, b: stateMs, c: health });
+        samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: state, b: stateMs, c: health, e: runes, f: burning });
         while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
       }
       // A mob that is not in the snapshot is gone (dead and done, or far away).
@@ -318,6 +322,8 @@ export class Remotes {
         state: MOB_STATES[since.a ?? 0] ?? 'idle',
         stateMs: (since.b ?? 0) + Math.max(0, t - since.ms),
         health: since.c ?? 1,
+        ...(since.e ? { runes: since.e } : {}),
+        ...(since.f ? { burning: 1 } : {}),
       });
     }
     return out;

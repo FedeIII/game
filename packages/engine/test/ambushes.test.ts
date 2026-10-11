@@ -159,3 +159,99 @@ describe('an ambush', () => {
     expect(horde.mobs).toHaveLength(2);
   });
 });
+
+/** The war band of chapter 1.5.1: it marches along row 5 from tile 10 to tile 60 (4 points a tile, as a Road). */
+const ROUTE: readonly (readonly [number, number])[] = Array.from({ length: 201 }, (_, i) => [10.5 + i / 4, 5.5] as const);
+const BAND: AmbushDef = {
+  id: 'band',
+  inArea: (tx, ty) => tx >= 5 && tx <= 60 && Math.abs(ty - 5) <= 3,
+  when: { quest: 'raid', at: ['scouts'] },
+  from: [],
+  units: [[{ kind: 'devastator' }, { kind: 'hobgoblin' }], [{ kind: 'hobgoblin' }], [{ kind: 'hobgoblin' }]],
+  effect: { id: 'raid-band', quest: 'raid', to: 'band', from: ['scouts'] },
+  march: { route: ROUTE, speed: 36, arrive: { id: 'raid-arrived', quest: 'raid', to: 'raid', from: ['scouts'] } },
+};
+const SCOUTED: QuestBook = { raid: { step: 'scouts', flags: [], n: 2 } };
+
+describe('a band that marches', () => {
+  function band(players: number, x = 6) {
+    const world = new World(textSource([]));
+    const horde = new Horde(world, everywhere, 3, AVERAGE_DICE);
+    const ambushes = new Ambushes(world, [BAND]);
+    // The characters stand behind the start of the route, and do not see the band (sight 0).
+    const list: (AmbushPlayer & { sight: number })[] = Array.from({ length: players }, (_, i) => ({ id: i + 1, state: createPlayer(at(x, 5).x, at(x, 5).y + i * 4), quests: SCOUTED, pack: EMPTY_PACK, sight: 0 }));
+    return { horde, ambushes, list };
+  }
+
+  it('starts at the beginning of its route, in a column with its leader at the head, sized to the characters there', () => {
+    const { horde, ambushes, list } = band(1);
+    ambushes.step(horde, list);
+    expect(horde.mobs.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin']);
+    const [lead, next] = horde.mobs;
+    expect(lead!.x).toBeGreaterThan(next!.x);
+    expect(Math.abs(lead!.y - at(10, 5).y)).toBeLessThan(TILE_SIZE);
+    const three = band(3);
+    three.ambushes.step(three.horde, three.list);
+    expect(three.horde.mobs.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin', 'hobgoblin', 'hobgoblin']);
+  });
+
+  it('walks its route at its pace with nobody near, and never goes away', () => {
+    const { horde, ambushes, list } = band(1);
+    ambushes.step(horde, list);
+    const lead = horde.mobs[0]!;
+    const x0 = lead.x;
+    // The character goes far away: the band marches on all the same.
+    const far = [{ ...list[0]!, state: createPlayer(at(300, 300).x, at(300, 300).y) }];
+    for (let t = 0; t < 10_000; t += TICK_MS) {
+      horde.step(TICK_MS, far);
+      ambushes.step(horde, far);
+    }
+    expect(horde.mobs).toHaveLength(2);
+    // About 36 px a second, along the row.
+    expect(lead.x - x0).toBeGreaterThan(300);
+    expect(lead.x - x0).toBeLessThan(380);
+    expect(Math.abs(lead.y - at(10, 5).y)).toBeLessThan(TILE_SIZE);
+  });
+
+  it('comes in at the end of its route: the party gets the arrival, and the band goes', () => {
+    const { horde, ambushes, list } = band(1);
+    ambushes.step(horde, list);
+    let effects: ReturnType<Ambushes['step']> = [];
+    for (let t = 0; t < 60_000 && effects.length === 0; t += TICK_MS) {
+      horde.step(TICK_MS, list);
+      effects = ambushes.step(horde, list);
+    }
+    expect(effects).toEqual([{ player: 1, effect: BAND.march!.arrive }]);
+    expect(horde.mobs).toHaveLength(0);
+  });
+
+  it('ends with its own end when all its mobs fall on the way', () => {
+    const { horde, ambushes, list } = band(1);
+    ambushes.step(horde, list);
+    for (const mob of horde.mobs) mob.health = 1;
+    for (const mob of [...horde.mobs]) horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, 1);
+    let effects: ReturnType<Ambushes['step']> = [];
+    for (let t = 0; t < 3000 && effects.length === 0; t += TICK_MS) {
+      horde.step(TICK_MS, list);
+      effects = ambushes.step(horde, list);
+    }
+    expect(effects).toEqual([{ player: 1, effect: BAND.effect }]);
+  });
+
+  it('goes back to its route after a hunt, and walks on', () => {
+    const world = new World(textSource([]));
+    const horde = new Horde(world, everywhere, 3, AVERAGE_DICE);
+    const hob = horde.spawn('hobgoblin', at(10, 5).x, at(10, 5).y);
+    horde.march(
+      hob,
+      ROUTE.map(([x, y]) => ({ x: x * TILE_SIZE, y: y * TILE_SIZE })),
+      36,
+    );
+    // Pulled off the route, with nobody to hunt: it walks back to the route and on along it.
+    hob.y += 6 * TILE_SIZE;
+    const far = { id: 9, state: createPlayer(at(300, 300).x, at(300, 300).y), sight: 0 };
+    for (let t = 0; t < 8000; t += TICK_MS) horde.step(TICK_MS, [far]);
+    expect(Math.abs(hob.y - at(10, 5).y)).toBeLessThan(TILE_SIZE);
+    expect(hob.x).toBeGreaterThan(at(12, 5).x);
+  });
+});

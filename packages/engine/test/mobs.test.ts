@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BURN_DICE,
+  BURN_TO_HIT,
+  toWireMob,
   ATTACK_REACH,
   ATTACK_TICKS,
   GUARD_TICKS,
@@ -513,7 +516,7 @@ describe('the blow of a player (traits.ts)', () => {
 
 describe('the hobgoblin band (story phase 3)', () => {
   it('keeps the codes of the old kinds on the wire, has stats and loot for each kind, and none of it roams the Wilds', () => {
-    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear']);
+    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator']);
     for (const kind of MOB_KINDS) {
       expect(MOB_STATS[kind].health, kind).toBeGreaterThan(0);
       expect(MOB_LOOT[kind], kind).toBeDefined();
@@ -577,5 +580,75 @@ describe('the hobgoblin band (story phase 3)', () => {
     expect(off.length).toBeGreaterThan(10);
     expect(off.slice(1).every((a) => a < 0.05)).toBe(true);
     expect(MOB_STATS.worg.chaseSpeed).toBeGreaterThan(80);
+  });
+});
+
+describe('the Hobgoblin Devastator (story phase 4b)', () => {
+  /** A Devastator at (0, 0) that hunts a tough player 5 tiles away, and a hobgoblin next to it. */
+  function rite() {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3, AVERAGE_DICE);
+    const home = at(0, 0);
+    const devastator = horde.spawn('devastator', home.x, home.y);
+    const hob = horde.spawn('hobgoblin', home.x + 2 * TILE_SIZE, home.y + TILE_SIZE);
+    const player: HordePlayer = { id: 7, state: tough(home.x + 5 * TILE_SIZE, home.y) };
+    return { horde, devastator, hob, player };
+  }
+
+  it('has the HP and the AC of its block, a staff, and the loot of the war band', () => {
+    expect([MOB_STATS.devastator.health, MOB_STATS.devastator.ac, MOB_STATS.devastator.toHit, MOB_STATS.devastator.xp]).toEqual([45, 13, 3, 200]);
+    expect(MOB_STATS.devastator.damage).toEqual(dice(1, 6, 1));
+    expect(MOB_STATS.devastator.rite).toMatchObject({ ms: 6000, runes: 3, allies: ['hobgoblin', 'bugbear'] });
+    expect(MOB_LOOT.devastator.items?.map((i) => i.pick[0]![0])).toEqual(['luck-amulet', 'splint-armour']);
+  });
+
+  it('begins its rite when it hunts with an ally in its circle, and the weapons of its allies there burn at its end', () => {
+    const { horde, devastator, hob, player } = rite();
+    let began = -1;
+    run(horde, [player], 1500, (t) => {
+      if (devastator.state === 'rite' && began < 0) began = t;
+    });
+    expect(began).toBeGreaterThanOrEqual(0);
+    expect(devastator.runes).toBe(3);
+    expect(hob.burning).toBeUndefined();
+    // A wire mob carries the runes.
+    expect(toWireMob(devastator).slice(10)).toEqual([3, 0]);
+    // The hobgoblin stays in the circle (its hit and run can take it out).
+    run(horde, [player], 6000, () => {
+      if (dist(devastator, hob) > 100) [hob.x, hob.y] = [devastator.x + 3 * TILE_SIZE, devastator.y];
+    });
+    expect(devastator.state).not.toBe('rite');
+    expect(hob.burning).toBeGreaterThan(20_000);
+    expect(toWireMob(hob).slice(10)).toEqual([0, 1]);
+    // It does not begin another rite at once.
+    run(horde, [player], 3000, () => expect(devastator.state).not.toBe('rite'));
+  });
+
+  it('loses a rune to each blow that hits; the rite fails with the last one, and the weapons do not burn', () => {
+    const { horde, devastator, hob, player } = rite();
+    run(horde, [player], 1500);
+    expect(devastator.state).toBe('rite');
+    const blow: Blow = { toHit: 99, damage: dice(0, 0, 2), push: 1, stagger: 1 };
+    horde.strike({ x: devastator.x - 18, y: devastator.y }, 0, undefined, 7, blow);
+    expect([devastator.state, devastator.runes]).toEqual(['rite', 2]);
+    horde.strike({ x: devastator.x - 18, y: devastator.y }, 0, undefined, 7, blow);
+    expect([devastator.state, devastator.runes]).toEqual(['rite', 1]);
+    horde.strike({ x: devastator.x - 18, y: devastator.y }, 0, undefined, 7, blow);
+    expect(devastator.state).toBe('hurt');
+    expect(devastator.runes).toBeUndefined();
+    expect(devastator.health).toBe(45 - 6);
+    run(horde, [player], 6000);
+    expect(hob.burning).toBeUndefined();
+  });
+
+  it('gives a burning weapon +1 to hit and 1d4 more damage', () => {
+    expect([BURN_TO_HIT, BURN_DICE]).toEqual([1, dice(1, 4)]);
+    const horde = new Horde(new World(textSource([])), everywhere(), 3, AVERAGE_DICE);
+    const home = at(0, 0);
+    const hob = horde.spawn('hobgoblin', home.x, home.y);
+    hob.burning = 30_000;
+    const player: HordePlayer = { id: 7, state: tough(home.x + 2 * TILE_SIZE, home.y) };
+    const hits = run(horde, [player], 4000).filter(([, , damage]) => damage > 0);
+    // 1d8+1 and 1d4 (averages: 5 and 2; no ally next to the player).
+    expect(hits[0]![2]).toBe(7);
   });
 });
