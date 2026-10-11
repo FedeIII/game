@@ -1,3 +1,4 @@
+import { dice, rollDice, type Dice, type DiceSource } from './dice.ts';
 import type { MobKind } from './mobs.ts';
 import type { PlayerState } from './player.ts';
 import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
@@ -109,22 +110,24 @@ export const MEDICINE_GATE: Gate = { ability: 'wis', min: 13 };
 
 /** What a drink does, and the gate that a character needs to use it (none for most). */
 export interface Drink {
-  readonly hp?: number;
+  /** The hit points that it gives back (5e dice). */
+  readonly hp?: Dice;
   readonly full?: boolean;
   readonly cure?: boolean;
   readonly gate?: Gate;
 }
 
 /**
- * What a drink does (the player uses it from the pack panel): a healing draught gives back 2
- * hit points, a strong draught all of them, an antidote ends a poison. A character with Medicine
- * (WIS 13) chews a bundle of herbs for 1 hit point.
+ * What a drink does (the player uses it from the pack panel), as 5e (level-3.md): a healing draught
+ * (a potion of healing) gives back 2d4+2 hit points, a strong draught (a potion of greater healing)
+ * 4d4+4, an antidote ends a poison. A character with Medicine (WIS 13) chews a bundle of herbs for
+ * 1d4 hit points.
  */
 export const DRINKS: Readonly<Partial<Record<ItemKind, Drink>>> = {
-  draught: { hp: 2 },
-  'strong-draught': { full: true },
+  draught: { hp: dice(2, 4, 2) },
+  'strong-draught': { hp: dice(4, 4, 4) },
   antidote: { cure: true },
-  herbs: { hp: 1, gate: MEDICINE_GATE },
+  herbs: { hp: dice(1, 4), gate: MEDICINE_GATE },
 };
 
 /** Whether the pack holds all these stacks. */
@@ -191,11 +194,11 @@ export function moveInPack(pack: Pack, from: number, to: number, slots: number):
  * The player drinks one `kind` from its pack: the drink does its work, and one goes from the pack.
  * Null if it is not a drink, the character does not pass its gate, or the pack has none.
  */
-export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits: Pick<PlayerTraits, 'maxHp' | 'scores'>): Pack | null {
+export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits: Pick<PlayerTraits, 'maxHp' | 'scores'>, source: DiceSource): Pack | null {
   const drink = DRINKS[kind];
   if (!drink || state.down > 0 || !hasItems(pack, [{ kind, count: 1 }])) return null;
   if (drink.gate && !meetsGate(traits.scores, drink.gate)) return null;
-  if (drink.hp) state.hp = Math.min(traits.maxHp, state.hp + drink.hp);
+  if (drink.hp) state.hp = Math.min(traits.maxHp, state.hp + rollDice(drink.hp, source));
   if (drink.full) state.hp = traits.maxHp;
   if (drink.cure) {
     state.poison = 0;

@@ -91,6 +91,9 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-11: the quest book of each character (JSON: the step, the flags and the order of each
   // quest that it started; quests.ts). Null: none.
   `ALTER TABLE characters ADD COLUMN quests TEXT;`,
+  // 2026-10-11: the 5e scale of level 3 (docs/drafts/level-3.md): a character has about 25 hit
+  // points, not 4. The old numbers mean nothing on the new scale: every character gets all of them.
+  `UPDATE characters SET hp = NULL;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */

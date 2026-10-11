@@ -25,6 +25,11 @@ const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
 const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36 };
 
+/** From the feet to the top of the head of a mob of this kind (world pixels): numbers and bars go over it. */
+export function mobHead(kind: MobKind): number {
+  return HEAD[kind];
+}
+
 /** World pixels of travel for each walk frame. */
 const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5 };
 /** The glow of the eyes, above the darkness. */
@@ -87,6 +92,8 @@ export class MobViews {
   private readonly layer: Container;
   private readonly glowLayer: Container;
   private readonly views = new Map<number, MobView>();
+  /** When a blow of this page touched a mob (performance.now): it flashes at once, before the server's word (its dice). */
+  private readonly touches = new Map<number, number>();
   private readonly motes: Mote[] = [];
   private readonly frames = new Map<string, Texture[]>();
   /** The atlas name of each frame texture: the eye pixels are listed by it. */
@@ -226,7 +233,8 @@ export class MobViews {
     view.body.texture = texture;
     view.body.alpha = alpha;
     view.shadow.alpha = alpha;
-    const flashing = (mob.state === 'dying' || mob.state === 'hurt') && mob.stateMs < FLASH_MS;
+    const touched = this.touches.get(mob.id);
+    const flashing = ((mob.state === 'dying' || mob.state === 'hurt') && mob.stateMs < FLASH_MS) || (touched !== undefined && performance.now() - touched < FLASH_MS);
     view.flash.visible = flashing;
     if (flashing) {
       view.flash.texture = texture;
@@ -277,6 +285,12 @@ export class MobViews {
         sprite.alpha = 0.22 * alpha;
       }
     });
+  }
+
+  /** A blow of this page touched the mob: it flashes now. The server's dice decide what the blow did. */
+  touch(id: number, now: number): void {
+    this.touches.set(id, now);
+    if (this.touches.size > 64) for (const [key, at] of this.touches) if (now - at > 1000) this.touches.delete(key);
   }
 
   /** Ash and a few embers rise from the body. */

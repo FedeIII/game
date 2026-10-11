@@ -1,4 +1,5 @@
 import type { CharacterClass, Scores } from './character.ts';
+import { dice, type Dice } from './dice.ts';
 import type { ItemKind } from './items.ts';
 
 // This module imports only types: traits.ts uses it when the engine loads (GUEST_TRAITS), and a
@@ -232,22 +233,22 @@ export function fitsSlot(kind: ItemKind, slot: GearSlot): boolean {
 // ---------------------------------------------------------------- what the gear gives
 
 /** The base damage of a die: half of it (d8 gives 4, the base of every class before the gear). */
-export function dieBase(die: Die): number {
-  return die / 2;
+export function dieBase(die: Die): Dice {
+  return dice(1, die);
 }
 
 /** An unarmed strike (5e: 1 + the mod). */
-export const UNARMED_BASE = 1;
-/** A monk's martial arts: its unarmed strike, as quick as a light weapon. */
-export const MARTIAL_ARTS_BASE = 3;
+export const UNARMED_BASE: Dice = dice(0, 0, 1);
+/** A monk's martial arts at level 3 (5e: d4 + DEX): its unarmed strike, as quick as a light weapon. */
+export const MARTIAL_ARTS_BASE: Dice = dice(1, 4);
 /**
- * The cantrip of a spellcaster with an empty main hand or with its focus (CASTER_FOCUS): fire bolt
- * and eldritch blast (d10), produce flame (d8).
+ * The cantrip of a spellcaster with an empty main hand or with its focus (CASTER_FOCUS), at level 3:
+ * fire bolt and eldritch blast (1d10), produce flame (1d8).
  */
-export const CANTRIP_BASE: Readonly<Partial<Record<CharacterClass, number>>> = { druid: 4, sorcerer: 5, warlock: 5, wizard: 5 };
+export const CANTRIP_BASE: Readonly<Partial<Record<CharacterClass, Dice>>> = { druid: dice(1, 8), sorcerer: dice(1, 10), warlock: dice(1, 10), wizard: dice(1, 10) };
 export const CASTER_FOCUS: Readonly<Partial<Record<CharacterClass, Focus>>> = { druid: 'druidic', sorcerer: 'arcane', warlock: 'arcane', wizard: 'arcane' };
-/** A rogue's sneak attack (1d6): on a mob that does not hunt the rogue. */
-export const SNEAK_ATTACK = 3;
+/** A rogue's sneak attack at level 3 (2d6): on a mob that does not hunt the rogue. */
+export const SNEAK_ATTACK: Dice = dice(2, 6);
 /** A light weapon attacks this many ticks quicker; so does a light weapon in the off hand. */
 export const LIGHT_TICKS = 2;
 /** A heavy melee weapon attacks this many ticks slower. */
@@ -264,15 +265,10 @@ export const HEAVY_SPEED = 0.75;
 export const NOISY_SIGHT = 0.75;
 /** With quiet steps (boots of elvenkind), from this share; quiet steps in a noisy armour: SNEAK_SIGHT (5e: advantage and disadvantage cancel). */
 export const QUIET_SIGHT = 0.35;
-/** Each point of AC over 10 turns this share of the mob hits into glancing blows. */
-export const GLANCE_PER_AC = 0.05;
-/** The most of the hits that can glance. */
-export const MAX_GLANCE = 0.95;
-
 /** How a character attacks with its gear: the base of its damage and the kind of its attack. */
 export interface AttackGear {
-  /** The base damage, before the mod of the attack ability. */
-  readonly base: number;
+  /** The dice of its damage, before the mod of the attack ability (5e: the weapon's die). */
+  readonly base: Dice;
   /** A magic bonus to the damage. */
   readonly bonus: number;
   /** What it attacks with: a weapon, its cantrip, martial arts, or an unarmed strike. */
@@ -333,11 +329,6 @@ export function armourClass(gear: Gear, scores: Scores, cls: CharacterClass): nu
     if (item?.unarmoured && !armour?.armour && shield === 0) bonus += item.unarmoured;
   }
   return ac + shield + bonus;
-}
-
-/** The share of mob hits that glance off a character with this AC: 5% for each point over 10. */
-export function glanceShare(ac: number): number {
-  return Math.min(MAX_GLANCE, Math.max(0, (ac - 10) * GLANCE_PER_AC));
 }
 
 /** The luck of the worn items: it adds to each score for every gate. */

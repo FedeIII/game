@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
   EMPTY_BOOK,
   PLAIN_GEAR,
   PLAIN_SCORES,
@@ -134,7 +135,7 @@ describe('the cart on the road', () => {
 
 describe('the story through the server', () => {
   it('starts with the letter on the table of the home, and the reeve hears that Thrain sent the character', () => {
-    const room = new Room(new World(source));
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const table = source.home().fixtures.find((f) => f.kind === 'table')!;
     const near = join(room, { x: table.tx * TILE_SIZE + 8, y: (table.ty + 1) * TILE_SIZE + 8 });
     const far = join(room, besideNpc('reeve'));
@@ -154,7 +155,7 @@ describe('the story through the server', () => {
   });
 
   it('lets a strong character lift the cart, and the merchant pays', () => {
-    const room = new Room(new World(source));
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const merchant = { npc: npcIndex('merchant') };
     const weak = join(room, besideNpc('merchant'), 12);
     const strong = join(room, besideNpc('merchant'), 13);
@@ -173,7 +174,7 @@ describe('the story through the server', () => {
   });
 
   it('lets any character bring a lever from the smith: the merchant keeps it, and pays', () => {
-    const room = new Room(new World(source));
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const merchant = { npc: npcIndex('merchant') };
     const smith = { npc: npcIndex('smith') };
     const p = join(room, besideNpc('merchant'));
@@ -193,7 +194,7 @@ describe('the story through the server', () => {
   });
 
   it('plays the argument in the house of the reeve to a character with the letter; then the reeve asks it to warn Silverspring', () => {
-    const room = new Room(new World(source));
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const scene = source.scenes().find((s) => s.id === 'argument')!;
     const house = { x: (scene.area.x0 + 3) * TILE_SIZE + 8, y: (scene.area.y1 - 1) * TILE_SIZE + 8 };
     const reader = join(room, house);
@@ -231,7 +232,7 @@ describe('the story through the server', () => {
   });
 
   it('sends the book to its player only: in the welcome, and in a snapshot after a change', () => {
-    const room = new Room(new World(source));
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const merchant = { npc: npcIndex('merchant') };
     const a = join(room, besideNpc('merchant'));
     const b = join(room, besideNpc('merchant'));

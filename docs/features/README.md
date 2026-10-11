@@ -56,6 +56,7 @@ streaming-platform project):
 | NPCs: Companions | `CMP` | [`npcs/companions.md`](npcs/companions.md) |
 | Game: Language | `LANG` | [`game/language.md`](game/language.md) |
 | Game: Quests and the Journal | `QST` | [`game/quests.md`](game/quests.md) |
+| Game: Combat at Level 3 | `CMB` | [`game/combat.md`](game/combat.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 
@@ -92,3 +93,4 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 |---|---|
 | [Language](game/language.md) | English and Spanish: the language of the page (`?lang=`, the kept choice, the browser), the choice in the menu and the settings, the engine's texts in both languages with the names of the Spanish books of 5e, the world's texts in Spanish with the names of Kandrax (Ferrozar, las Tierras Salvajes, la alguacil), lines without gender for the player, the limits and the letters of the pixel font, the English names (Ironhold, Elama Rothenel), and the privacy page in Spanish |
 | [Quests and the Journal](game/quests.md) | The quest book of each character (kept by the server), effects and conditions in conversations and on things, the journal, the banner, the map marks, the letter of Thrain Steelforge, and the merchant's broken cart |
+| [Combat at Level 3](game/combat.md) | The 5e numbers of a level-3 character and of the SRD mobs, attack rolls both ways against the Armour Class, rolled damage, critical hits, healing as at the table, and the numbers of a fight on the screen |

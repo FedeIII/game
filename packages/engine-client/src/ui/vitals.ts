@@ -13,8 +13,8 @@ export interface VitalSigns {
 const HURT_MS = 450;
 
 /**
- * The player's vitals (Constitution), HTML over the canvas in the top-left corner: a red pip for
- * each hit point (dark when it is gone), a thin stamina bar under them, and the effects in words
+ * The player's vitals (Constitution), HTML over the canvas in the top-left corner: a red bar of the
+ * hit points with their numbers ("17 / 28", 5e level 3), a thin stamina bar under it, and the effects in words
  * (poisoned, drunk). A hit flashes the screen edges red; a defeat fades the screen to black until
  * the player wakes. Screen readers hear the hit points.
  */
@@ -57,7 +57,7 @@ export class Vitals {
     return this.root;
   }
 
-  /** Shows the vitals of the player: `maxHp` pips, and the stamina as a share of `maxStamina`. */
+  /** Shows the vitals of the player: its hit points as a share of `maxHp`, with the numbers, and the stamina as a share of `maxStamina`. */
   update(signs: VitalSigns, maxHp: number, maxStamina: number): void {
     const text = STRINGS.vitals;
     if (this.lastHp !== null && signs.hp < this.lastHp) {
@@ -74,12 +74,13 @@ export class Vitals {
     const key = `${signs.hp}/${maxHp}/${effects.join()}`;
     if (key === this.shown) return;
     this.shown = key;
-    this.pips.replaceChildren();
-    for (let i = 0; i < maxHp; i++) {
-      const pip = document.createElement('span');
-      pip.className = i < signs.hp ? 'vitals-pip full' : 'vitals-pip';
-      this.pips.append(pip);
-    }
+    const fill = document.createElement('span');
+    fill.className = 'vitals-hp-fill';
+    fill.style.width = `${Math.round((100 * Math.max(0, Math.min(signs.hp, maxHp))) / maxHp)}%`;
+    const numbers = document.createElement('span');
+    numbers.className = 'vitals-hp-numbers';
+    numbers.textContent = `${signs.hp} / ${maxHp}`;
+    this.pips.replaceChildren(fill, numbers);
     this.pips.setAttribute('aria-label', text.hp(signs.hp, maxHp));
     this.status.textContent = effects.join(' · ');
   }

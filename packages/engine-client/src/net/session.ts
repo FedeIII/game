@@ -26,6 +26,7 @@ import {
   type Pile,
   type PlayerTraits,
   type QuestBook,
+  type WireBlow,
   type Toss,
   type DoorResult,
   type Feet,
@@ -112,6 +113,7 @@ export class NetSession {
   /** The quest book of the character, in the server's last word (null before the welcome). */
   quests: QuestBook | null = null;
   private readonly questListeners: ((before: QuestBook, after: QuestBook) => void)[] = [];
+  private readonly blowListeners: ((blows: readonly WireBlow[]) => void)[] = [];
   private traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
@@ -164,6 +166,11 @@ export class NetSession {
   /** Calls `listener` when the refuges of the character change (it entered a new one). */
   onRefuges(listener: (refuges: readonly string[]) => void): void {
     this.refugeListeners.push(listener);
+  }
+
+  /** Calls `listener` with what the player's blows and arrows did (the server's dice): [mob id, damage (0: a miss), critical]. */
+  onBlows(listener: (blows: readonly WireBlow[]) => void): void {
+    this.blowListeners.push(listener);
   }
 
   /** Calls `listener` when the quest book of the character changes (an effect: a quest started, moved on or ended). */
@@ -434,6 +441,7 @@ export class NetSession {
           this.quests = fromWireBook(message.qs);
           if (before !== null) for (const listener of this.questListeners) listener(before, this.quests);
         }
+        if (message.bl) for (const listener of this.blowListeners) listener(message.bl);
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);
         this.hunters = new Set(message.h ?? []);

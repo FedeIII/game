@@ -1,5 +1,6 @@
 import { ABILITIES, ATTACK_ABILITY, abilityModifier, appearanceOf, finalScores, type Ability, type CharacterClass, type CharacterSheet, type Scores } from './character.ts';
 import { TILE_SIZE } from './constants.ts';
+import { dice, plusDice, type Dice } from './dice.ts';
 import {
   EMPTY_GEAR,
   HEAVY_SPEED,
@@ -9,7 +10,6 @@ import {
   armourClass,
   attackGear,
   gearLuck,
-  glanceShare,
   isNoisy,
   isQuiet,
   kitOf,
@@ -24,9 +24,7 @@ import {
   ATTACK_TICKS,
   DODGE_COOLDOWN_TICKS,
   GUARD_TICKS,
-  PLAIN_HP,
   PLAIN_STAMINA,
-  RECOVER_TICKS,
   STAMINA_REFILL,
   isSneaking,
   type PlayerState,
@@ -56,16 +54,16 @@ export interface PlayerTraits {
   readonly attack: Ability;
   /** How it attacks with what it holds: a weapon, a cantrip, martial arts or an unarmed strike (attackGear). */
   readonly strike: AttackGear;
-  /** The health points that a blow takes from a mob: the base of `strike` + the modifier of the attack ability + a magic bonus. */
-  readonly damage: number;
-  /** The damage that a blow adds on a mob that does not hunt it (a rogue's sneak attack; else 0). */
-  readonly sneak: number;
+  /** The dice of a blow's damage (5e): the dice of `strike` + the modifier of the attack ability + a magic bonus. */
+  readonly damage: Dice;
+  /** Its attack bonus (5e): d20 + this against the AC of a mob. PROFICIENCY_BONUS + the modifier of the attack ability + a magic bonus. */
+  readonly toHit: number;
+  /** The dice that a blow adds on a mob that does not hunt it (a rogue's sneak attack, 2d6 at level 3; else none). */
+  readonly sneak: Dice;
   /** How far its blows hit (world pixels, plus the radius of the mob): ATTACK_REACH, more with a reach weapon. */
   readonly reach: number;
-  /** Its Armour Class (armourClass). */
+  /** Its Armour Class (armourClass): a mob's attack roll must reach it, or the hit glances off. */
   readonly ac: number;
-  /** The share of the mob hits that glance off it (glanceShare of `ac`). */
-  readonly glance: number;
   /** Its walk, as a share of PLAYER_SPEED: less in a heavy armour without its Strength. */
   readonly speed: number;
   /** How far mobs see it while it sneaks, as a share of `sight` (SNEAK_SIGHT; more in a noisy armour). */
@@ -89,11 +87,11 @@ export interface PlayerTraits {
   /** Whether its attacks are arrows (a bow in its hands), and how far an arrow flies (world pixels; DEX). */
   readonly ranged: boolean;
   readonly range: number;
-  /** Its most hit points (CON). */
+  /** Its most hit points at level 3 (the hit die of its class, and CON: levelHp). */
   readonly maxHp: number;
   /** The length of a stun that a mob gives it, as a share (CON). */
   readonly stun: number;
-  /** Ticks for each hit point that comes back, out of a fight (CON). */
+  /** Ticks for each hit point that comes back by itself; 0: none (5e: only a rest or a draught heals; level-3.md). */
   readonly recover: number;
   /** Its most stamina, and the stamina that comes back each second (CON). */
   readonly maxStamina: number;
@@ -125,8 +123,38 @@ export interface Gate {
   readonly min: number;
 }
 
-/** The base damage of every class before the gear: a weapon of a d8 (gear.ts, dieBase). */
-export const BASE_DAMAGE = 4;
+/** No dice: a sneak attack of a class without it. */
+const NO_DICE: Dice = dice(0, 6);
+
+/** The level of a new character (Fede's decision, 2026-10-11: the adventures are for level 3), and its proficiency bonus (5e). */
+export const LEVEL = 3;
+export const PROFICIENCY_BONUS = 2;
+/** The hit die of each class (5e). */
+export const HIT_DIE: Readonly<Record<CharacterClass, number>> = {
+  barbarian: 12,
+  bard: 8,
+  cleric: 8,
+  druid: 8,
+  fighter: 10,
+  monk: 8,
+  paladin: 10,
+  ranger: 10,
+  rogue: 8,
+  sorcerer: 6,
+  warlock: 8,
+  wizard: 6,
+};
+
+/**
+ * The hit points of a character at LEVEL (5e): the hit die at its most for the first level, its
+ * average (half + 1) for each level after, and the CON modifier for each level; at least 1 for each level.
+ */
+export function levelHp(cls: CharacterClass, conMod: number): number {
+  const die = HIT_DIE[cls];
+  let hp = 0;
+  for (let level = 1; level <= LEVEL; level++) hp += Math.max(1, (level === 1 ? die : die / 2 + 1) + conMod);
+  return hp;
+}
 /** Each point of the STR modifier pushes a mob this share further, and makes it reel this share longer. */
 export const PUSH_PER_MOD = 0.15;
 export const STAGGER_PER_MOD = 0.2;
@@ -141,10 +169,8 @@ export const DODGE_PER_MOD = 12;
 export const SIGHT_PER_MOD = 0.08;
 /** An arrow flies this many tiles, and one more for each point of the DEX modifier. */
 export const RANGE_TILES = 5;
-/** Each point of the CON modifier: one more hit point (PLAIN_HP with 10), a share less of a stun, a second less for each hit point that comes back. */
-export const HP_PER_MOD = 1;
+/** Each point of the CON modifier: a share less of a stun (the hit points: levelHp). */
 export const STUN_PER_MOD = 0.1;
-export const RECOVER_PER_MOD = 60;
 /** Each point of the CON modifier: this much more stamina, and this much more of it back each second. */
 export const STAMINA_PER_MOD = 10;
 export const REFILL_PER_MOD = 4;
@@ -226,11 +252,11 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     class: cls,
     attack,
     strike,
-    damage: Math.max(1, strike.base + strike.bonus + abilityModifier(scores[attack])),
-    sneak: cls === 'rogue' ? SNEAK_ATTACK : 0,
+    damage: plusDice(strike.base, strike.bonus + abilityModifier(scores[attack])),
+    toHit: PROFICIENCY_BONUS + abilityModifier(scores[attack]) + strike.bonus,
+    sneak: cls === 'rogue' ? SNEAK_ATTACK : NO_DICE,
     reach: ATTACK_REACH + strike.reach,
     ac,
-    glance: glanceShare(ac),
     speed: tooHeavy(gear, scores) ? HEAVY_SPEED : 1,
     // Noisy armour and quiet steps together cancel out (5e: disadvantage and advantage).
     sneakSight: isNoisy(gear) === isQuiet(gear) ? SNEAK_SIGHT : isNoisy(gear) ? NOISY_SIGHT : QUIET_SIGHT,
@@ -245,9 +271,9 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     sight: Math.max(0.1, 1 - SIGHT_PER_MOD * dex),
     ranged: strike.ranged,
     range: (RANGE_TILES + dex) * TILE_SIZE,
-    maxHp: Math.max(1, PLAIN_HP + HP_PER_MOD * con),
+    maxHp: levelHp(cls, con),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
-    recover: Math.max(60, RECOVER_TICKS - RECOVER_PER_MOD * con),
+    recover: 0,
     maxStamina: Math.max(10, PLAIN_STAMINA + STAMINA_PER_MOD * con),
     staminaRefill: Math.max(1, STAMINA_REFILL + REFILL_PER_MOD * con),
     resist: Math.max(0.1, 1 - RESIST_PER_MOD * con),

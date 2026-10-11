@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
   ALE_TICKS,
   DODGE_STAMINA,
   DOWN_TICKS,
   NO_INPUT,
   PLAIN_SCORES,
+  POISON_DAMAGE,
   POISON_EVERY,
-  RECOVER_DELAY_TICKS,
   Room,
   STAMINA_REST_TICKS,
   TICK_RATE,
@@ -34,18 +35,19 @@ const withCon = (con: number) => traitsOf({ ...PLAIN_SCORES, con } as Scores, 'f
 const open = new World(textSource([]));
 
 describe('the Constitution traits', () => {
-  it('give the hit points, the stun, the recovery, the stamina and the resistance', () => {
+  it('give the hit points of level 3, the stun, the stamina and the resistance; no recovery by itself', () => {
+    // A fighter (d10) at level 3: 10, then 6 and 6, and the CON modifier at each level (level-3.md).
     const tough = withCon(17);
-    expect(tough.maxHp).toBe(7);
+    expect(tough.maxHp).toBe(10 + 6 + 6 + 3 * 3);
     expect(tough.stun).toBeCloseTo(0.7);
-    expect(tough.recover).toBe(5 * TICK_RATE);
+    expect(tough.recover).toBe(0);
     expect(tough.maxStamina).toBe(130);
     expect(tough.staminaRefill).toBe(32);
     expect(tough.resist).toBeCloseTo(0.55);
     const frail = withCon(8);
-    expect(frail.maxHp).toBe(3);
+    expect(frail.maxHp).toBe(10 + 6 + 6 - 3);
     expect(frail.stun).toBeCloseTo(1.1);
-    expect(frail.recover).toBe(9 * TICK_RATE);
+    expect(frail.recover).toBe(0);
     expect(frail.maxStamina).toBe(90);
   });
 });
@@ -53,15 +55,16 @@ describe('the Constitution traits', () => {
 describe('a hit', () => {
   it('takes hit points and stuns for the share of the Constitution', () => {
     const p = createPlayer(0, 0);
-    hitPlayer(p, 2, 120, 0, withCon(17));
-    expect(p.hp).toBe(2);
+    p.hp = 31;
+    hitPlayer(p, 9, 120, 0, withCon(17));
+    expect(p.hp).toBe(22);
     expect(p.stun).toBe(84);
     expect(p.down).toBe(0);
   });
 
   it('defeats the player at 0 hit points: it lies DOWN_TICKS, and nothing can hit it', () => {
     const p = createPlayer(0, 0);
-    hitPlayer(p, 4, 60, 0);
+    hitPlayer(p, p.hp + 5, 60, 0);
     expect(p.hp).toBe(0);
     expect(p.down).toBe(DOWN_TICKS);
     expect(p.stun).toBe(0);
@@ -70,16 +73,16 @@ describe('a hit', () => {
     expect(p.down).toBe(DOWN_TICKS - 10);
   });
 
-  it('of an imp poisons: a bite every 3 s, never the last hit point; less long with Constitution', () => {
+  it('of an imp poisons: a bite of 2 every 3 s, never the last hit point; less long with Constitution', () => {
     const p = createPlayer(0, 0);
-    p.hp = 3;
+    p.hp = 5;
     hitPlayer(p, 0, 1, 360, withCon(10));
     expect(p.poison).toBe(360);
     let ticks = 0;
     while (p.poison > 0) {
       stepPlayer(p, NO_INPUT, open);
       ticks++;
-      if (ticks === POISON_EVERY) expect(p.hp).toBe(2);
+      if (ticks === POISON_EVERY) expect(p.hp).toBe(5 - POISON_DAMAGE);
     }
     expect(p.hp).toBe(1);
     hitPlayer(p, 0, 1, 360, withCon(10));
@@ -92,22 +95,13 @@ describe('a hit', () => {
 });
 
 describe('recovery', () => {
-  it('gives the first hit point 8 s after a hit, then one every 8 - mod s', () => {
+  it('gives no hit point back by itself, as at the table (level-3.md)', () => {
     const traits = withCon(14);
     const p = createPlayer(0, 0);
     p.hp = traits.maxHp;
-    hitPlayer(p, 2, 1, 0, traits);
-    let ticks = 0;
-    while (p.hp < traits.maxHp - 1) {
-      stepPlayer(p, NO_INPUT, open, traits);
-      ticks++;
-    }
-    expect(ticks).toBe(RECOVER_DELAY_TICKS);
-    while (p.hp < traits.maxHp) {
-      stepPlayer(p, NO_INPUT, open, traits);
-      ticks++;
-    }
-    expect(ticks).toBe(RECOVER_DELAY_TICKS + traits.recover);
+    hitPlayer(p, 7, 1, 0, traits);
+    for (let i = 0; i < 60 * TICK_RATE; i++) stepPlayer(p, NO_INPUT, open, traits);
+    expect(p.hp).toBe(traits.maxHp - 7);
   });
 
   it('is full at once with a rest in the bed of the home', () => {
@@ -198,14 +192,15 @@ describe('waking after a defeat', () => {
 
 describe('Constitution in a shared world', () => {
   it('wakes a defeated player at the spawn when its defeat is over, with all its hit points and half its coins', () => {
-    const room = new Room(new World(refugeSource()));
+    const room = new Room(new World(refugeSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [20, 20], '', undefined, { traits: withCon(12), pack: { coins: 9, items: [] } })!;
-    expect(room.welcome(p).hp).toBe(5);
+    // A fighter with CON 12 at level 3: 11 + 7 + 7.
+    expect(room.welcome(p).hp).toBe(25);
     hitPlayer(p.state, 99, 60, 0);
     const quiet = Array.from({ length: 30 }, () => [0, 0] as const);
     for (let s = 1; s <= DOWN_TICKS; s += 30) room.input(p.id, { t: 'in', s, i: quiet }, s * 16);
     expect(p.state.down).toBe(0);
-    expect(p.state).toMatchObject({ hp: 5, guard: WAKE_GUARD_TICKS });
+    expect(p.state).toMatchObject({ hp: 25, guard: WAKE_GUARD_TICKS });
     expect([p.state.x, p.state.y]).toEqual([room.world.spawn().x, room.world.spawn().y]);
     expect(p.pack.coins).toBe(5);
     let snap: SnapshotMessage | null = null;
@@ -215,7 +210,7 @@ describe('Constitution in a shared world', () => {
   });
 
   it('notes a refuge that the player enters, and comes back with the hit points of the last visit', () => {
-    const room = new Room(new World(refugeSource()));
+    const room = new Room(new World(refugeSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: withCon(10), hp: 2, refuges: [] })!;
     expect(p.state.hp).toBe(2);
     p.state.x = 5 * TILE_SIZE + 8;
@@ -230,13 +225,13 @@ describe('Constitution in a shared world', () => {
     hitPlayer(p.state, 9, 1, 0);
     room.settle(p.id);
     expect(p.state.down).toBe(0);
-    expect(p.state.hp).toBe(4);
+    expect(p.state.hp).toBe(22);
   });
 
   it('sells an ale next to the NPC, for its price, and never without the coins', () => {
     expect(parseClientMessage('{"t":"deal","npc":0,"deal":"ale"}')).toEqual({ t: 'deal', npc: 0, deal: 'ale' });
     expect(parseClientMessage('{"t":"deal","npc":-1,"deal":"ale"}')).toBeNull();
-    const room = new Room(new World(refugeSource()));
+    const room = new Room(new World(refugeSource()), { dice: AVERAGE_DICE });
     const poor = room.join(0, 1, [12, 13], '', undefined, { traits: withCon(10), pack: { coins: 1, items: [] } })!;
     const rich = room.join(0, 2, [12, 13], '', undefined, { traits: withCon(17), pack: { coins: 5, items: [] } })!;
     const far = room.join(0, 3, [30, 30], '', undefined, { traits: withCon(10), pack: { coins: 5, items: [] } })!;

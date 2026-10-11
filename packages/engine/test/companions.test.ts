@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
   COMPANION_IDS,
   Companions,
   FOLLOW_LEASH,
@@ -168,7 +169,7 @@ describe('mobs and companions', () => {
 
 describe('companions in a shared world', () => {
   it('follow their leader in the Room, go in the snapshots, and leave with their leader', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const leader = room.join(0, 1, [5, 5])!;
     const other = room.join(0, 2, [6, 5])!;
     const c = room.addCompanion(SCOUT, leader.id)!;

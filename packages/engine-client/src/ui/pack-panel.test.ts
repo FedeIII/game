@@ -9,8 +9,8 @@ describe('the detail of an item to wear', () => {
       'Noisy: when you sneak, the mobs see you from further away.',
     ]);
     expect(wearLines('longsword-plus-1', { class: 'fighter' })).toEqual([
-      'Weapon (d8): 4 damage + your attack ability.',
-      'With both hands (d10): 5.',
+      'Weapon: d8 damage + your attack ability.',
+      'With both hands: d10.',
       'Magic: +1 damage.',
     ]);
     expect(wearLines('cloak-of-protection', { class: 'wizard' })).toEqual(['Magic: AC +1.', 'It needs attunement: you can be attuned to 3 things.']);

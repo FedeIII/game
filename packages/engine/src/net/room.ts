@@ -9,6 +9,7 @@ import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } f
 import { DEAL_RANGE, findDealAnswer, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
+import { rollingDice, type DiceSource } from '../dice.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
@@ -30,6 +31,7 @@ import {
   toWireLook,
   toWirePack,
   toWireBook,
+  toWireBlow,
   toWirePile,
   toWireToss,
   type InputMessage,
@@ -44,6 +46,7 @@ import {
   type WireNpc,
   type WirePick,
   type WirePile,
+  type WireBlow,
   type WirePlayer,
   type WireUse,
 } from './protocol.ts';
@@ -77,6 +80,8 @@ export interface RoomOptions {
   readonly maxPlayers?: number;
   /** A random source for the seeds of the NPCs and the mobs. */
   readonly random?: () => number;
+  /** Where the dice of the fights and the draughts come from (dice.ts); without it, the horde's own random numbers. Tests: AVERAGE_DICE. */
+  readonly dice?: DiceSource;
 }
 
 /** A rest in a bed of the player's own (Interaction.rest): all hit points and stamina back, no poison or drink. */
@@ -137,6 +142,8 @@ export interface RoomPlayer {
   questsChanged: boolean;
   /** The coins that a defeat took, when it woke since the last snapshot (else null). */
   woke: number | null;
+  /** What its blows and arrows did since the last snapshot (protocol 26): its client shows the numbers. */
+  blows: WireBlow[];
   /** The chunks that its character has seen ("cx,cy"), and those that it saw since the last snapshot. */
   readonly explored: Set<string>;
   newlyExplored: [number, number][];
@@ -196,6 +203,8 @@ export class Room {
   private doorVersion = 0;
   /** Goes up each time a name appears, changes or goes. A snapshot carries the names when it changed. */
   private namesVersion = 0;
+  /** Where the dice come from (the draughts; the horde rolls its fights with the same). */
+  readonly dice: DiceSource;
   /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
   readonly companions: Companions;
   /** What happened to the companions since the last takeCompanionEvents() (for the quests). */
@@ -226,7 +235,8 @@ export class Room {
     const defs = world.source.npcs?.() ?? [];
     this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
     const rules = world.source.mobs?.();
-    this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff)) : null;
+    this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff), options.dice) : null;
+    this.dice = options.dice ?? this.horde?.dice ?? rollingDice(random(Math.floor((this.random?.() ?? 0.6) * 0xffffffff)));
     this.spoils = new Spoils(world, random(Math.floor((this.random?.() ?? 0.75) * 0xffffffff)));
     this.piles = new Piles(world);
     this.companions = new Companions(world);
@@ -257,7 +267,9 @@ export class Room {
       // Mobs see a player from less far with Dexterity, and less again while it sneaks.
       const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state), traits: p.traits }));
       players.push(...this.companions.targets());
-      this.hits += this.horde.step(dt, players).length;
+      // The attacks that hit (a miss glances off: the player's state shows its spark).
+      this.hits += this.horde.step(dt, players).filter((hit) => hit[2] > 0).length;
+      for (const result of this.horde.takeShotResults()) this.players.get(result.owner)?.blows.push(toWireBlow(result));
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
         const shooter = this.players.get(owner);
@@ -375,6 +387,7 @@ export class Room {
       quests: character?.quests ?? EMPTY_BOOK,
       questsChanged: false,
       woke: null,
+      blows: [],
       explored: new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`)),
       newlyExplored: [],
       pileKey: '',
@@ -515,10 +528,12 @@ export class Room {
           return;
         }
         const struck = this.horde.strike(player.state, player.state.aim, (mob) => this.mobAt(mob.id, then), player.id, player.traits);
-        for (const mob of struck) {
-          if (mob.state !== 'dying') continue;
+        for (const result of struck) {
+          // Its client shows what the dice did (a number, a miss) when this comes.
+          player.blows.push(toWireBlow(result));
+          if (result.mob.state !== 'dying') continue;
           this.kills++;
-          this.give(player, this.horde.drop(mob), mob, nowMs);
+          this.give(player, this.horde.drop(result.mob), result.mob, nowMs);
         }
       }
     });
@@ -635,7 +650,7 @@ export class Room {
     const player = this.players.get(id);
     const kind = ITEM_KINDS[code];
     if (!player || !kind) return;
-    const pack = drinkFrom(player.pack, kind, player.state, player.traits);
+    const pack = drinkFrom(player.pack, kind, player.state, player.traits, this.dice);
     if (!pack) return;
     player.pack = pack;
     player.packChanged = true;
@@ -811,6 +826,8 @@ export class Room {
       p.questsChanged = false;
       const woke = p.woke;
       p.woke = null;
+      const blows = p.blows;
+      p.blows = [];
       const explored = p.newlyExplored;
       p.newlyExplored = [];
       const piles = this.pilesNear(p);
@@ -858,6 +875,7 @@ export class Room {
         ...(tossed.length > 0 ? { ts: tossed } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
         ...(quests ? { qs: toWireBook(p.quests) } : {}),
+        ...(blows.length > 0 ? { bl: blows } : {}),
         ...(woke !== null ? { wk: woke } : {}),
         ...(explored.length > 0 ? { ex: explored } : {}),
         ...(npcs ? { n: npcs } : {}),

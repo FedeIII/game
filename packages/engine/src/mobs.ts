@@ -1,7 +1,8 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
+import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, glancePlayer, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -68,14 +69,22 @@ export interface MobStats {
   readonly halfHeight: number;
   /** The death animation (ms); then it is gone. */
   readonly deathMs: number;
-  /** Its health points: a blow takes Blow.damage of them (4 from a player whose scores are all 10). */
+  /** Its hit points (5e: the SRD stat block, level-3.md): a blow that hits takes its damage of them. */
   readonly health: number;
+  /** Its Armour Class: a player's attack roll must reach it (5e). */
+  readonly ac: number;
+  /** Its attack bonus: d20 + this against the player's AC (5e). */
+  readonly toHit: number;
+  /** The dice of its hit (5e). */
+  readonly damage: Dice;
+  /** Dice that its hit adds when another mob stands next to its target (a hobgoblin's martial advantage). */
+  readonly allyDice?: Dice;
+  /** The XP of the stat block (5e): the encounters of the story size themselves with it. */
+  readonly xp: number;
   /** A blow pushes it this far away from the attacker (world pixels), dead or not, times Blow.push. */
   readonly knockback: number;
   /** A blow that does not kill stuns it for this long (ms), times Blow.stagger: its wind-up or its blow stops. */
   readonly hurtMs: number;
-  /** The hit points that its hit takes from a player. */
-  readonly hitDamage: number;
   /** Its hit poisons for this many ticks (times the player's PlayerTraits.resist); 0: no poison. */
   readonly poisonTicks: number;
   /**
@@ -88,7 +97,11 @@ export interface MobStats {
   readonly straight?: boolean;
 }
 
-/** The small, quick imp and the big, slow brute. The player walks at 80 px/s. */
+/**
+ * The small, quick imp and the big, slow brute, and the hobgoblin band. The player walks at 80
+ * px/s. The numbers of a fight are 5e's (level-3.md): the imp is a quasit, the brute a half-ogre,
+ * the band as in the SRD.
+ */
 export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
   imp: {
     wanderSpeed: 30,
@@ -109,10 +122,14 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 3,
     halfHeight: 2,
     deathMs: 750,
-    health: 3,
+    health: 7,
+    ac: 13,
+    toHit: 4,
+    damage: dice(1, 4, 3),
+    // A quasit without its magic (no invisibility, no scare): as a CR 1/4 for the encounters.
+    xp: 50,
     knockback: 10,
     hurtMs: 250,
-    hitDamage: 1,
     // An imp's claws carry a poison (Fede's choice, 2026-10-10).
     poisonTicks: 360,
   },
@@ -135,10 +152,13 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 5,
     halfHeight: 3,
     deathMs: 950,
-    health: 12,
+    health: 30,
+    ac: 12,
+    toHit: 5,
+    damage: dice(2, 8, 3),
+    xp: 200,
     knockback: 18,
     hurtMs: 320,
-    hitDamage: 2,
     poisonTicks: 0,
   },
   // A small archer: it keeps away, shoots from the edge of the light, and runs off again.
@@ -161,10 +181,13 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 3,
     halfHeight: 2,
     deathMs: 750,
-    health: 5,
+    health: 7,
+    ac: 15,
+    toHit: 4,
+    damage: dice(1, 6, 2),
+    xp: 50,
     knockback: 12,
     hurtMs: 260,
-    hitDamage: 1,
     poisonTicks: 0,
     arrowRange: 150,
   },
@@ -188,10 +211,13 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 5,
     halfHeight: 3,
     deathMs: 850,
-    health: 8,
+    health: 26,
+    ac: 13,
+    toHit: 5,
+    damage: dice(2, 6, 3),
+    xp: 100,
     knockback: 12,
     hurtMs: 260,
-    hitDamage: 1,
     poisonTicks: 0,
     straight: true,
   },
@@ -215,10 +241,14 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 4,
     halfHeight: 3,
     deathMs: 900,
-    health: 16,
+    health: 11,
+    ac: 18,
+    toHit: 3,
+    damage: dice(1, 8, 1),
+    allyDice: dice(2, 6),
+    xp: 100,
     knockback: 12,
     hurtMs: 260,
-    hitDamage: 2,
     poisonTicks: 0,
   },
   // The brute of the band: big, hairy and slow, with a long reach and a heavy blow.
@@ -241,10 +271,13 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     halfWidth: 5,
     halfHeight: 3,
     deathMs: 950,
-    health: 20,
+    health: 27,
+    ac: 16,
+    toHit: 4,
+    damage: dice(2, 8, 2),
+    xp: 200,
     knockback: 20,
     hurtMs: 300,
-    hitDamage: 2,
     poisonTicks: 0,
   },
 };
@@ -274,30 +307,49 @@ export interface Mob {
 }
 
 /**
- * A player's blow (traits.ts): the health points that it takes, and its force as shares of the
- * mob's MobStats.knockback (the push) and MobStats.hurtMs (the reel).
+ * A player's blow (traits.ts): its attack bonus and the dice of its damage (5e), and its force as
+ * shares of the mob's MobStats.knockback (the push) and MobStats.hurtMs (the reel).
  */
 export interface Blow {
-  readonly damage: number;
+  /** d20 + this against the mob's AC. */
+  readonly toHit: number;
+  readonly damage: Dice;
   readonly push: number;
   readonly stagger: number;
   /** The damage that it adds on a mob in its wind-up (Intelligence: the player uses the opening). */
   readonly opening?: number;
-  /** The damage that it adds on a mob that does not hunt the attacker (a rogue's sneak attack). */
-  readonly sneak?: number;
+  /** The dice that it adds on a mob that does not hunt the attacker (a rogue's sneak attack). */
+  readonly sneak?: Dice;
   /** How far it hits (world pixels, plus the radius of the mob); without it, ATTACK_REACH. A reach weapon hits further. */
   readonly reach?: number;
 }
 
-/** The blow of a player whose scores are all 10 (GUEST_TRAITS). */
-export const PLAIN_BLOW: Blow = { damage: 4, push: 1, stagger: 1, opening: 0 };
+/** The blow of a level-3 player whose scores are all 10, with a d8 weapon (GUEST_TRAITS). */
+export const PLAIN_BLOW: Blow = { toHit: 2, damage: dice(1, 8), push: 1, stagger: 1, opening: 0 };
+
+/** What a blow did to a mob: the damage that it took (0: a miss), and whether it was a critical hit. */
+export interface BlowResult {
+  readonly mob: Mob;
+  readonly damage: number;
+  readonly crit: boolean;
+}
 
 /**
- * The damage of a blow on this mob now: more on a mob in its wind-up (Blow.opening), and more on a
- * mob that does not hunt the attacker (`unaware`: Blow.sneak).
+ * Rolls a blow on this mob now (5e): d20 + Blow.toHit against its AC; a hit rolls the damage, more on
+ * a mob in its wind-up (Blow.opening) and on a mob that does not hunt the attacker (`unaware`: the
+ * dice of Blow.sneak). A critical hit rolls all the dice twice. Damage 0: a miss.
  */
-export function blowDamage(blow: Blow, mob: Pick<Mob, 'state'>, unaware = false): number {
-  return blow.damage + (mob.state === 'windup' ? (blow.opening ?? 0) : 0) + (unaware ? (blow.sneak ?? 0) : 0);
+export function rollBlow(blow: Blow, mob: Pick<Mob, 'kind' | 'state'>, unaware: boolean, source: DiceSource): { damage: number; crit: boolean } {
+  const roll = attackRoll(blow.toHit, MOB_STATS[mob.kind].ac, source);
+  if (!roll.hit) return { damage: 0, crit: false };
+  let damage = rollDice(blow.damage, source, roll.crit) + (mob.state === 'windup' ? (blow.opening ?? 0) : 0);
+  if (unaware && blow.sneak && blow.sneak.count > 0) damage += rollDice(blow.sneak, source, roll.crit);
+  return { damage: Math.max(1, damage), crit: roll.crit };
+}
+
+/** The average damage of a blow that hits (the debug panel and the builder's numbers). */
+export function averageBlow(blow: Pick<Blow, 'damage'>): number {
+  return Math.max(1, averageDice(blow.damage));
 }
 
 /** Where the mobs of a world may be, and how many there are. */
@@ -319,12 +371,12 @@ export interface HordePlayer {
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
   /**
-   * How it takes a hit: the share of the hits that glance off it (its Armour Class), the share of a
+   * How it takes a hit: its Armour Class (a mob's attack roll must reach it; 10 without), the share of a
    * stun and of a poison (CON), and its guard after a stun (DEX); how a pack presses it (CHA:
    * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
    * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'glance' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -346,6 +398,14 @@ export interface ShotKill {
   readonly mob: Mob;
   readonly owner: number;
 }
+
+/** What a player's arrow did when it reached a mob (BlowResult), and the player who shot it. */
+export interface ShotResult extends BlowResult {
+  readonly owner: number;
+}
+
+/** A mob's attack on a player: [mob id, player id, damage]; damage 0 is a miss (it glanced off). */
+export type MobHit = [number, number, number];
 
 /** A mob walks at most this far from its home while it wanders (world pixels). */
 const WANDER_RADIUS = 4 * TILE_SIZE;
@@ -383,6 +443,8 @@ const MAX_MOBS = 40;
 const CURVE = [0.35, 0.65] as const;
 /** A blow pushes a mob back (MobStats.knockback) over this long (ms), fast at first. */
 const KNOCKBACK_MS = 200;
+/** A hobgoblin's martial advantage: another mob this close to its target (world pixels, 1.5 tiles). */
+const ALLY_RANGE = 24;
 /** The longest move in one go, so a mob never passes through a solid box. */
 const MAX_MOVE = 6;
 /** A mob that stays this close to one point while it wants to move is stuck (world pixels); after this long (ms) it changes its plan, and a chase gives up after GIVE_UP_MS. */
@@ -492,8 +554,11 @@ export class Horde {
   /** The arrows in flight (arrows.ts): step() flies them. */
   readonly arrows: Arrow[] = [];
   private nextArrow = 1;
-  /** Mobs that arrows killed since the last takeShotKills(). */
+  /** Mobs that arrows killed since the last takeShotKills(), and what the arrows did since the last takeShotResults(). */
   private shotKills: ShotKill[] = [];
+  private shotResults: ShotResult[] = [];
+  /** Where the dice of the fights come from (dice.ts): the horde's own random numbers, or the averages (tests). */
+  readonly dice: DiceSource;
   /** The guard after a stun of each player (ticks), from the last step. */
   private guards = new Map<number, number>();
   /** The traits of each player that change how mobs fight it, from the last step. */
@@ -509,10 +574,12 @@ export class Horde {
   /** For each player that mobs hunt: the mob with the next turn to attack it. See nextUp(). */
   private readonly nextMob = new Map<number, number>();
 
-  constructor(world: World, rules: MobRules, seed: number) {
+  /** `dice`: where the dice come from; without it, random numbers of their own from `seed` (the AI's stay the same). */
+  constructor(world: World, rules: MobRules, seed: number, dice?: DiceSource) {
     this.world = world;
     this.rules = rules;
     this.random = rng(seed);
+    this.dice = dice ?? rollingDice(rng(seed ^ 0x5bd1e995));
     this.ground = { solidBox: (tx, ty) => (this.passable(tx, ty) ? world.solidBox(tx, ty) : FULL_BOX) };
   }
 
@@ -557,12 +624,13 @@ export class Horde {
   }
 
   /**
-   * Moves the horde on by `dtMs` (at most 250 ms count). Mobs hit the players that they reach:
-   * the player's state gets a stun. Returns the hits, as [mob id, player id].
+   * Moves the horde on by `dtMs` (at most 250 ms count). Mobs attack the players that they reach:
+   * each attack rolls against the player's AC (5e), and a hit stuns it and takes its damage.
+   * Returns the attacks, as [mob id, player id, damage] (damage 0: a miss).
    */
-  step(dtMs: number, players: readonly HordePlayer[]): [number, number][] {
+  step(dtMs: number, players: readonly HordePlayer[]): MobHit[] {
     const dt = Math.min(Math.max(0, dtMs), 250);
-    const hits: [number, number][] = [];
+    const hits: MobHit[] = [];
     this.clockMs += dt;
     // The players without the companions: new mobs come round them, and mobs prowl to them.
     const people = players.filter((p) => !p.companion);
@@ -611,15 +679,10 @@ export class Horde {
             brain.timerMs = stats.strikeMs;
             break;
           }
-          // The blow: it lands if the player is still close, and not stunned or just after a stun.
-          brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
-          if (brain.hit) {
-            // A glancing blow (Armour Class) does nothing: no stun, so no guard to inspire.
-            const hurt = hitPlayer(target!, stats.hitDamage, stats.stunTicks, stats.poisonTicks, bodies.get(brain.target!));
-            // A player with Charisma close by gives it more guard after the stun (the best one counts).
-            if (hurt && target!.down === 0) target!.inspired = inspireFor(brain.target!, target!, players);
-            hits.push([mob.id, brain.target!]);
-          }
+          // The blow: it reaches the player if the player is still close, and not stunned or just
+          // after a stun. Then its attack roll: a hit stuns and hurts; a miss glances off.
+          const reached = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
+          brain.hit = reached && this.attack(mob, brain.target!, target!, players, hits);
           this.enter(mob, 'strike');
           brain.timerMs = stats.strikeMs;
           break;
@@ -642,12 +705,13 @@ export class Horde {
   }
 
   /**
-   * An attack from `attacker` (the player `attackerId`) in the direction `aim` (radians) hits
+   * An attack from `attacker` (the player `attackerId`) in the direction `aim` (radians) touches
    * every living mob in its reach. `at` can give another position of a mob (where the attacker saw
-   * it, a moment ago): a hit there counts too. A blow takes `blow.damage` of a mob's health and
-   * pushes it away: the one that takes the last of it kills it; another one makes it reel
-   * (`hurt`), and then it goes for the attacker. Returns the mobs that it hit: the dead ones are
-   * `dying`.
+   * it, a moment ago): a touch there counts too. For each mob that it touches, the blow rolls
+   * (rollBlow): a hit takes its damage and pushes the mob away; the one that takes the last of its
+   * hit points kills it; another one makes it reel (`hurt`). A miss glances off: no damage, no reel.
+   * Either way the mob goes for the attacker. Returns what the blow did to each mob that it touched:
+   * the dead ones are `dying`.
    */
   strike(
     attacker: { readonly x: number; readonly y: number },
@@ -655,8 +719,8 @@ export class Horde {
     at?: (mob: Mob) => { x: number; y: number } | null,
     attackerId?: number,
     blow: Blow = PLAIN_BLOW,
-  ): Mob[] {
-    const struck: Mob[] = [];
+  ): BlowResult[] {
+    const struck: BlowResult[] = [];
     for (const mob of this.mobs) {
       if (mob.state === 'dying') continue;
       const radius = MOB_STATS[mob.kind].radius;
@@ -665,8 +729,7 @@ export class Horde {
         attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius, blow.reach) ||
         (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius, blow.reach));
       if (!hit) continue;
-      this.hit(mob, mob.x - attacker.x, mob.y - attacker.y, blow, attackerId);
-      struck.push(mob);
+      struck.push(this.hit(mob, mob.x - attacker.x, mob.y - attacker.y, blow, attackerId));
     }
     return struck;
   }
@@ -688,32 +751,76 @@ export class Horde {
     return kills;
   }
 
+  /** What the players' arrows did to mobs since the last call (a hit, a miss), with their shooters. */
+  takeShotResults(): ShotResult[] {
+    const results = this.shotResults;
+    this.shotResults = [];
+    return results;
+  }
+
   /**
-   * A blow on a mob from the direction (dx, dy): it takes `blow.damage` of its health and pushes
-   * it away; the blow that takes the last of it kills it; another one makes it reel (`hurt`), and
-   * then it goes for the attacker. Returns whether it died.
+   * A blow on a mob from the direction (dx, dy): its roll (rollBlow). A hit takes its damage and
+   * pushes the mob away; the blow that takes the last of its hit points kills it; another one makes
+   * it reel (`hurt`). A miss glances off. Either way the mob turns on the attacker. Returns what the
+   * blow did.
    */
-  private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number): boolean {
+  private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number): BlowResult {
     const brain = this.brains.get(mob.id)!;
+    const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
+    const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
+    if (damage === 0) {
+      // A miss: the mob does not reel, but it knows who attacked it.
+      if (attackerId !== undefined && mob.state !== 'hurt') {
+        brain.target = attackerId;
+        brain.lostMs = 0;
+        if (mob.state === 'idle' || mob.state === 'walk') this.enter(mob, 'chase');
+      }
+      return { mob, damage: 0, crit: false };
+    }
     const d = Math.hypot(dx, dy) || 1;
     brain.slideX = dx / d;
     brain.slideY = dy / d;
     const stats = MOB_STATS[mob.kind];
     brain.push = stats.knockback * blow.push;
     brain.reelMs = stats.hurtMs * blow.stagger;
-    const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
-    mob.health = Math.max(0, mob.health - blowDamage(blow, mob, unaware));
+    mob.health = Math.max(0, mob.health - damage);
     if (mob.health <= 0) {
       this.enter(mob, 'dying');
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
-      return true;
+      return { mob, damage, crit };
     }
     // It reels, its wind-up or blow broken, and turns on the one who hit it.
     if (attackerId !== undefined) brain.target = attackerId;
     brain.lostMs = 0;
     mob.facing = facingTo(-dx, -dy, mob.facing);
     this.enter(mob, 'hurt');
-    return false;
+    return { mob, damage, crit };
+  }
+
+  /**
+   * A mob's attack that reached player `id`: its roll against the player's AC (5e). A hit takes its
+   * damage (with the martial advantage of a hobgoblin that has an ally next to the player), stuns and
+   * poisons; a miss glances off. A player with Charisma close by gives a player that was hurt more
+   * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit.
+   */
+  private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
+    const stats = MOB_STATS[mob.kind];
+    const body = this.bodies.get(id);
+    const roll = attackRoll(stats.toHit, body?.ac ?? 10, this.dice);
+    if (!roll.hit) {
+      glancePlayer(target);
+      hits.push([mob.id, id, 0]);
+      return false;
+    }
+    let damage = rollDice(stats.damage, this.dice, roll.crit);
+    if (stats.allyDice && this.mobs.some((m) => m !== mob && m.state !== 'dying' && Math.hypot(m.x - target.x, m.y - target.y) <= ALLY_RANGE)) {
+      damage += rollDice(stats.allyDice, this.dice, roll.crit);
+    }
+    damage = Math.max(1, damage);
+    hitPlayer(target, damage, stats.stunTicks, stats.poisonTicks, body);
+    if (target.down === 0) target.inspired = inspireFor(id, target, players);
+    hits.push([mob.id, id, damage]);
+    return true;
   }
 
   /** A mob's arrow (an archer's blow): it flies at the players (Arrow.from), with the mob's id as its owner, negative. */
@@ -726,7 +833,7 @@ export class Horde {
    * first player on its way that can be hit now (canBeHit: not defeated, stunned, on guard or in a
    * dodge), as the mob's blow would (its hit as a hit of `hits`). A thing stops either.
    */
-  private flyArrows(dtMs: number, players: readonly HordePlayer[], hits: [number, number][]): void {
+  private flyArrows(dtMs: number, players: readonly HordePlayer[], hits: MobHit[]): void {
     if (this.arrows.length === 0) return;
     const living = this.mobs.filter((m) => m.state !== 'dying');
     const targets = living.map((m) => ({ x: m.x, y: m.y, radius: MOB_STATS[m.kind].radius }));
@@ -739,10 +846,8 @@ export class Horde {
         this.arrows.splice(this.arrows.indexOf(arrow), 1);
         if (hit < 0) continue;
         const p = open[hit]!;
-        const stats = MOB_STATS[arrow.from];
-        const hurt = hitPlayer(p.state, stats.hitDamage, stats.stunTicks, stats.poisonTicks, this.bodies.get(p.id));
-        if (hurt && p.state.down === 0) p.state.inspired = inspireFor(p.id, p.state, players);
-        hits.push([-arrow.owner, p.id]);
+        const shooter = this.mobs.find((m) => m.id === -arrow.owner) ?? { id: -arrow.owner, kind: arrow.from };
+        this.attack(shooter as Mob, p.id, p.state, players, hits);
         continue;
       }
       const hit = flyArrow(arrow, this.world, dtMs / 1000, targets);
@@ -751,7 +856,9 @@ export class Horde {
       if (hit < 0) continue;
       const mob = living[hit]!;
       if (mob.state === 'dying') continue;
-      if (this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner)) this.shotKills.push({ mob, owner: arrow.owner });
+      const result = this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner);
+      this.shotResults.push({ ...result, owner: arrow.owner });
+      if (mob.health <= 0) this.shotKills.push({ mob, owner: arrow.owner });
     }
   }
 

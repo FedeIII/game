@@ -128,6 +128,11 @@ const EN = {
     moved: 'Quest updated',
     ended: 'Quest done',
   },
+  /** What the dice of a fight did (render/fight-numbers.ts): a miss, and a critical hit. */
+  fight: {
+    miss: 'miss',
+    crit: (n: number): string => `${n}!`,
+  },
   /** The vitals (ui/vitals.ts): hit points, stamina, effects. */
   vitals: {
     hp: (hp: number, max: number): string => `${hp} of ${max} hit points`,
@@ -165,9 +170,9 @@ const EN = {
     drinkButton: 'Drink',
     chewButton: 'Chew',
     chewHint: (what: string): string => `You could chew ${what}, if you knew more of herbs.`,
-    /** What a drink does (items.ts, DRINKS): "Drink it: 2 hit points back." */
+    /** What a drink does (items.ts, DRINKS): "Drink it: 2d4+2 hit points back." */
     effect: (chew: boolean, parts: readonly string[]): string => `${chew ? 'Chew' : 'Drink'} it: ${parts.join(', ')}.`,
-    hp: (n: number): string => (n === 1 ? '1 hit point back' : `${n} hit points back`),
+    hp: (dice: string): string => `${dice} hit points back`,
     fullHp: 'all your hit points back',
     cure: 'a poison ends',
     stackOf: (n: number): string => `Up to ${n} in a slot.`,
@@ -215,10 +220,10 @@ const EN = {
     empty: (slot: string): string => `${slot}: nothing`,
     /** A worn item, for a screen reader and as a tooltip: "Main hand: a longsword". */
     worn: (slot: string, what: string): string => `${slot}: ${what}`,
-    /** The line under the picture: the Armour Class and the share of glancing blows, and the damage of a blow. */
+    /** The line under the picture: the Armour Class, the attack bonus, and the dice of a blow (5e). */
     ac: (ac: number): string => `AC ${ac}`,
-    glance: (share: number): string => (share > 0 ? `${Math.round(share * 100)}% of the hits glance off` : 'no hit glances off'),
-    damage: (n: number): string => `Damage ${n}`,
+    toHit: (n: number): string => `${n >= 0 ? '+' : ''}${n} to hit`,
+    damage: (dice: string): string => `Damage ${dice}`,
     /** Where the chosen item is: "Worn: main hand." */
     wornIn: (slot: string): string => `Worn: ${slot.toLowerCase()}.`,
     armour: (type: ArmourType, ac: number): string =>
@@ -226,8 +231,8 @@ const EN = {
     heavy: (str: number): string => `Without STR ${str}, you walk slower in it.`,
     noisy: 'Noisy: when you sneak, the mobs see you from further away.',
     shield: (ac: number): string => `Shield: AC +${ac}.`,
-    weapon: (die: number, base: number): string => `Weapon (d${die}): ${base} damage + your attack ability.`,
-    versatile: (die: number, base: number): string => `With both hands (d${die}): ${base}.`,
+    weapon: (die: number): string => `Weapon: d${die} damage + your attack ability.`,
+    versatile: (die: number): string => `With both hands: d${die}.`,
     twoHanded: 'It needs both hands.',
     light: 'Light: quicker attacks. It goes in the off hand too.',
     heavyWeapon: 'Heavy: slower attacks.',
@@ -257,11 +262,12 @@ const EN = {
   traits: {
     heading: 'What your scores give',
     ac: 'Armour Class',
-    acValue: (ac: number, glance: number): string => (glance > 0 ? `${ac} (${Math.round(glance * 100)}% of the hits glance off)` : String(ac)),
+    toHit: 'Attack bonus',
+    toHitValue: (n: number): string => `${n >= 0 ? '+' : ''}${n} (d20 against the AC of a mob)`,
     damage: 'Damage of a blow',
-    damageValue: (n: number, ability: string): string => `${n} (${ability})`,
+    damageValue: (dice: string, ability: string): string => `${dice} (${ability})`,
     sneak: 'Sneak attack',
-    sneakValue: (n: number): string => `+${n} on a mob that does not hunt you`,
+    sneakValue: (dice: string): string => `+${dice} on a mob that does not hunt you`,
     walk: 'Walk',
     walkValue: (share: number): string => (share < 1 ? `${Math.round((1 - share) * 100)}% slower (heavy armour)` : 'normal'),
     push: 'Knockback',
@@ -285,8 +291,6 @@ const EN = {
     pickYes: 'you pick them',
     hp: 'Hit points',
     stun: 'Stun from a hit',
-    recover: 'A hit point back',
-    recoverValue: (seconds: number): string => `every ${seconds.toFixed(0)} s`,
     stamina: 'Stamina',
     staminaValue: (max: number, refill: number): string => `${max} (${refill} back each second)`,
     resist: 'Poison and drink',

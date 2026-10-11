@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
   EMPTY_PACK,
   Horde,
   ITEM_KINDS,
@@ -7,7 +8,9 @@ import {
   Room,
   TILE_SIZE,
   World,
-  blowDamage,
+  rollBlow,
+  dice,
+  MOB_STATS,
   canMakeDeal,
   checkDialog,
   createPlayer,
@@ -42,37 +45,37 @@ describe('the opening of a wind-up', () => {
   it('adds the INT modifier to a blow on a mob in its wind-up, and never takes any away', () => {
     expect(withInt(17).opening).toBe(3);
     expect(withInt(8).opening).toBe(0);
-    const blow = { damage: 4, push: 1, stagger: 1, opening: 3 };
-    expect(blowDamage(blow, { state: 'windup' })).toBe(7);
-    expect(blowDamage(blow, { state: 'chase' })).toBe(4);
+    const blow = { toHit: 5, damage: dice(0, 0, 4), push: 1, stagger: 1, opening: 3 };
+    expect(rollBlow(blow, { kind: 'brute', state: 'windup' }, false, AVERAGE_DICE).damage).toBe(7);
+    expect(rollBlow(blow, { kind: 'brute', state: 'chase' }, false, AVERAGE_DICE).damage).toBe(4);
   });
 
   it('kills a brute in its wind-up sooner', () => {
-    const horde = new Horde(new World(textSource([])), everywhere, 4);
+    const horde = new Horde(new World(textSource([])), everywhere, 4, AVERAGE_DICE);
     const brute = horde.spawn('brute', 18, 0);
     brute.state = 'windup';
-    horde.strike({ x: 0, y: 0 }, 0, undefined, 1, { damage: 6, push: 1, stagger: 1, opening: 3 });
-    expect(brute.health).toBe(3);
+    horde.strike({ x: 0, y: 0 }, 0, undefined, 1, { toHit: 5, damage: dice(0, 0, 15), push: 1, stagger: 1, opening: 3 });
+    expect(brute.health).toBe(MOB_STATS.brute.health - 15 - 3);
   });
 });
 
 describe('drinks', () => {
-  it('heal, cure and go from the pack', () => {
+  it('heal (5e: 2d4+2 and 4d4+4), cure and go from the pack', () => {
     const traits = withInt(10);
     const p = createPlayer(0, 0);
     p.hp = 1;
     p.poison = 200;
     const pack = { coins: 0, items: [{ kind: 'draught' as const, count: 2 }, { kind: 'antidote' as const, count: 1 }, { kind: 'strong-draught' as const, count: 1 }] };
-    const a = drinkFrom(pack, 'draught', p, traits)!;
-    expect(p.hp).toBe(3);
+    const a = drinkFrom(pack, 'draught', p, traits, AVERAGE_DICE)!;
+    expect(p.hp).toBe(1 + 7);
     expect(a.items[0]).toEqual({ kind: 'draught', count: 1 });
-    const b = drinkFrom(a, 'antidote', p, traits)!;
+    const b = drinkFrom(a, 'antidote', p, traits, AVERAGE_DICE)!;
     expect(p.poison).toBe(0);
     expect(b.items.some((s) => s?.kind === 'antidote')).toBe(false);
-    drinkFrom(b, 'strong-draught', p, traits);
-    expect(p.hp).toBe(traits.maxHp);
-    expect(drinkFrom(pack, 'herbs', p, traits)).toBeNull();
-    expect(drinkFrom(EMPTY_PACK, 'draught', p, traits)).toBeNull();
+    drinkFrom(b, 'strong-draught', p, traits, AVERAGE_DICE);
+    expect(p.hp).toBe(Math.min(traits.maxHp, 8 + 14));
+    expect(drinkFrom(pack, 'herbs', p, traits, AVERAGE_DICE)).toBeNull();
+    expect(drinkFrom(EMPTY_PACK, 'draught', p, traits, AVERAGE_DICE)).toBeNull();
   });
 });
 
@@ -137,7 +140,7 @@ describe('Intelligence in a shared world', () => {
   it('brews at a fixture only with the gate of the answer, the items, and nearness', () => {
     expect(parseClientMessage('{"t":"deal","at":[12,12],"deal":"draught"}')).toEqual({ t: 'deal', at: [12, 12], deal: 'draught' });
     expect(parseClientMessage('{"t":"deal","npc":0,"at":[12,12],"deal":"draught"}')).toBeNull();
-    const room = new Room(new World(cauldronSource()));
+    const room = new Room(new World(cauldronSource()), { dice: AVERAGE_DICE });
     const herbs = { coins: 0, items: [{ kind: 'herbs' as const, count: 2 }] };
     const wise = room.join(0, 1, [12, 13], '', undefined, { traits: withInt(13), pack: herbs })!;
     const dull = room.join(0, 2, [12, 13], '', undefined, { traits: withInt(12), pack: herbs })!;
@@ -150,18 +153,18 @@ describe('Intelligence in a shared world', () => {
 
   it('lets a player drink from its pack through the server', () => {
     expect(parseClientMessage('{"t":"drink","kind":6}')).toEqual({ t: 'drink', kind: 6 });
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, undefined, '', undefined, { traits: withInt(10), hp: 1, pack: { coins: 0, items: [{ kind: 'draught', count: 1 }] } })!;
     room.drink(p.id, ITEM_KINDS.indexOf('draught'));
-    expect(p.state.hp).toBe(3);
+    expect(p.state.hp).toBe(1 + 7);
     expect(p.pack.items).toEqual([]);
     room.drink(p.id, ITEM_KINDS.indexOf('draught'));
-    expect(p.state.hp).toBe(3);
+    expect(p.state.hp).toBe(1 + 7);
   });
 
   it('keeps the chunks that a character sees, and sends the new ones', () => {
     expect(seenChunks(10, 10)).toHaveLength(9);
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: withInt(10), explored: [[40, 40]] })!;
     const welcome = room.welcome(p);
     expect(welcome.ex).toContainEqual([40, 40]);

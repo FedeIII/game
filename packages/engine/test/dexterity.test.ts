@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
+  dice,
   ATTACK_COOLDOWN_TICKS,
   DODGE_COOLDOWN_TICKS,
   DODGE_DISTANCE,
@@ -165,34 +167,37 @@ describe('arrows', () => {
   // A player near the shooter, whom the mobs do not see: without players, mobs go away.
   const watcher = (x: number, y: number) => [{ id: 9, state: createPlayer(x, y), sight: 0 }];
   it('hit the first mob on their way, and the kill goes to the shooter', () => {
-    const horde = new Horde(new World(textSource([])), everywhere, 6);
+    const horde = new Horde(new World(textSource([])), everywhere, 6, AVERAGE_DICE);
     const near = horde.spawn('imp', 140, 100);
     const far = horde.spawn('imp', 180, 100);
-    horde.shoot({ x: 100, y: 100 }, 0, 100, 9, { damage: 4, push: 1, stagger: 1 });
+    horde.shoot({ x: 100, y: 100 }, 0, 100, 9, { toHit: 5, damage: dice(0, 0, 99), push: 1, stagger: 1 });
     for (let t = 0; t < 500; t += TICK_MS) horde.step(TICK_MS, watcher(100, 100));
     expect(near.state).toBe('dying');
     expect(far.state).not.toBe('dying');
     expect(horde.arrows).toHaveLength(0);
     expect(horde.takeShotKills()).toEqual([{ mob: near, owner: 9 }]);
     expect(horde.takeShotKills()).toEqual([]);
+    // What the arrow did goes to its shooter too (the numbers on its page).
+    expect(horde.takeShotResults()).toEqual([{ mob: near, damage: 99, crit: false, owner: 9 }]);
   });
 
   it('stop at a tree and at the end of their range, and fly over water', () => {
     const world = new World(textSource(['..........', '..~~~..T..', '..........']));
-    const horde = new Horde(world, everywhere, 7);
+    const kill = { toHit: 5, damage: dice(0, 0, 99), push: 1, stagger: 1 };
+    const horde = new Horde(world, everywhere, 7, AVERAGE_DICE);
     // Along the trunk of the tree (the bottom of its tile).
     const beyond = horde.spawn('imp', 9 * TILE_SIZE + 8, TILE_SIZE + 13);
-    horde.shoot({ x: 8, y: TILE_SIZE + 13 }, 0, 400, 1);
+    horde.shoot({ x: 8, y: TILE_SIZE + 13 }, 0, 400, 1, kill);
     for (let t = 0; t < 2000; t += TICK_MS) horde.step(TICK_MS, watcher(8, 8));
     expect(beyond.state).not.toBe('dying');
-    const short = new Horde(world, everywhere, 8);
+    const short = new Horde(world, everywhere, 8, AVERAGE_DICE);
     const out = short.spawn('imp', 140, 2 * TILE_SIZE + 8);
-    short.shoot({ x: 8, y: 2 * TILE_SIZE + 8 }, 0, 5 * TILE_SIZE, 1);
+    short.shoot({ x: 8, y: 2 * TILE_SIZE + 8 }, 0, 5 * TILE_SIZE, 1, kill);
     for (let t = 0; t < 2000; t += TICK_MS) short.step(TICK_MS, watcher(8, 8));
     expect(out.state).not.toBe('dying');
-    const wet = new Horde(world, everywhere, 9);
+    const wet = new Horde(world, everywhere, 9, AVERAGE_DICE);
     const across = wet.spawn('imp', 6 * TILE_SIZE, TILE_SIZE + 8);
-    wet.shoot({ x: 8, y: TILE_SIZE + 8 }, 0, 400, 1);
+    wet.shoot({ x: 8, y: TILE_SIZE + 8 }, 0, 400, 1, kill);
     for (let t = 0; t < 2000; t += TICK_MS) wet.step(TICK_MS, watcher(8, 8));
     expect(across.state).toBe('dying');
   });
@@ -222,16 +227,17 @@ describe('Dexterity in a shared world', () => {
   });
 
   it('lets a ranger shoot a brute dead from afar: the drop goes to the ranger, and the snapshots carry the arrow', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: withDex(16, 'ranger') })!;
     const brute = room.horde!.spawn('brute', p.state.x + 60, p.state.y);
+    // Two arrows of the average 1d8+3 (7) kill a brute with 14 hit points.
+    brute.health = 14;
     room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 1]] }, 0);
     expect(room.horde!.arrows).toHaveLength(1);
     let snap: SnapshotMessage | null = null;
     room.broadcast(0, (_id, message) => (snap = message));
     expect(snap!.ar).toHaveLength(1);
     expect(snap!.ar![0]![1]).toBe(p.id);
-    // Four arrows of 4 damage (DEX 16: +3 is for the ranger's damage too: 7) kill a brute of 12 in two.
     const quiet = Array.from({ length: 30 }, () => [0, 0] as const);
     room.input(p.id, { t: 'in', s: 2, i: [...quiet.slice(0, 21), [0, 0, 1]] }, 50);
     for (let t = 100; t < 1500; t += 50) {
@@ -243,7 +249,7 @@ describe('Dexterity in a shared world', () => {
   });
 
   it('shows the dodge of a player to the others', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1, [5, 10])!;
     const b = room.join(0, 2, [8, 10])!;
     room.input(a.id, { t: 'in', s: 1, i: [[100, 0, 0, 1]] }, 0);

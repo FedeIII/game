@@ -1,4 +1,4 @@
-import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, formatDice, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
 import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
@@ -11,9 +11,10 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
   const t = STRINGS.traits;
   const gate = (gate: Gate, yes: string) => (meetsGate(traits.scores, gate) ? yes : t.from(STRINGS.abilities[gate.ability].short, gate.min));
   const rows: [string, string][] = [
-    [t.ac, t.acValue(traits.ac, traits.glance)],
-    [t.damage, t.damageValue(traits.damage, STRINGS.abilities[traits.attack].short)],
-    ...(traits.sneak > 0 ? ([[t.sneak, t.sneakValue(traits.sneak)]] as [string, string][]) : []),
+    [t.ac, String(traits.ac)],
+    [t.toHit, t.toHitValue(traits.toHit)],
+    [t.damage, t.damageValue(formatDice(traits.damage), STRINGS.abilities[traits.attack].short)],
+    ...(traits.sneak.count > 0 ? ([[t.sneak, t.sneakValue(formatDice(traits.sneak))]] as [string, string][]) : []),
     ...(traits.speed < 1 ? ([[t.walk, t.walkValue(traits.speed)]] as [string, string][]) : []),
     [t.push, t.share(traits.push)],
     [t.stagger, t.share(traits.stagger)],
@@ -28,7 +29,6 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.pick, gate(PICK_GATE, t.pickYes)],
     [t.hp, String(traits.maxHp)],
     [t.stun, t.share(traits.stun)],
-    [t.recover, t.recoverValue(traits.recover * TICK_SECONDS)],
     [t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)],
     [t.resist, t.share(traits.resist)],
     [t.opening, t.openingValue(traits.opening)],

@@ -20,7 +20,8 @@ import {
   World,
   WEARABLES,
   armourClass,
-  blowDamage,
+  AVERAGE_DICE,
+  MOB_STATS,
   canUse,
   checkGear,
   createPlayer,
@@ -28,8 +29,10 @@ import {
   fitsSlot,
   fromWireGear,
   gearAddress,
-  glanceShare,
-  hitPlayer,
+  dice,
+  formatDice,
+  rollBlow,
+  type DiceSource,
   kitOf,
   meetsGate,
   moveItem,
@@ -130,24 +133,25 @@ describe('the kits of the classes', () => {
   });
 
   it('give the balance of the plan (main score 17, DEX 14, the third score 14)', () => {
+    // At level 3 (level-3.md): the attack bonus is +2 and the modifier; the damage is the die and the modifier.
     const row = (cls: (typeof CLASSES)[number], over: Partial<Scores>) => {
       const s = scores(over);
       const t = traitsOf(s, cls, kitOf(cls));
-      return { ac: t.ac, damage: t.damage, cooldown: t.cooldown, ranged: t.ranged };
+      return { ac: t.ac, toHit: t.toHit, damage: formatDice(t.damage), cooldown: t.cooldown, ranged: t.ranged };
     };
     const quick = ATTACK_COOLDOWN_TICKS - 4;
-    expect(row('barbarian', { str: 17, dex: 14, con: 14 })).toEqual({ ac: 14, damage: 9, cooldown: quick + 4, ranged: false });
-    expect(row('bard', { cha: 17, dex: 14 })).toEqual({ ac: 13, damage: 6, cooldown: quick, ranged: false });
-    expect(row('cleric', { wis: 17, dex: 14 })).toEqual({ ac: 18, damage: 6, cooldown: quick, ranged: false });
-    expect(row('druid', { wis: 17, dex: 14 })).toEqual({ ac: 15, damage: 7, cooldown: quick, ranged: false });
-    expect(row('fighter', { str: 17, dex: 14 })).toEqual({ ac: 18, damage: 7, cooldown: quick, ranged: false });
-    expect(row('monk', { dex: 17, wis: 14 })).toEqual({ ac: 15, damage: 6, cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
-    expect(row('paladin', { str: 17, dex: 14 })).toEqual({ ac: 18, damage: 7, cooldown: quick, ranged: false });
-    expect(row('ranger', { dex: 17 })).toEqual({ ac: 14, damage: 7, cooldown: ATTACK_COOLDOWN_TICKS - 6, ranged: true });
-    expect(row('rogue', { dex: 17 })).toEqual({ ac: 14, damage: 6, cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
-    expect(row('sorcerer', { cha: 17, dex: 14 })).toEqual({ ac: 12, damage: 8, cooldown: quick, ranged: false });
-    expect(row('warlock', { cha: 17, dex: 14 })).toEqual({ ac: 13, damage: 8, cooldown: quick, ranged: false });
-    expect(row('wizard', { int: 17, dex: 14 })).toEqual({ ac: 12, damage: 8, cooldown: quick, ranged: false });
+    expect(row('barbarian', { str: 17, dex: 14, con: 14 })).toEqual({ ac: 14, toHit: 5, damage: '1d12+3', cooldown: quick + 4, ranged: false });
+    expect(row('bard', { cha: 17, dex: 14 })).toEqual({ ac: 13, toHit: 4, damage: '1d8+2', cooldown: quick, ranged: false });
+    expect(row('cleric', { wis: 17, dex: 14 })).toEqual({ ac: 18, toHit: 5, damage: '1d6+3', cooldown: quick, ranged: false });
+    expect(row('druid', { wis: 17, dex: 14 })).toEqual({ ac: 15, toHit: 5, damage: '1d8+3', cooldown: quick, ranged: false });
+    expect(row('fighter', { str: 17, dex: 14 })).toEqual({ ac: 18, toHit: 5, damage: '1d8+3', cooldown: quick, ranged: false });
+    expect(row('monk', { dex: 17, wis: 14 })).toEqual({ ac: 15, toHit: 5, damage: '1d4+3', cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
+    expect(row('paladin', { str: 17, dex: 14 })).toEqual({ ac: 18, toHit: 5, damage: '1d8+3', cooldown: quick, ranged: false });
+    expect(row('ranger', { dex: 17 })).toEqual({ ac: 14, toHit: 5, damage: '1d8+3', cooldown: ATTACK_COOLDOWN_TICKS - 6, ranged: true });
+    expect(row('rogue', { dex: 17 })).toEqual({ ac: 14, toHit: 5, damage: '1d6+3', cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
+    expect(row('sorcerer', { cha: 17, dex: 14 })).toEqual({ ac: 12, toHit: 5, damage: '1d10+3', cooldown: quick, ranged: false });
+    expect(row('warlock', { cha: 17, dex: 14 })).toEqual({ ac: 13, toHit: 5, damage: '1d10+3', cooldown: quick, ranged: false });
+    expect(row('wizard', { int: 17, dex: 14 })).toEqual({ ac: 12, toHit: 5, damage: '1d10+3', cooldown: quick, ranged: false });
   });
 });
 
@@ -167,85 +171,74 @@ describe('Armour Class', () => {
     expect(armourClass(gear({ armour: 'splint-armour', off: 'shield' }), scores({ dex: 8 }), 'fighter')).toBe(19);
   });
 
-  it('turns 5% of the hits into glancing blows for each point over 10, at most 95%', () => {
-    expect(glanceShare(10)).toBe(0);
-    expect(glanceShare(8)).toBe(0);
-    expect(glanceShare(15)).toBeCloseTo(0.25);
-    expect(glanceShare(18)).toBeCloseTo(0.4);
-    expect(glanceShare(40)).toBe(0.95);
-  });
 });
 
-describe('a glancing blow', () => {
-  it('comes in a fixed order: with AC 15, every fourth hit glances, and it does nothing but a spark', () => {
-    const player = createPlayer(0, 0);
-    player.hp = 100;
-    const glanced: number[] = [];
-    for (let i = 1; i <= 12; i++) {
-      const before = player.hp;
-      player.stun = 0;
-      const hurt = hitPlayer(player, 1, 30, 360, { glance: glanceShare(15) });
-      if (!hurt) {
-        glanced.push(i);
-        expect(player.hp).toBe(before);
-        expect(player.stun).toBe(0);
-        expect(player.poison).toBe(0);
-        expect(player.glance).toBe(GLANCE_TICKS);
-      } else {
-        expect(player.hp).toBe(before - 1);
-        player.poison = 0;
-      }
-    }
-    expect(glanced).toEqual([4, 8, 12]);
-  });
+/** A dice source that always rolls the same share of each die: 0 is a natural 1, 0.999 a natural 20. */
+const fixed = (share: number): DiceSource => ({ kind: 'roll', random: () => share });
 
-  it('never happens with AC 10', () => {
-    const player = createPlayer(0, 0);
-    player.hp = 100;
-    for (let i = 0; i < 40; i++) expect(hitPlayer(player, 1, 1, 0, { glance: 0 })).toBe(true);
-  });
-
-  it('comes from a mob of the horde too: the hit lands, but the player takes nothing', () => {
-    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
-    const horde = new Horde(new World(textSource([])), everywhere, 5);
+describe("a mob's attack roll (level-3.md)", () => {
+  const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {} };
+  /** An imp next to a player with this AC, and the dice; the attacks of 20 s. */
+  const fight = (ac: number, source: DiceSource) => {
+    const horde = new Horde(new World(textSource([])), everywhere, 5, source);
     horde.spawn('imp', 8, 12);
     const player = createPlayer(8 + 2 * TILE_SIZE, 12);
     player.hp = 1000;
-    // Every hit glances: 95%... and the count makes the first one land; then nearly all glance.
-    const traits = { glance: 0.95 };
-    let hits = 0;
-    for (let t = 0; t < 60_000 && hits < 6; t += TICK_SECONDS * 1000) {
+    const attacks: [number, number, number][] = [];
+    for (let t = 0; t < 20_000 && attacks.length < 4; t += TICK_SECONDS * 1000) {
       stepPlayer(player, NO_INPUT, horde.world);
-      // The imp's poison bites apart from the hits: this test counts the hits.
       player.poison = 0;
-      hits += horde.step(TICK_SECONDS * 1000, [{ id: 1, state: player, traits }]).length;
+      attacks.push(...horde.step(TICK_SECONDS * 1000, [{ id: 1, state: player, traits: { ac } }]));
     }
-    expect(hits).toBe(6);
-    // Of six hits only the first lands: 0.95, then 1.9 (glance), 1.85 (glance), ...
-    expect(player.hp).toBe(1000 - 1);
+    return { player, attacks };
+  };
+
+  it('glances off on a miss (a natural 1): no damage, no stun, a spark', () => {
+    const { player, attacks } = fight(10, fixed(0));
+    expect(attacks.length).toBeGreaterThan(0);
+    expect(attacks.every(([, , damage]) => damage === 0)).toBe(true);
+    expect(player.hp).toBe(1000);
+    expect(player.glance).toBeGreaterThan(0);
+    expect(player.glance).toBeLessThanOrEqual(GLANCE_TICKS);
+  });
+
+  it('hits with a natural 20 whatever the AC, and rolls the dice twice', () => {
+    const { player, attacks } = fight(30, fixed(0.999));
+    // The imp's claws: 1d4+3; a critical hit: 2d4+3, all fours.
+    expect(attacks[0]![2]).toBe(4 + 4 + 3);
+    expect(player.hp).toBeLessThan(1000);
+  });
+
+  it('hits when d20 + the bonus reaches the AC: an imp (+4) with a 10 hits AC 14, not AC 15', () => {
+    // A share of 0.45 rolls a 10 on the d20, and 2 on the d4.
+    expect(fight(14, fixed(0.45)).attacks.every(([, , damage]) => damage > 0)).toBe(true);
+    expect(fight(15, fixed(0.45)).attacks.every(([, , damage]) => damage === 0)).toBe(true);
+    expect(MOB_STATS.imp.toHit).toBe(4);
   });
 });
 
 describe('the damage with the gear', () => {
-  it('comes from the die of the weapon: d8 4, d6 3, d12 6, a versatile weapon with an empty off hand its bigger die', () => {
+  it('comes from the die of the weapon: d8, d6, d12, a versatile weapon with an empty off hand its bigger die', () => {
     const s = scores({ str: 10 });
-    expect(traitsOf(s, 'fighter', gear({ main: 'longsword', off: 'shield' })).damage).toBe(4);
-    expect(traitsOf(s, 'fighter', gear({ main: 'longsword' })).damage).toBe(5);
-    expect(traitsOf(s, 'fighter', gear({ main: 'mace' })).damage).toBe(3);
-    expect(traitsOf(s, 'fighter', gear({ main: 'greataxe' })).damage).toBe(6);
+    const of = (g: Gear) => formatDice(traitsOf(s, 'fighter', g).damage);
+    expect(of(gear({ main: 'longsword', off: 'shield' }))).toBe('1d8');
+    expect(of(gear({ main: 'longsword' }))).toBe('1d10');
+    expect(of(gear({ main: 'mace' }))).toBe('1d6');
+    expect(of(gear({ main: 'greataxe' }))).toBe('1d12');
   });
 
-  it('is an unarmed strike without a weapon (1), martial arts for a monk (3), a cantrip for a caster', () => {
+  it('is an unarmed strike without a weapon (1), martial arts for a monk (1d4), a cantrip for a caster (level 3)', () => {
     const s = scores();
-    expect(traitsOf(s, 'fighter', EMPTY_GEAR).damage).toBe(1);
-    expect(traitsOf(s, 'monk', EMPTY_GEAR).damage).toBe(3);
-    expect(traitsOf(s, 'sorcerer', EMPTY_GEAR).damage).toBe(5);
+    const of = (cls: (typeof CLASSES)[number], g: Gear) => formatDice(traitsOf(s, cls, g).damage);
+    expect(of('fighter', EMPTY_GEAR)).toBe('1');
+    expect(of('monk', EMPTY_GEAR)).toBe('1d4');
+    expect(of('sorcerer', EMPTY_GEAR)).toBe('1d10');
     expect(traitsOf(s, 'wizard', gear({ main: 'arcane-staff' })).strike.kind).toBe('cantrip');
-    expect(traitsOf(s, 'druid', gear({ main: 'druid-staff' })).damage).toBe(4);
+    expect(of('druid', gear({ main: 'druid-staff' }))).toBe('1d8');
     // Another focus is a quarterstaff for it: a d6, a d8 with both hands.
     expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff' })).strike.kind).toBe('weapon');
-    expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff' })).damage).toBe(4);
-    expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff', off: 'shield' })).damage).toBe(3);
+    expect(of('druid', gear({ main: 'arcane-staff' }))).toBe('1d8');
+    expect(of('druid', gear({ main: 'arcane-staff', off: 'shield' }))).toBe('1d6');
   });
 
   it('comes quicker with a light weapon, slower with a heavy melee weapon, as now with a bow', () => {
@@ -264,22 +257,24 @@ describe('the damage with the gear', () => {
   it("adds a rogue's sneak attack on a mob that does not hunt it", () => {
     const rogue = traitsOf(scores({ dex: 16 }), 'rogue', gear({ main: 'shortsword' }));
     expect(rogue.sneak).toBe(SNEAK_ATTACK);
-    expect(blowDamage(rogue, { state: 'walk' }, true)).toBe(6 + 3);
-    expect(blowDamage(rogue, { state: 'chase' }, false)).toBe(6);
-    expect(traitsOf(scores(), 'fighter', EMPTY_GEAR).sneak).toBe(0);
+    expect(formatDice(SNEAK_ATTACK)).toBe('2d6');
+    // With the average of the dice: 1d6+3 is 6, and 2d6 adds 7.
+    expect(rollBlow(rogue, { kind: 'imp', state: 'walk' }, true, AVERAGE_DICE).damage).toBe(6 + 7);
+    expect(rollBlow(rogue, { kind: 'imp', state: 'chase' }, false, AVERAGE_DICE).damage).toBe(6);
+    expect(traitsOf(scores(), 'fighter', EMPTY_GEAR).sneak.count).toBe(0);
   });
 
   it('gives the sneak attack in a fight: on a mob that does not hunt the rogue only', () => {
-    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
-    const horde = new Horde(new World(textSource([])), everywhere, 5);
+    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {} };
+    const horde = new Horde(new World(textSource([])), everywhere, 5, AVERAGE_DICE);
     const brute = horde.spawn('brute', 40, 12);
     const rogue = traitsOf(scores({ dex: 10 }), 'rogue', gear({ main: 'shortsword' }));
-    // The brute wanders: it does not hunt the rogue. 3 + 3.
+    // The brute wanders: it does not hunt the rogue. 1d6 (3) + 2d6 (7).
     horde.strike({ x: 20, y: 12 }, 0, undefined, 7, rogue);
-    expect(brute.health).toBe(12 - 6);
+    expect(brute.health).toBe(MOB_STATS.brute.health - 10);
     // Now it hunts the rogue (a blow turns it on the attacker): 3.
     horde.strike({ x: brute.x - 20, y: brute.y }, 0, undefined, 7, rogue);
-    expect(brute.health).toBe(12 - 6 - 3);
+    expect(brute.health).toBe(MOB_STATS.brute.health - 10 - 3);
   });
 });
 
@@ -308,7 +303,8 @@ describe('the luck amulet', () => {
     expect(meetsGate(plain.scores, { ability: 'int', min: 13 })).toBe(false);
     expect(meetsGate(lucky.scores, { ability: 'int', min: 13 })).toBe(true);
     expect(lucky.luck).toBe(1);
-    expect(lucky.damage).toBe(plain.damage);
+    expect(lucky.damage).toEqual(plain.damage);
+    expect(lucky.toHit).toBe(plain.toHit);
     expect(WEARABLES['luck-amulet']!.attune).toBe(true);
   });
 });
@@ -402,7 +398,7 @@ describe('gear from outside', () => {
 
 describe('the gear in a shared world', () => {
   it('starts with the gear of the character, follows a move, changes the traits, and goes into the snapshot', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const s = scores({ str: 16 });
     const kit = kitOf('fighter');
     const p = room.join(0, 1, [5, 5], '', undefined, {
@@ -417,7 +413,7 @@ describe('the gear in a shared world', () => {
     expect(p.gear).toEqual(gear({ armour: 'chain-mail', main: 'greataxe' }));
     expect(p.pack).toEqual(pack('longsword', 'shield'));
     expect(p.traits.ac).toBe(16);
-    expect(p.traits.damage).toBe(9);
+    expect(p.traits.damage).toEqual(dice(1, 12, 3));
     const snaps: SnapshotMessage[] = [];
     room.broadcast(0, (_, m) => snaps.push(m));
     expect(snaps[0]!.gr).toEqual(toWireGear(p.gear));
@@ -425,7 +421,7 @@ describe('the gear in a shared world', () => {
   });
 
   it('drops a worn item on the ground with put, and the next snapshot has no gear when nothing changed', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const s = scores();
     const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kitOf('cleric')), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kitOf('cleric') })!;
     room.welcome(p);
@@ -443,13 +439,13 @@ describe('the gear in a shared world', () => {
   });
 
   it('gives a guest the kit of the class of its look', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 5])!;
     expect(GEAR_SLOTS.some((slot) => p.gear[slot] !== null) || p.traits.class === 'monk' || p.traits.class === 'sorcerer').toBe(true);
   });
 
   it('does not change while the character lies defeated', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const s = scores();
     const kit = kitOf('cleric');
     const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kit), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kit })!;
@@ -459,7 +455,7 @@ describe('the gear in a shared world', () => {
   });
 
   it('sends what shows of every gear (the hands) when a player comes, and when that changes only', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const s = scores({ str: 16 });
     const join = (cls: 'fighter' | 'cleric', pack: Pack = EMPTY_PACK) =>
       room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, cls, kitOf(cls)), traitsFor: (g) => traitsOf(s, cls, g), gear: kitOf(cls), pack })!;
@@ -516,7 +512,8 @@ describe('the magic items', () => {
     const weak = scores({ str: 8, int: 8, con: 8 });
     const gauntlets = traitsOf(weak, 'fighter', gear({ main: 'rapier', gloves: 'gauntlets-of-ogre-power' }));
     expect(gauntlets.scores.str).toBe(19);
-    expect(gauntlets.damage).toBe(4 + 4);
+    expect(gauntlets.damage).toEqual(dice(1, 8, 4));
+    expect(gauntlets.toHit).toBe(2 + 4);
     // A score that is higher already stays.
     expect(traitsOf(scores({ str: 20 }), 'fighter', gear({ gloves: 'gauntlets-of-ogre-power' })).scores.str).toBe(20);
     // With STR 19 the plate is not too heavy.
@@ -524,7 +521,8 @@ describe('the magic items', () => {
     const headband = traitsOf(weak, 'wizard', gear({ head: 'headband-of-intellect' }));
     expect(headband.scores.int).toBe(19);
     expect(headband.opening).toBe(4);
-    expect(traitsOf(weak, 'wizard', gear({ neck: 'amulet-of-health' })).maxHp).toBe(8);
+    // CON 19 (+4) for a wizard (d6) at level 3: 6 + 4 + 4, and 3 times 4.
+    expect(traitsOf(weak, 'wizard', gear({ neck: 'amulet-of-health' })).maxHp).toBe(14 + 12);
     expect(traitsOf(scores({ con: 15 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(17);
     expect(traitsOf(scores({ con: 19 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(20);
   });
@@ -537,7 +535,8 @@ describe('the magic items', () => {
 
   it('make a longsword +1 a longsword with 1 more damage, for every class that can use a longsword', () => {
     const s = scores();
-    expect(traitsOf(s, 'fighter', gear({ main: 'longsword-plus-1', off: 'shield' })).damage).toBe(5);
+    expect(traitsOf(s, 'fighter', gear({ main: 'longsword-plus-1', off: 'shield' })).damage).toEqual(dice(1, 8, 1));
+    expect(traitsOf(s, 'fighter', gear({ main: 'longsword-plus-1', off: 'shield' })).toHit).toBe(2 + 1);
     expect(canUse('bard', 'longsword-plus-1')).toBe(true);
     expect(canUse('wizard', 'longsword-plus-1')).toBe(false);
   });
@@ -553,14 +552,14 @@ describe('the magic items', () => {
   });
 
   it('take their hit points with them when they come off, on the server', () => {
-    const room = new Room(new World(textSource([])));
+    const room = new Room(new World(textSource([])), { dice: AVERAGE_DICE });
     const s = scores({ con: 10 });
     const worn = gear({ neck: 'amulet-of-health' });
     const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'wizard', worn), traitsFor: (g) => traitsOf(s, 'wizard', g), gear: worn })!;
-    expect(p.state.hp).toBe(8);
+    expect(p.state.hp).toBe(26);
     room.move(p.id, gearAddress('neck'), 0);
-    expect(p.traits.maxHp).toBe(4);
-    expect(p.state.hp).toBe(4);
+    expect(p.traits.maxHp).toBe(14);
+    expect(p.state.hp).toBe(14);
   });
 });
 
@@ -568,7 +567,7 @@ describe('a reach weapon', () => {
   it('hits REACH_BONUS further: a glaive, d10, heavy and two-handed', () => {
     const glaive = traitsOf(scores(), 'fighter', gear({ main: 'glaive' }));
     expect(glaive.reach).toBe(ATTACK_REACH + REACH_BONUS);
-    expect(glaive.damage).toBe(5);
+    expect(glaive.damage).toEqual(dice(1, 10));
     expect(glaive.cooldown).toBe(ATTACK_COOLDOWN_TICKS + 4);
     expect(traitsOf(scores(), 'fighter', gear({ main: 'longsword' })).reach).toBe(ATTACK_REACH);
     expect(wear({ pack: pack('glaive'), gear: gear({ main: 'mace', off: 'shield' }) }, 0, 'main', 6, 'fighter')).toEqual({
@@ -578,17 +577,17 @@ describe('a reach weapon', () => {
   });
 
   it('strikes a mob a little further away, but not one at the far edge of the hounding', () => {
-    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
-    const horde = new Horde(new World(textSource([])), everywhere, 5);
+    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {} };
+    const horde = new Horde(new World(textSource([])), everywhere, 5, AVERAGE_DICE);
     const imp = horde.spawn('imp', 100 + 33, 100);
     const sword = traitsOf(scores(), 'fighter', gear({ main: 'longsword' }));
     const glaive = traitsOf(scores(), 'fighter', gear({ main: 'glaive' }));
     // The imp's radius is 7: a sword reaches 29, a glaive 37.
     expect(horde.strike({ x: 100, y: 100 }, 0, undefined, 1, sword)).toEqual([]);
-    expect(horde.strike({ x: 100, y: 100 }, 0, undefined, 1, glaive)).toEqual([imp]);
+    expect(horde.strike({ x: 100, y: 100 }, 0, undefined, 1, glaive).map((r) => r.mob)).toEqual([imp]);
     const far = horde.spawn('imp', 100, 100 + 46);
     expect(horde.strike({ x: 100, y: 100 }, Math.PI / 2, undefined, 1, glaive)).toEqual([]);
-    expect(far.health).toBe(3);
+    expect(far.health).toBe(MOB_STATS.imp.health);
   });
 });
 

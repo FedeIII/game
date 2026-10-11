@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatDice,
+  type CharacterClass,
   ABILITIES,
   ATTACK_ABILITY,
   CLASSES,
@@ -22,13 +24,17 @@ describe('the attack ability of each class (Option B)', () => {
     for (const cls of CLASSES) expect(CLASS_PRIMARY[cls]).toContain(ATTACK_ABILITY[cls]);
   });
 
-  it('gives the damage: with the plain gear (a d8), 4 + the modifier of that ability', () => {
-    expect(traitsOf(scores({ int: 17, str: 8 }), 'wizard', PLAIN_GEAR).damage).toBe(7);
-    expect(traitsOf(scores({ str: 17, int: 8 }), 'wizard', PLAIN_GEAR).damage).toBe(3);
-    expect(traitsOf(scores({ wis: 15 }), 'cleric', PLAIN_GEAR).damage).toBe(6);
-    expect(traitsOf(scores({ dex: 8 }), 'rogue', PLAIN_GEAR).damage).toBe(3);
-    expect(traitsOf(scores({ cha: 13 }), 'warlock', PLAIN_GEAR).damage).toBe(5);
-    expect(traitsOf(scores({ str: 16 }), 'fighter', PLAIN_GEAR).damage).toBe(7);
+  it('gives the damage and the attack bonus: with the plain gear (a d8), 1d8 + the modifier of that ability, and +2 + that modifier to hit', () => {
+    const of = (over: Partial<Scores>, cls: CharacterClass) => {
+      const t = traitsOf(scores(over), cls, PLAIN_GEAR);
+      return [formatDice(t.damage), t.toHit];
+    };
+    expect(of({ int: 17, str: 8 }, 'wizard')).toEqual(['1d8+3', 5]);
+    expect(of({ str: 17, int: 8 }, 'wizard')).toEqual(['1d8-1', 1]);
+    expect(of({ wis: 15 }, 'cleric')).toEqual(['1d8+2', 4]);
+    expect(of({ dex: 8 }, 'rogue')).toEqual(['1d8-1', 1]);
+    expect(of({ cha: 13 }, 'warlock')).toEqual(['1d8+1', 3]);
+    expect(of({ str: 16 }, 'fighter')).toEqual(['1d8+3', 5]);
   });
 });
 
@@ -61,13 +67,15 @@ describe('the traits of a sheet', () => {
     const sheet = { race: 'half-orc', class: 'barbarian', base: { str: 15, dex: 14, con: 13, int: 8, wis: 10, cha: 8 }, bonus: [] } as const;
     const traits = sheetTraits(sheet, sheetKit(sheet));
     expect(traits.scores.str).toBe(17);
-    // A greataxe (d12): 6 + 3.
-    expect(traits.damage).toBe(9);
+    // A greataxe: 1d12 + 3, and +2 + 3 to hit.
+    expect(formatDice(traits.damage)).toBe('1d12+3');
+    expect(traits.toHit).toBe(5);
     expect(traits.wade).toBe(true);
   });
 
   it('of a guest are all 10: the plain blow, no wading, 6 slots', () => {
-    expect(GUEST_TRAITS.damage).toBe(PLAIN_BLOW.damage);
+    expect(GUEST_TRAITS.damage).toEqual(PLAIN_BLOW.damage);
+    expect(GUEST_TRAITS.toHit).toBe(PLAIN_BLOW.toHit);
     expect(GUEST_TRAITS.push).toBe(PLAIN_BLOW.push);
     expect(GUEST_TRAITS.stagger).toBe(PLAIN_BLOW.stagger);
     expect(GUEST_TRAITS.wade).toBe(false);

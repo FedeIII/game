@@ -22,8 +22,10 @@ export interface CompanionDef {
   readonly name: string;
   /** An NPC look of the atlas (npc/<look>). */
   readonly look: string;
-  /** Its most hit points. */
+  /** Its most hit points (5e: as its stat block; a scout has 16). */
   readonly hp: number;
+  /** Its Armour Class: a mob's attack roll must reach it (5e). Without it, COMPANION_AC. */
+  readonly ac?: number;
   /** What a defeat does: 'gone', it dies (it leaves the world); 'wakes', it lies DOWN_TICKS (player.ts) and stands with all its hit points. */
   readonly fallen: 'gone' | 'wakes';
 }
@@ -62,6 +64,8 @@ export const FOLLOW_SEARCH = 24;
 export const REPATH_MS = 500;
 /** The ticks for each hit point that comes back out of a fight: a player's with CON 10. */
 const COMPANION_RECOVER = RECOVER_TICKS;
+/** The Armour Class of a companion without one (5e: leather armour and DEX +1). */
+export const COMPANION_AC = 12;
 
 interface Brain {
   path: [number, number][];
@@ -169,7 +173,7 @@ export class Companions {
 
   /** The companions as targets for the horde: mobs hunt them, but they bring no new mobs. */
   targets(): HordePlayer[] {
-    return this.all.map((c) => ({ id: c.id, state: c.state, companion: true }));
+    return this.all.map((c) => ({ id: c.id, state: c.state, companion: true, traits: { ac: c.def.ac ?? COMPANION_AC } }));
   }
 
   /**

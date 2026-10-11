@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
+  dice,
   CHUNK_SIZE,
   DRINKS,
   ITEM_KINDS,
@@ -57,26 +59,26 @@ describe('the traits of Wisdom', () => {
 });
 
 describe('Medicine', () => {
-  it('lets a character with WIS 13 chew a bundle of herbs for a hit point', () => {
-    expect(DRINKS.herbs).toEqual({ hp: 1, gate: MEDICINE_GATE });
+  it('lets a character with WIS 13 chew a bundle of herbs for 1d4 hit points', () => {
+    expect(DRINKS.herbs).toEqual({ hp: dice(1, 4), gate: MEDICINE_GATE });
     const pack = { coins: 0, items: [{ kind: 'herbs' as const, count: 2 }] };
     const p = createPlayer(0, 0);
     p.hp = 1;
-    expect(drinkFrom(pack, 'herbs', p, withWis(12))).toBeNull();
+    expect(drinkFrom(pack, 'herbs', p, withWis(12), AVERAGE_DICE)).toBeNull();
     expect(p.hp).toBe(1);
-    expect(drinkFrom(pack, 'herbs', p, withWis(13))).toEqual({ coins: 0, items: [{ kind: 'herbs', count: 1 }] });
-    expect(p.hp).toBe(2);
+    expect(drinkFrom(pack, 'herbs', p, withWis(13), AVERAGE_DICE)).toEqual({ coins: 0, items: [{ kind: 'herbs', count: 1 }] });
+    expect(p.hp).toBe(1 + 2);
   });
 
   it('is checked by the server', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const pack = { coins: 0, items: [{ kind: 'herbs' as const, count: 1 }] };
     const dull = room.join(0, 1, undefined, '', undefined, { traits: withWis(12), hp: 1, pack })!;
     const wise = room.join(0, 2, undefined, '', undefined, { traits: withWis(14), hp: 1, pack })!;
     for (const p of [dull, wise]) room.drink(p.id, ITEM_KINDS.indexOf('herbs'));
     expect(dull.state.hp).toBe(1);
     expect(dull.pack.items).toEqual([{ kind: 'herbs', count: 1 }]);
-    expect(wise.state.hp).toBe(2);
+    expect(wise.state.hp).toBe(1 + 2);
     expect(wise.pack.items).toEqual([]);
   });
 });
@@ -110,14 +112,14 @@ describe('hidden herbs', () => {
 
 describe('the mobs that hunt a player', () => {
   it('are in its snapshot, and only in its own', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1, [5, 12], '', undefined, { traits: withWis(10) })!;
     const b = room.join(0, 2, [30, 30], '', undefined, { traits: withWis(10) })!;
     const horde = room.horde!;
     const imp = horde.spawn('imp', a.state.x + 14, a.state.y);
     const idle = horde.spawn('imp', a.state.x - 60, a.state.y);
     // A blow makes the imp go for its attacker.
-    horde.strike(a.state, 0, undefined, a.id, { damage: 1, push: 1, stagger: 1, opening: 0 });
+    horde.strike(a.state, 0, undefined, a.id, { toHit: 5, damage: dice(0, 0, 1), push: 1, stagger: 1, opening: 0 });
     expect(horde.huntersOf(a.id).map((m) => m.id)).toEqual([imp.id]);
     expect(horde.huntersOf(b.id)).toEqual([]);
     const snaps = new Map<number, SnapshotMessage>();

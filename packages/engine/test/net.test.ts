@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
+  averageDice,
   ABILITIES,
   GUEST_TRAITS,
   INPUT_BATCH_TICKS,
@@ -93,7 +95,7 @@ class SimNetwork {
 
   constructor(latencyMs: number, source: () => WorldSource = houseSource) {
     this.latencyMs = latencyMs;
-    this.room = new Room(new World(source()));
+    this.room = new Room(new World(source()), { dice: AVERAGE_DICE });
   }
 
   private later(at: number, run: () => void): void {
@@ -210,7 +212,7 @@ describe('the multiplayer protocol', () => {
 
 describe('a multiplayer room', () => {
   it('starts a player at the place of its character, exactly, at any distance', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     // Far from the spawn (more than 64 tiles), on open grass.
     const place = { x: 200 * TILE_SIZE + 5.25, y: 3 * TILE_SIZE + 9.5 };
     expect(room.join(0, 1, undefined, '', place)!.state).toMatchObject(place);
@@ -224,7 +226,7 @@ describe('a multiplayer room', () => {
   });
 
   it('starts a player on the nearest open tile when its place is blocked now', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     // The doorway, stored while the door was open; the door is closed now.
     const place = { x: 5 * TILE_SIZE + 8, y: 6 * TILE_SIZE + 8 };
     const state = room.join(0, 1, undefined, '', place)!.state;
@@ -281,7 +283,7 @@ describe('a multiplayer room', () => {
   });
 
   it('ignores a repeated batch of inputs', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1)!;
     const message: InputMessage = { t: 'in', s: 1, i: Array(INPUT_BATCH_TICKS).fill(toWireInput({ x: 1, y: 0 })) };
     room.input(p.id, message, 0);
@@ -292,7 +294,7 @@ describe('a multiplayer room', () => {
   });
 
   it('shows each player in the skin that its client chose, and refuses players when full', () => {
-    const room = new Room(new World(houseSource()), { maxPlayers: 2 });
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE, maxPlayers: 2 });
     const a = room.join(0, 4_000_000_000)!;
     const b = room.join(0, 7)!;
     expect(room.join(0, 9)).toBeNull();
@@ -335,7 +337,7 @@ describe('a multiplayer room', () => {
   });
 
   it('does not close a door on another player in the doorway', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     room.world.setDoorOpen(5, 6, true);
     const inside = room.join(0, 1, [5, 6])!;
     // findSpawn put `inside` on the open doorway tile; `outside` stands just south of it.
@@ -350,7 +352,7 @@ describe('a multiplayer room', () => {
   });
 
   it('sends the doors only when they change', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1)!;
     const doorsOf = () => {
       let found: SnapshotMessage | null = null;
@@ -395,7 +397,7 @@ describe('a new look in the middle of a visit', () => {
   });
 
   it('shows the new skin to the others, at most one change every 2 seconds (the last one wins)', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1)!;
     const b = room.join(0, 2)!;
     const seenByB = (ms: number) => {
@@ -426,7 +428,7 @@ describe('names', () => {
   });
 
   it('reach the others in a roster, only when a name changes', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1, undefined, 'Ana')!;
     const rosters: (readonly (readonly [number, string])[] | undefined)[] = [];
     const b = room.join(0, 2)!;
@@ -484,6 +486,8 @@ describe('mobs in a shared world', () => {
     net.run(400);
     const p = net.room.player(a.id)!.state;
     const mob = net.room.horde!.spawn('imp', p.x + 18, p.y);
+    // One hit point: the first blow that hits kills it (the average dice: every attack hits).
+    mob.health = 1;
     net.run(300);
     attackAt = a.ticks + 1;
     net.run(600);
@@ -497,10 +501,11 @@ describe('mobs in a shared world', () => {
   });
 
   it('let a blow land where the client showed the mob, but not long before', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10])!;
     const horde = room.horde!;
     const mob = horde.spawn('imp', p.state.x + 18, p.state.y);
+    mob.health = 1;
     room.tick(1000);
     room.tick(1050);
     // The mob runs off to the east: out of reach now, in reach at 1050.
@@ -511,6 +516,7 @@ describe('mobs in a shared world', () => {
     expect(room.kills).toBe(1);
     // Another mob, the same way, but the client claims a view of long ago: it does not count.
     const other = horde.spawn('imp', p.state.x + 18, p.state.y);
+    other.health = 1;
     room.tick(2000);
     other.x += 60;
     room.tick(2050);
@@ -551,7 +557,7 @@ describe('mobs in a shared world', () => {
   });
 
   it('send only the mobs near each player', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10])!;
     room.horde!.spawn('imp', p.state.x + 40, p.state.y);
     room.horde!.spawn('brute', p.state.x + MOB_SEND_RADIUS + 50, p.state.y);
@@ -563,18 +569,20 @@ describe('mobs in a shared world', () => {
     expect(snap!.you).toHaveLength(24);
   });
 
-  it('kill a brute with the third plain blow, and send what it has left', () => {
-    const room = new Room(new World(mobHouseSource()));
+  it('kill a brute with the third blow when it has three blows of hit points, and send what it has left', () => {
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10])!;
     const brute = room.horde!.spawn('brute', p.state.x + 20, p.state.y);
+    const blow = averageDice(p.traits.damage);
+    brute.health = 3 * blow;
     const healthSent = (): number | undefined => {
       let snap: SnapshotMessage | null = null;
       room.broadcast(0, (_id, message) => (snap = message));
       return snap!.m!.find((m) => m[0] === brute.id)?.[9];
     };
-    expect(healthSent()).toBe(12);
-    // Three attacks, the cooldown apart (no tick between: the brute stays in reach).
-    const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
+    expect(healthSent()).toBe(3 * blow);
+    // Three attacks, more than the longest cooldown apart (no tick between: the brute stays in reach).
+    const quiet = Array.from({ length: 39 }, () => [0, 0] as const);
     room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
     expect(room.kills).toBe(1);
     expect(brute.state).toBe('dying');
@@ -622,7 +630,7 @@ describe('Strength in a shared world', () => {
   });
 
   it('does not let a weak client through a barred door, whatever it says', () => {
-    const room = new Room(new World(lootHouseSource(true)));
+    const room = new Room(new World(lootHouseSource(true)), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 7], '', undefined, { traits: strength(12) })!;
     p.state.x = 5 * TILE_SIZE + 8;
     p.state.y = 7 * TILE_SIZE + 4;
@@ -648,7 +656,7 @@ describe('Strength in a shared world', () => {
   });
 
   it('opens a chest in reach once: the loot goes into the pack and comes in the next snapshot', () => {
-    const room = new Room(new World(lootHouseSource()));
+    const room = new Room(new World(lootHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 9])!;
     expect(room.welcome(p).pk).toEqual([0, []]);
     expect(room.welcome(p).fd).toEqual([]);
@@ -671,15 +679,15 @@ describe('Strength in a shared world', () => {
   });
 
   it('starts a player with the pack of its character', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, undefined, '', undefined, { traits: strength(10), pack: { coins: 9, items: [{ kind: 'cup', count: 2 }] } })!;
     expect(room.welcome(p).pk).toEqual([9, [[4, 2]]]);
   });
 
   it("gives the coins of a brute to the client that killed it", () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10) })!;
-    room.horde!.spawn('brute', p.state.x + 20, p.state.y);
+    room.horde!.spawn('brute', p.state.x + 20, p.state.y).health = 1;
     const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
     room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
     expect(room.kills).toBe(1);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVERAGE_DICE,
   ABILITIES,
   EMPTY_PACK,
   ITEM_KINDS,
@@ -156,7 +157,7 @@ describe('piles in a shared world', () => {
   });
 
   it('lets a player drop items where it stands, and another one pick them up', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items: [stack('ring', 3)] } })!;
     const b = room.join(0, 2, [5, 10], '', undefined, { traits: strength(10) })!;
     expect(room.welcome(b).pl).toEqual([]);
@@ -189,7 +190,7 @@ describe('piles in a shared world', () => {
   });
 
   it('gives a pile only to a player who can reach it', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items: [stack('cup', 1)] } })!;
     const far = room.join(0, 2, [12, 10], '', undefined, { traits: strength(10) })!;
     room.put(a.id, { slot: 0, kind: ITEM_KINDS.indexOf('cup'), count: 1 }, 0);
@@ -199,7 +200,7 @@ describe('piles in a shared world', () => {
   });
 
   it('lays what does not fit in the pack of the killer on the ground at the mob', () => {
-    const room = new Room(new World(mobHouseSource()));
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     // Six slots, each with a full stack of something else: a tusk cannot go in.
     const full: Pack = { coins: 0, items: [stack('imp-horn', 10), stack('candle', 5), stack('ring', 5), stack('cup', 5), stack('herbs', 10), stack('draught', 5)] };
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: full })!;
@@ -207,6 +208,8 @@ describe('piles in a shared world', () => {
     let seq = 1;
     for (let kill = 0; kill < 20 && room.piles.size === 0; kill++) {
       const brute = room.horde!.spawn('brute', p.state.x + 20, p.state.y);
+      // One hit point: the first blow kills it (the average dice: every attack hits).
+      brute.health = 1;
       const inputs = [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4], ...quiet] as const;
       room.input(p.id, { t: 'in', s: seq, i: inputs as never }, 100 + kill * 2000);
       seq += inputs.length;
@@ -226,7 +229,7 @@ describe('piles in a shared world', () => {
   });
 
   it('lets a player toss a stack towards a point, and move its stacks between slots', () => {
-    const room = new Room(new World(houseSource()));
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const items = [stack('ring', 3), stack('cup', 2), null, stack('ring', 4)];
     const a = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: { coins: 0, items } })!;
     snapshotOf(room, a.id);

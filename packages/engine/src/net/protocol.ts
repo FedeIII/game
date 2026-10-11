@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 25;
+export const PROTOCOL_VERSION = 26;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -253,6 +253,13 @@ export interface QuestMessage {
 }
 
 export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage | QuestMessage;
+
+/** What a blow did to a mob (mobs.ts, BlowResult): [mob id, damage (0: a miss), 1 for a critical hit else 0]. */
+export type WireBlow = readonly [number, number, 0 | 1];
+
+export function toWireBlow(result: { readonly mob: { readonly id: number }; readonly damage: number; readonly crit: boolean }): WireBlow {
+  return [result.mob.id, result.damage, result.crit ? 1 : 0];
+}
 
 /** A quest book on the wire: [quest, step, order, flags] for each quest (quests.ts). */
 export type WireBook = readonly (readonly [string, string, number, readonly string[]])[];
@@ -494,6 +501,8 @@ export interface SnapshotMessage {
   readonly gr?: WireGear;
   /** The player's quest book, when it changed (protocol 23). Only the player gets its own book. */
   readonly qs?: WireBook;
+  /** What the player's blows and arrows did since the last snapshot (protocol 26): [mob id, damage (0: a miss), 1 for a critical hit]. */
+  readonly bl?: readonly WireBlow[];
   /** What shows of the gear of every player (SHOWN_SLOTS), `[id, look]`, when one changed or a player came or went (protocol 20). */
   readonly lk?: readonly (readonly [number, WireLook])[];
   /** The loot that the player got since the last snapshot. */

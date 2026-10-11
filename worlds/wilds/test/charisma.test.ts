@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
+import { AVERAGE_DICE, PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
 import { APOTHECARY, DEFAULT_SEED, INNKEEPER, PEDDLER, PERSUASION_GATE, REEVE, TOWN_BUILDINGS, TOWN_NPCS, WATCHMAN, WildsSource } from '../src/index.ts';
 
 const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
@@ -35,7 +35,7 @@ describe('Charisma in Ironhold, through the server', () => {
     room.join(0, 1, undefined, '', besideNpc(id), { traits: withCha(cha), pack, hp: 1 })!;
 
   it('gives a room at the inn to a character who wins Marta over: a refuge and a bed', () => {
-    const room = new Room(new World(new WildsSource(DEFAULT_SEED)));
+    const room = new Room(new World(new WildsSource(DEFAULT_SEED)), { dice: AVERAGE_DICE });
     const dull = join(room, 'innkeeper', 12);
     const bold = join(room, 'innkeeper', 13);
     for (const p of [dull, bold]) room.deal(p.id, { npc: npcIndex('innkeeper') }, 'room');
@@ -59,7 +59,7 @@ describe('Charisma in Ironhold, through the server', () => {
   });
 
   it('sells Isolde\'s draughts at the price of the player, and her friend\'s price only with CHA 13', () => {
-    const room = new Room(new World(new WildsSource(DEFAULT_SEED)));
+    const room = new Room(new World(new WildsSource(DEFAULT_SEED)), { dice: AVERAGE_DICE });
     const plain = join(room, 'apothecary', 10);
     const charming = join(room, 'apothecary', 16);
     const isolde = { npc: npcIndex('apothecary') };
@@ -72,7 +72,7 @@ describe('Charisma in Ironhold, through the server', () => {
   });
 
   it('lets the peddler buy trinkets and trophies, for more with Charisma', () => {
-    const room = new Room(new World(new WildsSource(DEFAULT_SEED)));
+    const room = new Room(new World(new WildsSource(DEFAULT_SEED)), { dice: AVERAGE_DICE });
     const rings = { coins: 0, items: [{ kind: 'ring' as const, count: 1 }] };
     const plain = join(room, 'peddler', 10, rings);
     const charming = join(room, 'peddler', 16, rings);

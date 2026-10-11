@@ -8,7 +8,7 @@ import {
   ITEM_STACK,
   WEARABLES,
   canUse,
-  dieBase,
+  formatDice,
   fitsSlot,
   gearAddress,
   gearSlotAt,
@@ -239,7 +239,7 @@ export class PackPanel {
   /** Shows a pack, what the character wears, and what it gives (`traits`: the slots of the pack, the class, the Armour Class). */
   show(pack: Pack, gear: Gear, traits: PlayerTraits): void {
     const slots = traits.slots;
-    const key = JSON.stringify([pack, gear, slots, traits.class, traits.ac, traits.glance, traits.damage, traits.scores]);
+    const key = JSON.stringify([pack, gear, slots, traits.class, traits.ac, traits.toHit, traits.damage, traits.scores]);
     if (key === this.shown) return;
     this.shown = key;
     const carried = pack.coins + pack.items.reduce((n, s) => n + (s?.count ?? 0), 0);
@@ -264,8 +264,8 @@ export class PackPanel {
     this.coins.textContent = String(pack.coins);
     this.empty.hidden = used > 0 || pack.coins > 0;
     const g = STRINGS.gear;
-    const numbers = this.line('gear-numbers', `${g.ac(traits.ac)} · ${g.damage(traits.damage)}`);
-    this.stats.replaceChildren(numbers, this.line('gear-glance', g.glance(traits.glance)));
+    const numbers = this.line('gear-numbers', `${g.ac(traits.ac)} · ${g.toHit(traits.toHit)} · ${g.damage(formatDice(traits.damage))}`);
+    this.stats.replaceChildren(numbers);
     // Not during a press or a drag: the slots under the pointer stay as they are until it ends.
     if (this.drag) this.stale = true;
     else this.render();
@@ -594,7 +594,7 @@ export class PackPanel {
 function effectParts(drink: NonNullable<(typeof DRINKS)[ItemKind]>): string[] {
   const parts: string[] = [];
   if (drink.full) parts.push(STRINGS.pack.fullHp);
-  else if (drink.hp) parts.push(STRINGS.pack.hp(drink.hp));
+  else if (drink.hp) parts.push(STRINGS.pack.hp(formatDice(drink.hp)));
   if (drink.cure) parts.push(STRINGS.pack.cure);
   return parts;
 }
@@ -614,8 +614,8 @@ export function wearLines(kind: ItemKind, traits: Pick<PlayerTraits, 'class'>): 
   if (item.shield) lines.push(g.shield(item.shield));
   const weapon = item.weapon;
   if (weapon) {
-    lines.push(g.weapon(weapon.die, dieBase(weapon.die)));
-    if (weapon.versatile !== undefined) lines.push(g.versatile(weapon.versatile, dieBase(weapon.versatile)));
+    lines.push(g.weapon(weapon.die));
+    if (weapon.versatile !== undefined) lines.push(g.versatile(weapon.versatile));
     if (weapon.twoHanded) lines.push(g.twoHanded);
     if (weapon.light) lines.push(g.light);
     if (weapon.heavy && !weapon.ranged) lines.push(g.heavyWeapon);

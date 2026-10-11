@@ -70,12 +70,7 @@ export interface PlayerState {
    * sets it (Horde, PlayerTraits.inspire), and the end of the stun uses it.
    */
   inspired: number;
-  /**
-   * The count towards the next glancing blow (Armour Class, PlayerTraits.glance): each mob hit adds
-   * the share of the character, and the hit that brings it to 1 glances off (hitPlayer).
-   */
-  ward: number;
-  /** Ticks left of the spark of a glancing blow (0: none). */
+  /** Ticks left of the spark of a glancing blow (0: none): a mob's attack roll that missed (glancePlayer). */
   glance: number;
 }
 
@@ -98,7 +93,7 @@ export const DODGE_COOLDOWN_TICKS = 96;
  */
 export const SNEAK_SPEED = 0.5;
 /** The hit points (HP) and the stamina of a player with CON 10 (traits.ts changes them). */
-export const PLAIN_HP = 4;
+export const PLAIN_HP = 18;
 export const PLAIN_STAMINA = 100;
 /** Stamina that comes back each second (CON 10), STAMINA_REST_TICKS after it was last used. */
 export const STAMINA_REFILL = 20;
@@ -112,8 +107,9 @@ export const RECOVER_TICKS = 480;
 /** A defeated player lies this many ticks (3 s); it wakes with a guard of WAKE_GUARD_TICKS. */
 export const DOWN_TICKS = 180;
 export const WAKE_GUARD_TICKS = 120;
-/** A poison bites every POISON_EVERY ticks (one HP, never the last). */
+/** A poison bites every POISON_EVERY ticks: POISON_DAMAGE hit points, never the last (about the 2d4 of a quasit's poison over its time). */
 export const POISON_EVERY = 180;
+export const POISON_DAMAGE = 2;
 /** A drink of ale lasts this many ticks (60 s with CON 10); its sway turns the walk by up to DRUNK_SWAY radians. */
 export const ALE_TICKS = 3600;
 export const DRUNK_SWAY = 0.45;
@@ -186,7 +182,6 @@ export function createPlayer(x: number, y: number): PlayerState {
     drunk: 0,
     wading: false,
     inspired: 0,
-    ward: 0,
     glance: 0,
   };
 }
@@ -195,24 +190,12 @@ export function createPlayer(x: number, y: number): PlayerState {
 export const GLANCE_TICKS = 18;
 
 /**
- * A mob's hit: a stun (shorter with CON: `traits.stun`), `damage` hit points, and a poison of
- * `poisonTicks` (shorter with CON: `traits.resist`). The first HP comes back RECOVER_DELAY_TICKS
- * later. At 0 HP the player is defeated: it lies for DOWN_TICKS, and then its caller wakes it.
- *
- * But first the Armour Class: the hit adds `traits.glance` to the count of the player (`ward`),
- * and when the count comes to 1, the hit glances off: no damage, no stun, no poison, only a spark
- * (`glance`). Returns false for a glancing blow.
+ * A mob's hit that its attack roll lands (the caller rolls it against the player's Armour Class:
+ * dice.ts, attackRoll): a stun (shorter with CON: `traits.stun`), `damage` hit points, and a poison
+ * of `poisonTicks` (shorter with CON: `traits.resist`). At 0 HP the player is defeated: it lies for
+ * DOWN_TICKS, and then its caller wakes it. Returns true (the player was hurt).
  */
-export function hitPlayer(player: PlayerState, damage: number, stunTicks: number, poisonTicks: number, traits: Partial<Pick<PlayerTraits, 'stun' | 'resist' | 'glance'>> = {}): boolean {
-  if (traits.glance) {
-    player.ward += traits.glance;
-    // A little slack, so that 4 shares of 0.25 make 1.
-    if (player.ward >= 1 - 1e-9) {
-      player.ward = Math.max(0, player.ward - 1);
-      player.glance = GLANCE_TICKS;
-      return false;
-    }
-  }
+export function hitPlayer(player: PlayerState, damage: number, stunTicks: number, poisonTicks: number, traits: Partial<Pick<PlayerTraits, 'stun' | 'resist'>> = {}): boolean {
   stunPlayer(player, Math.max(1, Math.round(stunTicks * (traits.stun ?? 1))));
   player.hp = Math.max(0, player.hp - damage);
   player.recover = RECOVER_DELAY_TICKS;
@@ -226,6 +209,11 @@ export function hitPlayer(player: PlayerState, damage: number, stunTicks: number
     player.poisonClock = 0;
   }
   return true;
+}
+
+/** A mob's attack that its roll misses: it glances off the player's armour (a spark, no stun, no damage). */
+export function glancePlayer(player: PlayerState): void {
+  player.glance = GLANCE_TICKS;
 }
 
 /** A defeated player wakes at (x, y) with all its HP and stamina, a guard, and no poison or drink. */
@@ -494,10 +482,13 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   return false;
 }
 
-/** One tick of the body: hit points come back out of a fight, stamina fills, a poison bites, a drink wears off. */
+/**
+ * One tick of the body: hit points come back out of a fight (only with a `recover`: a companion; a
+ * character's is 0, level-3.md), stamina fills, a poison bites, a drink wears off.
+ */
 function body(player: PlayerState, traits: StepTraits, dt: number): void {
   const maxHp = traits.maxHp ?? PLAIN_HP;
-  if (player.hp > 0 && player.hp < maxHp) {
+  if (player.hp > 0 && player.hp < maxHp && (traits.recover ?? RECOVER_TICKS) > 0) {
     if (player.recover > 0) player.recover--;
     if (player.recover === 0) {
       player.hp++;
@@ -513,7 +504,7 @@ function body(player: PlayerState, traits: StepTraits, dt: number): void {
       // A poison never takes the last hit point.
       player.poisonClock = 0;
       if (player.hp > 1) {
-        player.hp--;
+        player.hp = Math.max(1, player.hp - POISON_DAMAGE);
         player.recover = RECOVER_DELAY_TICKS;
       }
     }

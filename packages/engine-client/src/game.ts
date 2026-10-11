@@ -32,7 +32,6 @@ import {
   addToPack,
   ITEM_KINDS,
   DRINKS,
-  blowDamage,
   canDodge,
   canMakeDeal,
   dealPay,
@@ -67,6 +66,8 @@ import {
   sheetTraits,
   EMPTY_BOOK,
   MOB_KINDS,
+  formatDice,
+  rollingDice,
   SCENE_MARGIN,
   applyEffect,
   inScene,
@@ -114,9 +115,10 @@ import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { ScenePlayer } from './render/scene.ts';
-import { MobViews, type MobLook } from './render/mobs.ts';
+import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { LootText } from './render/loot-text.ts';
+import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { PileViews } from './render/piles.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
@@ -200,10 +202,12 @@ const SHAKE = { ms: 220, amount: 2 } as const;
 const PLACE_SAVE_MS = 10_000;
 /** A page that plays a character asks this often (ms) if its session still lives (a sign-in elsewhere ends it). */
 const SESSION_CHECK_MS = 10_000;
-/** In a shared world a blow kills at once on the screen; if the server has not agreed this long after (ms), the mob lives on. */
-const PREDICTED_KILL_MS = 700;
-/** The client predicts a kill only this far inside the reach (world pixels): the server's check has a little more. */
-const PREDICT_MARGIN = 3;
+/** In a shared world a blow flashes the mobs that it touches at once only this far inside the reach (world pixels): the server's check has a little more. */
+const TOUCH_MARGIN = 3;
+/** The numbers of a fight over the player start this far over its head (world pixels): over its name. */
+const PLAYER_NUMBER_RISE = 16;
+/** The dice of a world that the page runs (its draughts; its horde rolls its own). */
+const LOCAL_DICE = rollingDice(Math.random);
 /** The page shows that it reloads for a new build this long before it does (ms). */
 const RELOAD_DELAY_MS = 1200;
 /** An NPC greets a player with a good name (Charisma) when it comes this close (world pixels). */
@@ -562,30 +566,16 @@ async function run(options: GameOptions): Promise<void> {
       ? net.companionsAt(now)
       : (localCompanions?.list ?? []).map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down }));
   let kills = 0;
-  let confirmed = 0;
+  let blows = 0;
   let hitsTaken = 0;
   let stunSeen = false;
   let shakeUntil = -Infinity;
-  // In a shared world, a blow that hits a mob on the screen shows at once: its last blow kills
-  // it there, another one makes it reel. The server decides, and its word comes a moment later.
-  // Mob id -> when, and where the mob was (a kill), or when (a reel).
-  const predicted = new Map<number, { at: number; x: number; y: number; confirmed: boolean }>();
-  const reeling = new Map<number, { at: number; seen: boolean }>();
-  /** A blow (or an arrow) of this client on a mob, shown at once: a kill if it takes the mob's last health, else a reel. */
-  const predictHit = (mob: MobLook, now: number): void => {
-    if (mob.state === 'dying' || predicted.has(mob.id)) return;
-    if ((mob.health ?? 1) > blowDamage(traits, mob)) {
-      reeling.set(mob.id, { at: now, seen: false });
-      return;
-    }
-    predicted.set(mob.id, { at: now, x: mob.x, y: mob.y, confirmed: false });
-    kills++;
-  };
-  const predictKills = (): void => {
+  // In a shared world, a blow that touches a mob on the screen flashes it at once; the server rolls
+  // the dice (level-3.md), and its word (the numbers, a reel, a death) comes a moment later.
+  const touchMobs = (): void => {
     const now = performance.now();
     for (const mob of net?.mobsAt(now) ?? []) {
-      // Only a clear hit: a blow at the edge of the reach waits for the server's word.
-      if (attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN, traits.reach)) predictHit(mob, now);
+      if (mob.state !== 'dying' && attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - TOUCH_MARGIN, traits.reach)) mobViews?.touch(mob.id, now);
     }
   };
   // A ranger's arrows in a shared world: the page flies its own at once (the server flies the true
@@ -601,47 +591,11 @@ async function run(options: GameOptions): Promise<void> {
       const hit = flyArrow(arrow, world, dt, targets);
       if (hit === null) continue;
       ownArrows.splice(ownArrows.indexOf(arrow), 1);
-      if (hit >= 0) predictHit(living[hit]!, now);
+      if (hit >= 0) mobViews?.touch(living[hit]!.id, now);
     }
   };
-  /** The mobs to draw and to aim at now: the local horde's, or the server's with the kills that this client predicts. */
-  const mobsNow = (): readonly MobLook[] => {
-    if (!net) return horde?.mobs ?? [];
-    const now = performance.now();
-    const list = net.mobsAt(now);
-    const out: MobLook[] = [];
-    const present = new Set<number>();
-    for (const mob of list) {
-      present.add(mob.id);
-      const reel = reeling.get(mob.id);
-      if (reel && mob.state !== 'dying') {
-        // A predicted reel shows at once with the local timing, until the server's reel is over
-        // (or, if the server does not agree, for at most PREDICTED_KILL_MS).
-        if (mob.state === 'hurt') reel.seen = true;
-        if (mob.state === 'hurt' || (!reel.seen && now - reel.at < PREDICTED_KILL_MS)) {
-          out.push({ ...mob, state: 'hurt', stateMs: Math.max(mob.state === 'hurt' ? mob.stateMs : 0, now - reel.at) });
-          continue;
-        }
-        reeling.delete(mob.id);
-      }
-      const guess = predicted.get(mob.id);
-      if (!guess) out.push(mob);
-      else if (mob.state === 'dying') {
-        // The server agrees. The death keeps the local timing, so it does not start again.
-        if (!guess.confirmed) confirmed++;
-        guess.confirmed = true;
-        out.push({ ...mob, stateMs: now - guess.at });
-      } else if (now - guess.at > PREDICTED_KILL_MS) {
-        predicted.delete(mob.id);
-        out.push(mob);
-      } else {
-        out.push({ ...mob, x: guess.x, y: guess.y, vx: 0, vy: 0, state: 'dying', stateMs: now - guess.at });
-      }
-    }
-    for (const id of predicted.keys()) if (!present.has(id)) predicted.delete(id);
-    for (const id of reeling.keys()) if (!present.has(id)) reeling.delete(id);
-    return out;
-  };
+  /** The mobs to draw and to aim at now: the local horde's, or the server's (100 ms in the past). */
+  const mobsNow = (): readonly MobLook[] => (net ? net.mobsAt(performance.now()) : (horde?.mobs ?? []));
   // An attack: a click on the world, the button or Space asks for it, and the next tick in which
   // the player can attack starts it. A click aims at the point clicked (from the player's chest);
   // the button and Space aim at the nearest mob in reach, else the way the player walks or faces.
@@ -857,6 +811,24 @@ async function run(options: GameOptions): Promise<void> {
   // What the player finds: drops rise over its head; a chest's contents it says. In a shared world
   // the server's word comes a moment after the kill or the press.
   const lootText = new LootText(smallFont, tagLayer);
+  // What the dice of a fight did (level-3.md): numbers over the mobs that the player's blows touch, and over the player.
+  const fightNumbers = new FightNumbers(smallFont, tagLayer);
+  /** The number of a blow of the player on mob `id`: its damage, a critical hit, or a miss. */
+  const showBlow = (id: number, damage: number, crit: boolean): void => {
+    const mob = mobsNow().find((m) => m.id === id);
+    if (!mob) return;
+    blows++;
+    const now = performance.now();
+    const y = mob.y - mobHead(mob.kind) - 4;
+    if (damage === 0) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, mob.x, y, now);
+    else fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.crit : FIGHT_INK.blow, mob.x, y, now);
+  };
+  net?.onBlows((list) => {
+    for (const [id, damage, crit] of list) showBlow(id, damage, crit === 1);
+  });
+  // The hit points and the glancing blows of the player, as the last frame saw them: a change shows a number.
+  let numbersHp = player.hp;
+  let numbersGlance = player.glance;
   // The hit points, the stamina and the effects (top left); a red flash on a hit, a dark veil on a defeat.
   const vitals = new Vitals();
   /** Wakes the player after a defeat, in a world that the page runs: at home or at the nearest refuge; half of the coins go. */
@@ -879,7 +851,7 @@ async function run(options: GameOptions): Promise<void> {
     if (net) {
       if (!hasItems(packNow(), [{ kind, count: 1 }]) || player.down > 0 || !net.drink(ITEM_KINDS.indexOf(kind))) return;
     } else {
-      const next = drinkFrom(pack, kind, player, traits);
+      const next = drinkFrom(pack, kind, player, traits, LOCAL_DICE);
       if (!next) return;
       pack = next;
     }
@@ -1271,16 +1243,17 @@ async function run(options: GameOptions): Promise<void> {
     if (net) {
       if (net.tick(input)) {
         if (traits.ranged) ownArrows.push(newArrow(nextOwnArrow--, net.id ?? 0, player.x, player.y, player.aim, traits.range, traits));
-        else predictKills();
+        else touchMobs();
       }
       flyOwnArrows(TICK_SECONDS);
     } else if (stepPlayer(player, input, world, traits) && horde) {
       if (traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
       else {
-        for (const mob of horde.strike(player, player.aim, undefined, 0, traits)) {
-          if (mob.state !== 'dying') continue;
+        for (const result of horde.strike(player, player.aim, undefined, 0, traits)) {
+          showBlow(result.mob.id, result.damage, result.crit);
+          if (result.mob.state !== 'dying') continue;
           kills++;
-          takeDrop(horde.drop(mob), performance.now(), mob);
+          takeDrop(horde.drop(result.mob), performance.now(), result.mob);
         }
       }
     }
@@ -1403,6 +1376,17 @@ async function run(options: GameOptions): Promise<void> {
     greet(now);
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
+    // The player's arrows in a world that the page runs: what each one did.
+    if (horde) for (const result of horde.takeShotResults()) showBlow(result.mob.id, result.damage, result.crit);
+    // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; a draught, what it gave back.
+    if (player.down === 0 && player.hp !== numbersHp) {
+      const change = player.hp - numbersHp;
+      fightNumbers.show(change > 0 ? `+${change}` : String(-change), change > 0 ? FIGHT_INK.heal : FIGHT_INK.hurt, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+    }
+    if (player.glance > numbersGlance) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+    numbersHp = player.hp;
+    numbersGlance = player.glance;
+    fightNumbers.update(now);
     vitals.update(player, traits.maxHp, traits.maxStamina);
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
     // The quest book changed (an effect, the server's word): the journal, the map's marks and the answers follow.
@@ -1489,7 +1473,7 @@ async function run(options: GameOptions): Promise<void> {
             `mobs    ${mobsNow()
               .map((m) => `${m.kind}${m.health !== undefined ? ` ${m.health}/${MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
               .join('; ') || '-'}`,
-            `fight   kills ${kills}${net ? ` (${confirmed} confirmed)` : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
+            `fight   blows ${blows}, kills ${kills}${net ? ' (local only)' : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
           ]
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
@@ -1500,7 +1484,7 @@ async function run(options: GameOptions): Promise<void> {
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
-      `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac} (glance ${Math.round(traits.glance * 100)}%, count ${player.ward.toFixed(2)}), ${traits.strike.kind} ${traits.damage}${traits.sneak ? ` (+${traits.sneak} sneak)` : ''}, walk ${traits.speed}`,
+      `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),

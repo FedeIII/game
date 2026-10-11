@@ -1366,23 +1366,31 @@ body.conversing #link-card {
   pointer-events: none;
 }
 
+/* The hit points: a red bar with the numbers on it (5e level 3: about 15 to 35). */
 .vitals-hp {
-  display: flex;
-  gap: 4px;
-}
-
-.vitals-pip {
-  width: 10px;
-  height: 10px;
+  position: relative;
+  width: 112px;
+  height: 14px;
   border: 1px solid var(--ui-border);
-  transform: rotate(45deg) scale(0.8);
-  background: transparent;
+  background: var(--ui-backdrop);
 }
 
-.vitals-pip.full {
-  border-color: var(--ui-accent);
+.vitals-hp-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
   background: var(--ui-accent);
   box-shadow: 0 0 6px var(--ui-accent-glow);
+  transition: width 0.15s linear;
+}
+
+.vitals-hp-numbers {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 11px/1 var(--ui-serif);
+  color: var(--ui-ink);
+  text-shadow: 0 0 2px var(--ui-backdrop), 0 0 3px var(--ui-backdrop);
 }
 
 .vitals-stamina {
