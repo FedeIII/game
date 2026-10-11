@@ -619,7 +619,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 24.
+protocol: `docs/multiplayer.md`, protocol 25.
 
 ## Language
 
@@ -679,6 +679,16 @@ Wilds have none now (the Town of Azyr has one: its crier explains the town). `?n
 `?introat=<ms>` stops the title at that moment, for a screenshot on a slow machine.
 
 ## Mobs and fights
+
+**The hobgoblin band** (since 2026-10-11, story phase 3; protocol 25): four more kinds, which do not
+roam the Wilds (the population has none of them; the story brings them): the **goblin** (an archer:
+`MobStats.arrowRange`; from 104 px it aims for 0.75 s and looses an arrow that flies 150 px and hits
+the first player on its way that can be hit, then it runs off; its arrows have the negative id of
+the goblin as their owner and `Arrow.from`, and never hit mobs), the **worg** (a wolf: 112 px/s,
+straight at the player, `MobStats.straight`), the **hobgoblin** (a soldier: 16 health, a quick
+wind-up) and the **bugbear** (20 health, a heavy blow). Art: `art/mobs.ts` (`humanoid()` with a
+`Build` for the goblin, the hobgoblin and the bugbear; `worg()`). `?mob=goblin,worg` shows them in a
+world that the page runs. The atlas is 2048 px wide since then.
 
 `packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
 small and quick (runs at 96 px/s, faster than a player, and keeps running during its short

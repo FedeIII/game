@@ -319,7 +319,9 @@ before the next one.
    tiles of it, so a character can talk to the merchant in peace.
 3. **The hobgoblins** (S3, S5 without the Devastator, the road and the grove of S6), with Q2 up to
    `raid.scouts`. Built in three parts: 3a, the scenes (S3), the argument and the reeve's request
-   (`raid.heard`, `raid.asked`; built 2026-10-11, protocol 24); 3b, the new mobs; 3c, the road to
+   (`raid.heard`, `raid.asked`; built 2026-10-11, protocol 24); 3b, the new mobs (built
+   2026-10-11, protocol 25: the goblin shoots arrows that hit players, the worg charges straight;
+   no riders yet, and none of the band roams the woods); 3c, the road to
    Silverspring, the grove and the ambush (`raid.scouts`). In 3a, the guard of the scene is a soldier
    of the Sovereignty in the reeve's house, not Brann (Brann says that he is the whole town watch),
    and a villager stands with them; neither has a name. The soldier, not Brann, tells the character

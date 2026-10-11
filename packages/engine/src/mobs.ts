@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, attackHits, canBeHit, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -26,8 +26,13 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * only its own seeded random numbers, so it is the same code everywhere.
  */
 
-export type MobKind = 'imp' | 'brute';
-export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute'];
+/**
+ * The kinds of mobs. The order is the code on the wire: add a kind at the end. The hobgoblin band
+ * (story phase 3, chapter 1.5.1 of Kandrax): the goblin (an archer), the worg (a wolf that
+ * charges), the hobgoblin (a soldier) and the bugbear (the brute of the band).
+ */
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear';
+export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear'];
 
 export interface MobStats {
   /** World pixels per second: walking round its home, running at a player, running away. */
@@ -73,6 +78,14 @@ export interface MobStats {
   readonly hitDamage: number;
   /** Its hit poisons for this many ticks (times the player's PlayerTraits.resist); 0: no poison. */
   readonly poisonTicks: number;
+  /**
+   * An archer: its blow is an arrow that flies this far (world pixels) at the player, and hits the
+   * first player on its way (arrows.ts). Its reach is how close it comes to shoot. After a shot it
+   * runs away for a while, as after a hit.
+   */
+  readonly arrowRange?: number;
+  /** It charges in a straight line, not on a curve (the worg). */
+  readonly straight?: boolean;
 }
 
 /** The small, quick imp and the big, slow brute. The player walks at 80 px/s. */
@@ -125,6 +138,112 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     health: 12,
     knockback: 18,
     hurtMs: 320,
+    hitDamage: 2,
+    poisonTicks: 0,
+  },
+  // A small archer: it keeps away, shoots from the edge of the light, and runs off again.
+  goblin: {
+    wanderSpeed: 26,
+    chaseSpeed: 70,
+    retreatSpeed: 78,
+    sight: 150,
+    forget: 230,
+    reach: 104,
+    hitRange: 0,
+    windupMs: 750,
+    strikeMs: 260,
+    windupSpeed: 0,
+    lunge: 0,
+    stunTicks: 30,
+    retreatMs: [900, 1500],
+    harass: [104, 124],
+    radius: 6,
+    halfWidth: 3,
+    halfHeight: 2,
+    deathMs: 750,
+    health: 5,
+    knockback: 12,
+    hurtMs: 260,
+    hitDamage: 1,
+    poisonTicks: 0,
+    arrowRange: 150,
+  },
+  // A big wolf: faster than a player, it runs straight in and leaps from far.
+  worg: {
+    wanderSpeed: 34,
+    chaseSpeed: 112,
+    retreatSpeed: 92,
+    sight: 130,
+    forget: 230,
+    reach: 30,
+    hitRange: 36,
+    windupMs: 380,
+    strikeMs: 320,
+    windupSpeed: 0,
+    lunge: 20,
+    stunTicks: 70,
+    retreatMs: [1000, 1600],
+    harass: [46, 60],
+    radius: 9,
+    halfWidth: 5,
+    halfHeight: 3,
+    deathMs: 850,
+    health: 8,
+    knockback: 12,
+    hurtMs: 260,
+    hitDamage: 1,
+    poisonTicks: 0,
+    straight: true,
+  },
+  // A soldier: steady, quicker than a brute, hard to put down.
+  hobgoblin: {
+    wanderSpeed: 22,
+    chaseSpeed: 62,
+    retreatSpeed: 50,
+    sight: 120,
+    forget: 200,
+    reach: 17,
+    hitRange: 24,
+    windupMs: 460,
+    strikeMs: 300,
+    windupSpeed: 30,
+    lunge: 5,
+    stunTicks: 90,
+    retreatMs: [1100, 1700],
+    harass: [40, 54],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 900,
+    health: 16,
+    knockback: 12,
+    hurtMs: 260,
+    hitDamage: 2,
+    poisonTicks: 0,
+  },
+  // The brute of the band: big, hairy and slow, with a long reach and a heavy blow.
+  bugbear: {
+    wanderSpeed: 18,
+    chaseSpeed: 48,
+    retreatSpeed: 40,
+    sight: 110,
+    forget: 190,
+    reach: 22,
+    hitRange: 30,
+    windupMs: 600,
+    strikeMs: 380,
+    windupSpeed: 0,
+    lunge: 4,
+    stunTicks: 130,
+    retreatMs: [1400, 2200],
+    harass: [44, 58],
+    radius: 11,
+    halfWidth: 5,
+    halfHeight: 3,
+    deathMs: 950,
+    health: 20,
+    knockback: 20,
+    hurtMs: 300,
     hitDamage: 2,
     poisonTicks: 0,
   },
@@ -187,8 +306,8 @@ export interface MobRules {
   roam(tx: number, ty: number): boolean;
   /** Whether a mob may step on a tile while it chases a player or runs away (roam, or a little more). */
   hunt(tx: number, ty: number): boolean;
-  /** How many mobs of each kind live round each player. */
-  readonly population: Readonly<Record<MobKind, number>>;
+  /** How many mobs of each kind live round each player (a kind without a number: none). */
+  readonly population: Readonly<Partial<Record<MobKind, number>>>;
 }
 
 /** A player as the horde sees it: an id, and its state (a hit changes the state: a stun). */
@@ -453,7 +572,7 @@ export class Horde {
     this.bodies = bodies;
     this.guards = new Map(players.map((p) => [p.id, p.traits?.guard ?? GUARD_TICKS]));
     for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
-    this.flyArrows(dt);
+    this.flyArrows(dt, players, hits);
     for (const mob of [...this.mobs]) {
       const brain = this.brains.get(mob.id)!;
       mob.stateMs += dt;
@@ -484,6 +603,14 @@ export class Horde {
           }
           brain.timerMs -= dt;
           if (brain.timerMs > 0) break;
+          if (stats.arrowRange !== undefined) {
+            // An archer looses its arrow at the player; the arrow decides the hit. Then it runs off.
+            if (target) this.shootAt(mob, Math.atan2(target.y - mob.y, target.x - mob.x), stats.arrowRange);
+            brain.hit = target !== undefined;
+            this.enter(mob, 'strike');
+            brain.timerMs = stats.strikeMs;
+            break;
+          }
           // The blow: it lands if the player is still close, and not stunned or just after a stun.
           brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           if (brain.hit) {
@@ -589,12 +716,35 @@ export class Horde {
     return false;
   }
 
-  /** Flies the arrows: each one hits the first living mob on its way, or a thing stops it. */
-  private flyArrows(dtMs: number): void {
+  /** A mob's arrow (an archer's blow): it flies at the players (Arrow.from), with the mob's id as its owner, negative. */
+  private shootAt(mob: Mob, aim: number, range: number): void {
+    this.arrows.push({ ...newArrow(this.nextArrow++, -mob.id, mob.x, mob.y, aim, range, PLAIN_BLOW), from: mob.kind });
+  }
+
+  /**
+   * Flies the arrows. A player's arrow hits the first living mob on its way; a mob's arrow hits the
+   * first player on its way that can be hit now (canBeHit: not defeated, stunned, on guard or in a
+   * dodge), as the mob's blow would (its hit as a hit of `hits`). A thing stops either.
+   */
+  private flyArrows(dtMs: number, players: readonly HordePlayer[], hits: [number, number][]): void {
     if (this.arrows.length === 0) return;
     const living = this.mobs.filter((m) => m.state !== 'dying');
     const targets = living.map((m) => ({ x: m.x, y: m.y, radius: MOB_STATS[m.kind].radius }));
+    const open = players.filter((p) => canBeHit(p.state));
+    const people = open.map((p) => ({ x: p.state.x, y: p.state.y, radius: PLAYER_HALF_WIDTH }));
     for (const arrow of [...this.arrows]) {
+      if (arrow.from) {
+        const hit = flyArrow(arrow, this.world, dtMs / 1000, people);
+        if (hit === null) continue;
+        this.arrows.splice(this.arrows.indexOf(arrow), 1);
+        if (hit < 0) continue;
+        const p = open[hit]!;
+        const stats = MOB_STATS[arrow.from];
+        const hurt = hitPlayer(p.state, stats.hitDamage, stats.stunTicks, stats.poisonTicks, this.bodies.get(p.id));
+        if (hurt && p.state.down === 0) p.state.inspired = inspireFor(p.id, p.state, players);
+        hits.push([-arrow.owner, p.id]);
+        continue;
+      }
       const hit = flyArrow(arrow, this.world, dtMs / 1000, targets);
       if (hit === null) continue;
       this.arrows.splice(this.arrows.indexOf(arrow), 1);
@@ -748,7 +898,7 @@ export class Horde {
     const straight = Math.atan2(dy, dx);
     // The curve: far away the mob runs at an angle to the straight line; the angle shrinks as
     // it comes near, so the path bends round to the player.
-    const bend = brain.curve * Math.max(0, Math.min(1, (d - stats.reach) / (stats.sight * 0.8)));
+    const bend = stats.straight ? 0 : brain.curve * Math.max(0, Math.min(1, (d - stats.reach) / (stats.sight * 0.8)));
     this.steer(mob, brain, straight + bend, stats.chaseSpeed, dt);
   }
 

@@ -1,9 +1,11 @@
 /**
  * The mobs: the imp (small and quick: a hunched little devil with horns, bat wings and claws)
- * and the brute (big and slow: a hulking grey ghoul with tusks and a spiked club). Both are SDF
- * models (sdf.ts) in poses: a stand, a walk, a wind-up, a blow and a death. Their eyes glow: the
- * build lists the eye pixels of each frame (meta.mobEyes), and the game draws them above the
- * darkness.
+ * and the brute (big and slow: a hulking grey ghoul with tusks and a spiked club). The hobgoblin
+ * band (2026-10-11): the goblin (a small archer with a short bow), the worg (a big black wolf), the
+ * hobgoblin (a soldier in a helm and scale, with a sword and a shield) and the bugbear (big and
+ * hairy, with a spiked mace). All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
+ * blow and a death. Their eyes glow: the build lists the eye pixels of each frame
+ * (meta.mobEyes), and the game draws them above the darkness.
  *
  * Model space as in figure.ts: world pixels, y up, z towards the viewer (the front of the mob).
  */
@@ -14,7 +16,8 @@ import { ellipsoid, roundCone, sphere, type Material, type Part, type Sdf, type 
 import { renderModel, type RenderInfo } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
-export type MobKind = 'imp' | 'brute';
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear';
+const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear'];
 
 /** Material slots of a mob. */
 const MM = { hide: 0, belly: 1, horn: 2, claw: 3, eye: 4, mouth: 5, cloth: 6, wood: 7, metal: 8, wing: 9 } as const;
@@ -38,13 +41,17 @@ const POSE: MobPose = { phase: 0, walk: 0, windup: 0, strike: 0, death: 0 };
 export const MOB_FRAMES: Readonly<Record<MobKind, { width: number; height: number; pivotX: number; pivotY: number }>> = {
   imp: { width: 32, height: 32, pivotX: 16, pivotY: 26 },
   brute: { width: 64, height: 72, pivotX: 32, pivotY: 60 },
+  goblin: { width: 40, height: 40, pivotX: 20, pivotY: 32 },
+  worg: { width: 64, height: 52, pivotX: 32, pivotY: 40 },
+  hobgoblin: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
+  bugbear: { width: 68, height: 76, pivotX: 34, pivotY: 62 },
 };
 
 /** Frames of each animation. */
 export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6 } as const;
 
 /** The colour of the glow of the eyes, for the game. */
-export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a };
+export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30 };
 
 const PALETTES: Readonly<Record<MobKind, Material[]>> = {
   imp: materials({
@@ -65,6 +72,58 @@ const PALETTES: Readonly<Record<MobKind, Material[]>> = {
     horn: ramp('#241f17', '#41392c', '#635845', '#887b61', '#a89a7c'),
     claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
     eye: ramp('#ff3a14', '#ff7a30', '#ffc070'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#0b0806', '#170f0a', '#24180f', '#322115', '#402b1b'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12', '#3a2819', '#4b3420', '#5c4028'),
+    metal: ramp('#0f1115', '#1d2027', '#30353e', '#474e59', '#646d7a', '#8a94a2'),
+    wing: ramp('#0a0405', '#160809', '#240d0e'),
+  }),
+  // A grey-green goblin in rags of leather, with a bow of dark wood.
+  goblin: materials({
+    hide: ramp('#0b0f0a', '#141b12', '#1f281b', '#2b3725', '#384630', '#46553b'),
+    belly: ramp('#10140d', '#1b2116', '#272f20', '#343e2b', '#424d36'),
+    horn: ramp('#1c1a14', '#3a352a', '#5a5242', '#7e745e'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#ffb81a', '#ffd84a', '#fff09a'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#0d0907', '#1a120c', '#291c12', '#382719', '#47321f'),
+    wood: ramp('#0c0806', '#1a110b', '#291b11', '#392618', '#4a311f'),
+    metal: ramp('#101217', '#1f232a', '#333943', '#4b535f', '#6b7581'),
+    wing: ramp('#2a2620', '#4a443a', '#6e6656', '#958b75'),
+  }),
+  // A black wolf with a grey muzzle and belly.
+  worg: materials({
+    hide: ramp('#060607', '#0d0d0f', '#151518', '#1e1e22', '#28282d', '#33333a'),
+    belly: ramp('#121214', '#1d1d20', '#2a2a2e', '#38383d', '#47474d'),
+    horn: ramp('#2a261e', '#4a4436', '#6e6652', '#958b72'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#ffd03a', '#ffe27a', '#fff4c0'),
+    mouth: ramp('#070203', '#160506', '#2a0b0c'),
+    cloth: ramp('#0b0806', '#170f0a', '#24180f'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12'),
+    metal: ramp('#0f1115', '#1d2027', '#30353e'),
+    wing: ramp('#0a0405', '#160809', '#240d0e'),
+  }),
+  // A dusky orange-red soldier in iron scale, with a helm and a round shield.
+  hobgoblin: materials({
+    hide: ramp('#140805', '#220e08', '#33160c', '#461f10', '#5a2915', '#6e331a'),
+    belly: ramp('#1a0c07', '#2b140b', '#3e1d10', '#522715', '#66321b'),
+    horn: ramp('#1a1210', '#2e201c', '#46302a', '#5e423a'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#ff4a14', '#ff8a30', '#ffc070'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#12070a', '#200c10', '#311216', '#43191c', '#562023'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12', '#3a2819', '#4b3420'),
+    metal: ramp('#0e1013', '#1b1e24', '#2c3139', '#424955', '#5d6674', '#7e8896'),
+    wing: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21'),
+  }),
+  // A big brown bugbear: shaggy fur, a bear's snout, a mace with iron spikes.
+  bugbear: materials({
+    hide: ramp('#0e0906', '#1a110b', '#271a10', '#352316', '#442d1c', '#543823', '#64432a'),
+    belly: ramp('#140d08', '#21160e', '#2f2014', '#3e2b1b', '#4e3722'),
+    horn: ramp('#241f17', '#41392c', '#635845', '#887b61'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#ff6a1a', '#ffa03a', '#ffd27a'),
     mouth: ramp('#050203', '#120405', '#22090a'),
     cloth: ramp('#0b0806', '#170f0a', '#24180f', '#322115', '#402b1b'),
     wood: ramp('#0e0906', '#1b120c', '#2a1c12', '#3a2819', '#4b3420', '#5c4028'),
@@ -333,17 +392,282 @@ function brute(pose: MobPose): Part[] {
   return m.parts;
 }
 
+// ---------------------------------------------------------------- the goblin, the hobgoblin and the bugbear
+
+/** What makes one humanoid of the band different from the others (humanoid()). */
+interface Build {
+  /** The height of the hips, the chest and the shoulders (model pixels). */
+  readonly hip: number;
+  readonly chest: number;
+  /** Half the width of the shoulders, and the thickness of the limbs. */
+  readonly shoulders: number;
+  readonly limb: number;
+  /** The radius of the head, and its kind: big ears (goblin), a heavy jaw (hobgoblin), a bear's snout (bugbear). */
+  readonly head: number;
+  readonly face: 'goblin' | 'hobgoblin' | 'bugbear';
+  /** The length of the arms, as a share of the length of the legs. */
+  readonly arms: number;
+  /** A hunch: the chest forward of the hips (model pixels). */
+  readonly hunch: number;
+  readonly weapon: 'bow' | 'sword' | 'mace';
+  readonly shield?: boolean;
+  /** A helm and a coat of scale (the hobgoblin). */
+  readonly armour?: boolean;
+  /** Tufts of fur on the shoulders, the back and the arms (the bugbear). */
+  readonly fur?: boolean;
+}
+
+const GOBLIN: Build = { hip: 6.6, chest: 10.4, shoulders: 2.1, limb: 0.75, head: 2.3, face: 'goblin', arms: 1.0, hunch: 1.0, weapon: 'bow' };
+const HOBGOBLIN: Build = { hip: 10.2, chest: 16.4, shoulders: 3.6, limb: 1.15, head: 2.4, face: 'hobgoblin', arms: 0.95, hunch: 0.2, weapon: 'sword', shield: true, armour: true };
+const BUGBEAR: Build = { hip: 12.0, chest: 19.6, shoulders: 4.9, limb: 1.7, head: 3.0, face: 'bugbear', arms: 1.15, hunch: 1.4, weapon: 'mace', fur: true };
+
+/**
+ * A humanoid of the hobgoblin band. The legs walk as the imp's do; the arms rest, wind up and
+ * strike with the weapon. The goblin draws its bow in the wind-up and looses in the blow; the
+ * hobgoblin lifts its sword and cuts down; the bugbear swings its mace over its head.
+ */
+function humanoid(pose: MobPose, b: Build): Part[] {
+  const m = new Model();
+  const { phase, walk, windup, strike } = pose;
+  const kneel = Math.min(1, pose.death / 0.35);
+  const thigh = b.hip * 0.5;
+  const shin = b.hip * 0.52;
+  const crouch = b.weapon === 'bow' ? 0.25 * windup : 0.3 * windup + 0.15 * strike;
+  const legs: Leg[] = [-1, 1].map((side) => {
+    const p = phase + (side < 0 ? 0 : Math.PI);
+    const swing = 0.5 * walk * Math.sin(p);
+    const theta = 0.15 + swing + 0.5 * crouch + 1.1 * kneel + (b.weapon === 'bow' ? 0 : 0.3 * strike * (side < 0 ? 1 : -0.3));
+    const hip: Vec3 = [side * b.shoulders * 0.45, b.hip, -0.3];
+    const knee = add(hip, [side * 0.15, -thigh * Math.cos(theta), thigh * Math.sin(theta)]);
+    const phi = theta - 0.45 - 0.5 * walk * Math.max(0, Math.cos(p)) - 0.6 * crouch - 2.2 * kneel;
+    const ankle = add(knee, [0, -shin * Math.cos(phi), shin * Math.sin(phi)]);
+    const toe = add(ankle, [side * 0.1, -0.5, b.limb * 1.6 * (1 - kneel) + 0.3]);
+    return { hip, knee, ankle, toe };
+  });
+  const lift = -Math.min(...legs.map((l) => Math.min(l.ankle[1] - b.limb * 0.7, l.toe[1] - b.limb * 0.5, l.knee[1] - b.limb)));
+  const up = (v: Vec3): Vec3 => [v[0], v[1] + lift, v[2]];
+  const legMaterial = b.armour ? MM.cloth : MM.hide;
+  for (const leg of legs) {
+    m.chain([up(leg.hip), up(leg.knee), up(leg.ankle)], [b.limb * 1.25, b.limb, b.limb * 0.8], legMaterial);
+    m.cone(up(leg.ankle), up(leg.toe), b.limb * 0.85, b.limb * 0.6, b.armour ? MM.metal : MM.hide);
+  }
+
+  // The body leans forward with the hunch, back in a wind-up, forward in the blow.
+  const bob = 0.35 * walk * Math.abs(Math.sin(phase));
+  const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike);
+  const pelvis = up([0, b.hip + 0.6 + bob, 0]);
+  const chest = up([0, b.chest + bob - 0.2 * strike, lean]);
+  const torso = b.armour ? MM.metal : b.weapon === 'bow' ? MM.cloth : MM.hide;
+  m.cone(pelvis, chest, b.shoulders * 0.75, b.shoulders * 0.95, torso);
+  m.ellipsoid(add(mix(pelvis, chest, 0.25), [0, 0, 0.2]), [b.shoulders * 0.85, b.limb * 1.2, b.shoulders * 0.6], b.armour ? MM.cloth : MM.cloth);
+  if (b.armour) {
+    // A coat of scale over a red tunic: rows of plates on the chest.
+    for (let row = 0; row < 3; row++) m.ellipsoid(add(mix(pelvis, chest, 0.4 + row * 0.22), [0, 0, b.shoulders * 0.55]), [b.shoulders * 0.8, b.limb * 0.5, 0.45], MM.metal);
+  }
+  if (b.fur) {
+    for (const [x, y, z] of [[-3.2, 0.6, -1.4], [3.2, 0.6, -1.4], [0, 1.0, -2.6], [-1.6, -2.2, -2.8], [1.8, -2.6, -2.6]] as const) {
+      m.ellipsoid(add(chest, [x, y, z]), [2.2, 2.0, 1.6], MM.hide);
+    }
+  }
+  for (const side of [-1, 1]) m.sphere(add(chest, [side * b.shoulders, 0.2, -0.2]), b.limb * 1.3, b.armour ? MM.metal : MM.hide);
+
+  // The head.
+  const head = add(chest, [0, b.head * 1.25 + b.limb * 0.6, 0.6 + b.hunch * 0.4 - 0.4 * windup]);
+  const eye = pose.death > 0.2 ? MM.mouth : MM.eye;
+  m.sphere(head, b.head, MM.hide);
+  if (b.face === 'goblin') {
+    // A long hooked nose, a wide mouth, and long ears out to the sides.
+    m.cone(add(head, [0, 0.1, b.head * 0.8]), add(head, [0, -0.7, b.head * 1.45]), 0.55, 0.3, MM.hide);
+    m.ellipsoid(add(head, [0, -b.head * 0.55, b.head * 0.75]), [1.1, 0.18, 0.3], MM.mouth);
+    for (const side of [-1, 1]) {
+      m.sphere(add(head, [side * 0.8, 0.35, b.head * 0.78]), 0.45, eye);
+      m.cone(add(head, mirror([b.head * 0.8, 0.4, -0.1], side)), add(head, mirror([b.head * 2.1, 1.0, -0.6], side)), 0.55, 0.1, MM.hide);
+    }
+  } else if (b.face === 'hobgoblin') {
+    // A flat face with a heavy jaw, under an iron helm with a crest and cheek plates.
+    m.ellipsoid(add(head, [0, -b.head * 0.55, b.head * 0.45]), [b.head * 0.85, b.head * 0.5, b.head * 0.6], MM.hide);
+    m.ellipsoid(add(head, [0, -b.head * 0.55, b.head * 0.98]), [0.9, 0.16, 0.25], MM.mouth);
+    for (const side of [-1, 1]) m.sphere(add(head, [side * 0.8, 0.05, b.head * 0.82]), 0.42, eye);
+    m.ellipsoid(add(head, [0, b.head * 0.35, -0.1]), [b.head * 1.08, b.head * 0.75, b.head * 1.08], MM.metal);
+    m.ellipsoid(add(head, [0, b.head * 1.05, -0.3]), [0.35, b.head * 0.45, b.head * 0.95], MM.cloth);
+    for (const side of [-1, 1]) m.ellipsoid(add(head, [side * b.head * 0.85, -b.head * 0.25, 0.3]), [0.3, b.head * 0.6, b.head * 0.55], MM.metal);
+  } else {
+    // A bear's head: a broad snout with a dark nose, small round ears, shaggy cheeks.
+    m.ellipsoid(add(head, [0, -b.head * 0.35, b.head * 0.85]), [b.head * 0.55, b.head * 0.45, b.head * 0.6], MM.belly);
+    m.sphere(add(head, [0, -b.head * 0.15, b.head * 1.38]), 0.55, MM.mouth);
+    m.ellipsoid(add(head, [0, -b.head * 0.7, b.head * 1.05]), [0.9, 0.16 + 0.3 * strike, 0.3], MM.mouth);
+    for (const side of [-1, 1]) {
+      m.sphere(add(head, [side * 1.0, 0.35, b.head * 0.78]), 0.5, eye);
+      m.sphere(add(head, [side * b.head * 0.75, b.head * 0.85, -0.2]), b.head * 0.32, MM.hide);
+      m.ellipsoid(add(head, [side * b.head * 0.85, -b.head * 0.35, 0]), [b.head * 0.45, b.head * 0.55, b.head * 0.6], MM.hide);
+    }
+  }
+
+  // The arms. The right hand (+x) holds the weapon; the left holds the bow or the shield.
+  const armLen = b.hip * 0.5 * b.arms;
+  const hands: Record<number, Vec3> = {};
+  for (const side of [-1, 1]) {
+    const p = phase + (side < 0 ? Math.PI : 0);
+    const shoulder = add(chest, [side * b.shoulders, -0.2, -0.2]);
+    const sway = walk * Math.sin(p);
+    let elbowD: Vec3;
+    let wristD: Vec3;
+    if (b.weapon === 'bow') {
+      // The left arm holds the bow out in front; the right draws the string back to the chin.
+      const rest = { elbow: [side * 0.4, -armLen, 0.6 + 0.8 * sway] as Vec3, wrist: [side * -0.1, -armLen * 0.9, 1.0 + 0.9 * sway] as Vec3 };
+      const aim =
+        side < 0
+          ? { elbow: [0.2, 0.2, armLen * 0.95] as Vec3, wrist: [0.2, 0.1, armLen * 0.95] as Vec3 }
+          : { elbow: [0.5, 0.0, armLen * 0.7] as Vec3, wrist: [-1.4, 0.4, -armLen * 0.35 + 1.2 * (1 - windup)] as Vec3 };
+      const loose = side < 0 ? aim : { elbow: [0.9, 0.2, -armLen * 0.2] as Vec3, wrist: [0.6, 0.2, -armLen * 0.6] as Vec3 };
+      const ready = Math.max(windup, strike > 0 ? 1 : 0);
+      elbowD = mix(mix(rest.elbow, aim.elbow, ready), loose.elbow, strike);
+      wristD = mix(mix(rest.wrist, aim.wrist, ready), loose.wrist, strike);
+    } else if (side < 0 && b.shield) {
+      // The shield arm: across the body, the shield in front.
+      elbowD = [-0.6, -armLen * 0.7, armLen * 0.45];
+      wristD = [0.9, 0.1, armLen * 0.6 + 0.3 * windup];
+    } else if (side > 0 || b.weapon === 'mace') {
+      // The weapon arm (both arms for the mace): down at rest, up and back in the wind-up, down in front in the blow.
+      const rest = { elbow: [side * 0.6, -armLen, 0.5 + 0.9 * sway] as Vec3, wrist: [side * -0.2, -armLen * 0.95, 1.1 + 1.0 * sway] as Vec3 };
+      const raised = { elbow: [side * 0.9 - (b.weapon === 'mace' ? 0.6 : 0), armLen * 0.75, -armLen * 0.35] as Vec3, wrist: [side * -0.5 - (b.weapon === 'mace' ? 0.6 : 0), armLen * 0.8, armLen * 0.1] as Vec3 };
+      const smash = { elbow: [side * -0.4, -armLen * 0.3, armLen * 0.85] as Vec3, wrist: [side * -0.9, -armLen * 0.45, armLen * 0.8] as Vec3 };
+      elbowD = mix(mix(rest.elbow, raised.elbow, windup), smash.elbow, strike);
+      wristD = mix(mix(rest.wrist, raised.wrist, windup), smash.wrist, strike);
+    } else {
+      elbowD = [side * 0.6, -armLen, 0.5 + 0.9 * sway];
+      wristD = [side * -0.2, -armLen * 0.95, 1.1 + 1.0 * sway];
+    }
+    const elbow = add(shoulder, elbowD);
+    const wrist = add(elbow, wristD);
+    m.chain([shoulder, elbow, wrist], [b.limb * 1.1, b.limb * 0.95, b.limb * 0.85], b.fur ? MM.hide : b.armour ? MM.cloth : MM.hide);
+    if (b.armour) m.cone(elbow, mix(elbow, wrist, 0.85), b.limb * 1.05, b.limb * 0.95, MM.metal);
+    m.sphere(wrist, b.limb * 0.95, MM.hide);
+    hands[side] = wrist;
+  }
+
+  const grip = hands[1]!;
+  const off = hands[-1]!;
+  if (b.weapon === 'bow') {
+    // A short bow, upright in the left hand, its string to the right hand while it draws.
+    const top = add(off, [0, 5.2, -0.9]);
+    const bottom = add(off, [0, -5.2, -0.9]);
+    m.chain([bottom, add(off, [0, -2.8, 0.7]), off, add(off, [0, 2.8, 0.7]), top], [0.38, 0.48, 0.55, 0.48, 0.38], MM.wood);
+    const nock = windup > 0.05 && strike === 0 ? grip : add(off, [0, 0, -1.0]);
+    m.cone(top, nock, 0.1, 0.1, MM.horn);
+    m.cone(nock, bottom, 0.1, 0.1, MM.horn);
+    if (windup > 0.05 && strike === 0) m.cone(grip, add(off, [0, 0, 1.6]), 0.14, 0.12, MM.wood);
+    // A quiver on the back.
+    m.cone(add(chest, [-0.8, -2.6, -1.8]), add(chest, [1.2, 2.2, -2.4]), 0.85, 0.95, MM.cloth);
+    for (const k of [-0.4, 0.3]) m.cone(add(chest, [1.2 + k, 2.2, -2.4]), add(chest, [1.6 + k, 3.6, -2.6]), 0.12, 0.12, MM.wing);
+  } else {
+    // The weapon points down at rest, back over the shoulder in the wind-up, forward and down in the blow.
+    const hang: Vec3 = [0.4, -6, 3.8];
+    const back: Vec3 = [-0.4, 4, -7.5];
+    const down: Vec3 = [-0.4, -6.5, 7];
+    const along = mix(mix(hang, back, windup), down, strike);
+    const n = Math.hypot(...along);
+    const dir: Vec3 = [along[0] / n, along[1] / n, along[2] / n];
+    const at = (k: number): Vec3 => add(grip, [dir[0] * k, dir[1] * k, dir[2] * k]);
+    if (b.weapon === 'sword') {
+      m.cone(at(-1.2), at(0.6), 0.45, 0.45, MM.wood);
+      m.cone(at(0.6), at(0.9), 1.3, 1.3, MM.metal);
+      m.cone(at(0.9), at(8.6), 0.6, 0.15, MM.metal);
+    } else {
+      m.cone(at(-1.4), at(9), 0.8, 0.95, MM.wood);
+      const head = at(10.4);
+      m.sphere(head, 2.2, MM.metal);
+      for (const [x, y, z] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]] as const) m.cone(head, add(head, [x * 3.4, y * 3.4, z * 3.4]), 0.55, 0.08, MM.metal);
+    }
+  }
+  if (b.shield) {
+    // A round shield of wood with an iron rim and boss, on the left forearm.
+    const centre = add(off, [-0.4, 0.4, 1.0]);
+    m.ellipsoid(centre, [3.4, 3.6, 0.5], MM.wood);
+    m.ellipsoid(add(centre, [0, 0, 0.35]), [1.0, 1.0, 0.45], MM.metal);
+    m.cone(add(centre, [-3.2, 0, 0]), add(centre, [3.2, 0, 0]), 0.3, 0.3, MM.metal);
+  }
+  return m.parts;
+}
+
+// ---------------------------------------------------------------- the worg
+
+/**
+ * The worg: a big black wolf on four legs, its body along z (the head to the front). Its legs
+ * walk in a trot; in the wind-up it crouches with its head low; in the blow it leaps with its jaws
+ * open and its front legs out.
+ */
+function worg(pose: MobPose): Part[] {
+  const m = new Model();
+  const { phase, walk, windup, strike } = pose;
+  const kneel = Math.min(1, pose.death / 0.35);
+  const crouch = 0.7 * windup;
+  const stretch = strike;
+  const bodyY = 8.4 - 1.6 * crouch + 1.4 * stretch - 3.5 * kneel;
+  const bob = 0.4 * walk * Math.abs(Math.sin(phase));
+  const front: Vec3 = [0, bodyY + 0.6 + bob, 4.4 + 1.6 * stretch];
+  const back: Vec3 = [0, bodyY + bob + 0.4 * crouch, -4.6];
+  // The legs: front and back, a trot (one front leg with the other back leg).
+  for (const end of [1, -1]) {
+    for (const side of [-1, 1]) {
+      const p = phase + (side * end > 0 ? 0 : Math.PI);
+      const swing = walk * Math.sin(p);
+      const reach = end > 0 ? 2.2 * stretch : -1.6 * stretch;
+      const top = add(end > 0 ? front : back, [side * 2.2, -0.8, end > 0 ? -0.6 : 0.4]);
+      const foot: Vec3 = [side * 2.0, 0.6, top[2] + 1.8 * swing + reach + (end > 0 ? 0.6 : -0.6) * crouch];
+      const knee = add(mix(top, foot, 0.5), [0, 0.4 * walk * Math.max(0, Math.cos(p)) + 1.6 * stretch * (end > 0 ? 1 : 0), end > 0 ? -1.0 : 1.4]);
+      m.chain([top, knee, foot], [1.35, 0.85, 0.6], MM.hide);
+      m.ellipsoid(add(foot, [0, -0.1, 0.5]), [0.75, 0.45, 1.0], MM.hide);
+    }
+  }
+  // The body: a deep chest and a lean waist, with a ruff of fur.
+  m.cone(back, front, 2.6, 3.4, MM.hide);
+  m.ellipsoid(add(front, [0, -1.6, 0.6]), [2.4, 1.8, 2.4], MM.belly);
+  m.ellipsoid(add(front, [0, 1.2, -0.6]), [3.0, 2.2, 2.6], MM.hide);
+  // The neck and the head, low in the crouch, out in the leap.
+  const head = add(front, [0, 2.6 - 2.8 * crouch - 0.6 * stretch, 3.2 + 1.2 * stretch]);
+  m.cone(add(front, [0, 1.0, 0.8]), head, 2.4, 1.8, MM.hide);
+  m.sphere(head, 2.0, MM.hide);
+  const jaw = 0.25 + 1.3 * stretch + 0.3 * crouch;
+  const snout = add(head, [0, -0.3, 2.9]);
+  m.cone(add(head, [0, 0.1, 1.0]), snout, 1.25, 0.8, MM.hide);
+  m.cone(add(head, [0, -0.8, 1.0]), add(snout, [0, -0.9 - jaw, -0.2]), 0.9, 0.55, MM.belly);
+  m.ellipsoid(add(head, [0, -0.6 - jaw * 0.4, 2.2]), [0.7, 0.2 + jaw * 0.35, 1.0], MM.mouth);
+  m.sphere(add(snout, [0, 0.3, 0.6]), 0.42, MM.mouth);
+  for (const side of [-1, 1]) {
+    m.sphere(add(head, [side * 0.85, 0.55, 1.45]), 0.4, pose.death > 0.2 ? MM.mouth : MM.eye);
+    m.cone(add(head, [side * 1.0, 1.4, -0.2]), add(head, [side * 1.3, 3.1 - 0.8 * crouch, -0.8 - 0.8 * crouch]), 0.65, 0.1, MM.hide);
+  }
+  // The tail: out behind, down in the crouch, up in the leap.
+  const tail0 = add(back, [0, 0.6, -2.2]);
+  const sway = 0.8 * walk * Math.sin(phase * 2);
+  m.chain([tail0, add(tail0, [sway * 0.5, -1.0 - 1.2 * crouch + 1.6 * stretch, -2.6]), add(tail0, [sway, -2.6 - 1.4 * crouch + 2.4 * stretch, -4.6])], [1.0, 1.1, 0.5], MM.hide);
+  return m.parts;
+}
+
 // ---------------------------------------------------------------- frames
 
-const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = { imp: (pose) => scaled(imp(pose), 1.25), brute: (pose) => scaled(brute(pose), 1.2) };
+const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = {
+  imp: (pose) => scaled(imp(pose), 1.25),
+  brute: (pose) => scaled(brute(pose), 1.2),
+  goblin: (pose) => scaled(humanoid(pose, GOBLIN), 1.3),
+  worg: (pose) => scaled(worg(pose), 1.3),
+  hobgoblin: (pose) => scaled(humanoid(pose, HOBGOBLIN), 1.1),
+  bugbear: (pose) => scaled(humanoid(pose, BUGBEAR), 1.15),
+};
 
 /** The model of a kind in a pose, with the death's fall. */
 export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   const parts = MODELS[kind](pose);
   const d = pose.death;
-  if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, kind === 'imp' ? -1.5 : -2);
+  if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, kind === 'imp' || kind === 'goblin' ? -1.5 : -2);
   if (d <= 0) return parts;
-  if (kind === 'imp') {
+  if (kind === 'worg') {
+    // Down on its legs (in the model), then over on its side.
+    const fall = Math.max(0, (d - 0.3) / 0.7);
+    return tilt(parts, 0, 1.4 * fall * fall, 2.2 * Math.max(0, (d - 0.7) / 0.3), 0);
+  }
+  if (kind === 'imp' || kind === 'goblin') {
     // Thrown back, then over on its back, then it sinks into a heap.
     const fall = Math.min(1, d / 0.7);
     return tilt(parts, -0.25 - 1.3 * fall * fall, 0.25 * fall, 2.2 * Math.max(0, (d - 0.55) / 0.45), -1.5);
@@ -364,6 +688,9 @@ export function mobPoses(): { name: string; pose: MobPose }[] {
   return out;
 }
 
+/** The size of the shadow of each kind (pixels). */
+const SHADOWS: Readonly<Record<MobKind, readonly [number, number]>> = { imp: [14, 6], brute: [28, 9], goblin: [14, 6], worg: [30, 9], hobgoblin: [20, 7], bugbear: [28, 9] };
+
 /**
  * The frames of the mobs, `mob/<kind>/<view>/<pose>` (stand, walk/i, windup/i, strike/i, hurt,
  * die/i), their shadows `mob/<kind>/shadow`, and the eye pixels of each frame.
@@ -371,7 +698,7 @@ export function mobPoses(): { name: string; pose: MobPose }[] {
 export function mobFrames(): { frames: Frame[]; eyes: Record<string, number[]> } {
   const frames: Frame[] = [];
   const eyes: Record<string, number[]> = {};
-  for (const kind of ['imp', 'brute'] as const) {
+  for (const kind of KINDS) {
     const size = MOB_FRAMES[kind];
     const anchor = { x: size.pivotX / size.width, y: size.pivotY / size.height };
     for (const view of VIEWS) {
@@ -387,7 +714,8 @@ export function mobFrames(): { frames: Frame[]; eyes: Record<string, number[]> }
         if (lit.length > 0) eyes[frameName] = lit;
       }
     }
-    const shadow = kind === 'imp' ? new Image(14, 6) : new Image(28, 9);
+    const [sw, sh] = SHADOWS[kind];
+    const shadow = new Image(sw, sh);
     shadowEllipse(shadow, shadow.width / 2, shadow.height / 2, shadow.width / 2 - 0.5, shadow.height / 2, 0x80);
     frames.push({ name: `mob/${kind}/shadow`, image: shadow, anchor: { x: 0.5, y: 0.5 } });
   }

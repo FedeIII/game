@@ -304,6 +304,10 @@ The look and the name of a player come from its character (above). The protocol 
 
 ## Mobs (protocol 5, 2026-10-08; health and the `hurt` state: protocol 6)
 
+Protocol 25 (2026-10-11): four more kinds of mobs, codes 2 to 5 (`MOB_KINDS`: goblin, worg,
+hobgoblin, bugbear). A goblin's arrows go in `ar` as the rangers' do, with the goblin's id,
+negative, as the shooter: every player sees them, and no page takes them for its own.
+
 The server runs the mobs of a shared world (`Room.horde`, a `Horde`, see CLAUDE.md "Mobs and
 fights"): `Room.tick()` steps them with every player's true state, and a mob's hit stuns that
 state at once. The client takes the stun from the next snapshot (`you`), and its prediction

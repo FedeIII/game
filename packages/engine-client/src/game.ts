@@ -66,6 +66,7 @@ import {
   meetsGate,
   sheetTraits,
   EMPTY_BOOK,
+  MOB_KINDS,
   SCENE_MARGIN,
   applyEffect,
   inScene,
@@ -77,6 +78,7 @@ import {
   type QuestBook,
   type QuestEffect,
   type SceneDef,
+  type MobKind,
   type Arrow,
   type Character,
   type Gate,
@@ -537,12 +539,12 @@ async function run(options: GameOptions): Promise<void> {
   const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
   const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer) : null;
   const arrowViews = mobRules ? new ArrowViews(art, entityLayer) : null;
-  // ?mob=imp,brute puts those mobs near the player at the start, one tile apart, 5 tiles to the
-  // east (for tests and for a look at them). Single-player worlds only.
+  // ?mob=imp,brute puts those mobs (any kinds of MOB_KINDS) near the player at the start, one tile
+  // apart, 5 tiles to the east (for tests and for a look at them). Single-player worlds only.
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
-    if (horde && (kind === 'imp' || kind === 'brute')) {
+    if (horde && (MOB_KINDS as readonly string[]).includes(kind)) {
       const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 5, Math.floor(player.y / TILE_SIZE) + i * 2 - 1, 0);
-      horde.spawn(kind, spot.x, spot.y);
+      horde.spawn(kind as MobKind, spot.x, spot.y);
     }
   });
   // The companions (NPCs that follow a player) of a world that the page runs; a shared world gets

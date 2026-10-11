@@ -4,6 +4,8 @@ import {
   ATTACK_TICKS,
   GUARD_TICKS,
   Horde,
+  MOB_KINDS,
+  MOB_LOOT,
   MOB_STATS,
   NO_INPUT,
   TICK_SECONDS,
@@ -500,5 +502,70 @@ describe('the blow of a player (traits.ts)', () => {
     expect(strong.push).toBeCloseTo(MOB_STATS.brute.knockback * 1.45, 0);
     expect(plain.reel).toBeCloseTo(MOB_STATS.brute.hurtMs, -2);
     expect(strong.reel).toBeCloseTo(MOB_STATS.brute.hurtMs * 1.6, -2);
+  });
+});
+
+describe('the hobgoblin band (story phase 3)', () => {
+  it('keeps the codes of the old kinds on the wire, has stats and loot for each kind, and none of it roams the Wilds', () => {
+    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear']);
+    for (const kind of MOB_KINDS) {
+      expect(MOB_STATS[kind].health, kind).toBeGreaterThan(0);
+      expect(MOB_LOOT[kind], kind).toBeDefined();
+    }
+    // Only the goblin shoots, and only the worg charges straight.
+    expect(MOB_KINDS.filter((k) => MOB_STATS[k].arrowRange)).toEqual(['goblin']);
+    expect(MOB_KINDS.filter((k) => MOB_STATS[k].straight)).toEqual(['worg']);
+    // The band is stronger than the woods: the hobgoblin and the bugbear take more blows than a brute.
+    expect(MOB_STATS.hobgoblin.health).toBeGreaterThan(MOB_STATS.brute.health);
+    expect(MOB_STATS.bugbear.health).toBeGreaterThan(MOB_STATS.hobgoblin.health);
+  });
+
+  it('has a goblin that shoots from out of reach: its arrow flies at the player, stuns it and takes a hit point', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3);
+    const home = at(0, 0);
+    const goblin = horde.spawn('goblin', home.x, home.y);
+    const player: HordePlayer = { id: 7, state: tough(home.x + 6 * TILE_SIZE, home.y) };
+    let shotFrom = Infinity;
+    const hits = run(horde, [player], 8000, () => {
+      if (horde.arrows.some((a) => a.from === 'goblin') && shotFrom === Infinity) shotFrom = dist(goblin, player.state);
+    });
+    // It shot from far: further than any blow reaches.
+    expect(shotFrom).toBeGreaterThan(60);
+    expect(hits.some(([mob, p]) => mob === goblin.id && p === 7)).toBe(true);
+    expect(player.state.hp).toBeLessThan(1000);
+    // A mob's arrow has a negative owner: no player shot it.
+    run(horde, [player], 4000, () => {
+      for (const a of horde.arrows) if (a.from) expect(a.owner).toBe(-goblin.id);
+    });
+  });
+
+  it('has goblin arrows that do not hit mobs: a brute between the goblin and the player is not hurt', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3);
+    const home = at(0, 0);
+    const goblin = horde.spawn('goblin', home.x, home.y);
+    // A brute stands in the way, between the goblin and the player.
+    const brute = horde.spawn('brute', home.x + 2 * TILE_SIZE, home.y);
+    const player: HordePlayer = { id: 7, state: tough(home.x + 5 * TILE_SIZE, home.y) };
+    run(horde, [player], 3000);
+    expect(brute.health).toBe(MOB_STATS.brute.health);
+    expect(goblin.health).toBe(MOB_STATS.goblin.health);
+  });
+
+  it('has a worg that runs straight at the player, faster than a player walks', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 5);
+    const home = at(0, 0);
+    const worg = horde.spawn('worg', home.x, home.y);
+    const player: HordePlayer = { id: 1, state: tough(home.x + 7 * TILE_SIZE, home.y + 3 * TILE_SIZE) };
+    // How far off the straight line it heads, tick by tick (the first tick of the chase still has its walk).
+    const off: number[] = [];
+    run(horde, [player], 1200, () => {
+      if (worg.state !== 'chase' || dist(worg, player.state) < 40) return;
+      const heading = Math.atan2(worg.vy, worg.vx);
+      const straight = Math.atan2(player.state.y - worg.y, player.state.x - worg.x);
+      off.push(Math.abs(Math.atan2(Math.sin(heading - straight), Math.cos(heading - straight))));
+    });
+    expect(off.length).toBeGreaterThan(10);
+    expect(off.slice(1).every((a) => a < 0.05)).toBe(true);
+    expect(MOB_STATS.worg.chaseSpeed).toBeGreaterThan(80);
   });
 });

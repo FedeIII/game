@@ -341,6 +341,10 @@ export interface LootRoll {
 export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
   imp: { items: [{ chance: 1 / 3, pick: [['imp-horn', 1]] }] },
   brute: { coins: [2, 6], items: [{ chance: 1 / 2, pick: [['brute-tusk', 1]] }] },
+  goblin: { coins: [0, 3] },
+  worg: {},
+  hobgoblin: { coins: [2, 6] },
+  bugbear: { coins: [3, 8] },
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */

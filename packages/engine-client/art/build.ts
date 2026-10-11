@@ -19,7 +19,7 @@ import { buildArt } from './sprites.ts';
  * that samples with 16-bit floats (mediump on many Android phones) is then never off by half a
  * texel, so a frame never shows a row or a column of its neighbour (black lines, broken text).
  */
-const ATLAS_WIDTH = 1024;
+const ATLAS_WIDTH = 2048;
 const MAX_ATLAS_SIZE = 2048;
 /**
  * Space between frames, so a frame never samples its neighbour. Each frame repeats its edge

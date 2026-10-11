@@ -111,6 +111,7 @@ const REFUGES: readonly Refuge[] = [
 ];
 
 /** Mobs in the wilds: four imps and two brutes round each player. */
+/** The mobs round each player in the woods. The hobgoblin band comes only with the story: none of it roams. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
 /** No house of the wilds stands this close to the town (tiles), and mobs do not live this close to it. */

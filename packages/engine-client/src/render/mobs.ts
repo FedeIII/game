@@ -23,19 +23,28 @@ const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
 /** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
 const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
-const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33 };
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36 };
 
 /** World pixels of travel for each walk frame. */
-const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5 };
+const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5 };
 /** The glow of the eyes, above the darkness. */
-const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a };
+const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30 };
+/** The ash of a death: how tall and wide the body is (world pixels), and how many motes rise from it. */
+const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly width: number; readonly count: number }>> = {
+  imp: { height: 14, width: 8, count: 14 },
+  brute: { height: 30, width: 16, count: 28 },
+  goblin: { height: 16, width: 8, count: 14 },
+  worg: { height: 14, width: 22, count: 22 },
+  hobgoblin: { height: 24, width: 12, count: 20 },
+  bugbear: { height: 32, width: 16, count: 28 },
+};
 /** The death: the frames play over this share of the death; the body fades out over the end. */
 const DIE_FRAMES_SHARE = 0.6;
 const FADE_FROM = 0.55;
 /** The white flash of a blow, at the start of a death or a reel (ms). */
 const FLASH_MS = 110;
-/** Ash and embers that rise from a dead mob. */
-const ASH = { count: 14, ms: 1100 } as const;
+/** Ash and embers that rise from a dead mob: for this long (ms). */
+const ASH = { ms: 1100 } as const;
 
 const eyesOf = (atlasData.meta as unknown as { mobEyes: Record<string, number[]> }).mobEyes;
 
@@ -272,14 +281,12 @@ export class MobViews {
 
   /** Ash and a few embers rise from the body. */
   private ash(mob: MobLook): void {
-    const height = mob.kind === 'imp' ? 14 : 30;
-    const width = mob.kind === 'imp' ? 8 : 16;
+    const { height, width, count } = ASH_SIZE[mob.kind];
     let seed = (mob.id * 2654435761) >>> 0;
     const rand = () => {
       seed = (seed * 1664525 + 1013904223) >>> 0;
       return seed / 4294967296;
     };
-    const count = mob.kind === 'imp' ? ASH.count : ASH.count * 2;
     for (let i = 0; i < count; i++) {
       const ember = rand() < 0.3;
       const sprite = new Sprite(Texture.WHITE);

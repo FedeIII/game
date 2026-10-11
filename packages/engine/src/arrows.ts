@@ -1,9 +1,10 @@
 import { TILE_SIZE } from './constants.ts';
-import type { Blow } from './mobs.ts';
+import type { Blow, MobKind } from './mobs.ts';
 import type { Box } from './world.ts';
 
 /**
- * Arrows: a ranger's attacks fly (traits.ts, PlayerTraits.ranged). An arrow flies straight, at
+ * Arrows: a ranger's attacks fly (traits.ts, PlayerTraits.ranged), and so do a goblin's (mobs.ts,
+ * MobStats.arrowRange: those hit players). An arrow flies straight, at
  * ARROW_SPEED, until it hits the first mob on its way, a thing that stops it (a wall, a closed door,
  * a tree trunk, a rock, furniture; not water), or the end of its range. A shared world's Room
  * flies the true arrows (the Horde has them); the page of the shooter flies its own copy at once,
@@ -21,8 +22,10 @@ const ARROW_STEP = 4;
 
 export interface Arrow {
   readonly id: number;
-  /** The id of the player who shot it. */
+  /** The id of the player who shot it; for a mob's arrow, minus the id of the mob. */
   readonly owner: number;
+  /** A mob's arrow (a goblin's): the kind of the mob. It hits players, not mobs. */
+  readonly from?: MobKind;
   x: number;
   y: number;
   /** Its direction (radians, as MoveInput.attack). */
