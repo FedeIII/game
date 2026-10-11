@@ -4,17 +4,21 @@ import {
   Prediction,
   Remotes,
   TILE_SIZE,
+  dropWorn,
+  fromWireGear,
   fromWirePack,
   fromWirePiles,
   fromWireStacks,
   fromWireToss,
-  moveInPack,
+  gearSlotAt,
+  moveItem,
   removeFromSlot,
   LOOT_SOURCES,
   parseServerMessage,
   stepPlayer,
   useDoor,
   type ClientMessage,
+  type Gear,
   type Loot,
   type Pack,
   type ItemKind,
@@ -90,6 +94,8 @@ export class NetSession {
   private readonly lootListeners: ((loot: NetLoot) => void)[] = [];
   /** What the player carries, in the server's last word (null before the welcome). */
   pack: Pack | null = null;
+  /** What the player wears, in the server's last word (null before the welcome). */
+  gear: Gear | null = null;
   /** The piles on the ground near the player, in the server's last word. */
   private piles: Pile[] = [];
   /** The tosses onto those piles since the view last took them, with the time when each one came. */
@@ -100,7 +106,7 @@ export class NetSession {
   refuges: readonly string[] | null = null;
   private readonly wokeListeners: ((lost: number) => void)[] = [];
   private readonly refugeListeners: ((refuges: readonly string[]) => void)[] = [];
-  private readonly traits: PlayerTraits;
+  private traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
   private retryMs = RETRY_FIRST_MS;
@@ -138,6 +144,12 @@ export class NetSession {
     this.connect();
   }
 
+  /** New traits for the player (its gear changed): the prediction uses them at once. */
+  setTraits(traits: PlayerTraits): void {
+    this.traits = traits;
+    this.prediction.traits = traits;
+  }
+
   /** Calls `listener` when the player wakes after a defeat, with the coins that it lost. */
   onWoke(listener: (lost: number) => void): void {
     this.wokeListeners.push(listener);
@@ -164,24 +176,36 @@ export class NetSession {
 
   /**
    * Puts `count` items of slot `slot` of the pack (of `kind`) on the ground, through the server: in
-   * front of the player, or tossed towards `at` (a point of the world). The pack shows it at once;
-   * the next snapshot gives the server's word. False while not online.
+   * front of the player, or tossed towards `at` (a point of the world). `slot` can be a worn slot
+   * (gear.ts, an address). The pack and the gear show it at once; the next snapshot gives the
+   * server's word. False while not online.
    */
   put(slot: number, kind: ItemKind, count: number, at?: { readonly x: number; readonly y: number }): boolean {
-    if (this.status !== 'online' || !this.pack) return false;
-    const pack = removeFromSlot(this.pack, slot, kind, count);
-    if (!pack) return true;
-    this.pack = pack;
+    if (this.status !== 'online' || !this.pack || !this.gear) return false;
+    const worn = gearSlotAt(slot);
+    if (worn !== null) {
+      const gear = count === 1 ? dropWorn(this.gear, worn, kind) : null;
+      if (!gear) return true;
+      this.gear = gear;
+    } else {
+      const pack = removeFromSlot(this.pack, slot, kind, count);
+      if (!pack) return true;
+      this.pack = pack;
+    }
     this.send({ t: 'put', slot, kind: ITEM_KINDS.indexOf(kind), count, ...(at ? { at: [Math.round(at.x), Math.round(at.y)] as const } : {}) });
     return true;
   }
 
-  /** Moves the stack of slot `from` onto slot `to`, through the server; the pack shows it at once. False while not online. */
+  /**
+   * Moves an item from `from` to `to` (pack slots and worn slots: inventory.ts, moveItem), through
+   * the server; the pack and the gear show it at once. False while not online.
+   */
   move(from: number, to: number): boolean {
-    if (this.status !== 'online' || !this.pack) return false;
-    const pack = moveInPack(this.pack, from, to, this.traits.slots);
-    if (!pack) return true;
-    this.pack = pack;
+    if (this.status !== 'online' || !this.pack || !this.gear) return false;
+    const moved = moveItem({ pack: this.pack, gear: this.gear }, from, to, this.traits.slots, this.traits.class);
+    if (!moved) return true;
+    this.pack = moved.pack;
+    this.gear = moved.gear;
     this.send({ t: 'move', from, to });
     return true;
   }
@@ -350,6 +374,7 @@ export class NetSession {
         const before = { x: this.player.x, y: this.player.y };
         this.prediction.reset(this.player, this.world, message);
         this.pack = fromWirePack(message.pk);
+        this.gear = fromWireGear(message.gr);
         this.piles = fromWirePiles(message.pl ?? []);
         this.id = message.id;
         this.refuges = message.rf;
@@ -371,6 +396,7 @@ export class NetSession {
         if (this.remotes.count !== count) this.changed();
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
+        if (message.gr) this.gear = fromWireGear(message.gr);
         if (message.pl) this.piles = fromWirePiles(message.pl);
         for (const toss of message.ts ?? []) this.tosses.push({ toss: fromWireToss(toss), at: now });
         if (this.tosses.length > MAX_TOSSES) this.tosses.splice(0, this.tosses.length - MAX_TOSSES);

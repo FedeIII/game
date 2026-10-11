@@ -320,8 +320,9 @@ Decided on 2026-10-11: the names of the table, Elama Rothenel as the reeve, and 
 the browser as the default.
 
 - What "wanted" changes after the caravan (guards refuse to trade, or attack).
-- Reward items with no system yet (the splint armour, the luck amulet): items to sell, or the
-  start of an equipment system.
+- ~~Reward items with no system yet~~: decided 2026-10-11, an equipment system with the slots of
+  5e (`docs/drafts/equipment.md`, phase 1 built). The splint armour and the luck amulet are items
+  to wear now; the story only has to give them.
 - Guests and quests.
 - Himo after the camp: goes home alone, or the character escorts Himo (companions).
 - The journal: a section of the settings panel, or its own panel.

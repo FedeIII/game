@@ -1,5 +1,6 @@
 import { TILE_SIZE } from '../constants.ts';
-import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemStack, type Loot, type Pack, type PackSlot } from '../items.ts';
+import { EMPTY_GEAR, GEAR_BASE, GEAR_SLOTS, fitsSlot, type Gear, type GearSlot } from '../gear.ts';
+import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemKind, type ItemStack, type Loot, type Pack, type PackSlot } from '../items.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
 import type { Pile, Toss } from '../piles.ts';
 import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
@@ -12,7 +13,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -211,8 +212,9 @@ export interface DrinkMessage {
 
 /**
  * The player puts `count` items from slot `slot` of its pack on the ground; the slot must hold
- * them, of `kind` (its code, ITEM_KINDS). Without `at`, they fall just in front of the player
- * (dropPoint); with `at` (a point of the world, in whole pixels), the player tosses them towards it
+ * them, of `kind` (its code, ITEM_KINDS). `slot` can be a worn slot too (an address: gear.ts,
+ * GEAR_BASE), with a count of 1. Without `at`, they fall just in front of the player (dropPoint);
+ * with `at` (a point of the world, in whole pixels), the player tosses them towards it
  * (tossPoint). They lie there as a pile (piles.ts) until someone picks them up.
  */
 export interface PutMessage {
@@ -223,7 +225,11 @@ export interface PutMessage {
   readonly at?: readonly [number, number];
 }
 
-/** The player moves the stack of slot `from` of its pack onto slot `to` (moveInPack). */
+/**
+ * The player moves an item from `from` to `to`: slots of its pack, or worn slots (addresses:
+ * gear.ts, GEAR_BASE). Between pack slots it moves a stack (moveInPack); onto a worn slot the
+ * character puts the item on, and from one it takes it off (inventory.ts, moveItem).
+ */
 export interface MoveMessage {
   readonly t: 'move';
   readonly from: number;
@@ -247,11 +253,11 @@ export type WirePlayer = readonly [number, number, number, number, number, numbe
 /**
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
  * dodge, dodge cooldown, dodge direction (radians, exact), hp, recover, stamina (exact), rest,
- * down, poison, poison clock, drunk, wading (0 or 1), inspired].
+ * down, poison, poison clock, drunk, wading (0 or 1), inspired, glance].
  */
 export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number, number, number,
-  number, number, number, number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number, number, number, number,
 ];
 
 /** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
@@ -293,6 +299,31 @@ export type WireSlots = readonly (readonly [number, number] | null)[];
 
 /** A pack on the wire: [coins, slots]. */
 export type WirePack = readonly [number, WireSlots];
+
+/** The gear on the wire: an item code (ITEM_KINDS) for each worn slot, in the order of GEAR_SLOTS, or -1 for an empty one. */
+export type WireGear = readonly number[];
+
+export function toWireGear(gear: Gear): WireGear {
+  return GEAR_SLOTS.map((slot) => {
+    const kind = gear[slot];
+    return kind === null ? -1 : ITEM_KINDS.indexOf(kind);
+  });
+}
+
+/** The gear of the wire; a code that this client does not know, or a kind that does not fit its slot, shows as empty. */
+export function fromWireGear(wire: WireGear): Gear {
+  const gear: Record<GearSlot, ItemKind | null> = { ...EMPTY_GEAR };
+  GEAR_SLOTS.forEach((slot, i) => {
+    const kind = ITEM_KINDS[wire[i] ?? -1];
+    if (kind && fitsSlot(kind, slot)) gear[slot] = kind;
+  });
+  return gear;
+}
+
+/** Whether a number is an address of the inventory: a slot of the pack, or a worn slot. */
+function isAddress(value: unknown): value is number {
+  return isInt(value, 0, MAX_SLOTS - 1) || isInt(value, GEAR_BASE, GEAR_BASE + GEAR_SLOTS.length - 1);
+}
 
 export function toWireStacks(items: readonly ItemStack[]): WireStacks {
   return items.map((s) => [ITEM_KINDS.indexOf(s.kind), s.count] as const);
@@ -381,6 +412,8 @@ export interface WelcomeMessage {
   /** The barred doors that are forced now (World.forcedDoorList). */
   readonly fd: readonly (readonly [number, number])[];
   readonly pk: WirePack;
+  /** What its character wears (gear.ts). */
+  readonly gr: WireGear;
   /** The piles on the ground near the player (within PILE_SEND_RADIUS). */
   readonly pl: readonly WirePile[];
 }
@@ -401,6 +434,8 @@ export interface SnapshotMessage {
   readonly fd?: readonly (readonly [number, number])[];
   /** The player's pack, when it changed. */
   readonly pk?: WirePack;
+  /** What the player wears, when it changed. */
+  readonly gr?: WireGear;
   /** The loot that the player got since the last snapshot. */
   readonly l?: readonly WireLoot[];
   /** The piles on the ground near this player (within PILE_SEND_RADIUS): all of them, when they changed. */
@@ -563,12 +598,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isInt(m.kind, 0, 255) ? { t: 'drink', kind: m.kind } : null;
     case 'put': {
       const kind = ITEM_KINDS[m.kind as number];
-      if (!isInt(m.slot, 0, MAX_SLOTS - 1) || !isInt(m.kind, 0, 255) || !kind || !isInt(m.count, 1, ITEM_STACK[kind])) return null;
+      if (!isAddress(m.slot) || !isInt(m.kind, 0, 255) || !kind || !isInt(m.count, 1, ITEM_STACK[kind])) return null;
       if (m.at !== undefined && !isPair(m.at, -TILE_LIMIT * TILE_SIZE, TILE_LIMIT * TILE_SIZE)) return null;
       return { t: 'put', slot: m.slot, kind: m.kind, count: m.count, ...(m.at === undefined ? {} : { at: m.at as [number, number] }) };
     }
     case 'move':
-      return isInt(m.from, 0, MAX_SLOTS - 1) && isInt(m.to, 0, MAX_SLOTS - 1) && m.from !== m.to ? { t: 'move', from: m.from, to: m.to } : null;
+      return isAddress(m.from) && isAddress(m.to) && m.from !== m.to ? { t: 'move', from: m.from, to: m.to } : null;
     default:
       return null;
   }

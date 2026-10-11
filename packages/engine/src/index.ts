@@ -11,6 +11,8 @@ export * from './mobs.ts';
 export * from './character.ts';
 export * from './traits.ts';
 export * from './items.ts';
+export * from './gear.ts';
+export * from './inventory.ts';
 export * from './loot.ts';
 export * from './piles.ts';
 export * from './arrows.ts';

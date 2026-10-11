@@ -20,10 +20,11 @@ import {
   type Scores,
   type SnapshotMessage,
   type WorldSource,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { houseSource, mobHouseSource } from './helpers.ts';
 
-const withWis = (wis: number) => traitsOf({ ...PLAIN_SCORES, wis } as Scores, 'fighter');
+const withWis = (wis: number) => traitsOf({ ...PLAIN_SCORES, wis } as Scores, 'fighter', PLAIN_GEAR);
 
 /** A patch of herbs on the grass south of the house, at (12, 12): hidden, and it grows again after 20 minutes. */
 const PATCH: Fixture = { kind: 'herbpatch', tx: 12, ty: 12, hidden: true };

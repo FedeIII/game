@@ -25,11 +25,12 @@ import {
   type Pack,
   type PlayerTraits,
   type SnapshotMessage,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { houseSource, mobHouseSource, textSource } from './helpers.ts';
 
 const strength = (str: number): PlayerTraits =>
-  traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter');
+  traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter', PLAIN_GEAR);
 const stack = (kind: ItemStack['kind'], count: number): ItemStack => ({ kind, count });
 
 /** The last snapshot that the room sends to player `id`. */

@@ -1,6 +1,21 @@
 import { ABILITIES, ATTACK_ABILITY, abilityModifier, appearanceOf, finalScores, type Ability, type CharacterClass, type CharacterSheet, type Scores } from './character.ts';
 import { TILE_SIZE } from './constants.ts';
 import {
+  EMPTY_GEAR,
+  HEAVY_SPEED,
+  NOISY_SIGHT,
+  SNEAK_ATTACK,
+  armourClass,
+  attackGear,
+  gearLuck,
+  glanceShare,
+  isNoisy,
+  kitOf,
+  tooHeavy,
+  type AttackGear,
+  type Gear,
+} from './gear.ts';
+import {
   ATTACK_COOLDOWN_TICKS,
   ATTACK_TICKS,
   DODGE_COOLDOWN_TICKS,
@@ -14,21 +29,41 @@ import {
 } from './player.ts';
 
 /**
- * What the ability scores of a character give in the game: the damage and the force of its blows,
- * what it can walk through, how much it carries. The page and the server make the same traits
- * from the same sheet: the server from the stored character (a client cannot send its own), the
- * page for its prediction. See docs/drafts/abilities.md.
+ * What the ability scores of a character, and what it wears (gear.ts), give in the game: the
+ * damage and the force of its blows, its Armour Class, what it can walk through, how much it
+ * carries. The page and the server make the same traits from the same sheet and gear: the server
+ * from the stored character (a client cannot send its own), the page for its prediction. See
+ * docs/drafts/abilities.md and docs/drafts/equipment.md.
  *
  * Two kinds of effect: a scale (a number changes with the modifier of a score: -1 to +3) and a
  * gate (a fixed limit on a score opens something: Gate). A gate is never a roll of a die.
  */
 export interface PlayerTraits {
-  /** The scores after the race's increases. */
+  /**
+   * The scores for the gates: the scores after the race's increases, and the luck of the worn
+   * items (`luck`) on each one. The scales come from the scores without the luck.
+   */
   readonly scores: Scores;
+  /** What the worn items add to each score for the gates (gearLuck). */
+  readonly luck: number;
+  /** Its class: what it can wear (gear.ts, canUse). */
+  readonly class: CharacterClass;
   /** The ability that the class attacks with (ATTACK_ABILITY). */
   readonly attack: Ability;
-  /** The health points that a blow takes from a mob: BASE_DAMAGE + the modifier of the attack ability. */
+  /** How it attacks with what it holds: a weapon, a cantrip, martial arts or an unarmed strike (attackGear). */
+  readonly strike: AttackGear;
+  /** The health points that a blow takes from a mob: the base of `strike` + the modifier of the attack ability + a magic bonus. */
   readonly damage: number;
+  /** The damage that a blow adds on a mob that does not hunt it (a rogue's sneak attack; else 0). */
+  readonly sneak: number;
+  /** Its Armour Class (armourClass). */
+  readonly ac: number;
+  /** The share of the mob hits that glance off it (glanceShare of `ac`). */
+  readonly glance: number;
+  /** Its walk, as a share of PLAYER_SPEED: less in a heavy armour without its Strength. */
+  readonly speed: number;
+  /** How far mobs see it while it sneaks, as a share of `sight` (SNEAK_SIGHT; more in a noisy armour). */
+  readonly sneakSight: number;
   /** The push of a blow, as a share of the mob's knockback (STR, for every class). */
   readonly push: number;
   /** How long a mob reels from a blow, as a share of its hurtMs (STR, for every class). */
@@ -45,7 +80,7 @@ export interface PlayerTraits {
   readonly dodgeCooldown: number;
   /** How far mobs see it, as a share of their sight (DEX); half of that while it sneaks. */
   readonly sight: number;
-  /** Whether its attacks are arrows (a ranger's bow), and how far an arrow flies (world pixels; DEX). */
+  /** Whether its attacks are arrows (a bow in its hands), and how far an arrow flies (world pixels; DEX). */
   readonly ranged: boolean;
   readonly range: number;
   /** Its most hit points (CON). */
@@ -84,7 +119,7 @@ export interface Gate {
   readonly min: number;
 }
 
-/** A blow takes this many health points, plus the modifier of the attack ability (at least 1). */
+/** The base damage of every class before the gear: a weapon of a d8 (gear.ts, dieBase). */
 export const BASE_DAMAGE = 4;
 /** Each point of the STR modifier pushes a mob this share further, and makes it reel this share longer. */
 export const PUSH_PER_MOD = 0.15;
@@ -138,9 +173,9 @@ export const PICK_GATE: Gate = { ability: 'dex', min: GATE_SCORE };
 /** While a player sneaks (isSneaking), mobs see it from this share of the distance. */
 export const SNEAK_SIGHT = 0.5;
 
-/** How far mobs see a player now, as a share of their sight (HordePlayer.sight): its Dexterity, and half of that while it sneaks. */
-export function sightOf(traits: Pick<PlayerTraits, 'sight'>, state: Parameters<typeof isSneaking>[0]): number {
-  return traits.sight * (isSneaking(state) ? SNEAK_SIGHT : 1);
+/** How far mobs see a player now, as a share of their sight (HordePlayer.sight): its Dexterity, and half of that while it sneaks (more in a noisy armour). */
+export function sightOf(traits: Pick<PlayerTraits, 'sight'> & Partial<Pick<PlayerTraits, 'sneakSight'>>, state: Parameters<typeof isSneaking>[0]): number {
+  return traits.sight * (isSneaking(state) ? (traits.sneakSight ?? SNEAK_SIGHT) : 1);
 }
 
 /** Whether a character's scores pass a gate. */
@@ -162,9 +197,12 @@ export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden'
   return score >= gate.min - GATE_HINT ? 'hint' : 'hidden';
 }
 
-/** The traits of a class with these final scores. */
-export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
+/** The traits of a class with these final scores and this gear. */
+export function traitsOf(scores: Scores, cls: CharacterClass, gear: Gear): PlayerTraits {
   const attack = ATTACK_ABILITY[cls];
+  const strike = attackGear(gear, cls);
+  const luck = gearLuck(gear);
+  const ac = armourClass(gear, scores, cls);
   const str = abilityModifier(scores.str);
   const dex = abilityModifier(scores.dex);
   const con = abilityModifier(scores.con);
@@ -172,19 +210,27 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   const wis = abilityModifier(scores.wis);
   const cha = abilityModifier(scores.cha);
   return {
-    scores,
+    scores: luck === 0 ? scores : (Object.fromEntries(ABILITIES.map((a) => [a, scores[a] + luck])) as Record<Ability, number>),
+    luck,
+    class: cls,
     attack,
-    damage: Math.max(1, BASE_DAMAGE + abilityModifier(scores[attack])),
+    strike,
+    damage: Math.max(1, strike.base + strike.bonus + abilityModifier(scores[attack])),
+    sneak: cls === 'rogue' ? SNEAK_ATTACK : 0,
+    ac,
+    glance: glanceShare(ac),
+    speed: tooHeavy(gear, scores) ? HEAVY_SPEED : 1,
+    sneakSight: isNoisy(gear) ? NOISY_SIGHT : SNEAK_SIGHT,
     push: 1 + PUSH_PER_MOD * str,
     stagger: 1 + STAGGER_PER_MOD * str,
     wade: meetsGate(scores, WADE_GATE),
     slots: Math.max(1, PACK_SLOTS + SLOTS_PER_MOD * str),
     // Never shorter than the attack itself.
-    cooldown: Math.max(ATTACK_TICKS + 1, ATTACK_COOLDOWN_TICKS - COOLDOWN_PER_MOD * dex),
+    cooldown: Math.max(ATTACK_TICKS + 1, ATTACK_COOLDOWN_TICKS - COOLDOWN_PER_MOD * dex - strike.quicker),
     guard: Math.max(0, GUARD_TICKS + GUARD_PER_MOD * dex),
     dodgeCooldown: Math.max(1, DODGE_COOLDOWN_TICKS - DODGE_PER_MOD * dex),
     sight: Math.max(0.1, 1 - SIGHT_PER_MOD * dex),
-    ranged: cls === 'ranger',
+    ranged: strike.ranged,
     range: (RANGE_TILES + dex) * TILE_SIZE,
     maxHp: Math.max(1, PLAIN_HP + HP_PER_MOD * con),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
@@ -204,18 +250,34 @@ export function traitsOf(scores: Scores, cls: CharacterClass): PlayerTraits {
   };
 }
 
-/** The traits of a stored character. */
-export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>): PlayerTraits {
-  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class);
+/** The traits of a stored character with this gear. */
+export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>, gear: Gear): PlayerTraits {
+  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class, gear);
+}
+
+/** The 5e kit of a stored character's class (gear.ts, kitOf): the gear of a new character. */
+export function sheetKit(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>): Gear {
+  return kitOf(sheet.class, finalScores(sheet.base, sheet.race, sheet.bonus));
 }
 
 /** Every score at 10 (every modifier 0). */
 export const PLAIN_SCORES: Scores = Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>;
 
-/** The traits of a player without a character (a guest): every score 10, and the class of its look. */
-export function guestTraits(skin: number): PlayerTraits {
-  return traitsOf(PLAIN_SCORES, appearanceOf(skin).class);
+/** The gear of a player without a character (a guest): the kit of the class of its look, with every score 10. */
+export function guestGear(skin: number): Gear {
+  return kitOf(appearanceOf(skin).class, PLAIN_SCORES);
 }
 
-/** Every score at 10, a fighter: the plain traits (tests, and a player without a look). */
-export const GUEST_TRAITS: PlayerTraits = traitsOf(PLAIN_SCORES, 'fighter');
+/** The traits of a player without a character (a guest): every score 10, the class of its look, and its kit (guestGear). */
+export function guestTraits(skin: number, gear: Gear = guestGear(skin)): PlayerTraits {
+  return traitsOf(PLAIN_SCORES, appearanceOf(skin).class, gear);
+}
+
+/**
+ * The plain gear: a rapier in the hand, a d8 without other properties. It gives the base damage of
+ * every class before the gear (BASE_DAMAGE) and nothing else (tests, and the plain traits).
+ */
+export const PLAIN_GEAR: Gear = { ...EMPTY_GEAR, main: 'rapier' };
+
+/** Every score at 10, a fighter with the plain gear: the plain traits (tests, and a player without a look). */
+export const GUEST_TRAITS: PlayerTraits = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);

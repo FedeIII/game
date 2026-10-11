@@ -33,6 +33,7 @@ import {
   type ServerMessage,
   type SnapshotMessage,
   type WorldSource,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { LOOT_CHEST, houseSource, lootHouseSource, mobHouseSource, textSource } from './helpers.ts';
 
@@ -559,7 +560,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(23);
+    expect(snap!.you).toHaveLength(24);
   });
 
   it('kill a brute with the third plain blow, and send what it has left', () => {
@@ -583,7 +584,7 @@ describe('mobs in a shared world', () => {
 
 
 const strength = (str: number): PlayerTraits =>
-  traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter');
+  traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter', PLAIN_GEAR);
 /** The last snapshot that the room sends to player `id`. */
 function snapshotOf(room: Room, id: number, nowMs = 0): SnapshotMessage {
   let found: SnapshotMessage | null = null;

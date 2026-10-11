@@ -47,9 +47,10 @@ searches give me something.
 - **AC-PK-001.1:** Coins go into the purse, up to 99,999 coins. Coins never use a slot.
 - **AC-PK-001.2:** The pack has 4 to 12 slots, from STR ([Strength](../abilities/strength.md),
   REQ-STR-003).
-- **AC-PK-001.3:** There are nine kinds of item. Their stacks are: imp horn 10, brute tusk 10,
-  candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10, healing draught 5, antidote 5,
-  strong draught 5.
+- **AC-PK-001.3:** There are nine kinds of item to carry. Their stacks are: imp horn 10, brute tusk
+  10, candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10, healing draught 5, antidote 5,
+  strong draught 5. The fourteen kinds of item to wear stack one in a slot
+  ([Equipment](equipment.md), REQ-EQ-002).
 - **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into the first free
   slot. One kind can fill more than one slot when its stacks are full.
 - **AC-PK-001.6:** A stack stays in its slot until it goes. When a stack goes (a drink, a deal, a

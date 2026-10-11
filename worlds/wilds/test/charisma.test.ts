@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
+import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
 import { APOTHECARY, DEFAULT_SEED, INNKEEPER, PEDDLER, PERSUASION_GATE, REEVE, TOWN_BUILDINGS, TOWN_NPCS, WATCHMAN, WildsSource } from '../src/index.ts';
 
-const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter');
+const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
 const answers = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers);
 const npcIndex = (id: string) => TOWN_NPCS.findIndex((n) => n.id === id);
 /** The middle of the home tile of an NPC, in world pixels (a player who joins there stands next to it). */

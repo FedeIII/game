@@ -43,7 +43,7 @@ export function countOf(pack: Pack, kind: ItemKind): number {
 export class DrinkBelt {
   private readonly art: Art;
   private readonly root: HTMLElement;
-  private readonly scores: Scores;
+  private scores: Scores;
   private readonly onDrink: (kind: ItemKind) => void;
   private shown = '';
 
@@ -67,6 +67,12 @@ export class DrinkBelt {
     });
     // Give the focus back after a press, so WASD moves the player again at once.
     this.root.addEventListener('click', () => setTimeout(() => (document.activeElement as HTMLElement | null)?.blur(), 0));
+  }
+
+  /** New scores for the gates (the luck of the gear changed). */
+  setScores(scores: Scores): void {
+    this.scores = scores;
+    this.shown = '';
   }
 
   /** Shows the drinks of `pack`. */

@@ -42,10 +42,10 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `ping` | the client's clock, for the round trip |
 | client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog |
 | client to server | `drink` | the code of a drink in the pack (protocol 14) |
-| client to server | `put` | a slot of the pack, the item code of its stack, a count, and an optional point `at`: items from the pack to the ground (protocol 17; the slot and `at`: protocol 18) |
-| client to server | `move` | two slots of the pack, `from` and `to`: the player moves a stack (protocol 18) |
-| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11; null for a free slot, protocol 18), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| client to server | `put` | a slot of the pack, the item code of its stack, a count, and an optional point `at`: items from the pack to the ground (protocol 17; the slot and `at`: protocol 18; a worn slot, protocol 19) |
+| client to server | `move` | two places, `from` and `to`: slots of the pack, or worn slots (protocol 19): the player moves a stack (protocol 18), or puts an item on or takes it off |
+| server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11; null for a free slot, protocol 18), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17), and what its character wears (`gr`: an item code for each worn slot, -1 for none; protocol 19) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack, and the ticks of the spark of a glancing blow, protocol 19), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), what it wears when that changed (`gr`; protocol 19), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -68,6 +68,27 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Thornwick, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Equipment (protocol 19, 2026-10-11)
+
+- A character wears items in twelve worn slots (`gear.ts`, `GEAR_SLOTS`): head, neck, cloak, armour,
+  bracers, gloves, belt, feet, the two rings, the main hand and the off hand. The welcome has `gr`,
+  and a snapshot has it when the gear changed: one item code for each worn slot, in the order of
+  `GEAR_SLOTS`, or -1 for an empty one (`toWireGear()`, `fromWireGear()`).
+- `move` and `put` take addresses: a slot of the pack (0 to 15), or a worn slot (`GEAR_BASE` + its
+  index: 32 to 43). The Room applies `moveItem()` (`inventory.ts`): a move in the pack, an item to
+  put on (`wear()`: the slot must fit it, the class must be able to use it, a two-handed weapon
+  takes off the off hand, at most 3 attuned items, and the pack must have room for what comes off),
+  or an item to take off (`takeOff()`). A `put` from a worn slot drops the worn item (count 1). A
+  defeated character does not change its gear. The next snapshot has the pack and the gear, also
+  when nothing moved.
+- The traits of a player follow its gear (`RoomPlayer.traitsFor`: its Armour Class, its damage, its
+  walk). The page makes the same traits from the same gear (`NetSession.setTraits()`), so the
+  prediction stays exact.
+- `WireSelf` has one more number at its end: `glance`, the ticks of the spark of a glancing blow
+  (`PlayerState.glance`). The count towards the next glancing blow (`PlayerState.ward`) stays on the
+  server. The others do not see the spark.
+- The store keeps the gear (the column `gear`); the server saves it with the pack.
 
 ## Slots and tosses (protocol 18, 2026-10-10)
 

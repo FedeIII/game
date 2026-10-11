@@ -608,6 +608,76 @@ body:has(#pack-button):has(#map-button) #worlds-button {
 }
 
 /*
+ * What the character wears (ui/pack-panel.ts, gear.ts): the twelve slots of D&D 5e round its
+ * picture, with its Armour Class and its damage beside the picture. An empty slot shows its name.
+ */
+.gear-slots {
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  grid-template-rows: repeat(4, 44px);
+  grid-template-areas:
+    'head figure figure figure neck'
+    'cloak figure figure figure armour'
+    'main bracers belt gloves off'
+    'ring-left . feet . ring-right';
+  gap: 6px;
+  justify-content: center;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.gear-figure {
+  grid-area: figure;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gear-portrait {
+  width: 96px;
+  height: 93px;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+/* Under the worn slots: the Armour Class and the damage, and the share of glancing blows. */
+.gear-stats {
+  margin: -2px 0 10px;
+  text-align: center;
+}
+
+.gear-stats p {
+  margin: 0;
+}
+
+.gear-numbers {
+  font: 14px var(--ui-mono);
+}
+
+.gear-glance {
+  opacity: 0.65;
+  font: italic 12px/1.3 var(--ui-serif);
+}
+
+.gear-label {
+  font: 10px var(--ui-serif);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* An item that the class of the character cannot use. */
+.pack-pick.gear-unusable canvas {
+  opacity: 0.4;
+}
+
+.pack-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/*
  * A drag of a stack (ui/pack-panel.ts): a press on a slot that moves becomes a drag, not a scroll.
  * Its slot dims, the slot under the pointer lights, and the icon follows the pointer.
  */

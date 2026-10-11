@@ -1,0 +1,457 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ATTACK_COOLDOWN_TICKS,
+  CLASSES,
+  EMPTY_GEAR,
+  EMPTY_PACK,
+  GEAR_BASE,
+  GEAR_SLOTS,
+  GLANCE_TICKS,
+  Horde,
+  ITEM_KINDS,
+  MAX_ATTUNED,
+  NO_INPUT,
+  PLAIN_SCORES,
+  PLAYER_SPEED,
+  Room,
+  SNEAK_ATTACK,
+  TICK_SECONDS,
+  TILE_SIZE,
+  World,
+  WEARABLES,
+  armourClass,
+  blowDamage,
+  canUse,
+  checkGear,
+  createPlayer,
+  dropWorn,
+  fitsSlot,
+  fromWireGear,
+  gearAddress,
+  glanceShare,
+  hitPlayer,
+  kitOf,
+  meetsGate,
+  moveItem,
+  parseClientMessage,
+  sightOf,
+  stepPlayer,
+  takeOffSlotFor,
+  toWireGear,
+  traitsOf,
+  wear,
+  wearProblem,
+  wearSlotFor,
+  type Gear,
+  type ItemKind,
+  type MobRules,
+  type Pack,
+  type Scores,
+  type SnapshotMessage,
+} from '../src/index.ts';
+import { textSource } from './helpers.ts';
+
+const scores = (over: Partial<Scores> = {}): Scores => ({ ...PLAIN_SCORES, ...over });
+const gear = (worn: Partial<Record<keyof Gear, ItemKind>>): Gear => ({ ...EMPTY_GEAR, ...worn });
+const pack = (...items: (ItemKind | null)[]): Pack => ({ coins: 0, items: items.map((kind) => (kind ? { kind, count: 1 } : null)) });
+
+describe('the slots', () => {
+  it('are the twelve of D&D 5e: head, neck, cloak, armour, bracers, gloves, belt, feet, two rings, two hands', () => {
+    expect(GEAR_SLOTS).toHaveLength(12);
+    expect(GEAR_SLOTS).toEqual(['head', 'neck', 'cloak', 'armour', 'bracers', 'gloves', 'belt', 'feet', 'ring-left', 'ring-right', 'main', 'off']);
+  });
+
+  it('take only the items that fit them', () => {
+    expect(fitsSlot('chain-mail', 'armour')).toBe(true);
+    expect(fitsSlot('chain-mail', 'head')).toBe(false);
+    expect(fitsSlot('ring', 'ring-left')).toBe(true);
+    expect(fitsSlot('ring', 'ring-right')).toBe(true);
+    expect(fitsSlot('shield', 'off')).toBe(true);
+    expect(fitsSlot('shield', 'main')).toBe(false);
+    // The off hand holds a light weapon, never another one.
+    expect(fitsSlot('shortsword', 'off')).toBe(true);
+    expect(fitsSlot('longsword', 'off')).toBe(false);
+    expect(fitsSlot('luck-amulet', 'neck')).toBe(true);
+    expect(fitsSlot('imp-horn', 'neck')).toBe(false);
+  });
+
+  it('have a wearable for each new kind of item, and those stack one in a slot', () => {
+    for (const kind of Object.keys(WEARABLES) as ItemKind[]) expect(ITEM_KINDS).toContain(kind);
+    expect(WEARABLES['imp-horn']).toBeUndefined();
+  });
+});
+
+describe('the proficiencies of the classes (SRD 5.1)', () => {
+  it('let a fighter use everything, and a wizard no armour and no sword', () => {
+    for (const kind of ['chain-mail', 'splint-armour', 'shield', 'longsword', 'greataxe', 'longbow'] as const) expect(canUse('fighter', kind)).toBe(true);
+    expect(canUse('wizard', 'leather-armour')).toBe(false);
+    expect(canUse('wizard', 'longsword')).toBe(false);
+    expect(canUse('wizard', 'arcane-staff')).toBe(true);
+  });
+
+  it('give a rogue light armour and its few martial weapons, and no shield', () => {
+    expect(canUse('rogue', 'leather-armour')).toBe(true);
+    expect(canUse('rogue', 'scale-mail')).toBe(false);
+    expect(canUse('rogue', 'rapier')).toBe(true);
+    expect(canUse('rogue', 'greataxe')).toBe(false);
+    expect(canUse('rogue', 'shield')).toBe(false);
+  });
+
+  it('let every class wear a ring and the luck amulet', () => {
+    for (const cls of CLASSES) {
+      expect(canUse(cls, 'ring')).toBe(true);
+      expect(canUse(cls, 'luck-amulet')).toBe(true);
+    }
+  });
+});
+
+describe('the kits of the classes', () => {
+  it('can be worn by their class', () => {
+    for (const cls of CLASSES) {
+      for (const str of [8, 13, 17]) {
+        const kit = kitOf(cls, scores({ str }));
+        for (const slot of GEAR_SLOTS) {
+          const kind = kit[slot];
+          if (kind === null) continue;
+          expect(fitsSlot(kind, slot)).toBe(true);
+          expect(canUse(cls, kind)).toBe(true);
+        }
+        expect(checkGear(kit)).toEqual(kit);
+      }
+    }
+  });
+
+  it('give a fighter chain mail, a longsword and a shield; with STR under 13, leather and a longbow', () => {
+    expect(kitOf('fighter', scores({ str: 15 }))).toEqual(gear({ armour: 'chain-mail', main: 'longsword', off: 'shield' }));
+    expect(kitOf('fighter', scores({ str: 12 }))).toEqual(gear({ armour: 'leather-armour', main: 'longbow' }));
+  });
+
+  it('give the balance of the plan (main score 17, DEX 14, the third score 14)', () => {
+    const row = (cls: (typeof CLASSES)[number], over: Partial<Scores>) => {
+      const s = scores(over);
+      const t = traitsOf(s, cls, kitOf(cls, s));
+      return { ac: t.ac, damage: t.damage, cooldown: t.cooldown, ranged: t.ranged };
+    };
+    const quick = ATTACK_COOLDOWN_TICKS - 4;
+    expect(row('barbarian', { str: 17, dex: 14, con: 14 })).toEqual({ ac: 14, damage: 9, cooldown: quick + 4, ranged: false });
+    expect(row('bard', { cha: 17, dex: 14 })).toEqual({ ac: 13, damage: 6, cooldown: quick, ranged: false });
+    expect(row('cleric', { wis: 17, dex: 14 })).toEqual({ ac: 18, damage: 6, cooldown: quick, ranged: false });
+    expect(row('druid', { wis: 17, dex: 14 })).toEqual({ ac: 15, damage: 7, cooldown: quick, ranged: false });
+    expect(row('fighter', { str: 17, dex: 14 })).toEqual({ ac: 18, damage: 7, cooldown: quick, ranged: false });
+    expect(row('monk', { dex: 17, wis: 14 })).toEqual({ ac: 15, damage: 6, cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
+    expect(row('paladin', { str: 17, dex: 14 })).toEqual({ ac: 18, damage: 7, cooldown: quick, ranged: false });
+    expect(row('ranger', { dex: 17 })).toEqual({ ac: 14, damage: 7, cooldown: ATTACK_COOLDOWN_TICKS - 6, ranged: true });
+    expect(row('rogue', { dex: 17 })).toEqual({ ac: 14, damage: 6, cooldown: ATTACK_COOLDOWN_TICKS - 6 - 2, ranged: false });
+    expect(row('sorcerer', { cha: 17, dex: 14 })).toEqual({ ac: 12, damage: 8, cooldown: quick, ranged: false });
+    expect(row('warlock', { cha: 17, dex: 14 })).toEqual({ ac: 13, damage: 8, cooldown: quick, ranged: false });
+    expect(row('wizard', { int: 17, dex: 14 })).toEqual({ ac: 12, damage: 8, cooldown: quick, ranged: false });
+  });
+});
+
+describe('Armour Class', () => {
+  it('is 10 + DEX without armour; a barbarian adds CON, a monk without a shield WIS', () => {
+    expect(armourClass(EMPTY_GEAR, scores({ dex: 14 }), 'wizard')).toBe(12);
+    expect(armourClass(EMPTY_GEAR, scores({ dex: 14, con: 16 }), 'barbarian')).toBe(15);
+    expect(armourClass(EMPTY_GEAR, scores({ dex: 16, wis: 14 }), 'monk')).toBe(15);
+    expect(armourClass(gear({ off: 'shield' }), scores({ dex: 16, wis: 14 }), 'monk')).toBe(15);
+  });
+
+  it('follows the armour: light + DEX, medium + DEX up to 2, heavy without DEX; a shield adds 2', () => {
+    const dex = scores({ dex: 18 });
+    expect(armourClass(gear({ armour: 'leather-armour' }), dex, 'fighter')).toBe(15);
+    expect(armourClass(gear({ armour: 'scale-mail' }), dex, 'fighter')).toBe(16);
+    expect(armourClass(gear({ armour: 'chain-mail' }), dex, 'fighter')).toBe(16);
+    expect(armourClass(gear({ armour: 'splint-armour', off: 'shield' }), scores({ dex: 8 }), 'fighter')).toBe(19);
+  });
+
+  it('turns 5% of the hits into glancing blows for each point over 10, at most 95%', () => {
+    expect(glanceShare(10)).toBe(0);
+    expect(glanceShare(8)).toBe(0);
+    expect(glanceShare(15)).toBeCloseTo(0.25);
+    expect(glanceShare(18)).toBeCloseTo(0.4);
+    expect(glanceShare(40)).toBe(0.95);
+  });
+});
+
+describe('a glancing blow', () => {
+  it('comes in a fixed order: with AC 15, every fourth hit glances, and it does nothing but a spark', () => {
+    const player = createPlayer(0, 0);
+    player.hp = 100;
+    const glanced: number[] = [];
+    for (let i = 1; i <= 12; i++) {
+      const before = player.hp;
+      player.stun = 0;
+      const hurt = hitPlayer(player, 1, 30, 360, { glance: glanceShare(15) });
+      if (!hurt) {
+        glanced.push(i);
+        expect(player.hp).toBe(before);
+        expect(player.stun).toBe(0);
+        expect(player.poison).toBe(0);
+        expect(player.glance).toBe(GLANCE_TICKS);
+      } else {
+        expect(player.hp).toBe(before - 1);
+        player.poison = 0;
+      }
+    }
+    expect(glanced).toEqual([4, 8, 12]);
+  });
+
+  it('never happens with AC 10', () => {
+    const player = createPlayer(0, 0);
+    player.hp = 100;
+    for (let i = 0; i < 40; i++) expect(hitPlayer(player, 1, 1, 0, { glance: 0 })).toBe(true);
+  });
+
+  it('comes from a mob of the horde too: the hit lands, but the player takes nothing', () => {
+    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
+    const horde = new Horde(new World(textSource([])), everywhere, 5);
+    horde.spawn('imp', 8, 12);
+    const player = createPlayer(8 + 2 * TILE_SIZE, 12);
+    player.hp = 1000;
+    // Every hit glances: 95%... and the count makes the first one land; then nearly all glance.
+    const traits = { glance: 0.95 };
+    let hits = 0;
+    for (let t = 0; t < 60_000 && hits < 6; t += TICK_SECONDS * 1000) {
+      stepPlayer(player, NO_INPUT, horde.world);
+      // The imp's poison bites apart from the hits: this test counts the hits.
+      player.poison = 0;
+      hits += horde.step(TICK_SECONDS * 1000, [{ id: 1, state: player, traits }]).length;
+    }
+    expect(hits).toBe(6);
+    // Of six hits only the first lands: 0.95, then 1.9 (glance), 1.85 (glance), ...
+    expect(player.hp).toBe(1000 - 1);
+  });
+});
+
+describe('the damage with the gear', () => {
+  it('comes from the die of the weapon: d8 4, d6 3, d12 6, a versatile weapon with an empty off hand its bigger die', () => {
+    const s = scores({ str: 10 });
+    expect(traitsOf(s, 'fighter', gear({ main: 'longsword', off: 'shield' })).damage).toBe(4);
+    expect(traitsOf(s, 'fighter', gear({ main: 'longsword' })).damage).toBe(5);
+    expect(traitsOf(s, 'fighter', gear({ main: 'mace' })).damage).toBe(3);
+    expect(traitsOf(s, 'fighter', gear({ main: 'greataxe' })).damage).toBe(6);
+  });
+
+  it('is an unarmed strike without a weapon (1), martial arts for a monk (3), a cantrip for a caster', () => {
+    const s = scores();
+    expect(traitsOf(s, 'fighter', EMPTY_GEAR).damage).toBe(1);
+    expect(traitsOf(s, 'monk', EMPTY_GEAR).damage).toBe(3);
+    expect(traitsOf(s, 'sorcerer', EMPTY_GEAR).damage).toBe(5);
+    expect(traitsOf(s, 'wizard', gear({ main: 'arcane-staff' })).strike.kind).toBe('cantrip');
+    expect(traitsOf(s, 'druid', gear({ main: 'druid-staff' })).damage).toBe(4);
+    // Another focus is a quarterstaff for it: a d6, a d8 with both hands.
+    expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff' })).strike.kind).toBe('weapon');
+    expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff' })).damage).toBe(4);
+    expect(traitsOf(s, 'druid', gear({ main: 'arcane-staff', off: 'shield' })).damage).toBe(3);
+  });
+
+  it('comes quicker with a light weapon, slower with a heavy melee weapon, as now with a bow', () => {
+    const s = scores();
+    expect(traitsOf(s, 'rogue', gear({ main: 'shortsword' })).cooldown).toBe(ATTACK_COOLDOWN_TICKS - 2);
+    expect(traitsOf(s, 'rogue', gear({ main: 'shortsword', off: 'shortsword' })).cooldown).toBe(ATTACK_COOLDOWN_TICKS - 4);
+    expect(traitsOf(s, 'barbarian', gear({ main: 'greataxe' })).cooldown).toBe(ATTACK_COOLDOWN_TICKS + 4);
+    expect(traitsOf(s, 'ranger', gear({ main: 'longbow' })).cooldown).toBe(ATTACK_COOLDOWN_TICKS);
+  });
+
+  it('makes any class with a bow shoot, and a ranger without one strike', () => {
+    expect(traitsOf(scores(), 'fighter', gear({ main: 'longbow' })).ranged).toBe(true);
+    expect(traitsOf(scores(), 'ranger', gear({ main: 'longsword' })).ranged).toBe(false);
+  });
+
+  it("adds a rogue's sneak attack on a mob that does not hunt it", () => {
+    const rogue = traitsOf(scores({ dex: 16 }), 'rogue', gear({ main: 'shortsword' }));
+    expect(rogue.sneak).toBe(SNEAK_ATTACK);
+    expect(blowDamage(rogue, { state: 'walk' }, true)).toBe(6 + 3);
+    expect(blowDamage(rogue, { state: 'chase' }, false)).toBe(6);
+    expect(traitsOf(scores(), 'fighter', EMPTY_GEAR).sneak).toBe(0);
+  });
+
+  it('gives the sneak attack in a fight: on a mob that does not hunt the rogue only', () => {
+    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
+    const horde = new Horde(new World(textSource([])), everywhere, 5);
+    const brute = horde.spawn('brute', 40, 12);
+    const rogue = traitsOf(scores({ dex: 10 }), 'rogue', gear({ main: 'shortsword' }));
+    // The brute wanders: it does not hunt the rogue. 3 + 3.
+    horde.strike({ x: 20, y: 12 }, 0, undefined, 7, rogue);
+    expect(brute.health).toBe(12 - 6);
+    // Now it hunts the rogue (a blow turns it on the attacker): 3.
+    horde.strike({ x: brute.x - 20, y: brute.y }, 0, undefined, 7, rogue);
+    expect(brute.health).toBe(12 - 6 - 3);
+  });
+});
+
+describe('the armour on the walk and on sneaking', () => {
+  it('slows a character without the Strength of a heavy armour to 3/4', () => {
+    expect(traitsOf(scores({ str: 12 }), 'fighter', gear({ armour: 'chain-mail' })).speed).toBe(0.75);
+    expect(traitsOf(scores({ str: 13 }), 'fighter', gear({ armour: 'chain-mail' })).speed).toBe(1);
+    expect(traitsOf(scores({ str: 14 }), 'fighter', gear({ armour: 'splint-armour' })).speed).toBe(0.75);
+    const world = new World(textSource([]));
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 1, y: 0 }, world, traitsOf(scores({ str: 12 }), 'fighter', gear({ armour: 'chain-mail' })));
+    expect(p.vx).toBeCloseTo(PLAYER_SPEED * 0.75);
+  });
+
+  it('lets mobs see a sneaking character from 3/4 of their sight in a noisy armour, not 1/2', () => {
+    const still = createPlayer(0, 0);
+    expect(sightOf(traitsOf(scores(), 'fighter', gear({ armour: 'leather-armour' })), still)).toBeCloseTo(0.5);
+    expect(sightOf(traitsOf(scores(), 'fighter', gear({ armour: 'chain-mail' })), still)).toBeCloseTo(0.75);
+  });
+});
+
+describe('the luck amulet', () => {
+  it('adds 1 to each score for the gates, needs attunement, and changes no scale', () => {
+    const plain = traitsOf(scores({ int: 12 }), 'wizard', EMPTY_GEAR);
+    const lucky = traitsOf(scores({ int: 12 }), 'wizard', gear({ neck: 'luck-amulet' }));
+    expect(meetsGate(plain.scores, { ability: 'int', min: 13 })).toBe(false);
+    expect(meetsGate(lucky.scores, { ability: 'int', min: 13 })).toBe(true);
+    expect(lucky.luck).toBe(1);
+    expect(lucky.damage).toBe(plain.damage);
+    expect(WEARABLES['luck-amulet']!.attune).toBe(true);
+  });
+});
+
+describe('putting on and taking off', () => {
+  it('moves an item from the pack onto its slot, and what was worn there into the pack', () => {
+    const before = { pack: pack('splint-armour'), gear: gear({ armour: 'chain-mail' }) };
+    const after = wear(before, 0, 'armour', 6, 'fighter');
+    expect(after).toEqual({ pack: pack('chain-mail'), gear: gear({ armour: 'splint-armour' }) });
+  });
+
+  it('refuses an item that the class cannot use, or that does not fit the slot', () => {
+    expect(wear({ pack: pack('chain-mail'), gear: EMPTY_GEAR }, 0, 'armour', 6, 'wizard')).toBe('class');
+    expect(wear({ pack: pack('chain-mail'), gear: EMPTY_GEAR }, 0, 'head', 6, 'fighter')).toBe('slot');
+  });
+
+  it('follows the hands: a two-handed weapon takes the shield off, a shield takes the two-handed weapon off', () => {
+    const shielded = { pack: pack('greataxe'), gear: gear({ main: 'longsword', off: 'shield' }) };
+    const axe = wear(shielded, 0, 'main', 6, 'fighter');
+    expect(axe).toEqual({ pack: pack('longsword', 'shield'), gear: gear({ main: 'greataxe' }) });
+    const back = wear({ pack: pack('shield'), gear: gear({ main: 'greataxe' }) }, 0, 'off', 6, 'fighter');
+    expect(back).toEqual({ pack: pack('greataxe'), gear: gear({ off: 'shield' }) });
+  });
+
+  it('refuses when the pack has no room for what comes off', () => {
+    const full = { pack: pack('greataxe', 'candle'), gear: gear({ main: 'longsword', off: 'shield' }) };
+    expect(wear(full, 0, 'main', 2, 'fighter')).toBe('full');
+  });
+
+  it('takes a ring from a stack, and keeps the rest of the stack', () => {
+    const rings = { pack: { coins: 0, items: [{ kind: 'ring' as const, count: 3 }] }, gear: EMPTY_GEAR };
+    const after = wear(rings, 0, 'ring-left', 6, 'bard');
+    expect(after).toEqual({ pack: { coins: 0, items: [{ kind: 'ring', count: 2 }] }, gear: gear({ 'ring-left': 'ring' }) });
+  });
+
+  it('allows at most three attuned items', () => {
+    expect(MAX_ATTUNED).toBe(3);
+    expect(wearProblem(gear({}), 'luck-amulet', 'neck', 'bard')).toBeNull();
+    expect(wearProblem(gear({}), 'longsword', 'neck', 'bard')).toBe('slot');
+  });
+
+  it('takes an item off into a slot of the pack, or swaps it with an item there that fits', () => {
+    const worn = { pack: pack(null, 'scale-mail'), gear: gear({ armour: 'chain-mail' }) };
+    expect(moveItem(worn, gearAddress('armour'), 0, 6, 'fighter')).toEqual({ pack: pack('chain-mail', 'scale-mail'), gear: EMPTY_GEAR });
+    expect(moveItem(worn, gearAddress('armour'), 1, 6, 'fighter')).toEqual({ pack: pack(null, 'chain-mail'), gear: gear({ armour: 'scale-mail' }) });
+    // An item that does not fit the slot stays: nothing moves.
+    expect(moveItem({ pack: pack('candle'), gear: gear({ armour: 'chain-mail' }) }, gearAddress('armour'), 0, 6, 'fighter')).toBeNull();
+  });
+
+  it('moves a ring from one hand to the other, and moves stacks in the pack as before', () => {
+    const one = { pack: EMPTY_PACK, gear: gear({ 'ring-left': 'ring' }) };
+    expect(moveItem(one, gearAddress('ring-left'), gearAddress('ring-right'), 6, 'bard')!.gear).toEqual(gear({ 'ring-right': 'ring' }));
+    expect(moveItem({ pack: pack('candle'), gear: EMPTY_GEAR }, 0, 3, 6, 'bard')!.pack).toEqual(pack(null, null, null, 'candle'));
+  });
+
+  it('finds the slot for "Wear" and the pack slot for "Take off"', () => {
+    expect(wearSlotFor(EMPTY_GEAR, 'ring')).toBe('ring-left');
+    expect(wearSlotFor(gear({ 'ring-left': 'ring' }), 'ring')).toBe('ring-right');
+    expect(wearSlotFor(EMPTY_GEAR, 'shortsword')).toBe('main');
+    expect(wearSlotFor(EMPTY_GEAR, 'shield')).toBe('off');
+    expect(wearSlotFor(EMPTY_GEAR, 'candle')).toBeNull();
+    expect(takeOffSlotFor(pack('candle', null, 'cup'), 'mace', 6)).toBe(1);
+    expect(takeOffSlotFor(pack('candle', 'cup'), 'mace', 2)).toBeNull();
+    expect(dropWorn(gear({ main: 'mace' }), 'main', 'mace')).toEqual(EMPTY_GEAR);
+    expect(dropWorn(gear({ main: 'mace' }), 'main', 'rapier')).toBeNull();
+  });
+});
+
+describe('gear from outside', () => {
+  it('is checked: known kinds in slots that fit them, no off hand with a two-handed weapon', () => {
+    expect(checkGear({ armour: 'chain-mail', main: 'longsword' })).toEqual(gear({ armour: 'chain-mail', main: 'longsword' }));
+    expect(checkGear({ armour: 'longsword' })).toBeNull();
+    expect(checkGear({ main: 'greataxe', off: 'shield' })).toBeNull();
+    expect(checkGear({ head: 'nothing' })).toBeNull();
+    expect(checkGear(null)).toBeNull();
+    expect(checkGear([])).toBeNull();
+  });
+
+  it('goes on the wire as a code for each slot, and back', () => {
+    const g = gear({ armour: 'chain-mail', main: 'longsword', off: 'shield', 'ring-right': 'ring' });
+    expect(fromWireGear(toWireGear(g))).toEqual(g);
+    expect(toWireGear(EMPTY_GEAR)).toEqual(new Array(12).fill(-1));
+  });
+
+  it('comes in the messages move and put as an address of a worn slot', () => {
+    expect(parseClientMessage(JSON.stringify({ t: 'move', from: 0, to: GEAR_BASE + 3 }))).toEqual({ t: 'move', from: 0, to: GEAR_BASE + 3 });
+    expect(parseClientMessage(JSON.stringify({ t: 'move', from: 0, to: GEAR_BASE + 12 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'put', slot: GEAR_BASE + 10, kind: ITEM_KINDS.indexOf('mace'), count: 1 }))).not.toBeNull();
+  });
+});
+
+describe('the gear in a shared world', () => {
+  it('starts with the gear of the character, follows a move, changes the traits, and goes into the snapshot', () => {
+    const room = new Room(new World(textSource([])));
+    const s = scores({ str: 16 });
+    const kit = kitOf('fighter', s);
+    const p = room.join(0, 1, [5, 5], '', undefined, {
+      traits: traitsOf(s, 'fighter', kit),
+      traitsFor: (g) => traitsOf(s, 'fighter', g),
+      pack: pack('greataxe'),
+      gear: kit,
+    })!;
+    expect(room.welcome(p).gr).toEqual(toWireGear(kit));
+    expect(p.traits.ac).toBe(18);
+    room.move(p.id, 0, gearAddress('main'));
+    expect(p.gear).toEqual(gear({ armour: 'chain-mail', main: 'greataxe' }));
+    expect(p.pack).toEqual(pack('longsword', 'shield'));
+    expect(p.traits.ac).toBe(16);
+    expect(p.traits.damage).toBe(9);
+    const snaps: SnapshotMessage[] = [];
+    room.broadcast(0, (_, m) => snaps.push(m));
+    expect(snaps[0]!.gr).toEqual(toWireGear(p.gear));
+    expect(snaps[0]!.pk).toBeDefined();
+  });
+
+  it('drops a worn item on the ground with put, and the next snapshot has no gear when nothing changed', () => {
+    const room = new Room(new World(textSource([])));
+    const s = scores();
+    const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kitOf('cleric', s)), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kitOf('cleric', s) })!;
+    room.welcome(p);
+    room.put(p.id, { slot: gearAddress('off'), kind: ITEM_KINDS.indexOf('shield'), count: 1 }, 0);
+    expect(p.gear.off).toBeNull();
+    expect(p.traits.ac).toBe(14);
+    expect(room.piles.size).toBe(1);
+    let snaps = 0;
+    room.broadcast(0, (_, m) => {
+      snaps++;
+      expect(m.gr).toBeDefined();
+    });
+    room.broadcast(50, (_, m) => expect(m.gr).toBeUndefined());
+    expect(snaps).toBe(1);
+  });
+
+  it('gives a guest the kit of the class of its look', () => {
+    const room = new Room(new World(textSource([])));
+    const p = room.join(0, 1, [5, 5])!;
+    expect(GEAR_SLOTS.some((slot) => p.gear[slot] !== null) || p.traits.class === 'monk' || p.traits.class === 'sorcerer').toBe(true);
+  });
+
+  it('does not change while the character lies defeated', () => {
+    const room = new Room(new World(textSource([])));
+    const s = scores();
+    const kit = kitOf('cleric', s);
+    const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kit), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kit })!;
+    p.state.down = 10;
+    room.move(p.id, gearAddress('off'), 0);
+    expect(p.gear).toEqual(kit);
+  });
+});

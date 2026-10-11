@@ -20,10 +20,11 @@ import {
   type Mob,
   type MobRules,
   type Scores,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { textSource } from './helpers.ts';
 
-const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter');
+const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
 const NO_INPUT = { x: 0, y: 0 };
 const TICK_MS = TICK_SECONDS * 1000;

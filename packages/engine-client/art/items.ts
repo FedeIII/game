@@ -16,12 +16,34 @@
  */
 import { Image } from './image.ts';
 import { cropToContent, ramp, shadowEllipse } from './raster.ts';
-import { cylinder, ellipsoid, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { box, cylinder, ellipsoid, intersect, renderModel, roundCone, sphere, subtract, union, type Material, type MaterialOf, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
 const SIZE = 16;
 
-const I = { gold: 0, silver: 1, pewter: 2, bone: 3, horn: 4, root: 5, wax: 6, wick: 7, leaf: 8, string: 9, garnet: 10, red: 11, green: 12, amber: 13, glass: 14 } as const;
+const I = {
+  gold: 0,
+  silver: 1,
+  pewter: 2,
+  bone: 3,
+  horn: 4,
+  root: 5,
+  wax: 6,
+  wick: 7,
+  leaf: 8,
+  string: 9,
+  garnet: 10,
+  red: 11,
+  green: 12,
+  amber: 13,
+  glass: 14,
+  leather: 15,
+  steel: 16,
+  iron: 17,
+  wood: 18,
+  arcane: 19,
+  dark: 20,
+} as const;
 const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#3a2a0c', '#6a4e16', '#9a7624', '#c49c3a', '#e0c060', '#f4dc8a'), bias: 0.15 },
   { ramp: ramp('#2a2e34', '#4e555e', '#78808a', '#a2aab4', '#cdd4dc'), bias: 0.2 },
@@ -39,6 +61,14 @@ const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#0e2a12', '#1c5022', '#348a3a', '#6cc060'), bias: 0.35 },
   { ramp: ramp('#3a2408', '#6e4612', '#b07420', '#e8b048'), bias: 0.35 },
   { ramp: ramp('#2a3036', '#4a545c', '#76828c', '#a8b4bc'), bias: 0.2 },
+  // The equipment (gear.ts): leather, the steel of blades and mail, dark iron, wood, the glow of an
+  // arcane orb, and the dark of the gaps between plates.
+  { ramp: ramp('#24160e', '#3c2618', '#583824', '#764e32', '#906440'), bias: 0.1 },
+  { ramp: ramp('#262b31', '#454d56', '#6c7680', '#98a2ac', '#c4ccd4'), bias: 0.2 },
+  { ramp: ramp('#18191c', '#2a2c30', '#3e4146', '#565a60'), bias: 0.1 },
+  { ramp: ramp('#3a2814', '#5a4024', '#7a5a36', '#9a7648', '#b48e5a'), bias: 0.15 },
+  { ramp: ramp('#14204a', '#24387a', '#3e5cb0', '#7a9ae0'), bias: 0.4 },
+  { ramp: ramp('#0c0a0a', '#181414', '#241e1c') },
 ];
 
 /** A ring of radius `major` round the axis z through `c`, with a tube of radius `minor`: it stands facing the viewer. */
@@ -209,6 +239,137 @@ function bottle(liquid: number, tall = false): Part[] {
   ];
 }
 
+/** A blade from `a` (the hilt end) to `b` (the tip), flat in z: wide `width`, tapering at the tip. */
+function blade(a: Vec3, b: Vec3, width: number): Sdf {
+  const flat = 0.6;
+  const [ax, ay] = a;
+  const [bx, by] = b;
+  const length = Math.hypot(bx - ax, by - ay);
+  const ux = (bx - ax) / length;
+  const uy = (by - ay) / length;
+  return (x, y, z) => {
+    const px = x - ax;
+    const py = y - ay;
+    const along = px * ux + py * uy;
+    const across = Math.abs(-px * uy + py * ux);
+    const t = Math.min(1, Math.max(0, along / length));
+    // Full width up to 70% of the length, then down to a point.
+    const half = (width / 2) * (t < 0.7 ? 1 : (1 - t) / 0.3);
+    const outside = Math.max(-along, along - length, across - half);
+    return Math.max(outside, Math.abs(z) - flat);
+  };
+}
+
+/** A sword: the blade from the guard up to the tip, a cross guard, a grip and a pommel. Long, short or thin. */
+function sword(length: number, width: number, swept = false): Part[] {
+  // Along a diagonal from the bottom left (the pommel) to the top right (the tip).
+  const dir: Vec3 = [0.66, 0.75, 0];
+  const at = (t: number, side = 0): Vec3 => [-6 + dir[0] * t - dir[1] * side, 0.6 + dir[1] * t + dir[0] * side, 0];
+  const guard = 3.4;
+  const parts: Part[] = [
+    { sdf: blade(at(guard), at(guard + length), width), material: I.silver },
+    { sdf: roundCone(at(guard, -2.6), at(guard, 2.6), 0.75, 0.75), material: I.gold },
+    { sdf: roundCone(at(0.8), at(guard), 0.8, 0.8), material: I.leather },
+    { sdf: sphere(at(0.4), 1.1), material: I.gold },
+  ];
+  if (swept) parts.push({ sdf: torusZ(at(guard - 0.5), 1.7, 0.4), material: I.gold });
+  return parts;
+}
+
+/** A suit of armour, standing: a body with shoulders and a neck, in `material` (a function for a pattern). */
+function cuirass(material: MaterialOf, extra: Part[] = []): Part[] {
+  const body = union(box([-4.2, 1.2, -1.6], [4.2, 9.6, 1.6], 1.4), sphere([-3.8, 9.6, 0], 2), sphere([3.8, 9.6, 0], 2));
+  const shape = subtract(body, union(ellipsoid([0, 11.4, 0], [1.9, 1.7, 3]), ellipsoid([-6.4, 6.6, 0], [1.6, 2.6, 3]), ellipsoid([6.4, 6.6, 0], [1.6, 2.6, 3])));
+  return [{ sdf: shape, material }, ...extra];
+}
+
+/** A greataxe: a long haft and a broad head of two crescents at its top. */
+function greataxe(): Part[] {
+  const head = subtract(
+    intersect(ellipsoid([1.6, 9.4, 0], [5, 3.6, 0.5]), box([-6, 5, -1], [6.5, 14, 1])),
+    union(ellipsoid([1.6, 13.6, 0], [2.4, 1.8, 2]), ellipsoid([1.6, 5.2, 0], [2.4, 1.8, 2])),
+  );
+  return [
+    { sdf: roundCone([-4.6, 0.6, 0], [2, 12.8, 0], 0.9, 0.8), material: I.wood },
+    { sdf: head, material: I.silver },
+    { sdf: sphere([1.6, 9.4, 0], 1), material: I.iron },
+  ];
+}
+
+/** A mace: a haft, and a head with flanges. */
+function mace(): Part[] {
+  const head = union(
+    sphere([2.6, 9.8, 0], 2.5),
+    ...[0, 1, 2, 3, 4, 5].map((i) => {
+      const a = (i / 6) * Math.PI * 2;
+      return ellipsoid([2.6 + Math.cos(a) * 2.4, 9.8 + Math.sin(a) * 2.4, 0], [1.2, 1.2, 0.9]);
+    }),
+  );
+  return [
+    { sdf: roundCone([-4.8, 0.6, 0], [2, 8.4, 0], 0.85, 0.8), material: I.wood },
+    { sdf: sphere([-5, 0.4, 0], 1), material: I.iron },
+    { sdf: head, material: I.steel },
+  ];
+}
+
+/** A longbow: a tall curve of wood, a grip of leather, and its string. */
+function longbow(): Part[] {
+  const limb: Vec3[] = [
+    [-1, 0.4, 0],
+    [1.4, 2.6, 0],
+    [2.6, 6.2, 0],
+    [1.4, 9.8, 0],
+    [-1, 12.4, 0],
+  ];
+  return [
+    { sdf: curve(limb, 0.85, 0.7), material: I.wood },
+    { sdf: roundCone([2.4, 5, 0], [2.4, 7.4, 0], 1, 1), material: I.leather },
+    { sdf: roundCone([-1, 0.4, 0], [-1, 12.4, 0], 0.3, 0.3), material: I.bone },
+  ];
+}
+
+/** A staff: a long shaft of wood with its head (an orb of `orb`, held by prongs) at the top. */
+function staff(orb: number, gnarled: boolean): Part[] {
+  const shaft: Vec3[] = gnarled
+    ? [
+        [-3.4, 0.4, 0],
+        [-2.2, 4, 0],
+        [-2.6, 7.4, 0],
+        [-1.2, 10.4, 0],
+      ]
+    : [
+        [-3.2, 0.4, 0],
+        [-1.2, 10.6, 0],
+      ];
+  const top: Vec3 = gnarled ? [-0.6, 12.2, 0] : [-0.8, 12.4, 0];
+  const parts: Part[] = [
+    { sdf: curve(shaft, 0.95, 0.85), material: I.wood },
+    { sdf: sphere(top, 1.9), material: orb },
+  ];
+  if (gnarled) parts.push({ sdf: union(ellipsoid([1.2, 11.6, 0], [1.6, 0.8, 0.6]), ellipsoid([-2.4, 12.6, 0], [1.4, 0.7, 0.6])), material: I.leaf });
+  else parts.push({ sdf: union(roundCone([-1.2, 10.6, 0], [-2.6, 12.6, 0], 0.35, 0.25), roundCone([-1.2, 10.6, 0], [0.8, 12.8, 0], 0.35, 0.25)), material: I.gold });
+  return parts;
+}
+
+/** A round shield: wood boards in an iron rim, an iron boss in the middle; it faces the viewer. */
+function shield(): Part[] {
+  const c: Vec3 = [0, 6.6, 0];
+  return [
+    { sdf: cylinder(c, 'z', 5.4, 1.2), material: (x) => (Math.floor((x + 6) / 2.2) % 2 === 0 ? I.wood : I.leather) },
+    { sdf: torusZ(c, 5.4, 0.7), material: I.iron },
+    { sdf: sphere([0, 6.6, 0.8], 1.5), material: I.steel },
+  ];
+}
+
+/** An amulet: a cord in a loop, and a charm of bone with an amber stone. */
+function amulet(): Part[] {
+  return [
+    { sdf: subtract(torusZ([0, 8.2, 0], 3.6, 0.35), box([-5, 3.5, -2], [5, 6.4, 2])), material: I.string },
+    { sdf: cylinder([0, 4.2, 0], 'z', 2.4, 0.9), material: I.bone },
+    { sdf: sphere([0, 4.2, 0.6], 1.2), material: I.amber },
+  ];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -220,6 +381,23 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['draught', () => bottle(I.red)],
   ['antidote', () => bottle(I.green)],
   ['strong-draught', () => bottle(I.amber, true)],
+  ['leather-armour', () => cuirass(I.leather, [{ sdf: box([-4.4, 3.4, -1.9], [4.4, 4.4, 1.9], 0.3), material: I.dark }])],
+  // Rows of scales, one row half a scale over from the next.
+  ['scale-mail', () => cuirass((x, y) => ((Math.floor(y / 1.6) + Math.floor(x / 1.8 + (Math.floor(y / 1.6) % 2) * 0.5)) % 2 === 0 ? I.silver : I.leather))],
+  // Small rings: a fine check of steel and dark iron.
+  ['chain-mail', () => cuirass((x, y) => ((Math.floor(x * 1.4) + Math.floor(y * 1.4)) % 2 === 0 ? I.steel : I.iron))],
+  // Upright strips of steel on leather.
+  ['splint-armour', () => cuirass((x, y) => (y < 2.6 || y > 9.6 ? I.leather : Math.floor((x + 6) / 1.6) % 2 === 0 ? I.steel : I.dark))],
+  ['shield', shield],
+  ['longsword', () => sword(12, 2.4)],
+  ['shortsword', () => sword(8, 2.6)],
+  ['rapier', () => sword(13, 1.4, true)],
+  ['greataxe', greataxe],
+  ['mace', mace],
+  ['longbow', longbow],
+  ['arcane-staff', () => staff(I.arcane, false)],
+  ['druid-staff', () => staff(I.green, true)],
+  ['luck-amulet', amulet],
 ];
 
 export function itemFrames(): Frame[] {

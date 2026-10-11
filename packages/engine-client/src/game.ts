@@ -41,6 +41,10 @@ import {
   gateView,
   makeDeal,
   seenChunks,
+  GEAR_SLOTS,
+  dropWorn,
+  gearSlotAt,
+  guestGear,
   guestTraits,
   inShallows,
   isSneaking,
@@ -54,7 +58,7 @@ import {
   Piles,
   dropPoint,
   hasItems,
-  moveInPack,
+  moveItem,
   removeFromSlot,
   tossPoint,
   meetsGate,
@@ -70,8 +74,10 @@ import {
   type InteractionTarget,
   type Loot,
   type MoveInput,
+  type Gear,
   type ItemKind,
   type Pack,
+  type PlayerTraits,
   type Pile,
   type WorldDefinition,
 } from '@game/engine';
@@ -270,8 +276,15 @@ async function run(options: GameOptions): Promise<void> {
   // keeps, and the name of its look. ?skin=<n> shows another look. The others see the same.
   const skin = character && !params.has('skin') ? characterSkin(character) : skinSeed(params);
   const name = character?.name ?? '';
-  // What the scores give in the game (traits.ts): a guest has every score at 10, and the class of its look.
-  const traits = character ? sheetTraits(character) : guestTraits(skin);
+  // What the character wears (gear.ts). In a shared world the server keeps it (net.gear); in a
+  // world that the page runs, the page has its own, which it does not save. A guest wears the 5e
+  // kit of the class of its look.
+  let gear: Gear = character?.gear ?? guestGear(skin);
+  /** What the scores and some gear give in the game (traits.ts): a guest has every score at 10, and the class of its look. */
+  const traitsFor = (worn: Gear): PlayerTraits => (character ? sheetTraits(character, worn) : guestTraits(skin, worn));
+  // The traits follow the gear (followGear): its Armour Class, its damage, its walk.
+  let traits = traitsFor(gear);
+  let traitsGear = gear;
   // The hit points of the character from its last visit (all of them for a new one), and all its stamina.
   // In a shared world the welcome gives the server's word.
   const storedHp = character?.hp ?? null;
@@ -286,6 +299,7 @@ async function run(options: GameOptions): Promise<void> {
   // the page runs, the page has its own, which it does not save.
   let pack: Pack = character?.pack ?? EMPTY_PACK;
   const packNow = (): Pack => net?.pack ?? pack;
+  const gearNow = (): Gear => net?.gear ?? gear;
   // The chests and the barred doors of a world that the page runs (a shared world: the server's).
   const spoils = new Spoils(world, Math.random);
   // What is left to hide of a correction from the server, in world pixels.
@@ -366,6 +380,9 @@ async function run(options: GameOptions): Promise<void> {
   // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
   // darker wanderer.
   /** Wears skin `seed` when it is ready (at once if it is), unless another one was asked for since. */
+  // The standing frame of the skin's sheet: the "You" section and the pack panel show it.
+  let lookSheet: HTMLCanvasElement | null = null;
+  let showPackLook: ((sheet: HTMLCanvasElement | null) => void) | null = null;
   const wear = (seed: number, then: () => void = () => {}) => {
     // How it attacks follows the skin at once; the frames come when the skin is ready.
     const look = attackLook(seed);
@@ -374,7 +391,9 @@ async function run(options: GameOptions): Promise<void> {
       if (seed !== skin) return;
       playerView.setTextures(textures);
       playerView.setPending(false);
-      you.showLook(skins.sheet(seed));
+      lookSheet = skins.sheet(seed);
+      you.showLook(lookSheet);
+      showPackLook?.(lookSheet);
       then();
     };
     const ready = skins.get(seed, apply, true);
@@ -779,8 +798,9 @@ async function run(options: GameOptions): Promise<void> {
   const pilesNow = (): readonly Pile[] => (net ? net.pilesNow() : localPiles.list);
   const pileViews = new PileViews(art, pileLayer, entityLayer, glowLayer);
   /**
-   * Puts `count` items of slot `slot` (of `kind`) on the ground: just in front of the player, or
-   * tossed towards `screen` (a point of the screen: the player dragged them onto the world there).
+   * Puts `count` items of place `slot` (of `kind`: a slot of the pack, or a worn slot) on the
+   * ground: just in front of the player, or tossed towards `screen` (a point of the screen: the
+   * player dragged them onto the world there).
    */
   const dropItems = (slot: number, kind: ItemKind, count: number, screen?: { readonly x: number; readonly y: number }): void => {
     const toward = screen ? camera.toWorld(screen.x, screen.y) : undefined;
@@ -789,32 +809,55 @@ async function run(options: GameOptions): Promise<void> {
       if (!net.put(slot, kind, count, toward)) say(STRINGS.dropOffline, performance.now());
       return;
     }
-    const next = removeFromSlot(pack, slot, kind, count);
-    if (!next) return;
-    pack = next;
+    const worn = gearSlotAt(slot);
+    if (worn !== null) {
+      const next = count === 1 ? dropWorn(gear, worn, kind) : null;
+      if (!next) return;
+      gear = next;
+    } else {
+      const next = removeFromSlot(pack, slot, kind, count);
+      if (!next) return;
+      pack = next;
+    }
     const at = toward ? tossPoint(world, player, toward.x, toward.y) : dropPoint(world, player);
     localPiles.put(at.x, at.y, [{ kind, count }], performance.now(), player);
   };
-  /** Moves the stack of slot `from` onto slot `to`. */
+  /** Moves an item from place `from` to place `to`: a stack in the pack, or an item that the character puts on or takes off. */
   const moveItems = (from: number, to: number): void => {
+    // A defeated character does not change what it wears.
+    if (player.down > 0 && (gearSlotAt(from) !== null || gearSlotAt(to) !== null)) return;
     if (net) {
       net.move(from, to);
       return;
     }
-    pack = moveInPack(pack, from, to, traits.slots) ?? pack;
+    const moved = moveItem({ pack, gear }, from, to, traits.slots, traits.class);
+    if (!moved) return;
+    pack = moved.pack;
+    gear = moved.gear;
   };
-  const packPanel = new PackPanel(
-    art,
-    !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null,
-    { drink: drinkKind, drop: dropItems, move: moveItems },
-    traits.scores,
-    definition.items,
-  );
+  const packPanel = new PackPanel(art, !character ? STRINGS.pack.guest : !net ? STRINGS.pack.offline : null, { drink: drinkKind, drop: dropItems, move: moveItems }, definition.items);
+  if (lookSheet) packPanel.showLook(lookSheet);
+  showPackLook = (sheet) => packPanel.showLook(sheet);
   // The drinks that the character carries, under its hit points: a press or a key (1 to 4) drinks one.
   const belt = new DrinkBelt(art, vitals.element, traits.scores, drinkKind);
   // The map (Intelligence): the chunks that the character has seen; the server keeps them in a shared world.
   const localExplored = new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`));
   const mapPanel = new MapPanel(world, traits.scores.int, net && character ? null : STRINGS.map.alone);
+  /**
+   * The traits follow the gear: when what the character wears changes (a move, a drop, the
+   * server's word), its traits change at once, and the panels that show the scores of the gates
+   * (the luck of the gear) follow.
+   */
+  const followGear = (): void => {
+    const worn = gearNow();
+    if (worn === traitsGear) return;
+    traitsGear = worn;
+    traits = traitsFor(worn);
+    net?.setTraits(traits);
+    belt.setScores(traits.scores);
+    mapPanel.setInt(traits.scores.int);
+    you.setTraits(traits);
+  };
   /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). */
   const takeDrop = (drop: Loot, now: number, at: { readonly x: number; readonly y: number }) => {
     if (lootIsEmpty(drop)) return;
@@ -1057,6 +1100,7 @@ async function run(options: GameOptions): Promise<void> {
   window.addEventListener('resize', resize);
 
   const sim = new FixedStep(TICK_SECONDS, () => {
+    followGear();
     previous.x = player.x;
     previous.y = player.y;
     // In a conversation the player stands still and does not attack.
@@ -1120,6 +1164,7 @@ async function run(options: GameOptions): Promise<void> {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
     sim.advance(seconds);
+    followGear();
     if (now >= placeSaveAt) {
       placeSaveAt = now + PLACE_SAVE_MS;
       void savePlace();
@@ -1203,7 +1248,7 @@ async function run(options: GameOptions): Promise<void> {
     vitals.update(player, traits.maxHp, traits.maxStamina);
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
     mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
-    packPanel.show(packNow(), traits.slots);
+    packPanel.show(packNow(), gearNow(), traits);
     belt.show(packNow());
     // A new build: reload when it is calm (no conversation, no defeat, no mob that hunts the player).
     if (newBuild && !reloading && !conversation.open && player.down === 0 && huntersNow().length === 0) {
@@ -1273,6 +1318,7 @@ async function run(options: GameOptions): Promise<void> {
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
+      `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac} (glance ${Math.round(traits.glance * 100)}%, count ${player.ward.toFixed(2)}), ${traits.strike.kind} ${traits.damage}${traits.sneak ? ` (+${traits.sneak} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),

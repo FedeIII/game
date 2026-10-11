@@ -1,6 +1,20 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { EMPTY_PACK, MAX_CHARACTERS, checkPack, checkPlace, checkSheet, type Character, type CharacterPlace, type CharacterSheet, type Pack } from '@game/engine';
+import {
+  EMPTY_PACK,
+  GEAR_SLOTS,
+  MAX_CHARACTERS,
+  checkGear,
+  checkPack,
+  checkPlace,
+  checkSheet,
+  sheetKit,
+  type Character,
+  type CharacterPlace,
+  type CharacterSheet,
+  type Gear,
+  type Pack,
+} from '@game/engine';
 
 /**
  * The accounts database: one SQLite file (node:sqlite, so no native package), in WAL mode. It
@@ -68,6 +82,9 @@ const MIGRATIONS: readonly string[] = [
    ALTER TABLE characters ADD COLUMN refuges TEXT;`,
   // 2026-10-10: the chunks that each character has seen (JSON: [cx, cy, cx, cy, ...]), for its map.
   `ALTER TABLE characters ADD COLUMN explored TEXT;`,
+  // 2026-10-11: what each character wears (JSON: an item kind or null for each worn slot). Null: a
+  // character from before the equipment; it gets the kit of its class (sheetKit) when it loads.
+  `ALTER TABLE characters ADD COLUMN gear TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -86,6 +103,7 @@ interface CharacterRow {
   hp: number | null;
   refuges: string | null;
   explored: string | null;
+  gear: string | null;
 }
 
 /** The most chunks that a stored character keeps as seen (the Room's MAX_EXPLORED). */
@@ -108,6 +126,11 @@ function checkRefuges(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((r): r is string => typeof r === 'string' && /^[a-z0-9-]{1,32}$/.test(r)).slice(0, 32) : [];
 }
 
+/** Gear as the store keeps it: each worn slot, with its kind or null. */
+function gearJson(gear: Gear): string {
+  return JSON.stringify(Object.fromEntries(GEAR_SLOTS.map((slot) => [slot, gear[slot]])));
+}
+
 function parse(json: string | null): unknown {
   try {
     return json === null ? null : (JSON.parse(json) as unknown);
@@ -127,6 +150,7 @@ function toCharacter(row: CharacterRow): Character | null {
     playedAt: row.played_at,
     place: checkPlace(parse(row.place)),
     pack: checkPack(parse(row.pack)) ?? EMPTY_PACK,
+    gear: checkGear(parse(row.gear)) ?? sheetKit(check.sheet),
     hp,
     refuges: checkRefuges(parse(row.refuges)),
     explored: checkExplored(parse(row.explored)),
@@ -243,23 +267,28 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
-    const row = this.db.prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored FROM characters WHERE user_id = ? AND id = ?').get(userId, id) as CharacterRow | undefined;
+    const row = this.db
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear FROM characters WHERE user_id = ? AND id = ?')
+      .get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
 
-  /** Stores a new character (a checked sheet). 'limit' when the user has MAX_CHARACTERS already. */
+  /** Stores a new character (a checked sheet), with the kit of its class. 'limit' when the user has MAX_CHARACTERS already. */
   createCharacter(userId: number, sheet: CharacterSheet, now: number): Character | 'limit' {
     const { count } = this.db.prepare('SELECT COUNT(*) AS count FROM characters WHERE user_id = ?').get(userId) as { count: number };
     if (count >= MAX_CHARACTERS) return 'limit';
     const id = randomBytes(12).toString('hex');
-    this.db.prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at) VALUES (?, ?, ?, ?, NULL)').run(id, userId, JSON.stringify(sheet), now);
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, hp: null, refuges: [], explored: [] };
+    const gear = sheetKit(sheet);
+    this.db
+      .prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at, gear) VALUES (?, ?, ?, ?, NULL, ?)')
+      .run(id, userId, JSON.stringify(sheet), now, gearJson(gear));
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, gear, hp: null, refuges: [], explored: [] };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -278,6 +307,11 @@ export class AccountStore {
   setPack(userId: number, id: string, pack: Pack): boolean {
     const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => (s ? { kind: s.kind, count: s.count } : null)) });
     return this.db.prepare('UPDATE characters SET pack = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
+  }
+
+  /** Notes what a character wears (the server's word, from a shared world); false if it is not the user's. */
+  setGear(userId: number, id: string, gear: Gear): boolean {
+    return this.db.prepare('UPDATE characters SET gear = ? WHERE user_id = ? AND id = ?').run(gearJson(gear), userId, id).changes > 0;
   }
 
   /** Notes the hit points and the refuges of a character (the server's word, from a shared world); false if it is not the user's. */

@@ -44,7 +44,7 @@ export class MapPanel {
   private readonly panel: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly labels: HTMLElement;
-  private readonly int: number;
+  private int: number;
   private readonly chunks = new Map<string, ImageData>();
   private drawnAt = -Infinity;
 
@@ -91,6 +91,14 @@ export class MapPanel {
     });
     onOtherPanelOpen('map', () => this.open(false));
     document.body.append(this.button, this.panel);
+  }
+
+  /** A new Intelligence for the map's gates (the luck of the gear changed): the map draws again. */
+  setInt(int: number): void {
+    if (int === this.int) return;
+    this.int = int;
+    this.chunks.clear();
+    this.drawnAt = -Infinity;
   }
 
   get isOpen(): boolean {

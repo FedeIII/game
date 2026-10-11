@@ -31,11 +31,17 @@ import {
   type MobRules,
   type Scores,
   type SnapshotMessage,
+  PLAIN_GEAR,
+  kitOf,
 } from '../src/index.ts';
 import { LOOT_CHEST, lootHouseSource, mobHouseSource, textSource } from './helpers.ts';
 
 const TICK_MS = TICK_SECONDS * 1000;
-const withDex = (dex: number, cls: CharacterClass = 'rogue') => traitsOf({ ...PLAIN_SCORES, dex } as Scores, cls);
+// The plain gear (a d8, no other property), and a ranger's kit (a longbow): the tests of DEX stay apart from the gear.
+const withDex = (dex: number, cls: CharacterClass = 'rogue') => {
+  const scores = { ...PLAIN_SCORES, dex } as Scores;
+  return traitsOf(scores, cls, cls === 'ranger' ? kitOf('ranger', scores) : PLAIN_GEAR);
+};
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
 
 describe('the Dexterity traits', () => {

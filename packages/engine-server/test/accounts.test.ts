@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { PROTOCOL_VERSION, characterSkin, type CharacterSheet, type ServerMessage, type WorldDefinition } from '@game/engine';
+import { EMPTY_GEAR, PROTOCOL_VERSION, characterSkin, kitOf, sheetKit, toWireGear, type CharacterSheet, type ServerMessage, type WorldDefinition } from '@game/engine';
 import { houseSource } from '../../engine/test/helpers.ts';
 import { AccountStore, startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
 
@@ -423,6 +423,23 @@ describe('accounts: the shared world', () => {
     await b.close();
   });
 
+  it('gives a new character the kit of its class, sends it in the welcome, and keeps what it wears', async () => {
+    const started = await start();
+    const browser = new Browser(started.port);
+    await browser.signIn('Fede');
+    const made = (await browser.request('POST', '/api/characters', sheet)).json.character as { id: string; gear: unknown };
+    // A dwarf fighter with STR 15: chain mail, a longsword and a shield.
+    expect(made.gear).toEqual(sheetKit(sheet));
+    expect(made.gear).toMatchObject({ armour: 'chain-mail', main: 'longsword', off: 'shield' });
+    const a = await browser.hello({ character: made.id });
+    expect(a.first).toMatchObject({ t: 'welcome', gr: toWireGear(sheetKit(sheet)) });
+    await a.close();
+    for (let i = 0; i < 100 && started.players().shared !== 0; i++) await new Promise((r) => setTimeout(r, 20));
+    started.accounts!.saveGear({ id: 1, provider: 'dev', email: '' }, made.id, { ...EMPTY_GEAR, neck: 'luck-amulet' });
+    const listed = ((await browser.request('GET', '/api/characters')).json.characters as { id: string; gear: unknown }[]).find((c) => c.id === made.id)!;
+    expect(listed.gear).toEqual({ ...EMPTY_GEAR, neck: 'luck-amulet' });
+  });
+
   it('refuses a visitor without a session, without a character, or with another account’s', async () => {
     const { port } = await start();
     const owner = new Browser(port);
@@ -518,6 +535,29 @@ describe('accounts: personal data', () => {
     // A new sign-in starts from nothing.
     await a.signIn('Ana');
     expect((await a.request('GET', '/api/characters')).json.characters).toEqual([]);
+  });
+
+  it('gives a character from before the equipment the kit of its class', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
+    try {
+      const file = join(dir, 'game.db');
+      const store = new AccountStore(file);
+      const user = store.signIn('google', '1', 1);
+      const wizard = { ...sheet, class: 'wizard' } as const;
+      const made = store.createCharacter(user.id, wizard, 2);
+      if (made === 'limit') throw new Error('limit');
+      store.close();
+      // The column of a character from before 2026-10-11 is empty.
+      const db = new DatabaseSync(file);
+      db.prepare('UPDATE characters SET gear = NULL').run();
+      db.close();
+      const again = new AccountStore(file);
+      expect(again.character(user.id, made.id)!.gear).toEqual(kitOf('wizard', { ...sheet.base, con: 16 }));
+      expect(again.character(user.id, made.id)!.gear.main).toBe('arcane-staff');
+      again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('keeps no name, and removes the name and the email of an old database', () => {

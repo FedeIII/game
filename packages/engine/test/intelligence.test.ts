@@ -23,10 +23,11 @@ import {
   type Scores,
   type SnapshotMessage,
   type WorldSource,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { houseSource, textSource } from './helpers.ts';
 
-const withInt = (int: number) => traitsOf({ ...PLAIN_SCORES, int } as Scores, 'fighter');
+const withInt = (int: number) => traitsOf({ ...PLAIN_SCORES, int } as Scores, 'fighter', PLAIN_GEAR);
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
 
 describe('the display of a gate (Fede\'s rule)', () => {

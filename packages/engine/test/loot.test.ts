@@ -17,12 +17,13 @@ import {
   type Fixture,
   type Opened,
   type Pack,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { LOOT_CHEST, lootHouseSource } from './helpers.ts';
 
 /** Opens a chest with a pack of `slots` slots, with every score 10. */
 const open = (spoils: Spoils, fixture: Fixture, pack: Pack, slots: number, nowMs: number) => spoils.open(fixture, pack, { scores: PLAIN_SCORES, slots }, nowMs) as Opened;
-const withStr = (str: number) => traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter');
+const withStr = (str: number) => traitsOf({ ...(Object.fromEntries(ABILITIES.map((a) => [a, 10])) as Record<Ability, number>), str }, 'fighter', PLAIN_GEAR);
 /** Someone at the door of the house (5, 6), and someone far away. */
 const AT_DOOR = { x: 5 * TILE_SIZE + 8, y: 7 * TILE_SIZE + 4 };
 const FAR = { x: (REBAR_RADIUS + 10) * TILE_SIZE, y: 0 };

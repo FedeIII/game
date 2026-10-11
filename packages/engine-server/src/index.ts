@@ -228,8 +228,16 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
         name = character.name;
         if (character.place?.world === message.world) place = character.place;
         client.character = character.id;
-        // What its scores give, and what it carries: from the stored character too.
-        stored = { traits: sheetTraits(character), pack: character.pack, hp: character.hp, refuges: character.refuges, explored: character.explored };
+        // What its scores give, and what it carries and wears: from the stored character too.
+        stored = {
+          traits: sheetTraits(character, character.gear),
+          traitsFor: (gear) => sheetTraits(character, gear),
+          pack: character.pack,
+          gear: character.gear,
+          hp: character.hp,
+          refuges: character.refuges,
+          explored: character.explored,
+        };
       }
       const player = room.join(t, skin, message.at, name, place, stored);
       if (!player) return refuse('full');
@@ -252,13 +260,14 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     client.room.input(client.playerId, message, t);
   }
 
-  /** Notes where the character of a client is now, and what it carries (with accounts, in a room). */
+  /** Notes where the character of a client is now, and what it carries and wears (with accounts, in a room). */
   function savePlace(client: Client): void {
     const player = client.room?.player(client.playerId);
     if (!accounts || !client.user || !client.character || !player) return;
     try {
       accounts.savePlace(client.user, client.character, { world: client.world, x: player.state.x, y: player.state.y });
       accounts.savePack(client.user, client.character, player.pack);
+      accounts.saveGear(client.user, client.character, player.gear);
       accounts.saveVitals(client.user, client.character, player.state.hp, player.refuges);
       accounts.saveExplored(client.user, client.character, exploredList(player.explored));
     } catch (error) {

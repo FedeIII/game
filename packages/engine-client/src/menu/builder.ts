@@ -26,6 +26,7 @@ import {
   type Gender,
   type Race,
   type Scores,
+  kitOf,
 } from '@game/engine';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
@@ -314,7 +315,7 @@ export class CharacterBuilder {
       this.bonus = [];
       this.render();
     });
-    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls)));
+    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls, kitOf(this.cls, final))));
     const missing = choosing > 0 && this.bonus.length < choosing;
     const create = el('button', { type: 'button', id: 'builder-create', class: 'menu-button menu-primary' }, this.busy ?? T.create);
     create.disabled = missing || this.busy !== null;

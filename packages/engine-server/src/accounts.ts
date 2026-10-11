@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CHARACTER_ID, NAME_MAX, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Pack } from '@game/engine';
+import { CHARACTER_ID, NAME_MAX, checkGear, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Gear, type Pack } from '@game/engine';
 import { googleAuthUrl, googleIdentity, newLogin, type GoogleConfig } from './google.ts';
 import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
 
@@ -181,6 +181,12 @@ export class Accounts {
   savePack(user: User, id: string, pack: Pack): void {
     const checked = checkPack(pack);
     if (checked && CHARACTER_ID.test(id)) this.store.setPack(user.id, id, checked);
+  }
+
+  /** Notes what a user's character wears (the server's word, in a shared world). */
+  saveGear(user: User, id: string, gear: Gear): void {
+    const checked = checkGear(gear);
+    if (checked && CHARACTER_ID.test(id)) this.store.setGear(user.id, id, checked);
   }
 
   /** Notes the hit points and the refuges of a user's character (the server's word, in a shared world). */

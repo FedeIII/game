@@ -1,17 +1,20 @@
-import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, SNEAK_SIGHT, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
 import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
- * What the scores of a character give in the game (traits.ts), as a list of terms and values:
- * the character builder shows it under the scores, and the "You" section of the settings under
- * the character.
+ * What the scores and the gear of a character give in the game (traits.ts), as a list of terms
+ * and values: the character builder shows it under the scores (with the kit of the class), and the
+ * "You" section of the settings under the character.
  */
 export function traitsList(traits: PlayerTraits): HTMLElement {
   const t = STRINGS.traits;
   const gate = (gate: Gate, yes: string) => (meetsGate(traits.scores, gate) ? yes : t.from(STRINGS.abilities[gate.ability].short, gate.min));
   const rows: [string, string][] = [
+    [t.ac, t.acValue(traits.ac, traits.glance)],
     [t.damage, t.damageValue(traits.damage, STRINGS.abilities[traits.attack].short)],
+    ...(traits.sneak > 0 ? ([[t.sneak, t.sneakValue(traits.sneak)]] as [string, string][]) : []),
+    ...(traits.speed < 1 ? ([[t.walk, t.walkValue(traits.speed)]] as [string, string][]) : []),
     [t.push, t.share(traits.push)],
     [t.stagger, t.share(traits.stagger)],
     [t.slots, t.slotsValue(traits.slots)],
@@ -20,7 +23,7 @@ export function traitsList(traits: PlayerTraits): HTMLElement {
     [t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)],
     [t.guard, t.seconds(traits.guard * TICK_SECONDS)],
     [t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)],
-    [t.sight, t.sightValue(traits.sight, traits.sight * SNEAK_SIGHT)],
+    [t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)],
     ...(traits.ranged ? ([[t.range, t.rangeValue(traits.range / TILE_SIZE)]] as [string, string][]) : []),
     [t.pick, gate(PICK_GATE, t.pickYes)],
     [t.hp, String(traits.maxHp)],

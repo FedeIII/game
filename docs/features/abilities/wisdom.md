@@ -29,8 +29,10 @@ that see what people hide, Medicine (herbs for a hit point) and an arrow that po
 that my main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-WIS-001.1:** A blow of a cleric or a druid does 4 + WIS modifier damage: 3 at WIS 8, 7 at
-  WIS 16 or 17 ([Ability Scores](ability-scores.md), REQ-AS-002).
+- **AC-WIS-001.1:** A blow of a cleric or a druid does the base damage of its gear + WIS modifier
+  ([Ability Scores](ability-scores.md), REQ-AS-002). A cleric with its mace (base 3,
+  [Equipment](../items/equipment.md), REQ-EQ-009): 2 at WIS 8, 6 at WIS 16 or 17. A druid with its
+  druid staff (produce flame, base 4): 3 at WIS 8, 7 at WIS 16 or 17.
 
 ---
 

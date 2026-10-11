@@ -26,10 +26,11 @@ import {
   type Scores,
   type SnapshotMessage,
   type WorldSource,
+  PLAIN_GEAR,
 } from '../src/index.ts';
 import { houseSource, textSource } from './helpers.ts';
 
-const withCon = (con: number) => traitsOf({ ...PLAIN_SCORES, con } as Scores, 'fighter');
+const withCon = (con: number) => traitsOf({ ...PLAIN_SCORES, con } as Scores, 'fighter', PLAIN_GEAR);
 const open = new World(textSource([]));
 
 describe('the Constitution traits', () => {

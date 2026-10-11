@@ -28,8 +28,9 @@ that it gives to the other players near it, and a good name: the people of Thorn
 so that my main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-CHA-001.1:** A blow of a sorcerer or a warlock does 4 + CHA modifier damage: 3 at CHA 8, 7
-  at CHA 16 or 17 ([Ability Scores](ability-scores.md), REQ-AS-002).
+- **AC-CHA-001.1:** A blow of a sorcerer or a warlock does the base damage of its gear + CHA
+  modifier ([Ability Scores](ability-scores.md), REQ-AS-002). With its cantrip (base 5,
+  [Equipment](../items/equipment.md), REQ-EQ-009): 4 at CHA 8, 8 at CHA 16 or 17.
 
 ---
 

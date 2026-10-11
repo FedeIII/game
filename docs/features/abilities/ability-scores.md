@@ -60,11 +60,12 @@ it, so that a wizard with a high INT hits as hard as a fighter with a high STR.
   - CHA: sorcerer, warlock.
 - **AC-AS-002.2:** The class decides the attack ability, not the item in the hand. A wizard with a
   plain staff strikes with INT, and a cleric with a mace strikes with WIS.
-- **AC-AS-002.3:** A blow takes 4 + the modifier of the attack ability from the health of a mob:
-  3 to 7 health points.
-- **AC-AS-002.4:** An imp has 3 health points, so one blow always kills it. A brute has 12: it
-  takes 4 blows at −1, 3 blows at 0 and +1, and 2 blows at +2 and +3.
-- **AC-AS-002.5:** An arrow of a ranger takes the same damage as a blow of that ranger.
+- **AC-AS-002.3:** A blow takes the base damage of what is in the main hand
+  ([Equipment](../items/equipment.md), REQ-EQ-009) + the modifier of the attack ability from the
+  health of a mob. With a weapon of a d8 (base 4), that is 3 to 7 health points.
+- **AC-AS-002.4:** An imp has 3 health points. A brute has 12: with a base of 4, it takes 4 blows
+  at −1, 3 blows at 0 and +1, and 2 blows at +2 and +3.
+- **AC-AS-002.5:** An arrow takes the same damage as a blow of that character.
 
 ---
 
@@ -92,14 +93,16 @@ character.
 
 **Acceptance Criteria:**
 - **AC-AS-004.1:** A guest has 10 in every score, so every modifier is 0.
-- **AC-AS-004.2:** The class of the guest's look gives its attack ability. A guest with the look of
-  a ranger shoots arrows.
+- **AC-AS-004.2:** The class of the guest's look gives its attack ability, and the kit that it
+  wears ([Equipment](../items/equipment.md), REQ-EQ-014). A guest with the look of a ranger shoots
+  arrows.
 - **AC-AS-004.3:** A guest has these traits:
-  - a damage of 4, and the normal knockback and stagger;
+  - the damage and the Armour Class of its kit, and the normal knockback and stagger;
   - 6 slots;
-  - one attack every 0.45 s, a guard of 1.00 s, and a roll every 1.60 s;
-  - mobs see it from 100% of their sight (50% while it sneaks);
-  - with the look of a ranger, arrows that fly 5 tiles.
+  - one attack every 0.45 s (2 ticks quicker with a light weapon, 4 slower with a heavy one), a
+    guard of 1.00 s, and a roll every 1.60 s;
+  - mobs see it from 100% of their sight (50% while it sneaks, 75% in noisy armour);
+  - with a bow in its kit, arrows that fly 5 tiles.
 - **AC-AS-004.4:** A guest does not pass a gate of 13. It cannot wade, force a barred door, or
   pick a lock.
 
@@ -170,11 +173,13 @@ which score to raise, without a list of everything that I cannot do.
 - **The display of a gate** is `gateView(scores, gate)` (`traits.ts`): `'open'`, `'hint'` (1 or
   `GATE_HINT` (2) under it) or `'hidden'` (Fede's rule, 2026-10-10). The page writes the clue
   with `gateTag()` (`packages/engine-client/src/ui/conversation.ts`).
-- **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class)`,
-  `sheetTraits(sheet)` (a stored character), `guestTraits(skin)` (a guest), `GUEST_TRAITS` (every
-  score 10 and a fighter: for tests and for a player without a look), `PLAIN_SCORES`, `Gate`,
-  `meetsGate()` and `GATE_SCORE` (13). Each scale has its constant there: `BASE_DAMAGE` (4) for
-  the damage, the others in the Strength and Dexterity documents.
+- **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class, gear)`,
+  `sheetTraits(sheet, gear)` (a stored character), `guestTraits(skin, gear)` (a guest; its gear
+  is `guestGear(skin)`), `GUEST_TRAITS` (every score 10, a fighter and `PLAIN_GEAR`, a rapier: for
+  tests and for a player without a look), `PLAIN_SCORES`, `Gate`, `meetsGate()` and `GATE_SCORE`
+  (13). Each scale has its constant there: `BASE_DAMAGE` (4, the base of a d8: the damage before
+  the gear), the others in the Strength and Dexterity documents. The base damage of the gear is in
+  `packages/engine/src/gear.ts` ([Equipment](../items/equipment.md)).
 - **The rules of a character** are in `packages/engine/src/character.ts`: `ATTACK_ABILITY`,
   `abilityModifier()`, `finalScores()`. `CLASS_PRIMARY` (the abilities that the builder marks) is
   another list: a sorcerer has CHA and CON as its main abilities, and it attacks with CHA.

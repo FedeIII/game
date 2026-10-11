@@ -28,8 +28,9 @@ character finds useful: herbs and trophies become draughts.
 main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-INT-001.1:** A wizard's blow does 4 + INT modifier damage: 3 at INT 8, 7 at INT 16 or 17
-  ([Ability Scores](ability-scores.md), REQ-AS-002).
+- **AC-INT-001.1:** A wizard's blow does the base damage of its gear + INT modifier
+  ([Ability Scores](ability-scores.md), REQ-AS-002). With its arcane staff (fire bolt, base 5,
+  [Equipment](../items/equipment.md), REQ-EQ-009): 4 at INT 8, 8 at INT 16 or 17.
 
 ---
 

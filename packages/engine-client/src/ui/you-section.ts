@@ -30,6 +30,7 @@ export interface YouCallbacks {
 export class YouSection {
   readonly element: HTMLElement;
   private readonly preview: HTMLCanvasElement;
+  private readonly traits: HTMLElement;
 
   constructor(info: YouInfo, callbacks: YouCallbacks) {
     const text = STRINGS.you;
@@ -72,9 +73,9 @@ export class YouSection {
       about.append(scores);
     }
     row.append(this.preview, about);
-    const traits = document.createElement('div');
-    traits.className = 'you-traits';
-    traits.append(traitsList(info.traits));
+    this.traits = document.createElement('div');
+    this.traits.className = 'you-traits';
+    this.traits.append(traitsList(info.traits));
 
     const actions = document.createElement('div');
     actions.className = 'you-actions';
@@ -96,7 +97,12 @@ export class YouSection {
       actions.append(out);
     }
 
-    this.element.append(heading, row, traits, actions);
+    this.element.append(heading, row, this.traits, actions);
+  }
+
+  /** Shows new traits (the gear changed). */
+  setTraits(traits: PlayerTraits): void {
+    this.traits.replaceChildren(traitsList(traits));
   }
 
   /** Puts a line under the heading of the section (the presence of other visitors, for an admin). */

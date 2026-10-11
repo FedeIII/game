@@ -1,4 +1,4 @@
-import type { Ability, CharacterClass, Gender, Interactable, ItemKind, Race } from '@game/engine';
+import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, Race } from '@game/engine';
 
 /**
  * Every text of the engine that the player reads, in one place. Do not put a user-facing text in
@@ -53,6 +53,20 @@ export const STRINGS = {
     draught: { name: 'Healing draught', a: 'a healing draught', many: 'healing draughts' },
     antidote: { name: 'Antidote', a: 'an antidote', many: 'antidotes' },
     'strong-draught': { name: 'Strong draught', a: 'a strong draught', many: 'strong draughts' },
+    'leather-armour': { name: 'Leather armour', a: 'a leather armour', many: 'leather armours' },
+    'scale-mail': { name: 'Scale mail', a: 'a scale mail', many: 'scale mails' },
+    'chain-mail': { name: 'Chain mail', a: 'a chain mail', many: 'chain mails' },
+    'splint-armour': { name: 'Splint armour', a: 'a splint armour', many: 'splint armours' },
+    shield: { name: 'Shield', a: 'a shield', many: 'shields' },
+    longsword: { name: 'Longsword', a: 'a longsword', many: 'longswords' },
+    shortsword: { name: 'Shortsword', a: 'a shortsword', many: 'shortswords' },
+    rapier: { name: 'Rapier', a: 'a rapier', many: 'rapiers' },
+    greataxe: { name: 'Greataxe', a: 'a greataxe', many: 'greataxes' },
+    mace: { name: 'Mace', a: 'a mace', many: 'maces' },
+    longbow: { name: 'Longbow', a: 'a longbow', many: 'longbows' },
+    'arcane-staff': { name: 'Arcane staff', a: 'an arcane staff', many: 'arcane staffs' },
+    'druid-staff': { name: 'Druid staff', a: 'a druid staff', many: 'druid staffs' },
+    'luck-amulet': { name: 'Luck amulet', a: 'a luck amulet', many: 'luck amulets' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -104,7 +118,7 @@ export const STRINGS = {
     empty: 'Your pack is empty.',
     guest: 'A guest: what you find is not saved.',
     /** Before the player chooses a slot. */
-    choose: 'Choose a thing to see what it does. Drag it to another slot, or out onto the ground.',
+    choose: 'Choose a thing to see what it does. Drag it to another slot, onto what you wear, or out onto the ground.',
     /** A slot for a screen reader and as a tooltip: "an imp horn", "3 imp horns". */
     stack: (n: number, names: { a: string; many: string }): string => (n === 1 ? names.a : `${n} ${names.many}`),
     count: (n: number): string => `× ${n}`,
@@ -128,11 +142,83 @@ export const STRINGS = {
     belt: 'Drinks',
     offline: 'Played alone: what you find here is not saved.',
   },
+  /** What the character wears (gear.ts): the worn slots in the pack panel, and the detail of an item to wear. */
+  gear: {
+    heading: 'Worn',
+    /** The name of each worn slot, and the short label of an empty one. */
+    slots: {
+      head: 'Head',
+      neck: 'Neck',
+      cloak: 'Cloak',
+      armour: 'Armour',
+      bracers: 'Bracers',
+      gloves: 'Gloves',
+      belt: 'Belt',
+      feet: 'Feet',
+      'ring-left': 'Left ring',
+      'ring-right': 'Right ring',
+      main: 'Main hand',
+      off: 'Off hand',
+    } satisfies Record<GearSlot, string>,
+    short: {
+      head: 'Head',
+      neck: 'Neck',
+      cloak: 'Cloak',
+      armour: 'Armour',
+      bracers: 'Bracers',
+      gloves: 'Gloves',
+      belt: 'Belt',
+      feet: 'Feet',
+      'ring-left': 'Ring',
+      'ring-right': 'Ring',
+      main: 'Main',
+      off: 'Off',
+    } satisfies Record<GearSlot, string>,
+    /** An empty worn slot, for a screen reader and as a tooltip. */
+    empty: (slot: string): string => `${slot}: nothing`,
+    /** A worn item, for a screen reader and as a tooltip: "Main hand: a longsword". */
+    worn: (slot: string, what: string): string => `${slot}: ${what}`,
+    /** The line under the picture: the Armour Class and the share of glancing blows, and the damage of a blow. */
+    ac: (ac: number): string => `AC ${ac}`,
+    glance: (share: number): string => (share > 0 ? `${Math.round(share * 100)}% of the hits glance off` : 'no hit glances off'),
+    damage: (n: number): string => `Damage ${n}`,
+    /** Where the chosen item is: "Worn: main hand." */
+    wornIn: (slot: string): string => `Worn: ${slot.toLowerCase()}.`,
+    armour: (type: ArmourType, ac: number): string =>
+      type === 'light' ? `Light armour: AC ${ac} + DEX.` : type === 'medium' ? `Medium armour: AC ${ac} + DEX (at most +2).` : `Heavy armour: AC ${ac}.`,
+    heavy: (str: number): string => `Without STR ${str}, you walk slower in it.`,
+    noisy: 'Noisy: when you sneak, the mobs see you from further away.',
+    shield: (ac: number): string => `Shield: AC +${ac}.`,
+    weapon: (die: number, base: number): string => `Weapon (d${die}): ${base} damage + your attack ability.`,
+    versatile: (die: number, base: number): string => `With both hands (d${die}): ${base}.`,
+    twoHanded: 'It needs both hands.',
+    light: 'Light: quicker attacks. It goes in the off hand too.',
+    heavyWeapon: 'Heavy: slower attacks.',
+    ranged: 'It shoots arrows.',
+    focus: 'Your focus: you cast your cantrip with it.',
+    luck: (n: number): string => `Luck: +${n} to each score for every test.`,
+    attune: 'It needs attunement: you can be attuned to 3 things.',
+    ring: 'It goes on a finger.',
+    /** Why the character cannot wear it. */
+    cannot: (cls: string): string => `A ${cls.toLowerCase()} cannot use it.`,
+    attuned: 'You are attuned to 3 things already.',
+    full: 'Your pack has no room for what you take off.',
+    wear: 'Wear',
+    takeOff: 'Take off',
+    wearWhat: (what: string): string => `Wear ${what}`,
+    takeOffWhat: (what: string): string => `Take off ${what}`,
+  },
   /** What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
   traits: {
     heading: 'What your scores give',
+    ac: 'Armour Class',
+    acValue: (ac: number, glance: number): string => (glance > 0 ? `${ac} (${Math.round(glance * 100)}% of the hits glance off)` : String(ac)),
     damage: 'Damage of a blow',
     damageValue: (n: number, ability: string): string => `${n} (${ability})`,
+    sneak: 'Sneak attack',
+    sneakValue: (n: number): string => `+${n} on a mob that does not hunt you`,
+    walk: 'Walk',
+    walkValue: (share: number): string => (share < 1 ? `${Math.round((1 - share) * 100)}% slower (heavy armour)` : 'normal'),
     push: 'Knockback',
     stagger: 'Stagger',
     share: (share: number): string => (Math.abs(share - 1) < 0.005 ? 'normal' : `${share > 1 ? '+' : '−'}${Math.round(Math.abs(share - 1) * 100)}%`),

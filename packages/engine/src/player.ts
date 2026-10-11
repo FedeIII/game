@@ -70,6 +70,13 @@ export interface PlayerState {
    * sets it (Horde, PlayerTraits.inspire), and the end of the stun uses it.
    */
   inspired: number;
+  /**
+   * The count towards the next glancing blow (Armour Class, PlayerTraits.glance): each mob hit adds
+   * the share of the character, and the hit that brings it to 1 glances off (hitPlayer).
+   */
+  ward: number;
+  /** Ticks left of the spark of a glancing blow (0: none). */
+  glance: number;
 }
 
 /** An attack lasts this many ticks (0.3 s); a new one can start this many ticks after the last. */
@@ -129,7 +136,7 @@ export interface PlayerMap extends SolidMap {
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
  * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS.
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill'>>;
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed'>>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -179,15 +186,33 @@ export function createPlayer(x: number, y: number): PlayerState {
     drunk: 0,
     wading: false,
     inspired: 0,
+    ward: 0,
+    glance: 0,
   };
 }
+
+/** The spark of a glancing blow shows this many ticks (0.3 s). */
+export const GLANCE_TICKS = 18;
 
 /**
  * A mob's hit: a stun (shorter with CON: `traits.stun`), `damage` hit points, and a poison of
  * `poisonTicks` (shorter with CON: `traits.resist`). The first HP comes back RECOVER_DELAY_TICKS
  * later. At 0 HP the player is defeated: it lies for DOWN_TICKS, and then its caller wakes it.
+ *
+ * But first the Armour Class: the hit adds `traits.glance` to the count of the player (`ward`),
+ * and when the count comes to 1, the hit glances off: no damage, no stun, no poison, only a spark
+ * (`glance`). Returns false for a glancing blow.
  */
-export function hitPlayer(player: PlayerState, damage: number, stunTicks: number, poisonTicks: number, traits: Partial<Pick<PlayerTraits, 'stun' | 'resist'>> = {}): void {
+export function hitPlayer(player: PlayerState, damage: number, stunTicks: number, poisonTicks: number, traits: Partial<Pick<PlayerTraits, 'stun' | 'resist' | 'glance'>> = {}): boolean {
+  if (traits.glance) {
+    player.ward += traits.glance;
+    // A little slack, so that 4 shares of 0.25 make 1.
+    if (player.ward >= 1 - 1e-9) {
+      player.ward = Math.max(0, player.ward - 1);
+      player.glance = GLANCE_TICKS;
+      return false;
+    }
+  }
   stunPlayer(player, Math.max(1, Math.round(stunTicks * (traits.stun ?? 1))));
   player.hp = Math.max(0, player.hp - damage);
   player.recover = RECOVER_DELAY_TICKS;
@@ -200,6 +225,7 @@ export function hitPlayer(player: PlayerState, damage: number, stunTicks: number
     player.poison = 0;
     player.poisonClock = 0;
   }
+  return true;
 }
 
 /** A defeated player wakes at (x, y) with all its HP and stamina, a guard, and no poison or drink. */
@@ -397,6 +423,7 @@ export function resumePoint(
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
   if (player.dodgeCooldown > 0) player.dodgeCooldown--;
+  if (player.glance > 0) player.glance--;
   if (player.down > 0) {
     // Defeated: it lies still. When `down` ends, the caller wakes it at a safe place (wakePlayer).
     player.down--;
@@ -451,7 +478,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return true;
   }
-  const speed = wading ? PLAYER_SPEED * WADE_SPEED : PLAYER_SPEED;
+  const speed = PLAYER_SPEED * (traits.speed ?? 1) * (wading ? WADE_SPEED : 1);
   player.vx = move.x * speed;
   player.vy = move.y * speed;
   player.facing = facingFor(player.facing, move);

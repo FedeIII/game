@@ -164,14 +164,19 @@ export interface Blow {
   readonly stagger: number;
   /** The damage that it adds on a mob in its wind-up (Intelligence: the player uses the opening). */
   readonly opening?: number;
+  /** The damage that it adds on a mob that does not hunt the attacker (a rogue's sneak attack). */
+  readonly sneak?: number;
 }
 
 /** The blow of a player whose scores are all 10 (GUEST_TRAITS). */
 export const PLAIN_BLOW: Blow = { damage: 4, push: 1, stagger: 1, opening: 0 };
 
-/** The damage of a blow on this mob now: more on a mob in its wind-up (Blow.opening). */
-export function blowDamage(blow: Blow, mob: Pick<Mob, 'state'>): number {
-  return blow.damage + (mob.state === 'windup' ? (blow.opening ?? 0) : 0);
+/**
+ * The damage of a blow on this mob now: more on a mob in its wind-up (Blow.opening), and more on a
+ * mob that does not hunt the attacker (`unaware`: Blow.sneak).
+ */
+export function blowDamage(blow: Blow, mob: Pick<Mob, 'state'>, unaware = false): number {
+  return blow.damage + (mob.state === 'windup' ? (blow.opening ?? 0) : 0) + (unaware ? (blow.sneak ?? 0) : 0);
 }
 
 /** Where the mobs of a world may be, and how many there are. */
@@ -191,11 +196,12 @@ export interface HordePlayer {
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
   /**
-   * How it takes a hit: the share of a stun and of a poison (CON), and its guard after a stun
-   * (DEX); how a pack presses it (CHA: presence, daunt); and the guard that it gives to the
-   * players near it when they are hit (CHA: inspire).
+   * How it takes a hit: the share of the hits that glance off it (its Armour Class), the share of a
+   * stun and of a poison (CON), and its guard after a stun (DEX); how a pack presses it (CHA:
+   * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
+   * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'glance' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -475,9 +481,10 @@ export class Horde {
           // The blow: it lands if the player is still close, and not stunned or just after a stun.
           brain.hit = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           if (brain.hit) {
-            hitPlayer(target!, stats.hitDamage, stats.stunTicks, stats.poisonTicks, bodies.get(brain.target!));
+            // A glancing blow (Armour Class) does nothing: no stun, so no guard to inspire.
+            const hurt = hitPlayer(target!, stats.hitDamage, stats.stunTicks, stats.poisonTicks, bodies.get(brain.target!));
             // A player with Charisma close by gives it more guard after the stun (the best one counts).
-            if (target!.down === 0) target!.inspired = inspireFor(brain.target!, target!, players);
+            if (hurt && target!.down === 0) target!.inspired = inspireFor(brain.target!, target!, players);
             hits.push([mob.id, brain.target!]);
           }
           this.enter(mob, 'strike');
@@ -560,7 +567,8 @@ export class Horde {
     const stats = MOB_STATS[mob.kind];
     brain.push = stats.knockback * blow.push;
     brain.reelMs = stats.hurtMs * blow.stagger;
-    mob.health = Math.max(0, mob.health - blowDamage(blow, mob));
+    const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
+    mob.health = Math.max(0, mob.health - blowDamage(blow, mob, unaware));
     if (mob.health <= 0) {
       this.enter(mob, 'dying');
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
@@ -885,7 +893,12 @@ export class Horde {
    * to come back, or reel from its blow (Wisdom: the page marks those out of its view).
    */
   huntersOf(playerId: number): Mob[] {
-    return this.mobs.filter((mob) => mob.state !== 'idle' && mob.state !== 'walk' && mob.state !== 'dying' && this.brains.get(mob.id)!.target === playerId);
+    return this.mobs.filter((mob) => this.hunts(mob, playerId));
+  }
+
+  /** Whether the mob hunts the player `playerId` now (not when it wanders, or dies). */
+  private hunts(mob: Mob, playerId: number): boolean {
+    return mob.state !== 'idle' && mob.state !== 'walk' && mob.state !== 'dying' && this.brains.get(mob.id)!.target === playerId;
   }
 
   /** The mobs that attack the player `playerId` now (in their wind-up or their blow). In a pack their attacks overlap. */

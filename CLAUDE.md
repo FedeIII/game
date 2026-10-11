@@ -98,7 +98,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores give (`traits.ts`), items and the pack (`items.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -169,7 +169,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x with its AC and damage under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
   `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
   the one that the published page names: every 60 s while it is visible, when it shows again, and
   every 3 s for 2 minutes after a lost connection; nothing in development),
@@ -284,7 +284,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   shows them at 2x on a dark slot. The same models at 0.7 of the size, with a shadow, are the
   items on the ground (`pile/<kind>`, anchor on the point where the item lies); `pile/<kind>/bare`
   is the same without the shadow and `pile/shadow` the shadow alone (an item in the air, the
-  shine), and `pile/glint` is the spark over a pile (white, tinted gold).
+  shine), and `pile/glint` is the spark over a pile (white, tinted gold; white, it is also the
+  spark of a glancing blow on the player). The equipment has models of its own: `cuirass()` (a
+  pattern for each armour), `shield()`, `sword()`, `greataxe()`, `mace()`, `longbow()`, `staff()`,
+  `amulet()`. Preview new icons on a dark slot before you commit them.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
@@ -432,8 +435,9 @@ builder and the "You" section still name every gate.
 
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
-  ranger, rogue; WIS cleric, druid; INT wizard; CHA sorcerer, warlock. The class decides, not the
-  item in the hand. A blow takes `damage` = 4 + that modifier from a mob's health.
+  ranger, rogue; WIS cleric, druid; INT wizard; CHA sorcerer, warlock. The class decides the
+  ability, not the item in the hand. A blow takes `damage` = the base of the gear (a d8 weapon: 4;
+  see "Equipment") + that modifier from a mob's health.
 - **Strength**, for every class: the push of a blow (`push`: `knockback` x (1 + 0.15 x mod)), how
   long a mob reels (`stagger`: `hurtMs` x (1 + 0.2 x mod)), the slots of the pack (6 + 2 x mod: 4
   to 12), and two gates of 13: wading through shallow water (`WADE_GATE`; `stepPlayer(...,
@@ -450,6 +454,30 @@ builder and the "You" section still name every gate.
   two); what does not fit falls on the ground at the mob, and the player says "My pack is full." In a shared world the
   server owns the pack, and the store keeps it (`Character.pack`, the column `pack`, saved with
   the place); in a world that the page runs, the page has its own, which it does not save.
+- **Equipment** (`gear.ts`, `inventory.ts`; since 2026-10-11, Fede's decisions in
+  `docs/drafts/equipment.md`; `docs/features/items/equipment.md`): twelve worn slots of D&D 5e
+  (`GEAR_SLOTS`: head, neck, cloak, armour, bracers, gloves, belt, feet, two rings, main hand, off
+  hand; `Gear`, `Character.gear`, the column `gear`). The items (`WEARABLES`, stack 1): leather
+  armour, scale mail, chain mail, splint armour, a shield, longsword, shortsword, rapier, greataxe,
+  mace, longbow, an arcane staff and a druid staff (a focus), the luck amulet (+1 to each score for
+  every gate: `PlayerTraits.luck`, on `traits.scores`; attunement), and the silver ring on a finger.
+  The 5e rules: proficiency by class (`PROFICIENCY`, `canUse()`), the hands (a two-handed weapon
+  takes the off hand off), at most 3 attuned items. **AC** (`armourClass()`: 10 + DEX, the armour,
+  a shield +2, a barbarian + CON, a monk + WIS) gives **glancing blows** (`glanceShare()`: 5% for
+  each point over 10, no dice: `PlayerState.ward` counts, and the hit that brings it to 1 does
+  nothing; `PlayerState.glance` is the spark). Heavy armour without its STR: 3/4 of the walk
+  (`traits.speed`); noisy armour: mobs see a sneaking character from 3/4 (`traits.sneakSight`).
+  **Damage** (`attackGear()`): the base is half the die of the weapon (d6 3, d8 4, d12 6; a
+  versatile weapon with an empty off hand its bigger die), an unarmed strike 1, a monk's martial
+  arts 3, the cantrip of a sorcerer, a warlock or a wizard 5 and of a druid 4 (an empty hand or its
+  focus); a light weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the
+  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +3 on a mob that does not
+  hunt it (`Blow.sneak`). **Kits** (`kitOf()`, `sheetKit()`): a new character, and one from before,
+  gets the worn part of the SRD kit of its class; a guest the kit of its look (`guestGear()`). The
+  traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
+  `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
+  slot) in `move` and `put`, protocol 19. Not yet: the figure in the world shows the item and
+  the shield of its look, not of its gear, and nobody sells gear.
 - **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
   "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
   when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack. A
@@ -482,8 +510,8 @@ builder and the "You" section still name every gate.
   just standing still) the torch is smaller (96, others' 48) and the figure a little darker. A
   player in shallow water never sneaks. When stamina exists (CON),
   sneaking uses it too (Fede's note, 2026-10-10).
-- **Arrows** (`arrows.ts`): a ranger's every attack is an arrow (`Horde.shoot()`), 240 px/s, that
-  hits the first living mob on its way (the damage and force of the ranger's blow) or stops at a
+- **Arrows** (`arrows.ts`): every attack with a bow in the hands (the ranger's kit) is an arrow (`Horde.shoot()`), 240 px/s, that
+  hits the first living mob on its way (the damage and force of the shooter's blow) or stops at a
   thing (`World.shotBox()`: what is solid, except water) or at the end of its range; a kill is in
   `Horde.takeShotKills()`, and the drop goes to the shooter. The page of the shooter flies its own
   copy at once (`flyArrow()`) and shows the hit; the others draw the server's (`ar` in the
@@ -570,7 +598,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 18.
+protocol: `docs/multiplayer.md`, protocol 19.
 
 ## Arrival in a world
 
@@ -927,9 +955,11 @@ Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, r
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
-`pack` and `piles`; `doors`
+`pack`, `gear` (the worn items, AC, the glance count, the attack and its damage, the walk) and
+`piles`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
-for each slot, `.pack-pick` in each used one (drag it with the mouse, or with touch events: a
+for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with
+`data-slot` 32 to 43), `.gear-stats`, `.pack-pick` in each used one (drag it with the mouse, or with touch events: a
 `.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,

@@ -10,11 +10,38 @@ import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
  * (dialog.ts, Deal), and a character with Medicine chews herbs (DRINKS).
  *
  * In a shared world the server owns the pack (the store keeps it with the character); in a world
- * that the page runs, the page has its own pack, which it does not save.
+ * that the page runs, the page has its own pack, which it does not save. A character also wears
+ * items: armour, a shield, a weapon (gear.ts); it moves them between the pack and its worn slots
+ * (inventory.ts).
  */
 
 /** The kinds of item. The order is the code on the wire: add a new kind at the end. */
-export const ITEM_KINDS = ['imp-horn', 'brute-tusk', 'candle', 'ring', 'cup', 'herbs', 'draught', 'antidote', 'strong-draught'] as const;
+export const ITEM_KINDS = [
+  'imp-horn',
+  'brute-tusk',
+  'candle',
+  'ring',
+  'cup',
+  'herbs',
+  'draught',
+  'antidote',
+  'strong-draught',
+  // Equipment (gear.ts, 2026-10-11): what a character wears.
+  'leather-armour',
+  'scale-mail',
+  'chain-mail',
+  'splint-armour',
+  'shield',
+  'longsword',
+  'shortsword',
+  'rapier',
+  'greataxe',
+  'mace',
+  'longbow',
+  'arcane-staff',
+  'druid-staff',
+  'luck-amulet',
+] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The most of a kind in one slot. */
@@ -28,6 +55,20 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   draught: 5,
   antidote: 5,
   'strong-draught': 5,
+  'leather-armour': 1,
+  'scale-mail': 1,
+  'chain-mail': 1,
+  'splint-armour': 1,
+  shield: 1,
+  longsword: 1,
+  shortsword: 1,
+  rapier: 1,
+  greataxe: 1,
+  mace: 1,
+  longbow: 1,
+  'arcane-staff': 1,
+  'druid-staff': 1,
+  'luck-amulet': 1,
 };
 
 /**

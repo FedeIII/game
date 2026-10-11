@@ -48,6 +48,9 @@ const DAZED_TINT = 0xb4aaa6;
 /** The stars of a stun circle this high over the head, this wide. */
 const STAR_COUNT = 3;
 const STAR_TINT = 0xffe7a0;
+/** A glancing blow (Armour Class): a white spark at the chest, and the body pale as steel for a moment (ms). */
+const GLANCE_TINT = 0xd8e2f0;
+const GLANCE_FLASH_MS = 110;
 /** In shallow water the figure sinks this far (world pixels), and its frame ends at the water line. */
 const WADE_DEPTH = 5;
 /** The ripple round a wader: one frame for this long (ms), faster while it walks. */
@@ -77,6 +80,8 @@ export interface PlayerPose {
   readonly down?: number;
   /** Whether a poison is in it: it shows a sick green now and then. */
   readonly poisoned?: boolean;
+  /** Ticks left of the spark of a glancing blow, as in PlayerState. */
+  readonly glance?: number;
 }
 
 /** The frames of one look of the player: a stand, a walk and an attack for each facing. */
@@ -124,7 +129,7 @@ export class PlayerView {
    * nothing (the same pixels); over a tree that hides the player, it shows a faint figure.
    */
   readonly ghost: Sprite;
-  /** What shows above the darkness: the stars of a stun. The owner puts it in a layer above the lights. */
+  /** What shows above the darkness: the stars of a stun, the spark of a glancing blow. The owner puts it in a layer above the lights. */
   readonly overlay = new Container();
   private readonly body: Sprite;
   /** The effect of an attack: behind the body when the player faces up, in front of it otherwise. */
@@ -136,6 +141,9 @@ export class PlayerView {
   private tint = ATTACK_TINT.punch;
   private light: LightSource | null = null;
   private readonly stars: Sprite[] = [];
+  private readonly spark: Sprite;
+  private wasGlanced = false;
+  private glanceAt = -Infinity;
   private textures: PlayerTextures;
   private travelled = 0;
   private pending = false;
@@ -172,6 +180,9 @@ export class PlayerView {
       this.stars.push(star);
       this.overlay.addChild(star);
     }
+    this.spark = new Sprite(art.frame('pile/glint'));
+    this.spark.anchor.set(0.5);
+    this.overlay.addChild(this.spark);
     this.overlay.visible = false;
     this.setPending(pending);
   }
@@ -279,7 +290,10 @@ export class PlayerView {
     return cut;
   }
 
-  /** The attack (an arc and a small lunge), a hit (a red flash), a stun (stars) and the guard after it (a blink). */
+  /**
+   * The attack (an arc and a small lunge), a hit (a red flash), a stun (stars) and the guard after
+   * it (a blink), and a glancing blow (a spark, and a pale flash).
+   */
   private fight(state: PlayerPose, now: number): void {
     const attack = state.attack ?? 0;
     const stun = state.stun ?? 0;
@@ -310,17 +324,30 @@ export class PlayerView {
     if (stun > 0 && !this.wasStunned) this.hitAt = now;
     this.wasStunned = stun > 0;
     const sinceHit = now - this.hitAt;
+    const glance = state.glance ?? 0;
+    if (glance > 0 && !this.wasGlanced) this.glanceAt = now;
+    this.wasGlanced = glance > 0;
+    const sinceGlance = now - this.glanceAt;
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
     this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge) + (this.wading ? WADE_DEPTH : 0));
     if (!this.pending) {
       const sick = state.poisoned && Math.floor(now / 400) % 3 === 0;
-      this.body.tint = sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : sick ? POISON_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
+      this.body.tint =
+        sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : sinceGlance < GLANCE_FLASH_MS ? GLANCE_TINT : sick ? POISON_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;
     }
     // The guard after a stun: the player blinks, so everyone sees that mobs cannot hit it now.
     this.body.alpha = (state.guard ?? 0) > 0 && Math.floor(now / 90) % 2 === 0 ? 0.45 : 1;
     // The stars of a stun, circling round the top of the head (under the name).
-    this.overlay.visible = stun > 0;
+    this.overlay.visible = stun > 0 || glance > 0;
+    for (const star of this.stars) star.visible = stun > 0;
+    // The spark of a glancing blow, at the chest on the side that the player faces; it fades.
+    this.spark.visible = glance > 0;
+    if (glance > 0) {
+      const side = state.facing === 'left' ? -1 : state.facing === 'right' ? 1 : 0;
+      this.spark.position.set(this.root.x + side * 4, this.root.y - this.chestHeight + (state.facing === 'up' ? -2 : 1));
+      this.spark.alpha = Math.min(1, glance / 8);
+    }
     if (stun > 0) {
       const top = this.textures.headHeight - 2;
       this.stars.forEach((star, i) => {

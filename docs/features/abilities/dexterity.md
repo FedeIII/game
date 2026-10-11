@@ -135,14 +135,15 @@ less.
 **User Story:** As a ranger, I want to shoot arrows, so that I can hit mobs before they come near.
 
 **Acceptance Criteria:**
-- **AC-DEX-006.1:** Every attack of a ranger is an arrow, so a ranger has no blow at close range.
-  The other classes never shoot.
+- **AC-DEX-006.1:** Every attack of a character with a longbow in its main hand is an arrow, so it
+  has no blow at close range. A ranger starts with a longbow ([Equipment](../items/equipment.md),
+  REQ-EQ-011 and REQ-EQ-014). Without a bow, a character never shoots.
 - **AC-DEX-006.2:** An arrow flies straight at 240 px/s. It starts 6 px in front of the feet of the
   ranger.
 - **AC-DEX-006.3:** An arrow flies (5 + DEX modifier) tiles from the ranger: 4 tiles at −1, 5 at 0
   and 8 at +3.
 - **AC-DEX-006.4:** An arrow hits the first mob on its way that is alive. It takes the damage of the
-  ranger's blow (4 + DEX modifier) and pushes and staggers with the ranger's STR. The mob then
+  ranger's blow (the base damage of the longbow, 4, + DEX modifier) and pushes and staggers with the ranger's STR. The mob then
   goes for the ranger.
 - **AC-DEX-006.5:** A wall, a closed door, a window, a fixture with a solid box, a tree trunk or a
   rock stops an arrow. An arrow flies over deep and shallow water, and through an open door.
@@ -154,7 +155,7 @@ less.
   hit when the arrow reaches the mob. The other players see the arrows of the server within 30
   tiles of them.
 - **AC-DEX-006.10:** The builder and the "You" section show "Arrows fly" with the range in tiles
-  for a ranger.
+  for a character with a bow.
 
 ---
 

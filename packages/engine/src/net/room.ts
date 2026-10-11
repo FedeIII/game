@@ -1,6 +1,8 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
-import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, moveInPack, removeFromSlot, type Loot, type Pack } from '../items.ts';
+import { EMPTY_GEAR, gearSlotAt, type Gear } from '../gear.ts';
+import { dropWorn, moveItem } from '../inventory.ts';
+import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSlot, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
@@ -9,7 +11,7 @@ import { CHUNK_PIXELS } from '../constants.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
-import { guestTraits, meetsGate, sightOf, type PlayerTraits } from '../traits.ts';
+import { guestGear, guestTraits, meetsGate, sightOf, type PlayerTraits } from '../traits.ts';
 import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
@@ -21,6 +23,7 @@ import {
   fromWireInput,
   toWireLoot,
   toWireMob,
+  toWireGear,
   toWirePack,
   toWirePile,
   toWireToss,
@@ -104,10 +107,16 @@ export interface RoomPlayer {
   refilledMs: number;
   /** The door version that this player's client has. */
   doorVersion: number;
-  /** What its scores give (from its stored character; without one, guestTraits() of its look). */
-  readonly traits: PlayerTraits;
+  /** What its scores and its gear give (from its stored character; without one, guestTraits() of its look). */
+  traits: PlayerTraits;
+  /** The traits of its scores with other gear (JoinCharacter.traitsFor), or null: the traits do not change. */
+  readonly traitsFor: ((gear: Gear) => PlayerTraits) | null;
   /** What it carries. The server saves it with the character. */
   pack: Pack;
+  /** What it wears (gear.ts). The server saves it with the character. */
+  gear: Gear;
+  /** Whether the gear changed since the last snapshot. */
+  gearChanged: boolean;
   /** Whether the pack changed since the last snapshot, and the loot that it got since then. */
   packChanged: boolean;
   loot: WireLoot[];
@@ -140,10 +149,15 @@ export function seenChunks(x: number, y: number): [number, number][] {
   return out;
 }
 
-/** The character of a player who joins: its traits, its pack, its hit points and its refuges. */
+/** The character of a player who joins: its traits, its pack and gear, its hit points and its refuges. */
 export interface JoinCharacter {
+  /** Its traits with its gear. */
   readonly traits: PlayerTraits;
+  /** Its traits with other gear: the room calls it when the gear changes. Without it, the traits stay. */
+  readonly traitsFor?: (gear: Gear) => PlayerTraits;
   readonly pack?: Pack;
+  /** What it wears; without it, nothing. */
+  readonly gear?: Gear;
   /** Null or none: all of them. */
   readonly hp?: number | null;
   readonly refuges?: readonly string[];
@@ -277,8 +291,8 @@ export class Room {
    * - Without one (a new character): near `at` if that is close to the world's spawn, or else on
    *   the spawn itself, indoors too (the Wilds: in the home, the house of the cell (0, 0)).
    *
-   * `character` gives the player's traits and pack (from its stored character); without it, the
-   * player has guestTraits() of its look and an empty pack.
+   * `character` gives the player's traits, pack and gear (from its stored character); without it,
+   * the player has guestTraits() of its look, the kit of its class (guestGear) and an empty pack.
    */
   join(
     nowMs: number,
@@ -299,6 +313,7 @@ export class Room {
         ? this.world.findSpawn(at[0], at[1], 0)
         : resumePoint(this.world, anchor.x, anchor.y);
     const traits = character?.traits ?? guestTraits(skin);
+    const traitsFor = character ? (character.traitsFor ?? null) : (gear: Gear) => guestTraits(skin, gear);
     const state = createPlayer(start.x, start.y);
     // A character comes back with the hit points that it had (all of them after a defeat), and all its stamina.
     const hp = character?.hp ?? null;
@@ -319,7 +334,10 @@ export class Room {
       refilledMs: nowMs,
       doorVersion: this.doorVersion,
       traits,
+      traitsFor,
       pack: character?.pack ?? EMPTY_PACK,
+      gear: character ? (character.gear ?? EMPTY_GEAR) : guestGear(skin),
+      gearChanged: false,
       packChanged: false,
       loot: [],
       refuges: [...(character?.refuges ?? [])],
@@ -381,6 +399,7 @@ export class Room {
   welcome(player: RoomPlayer): WelcomeMessage {
     player.doorVersion = this.doorVersion;
     player.packChanged = false;
+    player.gearChanged = false;
     const piles = this.pilesNear(player);
     player.pileKey = pileKey(piles);
     return {
@@ -391,6 +410,7 @@ export class Room {
       doors: this.world.openDoorList(),
       fd: this.world.forcedDoorList(),
       pk: toWirePack(player.pack),
+      gr: toWireGear(player.gear),
       pl: piles,
       hp: player.state.hp,
       rf: [...player.refuges],
@@ -527,31 +547,56 @@ export class Room {
 
   /**
    * The player puts `count` items of slot `slot` of its pack (of the kind with code `code`) on the
-   * ground: just in front of it (dropPoint), or tossed towards `at` (tossPoint). Nothing happens if
-   * the slot does not hold them, or while the player lies defeated.
+   * ground: just in front of it (dropPoint), or tossed towards `at` (tossPoint). `slot` can be a
+   * worn slot (an address, gear.ts): the character takes the item off and drops it. Nothing happens
+   * if the slot does not hold them, or while the player lies defeated.
    */
   put(id: number, request: { readonly slot: number; readonly kind: number; readonly count: number; readonly at?: readonly [number, number] }, nowMs: number): void {
     const player = this.players.get(id);
     if (!player) return;
     // Its client changed its own pack at once: the next snapshot gives the truth, also when nothing happens.
     player.packChanged = true;
+    player.gearChanged = true;
     const kind = ITEM_KINDS[request.kind];
     if (!kind || player.state.down > 0) return;
-    const pack = removeFromSlot(player.pack, request.slot, kind, request.count);
-    if (!pack) return;
-    player.pack = pack;
+    const worn = gearSlotAt(request.slot);
+    if (worn !== null) {
+      const gear = request.count === 1 ? dropWorn(player.gear, worn, kind) : null;
+      if (!gear) return;
+      this.dress(player, gear);
+    } else {
+      const pack = removeFromSlot(player.pack, request.slot, kind, request.count);
+      if (!pack) return;
+      player.pack = pack;
+    }
     const at = request.at ? tossPoint(this.world, player.state, request.at[0], request.at[1]) : dropPoint(this.world, player.state);
     this.piles.put(at.x, at.y, [{ kind, count: request.count }], nowMs, player.state);
   }
 
-  /** The player moves the stack of slot `from` of its pack onto slot `to` (moveInPack). */
+  /**
+   * The player moves an item from `from` to `to` (addresses: pack slots and worn slots): a stack in
+   * the pack, or an item that its character puts on or takes off (moveItem). A defeated character
+   * moves stacks in its pack, but it does not change what it wears.
+   */
   move(id: number, from: number, to: number): void {
     const player = this.players.get(id);
     if (!player) return;
-    // Its client moved the stack at once: the next snapshot gives the truth, also when nothing moves.
+    // Its client moved the item at once: the next snapshot gives the truth, also when nothing moves.
     player.packChanged = true;
-    const pack = moveInPack(player.pack, from, to, player.traits.slots);
-    if (pack) player.pack = pack;
+    const worn = gearSlotAt(from) !== null || gearSlotAt(to) !== null;
+    if (worn) player.gearChanged = true;
+    if (worn && player.state.down > 0) return;
+    const moved = moveItem({ pack: player.pack, gear: player.gear }, from, to, player.traits.slots, player.traits.class);
+    if (!moved) return;
+    player.pack = moved.pack;
+    if (moved.gear !== player.gear) this.dress(player, moved.gear);
+  }
+
+  /** New gear for a player: its traits follow it (its Armour Class, its damage, its walk). */
+  private dress(player: RoomPlayer, gear: Gear): void {
+    player.gear = gear;
+    player.gearChanged = true;
+    if (player.traitsFor) player.traits = player.traitsFor(gear);
   }
 
   /** The player picks up a pile, if it can reach it: what fits goes into the pack, the rest stays on the ground. */
@@ -636,6 +681,8 @@ export class Room {
       p.namesVersion = this.namesVersion;
       const pack = p.packChanged;
       p.packChanged = false;
+      const gear = p.gearChanged;
+      p.gearChanged = false;
       const loot = p.loot;
       p.loot = [];
       const refuges = p.refugesChanged;
@@ -678,10 +725,12 @@ export class Room {
           s.drunk,
           s.wading ? 1 : 0,
           s.inspired,
+          s.glance,
         ],
         p: others,
         ...(changed ? { doors, fd: forced } : {}),
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
+        ...(gear ? { gr: toWireGear(p.gear) } : {}),
         ...(loot.length > 0 ? { l: loot } : {}),
         ...(pilesChanged ? { pl: piles } : {}),
         ...(tossed.length > 0 ? { ts: tossed } : {}),
