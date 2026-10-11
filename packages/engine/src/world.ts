@@ -5,6 +5,7 @@ import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
 import type { Gate } from './traits.ts';
 import type { ItemKind, LootTable } from './items.ts';
+import type { QuestDef } from './quests.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
 export const Ground = {
@@ -404,6 +405,11 @@ export interface WorldDefinition {
    * text of its content.
    */
   readonly texts?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /**
+   * The world's quests (quests.ts): the journal shows the steps of a character's quests from them.
+   * Effects (in dialogs, on things) move them on.
+   */
+  readonly quests?: readonly QuestDef[];
   /**
    * Whether visitors share this world through the multiplayer server: each one sees the others,
    * and the server owns the state (positions, doors). Without it, the world is single-player.

@@ -99,16 +99,18 @@ describe('the buried cache of Ironhold', () => {
 describe('insight in the conversations of Ironhold', () => {
   const insight = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers.filter((a) => a.gate === INSIGHT_GATE));
 
-  it('gives each of the four people one answer behind WIS 13', () => {
+  it('gives each of the four people one answer behind WIS 13 (the reeve one more, for the story)', () => {
     expect(INSIGHT_GATE).toEqual({ ability: 'wis', min: 13 });
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE]) {
-      expect(insight(dialog), dialog.name).toHaveLength(1);
+      expect(insight(dialog), dialog.name).toHaveLength(dialog === REEVE ? 2 : 1);
       expect(checkDialog(dialog), dialog.name).toEqual([]);
     }
+    // The second one of the reeve: she fears more than bandits (quests.ts, ashes).
+    expect(insight(REEVE).map((a) => a.next)).toContain('fear');
   });
 
   it('lets the reeve tell where the cache is, and the apothecary that herbs grow in the woods', () => {
-    const [reeve] = insight(REEVE);
+    const reeve = insight(REEVE).find((a) => a.next === 'couple');
     expect(REEVE.nodes[reeve!.next!]!.say).toContain('across the lane from their door');
     const [apothecary] = insight(APOTHECARY);
     expect(APOTHECARY.nodes[apothecary!.next!]!.say).toContain('between the trees');

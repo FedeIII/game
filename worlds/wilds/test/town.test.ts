@@ -208,7 +208,9 @@ describe('Ironhold', () => {
       }
       expect(seen.size, npc.id).toBe(tiles.size);
     }
-    expect(source.npcs()).toBe(TOWN_NPCS);
+    // The people of the town first, then the merchant on the road (road.ts).
+    expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
+    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant']);
   });
 
   it('has people who talk with the player: conversations with answers that branch', () => {

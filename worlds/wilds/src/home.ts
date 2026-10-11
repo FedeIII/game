@@ -1,5 +1,6 @@
 import { TILE_SIZE, type Building, type Fixture } from '@game/engine';
 import { BUILDING_CELL, CANDLE, DOOR_PATH } from './houses.ts';
+import { READ_LETTER } from './quests.ts';
 
 /**
  * The player's home: a small hut in the middle of the wilds, in the cell (0, 0). Every character
@@ -19,7 +20,12 @@ const TEXTS = {
   bed: ['Your bed. The straw is fresh.'],
   chest: ['Your chest. Nothing in it yet.'],
   bookshelf: ['Your few books. You know them by heart.'],
-  table: ['Your table. The candle never quite goes out.'],
+  // The letter of Thrain Steelforge: to read it starts the story (quests.ts, READ_LETTER).
+  table: [
+    'Your table. A letter lies by the candle, sealed with a hammer and an anvil.',
+    'It is from Thrain Steelforge: "Homesteads burn in the Wilds, one after another, and nobody knows who burns them. Find out for me."',
+    '"Begin in Ironhold, west down the road. The reeve there, Elama Rothenel, wrote to me first. Thrain."',
+  ],
   barrel: ['Water from the stream. Cold, and good.'],
 } as const;
 
@@ -37,7 +43,7 @@ function hut(x0: number, y0: number): Building {
     { kind: 'bed', tx: ix0, ty: iy0 + 1, content: { pages: [...TEXTS.bed], rest: true } },
     { kind: 'chest', tx: ix0, ty: iy0 + 2, ...say('chest') },
     { kind: 'bookshelf', tx: ix0 + 4, ty: iy0, ...say('bookshelf') },
-    { kind: 'table', tx: ix0 + 3, ty: iy0 + 1, light: CANDLE, ...say('table') },
+    { kind: 'table', tx: ix0 + 3, ty: iy0 + 1, light: CANDLE, content: { pages: [...TEXTS.table], effect: READ_LETTER } },
     { kind: 'barrel', tx: ix0 + 4, ty: iy0 + 3, ...say('barrel') },
   ];
   return {

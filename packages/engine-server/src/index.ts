@@ -237,6 +237,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
           hp: character.hp,
           refuges: character.refuges,
           explored: character.explored,
+          quests: character.quests,
         };
       }
       const player = room.join(t, skin, message.at, name, place, stored);
@@ -254,10 +255,26 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     if (message.t === 'skin') return accounts ? undefined : client.room.setSkin(client.playerId, message.skin, t);
     if (message.t === 'name') return accounts ? undefined : client.room.setName(client.playerId, message.name);
     if (message.t === 'deal') return client.room.deal(client.playerId, message, message.deal);
+    if (message.t === 'quest') {
+      // A step and its reward: saved at once, together, so a crash neither loses nor repeats a reward.
+      if (client.room.quest(client.playerId, message, message.effect, t)) saveQuests(client);
+      return;
+    }
     if (message.t === 'drink') return client.room.drink(client.playerId, message.kind);
     if (message.t === 'put') return client.room.put(client.playerId, message, t);
     if (message.t === 'move') return client.room.move(client.playerId, message.from, message.to);
     client.room.input(client.playerId, message, t);
+  }
+
+  /** Notes the quest book and the pack of the character of a client (with accounts, in a room). */
+  function saveQuests(client: Client): void {
+    const player = client.room?.player(client.playerId);
+    if (!accounts || !client.user || !client.character || !player) return;
+    try {
+      accounts.saveQuests(client.user, client.character, player.quests, player.pack);
+    } catch (error) {
+      log(`quests: ${(error as Error).message}`);
+    }
   }
 
   /** Notes where the character of a client is now, and what it carries and wears (with accounts, in a room). */
@@ -270,6 +287,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       accounts.saveGear(client.user, client.character, player.gear);
       accounts.saveVitals(client.user, client.character, player.state.hp, player.refuges);
       accounts.saveExplored(client.user, client.character, exploredList(player.explored));
+      accounts.saveQuests(client.user, client.character, player.quests, player.pack);
     } catch (error) {
       log(`place: ${(error as Error).message}`);
     }

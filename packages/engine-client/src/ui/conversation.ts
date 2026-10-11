@@ -1,7 +1,32 @@
 import type { Texture } from 'pixi.js';
-import { PLAIN_SCORES, gateView, type Deal, type Dialog, type DialogAnswer, type DialogNode, type Gate, type Scores } from '@game/engine';
+import {
+  EMPTY_BOOK,
+  EMPTY_PACK,
+  PLAIN_SCORES,
+  answerHolds,
+  canApply,
+  gateView,
+  startNode,
+  type Deal,
+  type Dialog,
+  type DialogAnswer,
+  type DialogNode,
+  type Gate,
+  type Pack,
+  type QuestBook,
+  type QuestEffect,
+  type Scores,
+} from '@game/engine';
 import { STRINGS } from './strings.ts';
 import { tw } from '../i18n.ts';
+
+/** What the conditions of a conversation read: the character's quest book and pack, now (quests.ts). */
+export interface ConversationFacts {
+  readonly book: () => QuestBook;
+  readonly pack: () => Pack;
+}
+
+const NO_FACTS: ConversationFacts = { book: () => EMPTY_BOOK, pack: () => EMPTY_PACK };
 
 /**
  * A conversation with an NPC that has a dialog (Interaction.dialog, the engine's dialog.ts): the
@@ -12,16 +37,19 @@ export class Conversation {
   readonly dialog: Dialog;
   /** The scores of the player: they decide which answers behind a gate it sees (gateView). */
   readonly scores: Scores;
+  /** The quest book and the pack: they decide the first node (Dialog.starts) and which answers with conditions or effects it sees. */
+  readonly facts: ConversationFacts;
   private nodeId: string;
   /** The index of the selected answer. */
   selected = 0;
   /** What the player answered last (it shows over the NPC's reply), or null at the start. */
   answered: string | null = null;
 
-  constructor(dialog: Dialog, scores: Scores = PLAIN_SCORES) {
+  constructor(dialog: Dialog, scores: Scores = PLAIN_SCORES, facts: ConversationFacts = NO_FACTS) {
     this.dialog = dialog;
     this.scores = scores;
-    this.nodeId = dialog.start;
+    this.facts = facts;
+    this.nodeId = startNode(dialog, facts.book(), facts.pack());
     this.selected = this.firstOpen();
   }
 
@@ -33,9 +61,16 @@ export class Conversation {
     return this.dialog.nodes[this.nodeId]!;
   }
 
-  /** The answers that the player sees: an answer behind a gate shows only open or as a clue (gateView). */
+  /**
+   * The answers that the player sees: an answer behind a gate shows only open or as a clue
+   * (gateView); one with conditions only when they hold; one with an effect only when it can apply.
+   */
   get answers(): readonly DialogAnswer[] {
-    return this.node.answers.filter((a) => !a.gate || gateView(this.scores, a.gate) !== 'hidden');
+    const book = this.facts.book();
+    const pack = this.facts.pack();
+    return this.node.answers.filter(
+      (a) => (!a.gate || gateView(this.scores, a.gate) !== 'hidden') && answerHolds(a, book, pack) && (!a.effect || canApply(a.effect, book, pack)),
+    );
   }
 
   /** Whether the answer `index` is a dim clue: behind a gate that the player is 1 or 2 short of. */
@@ -66,6 +101,14 @@ export class Conversation {
   choose(index: number, paid = false): DialogNode | null {
     const answer = this.answers[index];
     if (!answer || this.dim(index)) return null;
+    return this.give(answer, paid);
+  }
+
+  /**
+   * Gives `answer` (one of `answers`, not dim: the caller checked it, before its effect changed the
+   * book). Returns the next node, or null if the answer ends the conversation.
+   */
+  give(answer: DialogAnswer, paid = false): DialogNode | null {
     if (answer.next === undefined) {
       this.answered = answer.text;
       return null;
@@ -138,6 +181,8 @@ export interface ConversationEvents {
   readonly end: () => void;
   /** The player gives an answer with a deal: the game makes the purchase, and says whether the player could pay. */
   readonly deal?: (deal: Deal) => boolean;
+  /** The player gives an answer with an effect on a quest: the game applies it (or sends it), and says whether it did. */
+  readonly effect?: (effect: QuestEffect) => boolean;
 }
 
 /**
@@ -223,8 +268,8 @@ export class ConversationPanel {
    * player with `scores`. `priceOf` gives the tag after an answer with a deal ("(2 coins)"), or
    * null for none: the price for this player (Charisma).
    */
-  start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES, priceOf: (deal: Deal) => string | null = () => null): void {
-    this.talk = new Conversation(dialog, scores);
+  start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES, priceOf: (deal: Deal) => string | null = () => null, facts: ConversationFacts = NO_FACTS): void {
+    this.talk = new Conversation(dialog, scores, facts);
     this.priceOf = priceOf;
     this.name.textContent = tw(dialog.name);
     if (face) drawCloseup(this.portrait, face);
@@ -248,8 +293,10 @@ export class ConversationPanel {
   choose(index: number): void {
     const talk = this.talk;
     if (!talk || index < 0 || index >= talk.answers.length || talk.dim(index)) return;
-    const deal = talk.answers[index]!.deal;
-    const next = talk.choose(index, deal ? (this.events.deal?.(deal) ?? false) : false);
+    const answer = talk.answers[index]!;
+    // An effect that the game could not apply (the server is not there): nothing changes.
+    if (answer.effect && !(this.events.effect?.(answer.effect) ?? false)) return;
+    const next = talk.give(answer, answer.deal ? (this.events.deal?.(answer.deal) ?? false) : false);
     if (!next) {
       this.end();
       return;
@@ -261,6 +308,15 @@ export class ConversationPanel {
   private end(): void {
     this.close();
     this.events.end();
+  }
+
+  /** Shows the answers again: the quest book or the pack changed (the server's word came). */
+  refresh(): void {
+    const talk = this.talk;
+    if (!talk) return;
+    const selected = talk.selected;
+    this.render();
+    this.select(Math.min(selected, Math.max(0, talk.answers.length - 1)));
   }
 
   private render(): void {

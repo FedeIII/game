@@ -4,7 +4,7 @@ import type { Dialog, Interaction, WorldDefinition, WorldSource } from '@game/en
  * Every text of a world's content that a player can read, as the content has it (in English):
  * the name of the world, the lines of `examine` and `items`, the signs and the lines of the
  * buildings, the pages, lore, links and dialogs of the fixtures and the NPCs, the lines and
- * greetings of the NPCs, and the names of the landmarks. It reads the content through the source,
+ * greetings of the NPCs, the names of the landmarks, and the titles and journal lines of the quests. It reads the content through the source,
  * in a square of `radius` tiles round the home: the town and many houses of the Wilds.
  */
 export function worldTexts(definition: WorldDefinition, source: WorldSource, radius = 200): Set<string> {
@@ -48,5 +48,9 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
   }
   for (const fixture of source.fixturesIn(-radius, -radius, radius, radius)) content(fixture.content);
   for (const mark of source.landmarks?.() ?? []) add(mark.name);
+  for (const quest of definition.quests ?? []) {
+    add(quest.title);
+    for (const step of quest.steps) add(step.journal);
+  }
   return texts;
 }

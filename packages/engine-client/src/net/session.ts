@@ -5,6 +5,7 @@ import {
   Remotes,
   TILE_SIZE,
   dropWorn,
+  fromWireBook,
   fromWireGear,
   fromWirePack,
   fromWirePiles,
@@ -24,6 +25,7 @@ import {
   type ItemKind,
   type Pile,
   type PlayerTraits,
+  type QuestBook,
   type Toss,
   type DoorResult,
   type Feet,
@@ -107,6 +109,9 @@ export class NetSession {
   refuges: readonly string[] | null = null;
   private readonly wokeListeners: ((lost: number) => void)[] = [];
   private readonly refugeListeners: ((refuges: readonly string[]) => void)[] = [];
+  /** The quest book of the character, in the server's last word (null before the welcome). */
+  quests: QuestBook | null = null;
+  private readonly questListeners: ((before: QuestBook, after: QuestBook) => void)[] = [];
   private traits: PlayerTraits;
   private socket: WebSocket | null = null;
   private readonly character: string | null;
@@ -159,6 +164,18 @@ export class NetSession {
   /** Calls `listener` when the refuges of the character change (it entered a new one). */
   onRefuges(listener: (refuges: readonly string[]) => void): void {
     this.refugeListeners.push(listener);
+  }
+
+  /** Calls `listener` when the quest book of the character changes (an effect: a quest started, moved on or ended). */
+  onQuests(listener: (before: QuestBook, after: QuestBook) => void): void {
+    this.questListeners.push(listener);
+  }
+
+  /** An effect on a quest through the server: an answer to an NPC (its index) or a thing that the player reads (a tile of it). False while not online. */
+  quest(from: { readonly npc: number } | { readonly at: readonly [number, number] }, effect: string): boolean {
+    if (this.status !== 'online') return false;
+    this.send({ t: 'quest', ...from, effect });
+    return true;
   }
 
   /** A deal through the server, with an NPC (its index in the world's NPCs) or a fixture (a tile of it). False while not online. */
@@ -384,6 +401,7 @@ export class NetSession {
         this.piles = fromWirePiles(message.pl ?? []);
         this.id = message.id;
         this.refuges = message.rf;
+        this.quests = fromWireBook(message.qs ?? []);
         this.explored.clear();
         for (const [cx, cy] of message.ex) this.explored.add(`${cx},${cy}`);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
@@ -410,6 +428,11 @@ export class NetSession {
           const before = this.refuges;
           this.refuges = message.rf;
           if (before !== null) for (const listener of this.refugeListeners) listener(message.rf);
+        }
+        if (message.qs) {
+          const before = this.quests;
+          this.quests = fromWireBook(message.qs);
+          if (before !== null) for (const listener of this.questListeners) listener(before, this.quests);
         }
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);

@@ -1,4 +1,5 @@
 import type { Dialog } from './dialog.ts';
+import type { Conditions, QuestEffect } from './quests.ts';
 import type { Gate } from './traits.ts';
 import type { Box } from './world.ts';
 
@@ -104,6 +105,8 @@ export const FIXTURE_TYPES = [
   // Low things on the ground that do not collide, but that the player can act on.
   { id: 27, kind: 'herbpatch', tiles: [{ dx: 0, dy: 0, box: null, reach: [3, 4, 13, 14] }], depth: 6 },
   { id: 28, kind: 'cache', tiles: [{ dx: 0, dy: 0, box: null, reach: [3, 4, 13, 14] }], depth: 6 },
+  // A two-wheeled cart, two tiles wide (the merchant's, on the road to Ironhold: 2026-10-11).
+  { id: 29, kind: 'cart', tiles: TWO_WIDE(4, 13), depth: 8 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
@@ -172,6 +175,12 @@ export interface Interaction {
    * after the pages; one 1 or 2 under it reads a clue with the gate (gateView); others nothing.
    */
   readonly lore?: readonly Lore[];
+  /**
+   * What reading it does to a quest (quests.ts): a letter that starts one. It applies when the
+   * character reads the first page, if it can apply (canApply). In a shared world the server checks
+   * the nearness and the effect again (Room.quest).
+   */
+  readonly effect?: QuestEffect;
 }
 
 /** Pages that only a character with a score reads (Interaction.lore). */
@@ -212,6 +221,11 @@ export interface Fixture {
    * `seek` (Wisdom, PlayerTraits). Only the page hides it; acting on it needs no more than reach.
    */
   readonly hidden?: boolean;
+  /**
+   * Another frame for the characters for whom the conditions hold (quests.ts): the cart that a
+   * character mended shows mended to that character. Only the page draws it; the footprint stays.
+   */
+  readonly variant?: { readonly when: Conditions; readonly frame: string };
 }
 
 /** The tiles that a fixture covers, with the structure code of each. */

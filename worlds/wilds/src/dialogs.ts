@@ -1,4 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
+import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, TELL_REEVE } from './quests.ts';
 
 /**
  * The conversations of the people of Ironhold (town.ts): what each one says, and what the
@@ -12,6 +13,8 @@ const BYE = { text: 'Goodbye.' } as const;
 export const LORE_GATE: Gate = { ability: 'int', min: 13 };
 /** The gate of insight: Wisdom 13 (answers that see what a person hides). */
 export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };
+/** The gate of athletics: Strength 13 (answers that lift or push what is heavy). */
+export const ATHLETICS_GATE: Gate = { ability: 'str', min: 13 };
 /** The gate of persuasion: Charisma 13 (answers that win a person over). */
 export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };
 
@@ -229,7 +232,29 @@ export const APOTHECARY: Dialog = {
 export const REEVE: Dialog = {
   name: 'Elama Rothenel, the reeve',
   start: 'reeve',
+  // A character with the letter of Thrain Steelforge (quests.ts, ashes).
+  starts: [{ when: { quest: 'ashes', at: ['letter'] }, node: 'letter' }],
   nodes: {
+    letter: {
+      say: 'I am the reeve of Ironhold. Of what is left of it. You look like somebody with business here.',
+      answers: [
+        { text: 'Thrain Steelforge sent me. Who burns the homesteads?', next: 'burned', effect: TELL_REEVE },
+        { text: 'No business. What happened to the town?', next: 'happened' },
+        BYE,
+      ],
+    },
+    burned: {
+      say: 'Steelforge sent you? Good. Three homesteads burned since the spring. Nobody saw who burned them.',
+      answers: [{ text: 'What else do you know?', next: 'searched' }, { text: 'You fear that it is more than bandits.', next: 'fear', gate: INSIGHT_GATE }, BYE],
+    },
+    searched: {
+      say: 'Every house was searched before the fire. The chests, the floors, even the hearths. Whoever it is, they look for something.',
+      answers: [{ text: 'I will find out who.' }],
+    },
+    fear: {
+      say: 'Bandits take the coins and run. These leave the coins, and take the time to burn. That is not hunger.',
+      answers: [{ text: 'What else do you know?', next: 'searched' }, BYE],
+    },
     reeve: {
       say: 'I am the reeve of Ironhold. Of what is left of it.',
       answers: [
@@ -368,7 +393,21 @@ const scrap = (kind: SmithWare, text: string) =>
 export const SMITH: Dialog = {
   name: 'The smith',
   start: 'forge',
+  // A character who helps the merchant on the road (quests.ts, cart), without a lever.
+  starts: [{ when: [{ quest: 'cart', at: ['met', 'lever'] }, { has: 'crowbar', not: true }], node: 'cart' }],
   nodes: {
+    cart: {
+      say: 'Mind the forge. It bites. You look like somebody who needs iron.',
+      answers: [
+        { text: 'A merchant on the road needs a lever for a broken cart.', next: 'lever', effect: CART_LEVER, when: { has: 'crowbar', not: true } },
+        { text: 'Something else.', next: 'forge' },
+        BYE,
+      ],
+    },
+    lever: {
+      say: 'A cart in the mud, on that road? Take this lever. Tell the merchant that my forge sells nails too.',
+      answers: [{ text: 'Thank you.' }],
+    },
     forge: {
       say: 'Mind the forge. It bites. I sell iron, and I buy it back when you do not need it.',
       answers: [
@@ -488,6 +527,76 @@ export const PEDDLER: Dialog = {
     none: {
       say: 'You do not have one. I do not buy promises.',
       answers: [{ text: 'Something else.', next: 'wares' }, BYE],
+    },
+  },
+};
+
+/**
+ * The merchant by a broken cart on the road to Ironhold (chapter 1.5.1 of Kandrax: on the way to
+ * see if a trade between Ironhold and Silverspring can work). The first errand of the story
+ * (quests.ts, cart): a strong character lifts the cart, any other brings a lever from the smith.
+ * After the help, the merchant tells what a trader hears (more with Intelligence or Charisma).
+ */
+export const MERCHANT: Dialog = {
+  name: 'The merchant',
+  start: 'cart',
+  starts: [
+    { when: { quest: 'cart', at: ['met', 'lever'] }, node: 'again' },
+    { when: { quest: 'cart', at: ['done'] }, node: 'thanks' },
+  ],
+  nodes: {
+    cart: {
+      say: 'Careful, the mud is deep here. The wheel came off, and I cannot lift the cart and put the wheel on at once.',
+      answers: [{ text: 'Can I help?', next: 'help', effect: CART_HELP }, { text: 'Where are you going?', next: 'where' }, BYE],
+    },
+    where: {
+      say: 'To Ironhold, to see if this road can carry a trade. Silverspring needs tools, and Ironhold has a forge.',
+      answers: [{ text: 'Can I help with the cart?', next: 'help', effect: CART_HELP }, BYE],
+    },
+    help: {
+      say: 'Somebody must lift the cart while I put the wheel on. Or bring me a lever: the smith of Ironhold has iron to spare.',
+      answers: [
+        { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
+        { text: 'I will ask the smith for a lever.' },
+        { text: 'Not now.' },
+      ],
+    },
+    again: {
+      say: 'Back again? The wheel is still in the mud.',
+      answers: [
+        { text: 'Here: a lever from the smith.', next: 'levered', effect: CART_MEND },
+        { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
+        { text: 'Where are you going?', next: 'where' },
+        { text: 'Not yet.' },
+      ],
+    },
+    lifted: {
+      say: 'Hold it... there! The wheel is on. Take these coins. You saved me a day in the mud.',
+      answers: [{ text: 'What news do you bring?', next: 'news' }, BYE],
+    },
+    levered: {
+      say: 'A good lever! Now it is easy... There. The wheel is on. Take these coins. You saved me a day in the mud.',
+      answers: [{ text: 'What news do you bring?', next: 'news' }, BYE],
+    },
+    thanks: {
+      say: 'The wheel holds, thanks to you. I rest a little, then I go on to Ironhold.',
+      answers: [{ text: 'What news do you bring?', next: 'news' }, BYE],
+    },
+    news: {
+      say: 'Silverspring digs mithril, but it needs tools and blades. Ironhold has a forge, and it looks at that mithril with hungry eyes.',
+      answers: [
+        { text: 'The Sovereignty and the Enclave both claim these woods.', next: 'claim', gate: LORE_GATE },
+        { text: 'A trader hears more than that. Tell me the rest.', next: 'rest', gate: PERSUASION_GATE },
+        BYE,
+      ],
+    },
+    claim: {
+      say: 'You know your history. The Iron Sovereignty and the Mithril Enclave both want the Wilds, and neither of them plays fair.',
+      answers: [BYE],
+    },
+    rest: {
+      say: 'Between us: the Sovereignty and the Enclave fight for these woods with dirty tricks. Be careful who pays you.',
+      answers: [BYE],
     },
   },
 };

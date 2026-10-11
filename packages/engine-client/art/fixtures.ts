@@ -455,6 +455,49 @@ function cache(): Part[] {
   ];
 }
 
+/**
+ * A merchant's cart, two tiles wide, its long side to the south: a plank bed with low sides, two
+ * crates and a sack on it, two shafts to the east, a wheel on each side of the axle, and a lantern
+ * on a pole at the west end. Broken,
+ * the south wheel lies flat in the mud and a stone props the axle; mended (`cart-mended`, the frame
+ * of a character who mended it), the wheel is on.
+ */
+function cart(mended: boolean): Part[] {
+  const wheel = (z: number): Part[] => {
+    const rim = subtract(cylinder([13, 5, z], 'z', 5, 1.2), cylinder([13, 5, z], 'z', 4, 2));
+    const spokes = union(box([12.5, 0.6, z - 0.4], [13.5, 9.4, z + 0.4]), box([8.6, 4.5, z - 0.4], [17.4, 5.5, z + 0.4]));
+    return [
+      { sdf: rim, material: M.woodDark },
+      { sdf: spokes, material: M.wood },
+      { sdf: cylinder([13, 5, z], 'z', 1.2, 1.8), material: M.iron },
+    ];
+  };
+  const fallen: Part[] = [
+    { sdf: subtract(cylinder([22, 0.6, -1.6], 'y', 5, 1.2), cylinder([22, 0.6, -1.6], 'y', 4, 2)), material: M.woodDark },
+    { sdf: union(box([21.5, 0, -6.2], [22.5, 1.2, 3]), box([17.4, 0, -2.1], [26.6, 1.2, -1.1])), material: M.wood },
+    { sdf: cylinder([22, 0.8, -1.6], 'y', 1.2, 1.6), material: M.iron },
+    // The stone that props the axle where the wheel was.
+    { sdf: displace(box([10.6, 0, -4.6], [15.4, 4.4, -1.6], 0.6), 0.8, 0.9, 17), material: M.stoneB },
+  ];
+  const plank = (x: number) => (Math.abs(((x + 32) % 4) - 2) < 0.25 ? M.woodDark : M.wood);
+  // A lantern on a pole at the west end: it keeps the mobs away, as the lamps of the town do.
+  const lanternFrame = (x: number, y: number) => (Math.abs(x - 2.6) < 0.5 || Math.abs(x - 5.4) < 0.5 || Math.abs(y - 15.4) < 0.5 || Math.abs(y - 18.6) < 0.5 ? M.iron : M.lanternGlass);
+  return [
+    { sdf: cylinder([4, 10, -4.8], 'y', 0.5, 20), material: M.woodDark },
+    { sdf: box([2.4, 15, -6.4], [5.6, 19, -3.2]), material: lanternFrame },
+    { sdf: roundCone([4, 19, -4.8], [4, 21, -4.8], 2.2, 0.3), material: M.iron },
+    ...wheel(-13),
+    ...(mended ? wheel(-2.6) : fallen),
+    { sdf: box([3, 5, -12.5], [26, 7, -3.5], 0.3), material: plank },
+    { sdf: union(box([3, 7, -12.5], [26, 9.5, -11.6]), box([3, 7, -4.4], [26, 9.5, -3.5]), box([3, 7, -12.5], [3.9, 9.5, -3.5]), box([25.1, 7, -12.5], [26, 9.5, -3.5])), material: M.beam },
+    { sdf: union(roundCone([26, 6.2, -11], [31.4, 2.4, -11], 0.5, 0.45), roundCone([26, 6.2, -5], [31.4, 2.4, -5], 0.5, 0.45)), material: M.woodDark },
+    { sdf: box([6, 7, -11], [12, 12.4, -5.4], 0.3), material: (x, y, z) => ([x - 6, 12 - x, y - 7, 12.4 - y, z + 11, -5.4 - z].filter((d) => d < 1).length >= 2 ? M.woodDark : M.wood) },
+    { sdf: box([13, 7, -10.6], [17.6, 10.6, -6.2], 0.3), material: (x, y, z) => ([x - 13, 17.6 - x, y - 7, 10.6 - y, z + 10.6, -6.2 - z].filter((d) => d < 0.9).length >= 2 ? M.woodDark : M.wood) },
+    { sdf: displace(ellipsoid([21.4, 9.6, -8.2], [3.4, 2.8, 3]), 0.6, 0.8, 23), material: M.linen },
+    { sdf: box([7.2, 12.4, -10], [10.8, 12.8, -6.4]), material: M.iron },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -485,5 +528,7 @@ export function fixtureFrames(): Frame[] {
     fixture('signpost', signpost(), 24, 40),
     fixture('herbpatch', herbpatch(), 24, 24),
     fixture('cache', cache(), 24, 24),
+    fixture('cart', cart(false), 48, 40),
+    { ...fixture('cart', cart(true), 48, 40), name: 'fixture/cart-mended' },
   ];
 }

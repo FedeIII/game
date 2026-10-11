@@ -4,6 +4,7 @@ import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemKind, type ItemStack, type 
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
 import type { Pile, Toss } from '../piles.ts';
 import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.ts';
+import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
 
 /**
  * The multiplayer protocol: JSON messages over one WebSocket. The client sends its inputs, the
@@ -13,7 +14,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 22;
+export const PROTOCOL_VERSION = 23;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -236,7 +237,32 @@ export interface MoveMessage {
   readonly to: number;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage;
+/**
+ * An effect on a quest (quests.ts, QuestEffect): an answer in a conversation with an NPC (`npc`: its
+ * index in WorldSource.npcs()) or a thing that the player reads (`at`: a tile of it, the letter),
+ * and `effect`, the id of the effect there. The server checks the nearness, the gate and the
+ * conditions of the answer, and the effect; then it changes the book and the pack (protocol 23).
+ */
+export interface QuestMessage {
+  readonly t: 'quest';
+  readonly npc?: number;
+  readonly at?: readonly [number, number];
+  readonly effect: string;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage | QuestMessage;
+
+/** A quest book on the wire: [quest, step, order, flags] for each quest (quests.ts). */
+export type WireBook = readonly (readonly [string, string, number, readonly string[]])[];
+
+export function toWireBook(book: QuestBook): WireBook {
+  return Object.entries(book).map(([quest, e]) => [quest, e.step, e.n, [...e.flags]] as const);
+}
+
+/** A book from the wire (checkQuests checks it). */
+export function fromWireBook(wire: WireBook): QuestBook {
+  return checkQuests(Object.fromEntries(wire.map(([quest, step, n, flags]) => [quest, { step, n, flags }])));
+}
 
 /** A player's skin changes at most this often (ms): every change makes every other client render a skin. */
 export const SKIN_CHANGE_GAP_MS = 2000;
@@ -440,6 +466,8 @@ export interface WelcomeMessage {
   readonly pk: WirePack;
   /** What its character wears (gear.ts). */
   readonly gr: WireGear;
+  /** Its character's quest book (protocol 23). */
+  readonly qs: WireBook;
   /** The piles on the ground near the player (within PILE_SEND_RADIUS). */
   readonly pl: readonly WirePile[];
 }
@@ -462,6 +490,8 @@ export interface SnapshotMessage {
   readonly pk?: WirePack;
   /** What the player wears, when it changed. */
   readonly gr?: WireGear;
+  /** The player's quest book, when it changed (protocol 23). Only the player gets its own book. */
+  readonly qs?: WireBook;
   /** What shows of the gear of every player (SHOWN_SLOTS), `[id, look]`, when one changed or a player came or went (protocol 20). */
   readonly lk?: readonly (readonly [number, WireLook])[];
   /** The loot that the player got since the last snapshot. */
@@ -622,6 +652,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (typeof m.deal !== 'string' || !/^[a-z0-9-]{1,32}$/.test(m.deal)) return null;
       if (isInt(m.npc, 0, 1000) && m.at === undefined) return { t: 'deal', npc: m.npc, deal: m.deal };
       if (m.npc === undefined && isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'deal', at: m.at as [number, number], deal: m.deal };
+      return null;
+    }
+    case 'quest': {
+      if (typeof m.effect !== 'string' || !QUEST_ID.test(m.effect)) return null;
+      if (isInt(m.npc, 0, 1000) && m.at === undefined) return { t: 'quest', npc: m.npc, effect: m.effect };
+      if (m.npc === undefined && isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'quest', at: m.at as [number, number], effect: m.effect };
       return null;
     }
     case 'drink':

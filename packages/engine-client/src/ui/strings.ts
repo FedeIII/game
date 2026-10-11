@@ -87,6 +87,7 @@ const EN = {
     'belt-of-dwarvenkind': { name: 'Belt of dwarvenkind', a: 'a belt of dwarvenkind', many: 'belts of dwarvenkind' },
     'boots-of-elvenkind': { name: 'Boots of elvenkind', a: 'boots of elvenkind', many: 'pairs of boots of elvenkind' },
     glaive: { name: 'Glaive', a: 'a glaive', many: 'glaives' },
+    crowbar: { name: 'Lever', a: 'a lever', many: 'levers' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -112,6 +113,18 @@ const EN = {
     heading: 'Map',
     note: 'What you have seen of the land.',
     alone: 'Played alone: the map is not saved.',
+  },
+  /** The journal (ui/journal-panel.ts): the quests of the character, and the banner when one changes. */
+  journal: {
+    button: 'Journal',
+    heading: 'Journal',
+    open: 'Quests',
+    done: 'Done',
+    empty: 'Nothing to do yet. Read what lies about, and talk to people.',
+    alone: 'Played alone: the journal is not saved.',
+    started: 'New quest',
+    moved: 'Quest updated',
+    ended: 'Quest done',
   },
   /** The vitals (ui/vitals.ts): hit points, stamina, effects. */
   vitals: {
@@ -365,6 +378,7 @@ const EN = {
     signpost: 'signpost',
     herbpatch: 'herbs',
     cache: 'dug earth',
+    cart: 'cart',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

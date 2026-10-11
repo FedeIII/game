@@ -619,7 +619,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 22.
+protocol: `docs/multiplayer.md`, protocol 23.
 
 ## Language
 
@@ -636,6 +636,30 @@ SAB, CAR; CA). **A Spanish line about the player has no word that must agree wit
 New Spanish text must fit the conversation panel and use only letters that the pixel font draws
 (tests: `worlds/wilds/test/texts.test.ts`, `apps/game/test/texts.test.ts`). The privacy page has a
 Spanish copy at `/privacy/es/`.
+
+## Quests
+
+Since 2026-10-11 (story phase 2; `docs/features/game/quests.md`). `packages/engine/src/quests.ts`:
+a world gives its quests (`WorldDefinition.quests`: `QuestDef`, steps with a journal line, an
+optional place to mark, `at` a tile or `npc` an NPC id, and `end`). Each character has a
+`QuestBook` (`{ [quest]: { step, flags, n } }`). **Effects** (`QuestEffect`: `quest`, `to`, `from`
+(none: it starts the quest), `flag`, `take`, `give`) move a quest; they sit on a dialog answer
+(`DialogAnswer.effect`) or on a thing that a character reads (`Interaction.effect`: the letter).
+**Conditions** (`When`: a quest at steps, or an item in the pack; `not`) show answers
+(`DialogAnswer.when`), choose the first node of a dialog (`Dialog.starts`), and the frame of a
+thing (`Fixture.variant`: the mended cart). An answer with an effect shows only when the effect
+can apply. **The server owns the book**: `Room.quest()` checks the nearness, the gate, the
+conditions and the effect, then changes the book and the pack; the store saves both at once
+(`setQuests()`, column `quests`). The book goes to its own player only (`qs`, protocol 23). In a
+world that the page runs, the page keeps its own book (not saved). The page: the journal
+(`ui/journal-panel.ts`, a button left of the map and the key L), a banner when a quest starts,
+moves on or ends (`render/quest-banner.ts`), and gold marks on the map. **When you add a quest:**
+its effects and conditions must name its steps (`worlds/wilds/test/story.test.ts` checks every
+effect and condition of the content), its texts need Spanish forms (title and journal lines too),
+and a test through the Room should play it. The Wilds (`worlds/wilds/src/quests.ts`): `ashes` (the
+letter of Thrain Steelforge on the home's table, then Elama Rothenel) and `cart` (the merchant by
+a broken cart on the road: lift it with STR 13, or bring the smith's lever; 10 coins). The
+merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the town.
 
 ## Arrival in a world
 
@@ -748,7 +772,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   HP: the event `fell`, then `gone` (it dies) or it wakes with all its HP. The Room runs them
   (`Room.addCompanion()`, `takeCompanionEvents()`; they leave with their leader) and sends `cp`
   (protocol 22); `render/companions.ts` draws them (NPC frames, a name, a small lantern). Only a
-  quest adds one (story phase 2); `?companion=<look>` for tests.
+  quest adds one (the escort of Himo, story phase 4); `?companion=<look>` for tests.
 - **Fixture types** (`packages/engine/src/fixtures.ts`, `FIXTURE_TYPES`): a kind, a footprint
   (tiles from the anchor = south-west tile, each with a solid box or none) and a depth line.
   **Structure codes:** each type has a range of codes in the structure layer, one per tile, after

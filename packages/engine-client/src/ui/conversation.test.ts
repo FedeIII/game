@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLAIN_SCORES, type Dialog } from '@game/engine';
+import { EMPTY_PACK, PLAIN_SCORES, applyEffect, type Dialog, type Pack, type QuestBook, type QuestEffect } from '@game/engine';
 import { Conversation } from './conversation.ts';
 
 const dialog: Dialog = {
@@ -75,5 +75,46 @@ describe('an answer behind a gate', () => {
     t.move(1);
     expect(t.selected).toBe(1);
     expect(talk(13).choose(0)?.say).toBe('So you read them.');
+  });
+});
+
+describe('a conversation with quests', () => {
+  const help: QuestEffect = { id: 'help', quest: 'cart', to: 'met' };
+  const lift: QuestEffect = { id: 'lift', quest: 'cart', to: 'done', from: ['met'] };
+  const merchant: Dialog = {
+    name: 'The merchant',
+    start: 'cart',
+    starts: [{ when: { quest: 'cart', at: ['done'] }, node: 'thanks' }],
+    nodes: {
+      cart: { say: 'The wheel came off.', answers: [{ text: 'Can I help?', next: 'help', effect: help }, { text: 'Goodbye.' }] },
+      help: { say: 'Lift it.', answers: [{ text: 'I lift it.', next: 'thanks', effect: lift }, { text: 'A lever?', when: { has: 'crowbar' } }, { text: 'Not now.' }] },
+      thanks: { say: 'Thank you!', answers: [{ text: 'Goodbye.' }] },
+    },
+  };
+  /** A book and a pack that change, as the page's do. */
+  const facts = (book: QuestBook = {}, pack: Pack = EMPTY_PACK) => {
+    const state = { book, pack };
+    return { state, facts: { book: () => state.book, pack: () => state.pack } };
+  };
+
+  it('starts at the node for the step of the character', () => {
+    expect(new Conversation(merchant, PLAIN_SCORES, facts().facts).id).toBe('cart');
+    expect(new Conversation(merchant, PLAIN_SCORES, facts({ cart: { step: 'done', flags: [], n: 1 } }).facts).id).toBe('thanks');
+  });
+
+  it('shows an answer with an effect only when it can apply, and one with conditions only when they hold', () => {
+    const { state, facts: live } = facts();
+    const talk = new Conversation(merchant, PLAIN_SCORES, live);
+    expect(talk.answers.map((a) => a.text)).toEqual(['Can I help?', 'Goodbye.']);
+    state.book = { cart: { step: 'met', flags: [], n: 1 } };
+    expect(talk.answers.map((a) => a.text)).toEqual(['Goodbye.']);
+    state.book = {};
+    // The answer is taken before its effect changes the book: then the conversation goes on.
+    const answer = talk.answers[0]!;
+    state.book = applyEffect(answer.effect!, state.book, state.pack, 4)!.book;
+    expect(talk.give(answer)?.say).toBe('Lift it.');
+    expect(talk.answers.map((a) => a.text)).toEqual(['I lift it.', 'Not now.']);
+    state.pack = { coins: 0, items: [{ kind: 'crowbar', count: 1 }] };
+    expect(talk.answers.map((a) => a.text)).toEqual(['I lift it.', 'A lever?', 'Not now.']);
   });
 });

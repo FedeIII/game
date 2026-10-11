@@ -65,6 +65,15 @@ import {
   tossPoint,
   meetsGate,
   sheetTraits,
+  EMPTY_BOOK,
+  applyEffect,
+  canApply,
+  holds,
+  questChanges,
+  startNode,
+  type Conditions,
+  type QuestBook,
+  type QuestEffect,
   type Arrow,
   type Character,
   type Gate,
@@ -111,6 +120,8 @@ import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
 import { ConversationPanel, gateTag } from './ui/conversation.ts';
+import { JournalPanel, questMarks } from './ui/journal-panel.ts';
+import { QuestBanner } from './render/quest-banner.ts';
 import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './ui/gates.ts';
 import { MapPanel } from './ui/map-panel.ts';
 import { Terrain } from './render/terrain.ts';
@@ -173,6 +184,8 @@ const AIM_SLACK = 10;
 const MOUSE_DEAD_ZONE = 3;
 /** An NPC with a dialog says its first line; the conversation panel opens this long after (ms). */
 const TALK_DELAY_MS = 700;
+/** After an effect on a quest goes to the server, the page shows the book as it will be for at most this long (ms). */
+const PENDING_QUEST_MS = 3000;
 /** The conversation ends when the NPC is further than this from the player (world pixels). */
 const TALK_RANGE = 40;
 /** A hit shakes the camera for this long (ms), by about this much (world pixels). */
@@ -313,6 +326,15 @@ async function run(options: GameOptions): Promise<void> {
   let pack: Pack = character?.pack ?? EMPTY_PACK;
   const packNow = (): Pack => net?.pack ?? pack;
   const gearNow = (): Gear => net?.gear ?? gear;
+  // The quest book of the character (quests.ts). In a shared world the server keeps it (net.quests);
+  // in a world that the page runs, the page has its own, which it does not save.
+  const quests = definition.quests ?? [];
+  let localQuests: QuestBook = character?.quests ?? EMPTY_BOOK;
+  // After an effect that went to the server: the book as it will be, until the server's word comes.
+  let pendingQuests: { readonly book: QuestBook; readonly until: number } | null = null;
+  const questsNow = (): QuestBook => (pendingQuests && performance.now() < pendingQuests.until ? pendingQuests.book : (net?.quests ?? localQuests));
+  /** Whether conditions hold for the character now: its quests and its pack (quests.ts). */
+  const holdsNow = (when: Conditions): boolean => holds(when, questsNow(), packNow());
   // The chests and the barred doors of a world that the page runs (a shared world: the server's).
   const spoils = new Spoils(world, Math.random);
   // What is left to hide of a correction from the server, in world pixels.
@@ -698,6 +720,8 @@ async function run(options: GameOptions): Promise<void> {
   /** The welcome starts in the middle of the title's fade-out. */
   const WELCOME_AT = INTRO_TIMING.fadeIn + INTRO_TIMING.hold + INTRO_TIMING.fadeOut / 2;
   let arrivedAt: number | null = null;
+  /** The quest book that the journal and the map show (the frame loop follows questsNow()). */
+  let shownBook: QuestBook | null = null;
   let welcomed = false;
   // ?introat=<ms> stops the title's clock at that moment after the arrival (the welcome then
   // starts at once if that moment is past its start): a screenshot of the title on a slow machine.
@@ -944,6 +968,51 @@ async function run(options: GameOptions): Promise<void> {
   let pendingTalk: { readonly at: number; readonly dialog: Dialog } | null = null;
   let talkWith: Fixture | null = null;
   let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
+  // The journal (a panel of the quests), the banner when a quest changes, and the marks of the map.
+  const journal = quests.length > 0 ? new JournalPanel(quests, net && character ? null : STRINGS.journal.alone) : null;
+  const banner = new QuestBanner(font);
+  textScene.addChild(banner.root);
+  fixtures.setHolds(holdsNow);
+  /** A quest started, moved on or ended: a banner for each change, and the journal's button shines. */
+  const questsChanged = (before: QuestBook, after: QuestBook): void => {
+    for (const change of questChanges(before, after, quests)) {
+      const kicker = change.kind === 'start' ? STRINGS.journal.started : change.kind === 'end' ? STRINGS.journal.ended : STRINGS.journal.moved;
+      banner.show(kicker, tw(change.quest.title));
+      journal?.notice();
+    }
+  };
+  net?.onQuests((before, after) => {
+    pendingQuests = null;
+    questsChanged(before, after);
+  });
+  /**
+   * An effect on a quest (an answer, a letter): the server applies it in a shared world (the page
+   * shows the book as it will be until the server's word comes), the page in its own world.
+   * Returns whether it went.
+   */
+  const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] }): boolean => {
+    const book = questsNow();
+    if (!canApply(effect, book, packNow())) return false;
+    if (net) {
+      if (!net.quest(from, effect.id)) return false;
+      const next = applyEffect(effect, book, packNow(), traits.slots);
+      if (next) pendingQuests = { book: next.book, until: performance.now() + PENDING_QUEST_MS };
+      return true;
+    }
+    const next = applyEffect(effect, localQuests, pack, traits.slots);
+    if (!next) return false;
+    const before = localQuests;
+    localQuests = next.book;
+    pack = next.pack;
+    const now = performance.now();
+    lootText.add(dropLines(next.taken), now);
+    if (next.left.items.length > 0) {
+      localPiles.put(player.x, player.y, next.left.items, now, player);
+      say(STRINGS.packFull, now);
+    }
+    questsChanged(before, localQuests);
+    return true;
+  };
   const conversation = new ConversationPanel({
     // Each line stays over the NPC's head as long as the panel shows it.
     line: (say) => speech.show([say], talkAnchor, performance.now(), true),
@@ -963,13 +1032,19 @@ async function run(options: GameOptions): Promise<void> {
       }
       return true;
     },
+    // An effect on a quest (the server applies it in a shared world; the page in its own world).
+    effect: (effect) => {
+      if (!talkWith) return false;
+      const index = npcIndex.get(talkWith);
+      return applyQuest(effect, index !== undefined ? { npc: index } : { at: [talkWith.tx, talkWith.ty] });
+    },
   });
   const openTalk = () => {
     if (!pendingTalk || !talkWith) return;
     // The price of a deal, for this player: Charisma pays less, and gets more for a sale.
     const priceOf = (deal: Deal): string | null =>
       deal.goods === 'coins' ? STRINGS.conversation.pay(dealPay(deal, traits)) : deal.price > 0 ? STRINGS.conversation.price(dealPrice(deal, traits)) : null;
-    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores, priceOf);
+    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores, priceOf, { book: questsNow, pack: packNow });
     pendingTalk = null;
   };
   /** Whether the NPC of the conversation is still close to the player. */
@@ -1101,7 +1176,7 @@ async function run(options: GameOptions): Promise<void> {
           : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     if (content.dialog && fixture) {
-      speech.show([content.dialog.nodes[content.dialog.start]!.say], anchor, now, true);
+      speech.show([content.dialog.nodes[startNode(content.dialog, questsNow(), packNow())]!.say], anchor, now, true);
       speaking = false;
       linkCard.hide();
       talkWith = fixture;
@@ -1111,6 +1186,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     speech.show(content.pages ?? [], anchor, now);
     speaking = !(content.speaker === 'fixture' && fixture);
+    // A thing that starts or moves a quest when the character reads it (a letter).
+    if (content.effect && fixture) applyQuest(content.effect, { at: [target.tx, target.ty] });
     if (content.link) linkCard.show(content.link);
     else linkCard.hide();
   });
@@ -1306,6 +1383,14 @@ async function run(options: GameOptions): Promise<void> {
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
     vitals.update(player, traits.maxHp, traits.maxStamina);
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
+    // The quest book changed (an effect, the server's word): the journal, the map's marks and the answers follow.
+    const book = questsNow();
+    if (book !== shownBook) {
+      shownBook = book;
+      journal?.update(book);
+      mapPanel.setMarks(questMarks(book, quests, (id) => npcDefs.find((def) => def.id === id)?.home ?? null));
+      conversation.refresh();
+    }
     mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
     packPanel.show(packNow(), gearNow(), traits);
     belt.show(packNow());
@@ -1322,6 +1407,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     const introNow = introClock(now);
     introTitle?.update(introNow, view);
+    banner.update(now, view);
     if (welcome && intro?.welcome && !welcomed && introNow - arrivedAt >= WELCOME_AT) {
       welcomed = true;
       const anchor = hostIndex >= 0 ? () => npcViews!.headOf(hostIndex) : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
@@ -1381,6 +1467,7 @@ async function run(options: GameOptions): Promise<void> {
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac} (glance ${Math.round(traits.glance * 100)}%, count ${player.ward.toFixed(2)}), ${traits.strike.kind} ${traits.damage}${traits.sneak ? ` (+${traits.sneak} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
+      ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,

@@ -560,6 +560,37 @@ describe('accounts: personal data', () => {
     }
   });
 
+  it('keeps the quest book of a character with its pack, and gives an empty book to a character from before the quests', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
+    try {
+      const file = join(dir, 'game.db');
+      const store = new AccountStore(file);
+      const user = store.signIn('google', '1', 1);
+      const made = store.createCharacter(user.id, sheet, 2);
+      if (made === 'limit') throw new Error('limit');
+      expect(made.quests).toEqual({});
+      expect(store.character(user.id, made.id)!.quests).toEqual({});
+      // The step and its reward go together.
+      expect(store.setQuests(user.id, made.id, { cart: { step: 'done', flags: ['lifted'], n: 2 } }, { coins: 10, items: [{ kind: 'crowbar', count: 1 }] })).toBe(true);
+      expect(store.setQuests(user.id + 1, made.id, {}, { coins: 0, items: [] })).toBe(false);
+      store.close();
+      const again = new AccountStore(file);
+      const loaded = again.character(user.id, made.id)!;
+      expect(loaded.quests).toEqual({ cart: { step: 'done', flags: ['lifted'], n: 2 } });
+      expect(loaded.pack).toEqual({ coins: 10, items: [{ kind: 'crowbar', count: 1 }] });
+      again.close();
+      // A bad book in the column is dropped, not trusted.
+      const db = new DatabaseSync(file);
+      db.prepare("UPDATE characters SET quests = '{\"Bad\": {\"step\": 1}}'").run();
+      db.close();
+      const third = new AccountStore(file);
+      expect(third.character(user.id, made.id)!.quests).toEqual({});
+      third.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('keeps no name, and removes the name and the email of an old database', () => {
     const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
     try {

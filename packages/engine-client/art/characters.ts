@@ -104,6 +104,14 @@ export const NPC_LOOKS: Record<string, Look> = {
     hood: false,
     spec: { headwear: 'cowl', body: 'robe', pauldrons: false, item: 'staff' },
   },
+  /** A travelling merchant (the road to Ironhold, 2026-10-11): a brim hat, a short dusty cloak, a beard and a purse. */
+  merchant: {
+    cloak: ramp('#16120a', '#241d10', '#352a17', '#47381f', '#5a4727', '#6d5730'),
+    hood: false,
+    hair: HAIR.chestnut,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { headwear: 'brim', cloak: 'short', beard: true, pauldrons: false, pouch: true },
+  },
   /** A child: small, with a big head and a short cloak. */
   child: {
     cloak: ramp('#141008', '#221b0e', '#332915', '#45381d', '#584826', '#6b5930'),

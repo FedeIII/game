@@ -119,7 +119,7 @@ body {
 }
 
 /* An open panel covers the hint on a narrow screen, and the two texts would mix: hide the hint. */
-body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden])) #hint {
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden])) #hint {
   opacity: 0;
 }
 
@@ -438,6 +438,10 @@ body:has(#pack-button):has(#map-button) #worlds-button {
   right: calc(156px + env(safe-area-inset-right));
 }
 
+body:has(#pack-button):has(#map-button):has(#journal-button) #worlds-button {
+  right: calc(204px + env(safe-area-inset-right));
+}
+
 /* ---------------------------------------------------------------- map (ui/map-panel.ts) */
 
 #map-button {
@@ -471,6 +475,81 @@ body:has(#pack-button):has(#map-button) #worlds-button {
 
 #map[hidden] {
   display: none;
+}
+
+/* ---------------------------------------------------------------- journal (ui/journal-panel.ts) */
+
+#journal-button {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(156px + env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  cursor: pointer;
+}
+
+/* A quest changed: the button shines until the journal opens. */
+#journal-button.gain {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 12px var(--ui-accent-glow);
+}
+
+#journal {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel);
+  font: 15px/1.4 var(--ui-serif);
+}
+
+#journal[hidden] {
+  display: none;
+}
+
+.journal-heading {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-ink-faint);
+}
+
+.journal-entry {
+  margin: 0 0 10px;
+}
+
+.journal-title {
+  margin: 0;
+  font-weight: bold;
+}
+
+.journal-line {
+  margin: 2px 0 0;
+}
+
+.journal-entry.done {
+  color: var(--ui-ink-faint);
+}
+
+.journal-empty {
+  margin: 8px 0;
+  font-style: italic;
 }
 
 .map-frame {

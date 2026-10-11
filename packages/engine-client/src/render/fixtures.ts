@@ -1,5 +1,5 @@
 import { Container, Sprite } from 'pixi.js';
-import { TILE_SIZE, fixtureType, type Fixture, type World } from '@game/engine';
+import { TILE_SIZE, fixtureType, type Conditions, type Fixture, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
@@ -45,6 +45,8 @@ export class Fixtures {
   private readonly art: Art;
   private readonly layer: Container;
   private readonly views = new Map<string, FixtureView>();
+  /** Whether conditions hold for the player (its quests and pack): a fixture with a variant shows it then (Fixture.variant). */
+  private holds: (when: Conditions) => boolean = () => false;
 
   constructor(world: World, art: Art, entityLayer: Container) {
     this.world = world;
@@ -54,6 +56,11 @@ export class Fixtures {
 
   get count(): number {
     return this.views.size;
+  }
+
+  /** How to read the conditions of the variants: the player's quest book and pack. */
+  setHolds(holds: (when: Conditions) => boolean): void {
+    this.holds = holds;
   }
 
   /** Shows the fixtures in and near `view`. A hidden one shows only within the range of `seeker` (none: never). */
@@ -81,6 +88,15 @@ export class Fixtures {
     for (const built of this.views.values()) {
       if (built.glow) built.glow.alpha = 0.5 + 0.12 * Math.sin(seconds * 1.7 + built.fixture.tx * 0.7);
       if (built.fixture.hidden) built.sprite.alpha = seen(built.fixture, seeker);
+      const variant = built.fixture.variant;
+      if (variant) {
+        const texture = this.art.frame(this.holds(variant.when) ? variant.frame : `fixture/${built.fixture.kind}`);
+        if (built.sprite.texture !== texture) {
+          built.sprite.texture = texture;
+          // The two frames have their own crops: each has its anchor.
+          built.sprite.anchor.copyFrom(texture.defaultAnchor ?? { x: 0, y: 1 });
+        }
+      }
     }
   }
 

@@ -1,12 +1,14 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import {
+  EMPTY_BOOK,
   EMPTY_PACK,
   GEAR_SLOTS,
   MAX_CHARACTERS,
   checkGear,
   checkPack,
   checkPlace,
+  checkQuests,
   checkSheet,
   sheetKit,
   type Character,
@@ -14,6 +16,7 @@ import {
   type CharacterSheet,
   type Gear,
   type Pack,
+  type QuestBook,
 } from '@game/engine';
 
 /**
@@ -85,6 +88,9 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-11: what each character wears (JSON: an item kind or null for each worn slot). Null: a
   // character from before the equipment; it gets the kit of its class (sheetKit) when it loads.
   `ALTER TABLE characters ADD COLUMN gear TEXT;`,
+  // 2026-10-11: the quest book of each character (JSON: the step, the flags and the order of each
+  // quest that it started; quests.ts). Null: none.
+  `ALTER TABLE characters ADD COLUMN quests TEXT;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -104,6 +110,7 @@ interface CharacterRow {
   refuges: string | null;
   explored: string | null;
   gear: string | null;
+  quests: string | null;
 }
 
 /** The most chunks that a stored character keeps as seen (the Room's MAX_EXPLORED). */
@@ -154,6 +161,7 @@ function toCharacter(row: CharacterRow): Character | null {
     hp,
     refuges: checkRefuges(parse(row.refuges)),
     explored: checkExplored(parse(row.explored)),
+    quests: checkQuests(parse(row.quests)),
   };
 }
 
@@ -267,14 +275,14 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
     const row = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear FROM characters WHERE user_id = ? AND id = ?')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests FROM characters WHERE user_id = ? AND id = ?')
       .get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
@@ -288,7 +296,7 @@ export class AccountStore {
     this.db
       .prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at, gear) VALUES (?, ?, ?, ?, NULL, ?)')
       .run(id, userId, JSON.stringify(sheet), now, gearJson(gear));
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, gear, hp: null, refuges: [], explored: [] };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, gear, hp: null, refuges: [], explored: [], quests: EMPTY_BOOK };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -307,6 +315,16 @@ export class AccountStore {
   setPack(userId: number, id: string, pack: Pack): boolean {
     const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => (s ? { kind: s.kind, count: s.count } : null)) });
     return this.db.prepare('UPDATE characters SET pack = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
+  }
+
+  /**
+   * Notes the quest book and the pack of a character together (the server's word, after an effect
+   * on a quest: the step and its reward change at once); false if it is not the user's.
+   */
+  setQuests(userId: number, id: string, quests: QuestBook, pack: Pack): boolean {
+    const book = JSON.stringify(checkQuests(quests));
+    const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => (s ? { kind: s.kind, count: s.count } : null)) });
+    return this.db.prepare('UPDATE characters SET quests = ?, pack = ? WHERE user_id = ? AND id = ?').run(book, json, userId, id).changes > 0;
   }
 
   /** Notes what a character wears (the server's word, from a shared world); false if it is not the user's. */

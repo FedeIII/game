@@ -1,5 +1,6 @@
 import type { Gear } from './gear.ts';
 import type { Pack } from './items.ts';
+import type { QuestBook } from './quests.ts';
 import { NAME_MAX, cleanName } from './net/protocol.ts';
 
 /**
@@ -215,6 +216,8 @@ export interface Character extends CharacterSheet {
   readonly refuges: readonly string[];
   /** The chunks that it has seen, [cx, cy]: its map. The server keeps it. */
   readonly explored: readonly (readonly [number, number])[];
+  /** Its quest book (quests.ts): the step of each quest that it started. The server keeps it. */
+  readonly quests: QuestBook;
 }
 
 /** The id of a world, as a place names it. */

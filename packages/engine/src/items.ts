@@ -56,6 +56,8 @@ export const ITEM_KINDS = [
   'boots-of-elvenkind',
   // A reach weapon (2026-10-11).
   'glaive',
+  // Quest items (2026-10-11): the smith's lever for the merchant's cart.
+  'crowbar',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -96,6 +98,7 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'belt-of-dwarvenkind': 1,
   'boots-of-elvenkind': 1,
   glaive: 1,
+  crowbar: 1,
 };
 
 /**

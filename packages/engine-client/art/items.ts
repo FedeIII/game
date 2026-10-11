@@ -467,6 +467,15 @@ function boots(): Part[] {
   return [{ sdf: union(boot(-3.4, -0.6), boot(0.8, 0.6)), material: I.cloth }];
 }
 
+/** A lever of dark iron (the smith's, for the merchant's cart): a straight bar with a hook and a split claw at the top. */
+function crowbar(): Part[] {
+  return [
+    { sdf: roundCone([-5.6, 0.6, 0], [3.2, 10, 0], 0.7, 0.65), material: I.iron },
+    { sdf: union(roundCone([3.2, 10, 0], [5.4, 11, 0], 0.65, 0.6), roundCone([5.4, 11, 0], [6.6, 9.4, 0], 0.6, 0.35)), material: I.iron },
+    { sdf: roundCone([-5.6, 0.6, 0], [-6.6, -0.2, 0], 0.7, 0.3), material: I.steel },
+  ];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -515,6 +524,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['belt-of-dwarvenkind', belt],
   ['boots-of-elvenkind', boots],
   ['glaive', glaive],
+  ['crowbar', crowbar],
 ];
 
 export function itemFrames(): Frame[] {

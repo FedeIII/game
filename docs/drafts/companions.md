@@ -36,7 +36,7 @@ Mithril Enclave (NPCs with hit points that mobs attack).
   towards the players only: a companion adds no mobs.
 - **A defeat:** `gone` takes it out of the world (the quest gets the event); `wakes` lays it down
   for 3 s, then it stands with all its hit points.
-- **Its leader leaves** the world: the companion goes too. The quest book (story phase 2) keeps
+- **Its leader leaves** the world: the companion goes too. The escort quest (story phase 4) keeps
   the escort, and the next join puts the companion back next to the character.
 - **Events** for the quests: `fell` (its hit points came to 0), `gone`, `lost` (it stopped: no
   way), `found` (it follows again).

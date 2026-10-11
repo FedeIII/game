@@ -1,5 +1,6 @@
 import { MAX_COINS, addToPack, hasItems, lootIsEmpty, removeFromPack, type ItemKind, type ItemStack, type Pack } from './items.ts';
 import { ALE_TICKS, type PlayerState } from './player.ts';
+import { firstThatHolds, holds, type Conditions, type QuestBook, type QuestEffect } from './quests.ts';
 import type { Gate, PlayerTraits } from './traits.ts';
 
 /**
@@ -27,6 +28,18 @@ export interface DialogAnswer {
    * nearness again, and takes the coins (Room.deal).
    */
   readonly deal?: Deal;
+  /**
+   * Conditions on the quests and the pack (quests.ts): only a character for whom they hold sees
+   * the answer. The server checks them again for an answer with an effect.
+   */
+  readonly when?: Conditions;
+  /**
+   * What the answer does to a quest (quests.ts): it starts it or moves it on, and it can take items
+   * and give a reward. Only a character for whom the effect can apply (canApply) sees the answer.
+   * In a shared world the server checks the NPC's nearness, the gate, the conditions and the
+   * effect again, and applies it (Room.quest).
+   */
+  readonly effect?: QuestEffect;
 }
 
 /**
@@ -115,9 +128,28 @@ export interface DialogNode {
 export interface Dialog {
   /** The name of the NPC, over its picture in the conversation. */
   readonly name: string;
-  /** The node that the conversation starts with. */
+  /** The node that the conversation starts with, if no node of `starts` comes first. */
   readonly start: string;
+  /** Other first nodes, by the quests (quests.ts): the first whose conditions hold, else `start`. An NPC greets a character by its step. */
+  readonly starts?: readonly { readonly when: Conditions; readonly node: string }[];
   readonly nodes: Readonly<Record<string, DialogNode>>;
+}
+
+/** The node that a conversation starts with for a character with `book` and `pack` (Dialog.starts, else Dialog.start). */
+export function startNode(dialog: Dialog, book: QuestBook, pack: Pack): string {
+  const i = firstThatHolds(dialog.starts ?? [], book, pack);
+  return i >= 0 ? dialog.starts![i]!.node : dialog.start;
+}
+
+/** Whether a character with `book` and `pack` sees an answer: its conditions hold. (An answer with an effect also needs canApply.) */
+export function answerHolds(answer: DialogAnswer, book: QuestBook, pack: Pack): boolean {
+  return holds(answer.when, book, pack);
+}
+
+/** The answer of the dialog with the effect of this id, or null. */
+export function findEffectAnswer(dialog: Dialog, id: string): DialogAnswer | null {
+  for (const node of Object.values(dialog.nodes)) for (const answer of node.answers) if (answer.effect?.id === id) return answer;
+  return null;
 }
 
 /** The most answers in a node, and the longest texts (characters): the conversation panel must hold them. */
@@ -126,19 +158,21 @@ export const DIALOG_LIMITS = { answers: 4, say: 200, answer: 70, name: 32 } as c
 /**
  * The problems of a dialog, as sentences; none for a good one. A good dialog starts at a node that
  * it has, every answer leads to a node that it has, every node can be reached from the start,
- * every node has 1 to DIALOG_LIMITS.answers answers, and from every node the player can end the
- * conversation (an answer without `next`, now or later).
+ * every node has 1 to DIALOG_LIMITS.answers answers (one of them for every character: no gate, no
+ * conditions, no effect), and from every node the player can end the conversation (an answer
+ * without `next`, now or later). The nodes of `starts` count as starts.
  */
 export function checkDialog(dialog: Dialog): string[] {
   const problems: string[] = [];
   const ids = Object.keys(dialog.nodes);
   if (!dialog.name || dialog.name.length > DIALOG_LIMITS.name) problems.push(`the name "${dialog.name}" is empty or too long`);
   if (!dialog.nodes[dialog.start]) problems.push(`no start node "${dialog.start}"`);
+  for (const { node } of dialog.starts ?? []) if (!dialog.nodes[node]) problems.push(`no start node "${node}"`);
   for (const id of ids) {
     const node = dialog.nodes[id]!;
     if (!node.say || node.say.length > DIALOG_LIMITS.say) problems.push(`${id}: the line is empty or too long`);
     if (node.answers.length < 1 || node.answers.length > DIALOG_LIMITS.answers) problems.push(`${id}: ${node.answers.length} answers`);
-    if (node.answers.every((a) => a.gate)) problems.push(`${id}: every answer is behind a gate`);
+    if (node.answers.every((a) => a.gate || a.when || a.effect)) problems.push(`${id}: every answer is behind a gate, a condition or an effect`);
     for (const answer of node.answers) {
       if (!answer.text || answer.text.length > DIALOG_LIMITS.answer) problems.push(`${id}: the answer "${answer.text}" is empty or too long`);
       if (answer.next !== undefined && !dialog.nodes[answer.next]) problems.push(`${id}: the answer "${answer.text}" leads to no node "${answer.next}"`);
@@ -146,6 +180,18 @@ export function checkDialog(dialog: Dialog): string[] {
       if (answer.deal && answer.next === undefined) problems.push(`${id}: the deal "${answer.deal.id}" ends the conversation`);
       if (answer.deal?.goods === 'coins' && !(answer.deal.pay! > 0)) problems.push(`${id}: the sale "${answer.deal.id}" pays nothing`);
       if (answer.deal?.goods === 'refuge' && !answer.deal.refuge) problems.push(`${id}: the deal "${answer.deal.id}" gives no refuge`);
+      if (answer.deal && answer.effect) problems.push(`${id}: the answer "${answer.text}" has a deal and an effect`);
+    }
+  }
+  // One effect can be in several answers, but two different effects must not share an id.
+  const effects = new Map<string, string>();
+  for (const id of ids) {
+    for (const { effect } of dialog.nodes[id]!.answers) {
+      if (!effect) continue;
+      const shape = JSON.stringify(effect);
+      const same = effects.get(effect.id);
+      if (same !== undefined && same !== shape) problems.push(`two effects have the id "${effect.id}"`);
+      effects.set(effect.id, shape);
     }
   }
   // One deal can be in several answers, but two different deals must not share an id.
@@ -163,7 +209,7 @@ export function checkDialog(dialog: Dialog): string[] {
   const leads = (a: DialogAnswer): string[] => [...(a.next !== undefined ? [a.next] : []), ...(a.deal ? [a.deal.poor] : [])];
   // Every node from the start.
   const reached = new Set<string>();
-  const queue = dialog.nodes[dialog.start] ? [dialog.start] : [];
+  const queue = [dialog.start, ...(dialog.starts ?? []).map((s) => s.node)].filter((n) => dialog.nodes[n]);
   while (queue.length) {
     const id = queue.pop()!;
     if (reached.has(id)) continue;
@@ -172,12 +218,14 @@ export function checkDialog(dialog: Dialog): string[] {
   }
   for (const id of ids) if (!reached.has(id)) problems.push(`${id}: no answer leads to it`);
   // An end from every node, for every character: the nodes that can end, found backwards from the
-  // answers that end. An answer behind a gate does not count: not everybody can give it.
-  const ends = new Set(ids.filter((id) => dialog.nodes[id]!.answers.some((a) => a.next === undefined && !a.gate)));
+  // answers that end. An answer behind a gate, a condition or an effect does not count: not
+  // everybody can give it.
+  const open = (a: DialogAnswer) => !a.gate && !a.when && !a.effect;
+  const ends = new Set(ids.filter((id) => dialog.nodes[id]!.answers.some((a) => a.next === undefined && open(a))));
   for (let grew = true; grew; ) {
     grew = false;
     for (const id of ids) {
-      if (!ends.has(id) && dialog.nodes[id]!.answers.some((a) => !a.gate && leads(a).some((to) => ends.has(to)))) {
+      if (!ends.has(id) && dialog.nodes[id]!.answers.some((a) => open(a) && leads(a).some((to) => ends.has(to)))) {
         ends.add(id);
         grew = true;
       }

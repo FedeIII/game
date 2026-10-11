@@ -155,5 +155,5 @@ that the world is the same for all.
   panel (`?debug`) has a line `cmp`: each companion, its tile, a stun or a defeat; in a world that
   the page runs also its mode and its hit points.
 - **Tests:** `packages/engine/test/companions.test.ts`.
-- **Not yet:** the quest book (story phase 2) keeps an escort and puts the companion back at a join;
+- **Not yet:** the escort of Himo (story phase 4) keeps the escort in the quest book and puts the companion back at a join;
   companions that fight; NPCs that walk a road on their own (the caravan); a word with a companion.

@@ -1,6 +1,6 @@
 import type { Building, Fixture } from '@game/engine';
 import { DOOR_PATH } from './houses.ts';
-import { TOWN_GATE, TOWN_NAME } from './town.ts';
+import { TOWN_GATE, TOWN_NAME, inTown } from './town.ts';
 
 /**
  * The road from the home to Ironhold, and the signpost by the home that points the way.
@@ -26,6 +26,8 @@ export function signpost(home: Building): Fixture {
 }
 
 export class Road {
+  /** The middle line, from the home to the gate (tiles, as fractions). */
+  readonly points: readonly (readonly [number, number])[];
   /** For each tile near the road: its distance to the middle line (tiles). */
   private readonly near = new Map<string, number>();
   /** The rectangle of the tiles in `near`. */
@@ -50,6 +52,7 @@ export class Road {
       const y = u * u * u * ay + 3 * u * u * t * ay + 3 * u * t * t * by + t * t * t * by;
       points.push([x, y]);
     }
+    this.points = points;
     const reach = Math.ceil(CLEAR);
     for (const [x, y] of points) {
       for (let ty = Math.floor(y) - reach; ty <= Math.floor(y) + reach; ty++) {
@@ -77,4 +80,24 @@ export class Road {
   clear(tx: number, ty: number): boolean {
     return this.near.has(`${tx},${ty}`);
   }
+}
+
+/**
+ * Where the merchant's cart stands (its anchor, the west one of its two tiles): just north of the
+ * road, beside it, with the road under it, where the merchant walks. The first such place from
+ * three fifths of the way to the town (so a character from the home comes to it before the town),
+ * then back towards the home. Never in the town.
+ */
+export function cartSpot(road: Road): { tx: number; ty: number } {
+  const n = road.points.length;
+  const from = Math.floor(n * 0.6);
+  const order = [...Array.from({ length: n - from }, (_, i) => from + i), ...Array.from({ length: from }, (_, i) => from - 1 - i)];
+  for (const i of order) {
+    const [x, y] = road.points[i]!;
+    const tx = Math.floor(x) - 1;
+    const ty = Math.floor(y) - 2;
+    const fits = [0, 1].every((dx) => road.clear(tx + dx, ty) && !road.on(tx + dx, ty) && road.on(tx + dx, ty + 1) && !inTown(tx + dx, ty) && !inTown(tx + dx, ty + 1));
+    if (fits) return { tx, ty };
+  }
+  throw new Error('the road has no place for the cart');
 }

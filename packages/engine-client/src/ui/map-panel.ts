@@ -48,6 +48,8 @@ export class MapPanel {
   private int: number;
   private readonly chunks = new Map<string, ImageData>();
   private drawnAt = -Infinity;
+  /** The places of the steps of the open quests (the journal): the map marks them, also outside what the character saw. */
+  private marks: readonly (readonly [number, number])[] = [];
 
   /** `int`: the Intelligence of the character; `note`: a line under the map (a map that is not saved), or null. */
   constructor(world: World, int: number, note: string | null) {
@@ -106,6 +108,13 @@ export class MapPanel {
     return !this.panel.hidden;
   }
 
+  /** The tiles to mark (the steps of the open quests). A mark beyond the edge of the map shows on the edge, in its direction. */
+  setMarks(marks: readonly (readonly [number, number])[]): void {
+    if (JSON.stringify(marks) === JSON.stringify(this.marks)) return;
+    this.marks = marks;
+    this.drawnAt = -Infinity;
+  }
+
   /** Draws the map round the player at (x, y) with the seen chunks ("cx,cy"), if it is open (now and then). */
   update(now: number, x: number, y: number, explored: ReadonlySet<string>): void {
     if (this.panel.hidden || now - this.drawnAt < REDRAW_MS) return;
@@ -152,6 +161,15 @@ export class MapPanel {
         label.style.left = `${(100 * mx) / SPAN}%`;
         label.style.top = `${(100 * my) / SPAN}%`;
         this.labels.append(label);
+      }
+    }
+    // The places of the quests: a gold diamond with a dark rim.
+    for (const [tx, ty] of this.marks) {
+      const mx = Math.max(3, Math.min(SPAN - 4, tx - tx0));
+      const my = Math.max(3, Math.min(SPAN - 4, ty - ty0));
+      for (const [colour, r] of [['#07050a', 3], ['#e0c060', 2]] as const) {
+        context.fillStyle = colour;
+        for (let d = -r; d <= r; d++) context.fillRect(mx - (r - Math.abs(d)), my + d, 2 * (r - Math.abs(d)) + 1, 1);
       }
     }
     context.fillStyle = '#e04a3a';

@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CHARACTER_ID, NAME_MAX, checkGear, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Gear, type Pack } from '@game/engine';
+import { CHARACTER_ID, NAME_MAX, checkGear, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Gear, type Pack, type QuestBook } from '@game/engine';
 import { googleAuthUrl, googleIdentity, newLogin, type GoogleConfig } from './google.ts';
 import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
 
@@ -192,6 +192,12 @@ export class Accounts {
   /** Notes the hit points and the refuges of a user's character (the server's word, in a shared world). */
   saveVitals(user: User, id: string, hp: number, refuges: readonly string[]): void {
     if (CHARACTER_ID.test(id) && Number.isFinite(hp)) this.store.setVitals(user.id, id, hp, refuges);
+  }
+
+  /** Notes the quest book and the pack of a user's character together (the server's word, after an effect on a quest). */
+  saveQuests(user: User, id: string, quests: QuestBook, pack: Pack): void {
+    const checked = checkPack(pack);
+    if (checked && CHARACTER_ID.test(id)) this.store.setQuests(user.id, id, quests, checked);
   }
 
   /** Notes the chunks that a user's character has seen (the server's word, in a shared world). */

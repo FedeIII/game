@@ -1,14 +1,16 @@
 import type { WorldDefinition } from '@game/engine';
 import { WildsSource } from './source.ts';
+import { QUESTS } from './quests.ts';
 import { TEXTS_ES } from './text-es.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
-export { Road, signpost } from './road.ts';
-export { MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
+export { Road, cartSpot, signpost } from './road.ts';
+export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
-export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
+export { APOTHECARY, ATHLETICS_GATE, INNKEEPER, INSIGHT_GATE, MERCHANT, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
+export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, READ_LETTER, TELL_REEVE } from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
@@ -35,6 +37,7 @@ export const wilds: WorldDefinition = {
     fountain: 'Clear, cold water. A few coins shine at the bottom.',
     candelabra: 'Tall candles in an iron stand.',
     signpost: 'An old signpost.',
+    cart: "A merchant's cart, loaded with crates and a sack.",
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {
@@ -73,7 +76,10 @@ export const wilds: WorldDefinition = {
     'belt-of-dwarvenkind': 'A broad belt with a buckle of a bearded face. It makes you hardy.',
     'boots-of-elvenkind': 'Soft boots of grey leather. Your steps make no sound in them.',
     glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
+    crowbar: "A bar of dark iron from the smith of Ironhold. The merchant on the road needs it for the cart.",
   },
+  // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
+  quests: QUESTS,
   // The texts in Spanish, with the Spanish names of Kandrax (Fede's decision, 2026-10-11).
   texts: { es: TEXTS_ES },
   darkness: 1,

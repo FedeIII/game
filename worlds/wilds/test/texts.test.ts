@@ -23,8 +23,8 @@ describe('the texts of the Wilds in Spanish', () => {
     const dialogs: Dialog[] = [];
     for (const npc of source.npcs()) if (npc.content.dialog) dialogs.push(npc.content.dialog);
     for (const fixture of source.fixturesIn(TOWN.x0, TOWN.y0, TOWN.x1, TOWN.y1)) if (fixture.content?.dialog) dialogs.push(fixture.content.dialog);
-    // Six people and the cauldron.
-    expect(dialogs.length).toBe(7);
+    // Six people, the cauldron, and the merchant on the road.
+    expect(dialogs.length).toBe(8);
     for (const dialog of dialogs) {
       expect(TEXTS_ES[dialog.name]!.length, dialog.name).toBeLessThanOrEqual(DIALOG_LIMITS.name);
       for (const node of Object.values(dialog.nodes)) {

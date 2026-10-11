@@ -1,7 +1,8 @@
 # The Razed Villages: the first story of the game (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** Phase 1 built (2026-10-11: `docs/features/game/language.md`); phases 2 to 6 planned
+> **Status:** Phases 1 and 2 built (2026-10-11: `docs/features/game/language.md`,
+> `docs/features/game/quests.md`); phases 3 to 6 planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -311,7 +312,11 @@ before the next one.
    keys.
 2. **Quests and conversations** (S1, S2, S8), with Q0 (the letter) and Q1 (the broken cart). The
    small quests test the whole chain: a step, a gate, an effect on the server, a reward, the
-   journal.
+   journal. Built 2026-10-11 (protocol 23). What changed from the plan: the book goes in the
+   snapshot (`qs`), not in a message of its own; Q4 has a step `reeve` after `letter` (the reeve
+   tells of the three burned homesteads); the merchant has no name (the chapter gives none); the
+   reward is 10 coins (the chapter: 20 gold); the cart has a lantern, and no mob comes within 4
+   tiles of it, so a character can talk to the merchant in peace.
 3. **The hobgoblins** (S3, S5 without the Devastator, the road and the grove of S6), with Q2 up to
    `raid.scouts`.
 4. **Silverspring and the raid** (S4, the Devastator, Silverspring and the camp of S6), with the end

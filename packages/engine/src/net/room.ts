@@ -6,13 +6,14 @@ import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSl
 import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
-import { DEAL_RANGE, findDealAnswer, makeDeal, type Dialog } from '../dialog.ts';
+import { DEAL_RANGE, findDealAnswer, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
+import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
-import { guestGear, guestTraits, meetsGate, sightOf, type PlayerTraits } from '../traits.ts';
+import { guestGear, guestTraits, meetsGate, sightOf, type Gate, type PlayerTraits } from '../traits.ts';
 import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
@@ -27,6 +28,7 @@ import {
   toWireGear,
   toWireLook,
   toWirePack,
+  toWireBook,
   toWirePile,
   toWireToss,
   type InputMessage,
@@ -129,6 +131,9 @@ export interface RoomPlayer {
   /** The refuges that its character has entered (WorldSource.refuges), and whether they changed since the last snapshot. */
   refuges: string[];
   refugesChanged: boolean;
+  /** Its character's quest book (quests.ts), and whether it changed since the last snapshot. The server saves it with the character. */
+  quests: QuestBook;
+  questsChanged: boolean;
   /** The coins that a defeat took, when it woke since the last snapshot (else null). */
   woke: number | null;
   /** The chunks that its character has seen ("cx,cy"), and those that it saw since the last snapshot. */
@@ -167,6 +172,8 @@ export interface JoinCharacter {
   /** Null or none: all of them. */
   readonly hp?: number | null;
   readonly refuges?: readonly string[];
+  /** Its quest book; without it, empty. */
+  readonly quests?: QuestBook;
   /** The chunks that it has seen, [cx, cy]. */
   readonly explored?: readonly (readonly [number, number])[];
 }
@@ -364,6 +371,8 @@ export class Room {
       loot: [],
       refuges: [...(character?.refuges ?? [])],
       refugesChanged: false,
+      quests: character?.quests ?? EMPTY_BOOK,
+      questsChanged: false,
       woke: null,
       explored: new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`)),
       newlyExplored: [],
@@ -439,6 +448,7 @@ export class Room {
     player.doorVersion = this.doorVersion;
     player.packChanged = false;
     player.gearChanged = false;
+    player.questsChanged = false;
     const piles = this.pilesNear(player);
     player.pileKey = pileKey(piles);
     return {
@@ -450,6 +460,7 @@ export class Room {
       fd: this.world.forcedDoorList(),
       pk: toWirePack(player.pack),
       gr: toWireGear(player.gear),
+      qs: toWireBook(player.quests),
       pl: piles,
       hp: player.state.hp,
       rf: [...player.refuges],
@@ -571,6 +582,42 @@ export class Room {
       player.refuges.push(refuge);
       player.refugesChanged = true;
     }
+  }
+
+  /**
+   * An effect on a quest (quests.ts): an answer to an NPC (`npc`) or a thing that the player reads
+   * (`at`, the letter). The player must be near the NPC or the thing (DEAL_RANGE), pass the gate of
+   * the answer, and the conditions of the answer must hold; then the effect must apply (canApply).
+   * It changes the book and the pack: the reward goes into the pack (the client shows it), and what
+   * does not fit falls at the player's feet. Returns whether the book changed (the server saves it).
+   */
+  quest(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number] }, effectId: string, nowMs: number): boolean {
+    const player = this.players.get(id);
+    if (!player || player.state.down > 0) return false;
+    let found: { readonly effect?: QuestEffect; readonly gate?: Gate; readonly when?: Conditions } | null = null;
+    if (from.npc !== undefined) {
+      const pose = this.npcs?.poses[from.npc];
+      if (!pose || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return false;
+      const dialog = this.world.source.npcs?.()[from.npc]?.content.dialog;
+      found = dialog ? findEffectAnswer(dialog, effectId) : null;
+    } else if (from.at) {
+      const [tx, ty] = from.at;
+      const fixture = this.world.fixtureAt(tx, ty);
+      if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return false;
+      const content = fixture.content;
+      found = content?.effect?.id === effectId ? { effect: content.effect } : content?.dialog ? findEffectAnswer(content.dialog, effectId) : null;
+    }
+    const effect = found?.effect;
+    if (!effect || (found!.gate && !meetsGate(player.traits.scores, found!.gate)) || !holds(found!.when, player.quests, player.pack)) return false;
+    const result = applyEffect(effect, player.quests, player.pack, player.traits.slots);
+    if (!result) return false;
+    player.quests = result.book;
+    player.questsChanged = true;
+    player.pack = result.pack;
+    player.packChanged = true;
+    if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
+    if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
+    return true;
   }
 
   /** The player drinks one item of its pack (a draught): its work is done, and one goes from the pack. */
@@ -750,6 +797,8 @@ export class Room {
       p.loot = [];
       const refuges = p.refugesChanged;
       p.refugesChanged = false;
+      const quests = p.questsChanged;
+      p.questsChanged = false;
       const woke = p.woke;
       p.woke = null;
       const explored = p.newlyExplored;
@@ -798,6 +847,7 @@ export class Room {
         ...(pilesChanged ? { pl: piles } : {}),
         ...(tossed.length > 0 ? { ts: tossed } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
+        ...(quests ? { qs: toWireBook(p.quests) } : {}),
         ...(woke !== null ? { wk: woke } : {}),
         ...(explored.length > 0 ? { ex: explored } : {}),
         ...(npcs ? { n: npcs } : {}),

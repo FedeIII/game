@@ -16,7 +16,7 @@ import {
   useDoor,
   type Building,
 } from '@game/engine';
-import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, WildsSource, wilds } from '../src/index.ts';
+import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, READ_LETTER, WildsSource, wilds } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
 const houseOf = (world: World, cx: number, cy: number) => (world.source as WildsSource).house(cx, cy);
@@ -260,8 +260,11 @@ describe('the home', () => {
   it('has a bed, a chest, a shelf, a table with a candle and a barrel, each with its own text', () => {
     const home = new WildsSource(DEFAULT_SEED).home();
     expect(home.fixtures.map((f) => f.kind).sort()).toEqual(['barrel', 'bed', 'bookshelf', 'chest', 'table']);
-    for (const fixture of home.fixtures) expect(fixture.content?.pages?.length, fixture.kind).toBe(1);
-    expect(home.fixtures.find((f) => f.kind === 'table')?.light).toBeTruthy();
+    // The table has the letter of Thrain Steelforge: three pages, and to read it starts the story.
+    for (const fixture of home.fixtures) expect(fixture.content?.pages?.length, fixture.kind).toBe(fixture.kind === 'table' ? 3 : 1);
+    const table = home.fixtures.find((f) => f.kind === 'table');
+    expect(table?.light).toBeTruthy();
+    expect(table?.content?.effect).toEqual(READ_LETTER);
   });
 
   it('lets the player walk out of the door', () => {

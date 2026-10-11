@@ -17,6 +17,7 @@ export * from './loot.ts';
 export * from './piles.ts';
 export * from './companions.ts';
 export * from './arrows.ts';
+export * from './quests.ts';
 export * from './dialog.ts';
 export * from './net/protocol.ts';
 export * from './net/room.ts';

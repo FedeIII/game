@@ -1,0 +1,193 @@
+import { describe, expect, it } from 'vitest';
+import {
+  EMPTY_BOOK,
+  PLAIN_GEAR,
+  PLAIN_SCORES,
+  Room,
+  TILE_SIZE,
+  World,
+  checkConditions,
+  checkDialog,
+  checkEffect,
+  checkQuestDefs,
+  fixtureTiles,
+  traitsOf,
+  type Conditions,
+  type Dialog,
+  type Pack,
+  type QuestEffect,
+  type Scores,
+  type SnapshotMessage,
+} from '@game/engine';
+import { CART_REWARD, CART_SAFE, DEFAULT_SEED, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
+
+const source = new WildsSource(DEFAULT_SEED);
+const npcIndex = (id: string) => source.npcs().findIndex((n) => n.id === id);
+/** Where a player stands next to an NPC: the middle of its home tile. */
+const besideNpc = (id: string) => {
+  const [tx, ty] = source.npcs()[npcIndex(id)]!.home;
+  return { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 };
+};
+const withStr = (str: number) => traitsOf({ ...PLAIN_SCORES, str } as Scores, 'fighter', PLAIN_GEAR);
+const join = (room: Room, at: { x: number; y: number }, str = 10, pack: Pack = { coins: 0, items: [] }) => room.join(0, 1, undefined, '', at, { traits: withStr(str), pack, hp: 1 })!;
+/** Moves a player next to an NPC. */
+const goTo = (player: { state: { x: number; y: number } }, id: string) => Object.assign(player.state, besideNpc(id));
+
+/** Every effect and every condition of the Wilds: in the dialogs of the NPCs, on the things of the home, and in the variants of things. */
+function contentOfTheWilds(): { effects: QuestEffect[]; conditions: Conditions[]; dialogs: Dialog[] } {
+  const effects: QuestEffect[] = [];
+  const conditions: Conditions[] = [];
+  const dialogs: Dialog[] = [];
+  const fixtures = [...new Set([...source.home().fixtures, ...source.fixturesIn(TOWN.x0 - 200, TOWN.y0 - 200, 200, 200)])];
+  for (const content of [...source.npcs().map((n) => n.content), ...fixtures.map((f) => f.content)]) {
+    if (content?.effect) effects.push(content.effect);
+    if (!content?.dialog) continue;
+    dialogs.push(content.dialog);
+    for (const start of content.dialog.starts ?? []) conditions.push(start.when);
+    for (const node of Object.values(content.dialog.nodes)) {
+      for (const answer of node.answers) {
+        if (answer.effect) effects.push(answer.effect);
+        if (answer.when) conditions.push(answer.when);
+      }
+    }
+  }
+  for (const fixture of fixtures) if (fixture.variant) conditions.push(fixture.variant.when);
+  return { effects, conditions, dialogs };
+}
+
+describe('the quests of the Wilds', () => {
+  it('are good, and every effect and condition of the content names their quests and steps', () => {
+    expect(wilds.quests).toBe(QUESTS);
+    expect(checkQuestDefs(QUESTS)).toEqual([]);
+    const { effects, conditions, dialogs } = contentOfTheWilds();
+    expect(effects.map((e) => e.id).sort()).toEqual(['cart-help', 'cart-help', 'cart-lever', 'cart-lift', 'cart-lift', 'cart-mend', 'read-letter', 'tell-reeve']);
+    for (const effect of effects) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
+    for (const when of conditions) expect(checkConditions(when, QUESTS)).toEqual([]);
+    for (const dialog of dialogs) expect(checkDialog(dialog), dialog.name).toEqual([]);
+    // A step that marks an NPC on the map names an NPC of the world.
+    for (const quest of QUESTS) for (const step of quest.steps) if (step.npc) expect(npcIndex(step.npc), `${quest.id}.${step.id}`).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('the cart on the road', () => {
+  it('stands beside the road, between the home and the town, with the merchant on the road in front of it', () => {
+    const world = new World(source);
+    const cart = source.cart;
+    const road = source.road;
+    for (const [tx, ty, code] of fixtureTiles(cart)) {
+      expect(world.structure(tx, ty)).toBe(code);
+      expect(road.clear(tx, ty) && !road.on(tx, ty)).toBe(true);
+      expect(road.on(tx, ty + 1)).toBe(true);
+      expect(inTown(tx, ty)).toBe(false);
+    }
+    expect(world.fixtureAt(cart.tx + 1, cart.ty)).toBe(cart);
+    const home = source.home();
+    expect(cart.tx).toBeGreaterThan(TOWN.x1);
+    expect(cart.tx).toBeLessThan(home.x0);
+    // The merchant: the last NPC, on open road tiles in one row, outside the town.
+    const merchant = source.npcs()[source.npcs().length - 1]!;
+    expect(merchant.id).toBe('merchant');
+    expect(source.npcs().length).toBe(TOWN_NPCS.length + 1);
+    expect(merchant.area.length).toBeGreaterThanOrEqual(2);
+    for (const [tx, ty] of merchant.area) {
+      expect(world.solidBox(tx, ty), `${tx},${ty}`).toBeNull();
+      expect(ty).toBe(cart.ty + 1);
+      expect(inTown(tx, ty)).toBe(false);
+    }
+    const xs = merchant.area.map(([tx]) => tx).sort((a, b) => a - b);
+    expect(xs[xs.length - 1]! - xs[0]!).toBe(xs.length - 1);
+  });
+
+  it('shows mended to a character who helped the merchant', () => {
+    expect(source.cart.variant).toEqual({ when: { quest: 'cart', at: ['done'] }, frame: 'fixture/cart-mended' });
+  });
+
+  it('has a lantern that keeps the mobs away from the merchant, as the lamps of the town do', () => {
+    const cart = source.cart;
+    const rules = source.mobs();
+    expect(cart.light).toBeTruthy();
+    for (const [tx, ty] of [...source.npcs().at(-1)!.area, [cart.tx, cart.ty + 2], [cart.tx + 1, cart.ty - 2]] as const) {
+      expect(rules.hunt(tx, ty), `${tx},${ty}`).toBe(false);
+      expect(rules.roam(tx, ty), `${tx},${ty}`).toBe(false);
+    }
+    expect(rules.hunt(cart.tx + 1 + CART_SAFE + 1, cart.ty)).toBe(true);
+  });
+});
+
+describe('the story through the server', () => {
+  it('starts with the letter on the table of the home, and the reeve hears that Thrain sent the character', () => {
+    const room = new Room(new World(source));
+    const table = source.home().fixtures.find((f) => f.kind === 'table')!;
+    const near = join(room, { x: table.tx * TILE_SIZE + 8, y: (table.ty + 1) * TILE_SIZE + 8 });
+    const far = join(room, besideNpc('reeve'));
+    expect(room.quest(far.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(false);
+    // The reeve does not hear of the letter from a character who did not read it.
+    expect(room.quest(far.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(false);
+    expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(true);
+    expect(near.quests.ashes?.step).toBe('letter');
+    expect(far.quests).toEqual(EMPTY_BOOK);
+    // A second reading changes nothing.
+    expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(false);
+    // An effect of another thing, or of nothing, does not apply.
+    expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'tell-reeve', 0)).toBe(false);
+    goTo(near, 'reeve');
+    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(true);
+    expect(near.quests.ashes?.step).toBe('reeve');
+  });
+
+  it('lets a strong character lift the cart, and the merchant pays', () => {
+    const room = new Room(new World(source));
+    const merchant = { npc: npcIndex('merchant') };
+    const weak = join(room, besideNpc('merchant'), 12);
+    const strong = join(room, besideNpc('merchant'), 13);
+    // The cart cannot be lifted before the character offers help.
+    expect(room.quest(strong.id, merchant, 'cart-lift', 0)).toBe(false);
+    for (const p of [weak, strong]) expect(room.quest(p.id, merchant, 'cart-help', 0)).toBe(true);
+    expect(room.quest(weak.id, merchant, 'cart-lift', 0)).toBe(false);
+    expect(room.quest(strong.id, merchant, 'cart-lift', 0)).toBe(true);
+    expect(strong.quests.cart).toMatchObject({ step: 'done', flags: ['lifted'] });
+    expect(strong.pack.coins).toBe(CART_REWARD);
+    expect(weak.quests.cart?.step).toBe('met');
+    expect(weak.pack.coins).toBe(0);
+    // Only once.
+    expect(room.quest(strong.id, merchant, 'cart-lift', 0)).toBe(false);
+    expect(strong.pack.coins).toBe(CART_REWARD);
+  });
+
+  it('lets any character bring a lever from the smith: the merchant keeps it, and pays', () => {
+    const room = new Room(new World(source));
+    const merchant = { npc: npcIndex('merchant') };
+    const smith = { npc: npcIndex('smith') };
+    const p = join(room, besideNpc('merchant'));
+    expect(room.quest(p.id, merchant, 'cart-help', 0)).toBe(true);
+    // The smith is far: no lever from here.
+    expect(room.quest(p.id, smith, 'cart-lever', 0)).toBe(false);
+    goTo(p, 'smith');
+    expect(room.quest(p.id, smith, 'cart-lever', 0)).toBe(true);
+    expect(p.quests.cart?.step).toBe('lever');
+    expect(p.pack.items).toEqual([{ kind: 'crowbar', count: 1 }]);
+    // One lever at a time.
+    expect(room.quest(p.id, smith, 'cart-lever', 0)).toBe(false);
+    goTo(p, 'merchant');
+    expect(room.quest(p.id, merchant, 'cart-mend', 0)).toBe(true);
+    expect(p.quests.cart).toMatchObject({ step: 'done', flags: ['lever'] });
+    expect(p.pack).toEqual({ coins: CART_REWARD, items: [] });
+  });
+
+  it('sends the book to its player only: in the welcome, and in a snapshot after a change', () => {
+    const room = new Room(new World(source));
+    const merchant = { npc: npcIndex('merchant') };
+    const a = join(room, besideNpc('merchant'));
+    const b = join(room, besideNpc('merchant'));
+    expect(room.welcome(a).qs).toEqual([]);
+    room.welcome(b);
+    room.quest(a.id, merchant, 'cart-help', 0);
+    const sent = new Map<number, SnapshotMessage>();
+    room.broadcast(0, (id, message) => sent.set(id, message as SnapshotMessage));
+    expect(sent.get(a.id)?.qs).toEqual([['cart', 'met', 1, []]]);
+    expect(sent.get(b.id)?.qs).toBeUndefined();
+    // Nothing changed since: no book.
+    room.broadcast(50, (id, message) => sent.set(id, message as SnapshotMessage));
+    expect(sent.get(a.id)?.qs).toBeUndefined();
+  });
+});

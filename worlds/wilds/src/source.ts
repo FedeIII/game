@@ -24,7 +24,8 @@ import {
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
-import { Road, signpost } from './road.ts';
+import { MERCHANT } from './dialogs.ts';
+import { Road, cartSpot, signpost } from './road.ts';
 import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
@@ -113,6 +114,13 @@ const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
 /** No house of the wilds stands this close to the town (tiles), and mobs do not live this close to it. */
 const TOWN_MARGIN = 2;
+/**
+ * The lantern of the merchant's cart keeps the mobs this far away (tiles, from the middle of the
+ * cart), as the lamps of the town do: a character can talk to the merchant in peace.
+ */
+export const CART_SAFE = 4;
+/** The lantern of the cart: as a lamp of the town, smaller. */
+const CART_LANTERN = { radius: 64, colour: 0xffb060, x: 4, y: -20 } as const;
 
 /** Every fixture of the town, in its buildings and in its streets. */
 const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES, TOWN_CACHE];
@@ -140,6 +148,8 @@ export class WildsSource implements WorldSource {
   private readonly patches = new Map<string, Fixture | null>();
   private roadOf: Road | null = null;
   private signOf: Fixture | null = null;
+  private cartOf: Fixture | null = null;
+  private npcList: readonly NpcDef[] | null = null;
 
   constructor(seed: number) {
     this.seed = seed;
@@ -149,6 +159,15 @@ export class WildsSource implements WorldSource {
   get road(): Road {
     this.roadOf ??= new Road(this.home());
     return this.roadOf;
+  }
+
+  /**
+   * The merchant's cart, beside the road to the town (road.ts, cartSpot): broken, with its wheel in
+   * the mud; mended for a character who helped the merchant (quests.ts, cart).
+   */
+  get cart(): Fixture {
+    this.cartOf ??= { kind: 'cart', ...cartSpot(this.road), light: CART_LANTERN, variant: { when: { quest: 'cart', at: ['done'] }, frame: 'fixture/cart-mended' } };
+    return this.cartOf;
   }
 
   /** The signpost by the home that points to the town. */
@@ -248,6 +267,14 @@ export class WildsSource implements WorldSource {
           const natural = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = isWet(natural) ? Ground.Grass : natural;
           chunk.structure[index] = fixtureTiles(sign)[0]![2];
+          continue;
+        }
+        const cart = this.cart;
+        if (ty === cart.ty && (tx === cart.tx || tx === cart.tx + 1)) {
+          // The merchant's cart, beside the road: on dry ground, with nothing growing under it.
+          const natural = naturalGround(this.seed, tx, ty);
+          chunk.ground[index] = isWet(natural) ? Ground.Sand : natural;
+          chunk.structure[index] = fixtureTiles(cart)[tx - cart.tx]![2];
           continue;
         }
         const patch = this.patchAt(tx, ty);
@@ -351,6 +378,8 @@ export class WildsSource implements WorldSource {
   fixtureAt(tx: number, ty: number): Fixture | null {
     if (inTown(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
     if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
+    const cart = this.cart;
+    if (ty === cart.ty && (tx === cart.tx || tx === cart.tx + 1)) return cart;
     const patch = this.patchAt(tx, ty);
     if (patch) return patch;
     const house = this.buildingAt(tx, ty);
@@ -363,6 +392,7 @@ export class WildsSource implements WorldSource {
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
     if (overlaps(TOWN, x0, y0, x1, y1)) out.push(...TOWN_FIXTURE_LIST.filter(within));
     if (within(this.sign)) out.push(this.sign);
+    if (within(this.cart)) out.push(this.cart);
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
       for (let cx = Math.floor(x0 / BUILDING_CELL); cx <= Math.floor(x1 / BUILDING_CELL); cx++) {
         const patch = this.herbs(cx, cy);
@@ -406,9 +436,24 @@ export class WildsSource implements WorldSource {
     ];
   }
 
-  /** The people of Ironhold. */
+  /** The people of Ironhold, then the merchant by the cart on the road (its area: the road in front of the cart). */
   npcs(): readonly NpcDef[] {
-    return TOWN_NPCS;
+    if (!this.npcList) {
+      const cart = this.cart;
+      const road = this.road;
+      const area: [number, number][] = [];
+      for (let tx = cart.tx - 1; tx <= cart.tx + 2; tx++) if (road.on(tx, cart.ty + 1)) area.push([tx, cart.ty + 1]);
+      const merchant: NpcDef = {
+        id: 'merchant',
+        look: 'merchant',
+        home: [cart.tx, cart.ty + 1],
+        area,
+        content: { speaker: 'fixture', dialog: MERCHANT },
+        barks: ['A long road, and a bad one.', 'Ironhold, then Silverspring. Then home.', 'Who walks there? A friend, I hope.'],
+      };
+      this.npcList = [...TOWN_NPCS, merchant];
+    }
+    return this.npcList;
   }
 
   /** Inside the home, by the door. */
@@ -425,16 +470,19 @@ export class WildsSource implements WorldSource {
    * Mobs live everywhere in the woods, except on water, on the ground of a house (its ring and
    * the path to its door: a player who comes out of a door does not walk into one) and in or near
    * the town. They hunt everywhere outside the houses and the town: they never come into the
-   * town, so it is safe.
+   * town, so it is safe. They never come near the lantern of the merchant's cart (CART_SAFE).
    */
   mobs(): MobRules {
     const nearTown = (tx: number, ty: number) => tx >= TOWN.x0 - TOWN_MARGIN && tx <= TOWN.x1 + TOWN_MARGIN && ty >= TOWN.y0 - TOWN_MARGIN && ty <= TOWN.y1 + TOWN_MARGIN;
+    const cart = this.cart;
+    const nearCart = (tx: number, ty: number) => Math.hypot(tx + 0.5 - (cart.tx + 1), ty + 0.5 - (cart.ty + 0.5)) <= CART_SAFE;
     return {
       roam: (tx, ty) =>
         !isWet(naturalGround(this.seed, tx, ty)) &&
         !nearTown(tx, ty) &&
+        !nearCart(tx, ty) &&
         !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
-      hunt: (tx, ty) => !inTown(tx, ty),
+      hunt: (tx, ty) => !inTown(tx, ty) && !nearCart(tx, ty),
       population: MOB_POPULATION,
     };
   }
