@@ -6,9 +6,11 @@ A quest is a thing that a world asks of a character, in steps. Each character ha
 step that it is at in each quest that it started. Answers in conversations and things that a
 character reads move the quests on, and they can take items and give a reward. The server keeps
 the book with the character and checks every change. The journal shows the quests, a banner shows
-each change, and the map marks where to go. The first story of the Wilds starts with a letter from
-Thrain Steelforge on the table of the home, and its first errand is a merchant's broken cart on the
-road to Ironhold (chapter 1.5.1 of Kandrax; plan: `docs/drafts/story-razed-villages.md`, phase 2).
+each change, and the map marks where to go. A character can also overhear a scene: NPCs who talk
+among themselves. The first story of the Wilds starts with a letter from Thrain Steelforge on the
+table of the home; its first errand is a merchant's broken cart on the road to Ironhold, and in the
+reeve's house the character overhears that hobgoblins go to Silverspring (chapter 1.5.1 of Kandrax;
+plan: `docs/drafts/story-razed-villages.md`, phases 2 and 3).
 
 ## Terminology
 
@@ -20,6 +22,7 @@ road to Ironhold (chapter 1.5.1 of Kandrax; plan: `docs/drafts/story-razed-villa
 - **Condition**: a quest at some steps (or started at all), or an item in the pack; or the opposite
   of one.
 - **Open quest**: a quest at a step that does not end it. **Done quest**: one at a step that ends it.
+- **Scene**: a talk that a character overhears, in an area, at a step; its NPCs say its lines.
 
 ## Requirements
 
@@ -160,6 +163,53 @@ conversations, gates, errands and rewards.
 
 ---
 
+### REQ-QST-009: Scenes
+
+**User Story:** As a player, I want to overhear the people of the world, so that I learn the story as
+it happens round me.
+
+**Acceptance Criteria:**
+- **AC-QST-009.1:** When a character for whom the conditions of a scene hold comes into its area,
+  the NPCs of the scene say its lines one after the other, each over its own head, as long as it
+  takes to read the line. The NPC that speaks stops its own lines.
+- **AC-QST-009.2:** Only the page of that character shows the scene. The other players see the NPCs
+  as before.
+- **AC-QST-009.3:** A character who goes more than 2 tiles out of the area stops the scene; it plays
+  again from the start the next time.
+- **AC-QST-009.4:** At the end of the scene, its effect applies (in a shared world, the server checks
+  that the character is in the area, with 2 tiles round it). Then the scene does not play again.
+- **AC-QST-009.5:** A line said low has a gate: a character that passes it reads the line; others
+  read "..." (with the gate, "... [WIS 13]", when they are 1 or 2 short).
+
+---
+
+### REQ-QST-010: The Hobgoblin Raid (the start)
+
+**User Story:** As a player, I want the story to take me from Ironhold into the hills, so that the
+letter leads to an adventure.
+
+**Acceptance Criteria:**
+- **AC-QST-010.1:** In the house of the reeve of Ironhold stand the reeve, a villager and a soldier of
+  the Sovereignty (iron grey, not the red of the town).
+- **AC-QST-010.2:** A character who started "The Razed Villages", and not "The Hobgoblin Raid",
+  overhears the argument when it comes into the house or within 2 rows of its south wall: the
+  hobgoblins go straight for Silverspring, two squads of them; they took Himo, and Brys thinks that
+  he is still alive; the villager wants to warn Silverspring, and the soldier refuses to leave
+  Ironhold with no defence. With WIS 13 the character also hears the soldier say low: "Let the
+  hobgoblins have Silverspring. It saves the Sovereignty the work." The reeve then calls the
+  character.
+- **AC-QST-010.3:** The end of the argument starts "The Hobgoblin Raid" at `heard`, and the map marks
+  the reeve.
+- **AC-QST-010.4:** At `heard`, the reeve asks the character to warn Silverspring; "I will warn
+  Silverspring." moves the quest to `asked`. She cannot pay, and she says not to fight the
+  hobgoblins. At `asked`, she starts with "Silverspring is north-east of here, over the hills. Go,
+  and be careful."
+- **AC-QST-010.5:** At `heard` or `asked`, the soldier tells the character to stay out of it. With
+  WIS 13, the character can say that the soldier wants the hobgoblins to reach Silverspring, and the
+  soldier threatens it.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -200,8 +250,19 @@ conversations, gates, errands and rewards.
   town), `WildsSource.cart` (with `CART_LANTERN`, and the variant `fixture/cart-mended`), the
   merchant (the last NPC of `WildsSource.npcs()`, look `merchant`), `CART_SAFE` (4 tiles: `roam` and
   `hunt` of `WildsSource.mobs()`).
+- **Scenes** (`packages/engine/src/scenes.ts`): `SceneDef` (`id`, `area`, `when`, `lines`, `effect`),
+  `SceneLine` (`npc`, `text`, `gate`), `inScene()`, `SCENE_MARGIN` (2), `SCENE_LINE_MAX` (160),
+  `checkScenes()`; `WorldSource.scenes()`. The message `quest` carries `scene` (protocol 24), and
+  `Room.quest()` checks the area. The page: `render/scene.ts` (`ScenePlayer`: the time of a line as
+  the welcome's), `game.ts` (`sceneLines()`: a murmur, `STRINGS.murmur`, for a line behind a gate).
+  The debug line `quests` shows the scene that plays ("scene argument 3/9").
+- **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`; the steps `scouts` and `title` come
+  with the road, the grove and Silverspring), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`;
+  `ARGUMENT` and `TOWN_SCENES` (`town.ts`: the area is the reeve's house and two rows south of it);
+  the people `farmer` (pages) and `soldier` (`SOLDIER`) in the reeve's house; `REEVE` starts at
+  `warn` (`heard`) and `go` (`asked`).
 - **The art**: `fixture/cart`, `fixture/cart-mended` (`art/fixtures.ts`), `item/crowbar`
-  (`art/items.ts`), the NPC look `merchant` (`art/characters.ts`).
+  (`art/items.ts`), the NPC looks `merchant`, `farmer` and `soldier` (`art/characters.ts`).
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

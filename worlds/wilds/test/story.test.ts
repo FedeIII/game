@@ -10,7 +10,9 @@ import {
   checkDialog,
   checkEffect,
   checkQuestDefs,
+  checkScenes,
   fixtureTiles,
+  startNode,
   traitsOf,
   type Conditions,
   type Dialog,
@@ -19,7 +21,7 @@ import {
   type Scores,
   type SnapshotMessage,
 } from '@game/engine';
-import { CART_REWARD, CART_SAFE, DEFAULT_SEED, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
+import { CART_REWARD, CART_SAFE, DEFAULT_SEED, REEVE, SOLDIER, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
 const npcIndex = (id: string) => source.npcs().findIndex((n) => n.id === id);
@@ -60,7 +62,23 @@ describe('the quests of the Wilds', () => {
     expect(wilds.quests).toBe(QUESTS);
     expect(checkQuestDefs(QUESTS)).toEqual([]);
     const { effects, conditions, dialogs } = contentOfTheWilds();
-    expect(effects.map((e) => e.id).sort()).toEqual(['cart-help', 'cart-help', 'cart-lever', 'cart-lift', 'cart-lift', 'cart-mend', 'read-letter', 'tell-reeve']);
+    expect(effects.map((e) => e.id).sort()).toEqual([
+      'cart-help',
+      'cart-help',
+      'cart-lever',
+      'cart-lift',
+      'cart-lift',
+      'cart-mend',
+      'raid-asked',
+      'raid-asked',
+      'read-letter',
+      'tell-reeve',
+      'tell-reeve',
+      'tell-reeve',
+    ]);
+    // The scenes: the argument in the house of the reeve.
+    expect(checkScenes(source.scenes(), source.npcs().map((n) => n.id), QUESTS)).toEqual([]);
+    expect(source.scenes().map((s) => s.id)).toEqual(['argument']);
     for (const effect of effects) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
     for (const when of conditions) expect(checkConditions(when, QUESTS)).toEqual([]);
     for (const dialog of dialogs) expect(checkDialog(dialog), dialog.name).toEqual([]);
@@ -172,6 +190,44 @@ describe('the story through the server', () => {
     expect(room.quest(p.id, merchant, 'cart-mend', 0)).toBe(true);
     expect(p.quests.cart).toMatchObject({ step: 'done', flags: ['lever'] });
     expect(p.pack).toEqual({ coins: CART_REWARD, items: [] });
+  });
+
+  it('plays the argument in the house of the reeve to a character with the letter; then the reeve asks it to warn Silverspring', () => {
+    const room = new Room(new World(source));
+    const scene = source.scenes().find((s) => s.id === 'argument')!;
+    const house = { x: (scene.area.x0 + 3) * TILE_SIZE + 8, y: (scene.area.y1 - 1) * TILE_SIZE + 8 };
+    const reader = join(room, house);
+    const stranger = join(room, house);
+    reader.quests = { ashes: { step: 'letter', flags: [], n: 1 } };
+    // A character without the letter hears nothing of it.
+    expect(room.quest(stranger.id, { scene: 'argument' }, 'raid-heard', 0)).toBe(false);
+    // Another effect, or another scene, does not count.
+    expect(room.quest(reader.id, { scene: 'argument' }, 'raid-asked', 0)).toBe(false);
+    expect(room.quest(reader.id, { scene: 'nothing' }, 'raid-heard', 0)).toBe(false);
+    // Far from the house, the end of the scene does not count either.
+    const far = besideNpc('merchant');
+    Object.assign(reader.state, far);
+    expect(room.quest(reader.id, { scene: 'argument' }, 'raid-heard', 0)).toBe(false);
+    Object.assign(reader.state, house);
+    expect(room.quest(reader.id, { scene: 'argument' }, 'raid-heard', 0)).toBe(true);
+    expect(reader.quests.raid?.step).toBe('heard');
+    // Once.
+    expect(room.quest(reader.id, { scene: 'argument' }, 'raid-heard', 0)).toBe(false);
+    goTo(reader, 'reeve');
+    expect(room.quest(reader.id, { npc: npcIndex('reeve') }, 'raid-asked', 0)).toBe(true);
+    expect(reader.quests.raid?.step).toBe('asked');
+    // The soldier tells it to stay out; the dialogs start by the step.
+    expect(startNode(SOLDIER, reader.quests, reader.pack)).toBe('stay');
+    expect(startNode(REEVE, reader.quests, reader.pack)).toBe('go');
+    expect(startNode(REEVE, { ...reader.quests, raid: { step: 'heard', flags: [], n: 3 } }, reader.pack)).toBe('warn');
+  });
+
+  it('says the low line of the soldier only to a character with WIS 13', () => {
+    const scene = source.scenes().find((s) => s.id === 'argument')!;
+    const low = scene.lines.filter((l) => l.gate);
+    expect(low).toHaveLength(1);
+    expect(low[0]).toMatchObject({ npc: 'soldier', gate: { ability: 'wis', min: 13 } });
+    expect(scene.when).toEqual([{ quest: 'ashes' }, { quest: 'raid', not: true }]);
   });
 
   it('sends the book to its player only: in the welcome, and in a snapshot after a change', () => {

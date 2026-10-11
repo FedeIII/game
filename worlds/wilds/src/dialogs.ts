@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, TELL_REEVE } from './quests.ts';
+import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, TELL_REEVE } from './quests.ts';
 
 /**
  * The conversations of the people of Ironhold (town.ts): what each one says, and what the
@@ -232,9 +232,44 @@ export const APOTHECARY: Dialog = {
 export const REEVE: Dialog = {
   name: 'Elama Rothenel, the reeve',
   start: 'reeve',
-  // A character with the letter of Thrain Steelforge (quests.ts, ashes).
-  starts: [{ when: { quest: 'ashes', at: ['letter'] }, node: 'letter' }],
+  // A character who heard the argument in her house (town.ts, ARGUMENT; quests.ts, raid), or who
+  // goes to warn Silverspring; else a character with the letter of Thrain Steelforge (ashes).
+  starts: [
+    { when: { quest: 'raid', at: ['heard'] }, node: 'warn' },
+    { when: { quest: 'raid', at: ['asked'] }, node: 'go' },
+    { when: { quest: 'ashes', at: ['letter'] }, node: 'letter' },
+  ],
   nodes: {
+    warn: {
+      say: 'You heard it. Hobgoblins in the hills, on the way to Silverspring. Somebody must warn them, and the soldiers will not go.',
+      answers: [
+        { text: 'I will warn Silverspring.', next: 'thanks', effect: RAID_ASKED },
+        { text: 'Thrain Steelforge sent me. Who burns the homesteads?', next: 'burned', effect: TELL_REEVE },
+        { text: 'Why will the soldiers not go?', next: 'soldiers' },
+        { text: 'Not now.' },
+      ],
+    },
+    soldiers: {
+      say: 'They are soldiers of the Sovereignty, not of Ironhold. They say that they guard the town. I say that they guard the Sovereignty.',
+      answers: [{ text: 'I will warn Silverspring.', next: 'thanks', effect: RAID_ASKED }, BYE],
+    },
+    thanks: {
+      say: 'Thank you. Ironhold cannot pay you, I am sorry. Silverspring is north-east of here, over the hills. Do not fight the hobgoblins: they are many.',
+      answers: [{ text: 'Who are Himo and Brys?', next: 'scouts' }, BYE],
+    },
+    scouts: {
+      say: 'Our scouts. They watch the hills for us. Brys came back alone last night. Himo... we do not know.',
+      answers: [BYE],
+    },
+    go: {
+      say: 'Silverspring is north-east of here, over the hills. Go, and be careful.',
+      answers: [
+        { text: 'Who are Himo and Brys?', next: 'scouts' },
+        { text: 'Thrain Steelforge sent me. Who burns the homesteads?', next: 'burned', effect: TELL_REEVE },
+        { text: 'Tell me about the town.', next: 'reeve' },
+        BYE,
+      ],
+    },
     letter: {
       say: 'I am the reeve of Ironhold. Of what is left of it. You look like somebody with business here.',
       answers: [
@@ -596,6 +631,47 @@ export const MERCHANT: Dialog = {
     },
     rest: {
       say: 'Between us: the Sovereignty and the Enclave fight for these woods with dirty tricks. Be careful who pays you.',
+      answers: [BYE],
+    },
+  },
+};
+
+/**
+ * A soldier of the Iron Sovereignty in the house of the reeve (chapter 1.5.1: the soldiers will not
+ * leave Ironhold, and they want Silverspring to fall). To a character who heard of the raid, it
+ * says to stay out of it; with Wisdom, the character sees why.
+ */
+export const SOLDIER: Dialog = {
+  name: 'A soldier of the Sovereignty',
+  start: 'move',
+  starts: [{ when: { quest: 'raid', at: ['heard', 'asked'] }, node: 'stay' }],
+  nodes: {
+    move: {
+      say: "Move along, traveller. The reeve's house is no place to stand about.",
+      answers: [{ text: 'Who do you serve?', next: 'serve' }, { text: 'What is happening in the hills?', next: 'hills' }, BYE],
+    },
+    hills: {
+      say: 'Nothing that the Sovereignty cannot handle. Move along.',
+      answers: [BYE],
+    },
+    serve: {
+      say: 'The Iron Sovereignty. Ironhold is ours to guard. Ironhold, and nothing else.',
+      answers: [BYE],
+    },
+    stay: {
+      say: 'I know that look. Stay out of this, traveller. The hills are no place for heroes.',
+      answers: [
+        { text: 'Silverspring needs help.', next: 'help' },
+        { text: 'You want the hobgoblins to reach Silverspring.', next: 'threat', gate: INSIGHT_GATE },
+        BYE,
+      ],
+    },
+    help: {
+      say: 'Silverspring has the Enclave. Let the Enclave help it.',
+      answers: [BYE],
+    },
+    threat: {
+      say: '...Careful. A traveller who meddles in the business of the Sovereignty can have an accident in those hills.',
       answers: [BYE],
     },
   },

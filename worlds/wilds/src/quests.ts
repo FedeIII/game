@@ -42,8 +42,27 @@ export const CART: QuestDef = {
   ],
 };
 
+export const RAID: QuestDef = {
+  id: 'raid',
+  title: 'The Hobgoblin Raid',
+  steps: [
+    {
+      id: 'heard',
+      journal: 'In the house of the reeve of Ironhold, I heard that hobgoblins go through the hills to Silverspring. They took the scout Himo. The reeve wants a word with me.',
+      npc: 'reeve',
+    },
+    {
+      id: 'asked',
+      journal: 'Elama Rothenel asks me to warn Silverspring, north-east of Ironhold, before the hobgoblins come. Ironhold cannot pay. The soldiers of the Sovereignty want me to stay out of it.',
+    },
+    // The later steps come with the road to Silverspring, the grove and Silverspring (story phases 3 and 4).
+    { id: 'scouts', journal: 'I killed the scouts of the hobgoblins in the grove on the road to Silverspring. Their war band goes on.' },
+    { id: 'title', journal: 'Silverspring gave me a title in its guard, and a bed in the town.', end: true },
+  ],
+};
+
 /** The quests of the Wilds, in the order of the journal. */
-export const QUESTS: readonly QuestDef[] = [ASHES, CART];
+export const QUESTS: readonly QuestDef[] = [ASHES, CART, RAID];
 
 /** The letter on the table of the home: to read it starts the story. */
 export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'ashes', to: 'letter' };
@@ -66,3 +85,8 @@ export const CART_MEND: QuestEffect = {
   take: [{ kind: 'crowbar', count: 1 }],
   give: { coins: CART_REWARD, items: [] },
 };
+
+/** The end of the scene in the reeve's house (town.ts, ARGUMENT): the character heard of the raid. */
+export const RAID_HEARD: QuestEffect = { id: 'raid-heard', quest: 'raid', to: 'heard' };
+/** The character tells the reeve that it will warn Silverspring. */
+export const RAID_ASKED: QuestEffect = { id: 'raid-asked', quest: 'raid', to: 'asked', from: ['heard'] };

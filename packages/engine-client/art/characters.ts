@@ -104,6 +104,21 @@ export const NPC_LOOKS: Record<string, Look> = {
     hood: false,
     spec: { headwear: 'cowl', body: 'robe', pauldrons: false, item: 'staff' },
   },
+  /** A villager of Ironhold (the house of the reeve, 2026-10-11): no cloak, a plain jerkin, a purse. */
+  farmer: {
+    cloak: ramp('#141008', '#211a0e', '#2f2615', '#3e331d', '#4e4126', '#5f4f30'),
+    hood: false,
+    hair: HAIR.blond,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { cloak: 'none', pauldrons: false, pouch: true },
+  },
+  /** A soldier of the Iron Sovereignty: as the watchman, with the iron grey of the Sovereignty instead of the town's red. */
+  soldier: {
+    cloak: ramp('#0c0d10', '#15171b', '#1f2227', '#2a2e34', '#363b42', '#434951'),
+    hood: false,
+    hair: HAIR.black,
+    spec: { headwear: 'helm', body: 'armour', cloak: 'short', tabard: true, item: 'sword' },
+  },
   /** A travelling merchant (the road to Ironhold, 2026-10-11): a brim hat, a short dusty cloak, a beard and a purse. */
   merchant: {
     cloak: ramp('#16120a', '#241d10', '#352a17', '#47381f', '#5a4727', '#6d5730'),

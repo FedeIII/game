@@ -171,8 +171,8 @@ export class NetSession {
     this.questListeners.push(listener);
   }
 
-  /** An effect on a quest through the server: an answer to an NPC (its index) or a thing that the player reads (a tile of it). False while not online. */
-  quest(from: { readonly npc: number } | { readonly at: readonly [number, number] }, effect: string): boolean {
+  /** An effect on a quest through the server: an answer to an NPC (its index), a thing that the player reads (a tile of it), or the end of a scene (its id). False while not online. */
+  quest(from: { readonly npc: number } | { readonly at: readonly [number, number] } | { readonly scene: string }, effect: string): boolean {
     if (this.status !== 'online') return false;
     this.send({ t: 'quest', ...from, effect });
     return true;

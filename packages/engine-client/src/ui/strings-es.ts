@@ -89,6 +89,7 @@ export const ES: Strings = {
     herbs: 'Mastico las hojas amargas. Me siento un poco mejor.',
   },
   loreHint: (tag: string): string => `${tag} Aquí hay más, pero no logro entenderlo.`,
+  murmur: (tag: string | null): string => (tag ? `... ${tag}` : '...'),
   barredPlain: 'Tiene tablas clavadas.',
   lockedPlain: 'Está cerrado con llave.',
   map: {

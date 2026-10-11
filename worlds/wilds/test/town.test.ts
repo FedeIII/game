@@ -215,7 +215,7 @@ describe('Ironhold', () => {
 
   it('has people who talk with the player: conversations with answers that branch', () => {
     const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
-    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'smith', 'watchman']);
+    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'smith', 'soldier', 'watchman']);
     for (const npc of talkers) {
       const dialog = npc.content.dialog!;
       const nodes = Object.values(dialog.nodes);

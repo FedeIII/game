@@ -6,6 +6,7 @@ import type { NpcDef } from './npc.ts';
 import type { Gate } from './traits.ts';
 import type { ItemKind, LootTable } from './items.ts';
 import type { QuestDef } from './quests.ts';
+import type { SceneDef } from './scenes.ts';
 
 /** The ground of a tile. The values go into a Uint8Array, so keep them below 256. */
 export const Ground = {
@@ -91,6 +92,8 @@ export interface WorldSource {
   spawn(world: World): { x: number; y: number };
   /** The NPCs that walk in this world (npc.ts). Without it, none. */
   npcs?(): readonly NpcDef[];
+  /** The talks that a character overhears (scenes.ts): the NPCs of the scene say its lines. Without it, none. */
+  scenes?(): readonly SceneDef[];
   /** Where the mobs of this world may be, and how many (mobs.ts). Without it, the world has none. */
   mobs?(): MobRules;
   /**

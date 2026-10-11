@@ -104,6 +104,8 @@ const EN = {
   } as Readonly<Partial<Record<ItemKind, string>>>,
   /** Lore that the player cannot read yet (Interaction.lore, a score 1 or 2 under the gate). */
   loreHint: (tag: string): string => `${tag} There is more here, but I cannot make sense of it.`,
+  /** A line of a scene said low (scenes.ts): what a character that does not pass its gate hears; with the gate when it is 1 or 2 short. */
+  murmur: (tag: string | null): string => (tag ? `... ${tag}` : '...'),
   /** A barred door or a locked chest without the score: with a clue of the gate, or without (gateView). */
   barredPlain: 'Boards are nailed across it.',
   lockedPlain: 'It is locked.',

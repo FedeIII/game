@@ -9,6 +9,8 @@ import {
   checkEffect,
   checkQuestDefs,
   checkQuests,
+  checkScenes,
+  inScene,
   fromWireBook,
   holds,
   parseClientMessage,
@@ -18,6 +20,7 @@ import {
   type QuestBook,
   type QuestDef,
   type QuestEffect,
+  type SceneDef,
 } from '../src/index.ts';
 
 const ERRAND: QuestDef = {
@@ -124,6 +127,9 @@ describe('quest books from outside', () => {
     expect(parseClientMessage(JSON.stringify({ t: 'quest', npc: 3, at: [1, 1], effect: 'x' }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ t: 'quest', npc: 3, effect: 'Bad Effect' }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ t: 'quest', npc: 3, effect: 'x', to: 'done' }))).toEqual({ t: 'quest', npc: 3, effect: 'x' });
+    expect(parseClientMessage(JSON.stringify({ t: 'quest', scene: 'argument', effect: 'raid-heard' }))).toEqual({ t: 'quest', scene: 'argument', effect: 'raid-heard' });
+    expect(parseClientMessage(JSON.stringify({ t: 'quest', scene: 'argument', npc: 1, effect: 'raid-heard' }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: 'quest', scene: 'Bad Scene', effect: 'raid-heard' }))).toBeNull();
   });
 });
 
@@ -150,5 +156,34 @@ describe('the checks of a world', () => {
     expect(questChanges(done, done, [ERRAND])).toEqual([]);
     // A quest that the world does not have says nothing.
     expect(questChanges(EMPTY_BOOK, { other: { step: 'x', flags: [], n: 1 } }, [ERRAND])).toEqual([]);
+  });
+});
+
+describe('scenes', () => {
+  const scene: SceneDef = {
+    id: 'talk',
+    area: { x0: 2, y0: 3, x1: 5, y1: 6 },
+    when: { quest: 'errand', not: true },
+    lines: [
+      { npc: 'asker', text: 'Hello.' },
+      { npc: 'other', text: 'A secret.', gate: { ability: 'wis', min: 13 } },
+    ],
+    effect: START,
+  };
+
+  it('play in their area, or near it with a margin', () => {
+    expect(inScene(scene, 2, 3)).toBe(true);
+    expect(inScene(scene, 5, 6)).toBe(true);
+    expect(inScene(scene, 6, 6)).toBe(false);
+    expect(inScene(scene, 7, 8, 2)).toBe(true);
+    expect(inScene(scene, 8, 8, 2)).toBe(false);
+  });
+
+  it('are good with NPCs that the world has, short lines, and an effect on its quests', () => {
+    expect(checkScenes([scene], ['asker', 'other'], [ERRAND])).toEqual([]);
+    expect(checkScenes([scene], ['asker'], [ERRAND])).toEqual(['talk: no NPC "other"']);
+    expect(checkScenes([scene, scene], ['asker', 'other'], [ERRAND])).toEqual(['two scenes have the id "talk"']);
+    expect(checkScenes([{ ...scene, lines: [{ npc: 'asker', text: 'x'.repeat(200) }] }], ['asker'], [ERRAND])[0]).toMatch(/too long/);
+    expect(checkScenes([{ ...scene, effect: { ...START, to: 'nowhere' } }], ['asker', 'other'], [ERRAND])).toEqual(['talk: start: no step "nowhere" in errand']);
   });
 });

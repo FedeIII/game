@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 23;
+export const PROTOCOL_VERSION = 24;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -239,14 +239,16 @@ export interface MoveMessage {
 
 /**
  * An effect on a quest (quests.ts, QuestEffect): an answer in a conversation with an NPC (`npc`: its
- * index in WorldSource.npcs()) or a thing that the player reads (`at`: a tile of it, the letter),
- * and `effect`, the id of the effect there. The server checks the nearness, the gate and the
- * conditions of the answer, and the effect; then it changes the book and the pack (protocol 23).
+ * index in WorldSource.npcs()), a thing that the player reads (`at`: a tile of it, the letter), or
+ * the end of a scene that it overheard (`scene`: its id; protocol 24), and `effect`, the id of the
+ * effect there. The server checks the nearness (or the area of the scene), the gate and the
+ * conditions, and the effect; then it changes the book and the pack (protocol 23).
  */
 export interface QuestMessage {
   readonly t: 'quest';
   readonly npc?: number;
   readonly at?: readonly [number, number];
+  readonly scene?: string;
   readonly effect: string;
 }
 
@@ -656,8 +658,11 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'quest': {
       if (typeof m.effect !== 'string' || !QUEST_ID.test(m.effect)) return null;
-      if (isInt(m.npc, 0, 1000) && m.at === undefined) return { t: 'quest', npc: m.npc, effect: m.effect };
-      if (m.npc === undefined && isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'quest', at: m.at as [number, number], effect: m.effect };
+      const from = [m.npc, m.at, m.scene].filter((v) => v !== undefined).length;
+      if (from !== 1) return null;
+      if (isInt(m.npc, 0, 1000)) return { t: 'quest', npc: m.npc, effect: m.effect };
+      if (isPair(m.at, -TILE_LIMIT, TILE_LIMIT)) return { t: 'quest', at: m.at as [number, number], effect: m.effect };
+      if (typeof m.scene === 'string' && QUEST_ID.test(m.scene)) return { t: 'quest', scene: m.scene, effect: m.effect };
       return null;
     }
     case 'drink':

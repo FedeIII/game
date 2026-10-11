@@ -66,7 +66,9 @@ import {
   meetsGate,
   sheetTraits,
   EMPTY_BOOK,
+  SCENE_MARGIN,
   applyEffect,
+  inScene,
   canApply,
   holds,
   questChanges,
@@ -74,6 +76,7 @@ import {
   type Conditions,
   type QuestBook,
   type QuestEffect,
+  type SceneDef,
   type Arrow,
   type Character,
   type Gate,
@@ -108,6 +111,7 @@ import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
+import { ScenePlayer } from './render/scene.ts';
 import { MobViews, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { LootText } from './render/loot-text.ts';
@@ -717,6 +721,22 @@ async function run(options: GameOptions): Promise<void> {
   if (introTitle) textScene.addChild(introTitle.root);
   const hostIndex = intro?.speaker ? npcDefs.findIndex((def) => def.id === intro.speaker) : -1;
   const welcome = intro?.welcome?.length ? new WelcomeSpeech(art, font, textScene) : null;
+  // Scenes (scenes.ts): talks that the character overhears when it comes into their area at their step.
+  const scenes = world.source.scenes?.() ?? [];
+  const scenePlayer = scenes.length > 0 ? new ScenePlayer(art, font, textScene) : null;
+  /** The lines of a scene as this character hears them: a line said low is a murmur without its gate (gateView). */
+  const sceneLines = (scene: SceneDef) =>
+    scene.lines.map((line) => {
+      const index = npcDefs.findIndex((def) => def.id === line.npc);
+      const view = line.gate ? gateView(traits.scores, line.gate) : 'open';
+      return {
+        text: view === 'open' ? tw(line.text) : STRINGS.murmur(view === 'hint' ? gateTag(line.gate!) : null),
+        anchor: () => (index >= 0 && npcViews ? npcViews.headOf(index) : { x: shown.x, y: shown.y - playerView.headHeight }),
+        started: (now: number) => {
+          if (index >= 0) barkBubbles?.hush(index, now);
+        },
+      };
+    });
   /** The welcome starts in the middle of the title's fade-out. */
   const WELCOME_AT = INTRO_TIMING.fadeIn + INTRO_TIMING.hold + INTRO_TIMING.fadeOut / 2;
   let arrivedAt: number | null = null;
@@ -990,7 +1010,7 @@ async function run(options: GameOptions): Promise<void> {
    * shows the book as it will be until the server's word comes), the page in its own world.
    * Returns whether it went.
    */
-  const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] }): boolean => {
+  const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] } | { readonly scene: string }): boolean => {
     const book = questsNow();
     if (!canApply(effect, book, packNow())) return false;
     if (net) {
@@ -1414,6 +1434,20 @@ async function run(options: GameOptions): Promise<void> {
       welcome.start(intro.welcome, anchor, now);
     }
     welcome?.update(now, view);
+    if (scenePlayer) {
+      // A scene starts when the character comes into its area at its step, and stops if it leaves.
+      const tx = Math.floor(player.x / TILE_SIZE);
+      const ty = Math.floor(player.y / TILE_SIZE);
+      const playing = scenePlayer.playing;
+      if (playing && !inScene(playing, tx, ty, SCENE_MARGIN)) scenePlayer.stop(now);
+      else if (!playing && player.down === 0) {
+        const book = questsNow();
+        const scene = scenes.find((s) => inScene(s, tx, ty) && holds(s.when, book, packNow()) && canApply(s.effect, book, packNow()));
+        if (scene) scenePlayer.start(scene, sceneLines(scene), now);
+      }
+      const ended = scenePlayer.update(now, view);
+      if (ended) applyQuest(ended.effect, { scene: ended.id });
+    }
     const dpr = app.renderer.resolution;
     crt.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
     crtText.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
@@ -1467,7 +1501,7 @@ async function run(options: GameOptions): Promise<void> {
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac} (glance ${Math.round(traits.glance * 100)}%, count ${player.ward.toFixed(2)}), ${traits.strike.kind} ${traits.damage}${traits.sneak ? ` (+${traits.sneak} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
-      ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}`] : []),
+      ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,

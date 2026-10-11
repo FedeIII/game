@@ -19,6 +19,7 @@ import {
   type NpcDef,
   type Landmark,
   type Refuge,
+  type SceneDef,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
@@ -26,7 +27,7 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { MERCHANT } from './dialogs.ts';
 import { Road, cartSpot, signpost } from './road.ts';
-import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
+import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
   return tx >= house.doorX - 1 && tx <= house.doorX + 1 && ty > house.y1 && ty <= house.y1 + DOOR_PATH;
@@ -119,8 +120,8 @@ const TOWN_MARGIN = 2;
  * cart), as the lamps of the town do: a character can talk to the merchant in peace.
  */
 export const CART_SAFE = 4;
-/** The lantern of the cart: as a lamp of the town, smaller. */
-const CART_LANTERN = { radius: 64, colour: 0xffb060, x: 4, y: -20 } as const;
+/** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
+const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
 
 /** Every fixture of the town, in its buildings and in its streets. */
 const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES, TOWN_CACHE];
@@ -454,6 +455,11 @@ export class WildsSource implements WorldSource {
       this.npcList = [...TOWN_NPCS, merchant];
     }
     return this.npcList;
+  }
+
+  /** The talks that a character overhears: the argument in the house of the reeve (town.ts). */
+  scenes(): readonly SceneDef[] {
+    return TOWN_SCENES;
   }
 
   /** Inside the home, by the door. */

@@ -8,9 +8,9 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { Road, cartSpot, signpost } from './road.ts';
 export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
-export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
-export { APOTHECARY, ATHLETICS_GATE, INNKEEPER, INSIGHT_GATE, MERCHANT, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
-export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, READ_LETTER, TELL_REEVE } from './quests.ts';
+export { ARGUMENT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
+export { APOTHECARY, ATHLETICS_GATE, INNKEEPER, INSIGHT_GATE, MERCHANT, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, SOLDIER, WATCHMAN, smithPays } from './dialogs.ts';
+export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, RAID, RAID_ASKED, RAID_HEARD, READ_LETTER, TELL_REEVE } from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;

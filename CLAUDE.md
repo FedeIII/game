@@ -619,7 +619,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 23.
+protocol: `docs/multiplayer.md`, protocol 24.
 
 ## Language
 
@@ -658,8 +658,13 @@ its effects and conditions must name its steps (`worlds/wilds/test/story.test.ts
 effect and condition of the content), its texts need Spanish forms (title and journal lines too),
 and a test through the Room should play it. The Wilds (`worlds/wilds/src/quests.ts`): `ashes` (the
 letter of Thrain Steelforge on the home's table, then Elama Rothenel) and `cart` (the merchant by
-a broken cart on the road: lift it with STR 13, or bring the smith's lever; 10 coins). The
-merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the town.
+a broken cart on the road: lift it with STR 13, or bring the smith's lever; 10 coins), and `raid`
+(the scene `ARGUMENT` in the reeve's house, then the reeve asks the character to warn Silverspring).
+The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the
+town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character
+overhears in an area at a step; its NPCs say the lines, a line behind a gate is a murmur, and the
+end applies an effect (the message `quest` with `scene`, protocol 24). Only that character's page
+plays it.
 
 ## Arrival in a world
 

@@ -1,8 +1,8 @@
 # The Razed Villages: the first story of the game (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** Phases 1 and 2 built (2026-10-11: `docs/features/game/language.md`,
-> `docs/features/game/quests.md`); phases 3 to 6 planned
+> **Status:** Phases 1 and 2 built, phase 3 in part (2026-10-11: `docs/features/game/language.md`,
+> `docs/features/game/quests.md`); the rest of phase 3, and phases 4 to 6, planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -318,7 +318,12 @@ before the next one.
    reward is 10 coins (the chapter: 20 gold); the cart has a lantern, and no mob comes within 4
    tiles of it, so a character can talk to the merchant in peace.
 3. **The hobgoblins** (S3, S5 without the Devastator, the road and the grove of S6), with Q2 up to
-   `raid.scouts`.
+   `raid.scouts`. Built in three parts: 3a, the scenes (S3), the argument and the reeve's request
+   (`raid.heard`, `raid.asked`; built 2026-10-11, protocol 24); 3b, the new mobs; 3c, the road to
+   Silverspring, the grove and the ambush (`raid.scouts`). In 3a, the guard of the scene is a soldier
+   of the Sovereignty in the reeve's house, not Brann (Brann says that he is the whole town watch),
+   and a villager stands with them; neither has a name. The soldier, not Brann, tells the character
+   to stay out of it.
 4. **Silverspring and the raid** (S4, the Devastator, Silverspring and the camp of S6), with the end
    of Q2.
 5. **The caravan** (the convoy of S6), with Q3.

@@ -8,6 +8,7 @@ import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDealAnswer, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
+import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
@@ -585,13 +586,15 @@ export class Room {
   }
 
   /**
-   * An effect on a quest (quests.ts): an answer to an NPC (`npc`) or a thing that the player reads
-   * (`at`, the letter). The player must be near the NPC or the thing (DEAL_RANGE), pass the gate of
-   * the answer, and the conditions of the answer must hold; then the effect must apply (canApply).
+   * An effect on a quest (quests.ts): an answer to an NPC (`npc`), a thing that the player reads
+   * (`at`, the letter), or the end of a scene that it overheard (`scene`, scenes.ts). The player must
+   * be near the NPC or the thing (DEAL_RANGE), or in the area of the scene (SCENE_MARGIN round it),
+   * pass the gate of the answer, and the conditions of the answer or the scene must hold; then the
+   * effect must apply (canApply).
    * It changes the book and the pack: the reward goes into the pack (the client shows it), and what
    * does not fit falls at the player's feet. Returns whether the book changed (the server saves it).
    */
-  quest(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number] }, effectId: string, nowMs: number): boolean {
+  quest(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number]; readonly scene?: string }, effectId: string, nowMs: number): boolean {
     const player = this.players.get(id);
     if (!player || player.state.down > 0) return false;
     let found: { readonly effect?: QuestEffect; readonly gate?: Gate; readonly when?: Conditions } | null = null;
@@ -606,6 +609,13 @@ export class Room {
       if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return false;
       const content = fixture.content;
       found = content?.effect?.id === effectId ? { effect: content.effect } : content?.dialog ? findEffectAnswer(content.dialog, effectId) : null;
+    } else if (from.scene !== undefined) {
+      // The end of a scene that the player overheard: it must stand in (or near) its area.
+      const scene = this.world.source.scenes?.().find((s) => s.id === from.scene);
+      const tx = Math.floor(player.state.x / TILE_SIZE);
+      const ty = Math.floor(player.state.y / TILE_SIZE);
+      if (!scene || scene.effect.id !== effectId || !inScene(scene, tx, ty, SCENE_MARGIN)) return false;
+      found = { effect: scene.effect, when: scene.when };
     }
     const effect = found?.effect;
     if (!effect || (found!.gate && !meetsGate(player.traits.scores, found!.gate)) || !holds(found!.when, player.quests, player.pack)) return false;

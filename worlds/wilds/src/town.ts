@@ -1,5 +1,6 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, PEDDLER, REEVE, SMITH, WATCHMAN } from './dialogs.ts';
+import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef, type SceneDef } from '@game/engine';
+import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, LORE_GATE, PEDDLER, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
+import { RAID_HEARD } from './quests.ts';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -320,9 +321,9 @@ const BUILDINGS: readonly Plan[] = [
     plan: [
       '#########',
       '#bb.mm.k#',
-      '#.......#',
+      '#.....F.#',
       '#.dd..K.#',
-      '#.......#',
+      '#.S.....#',
       '#+#+D+#+#',
     ],
     things: {
@@ -346,6 +347,21 @@ const BUILDINGS: readonly Plan[] = [
         dialog: REEVE,
         barks: ['Taxes, taxes...', 'Another letter with no answer.', 'The gate, the lamps. Always the lamps.'],
         greeting: 'Good evening, {name}.',
+      },
+      // A villager who came for news of the hills, and a soldier of the Sovereignty (the scene ARGUMENT).
+      F: {
+        id: 'farmer',
+        look: 'farmer',
+        pages: ['My brother farms by the hills. I have not heard from him for a week.', 'The reeve says to wait. I am tired of waiting.'],
+        barks: ['Hobgoblins. In our hills.', 'Somebody must do something.', 'Wait, wait, always wait.'],
+        greeting: '{name}! Any news from the hills?',
+      },
+      S: {
+        id: 'soldier',
+        look: 'soldier',
+        dialog: SOLDIER,
+        barks: ['Move along.', 'The Sovereignty keeps this town safe.', 'Hills, hills. Always the hills.'],
+        greeting: '{name}. Keep out of trouble.',
       },
     },
   },
@@ -645,3 +661,33 @@ const WALKERS: readonly NpcDef[] = [
 
 /** The NPCs of the town: the people of the buildings, then the people of the streets. */
 export const TOWN_NPCS: readonly NpcDef[] = [...RESIDENTS, ...WALKERS];
+
+const REEVE_HOUSE = TOWN_BUILDINGS.find((b) => b.id === 'reeve')!;
+
+/**
+ * The argument in the house of the reeve (chapter 1.5.1 of Kandrax, "Incursión Hobgoblin"): a
+ * character who read the letter of Thrain (quests.ts, ashes) and comes to the house hears the reeve,
+ * a villager and a soldier of the Sovereignty argue. Hobgoblins go through the hills to Silverspring;
+ * they took the scout Himo, and the scout Brys escaped. With Wisdom 13, the character also hears what
+ * the soldier says low. At its end, the quest of the raid starts (scenes.ts).
+ */
+export const ARGUMENT: SceneDef = {
+  id: 'argument',
+  area: { x0: REEVE_HOUSE.x0, y0: REEVE_HOUSE.y0, x1: REEVE_HOUSE.x1, y1: REEVE_HOUSE.y1 + 2 },
+  when: [{ quest: 'ashes' }, { quest: 'raid', not: true }],
+  lines: [
+    { npc: 'reeve', text: '...and they go straight for Silverspring. Brys says that there were two squads of them.' },
+    { npc: 'farmer', text: 'And Himo?' },
+    { npc: 'reeve', text: 'They took him. Brys thinks that he is still alive.' },
+    { npc: 'farmer', text: 'We must warn Silverspring!' },
+    { npc: 'soldier', text: 'And leave Ironhold with no defence? One messenger alone dies in those hills.' },
+    { npc: 'farmer', text: 'Then send soldiers with the messenger!' },
+    { npc: 'soldier', text: 'My soldiers stay here. That is my last word.' },
+    { npc: 'soldier', text: 'Let the hobgoblins have Silverspring. It saves the Sovereignty the work.', gate: INSIGHT_GATE },
+    { npc: 'reeve', text: 'Enough! ...You, by the door. Come here. I need a word with you.' },
+  ],
+  effect: RAID_HEARD,
+};
+
+/** The scenes of the town. */
+export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT];
