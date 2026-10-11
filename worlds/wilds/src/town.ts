@@ -1,14 +1,14 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef, type SceneDef } from '@game/engine';
+import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
 import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, LORE_GATE, PEDDLER, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
 import { RAID_HEARD } from './quests.ts';
-import { CANDLE } from './houses.ts';
+import { LAMP, Town, type Plan, type Tile } from './towns.ts';
 
 /**
  * Ironhold: the town nearest the home, west of it in the wilds. A road leads there from the
  * home (road.ts), and a signpost by the home points the way.
  *
- * The plan of the town, one character per tile, north at the top; its north-west tile is
- * (TOWN.x0, TOWN.y0). The main street runs from east to west, and the road from the home comes
+ * The plan of the town, one character per tile, north at the top (towns.ts); its north-west tile
+ * is (TOWN.x0, TOWN.y0). The main street runs from east to west, and the road from the home comes
  * in at its east end. Four buildings face the street from the north, with a small square and a
  * fountain between them; five more stand back to back with the street and face the lane in the
  * south, by the lake. Alleys between them join the street and the lane. Five buildings open (the
@@ -16,12 +16,8 @@ import { CANDLE } from './houses.ts';
  * In front of each door the ground stays clear: no lamp, prop or tree in the 5 x 3 tiles below it
  * (a test checks it).
  *
- *   .  garden: grass with tufts and flowers      T  a tree in a garden
- *   =  cobblestones                               :  the dirt lane
- *   1-9  the building of BUILDINGS[n - 1]         F  the fountain (3 x 3)
- *   N  the notice board (2 x 1)    L  a lamp post    b  a barrel    x  a crate
- *
- * The things (F, N, L, b, x) stand on cobblestones, or on the lane.
+ *   .  garden    T  a tree    =  cobblestones    :  the dirt lane    1-9  BUILDINGS[n - 1]
+ *   F  the fountain (3 x 3)    N  the notice board (2 x 1)    L  a lamp post    b  a barrel    x  a crate
  */
 const MAP = [
   '.T.......T.......T...................T.....T.',
@@ -52,81 +48,6 @@ const MAP = [
 export const TOWN_NAME = 'Ironhold';
 
 /** The rectangle of the town, in tiles (inclusive). */
-export const TOWN = { x0: -52, y0: -8, x1: -52 + MAP[0]!.length - 1, y1: -8 + MAP.length - 1 } as const;
-
-/** Where the road comes in: the tile just east of the town, in the middle of the main street. */
-export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
-
-/** What a tile of the town is outside the buildings. */
-export const Plot = { Garden: 0, Tree: 1, Street: 2, Lane: 3 } as const;
-export type Plot = (typeof Plot)[keyof typeof Plot];
-
-type Tile = readonly [number, number];
-
-// Lights, in pixels from a fixture's anchor corner (y up is negative). The radius snaps to the
-// nearest radius of the light atlas (48, 96, 150).
-const LAMP: Light = { radius: 96, colour: 0xffb060, x: 8, y: -41 };
-/** The light that a kind of thing gives off, unless the thing has a light of its own. */
-const LIGHTS: Partial<Record<FixtureKind, Light>> = {
-  table: CANDLE,
-  desk: { radius: 48, colour: 0xffa850, x: 28, y: -26 },
-  candelabra: { radius: 48, colour: 0xffb060, x: 8, y: -29 },
-  cauldron: { radius: 48, colour: 0x70d060, x: 8, y: -15 },
-  forge: { radius: 96, colour: 0xff7030, x: 16, y: -20 },
-  crystalball: { radius: 48, colour: 0x6a8cff, x: 8, y: -19 },
-  lamppost: LAMP,
-};
-
-/** A thing in a building plan, by its letter: its kind, and what it says (else the world's line for the kind). */
-interface Thing {
-  readonly kind: FixtureKind;
-  readonly pages?: readonly string[];
-  /** Pages behind a gate (Interaction.lore): for Intelligence. */
-  readonly lore?: readonly Lore[];
-  /** A conversation with the thing (the cauldron: its recipes). */
-  readonly dialog?: Dialog;
-  /** A bed that rests only a character with this refuge (Interaction.restFor: the room at the inn). */
-  readonly restFor?: string;
-}
-
-/**
- * Someone who lives in a building, by its letter in the plan (its home tile): an NPC look
- * (art/characters.ts), what it says when a visitor talks to it (pages, or a conversation:
- * dialogs.ts), and lines that it says by itself. With `doorstep`, it also walks out of the door,
- * to the 5 x 2 tiles in front of it.
- */
-interface Person {
-  readonly id: string;
-  readonly look: string;
-  readonly pages?: readonly string[];
-  readonly dialog?: Dialog;
-  readonly barks: readonly string[];
-  readonly doorstep?: boolean;
-  /** What it says once to a player with a good name who comes close (NpcDef.greeting). */
-  readonly greeting?: string;
-}
-
-/**
- * A building of the town. The plan is the building tile by tile, from the north wall to the
- * south wall, walls included:
- *   #  wall          D  the door (south wall)     +  a lit window (south wall)     .  floor
- * Every other character is a thing of `things` or a person of `people`. A thing of more than one
- * tile (a table, a rug) has its letter on each of its tiles.
- */
-interface Plan {
-  readonly id: string;
-  /** The name on the sign over the door. */
-  readonly sign?: string;
-  readonly style: BuildingStyle;
-  readonly floor: Ground;
-  readonly plan: readonly string[];
-  readonly things?: Readonly<Record<string, Thing>>;
-  readonly people?: Readonly<Record<string, Person>>;
-  /** Things on the ridge of the roof, each in a column of the plan (0 is the west wall). */
-  readonly roofProps?: readonly { readonly name: string; readonly column: number }[];
-  /** A building that is shut for good: what the player says at its door (Building.locked). */
-  readonly locked?: string;
-}
 
 /** The buildings, in the order of their digits in MAP. */
 const BUILDINGS: readonly Plan[] = [
@@ -396,154 +317,6 @@ const BUILDINGS: readonly Plan[] = [
   },
 ];
 
-/** The tiles of each character of a plan whose north-west tile is (x0, y0). */
-function tilesOf(rows: readonly string[], x0: number, y0: number): Map<string, Tile[]> {
-  const out = new Map<string, Tile[]>();
-  rows.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      const list = out.get(ch) ?? [];
-      list.push([x0 + x, y0 + y]);
-      out.set(ch, list);
-    });
-  });
-  return out;
-}
-
-/**
- * Finds where the things of one kind stand from the tiles of their character. A thing of one
- * tile stands on each of the tiles; a thing of more tiles covers one group of touching tiles,
- * which must be its footprint exactly. Returns the anchor (south-west) tile of each thing.
- */
-function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile[] {
-  if (fixtureType(kind).tiles.length === 1) return [...tiles];
-  const left = new Set(tiles.map(([x, y]) => `${x},${y}`));
-  const out: Tile[] = [];
-  for (const [sx, sy] of tiles) {
-    if (!left.has(`${sx},${sy}`)) continue;
-    const group: Tile[] = [];
-    const queue: Tile[] = [[sx, sy]];
-    left.delete(`${sx},${sy}`);
-    while (queue.length) {
-      const [x, y] = queue.pop()!;
-      group.push([x, y]);
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
-        if (left.delete(`${nx},${ny}`)) queue.push([nx, ny]);
-      }
-    }
-    const tx = Math.min(...group.map(([x]) => x));
-    const ty = Math.max(...group.map(([, y]) => y));
-    const footprint = fixtureTiles({ kind, tx, ty }).map(([x, y]) => `${x},${y}`).sort();
-    const drawn = group.map(([x, y]) => `${x},${y}`).sort();
-    if (footprint.join(' ') !== drawn.join(' ')) throw new Error(`${where}: the ${kind} at ${tx},${ty} does not match its footprint`);
-    out.push([tx, ty]);
-  }
-  return out;
-}
-
-/** The floor of each building, by id. */
-const FLOORS = new Map<string, Ground>();
-/** The people of the buildings. */
-const RESIDENTS: NpcDef[] = [];
-
-/** Makes the building of a plan at the rectangle of its digit in MAP. */
-function build(plan: Plan, index: number): Building {
-  const where = `the ${plan.id} of ${TOWN_NAME}`;
-  const digit = tilesOf(MAP, TOWN.x0, TOWN.y0).get(String(index + 1)) ?? [];
-  const x0 = Math.min(...digit.map(([x]) => x));
-  const y0 = Math.min(...digit.map(([, y]) => y));
-  const x1 = Math.max(...digit.map(([x]) => x));
-  const y1 = Math.max(...digit.map(([, y]) => y));
-  if (digit.length === 0 || digit.length !== (x1 - x0 + 1) * (y1 - y0 + 1)) throw new Error(`${where}: its tiles in the map are not a rectangle`);
-  if (plan.plan.length !== y1 - y0 + 1 || plan.plan.some((row) => row.length !== x1 - x0 + 1)) {
-    throw new Error(`${where}: the plan is not ${x1 - x0 + 1} x ${y1 - y0 + 1}, as in the map`);
-  }
-  const fixtures: Fixture[] = [];
-  const windows: number[] = [];
-  const homes = new Map<string, Tile>();
-  let doorX: number | null = null;
-  for (const [ch, tiles] of tilesOf(plan.plan, x0, y0)) {
-    const onWall = tiles.filter(([x, y]) => x === x0 || x === x1 || y === y0 || y === y1);
-    const isCorner = ([x, y]: Tile) => (x === x0 || x === x1) && (y === y0 || y === y1);
-    if (ch === '#' || ch === 'D' || ch === '+') {
-      if (ch !== '#' && tiles.some((t) => t[1] !== y1 || isCorner(t))) throw new Error(`${where}: '${ch}' is only for the south wall, not a corner`);
-      if (onWall.length !== tiles.length) throw new Error(`${where}: '${ch}' inside the building`);
-      if (ch === 'D') {
-        if (tiles.length !== 1) throw new Error(`${where}: a building has one door`);
-        doorX = tiles[0]![0];
-      }
-      if (ch === '+') windows.push(...tiles.map(([x]) => x));
-      continue;
-    }
-    if (onWall.length) throw new Error(`${where}: '${ch}' on the walls`);
-    if (ch === '.') continue;
-    if (plan.people?.[ch]) {
-      if (tiles.length !== 1) throw new Error(`${where}: '${ch}' is one person, on one tile`);
-      homes.set(ch, tiles[0]!);
-      continue;
-    }
-    const thing = plan.things?.[ch];
-    if (!thing) throw new Error(`${where}: no thing for '${ch}'`);
-    const light = LIGHTS[thing.kind];
-    for (const [tx, ty] of anchors(thing.kind, tiles, where)) {
-      // A thing with a conversation (the cauldron) says its lines over itself.
-      const said = {
-        ...(thing.pages ? { pages: thing.pages } : {}),
-        ...(thing.lore ? { lore: thing.lore } : {}),
-        ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}),
-        ...(thing.restFor ? { rest: true, restFor: thing.restFor } : {}),
-      };
-      const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
-      fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}) });
-    }
-  }
-  if (doorX === null) throw new Error(`${where}: a building needs a door`);
-  if (plan.plan[plan.plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
-  if (plan.locked && plan.people) throw new Error(`${where}: nobody lives in a building that is shut`);
-
-  // The people walk the open floor ('.', their own tiles, and things that do not collide, such
-  // as rugs); with a doorstep, also the door and the 5 x 2 tiles in front of it.
-  const things = plan.things ?? {};
-  const walkable = (ch: string) => ch === '.' || plan.people?.[ch] !== undefined || (things[ch] !== undefined && fixtureType(things[ch]!.kind).tiles.every((t) => t.box === null));
-  const floor: Tile[] = [];
-  plan.plan.forEach((row, y) => [...row].forEach((ch, x) => walkable(ch) && x > 0 && y > 0 && x < row.length - 1 && y < plan.plan.length - 1 && floor.push([x0 + x, y0 + y])));
-  const doorstep: Tile[] = [[doorX, y1]];
-  for (let ty = y1 + 1; ty <= y1 + 2; ty++) for (let tx = doorX - 2; tx <= doorX + 2; tx++) doorstep.push([tx, ty]);
-  for (const [ch, person] of Object.entries(plan.people ?? {})) {
-    const home = homes.get(ch);
-    if (!home) throw new Error(`${where}: ${person.id} ('${ch}') is not in the plan`);
-    RESIDENTS.push({
-      id: person.id,
-      look: person.look,
-      home,
-      area: person.doorstep ? [...floor, ...doorstep] : floor,
-      content: { speaker: 'fixture', ...(person.pages ? { pages: person.pages } : {}), ...(person.dialog ? { dialog: person.dialog } : {}) },
-      barks: person.barks,
-      ...(person.greeting ? { greeting: person.greeting } : {}),
-    });
-  }
-  FLOORS.set(plan.id, plan.floor);
-  return {
-    id: plan.id,
-    x0,
-    y0,
-    x1,
-    y1,
-    doorX,
-    fixtures,
-    style: plan.style,
-    windows,
-    ...(plan.sign ? { sign: plan.sign } : {}),
-    ...(plan.roofProps ? { roofProps: plan.roofProps.map(({ name, column }) => ({ name, tx: x0 + column })) } : {}),
-    ...(plan.locked ? { locked: plan.locked } : {}),
-  };
-}
-
-export const TOWN_BUILDINGS: readonly Building[] = BUILDINGS.map(build);
-
-/** The floor of a building of the town. */
-export function townFloor(building: Building): Ground {
-  return FLOORS.get(building.id) ?? Ground.Floor;
-}
 
 /** The things of the streets by their character in MAP: a template, without its place. */
 const STREET_THINGS: Readonly<Record<string, Fixture>> = {
@@ -562,12 +335,30 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
   x: { kind: 'crate', tx: 0, ty: 0 },
 };
 
+
+/** Ironhold, built from its plan (towns.ts). */
+export const IRONHOLD = new Town({ name: TOWN_NAME, x0: -52, y0: -8, map: MAP, buildings: BUILDINGS, things: STREET_THINGS });
+
+/** The rectangle of the town, in tiles (inclusive). */
+export const TOWN = { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRONHOLD.y1 } as const;
+
+/** Where the road comes in: the tile just east of the town, in the middle of the main street. */
+export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
+
+export const TOWN_BUILDINGS: readonly Building[] = IRONHOLD.buildings;
+
 /** The fountain, the notice board, the lamps and the props of the streets. */
-export const TOWN_STREET_FIXTURES: readonly Fixture[] = [...tilesOf(MAP, TOWN.x0, TOWN.y0)].flatMap(([ch, tiles]) => {
-  const thing = STREET_THINGS[ch];
-  if (!thing) return [];
-  return anchors(thing.kind, tiles, TOWN_NAME).map(([tx, ty]) => ({ ...thing, tx, ty }));
-});
+export const TOWN_STREET_FIXTURES: readonly Fixture[] = IRONHOLD.streetFixtures;
+
+/** The floor of a building of the town. */
+export function townFloor(building: Building): Ground {
+  return IRONHOLD.floor(building);
+}
+
+/** Whether a tile is in the town's rectangle. */
+export function inTown(tx: number, ty: number): boolean {
+  return IRONHOLD.has(tx, ty);
+}
 
 /**
  * The savings of the old couple of the cottage, buried in the garden across the lane from their
@@ -576,43 +367,10 @@ export const TOWN_STREET_FIXTURES: readonly Fixture[] = [...tilesOf(MAP, TOWN.x0
  */
 export const TOWN_CACHE: Fixture = { kind: 'cache', tx: TOWN.x0 + 10, ty: TOWN.y0 + 22, hidden: true };
 
-/**
- * What a tile of the town is outside the buildings (inside TOWN). A thing of the streets stands
- * on the ground of the tile north of it: a lamp in the lane on the lane, a lamp in the street on
- * the cobblestones.
- */
-export function plotAt(tx: number, ty: number): Plot {
-  const ch = MAP[ty - TOWN.y0]?.[tx - TOWN.x0] ?? '.';
-  if (ch === 'T') return Plot.Tree;
-  if (ch === '.') return Plot.Garden;
-  if (ch === ':') return Plot.Lane;
-  if (ch in STREET_THINGS && MAP[ty - TOWN.y0 - 1]?.[tx - TOWN.x0] === ':') return Plot.Lane;
-  return Plot.Street;
-}
-
-/** Whether a tile is in the town's rectangle. */
-export function inTown(tx: number, ty: number): boolean {
-  return tx >= TOWN.x0 && tx <= TOWN.x1 && ty >= TOWN.y0 && ty <= TOWN.y1;
-}
-
 // ---------------------------------------------------------------- people in the streets
 
-/** The open tiles of the streets in a rectangle of MAP (columns and rows of the map, inclusive). */
-function streetArea(c0: number, r0: number, c1: number, r1: number): Tile[] {
-  const things = new Set(TOWN_STREET_FIXTURES.flatMap((f) => fixtureTiles(f).map(([x, y]) => `${x},${y}`)));
-  const out: Tile[] = [];
-  for (let r = r0; r <= r1; r++) {
-    for (let c = c0; c <= c1; c++) {
-      const tx = TOWN.x0 + c;
-      const ty = TOWN.y0 + r;
-      const ch = MAP[r]?.[c];
-      if ((ch === '=' || ch === ':') && !things.has(`${tx},${ty}`)) out.push([tx, ty]);
-    }
-  }
-  return out;
-}
-
-const at = (c: number, r: number): Tile => [TOWN.x0 + c, TOWN.y0 + r];
+const at = (c: number, r: number): Tile => IRONHOLD.at(c, r);
+const streetArea = (c0: number, r0: number, c1: number, r1: number): Tile[] => IRONHOLD.streetArea(c0, r0, c1, r1);
 
 const WALKERS: readonly NpcDef[] = [
   {
@@ -660,7 +418,7 @@ const WALKERS: readonly NpcDef[] = [
 ];
 
 /** The NPCs of the town: the people of the buildings, then the people of the streets. */
-export const TOWN_NPCS: readonly NpcDef[] = [...RESIDENTS, ...WALKERS];
+export const TOWN_NPCS: readonly NpcDef[] = [...IRONHOLD.residents, ...WALKERS];
 
 const REEVE_HOUSE = TOWN_BUILDINGS.find((b) => b.id === 'reeve')!;
 

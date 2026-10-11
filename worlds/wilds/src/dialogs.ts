@@ -2,8 +2,8 @@ import type { Dialog, Gate, ItemKind } from '@game/engine';
 import { CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, TELL_REEVE } from './quests.ts';
 
 /**
- * The conversations of the people of Ironhold (town.ts): what each one says, and what the
- * player can answer (see the engine's dialog.ts). Every node has a way out; a test checks each
+ * The conversations of the people of Ironhold (town.ts) and of Silverspring (silverspring.ts): what
+ * each one says, and what the player can answer (see the engine's dialog.ts). Every node has a way out; a test checks each
  * dialog with checkDialog().
  */
 
@@ -676,3 +676,149 @@ export const SOLDIER: Dialog = {
     },
   },
 };
+
+// ---------------------------------------------------------------- Silverspring (silverspring.ts)
+
+/**
+ * Kasmut Parnika, the veteran of the Mithril Enclave who trains the militia of Silverspring
+ * (chapter 1.5.1): hopeful; kind when she is calm, quick to argue under stress; loyal to the
+ * Enclave, and with no love for the rich and the powerful. She left the capital of the Enclave
+ * because she kept a secret. A character who goes to warn Silverspring (quests.ts, raid) tells her
+ * of the hobgoblins.
+ */
+export const KASMUT: Dialog = {
+  name: 'Kasmut Parnika, of the Enclave',
+  start: 'hello',
+  starts: [{ when: { quest: 'raid', at: ['asked', 'scouts'] }, node: 'road' }],
+  nodes: {
+    hello: {
+      say: 'Kasmut Parnika, veteran of the Mithril Enclave. I train the militia of Silverspring. What do you want?',
+      answers: [
+        { text: 'Tell me about Silverspring.', next: 'town' },
+        { text: 'A militia? Of whom?', next: 'militia' },
+        { text: 'Why is a veteran of the Enclave out here?', next: 'why' },
+        BYE,
+      ],
+    },
+    town: {
+      say: 'The spring brings mithril down from the hills, a pinch at a time. The people pan it from the stream, and the jeweller makes rings of it. Small work. Honest work.',
+      answers: [{ text: 'Mithril? Then the town must be rich.', next: 'rich' }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
+    },
+    rich: {
+      say: 'Rich? A pinch a day feeds a family. The rich live in the capital, and they never pan anything.',
+      answers: [{ text: 'You do not like the rich.', next: 'dislike', gate: INSIGHT_GATE }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
+    },
+    dislike: {
+      say: 'I served them for thirty years. I know what they are. Here, at least, the people who work also eat.',
+      answers: [BYE],
+    },
+    want: {
+      say: 'Everybody. The Enclave buys it, and the Iron Sovereignty wants the stream. Ironhold has iron and tools, and we have mithril. We should trade. Instead we watch each other.',
+      answers: [{ text: 'A militia? Of whom?', next: 'militia' }, BYE],
+    },
+    militia: {
+      say: 'Panners and miners with spears. Brave people, and badly trained. I do what I can. The Enclave sends advice, not soldiers.',
+      answers: [{ text: 'Why is a veteran of the Enclave out here?', next: 'why' }, BYE],
+    },
+    why: {
+      say: 'The Enclave sent me. That is all.',
+      answers: [{ text: 'That is not all.', next: 'secret', gate: INSIGHT_GATE }, { text: 'The priests say that the gods watch the spring.', next: 'gods' }, BYE],
+    },
+    secret: {
+      say: '...No, it is not. I left the capital because I kept a secret, and powerful people wanted it. I keep it still. Ask me again, and we are done.',
+      answers: [BYE],
+    },
+    gods: {
+      say: 'The priests say many things. The gods watch the spring, and I watch the hills. Guess which of us sees the hobgoblins first.',
+      answers: [BYE],
+    },
+    road: {
+      say: 'You came up the north road? Few do now. What is it?',
+      answers: [
+        { text: 'Hobgoblins come through the hills to Silverspring.', next: 'hobgoblins' },
+        { text: 'Tell me about Silverspring.', next: 'town' },
+        BYE,
+      ],
+    },
+    hobgoblins: {
+      say: 'Hobgoblins? Who says so? Ironhold? Ironhold sends us a warning, and keeps its soldiers at home. Of course it does.',
+      answers: [
+        { text: 'Ironhold has no soldiers. The soldiers are of the Sovereignty.', next: 'calm' },
+        { text: 'Their scouts waited in the grove on the road. I killed them.', next: 'scouts', when: { quest: 'raid', at: ['scouts'] } },
+      ],
+    },
+    calm: {
+      say: '...You are right. I am sorry. You walked that road to tell us, and nobody paid you for it. I will ready the militia. Thank you.',
+      answers: [BYE],
+    },
+    scouts: {
+      say: 'Then their war band is close behind. I will ready the militia and close the town. If you meet that band on the road... Silverspring will not forget it.',
+      answers: [BYE],
+    },
+  },
+};
+
+/** An ale at the Silver Trout: the last barrel from Ironhold. */
+const TROUT_ALE = { id: 'ale', goods: 'ale', price: 2, poor: 'poor' } as const;
+
+/** Tova, who keeps the Silver Trout, the inn of Silverspring. */
+export const HOST: Dialog = {
+  name: 'Tova, of the Silver Trout',
+  start: 'welcome',
+  nodes: {
+    welcome: {
+      say: 'Welcome to the Silver Trout! Shut the door, the wind off the stream is cold.',
+      answers: [
+        { text: 'What do you have to drink?', next: 'drink' },
+        { text: 'Do you have a room?', next: 'room' },
+        { text: 'Any news?', next: 'news' },
+        { text: 'Not now.' },
+      ],
+    },
+    drink: {
+      say: 'Cider from the valley, and ale from Ironhold. The last barrel of it: the carts from Ironhold do not come now.',
+      answers: [{ text: 'An ale, then.', next: 'ale', deal: TROUT_ALE }, { text: 'Nothing for me.' }],
+    },
+    ale: {
+      say: 'There. Drink it slowly. When it is gone, it is gone.',
+      answers: [{ text: 'Any news?', next: 'news' }, { text: 'Thank you.' }],
+    },
+    poor: {
+      say: 'An ale costs coin, friend. The stream does not pay me either.',
+      answers: [{ text: 'Any news?', next: 'news' }, { text: 'I understand.' }],
+    },
+    room: {
+      say: 'The rooms are for the guard of the town these days, and for its friends. Kasmut decides who is a friend.',
+      answers: [{ text: 'Any news?', next: 'news' }, BYE],
+    },
+    news: {
+      say: 'Kasmut drills the militia every dawn. The panners grumble, and then they go. Something in the hills worries her.',
+      answers: [{ text: 'What do you have to drink?', next: 'drink' }, BYE],
+    },
+  },
+};
+
+/** Doran, a panner of Silverspring with a spear of the militia: he watches the west end of the main street, where the north road comes in. */
+export const MILITIA: Dialog = {
+  name: 'Doran, of the militia',
+  start: 'halt',
+  nodes: {
+    halt: {
+      say: 'Halt! ...Oh. A traveller. We do not see many from the west.',
+      answers: [{ text: 'What is this place?', next: 'place' }, { text: 'Who are you?', next: 'who' }, BYE],
+    },
+    place: {
+      say: 'Silverspring. The spring rises at the north end of the town, and the stream carries mithril dust past every door.',
+      answers: [{ text: 'Who is in charge here?', next: 'charge' }, BYE],
+    },
+    who: {
+      say: 'Doran, of the militia. A panner, most days. Kasmut gives me a spear at dawn and takes it back at dusk.',
+      answers: [{ text: 'Who is in charge here?', next: 'charge' }, BYE],
+    },
+    charge: {
+      say: 'Kasmut Parnika, in the militia hall by the gate. A veteran of the Enclave. She shouts, but she is fair.',
+      answers: [BYE],
+    },
+  },
+};
+

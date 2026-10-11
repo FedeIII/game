@@ -8,16 +8,18 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { GROVE_SPAN, Grove, NORTH_ROAD_START, Road, SILVERSPRING_SITE, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
-export { ARGUMENT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
-export { APOTHECARY, ATHLETICS_GATE, INNKEEPER, INSIGHT_GATE, MERCHANT, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, SOLDIER, WATCHMAN, smithPays } from './dialogs.ts';
+export { ARGUMENT, IRONHOLD, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
+export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
+export { Plot, Town, type TownPlan } from './towns.ts';
+export { APOTHECARY, ATHLETICS_GATE, HOST, INNKEEPER, INSIGHT_GATE, KASMUT, MERCHANT, MILITIA, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, SOLDIER, WATCHMAN, smithPays } from './dialogs.ts';
 export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, RAID, RAID_ASKED, RAID_HEARD, RAID_SCOUTS, READ_LETTER, TELL_REEVE } from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
 
 /**
- * The wilds: an endless dark forest with lakes, paths and lonely stone houses, and the town of
- * Ironhold (Ferrozar in Spanish) to the west of the home. Shared since 2026-10-10 (Fede's decision): every visitor is
+ * The wilds: an endless dark forest with lakes, paths and lonely stone houses, the town of
+ * Ironhold (Ferrozar in Spanish) to the west of the home, and Silverspring at the end of the north road. Shared since 2026-10-10 (Fede's decision): every visitor is
  * in the same Wilds, and a new character starts in the home, the house of the cell (0, 0).
  */
 export const wilds: WorldDefinition = {

@@ -104,10 +104,9 @@ describe('the cart on the road', () => {
     const home = source.home();
     expect(cart.tx).toBeGreaterThan(TOWN.x1);
     expect(cart.tx).toBeLessThan(home.x0);
-    // The merchant: the last NPC, on open road tiles in one row, outside the town.
-    const merchant = source.npcs()[source.npcs().length - 1]!;
+    // The merchant: the NPC after the people of Ironhold, on open road tiles in one row, outside the town.
+    const merchant = source.npcs()[TOWN_NPCS.length]!;
     expect(merchant.id).toBe('merchant');
-    expect(source.npcs().length).toBe(TOWN_NPCS.length + 1);
     expect(merchant.area.length).toBeGreaterThanOrEqual(2);
     for (const [tx, ty] of merchant.area) {
       expect(world.solidBox(tx, ty), `${tx},${ty}`).toBeNull();
@@ -126,7 +125,7 @@ describe('the cart on the road', () => {
     const cart = source.cart;
     const rules = source.mobs();
     expect(cart.light).toBeTruthy();
-    for (const [tx, ty] of [...source.npcs().at(-1)!.area, [cart.tx, cart.ty + 2], [cart.tx + 1, cart.ty - 2]] as const) {
+    for (const [tx, ty] of [...source.npcs()[npcIndex('merchant')]!.area, [cart.tx, cart.ty + 2], [cart.tx + 1, cart.ty - 2]] as const) {
       expect(rules.hunt(tx, ty), `${tx},${ty}`).toBe(false);
       expect(rules.roam(tx, ty), `${tx},${ty}`).toBe(false);
     }

@@ -70,6 +70,13 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## Silverspring (protocol 28, 2026-10-11)
+
+Protocol 28 changes no message: the Wilds got a second town, Silverspring, at the end of the north
+road (`docs/features/game/towns.md`). Its five NPCs come after the merchant in `WorldSource.npcs()`,
+so the snapshots carry five more poses. A page of protocol 27 has another list of NPCs, so the
+server refuses it, and the visitor reloads the page.
+
 ## Riders (protocol 27, 2026-10-11)
 
 - A mob can ride another (`Horde.spawnRider()`: a goblin on a worg). Its state is `ride` (code 8 of

@@ -30,7 +30,22 @@ import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { MERCHANT } from './dialogs.ts';
 import { RAID_SCOUTS } from './quests.ts';
 import { Grove, Road, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
-import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
+import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
+import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
+import { Plot, type Town } from './towns.ts';
+
+/** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). */
+const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING];
+
+/** The town that a tile is in, or null. */
+function townAt(tx: number, ty: number): Town | null {
+  return TOWNS.find((t) => t.has(tx, ty)) ?? null;
+}
+
+/** Whether a tile is within `margin` tiles of a town (or in it). */
+function nearTown(tx: number, ty: number, margin: number): boolean {
+  return TOWNS.some((t) => tx >= t.x0 - margin && tx <= t.x1 + margin && ty >= t.y0 - margin && ty <= t.y1 + margin);
+}
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
   return tx >= house.doorX - 1 && tx <= house.doorX + 1 && ty > house.y1 && ty <= house.y1 + DOOR_PATH;
@@ -102,8 +117,8 @@ const CACHE_LOOT: LootTable = {
 /** No patch of herbs grows this close (tiles) to the ground of a house or to the signpost. */
 const HERB_MARGIN = 2;
 
-const CHAPEL = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
-const INN = TOWN_BUILDINGS.find((b) => b.id === 'inn')!;
+const CHAPEL = IRONHOLD.buildings.find((b) => b.id === 'chapel')!;
+const INN = IRONHOLD.buildings.find((b) => b.id === 'inn')!;
 /**
  * The chapel: a character that has been inside it wakes there after a defeat. The inn: only a
  * character to whom Marta gave a room (Charisma 13, dialogs.ts), on the tile west of its bed.
@@ -117,7 +132,7 @@ const REFUGES: readonly Refuge[] = [
 /** The mobs round each player in the woods. The hobgoblin band comes only with the story: none of it roams. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
-/** No house of the wilds stands this close to the town (tiles), and mobs do not live this close to it. */
+/** No house of the wilds stands this close to a town (tiles), and mobs do not live this close to it. */
 const TOWN_MARGIN = 2;
 /**
  * The scouts of the hobgoblins (chapter 1.5.1), in the order in which more characters meet more of
@@ -141,25 +156,28 @@ export const CART_SAFE = 4;
 /** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
 const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
 
-/** Every fixture of the town, in its buildings and in its streets. */
-const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWN_BUILDINGS.flatMap((b) => b.fixtures), ...TOWN_STREET_FIXTURES, TOWN_CACHE];
+/** Every fixture of the towns, in their buildings and in their streets. */
+const TOWN_FIXTURE_LIST: readonly Fixture[] = [...TOWNS.flatMap((t) => [...t.buildings.flatMap((b) => b.fixtures), ...t.streetFixtures]), TOWN_CACHE];
 /** The same, by each tile of its footprint. */
 const TOWN_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
 for (const fixture of TOWN_FIXTURE_LIST) {
   for (const [tx, ty, code] of fixtureTiles(fixture)) {
     const key = `${tx},${ty}`;
-    if (TOWN_FIXTURES.has(key)) throw new Error(`two fixtures of the town on tile ${key}`);
+    if (TOWN_FIXTURES.has(key)) throw new Error(`two fixtures of a town on tile ${key}`);
     TOWN_FIXTURES.set(key, { fixture, code });
   }
 }
+/** The buildings of all the towns. */
+const TOWN_BUILDINGS: readonly Building[] = TOWNS.flatMap((t) => t.buildings);
 
 const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: number, y0: number, x1: number, y1: number) =>
   b.x1 >= x0 && b.x0 <= x1 && b.y1 >= y0 && b.y0 <= y1;
 
 /**
  * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, the
- * player's home in the middle (home.ts), where every character starts, and the town of Ironhold
- * to the west (town.ts), at the end of a road from the home (road.ts).
+ * player's home in the middle (home.ts), where every character starts, the town of Ironhold to the
+ * west (town.ts), at the end of a road from the home (road.ts), and Silverspring at the end of the
+ * north road from Ironhold (silverspring.ts).
  */
 export class WildsSource implements WorldSource {
   readonly seed: number;
@@ -235,13 +253,13 @@ export class WildsSource implements WorldSource {
     return house;
   }
 
-  /** Whether the ground of a house of the wilds would touch the town, a road, the grove or the signpost. */
+  /** Whether the ground of a house of the wilds would touch a town, a road, the grove or the signpost. */
   private inTheWay(house: Building): boolean {
     const x0 = house.x0 - 1;
     const y0 = house.y0 - 1;
     const x1 = house.x1 + 1;
     const y1 = house.y1 + DOOR_PATH;
-    if (overlaps(TOWN, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN)) return true;
+    if (TOWNS.some((t) => overlaps(t, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN))) return true;
     const sign = this.sign;
     if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
     for (const road of [this.road, this.north]) {
@@ -264,7 +282,7 @@ export class WildsSource implements WorldSource {
         cellX,
         cellY,
         (tx, ty) => this.noHerbsAt(tx, ty),
-        (tx, ty) => inTown(tx, ty) || naturalSolid(this.seed, tx, ty) || this.cellHousesIn(tx, ty, tx, ty).length > 0,
+        (tx, ty) => townAt(tx, ty) !== null || naturalSolid(this.seed, tx, ty) || this.cellHousesIn(tx, ty, tx, ty).length > 0,
       );
       this.patches.set(key, patch);
     }
@@ -277,10 +295,9 @@ export class WildsSource implements WorldSource {
     return patch && patch.tx === tx && patch.ty === ty ? patch : null;
   }
 
-  /** Where no herbs grow: near the town, on or near the road, near the signpost, and on or near the ground of a house. */
+  /** Where no herbs grow: near a town, on or near a road, near the signpost, and on or near the ground of a house. */
   private noHerbsAt(tx: number, ty: number): boolean {
-    const m = TOWN_MARGIN + HERB_MARGIN;
-    if (tx >= TOWN.x0 - m && tx <= TOWN.x1 + m && ty >= TOWN.y0 - m && ty <= TOWN.y1 + m) return true;
+    if (nearTown(tx, ty, TOWN_MARGIN + HERB_MARGIN)) return true;
     if (this.roadClear(tx, ty)) return true;
     if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
     const r = HERB_MARGIN + DOOR_PATH + 1;
@@ -304,8 +321,9 @@ export class WildsSource implements WorldSource {
         const tx = cx * CHUNK_SIZE + lx;
         const ty = cy * CHUNK_SIZE + ly;
         const index = ly * CHUNK_SIZE + lx;
-        if (inTown(tx, ty)) {
-          this.townTile(chunk, index, tx, ty);
+        const town = townAt(tx, ty);
+        if (town) {
+          this.townTile(town, chunk, index, tx, ty);
           continue;
         }
         if (tx === sign.tx && ty === sign.ty) {
@@ -369,15 +387,20 @@ export class WildsSource implements WorldSource {
     return chunk;
   }
 
-  /** A tile of the town: its buildings, its streets with their things, and its gardens. */
-  private townTile(chunk: Chunk, index: number, tx: number, ty: number): void {
-    const building = TOWN_BUILDINGS.find((b) => inRect(b, tx, ty));
+  /** A tile of a town: its buildings, its streets with their things, its water and its gardens. */
+  private townTile(town: Town, chunk: Chunk, index: number, tx: number, ty: number): void {
+    const building = town.buildings.find((b) => inRect(b, tx, ty));
     if (building) {
-      chunk.ground[index] = townFloor(building);
+      chunk.ground[index] = town.floor(building);
       chunk.structure[index] = structureIn(building, tx, ty);
       return;
     }
-    const plot = plotAt(tx, ty);
+    const plot = town.plotAt(tx, ty);
+    if (plot === Plot.Water || plot === Plot.Bridge) {
+      // The stream of Silverspring and its pools; a bridge of planks over it.
+      chunk.ground[index] = plot === Plot.Water ? Ground.Water : Ground.Floor;
+      return;
+    }
     if (plot === Plot.Street || plot === Plot.Lane) {
       chunk.ground[index] = plot === Plot.Street ? Ground.Cobble : Ground.Dirt;
       chunk.structure[index] = TOWN_FIXTURES.get(`${tx},${ty}`)?.code ?? 0;
@@ -397,19 +420,20 @@ export class WildsSource implements WorldSource {
     chunk.decor[index] = plot === Plot.Tree && !this.treeOutsideNextTo(tx, ty) ? Decor.Tree : decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
   }
 
-  /** Whether a tree of the wilds grows next to a tile of the town, just outside it: then no tree of the town grows there (no two trees touch). */
+  /** Whether a tree of the wilds grows next to a tile of a town, just outside it: then no tree of the town grows there (no two trees touch). */
   private treeOutsideNextTo(tx: number, ty: number): boolean {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const [x, y] = [tx + dx, ty + dy];
-        if (!inTown(x, y) && naturalDecor(this.seed, x, y, naturalGround(this.seed, x, y)) === Decor.Tree) return true;
+        if (!townAt(x, y) && naturalDecor(this.seed, x, y, naturalGround(this.seed, x, y)) === Decor.Tree) return true;
       }
     }
     return false;
   }
 
   buildingAt(tx: number, ty: number): Building | null {
-    if (inTown(tx, ty)) return TOWN_BUILDINGS.find((b) => inRect(b, tx, ty)) ?? null;
+    const town = townAt(tx, ty);
+    if (town) return town.buildings.find((b) => inRect(b, tx, ty)) ?? null;
     const house = this.house(Math.floor(tx / BUILDING_CELL), Math.floor(ty / BUILDING_CELL));
     return house && inRect(house, tx, ty) ? house : null;
   }
@@ -431,7 +455,7 @@ export class WildsSource implements WorldSource {
   }
 
   fixtureAt(tx: number, ty: number): Fixture | null {
-    if (inTown(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
+    if (townAt(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
     if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
     const cart = this.cart;
     if (ty === cart.ty && (tx === cart.tx || tx === cart.tx + 1)) return cart;
@@ -445,7 +469,7 @@ export class WildsSource implements WorldSource {
   fixturesIn(x0: number, y0: number, x1: number, y1: number): Fixture[] {
     const within = (f: Fixture) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1;
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
-    if (overlaps(TOWN, x0, y0, x1, y1)) out.push(...TOWN_FIXTURE_LIST.filter(within));
+    if (TOWNS.some((t) => overlaps(t, x0, y0, x1, y1))) out.push(...TOWN_FIXTURE_LIST.filter(within));
     if (within(this.sign)) out.push(this.sign);
     if (within(this.cart)) out.push(this.cart);
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
@@ -465,7 +489,7 @@ export class WildsSource implements WorldSource {
   loot(fixture: Fixture): LootTable | null {
     if (fixture.kind === 'herbpatch') return HERB_LOOT;
     if (fixture.kind === 'cache') return CACHE_LOOT;
-    if (fixture.kind !== 'chest' || inTown(fixture.tx, fixture.ty)) return null;
+    if (fixture.kind !== 'chest' || townAt(fixture.tx, fixture.ty)) return null;
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;
     return house.barred ? BARRED_CHEST_LOOT : fixture.lock ? LOCKED_CHEST_LOOT : CHEST_LOOT;
@@ -480,18 +504,23 @@ export class WildsSource implements WorldSource {
     return REFUGES;
   }
 
-  /** The named places for the map: the home, Ironhold, and its chapel. */
+  /** The named places for the map: the home, Ironhold and its chapel, and Silverspring. */
   landmarks(): readonly Landmark[] {
     const home = this.spawn();
-    const town = { x: ((TOWN.x0 + TOWN.x1 + 1) / 2) * TILE_SIZE, y: ((TOWN.y0 + TOWN.y1 + 1) / 2) * TILE_SIZE };
+    const middle = (t: Town) => ({ x: ((t.x0 + t.x1 + 1) / 2) * TILE_SIZE, y: ((t.y0 + t.y1 + 1) / 2) * TILE_SIZE });
     return [
       { name: 'Home', kind: 'home', x: home.x, y: home.y },
-      { name: TOWN_NAME, kind: 'town', ...town },
+      { name: IRONHOLD.name, kind: 'town', ...middle(IRONHOLD) },
       { name: 'Chapel', kind: 'refuge', x: REFUGES[0]!.x, y: REFUGES[0]!.y },
+      { name: SILVERSPRING.name, kind: 'town', ...middle(SILVERSPRING) },
     ];
   }
 
-  /** The people of Ironhold, then the merchant by the cart on the road (its area: the road in front of the cart). */
+  /**
+   * The people of Ironhold, then the merchant by the cart on the road (its area: the road in front
+   * of the cart), then the people of Silverspring. The order is the code of each NPC on the wire:
+   * add new people at the end.
+   */
   npcs(): readonly NpcDef[] {
     if (!this.npcList) {
       const cart = this.cart;
@@ -506,7 +535,7 @@ export class WildsSource implements WorldSource {
         content: { speaker: 'fixture', dialog: MERCHANT },
         barks: ['A long road, and a bad one.', 'Ironhold, then Silverspring. Then home.', 'Who walks there? A friend, I hope.'],
       };
-      this.npcList = [...TOWN_NPCS, merchant];
+      this.npcList = [...TOWN_NPCS, merchant, ...SILVERSPRING_NPCS];
     }
     return this.npcList;
   }
@@ -544,20 +573,19 @@ export class WildsSource implements WorldSource {
   /**
    * Mobs live everywhere in the woods, except on water, on the ground of a house (its ring and
    * the path to its door: a player who comes out of a door does not walk into one) and in or near
-   * the town. They hunt everywhere outside the houses and the town: they never come into the
-   * town, so it is safe. They never come near the lantern of the merchant's cart (CART_SAFE).
+   * a town. They hunt everywhere outside the houses and the towns: they never come into a town, so
+   * it is safe. They never come near the lantern of the merchant's cart (CART_SAFE).
    */
   mobs(): MobRules {
-    const nearTown = (tx: number, ty: number) => tx >= TOWN.x0 - TOWN_MARGIN && tx <= TOWN.x1 + TOWN_MARGIN && ty >= TOWN.y0 - TOWN_MARGIN && ty <= TOWN.y1 + TOWN_MARGIN;
     const cart = this.cart;
     const nearCart = (tx: number, ty: number) => Math.hypot(tx + 0.5 - (cart.tx + 1), ty + 0.5 - (cart.ty + 0.5)) <= CART_SAFE;
     return {
       roam: (tx, ty) =>
         !isWet(naturalGround(this.seed, tx, ty)) &&
-        !nearTown(tx, ty) &&
+        !nearTown(tx, ty, TOWN_MARGIN) &&
         !nearCart(tx, ty) &&
         !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),
-      hunt: (tx, ty) => !inTown(tx, ty) && !nearCart(tx, ty),
+      hunt: (tx, ty) => !townAt(tx, ty) && !nearCart(tx, ty),
       population: MOB_POPULATION,
     };
   }

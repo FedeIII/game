@@ -1,0 +1,139 @@
+# The Towns of the Wilds
+
+## Overview
+
+The Wilds have two fixed towns: Ironhold, west of the home, and Silverspring, the mithril village of
+the Mithril Enclave at the end of the north road (story phase 4a, 2026-10-11; plan:
+`docs/drafts/story-razed-villages.md`). Each town is a fixed plan of characters, one for each tile,
+the same for every seed. One builder makes both: the buildings with their things and people, the
+streets with their lamps and props, and the people who walk the streets. No mob lives near a town
+or steps into it.
+
+## Terminology
+
+- **Town plan**: the map of a town (one character for each tile) and a plan for each building.
+- **Gate**: the tile just outside a town where its road ends.
+- **Doorstep**: the 5 x 3 tiles in front of the door of a building. Nothing stands there.
+- **Resident**: an NPC who lives in a building of a town. **Walker**: an NPC who walks the streets.
+
+## Requirements
+
+### REQ-TWN-001: A town from its plan
+
+**User Story:** As a world builder, I want to draw a town as a map of characters, so that a new town
+is a plan and not new code.
+
+**Acceptance Criteria:**
+- **AC-TWN-001.1:** Each building has a ring of walls, one door in its south wall (not at a corner),
+  and lit windows only in its south wall.
+- **AC-TWN-001.2:** Nothing solid stands on the doorstep of a building.
+- **AC-TWN-001.3:** A shut building (`locked`) never opens; its door says its line. Nobody lives in a
+  shut building.
+- **AC-TWN-001.4:** From the door of an open building, a player reaches every thing in it.
+- **AC-TWN-001.5:** From the gate, a player reaches every thing of the streets and the door of every
+  building.
+- **AC-TWN-001.6:** Each NPC of a town has a conversation or at least two pages, at least two lines
+  that it says by itself, and an area of open tiles in one piece, which it never leaves.
+- **AC-TWN-001.7:** The NPC ids are unique in the world, and so are the building ids.
+
+---
+
+### REQ-TWN-002: A safe town
+
+**User Story:** As a player, I want the towns to be safe, so that I can talk and trade in peace.
+
+**Acceptance Criteria:**
+- **AC-TWN-002.1:** No mob lives within 2 tiles of a town.
+- **AC-TWN-002.2:** No mob steps into a town, also during a chase. A player just inside the gate
+  takes no hit from a mob outside it.
+- **AC-TWN-002.3:** No house of the Wilds and no patch of herbs stands within 2 tiles of a town (4
+  tiles for the herbs).
+
+---
+
+### REQ-TWN-003: Silverspring
+
+**User Story:** As a player who goes to warn Silverspring, I want a town at the end of the north
+road, so that the road leads somewhere.
+
+**Acceptance Criteria:**
+- **AC-TWN-003.1:** Silverspring is a plan of 42 x 24 tiles. The north road ends at its gate, the
+  tile west of its main street, more than 200 tiles north-east of Ironhold.
+- **AC-TWN-003.2:** It has seven buildings: the militia hall ("Militia"), the inn ("The Silver
+  Trout") and the jeweller ("Jeweller") face the main street from the north, and four shut houses
+  face the lane in the south.
+- **AC-TWN-003.3:** A spring rises in a pool at the north end of the town, and its stream runs south
+  to a second pool. The water is solid. Two bridges of planks (12 tiles) cross it, where the main
+  street and the lane cross the stream.
+- **AC-TWN-003.4:** The map shows Silverspring as a town.
+- **AC-TWN-003.5:** The inn has a bed for a guest of the town (the refuge `trout`): it rests only a
+  character with that refuge.
+
+---
+
+### REQ-TWN-004: The people of Silverspring
+
+**User Story:** As a player, I want the people of Silverspring to tell me about their town, so that
+it feels like the mithril village of the Enclave.
+
+**Acceptance Criteria:**
+- **AC-TWN-004.1:** Five NPCs: Kasmut Parnika in the militia hall, Tova in the inn, the jeweller in
+  her shop; Doran of the militia at the west end of the main street, and a panner by the stream.
+- **AC-TWN-004.2:** Kasmut Parnika ("Kasmut Parnika, of the Enclave") is the veteran of the Mithril
+  Enclave who trains the militia. She talks of the town, the mithril, the militia and the Enclave.
+  With WIS 13, a character sees that she does not like the rich, and that she hides why she left
+  the capital.
+- **AC-TWN-004.3:** Tova ("Tova, of the Silver Trout") sells an ale for 2 coins. Her rooms are for
+  the guard of the town and its friends.
+- **AC-TWN-004.4:** Doran ("Doran, of the militia") tells what the town is and who is in charge.
+- **AC-TWN-004.5:** The jeweller and the panner have three pages each.
+
+---
+
+### REQ-TWN-005: The warning
+
+**User Story:** As a player who comes to warn Silverspring, I want to tell Kasmut of the
+hobgoblins, so that my errand has its end.
+
+**Acceptance Criteria:**
+- **AC-TWN-005.1:** For a character at the step `asked` or `scouts` of the quest `raid`, Kasmut starts
+  with "You came up the north road? Few do now. What is it?", and the answer "Hobgoblins come through
+  the hills to Silverspring." is there.
+- **AC-TWN-005.2:** She doubts Ironhold first. The answer "Ironhold has no soldiers. The soldiers are
+  of the Sovereignty." calms her, and she readies the militia.
+- **AC-TWN-005.3:** A character at `scouts` can also tell her that it killed the scouts in the
+  grove. Then she says that the war band is close behind.
+- **AC-TWN-005.4:** The warning does not move the quest. The war band and the end of the quest come
+  with story phases 4b to 4d.
+
+---
+
+## Feature Behavior & Rules
+
+- **The builder** (`worlds/wilds/src/towns.ts`): `TownPlan` (name, north-west tile, map, building
+  plans, things of the streets), `Town` (`has()`, `floor()`, `plotAt()`, `at()`, `streetArea()`,
+  `buildings`, `residents`, `streetFixtures`), `Plan`, `Thing`, `Person`, `Plot` (`Garden`, `Tree`,
+  `Street`, `Lane`, `Water`, `Bridge`), `LAMP`. Map characters: `.` garden, `T` tree, `=`
+  cobblestones, `:` lane, `~` water, `h` bridge, `1`-`9` buildings; every other character must be a
+  thing of the streets, or the build throws.
+- **Ironhold** (`worlds/wilds/src/town.ts`): `IRONHOLD`, and the names that it had before the
+  builder (`TOWN`, `TOWN_GATE`, `TOWN_BUILDINGS`, `TOWN_STREET_FIXTURES`, `TOWN_NPCS`, `inTown()`,
+  `townFloor()`). Its plan did not change.
+- **Silverspring** (`worlds/wilds/src/silverspring.ts`): `SILVERSPRING`, `SILVERSPRING_NAME`,
+  `SILVERSPRING_NPCS`. Its north-west tile is one tile east of `SILVERSPRING_SITE` (`road.ts`) and 10
+  rows north of it. Buildings: `militia-hall` (stone, battlement roof, the silver flag of the
+  Enclave), `trout` (timber, clay), `jeweller` (brick, indigo), and the shut `panner-house`,
+  `miner-house`, `assay-house`, `stream-house`. Dialogs (`dialogs.ts`): `KASMUT`, `HOST`, `MILITIA`.
+- **The source** (`worlds/wilds/src/source.ts`): `TOWNS`, `townAt()`, `nearTown()`. A water tile is
+  `Ground.Water`; a bridge is `Ground.Floor`. `npcs()`: the people of Ironhold, the merchant, then
+  the people of Silverspring (the order is the code of an NPC on the wire). `landmarks()` adds
+  Silverspring.
+- **The art**: the NPC looks `veteran`, `militia`, `jeweller`, `prospector` and `host`
+  (`packages/engine-client/art/characters.ts`), and the roof prop `flag-silver`
+  (`art/buildings.ts`).
+- **The texts in Spanish** (`worlds/wilds/src/text-es.ts`): the Militia is "Milicia", the Silver Trout
+  "La Trucha de Plata", the Jeweller "Joyería". Silverspring keeps its name.
+- **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, the
+  people, the safety; Silverspring: the gate, the buildings, the stream, Kasmut, the map).
+- **Not yet**: the war band and the raid on Silverspring, the title, the room at the Silver Trout,
+  and the mithril of the jeweller (story phases 4b to 4d).

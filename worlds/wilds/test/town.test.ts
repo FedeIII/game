@@ -19,7 +19,23 @@ import {
   refugeAt,
   findDeal,
 } from '@game/engine';
-import { DEFAULT_SEED, TOWN, TOWN_BUILDINGS, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, WildsSource, inTown } from '../src/index.ts';
+import {
+  DEFAULT_SEED,
+  IRONHOLD,
+  Plot,
+  SILVERSPRING,
+  SILVERSPRING_NAME,
+  SILVERSPRING_NPCS,
+  SILVERSPRING_SITE,
+  TOWN,
+  TOWN_BUILDINGS,
+  TOWN_GATE,
+  TOWN_NAME,
+  TOWN_NPCS,
+  TOWN_STREET_FIXTURES,
+  WildsSource,
+  inTown,
+} from '../src/index.ts';
 
 const SEEDS = [DEFAULT_SEED, 1, 7, 42, 1234];
 const source = new WildsSource(DEFAULT_SEED);
@@ -118,8 +134,104 @@ describe('Ironhold', () => {
     for (const b of TOWN_BUILDINGS) expect(world.buildingAt(b.doorX, b.y1)).toBe(b);
   });
 
+  it('has lamps, a fountain and a notice board in its streets', () => {
+    const kinds = TOWN_STREET_FIXTURES.map((f) => f.kind);
+    expect(kinds.filter((k) => k === 'lamppost').length).toBeGreaterThan(10);
+    expect(kinds).toEqual(expect.arrayContaining(['fountain', 'noticeboard']));
+  });
+
+  it('has people who talk with the player: conversations with answers that branch', () => {
+    const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
+    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'smith', 'soldier', 'watchman']);
+    for (const npc of talkers) {
+      const dialog = npc.content.dialog!;
+      const nodes = Object.values(dialog.nodes);
+      expect(nodes.length, npc.id).toBeGreaterThanOrEqual(5);
+      // The first line offers more than one way on.
+      expect(dialog.nodes[dialog.start]!.answers.filter((a) => a.next).length, npc.id).toBeGreaterThanOrEqual(2);
+      expect(npc.content.pages, npc.id).toBeUndefined();
+    }
+  });
+
+  it('comes first in the list of NPCs: then the merchant on the road, then the people of Silverspring', () => {
+    // The order is the code of each NPC on the wire.
+    expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
+    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id)]);
+  });
+});
+
+describe('Silverspring', () => {
+  const s = SILVERSPRING;
+  /** The tile where the north road ends: just west of the town, on its main street. */
+  const gate = SILVERSPRING_SITE;
+
+  it('stands at the end of the north road: the road comes in at the west end of its main street', () => {
+    expect(s.name).toBe(SILVERSPRING_NAME);
+    expect([gate.tx, gate.ty]).toEqual([s.x0 - 1, s.y0 + 10]);
+    expect(source.north.on(gate.tx, gate.ty)).toBe(true);
+    for (let tx = s.x0; tx <= s.x1; tx++) expect([Ground.Cobble, Ground.Floor]).toContain(world.ground(tx, gate.ty));
+    // It is about 250 tiles from Ironhold, to the north-east.
+    expect(Math.hypot(s.x0 - TOWN.x1, s.y1 - TOWN.y0)).toBeGreaterThan(200);
+  });
+
+  it('has three open buildings (the militia hall, the inn and the jeweller) and four shut houses', () => {
+    expect(s.buildings).toHaveLength(7);
+    expect(s.buildings.filter((b) => b.locked)).toHaveLength(4);
+    expect(s.buildings.filter((b) => b.sign).map((b) => b.sign)).toEqual(['Militia', 'The Silver Trout', 'Jeweller']);
+    for (const b of s.buildings) expect(world.buildingAt(b.doorX, b.y1)).toBe(b);
+    // The building ids are unique in the world (a refuge names its building).
+    const ids = [...TOWN_BUILDINGS, ...s.buildings].map((b) => b.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has a stream from a spring to a pool, with bridges where the main street and the lane cross it', () => {
+    let water = 0;
+    let bridges = 0;
+    for (let ty = s.y0; ty <= s.y1; ty++) {
+      for (let tx = s.x0; tx <= s.x1; tx++) {
+        const plot = s.plotAt(tx, ty);
+        if (plot === Plot.Water) {
+          water++;
+          expect(world.ground(tx, ty)).toBe(Ground.Water);
+          expect(world.solidBox(tx, ty), `${tx},${ty}`).not.toBeNull();
+        }
+        if (plot === Plot.Bridge) {
+          bridges++;
+          expect(world.ground(tx, ty)).toBe(Ground.Floor);
+          expect(world.solidBox(tx, ty), `${tx},${ty}`).toBeNull();
+        }
+      }
+    }
+    expect(water).toBeGreaterThan(40);
+    expect(bridges).toBe(12);
+  });
+
+  it('has Kasmut Parnika in the militia hall, with a conversation for a character who comes to warn the town', () => {
+    const kasmut = SILVERSPRING_NPCS.find((n) => n.id === 'kasmut')!;
+    expect(world.buildingAt(kasmut.home[0], kasmut.home[1])?.id).toBe('militia-hall');
+    const dialog = kasmut.content.dialog!;
+    expect(dialog.name).toBe('Kasmut Parnika, of the Enclave');
+    expect(checkDialog(dialog)).toEqual([]);
+    expect(dialog.starts?.map((st) => st.node)).toEqual(['road']);
+    expect(SILVERSPRING_NPCS.map((n) => n.id)).toEqual(['kasmut', 'host', 'jeweller', 'militia', 'prospector']);
+  });
+
+  it('is a town of the map', () => {
+    const mark = source.landmarks().find((l) => l.name === 'Silverspring')!;
+    expect(mark.kind).toBe('town');
+    expect(s.has(Math.floor(mark.x / TILE_SIZE), Math.floor(mark.y / TILE_SIZE))).toBe(true);
+  });
+});
+
+/** What every town checks: Ironhold (its gate: the end of the road from the home) and Silverspring (the end of the north road). */
+const TOWNS = [
+  { town: IRONHOLD, gate: TOWN_GATE, people: TOWN_NPCS },
+  { town: SILVERSPRING, gate: SILVERSPRING_SITE, people: SILVERSPRING_NPCS },
+];
+
+describe.each(TOWNS)('the town of $town.name', ({ town, gate, people }) => {
   it('builds each building with a wall ring and one door in the south wall, and a clear doorstep', () => {
-    for (const b of TOWN_BUILDINGS) {
+    for (const b of town.buildings) {
       let doors = 0;
       for (let ty = b.y0; ty <= b.y1; ty++) {
         for (let tx = b.x0; tx <= b.x1; tx++) {
@@ -145,7 +257,7 @@ describe('Ironhold', () => {
 
   it('opens the doors of the open buildings, and never the doors of the shut ones', () => {
     const w = new World(new WildsSource(DEFAULT_SEED));
-    for (const b of TOWN_BUILDINGS) {
+    for (const b of town.buildings) {
       const player = createPlayer(b.doorX * TILE_SIZE + 8, (b.y1 + 1) * TILE_SIZE + 4);
       player.facing = 'up';
       expect(findInteraction(w, player)).toMatchObject({ kind: 'door', tx: b.doorX, ty: b.y1 });
@@ -157,7 +269,7 @@ describe('Ironhold', () => {
 
   it('lets a player reach every thing in the open buildings from the door', () => {
     const w = new World(new WildsSource(DEFAULT_SEED));
-    for (const b of TOWN_BUILDINGS.filter((b) => !b.locked)) {
+    for (const b of town.buildings.filter((b) => !b.locked)) {
       w.setDoorOpen(b.doorX, b.y1, true);
       const area = reachable(w, b.doorX, b.y1 + 1, b.x0, b.y0, b.x1, b.y1 + 1);
       expect(b.fixtures.length, b.id).toBeGreaterThan(2);
@@ -168,26 +280,27 @@ describe('Ironhold', () => {
     }
   });
 
-  it('has lamps, a fountain and a notice board in its streets, all reachable from the gate', () => {
-    const kinds = TOWN_STREET_FIXTURES.map((f) => f.kind);
+  it('has lamps and a notice board in its streets, and they and every door are reachable from the gate', () => {
+    const kinds = town.streetFixtures.map((f) => f.kind);
     expect(kinds.filter((k) => k === 'lamppost').length).toBeGreaterThan(10);
-    expect(kinds).toEqual(expect.arrayContaining(['fountain', 'noticeboard']));
-    const area = reachable(world, TOWN_GATE.tx, TOWN_GATE.ty, TOWN.x0, TOWN.y0, TOWN.x1 + 1, TOWN.y1);
-    for (const f of TOWN_STREET_FIXTURES) {
+    expect(kinds).toContain('noticeboard');
+    const area = reachable(world, gate.tx, gate.ty, Math.min(town.x0, gate.tx), town.y0, Math.max(town.x1, gate.tx), town.y1);
+    for (const f of town.streetFixtures) {
       const near = fixtureTiles(f).some(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].some(([nx, ny]) => area.has(key(nx!, ny!))));
       expect(near, `${f.kind} at ${f.tx},${f.ty}`).toBe(true);
       expect(world.fixtureAt(f.tx, f.ty)).toBe(f);
     }
-    // The doors of every building can be reached from the gate too.
-    for (const b of TOWN_BUILDINGS) expect(area.has(key(b.doorX, b.y1 + 1)), b.id).toBe(true);
+    for (const b of town.buildings) expect(area.has(key(b.doorX, b.y1 + 1)), b.id).toBe(true);
   });
 
   it('has people in its streets and in its buildings, each with something to say', () => {
-    const inside = TOWN_NPCS.filter((n) => world.buildingAt(n.home[0], n.home[1]));
-    expect(inside.length).toBeGreaterThanOrEqual(5);
-    expect(TOWN_NPCS.length - inside.length).toBeGreaterThanOrEqual(3);
-    expect(new Set(TOWN_NPCS.map((n) => n.id)).size).toBe(TOWN_NPCS.length);
-    for (const npc of TOWN_NPCS) {
+    const inside = people.filter((n) => world.buildingAt(n.home[0], n.home[1]));
+    expect(inside.length).toBeGreaterThanOrEqual(3);
+    expect(people.length - inside.length).toBeGreaterThanOrEqual(2);
+    const all = source.npcs().map((n) => n.id);
+    expect(new Set(all).size).toBe(all.length);
+    for (const npc of people) {
+      expect(town.has(npc.home[0], npc.home[1]), npc.id).toBe(true);
       expect(npc.content.speaker).toBe('fixture');
       // Pages, or a conversation.
       if (npc.content.dialog) expect(checkDialog(npc.content.dialog), npc.id).toEqual([]);
@@ -208,54 +321,41 @@ describe('Ironhold', () => {
       }
       expect(seen.size, npc.id).toBe(tiles.size);
     }
-    // The people of the town first, then the merchant on the road (road.ts).
-    expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
-    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant']);
-  });
-
-  it('has people who talk with the player: conversations with answers that branch', () => {
-    const talkers = TOWN_NPCS.filter((n) => n.content.dialog);
-    expect(talkers.map((n) => n.id).sort()).toEqual(['apothecary', 'innkeeper', 'peddler', 'reeve', 'smith', 'soldier', 'watchman']);
-    for (const npc of talkers) {
-      const dialog = npc.content.dialog!;
-      const nodes = Object.values(dialog.nodes);
-      expect(nodes.length, npc.id).toBeGreaterThanOrEqual(5);
-      // The first line offers more than one way on.
-      expect(dialog.nodes[dialog.start]!.answers.filter((a) => a.next).length, npc.id).toBeGreaterThanOrEqual(2);
-      expect(npc.content.pages, npc.id).toBeUndefined();
-    }
   });
 
   it('lets its people walk about, each in its own area', () => {
     const w = new World(new WildsSource(DEFAULT_SEED));
-    const crowd = new NpcCrowd(w, TOWN_NPCS, 5);
-    const areas = TOWN_NPCS.map((n) => new Set(n.area.map(([x, y]) => key(x, y))));
+    const crowd = new NpcCrowd(w, people, 5);
+    const areas = people.map((n) => new Set(n.area.map(([x, y]) => key(x, y))));
     const moved = new Set<number>();
     const start = crowd.poses.map((p) => ({ x: p.x, y: p.y }));
     for (let t = 0; t < 90_000; t += 50) {
       crowd.step(50, []);
       crowd.poses.forEach((p, i) => {
-        expect(areas[i]!.has(key(Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE))), TOWN_NPCS[i]!.id).toBe(true);
+        expect(areas[i]!.has(key(Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE))), people[i]!.id).toBe(true);
         if (Math.hypot(p.x - start[i]!.x, p.y - start[i]!.y) > TILE_SIZE) moved.add(i);
       });
     }
-    expect(moved.size).toBe(TOWN_NPCS.length);
+    expect(moved.size).toBe(people.length);
     // The shut doors stay shut.
-    for (const b of TOWN_BUILDINGS.filter((b) => b.locked)) expect(w.isDoorOpen(b.doorX, b.y1)).toBe(false);
+    for (const b of town.buildings.filter((b) => b.locked)) expect(w.isDoorOpen(b.doorX, b.y1)).toBe(false);
   });
 
   it('is safe: no mob lives near it or comes into it', () => {
     const rules = source.mobs();
-    for (let ty = TOWN.y0 - 2; ty <= TOWN.y1 + 2; ty++) for (let tx = TOWN.x0 - 2; tx <= TOWN.x1 + 2; tx++) expect(rules.roam(tx, ty)).toBe(false);
+    for (let ty = town.y0 - 2; ty <= town.y1 + 2; ty++) for (let tx = town.x0 - 2; tx <= town.x1 + 2; tx++) expect(rules.roam(tx, ty)).toBe(false);
+    for (let ty = town.y0; ty <= town.y1; ty++) for (let tx = town.x0; tx <= town.x1; tx++) expect(rules.hunt(tx, ty)).toBe(false);
     const w = new World(new WildsSource(DEFAULT_SEED));
     const horde = new Horde(w, { ...rules, population: { imp: 0, brute: 0 } }, 3);
     // A player just inside the gate, and an imp on the road outside it.
-    const player: HordePlayer = { id: 1, state: createPlayer(centre(TOWN_GATE.tx - 2, TOWN_GATE.ty).x, centre(TOWN_GATE.tx - 2, TOWN_GATE.ty).y) };
-    const imp = horde.spawn('imp', centre(TOWN_GATE.tx + 4, TOWN_GATE.ty).x, centre(TOWN_GATE.tx + 4, TOWN_GATE.ty).y);
+    const inside = town.has(gate.tx + 2, gate.ty) ? gate.tx + 2 : gate.tx - 2;
+    const outside = town.has(gate.tx + 2, gate.ty) ? gate.tx - 4 : gate.tx + 4;
+    const player: HordePlayer = { id: 1, state: createPlayer(centre(inside, gate.ty).x, centre(inside, gate.ty).y) };
+    const imp = horde.spawn('imp', centre(outside, gate.ty).x, centre(outside, gate.ty).y);
     let hits = 0;
     for (let t = 0; t < 20_000; t += TICK_SECONDS * 1000) {
       hits += horde.step(TICK_SECONDS * 1000, [player]).length;
-      expect(inTown(Math.floor(imp.x / TILE_SIZE), Math.floor(imp.y / TILE_SIZE))).toBe(false);
+      expect(town.has(Math.floor(imp.x / TILE_SIZE), Math.floor(imp.y / TILE_SIZE))).toBe(false);
     }
     expect(hits).toBe(0);
   });
@@ -308,6 +408,6 @@ describe('Intelligence in the Wilds', () => {
       }
     }
     expect(shelves).toBeGreaterThan(5);
-    expect(source.landmarks().map((l) => l.kind)).toEqual(['home', 'town', 'refuge']);
+    expect(source.landmarks().map((l) => l.kind)).toEqual(['home', 'town', 'refuge', 'town']);
   });
 });

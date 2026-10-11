@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 | `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
-| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Ironhold (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
+| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
 | `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server; `shareWorlds()`, the dev switch), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 27.
+protocol: `docs/multiplayer.md`, protocol 28.
 
 ## Language
 
@@ -763,8 +763,8 @@ attacker.
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
-water, the ground round a house and Ironhold (they do not live within 2 tiles of the town, and
-they never step into it, so the town is safe); 4 imps and 2 brutes. The client of a
+water, the ground round a house and the towns (they do not live within 2 tiles of a town, and
+they never step into one, so the towns are safe); 4 imps and 2 brutes. The client of a
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
 and flashes a mob that a blow touches at once (`MobViews.touch()`); the server rolls, and the
@@ -923,9 +923,20 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
   of mud from below the path to the home's door to the gate, also over water; nothing grows on it
   or close to it. **The signpost** stands outside the hut, two tiles below the door on the west
-  side of its path, and points west: "It reads: THORNWICK." Tests (`town.test.ts`): the sign and
+  side of its path, and points west: "It reads: IRONHOLD." Tests (`town.test.ts`): the sign and
   the road for five seeds, the walls and doors, the shut doors, every thing and door reachable,
-  the NPC areas, and no mob in the town. `?at=-12,3` starts at the gate.
+  the NPC areas, and no mob in the town. `?at=-12,3` starts at the gate. Since 2026-10-11 a
+  builder makes the towns (`towns.ts`: `TownPlan`, `Town`); `town.ts` keeps the plan and the old
+  names (`TOWN`, `TOWN_BUILDINGS`, `inTown()`...), and `IRONHOLD` is the built town.
+- **Silverspring** (`worlds/wilds/src/silverspring.ts`, story phase 4a, 2026-10-11;
+  `docs/features/game/towns.md`): the mithril village of the Mithril Enclave, 42 x 24 tiles at the
+  end of the north road (the road ends at the gate, `SILVERSPRING_SITE`, west of its main street).
+  A spring in a pool at the north end, a stream south to a second pool (water, solid), two bridges of
+  planks (`Ground.Floor`). North of the main street: the militia hall (Kasmut Parnika, veteran of the
+  Enclave: `KASMUT`), the Silver Trout (Tova: ale; a bed for the refuge `trout`, given in phase 4d),
+  the jeweller; four shut houses face the lane. Doran of the militia at the gate, a panner by the
+  stream. Its NPCs come after the merchant in `npcs()` (wire codes). Mobs keep out of it as out of
+  Ironhold (`TOWNS` in `source.ts`). `?at=180,-179` starts in its main street.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,
   `/opt/azyr-town`), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
   lines, the arrival intro, signs, building styles), and a world of the game can use it.

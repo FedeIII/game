@@ -127,6 +127,48 @@ export const NPC_LOOKS: Record<string, Look> = {
     leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
     spec: { headwear: 'brim', cloak: 'short', beard: true, pauldrons: false, pouch: true },
   },
+  // The people of Silverspring (worlds/wilds, silverspring.ts; story phase 4, 2026-10-11).
+  /**
+   * Kasmut Parnika, veteran of the Mithril Enclave: an older woman with very short grey hair, a little
+   * bent under the armour of the Enclave, with its silver-blue tabard, and a sword.
+   */
+  veteran: {
+    cloak: ramp('#0a1018', '#121c28', '#1b2a3a', '#26394d', '#324a62', '#405c78'),
+    hood: false,
+    hair: HAIR.grey,
+    spec: { height: 0.95, headwear: 'bare', hair: 'short', body: 'armour', cloak: 'short', tabard: true, item: 'sword' },
+  },
+  /** A volunteer of the militia of Silverspring: a helm, a padded jerkin, a short cloak in the blue of the Enclave, and a spear (a glaive). */
+  militia: {
+    cloak: ramp('#0a1018', '#121c28', '#1b2a3a', '#26394d', '#324a62', '#405c78'),
+    hood: false,
+    hair: HAIR.chestnut,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { headwear: 'helm', cloak: 'short', pauldrons: false, item: 'glaive' },
+  },
+  /** The jeweller of Silverspring: long dark hair under a thin silver band, a long grey-blue robe. */
+  jeweller: {
+    cloak: ramp('#101418', '#191f26', '#232b35', '#2e3845', '#3a4656', '#475568'),
+    hood: false,
+    hair: HAIR.dark,
+    spec: { hair: 'long', circlet: true, body: 'robe', cloak: 'none', pauldrons: false, pouch: true },
+  },
+  /** A panner of the stream: a brim hat, a short beard, a jerkin and a pouch for the dust. */
+  prospector: {
+    cloak: ramp('#121008', '#1e1a0e', '#2b2615', '#39321d', '#483f26', '#584d30'),
+    hood: false,
+    hair: HAIR.grey,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { headwear: 'brim', cloak: 'none', beard: true, pauldrons: false, pouch: true },
+  },
+  /** Tova, who keeps the Silver Trout: no cloak, a leather apron, fair hair in a tail. */
+  host: {
+    cloak: ramp('#141008', '#211a0e', '#2f2615', '#3e331d', '#4e4126', '#5f4f30'),
+    hood: false,
+    hair: HAIR.blond,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { build: 1.08, hair: 'tail', cloak: 'none', pauldrons: false, pouch: true },
+  },
   /** A child: small, with a big head and a short cloak. */
   child: {
     cloak: ramp('#141008', '#221b0e', '#332915', '#45381d', '#584826', '#6b5930'),

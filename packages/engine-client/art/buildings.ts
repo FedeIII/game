@@ -786,9 +786,11 @@ const LEAD = ramp('#0c0c10', '#18181f', '#25252f', '#343442', '#454556');
 const DULL_GOLD = ramp('#2a2210', '#4a3c1a', '#6a5628', '#8a7238');
 const FLAG_WINE = ramp('#2a0a0e', '#4a1218', '#6a1c22', '#86262c');
 const FLAG_GREEN = ramp('#0c2416', '#163a24', '#225234', '#2e6a44');
+/** The silver-blue of the Mithril Enclave (Silverspring). */
+const FLAG_SILVER = ramp('#1c2836', '#34465a', '#5a7088', '#8ea4ba');
 
 /** The names of the things that can stand on a roof (`roof/<name>`). */
-export const ROOF_PROPS = ['chimney', 'vane', 'spire', 'moon', 'flag-wine', 'flag-green'] as const;
+export const ROOF_PROPS = ['chimney', 'vane', 'spire', 'moon', 'flag-wine', 'flag-green', 'flag-silver'] as const;
 
 /** A pole of iron, 2 pixels wide, lit on its left side, from y0 to y1 (inclusive). */
 function pole(image: Image, x: number, y0: number, y1: number): void {
@@ -796,7 +798,7 @@ function pole(image: Image, x: number, y0: number, y1: number): void {
 }
 
 /** A pennant on a pole: a triangle with its base on the pole, with a ripple and its own shading. */
-function flag(colours: readonly number[]): Frame {
+function flag(name: string, colours: readonly number[]): Frame {
   const image = new Image(14, 26);
   pole(image, 1, 2, 25);
   image.set(1, 1, DULL_GOLD[3]!);
@@ -812,7 +814,7 @@ function flag(colours: readonly number[]): Frame {
       image.set(x, y, colours[ripple && shade > 1 ? shade - 1 : shade]!);
     }
   }
-  return { name: `roof/flag-${colours === FLAG_WINE ? 'wine' : 'green'}`, image, anchor: { x: 1 / 14, y: 1 } };
+  return { name: `roof/flag-${name}`, image, anchor: { x: 1 / 14, y: 1 } };
 }
 
 /** A weather vane: an arrow over a pole, with the four arms of the compass below it. */
@@ -862,7 +864,7 @@ function moon(): Frame {
 }
 
 function roofPropFrames(): Frame[] {
-  return [flag(FLAG_WINE), flag(FLAG_GREEN), vane(), spire(), moon()];
+  return [flag('wine', FLAG_WINE), flag('green', FLAG_GREEN), flag('silver', FLAG_SILVER), vane(), spire(), moon()];
 }
 
 function roofFrames(): Frame[] {
