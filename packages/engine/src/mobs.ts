@@ -372,6 +372,8 @@ export interface Mob {
   burning?: number;
   /** A mob of a raid (Horde.unleash): it may go into a town (MobRules.raid). */
   raider?: boolean;
+  /** A mob of the story (an ambush, the attackers of a convoy): only such a mob hunts a quarry (HordePlayer.quarry). */
+  story?: boolean;
 }
 
 /** A rider sits this far behind the middle of its mount for each seat (world pixels). */
@@ -446,6 +448,11 @@ export interface HordePlayer {
   readonly companion?: boolean;
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
+  /**
+   * A quarry of the story (a guard of a caravan): only the mobs of the story (Mob.story) look for it.
+   * Another mob fights it only when it strikes that mob.
+   */
+  readonly quarry?: boolean;
   /**
    * How it takes a hit: its Armour Class (a mob's attack roll must reach it; 10 without), the share of a
    * stun and of a poison (CON), and its guard after a stun (DEX); how a pack presses it (CHA:
@@ -1108,6 +1115,7 @@ export class Horde {
     let best: HordePlayer | null = null;
     let bestD = Infinity;
     for (const p of players) {
+      if (p.quarry && !mob.story) continue;
       const d = Math.hypot(p.state.x - mob.x, p.state.y - mob.y);
       if (d < bestD && this.sees(mob, p.state, MOB_STATS[mob.kind].sight * (p.sight ?? 1))) {
         best = p;

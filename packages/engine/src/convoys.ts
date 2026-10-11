@@ -57,6 +57,8 @@ export interface ConvoyDef {
 export const CONVOY_AMBUSH_AHEAD = 7;
 /** A robber within this many tiles of the anchor gets the cargo. */
 export const CONVOY_ROB_RADIUS = 12;
+/** The guards behind the anchor walk this far to its sides (world pixels). */
+export const CONVOY_SIDE = 12;
 
 interface Run {
   readonly def: ConvoyDef;
@@ -182,9 +184,10 @@ export class Convoys {
   private start(def: ConvoyDef, guards: Guards, party: Set<number>): Run {
     const route = def.route.map(([x, y]) => ({ x: x * TILE_SIZE, y: y * TILE_SIZE }));
     const list = def.members.map((member, i) => {
-      // The column: the anchor at the head, the others behind it.
+      // The anchor at the head; the others behind it, one on each side of the way in turn.
       const p = route[Math.max(0, (def.members.length - 1 - i) * 6)] ?? route[0]!;
-      return guards.add(member, def.id, p.x, p.y, route);
+      const side = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * CONVOY_SIDE;
+      return guards.add(member, def.id, p.x, p.y, route, side);
     });
     return { def, guards: list, anchor: list[0]!, party, route, meetIndex: Math.floor(route.length * def.meet), phase: 'walk', waves: [], mobs: [], last: new Map() };
   }

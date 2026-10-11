@@ -4,7 +4,7 @@
 > **Status:** Phases 1 to 3 built (2026-10-11: `docs/features/game/language.md`,
 > `docs/features/game/quests.md`, `docs/features/game/combat.md`); phase 4 built
 > (`docs/features/game/towns.md`, REQ-QST-013 to 016, REQ-CMB-007); phase 6 built (REQ-QST-017 and
-> 018); phase 5 planned
+> 018); phase 5 built (REQ-QST-019 to 021, `docs/features/npcs/guards.md`)
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -363,6 +363,12 @@ before the next one.
      engine (militia that fight the hobgoblins, and a character who attacks them).
    - **Wanted:** a robber is wanted (guards and traders of both towns refuse to deal, and do not
      attack it) until it pays a fine to the reeve of Ironhold or to Kasmut.
+   Built 2026-10-11 (protocol 31). The militia and the wagon are guards: NPCs with the bodies of players
+   that walk a route and fight. The caravan meets its attackers at four fifths of the north road; the
+   driver of the wagon talks, and "Hand over the cargo." makes the character an outlaw. The fine is 60
+   coins; the reward of a saved caravan 15 coins and a draught; the cargo 20 coins, 3 badger furs and 5
+   nuggets of mithril (Fede tunes them). Only the mobs of the story hunt the guards: the beasts of the
+   woods do not decide the story.
 6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`. Built 2026-10-11 (protocol 30).
    What changed from the plan: three fixed burned homesteads (the reeve's "three homesteads"), not a
    share of the houses of the seed, so that the map can mark each one: the reeve names the first, and

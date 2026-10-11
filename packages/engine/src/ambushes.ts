@@ -190,6 +190,8 @@ export function spawnMembers(horde: Horde, members: readonly AmbushMember[], pla
     const spot = place(member, i);
     mobs[i] = horde.spawn(member.kind, spot.x, spot.y);
   });
+  // The mobs of the story: they also hunt the guards of a caravan (HordePlayer.quarry).
+  for (const mob of mobs) mob.story = true;
   return mobs;
 }
 

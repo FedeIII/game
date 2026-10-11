@@ -54,6 +54,7 @@ streaming-platform project):
 | Items: Pack and Loot | `PK` | [`items/pack-and-loot.md`](items/pack-and-loot.md) |
 | Items: Equipment | `EQ` | [`items/equipment.md`](items/equipment.md) |
 | NPCs: Companions | `CMP` | [`npcs/companions.md`](npcs/companions.md) |
+| NPCs: Guards (NPCs that fight) | `GRD` | [`npcs/guards.md`](npcs/guards.md) |
 | Game: Language | `LANG` | [`game/language.md`](game/language.md) |
 | Game: Quests and the Journal | `QST` | [`game/quests.md`](game/quests.md) |
 | Game: Combat at Level 3 | `CMB` | [`game/combat.md`](game/combat.md) |

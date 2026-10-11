@@ -691,6 +691,8 @@ describe('the caravan of Silverspring', () => {
     ] as const) {
       const room = new Room(new World(source), { dice: AVERAGE_DICE });
       const p = onRoad(room, 0.82, { raid: { step: raid, flags: [], n: 1 }, caravan: { step: 'heard', flags: [], n: 2 } });
+      // At the roadside: the wagon stops for a character who stands in its way.
+      p.state.y += 3 * TILE_SIZE;
       let t = 0;
       room.tick(t);
       // The caravan walks to the meeting point; the character waits there.

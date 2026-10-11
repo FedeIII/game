@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 30.
+protocol: `docs/multiplayer.md`, protocol 31.
 
 ## Language
 
@@ -956,6 +956,14 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   houses (`{ walls: 'charred', roof: 'none' }`), each with a phoenix (the fixture `brand`) that moves
   `ashes` on in order; survivors at Hale and Tanner (WIS 13 calms them); then the priest (`PRIEST`)
   or the apothecary tells of the phoenix (`symbol`). `?at=14,-26` starts at the Hale homestead.
+- **The caravan** (story phase 5, 2026-10-11; `docs/features/npcs/guards.md` and REQ-QST-019 to 021):
+  **guards** (`packages/engine/src/guards.ts`) are NPCs that fight, with the bodies of players; a
+  **convoy** (`convoys.ts`, `WorldSource.convoys()`) walks them on a route and sends the attackers at a
+  meeting point (the scouts and the band of the raid if they live, else the clan). The plot (`PLOT`, in
+  the Crooked Lantern) starts the quest `caravan`; the driver of the wagon (`WAGON_DRIVER`) talks, and
+  a robber is an outlaw (its blows hit the guards; they fight it). A robber is wanted: traders and
+  guards refuse it (`Dialog.refuse`) until it pays 60 coins (`QuestEffect.cost`) to the reeve or Kasmut.
+  Only the mobs of the story (`Mob.story`) hunt guards (`HordePlayer.quarry`).
 - **Barks** are heard only within 18 tiles (`BARK_HEARING` in `game.ts`): with two towns, the lines of
   a far town would sit on the edge of the screen.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,

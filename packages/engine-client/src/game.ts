@@ -612,7 +612,7 @@ async function run(options: GameOptions): Promise<void> {
   const guardActors = (now: number): Actor[] =>
     companionsNow(now).flatMap((c) => {
       const def = c.id >= GUARD_IDS && c.down === 0 ? talkingGuards.get(c.look) : undefined;
-      return def ? [{ x: c.x, y: c.y, halfWidth: NPC_HALF_WIDTH, halfHeight: NPC_HALF_HEIGHT, fixture: guardFixture(c.id, def) }] : [];
+      return def ? [{ x: c.x, y: c.y, halfWidth: def.size?.halfWidth ?? NPC_HALF_WIDTH, halfHeight: def.size?.halfHeight ?? NPC_HALF_HEIGHT, fixture: guardFixture(c.id, def) }] : [];
     });
   /** Where a guard is now (its feet), or null when it is gone. */
   const guardAt = (id: number, now: number): { x: number; y: number } | null => companionsNow(now).find((c) => c.id === id) ?? null;

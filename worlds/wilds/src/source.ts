@@ -198,7 +198,16 @@ const CLAN_UNITS: readonly (readonly AmbushMember[])[] = [
 /** The militia of the caravan of Silverspring (5e: a guard: AC 16, 11 hit points, a spear +3, 1d6+1). */
 const CARAVAN_MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
 /** The wagon of the caravan (a cart and two horses: 30 hit points, AC 11), with its driver to talk to. */
-const CARAVAN_WAGON: GuardDef = { id: 'wagon', name: 'Caravan', look: 'wagon', hp: 30, ac: 11, speed: 0.55, content: { speaker: 'fixture', dialog: WAGON_DRIVER } };
+const CARAVAN_WAGON: GuardDef = {
+  id: 'wagon',
+  name: 'Caravan',
+  look: 'wagon',
+  hp: 30,
+  ac: 11,
+  speed: 0.55,
+  content: { speaker: 'fixture', dialog: WAGON_DRIVER },
+  size: { halfWidth: 14, halfHeight: 6 },
+};
 /** The caravan meets its attackers at this share of the north road (from Ironhold): half a day from Silverspring. A character this near starts it (`CARAVAN_AREA`). */
 export const CARAVAN_MEET = 0.8;
 const CARAVAN_AREA = { span: [0.7, 0.97], radius: 12 } as const;

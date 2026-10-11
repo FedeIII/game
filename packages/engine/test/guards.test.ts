@@ -50,25 +50,34 @@ function run(world: World, horde: Horde, guards: Guards, players: GuardPlayer[],
 describe('guards', () => {
   it('walk their route while nothing threatens them; a wagon walks at half the pace; a halted guard stands', () => {
     const { world, horde, guards } = setup();
-    const militia = guards.add(MILITIA, 'caravan', ROUTE[0]!.x, ROUTE[0]!.y, ROUTE);
-    const wagon = guards.add(WAGON, 'caravan', ROUTE[0]!.x, ROUTE[0]!.y + 8, ROUTE);
+    const militia = guards.add(MILITIA, 'patrol', ROUTE[0]!.x, ROUTE[0]!.y, ROUTE);
     expect(militia.id).toBeGreaterThanOrEqual(GUARD_IDS);
     run(world, horde, guards, [], 2000);
-    // A player walks 80 px/s: the militia about 160 px in 2 s, the wagon about half of it.
+    // A player walks 80 px/s; alone, the militia walks about 160 px in 2 s.
     expect(militia.state.x - ROUTE[0]!.x).toBeGreaterThan(120);
-    expect(wagon.state.x - ROUTE[0]!.x).toBeGreaterThan(50);
-    expect(wagon.state.x - ROUTE[0]!.x).toBeLessThan(100);
+    // The wagon walks at half the pace; a militia behind it keeps with it, and never goes ahead of it.
+    const caravan = setup();
+    const wagon = caravan.guards.add(WAGON, 'caravan', ROUTE[8]!.x, ROUTE[8]!.y + 8, ROUTE);
+    const escort = caravan.guards.add(MILITIA, 'caravan', ROUTE[0]!.x, ROUTE[0]!.y, ROUTE);
+    run(caravan.world, caravan.horde, caravan.guards, [], 2000);
+    expect(wagon.state.x - ROUTE[8]!.x).toBeGreaterThan(50);
+    expect(wagon.state.x - ROUTE[8]!.x).toBeLessThan(100);
+    expect(escort.state.x).toBeLessThan(wagon.state.x + 1.5 * TILE_SIZE);
     wagon.halted = true;
     const x = wagon.state.x;
-    run(world, horde, guards, [], 1000);
+    run(caravan.world, caravan.horde, caravan.guards, [], 1000);
     expect(wagon.state.x).toBe(x);
+    void world;
+    void horde;
+    void guards;
   });
 
   it('fight a hostile mob near their wagon until it falls, and the mob fights them', () => {
     const { world, horde, guards } = setup();
     const militia = guards.add(MILITIA, 'caravan', at(10, 5).x, at(10, 5).y);
     const hob = horde.spawn('hobgoblin', at(13, 5).x, at(13, 5).y);
-    // A tough one, so that it lives long enough to turn on the militia.
+    // A mob of the story (an attacker of the caravan); a tough one, so that it lives long enough to turn on the militia.
+    hob.story = true;
     hob.health = 60;
     let hunted = false;
     for (let t = 0; t < 8000; t += 500) {
@@ -79,6 +88,7 @@ describe('guards', () => {
     expect(hunted).toBe(true);
     // A mob that it can finish falls.
     const weak = horde.spawn('goblin', at(8, 5).x, at(8, 5).y);
+    weak.story = true;
     run(world, horde, guards, [], 6000, at(10, 5));
     expect(horde.mobs.includes(weak)).toBe(false);
   });
@@ -103,10 +113,20 @@ describe('guards', () => {
     expect(friend.state.hp).toBe(1000);
   });
 
+  it('leave the beasts of the woods alone, and the beasts leave them alone', () => {
+    const { world, horde, guards } = setup();
+    const militia = guards.add(MILITIA, 'caravan', at(10, 5).x, at(10, 5).y);
+    const imp = horde.spawn('imp', at(12, 5).x, at(12, 5).y);
+    run(world, horde, guards, [], 4000, at(10, 5));
+    expect(imp.health).toBe(7);
+    expect(militia.state.hp).toBe(11);
+  });
+
   it('never fight without a blow (the wagon)', () => {
     const { world, horde, guards } = setup();
     guards.add(WAGON, 'caravan', at(10, 5).x, at(10, 5).y);
     const hob = horde.spawn('hobgoblin', at(12, 5).x, at(12, 5).y);
+    hob.story = true;
     const robber: GuardPlayer = { id: 2, state: createPlayer(at(11, 5).x, at(11, 5).y), outlaw: ['caravan'] };
     robber.state.hp = 1000;
     run(world, horde, guards, [robber], 3000, at(10, 5));

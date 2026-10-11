@@ -14,7 +14,9 @@ plan: `docs/drafts/story-razed-villages.md`, phases 2 to 4). On the road to Silv
 the hobgoblins wait in a grove; their number follows the characters there (`docs/features/game/combat.md`).
 Then their war band marches on Silverspring. If the character stops it on the road, it frees the
 scout Himo in the band's camp and takes him home; if the band comes to the town first, it raids the
-town. Either way Silverspring gives the character a title in its guard.
+town. Either way Silverspring gives the character a title in its guard. In the Crooked Lantern, a
+character can also overhear a plot against a caravan of Silverspring: it defends the caravan, or it
+robs it and is wanted until it pays a fine.
 
 ## Terminology
 
@@ -374,6 +376,65 @@ what they know of the sign, so that the mystery deepens.
 
 ---
 
+### REQ-QST-019: The plot in the Crooked Lantern
+
+**User Story:** As a player who knows of the hobgoblins, I want to overhear the plot against the
+caravan of Silverspring, so that I learn where it will be attacked.
+
+**Acceptance Criteria:**
+- **AC-QST-019.1:** A character at `asked` of the raid or later, without the quest `caravan`, who comes
+  into the Crooked Lantern (or two rows south of it) overhears a soldier of the Sovereignty and a
+  villager.
+- **AC-QST-019.2:** With WIS 15 it hears the first two lines; with WIS 13 the next two; every character
+  hears the last three: the Sovereignty wants the caravan gone, and the hobgoblins wait for it half a
+  day down the north road from Silverspring.
+- **AC-QST-019.3:** At the end, the quest `caravan` starts at `heard`, and the map marks the meeting
+  point, at four fifths of the north road (from Ironhold).
+
+---
+
+### REQ-QST-020: The caravan on the north road
+
+**User Story:** As a player who heard the plot, I want to meet the caravan and its attackers on the
+road, so that I can defend it.
+
+**Acceptance Criteria:**
+- **AC-QST-020.1:** When a character at `heard` comes within 12 tiles of the north road between 0.7 and
+  0.97 of its length (not in Silverspring), the caravan leaves the gate of Silverspring for Ironhold: a
+  wagon and two militia of the Enclave.
+- **AC-QST-020.2:** At the meeting point, the caravan stops, and the attackers come from ahead, one wave
+  after the other, sized to the characters there. If the scouts of the raid still live for the
+  character (`asked`), they come first, and their fall moves the raid to `scouts` with two badger furs;
+  then the war band, and its fall moves the raid to `band`. If the character killed both, other
+  hobgoblins of the clan come instead (a hobgoblin and a goblin archer, then more).
+- **AC-QST-020.3:** While a character at `heard` waits for the caravan, the scouts do not wait in the
+  grove and the war band does not march for it: they wait at the caravan.
+- **AC-QST-020.4:** When the last wave falls and the wagon lives, the caravan is saved: the quest moves
+  to `saved` (it ends), with 15 coins and a healing draught, and the caravan walks on to Ironhold.
+- **AC-QST-020.5:** If the attackers break the wagon, the cargo is lost: the quest moves to `lost` (it
+  ends).
+
+---
+
+### REQ-QST-021: The robbery, the wanted and the fine
+
+**User Story:** As a player who wants the cargo, I want to rob the caravan and pay for it later, so
+that my choice has a price.
+
+**Acceptance Criteria:**
+- **AC-QST-021.1:** The driver of the wagon talks (the wagon stops for a character next to it). "Hand
+  over the cargo." moves the quest to `robbing`: the militia fight the character, and its blows hit them.
+- **AC-QST-021.2:** When both militia fall (or the robber breaks the wagon) with the robber within 12
+  tiles, the quest moves to `robbed`, with 20 coins, 3 badger furs and 5 nuggets of mithril, and the
+  caravan goes.
+- **AC-QST-021.3:** At `robbing` or `robbed` the character is wanted: Brann, Marta, Isolde, the smith,
+  Corwin, the soldier and the merchant of Ironhold, and Tova, Ilsa and Doran of Silverspring refuse
+  it ("I will go."), and the server refuses their deals. Nobody attacks it.
+- **AC-QST-021.4:** The reeve of Ironhold and Kasmut take the fine: 60 coins. "I will pay the fine."
+  moves the quest to `pardoned` (it ends), and the others deal with the character again.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -475,6 +536,14 @@ what they know of the sign, so that the mystery deepens.
   `SURVIVOR_HALE`, `SURVIVOR_TANNER`, the start `phoenix` of `APOTHECARY`, and the node `where` of
   `REEVE`. They stand in `CLEARINGS` of `source.ts` (no tree or rock within 2 tiles; mobs as in the
   woods).
+- **The caravan** (`worlds/wilds/src`): `CARAVAN` (steps `heard`, `saved`, `lost`, `robbing`, `robbed`,
+  `pardoned`), `CARAVAN_HEARD` (the end of the scene `PLOT` in `town.ts`; the people `inn-soldier` and
+  `drinker` at the tables of the inn; `KEEN_GATE`, WIS 15), `CARAVAN_SAVED` (`CARAVAN_REWARD` 15 and a
+  draught), `CARAVAN_LOST`, `CARAVAN_ROB`, `CARAVAN_ROBBED`, `CARAVAN_FINE` (`QuestEffect.cost`,
+  `CARAVAN_FINE_COINS` 60); `WildsSource.convoys()` (`CARAVAN_MEET` 0.8, `CARAVAN_MILITIA`,
+  `CARAVAN_WAGON`, `CLAN_UNITS`, `NOT_AT_THE_CARAVAN`); `WAGON_DRIVER`; the refusals (`Dialog.refuse`,
+  `REFUSE`, `wanted()` in `dialogs.ts`) and the starts `fine` of `REEVE` and `KASMUT`. The guards:
+  `docs/features/npcs/guards.md`.
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

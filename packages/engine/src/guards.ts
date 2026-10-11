@@ -9,8 +9,8 @@ import type { World } from './world.ts';
  * Guards (story phase 5, the caravan of chapter 1.5.1): NPCs that fight. A guard has the body of a
  * player (a PlayerState: the same walk, collision, hits and defeat), a group (its caravan), and a
  * route that it walks while nothing threatens it. A guard with a blow fights: it goes for the nearest
- * hostile mob near its group's anchor (the wagon), and for a character who is an outlaw of its group
- * (a robber); its swing is a player's (stepPlayer), and it rolls as a player's blow (Horde.strike).
+ * mob of the story (Mob.story) or mob that hunts its group, near its group's anchor (the wagon), and
+ * for a character who is an outlaw of its group (a robber); its swing is a player's (stepPlayer), and it rolls as a player's blow (Horde.strike).
  * A guard without a blow (the wagon) never fights. Mobs hunt guards as they hunt companions; an
  * outlaw's blows hit them (Guards.strike). A guard that falls dies. The Room runs them in a shared
  * world; the page in a world that it runs.
@@ -18,13 +18,17 @@ import type { World } from './world.ts';
 
 /** The ids of guards start here: the ids of players are small, and those of companions start at 1,000,000. */
 export const GUARD_IDS = 2_000_000;
-/** A fighting guard sees a foe this far away (world pixels), and goes no further than GUARD_LEASH from its anchor. */
-export const GUARD_SIGHT = 7 * TILE_SIZE;
-export const GUARD_LEASH = 8 * TILE_SIZE;
+/** A fighting guard sees a foe this far away (world pixels), and goes no further than GUARD_LEASH from its anchor: further than a goblin shoots. */
+export const GUARD_SIGHT = 10 * TILE_SIZE;
+export const GUARD_LEASH = 12 * TILE_SIZE;
 /** A guard's hit on a character stuns it for this many ticks (as a hobgoblin's). */
 const GUARD_STUN_TICKS = 70;
 /** It is at a point of its route this close (world pixels). */
 const ROUTE_REACH = 6;
+/** A guard that talks stops for a character this close (world pixels). */
+export const GUARD_HOLD = 24;
+/** A guard waits when it is this many points of the route (4 for each tile) ahead of the lead of its group. */
+const KEEP_WITH_LEAD = 4;
 /** The radius of a guard's body, for the blows of a player (world pixels). */
 export const GUARD_RADIUS = 7;
 
@@ -45,6 +49,8 @@ export interface GuardDef {
   readonly speed?: number;
   /** What it says when a character talks to it (the driver of the wagon: a conversation). Without it, nobody talks to it. */
   readonly content?: Interaction;
+  /** The half size of the box that a character acts on (world pixels): the wagon is big. Default: an NPC's. */
+  readonly size?: { readonly halfWidth: number; readonly halfHeight: number };
 }
 
 export interface Guard {
@@ -56,6 +62,8 @@ export interface Guard {
   /** The route that it walks (world pixels), and the next point on it; it stands at its end. */
   route: readonly { readonly x: number; readonly y: number }[];
   routeIndex: number;
+  /** How far it walks to the side of its route (world pixels; + to the right of the way): the militia beside the wagon. */
+  readonly offset: number;
   /** Whether it stands (its caravan is attacked): it walks no further on its route. */
   halted: boolean;
   /** What it fights now: a mob (`mob`) or a character (`player`), by id. */
@@ -112,8 +120,8 @@ export class Guards {
     return this.all.filter((g) => g.group === group);
   }
 
-  /** Puts a guard next to (x, y) (the nearest open place), in `group`, on `route` (world pixels). */
-  add(def: GuardDef, group: string, x: number, y: number, route: readonly { readonly x: number; readonly y: number }[] = []): Guard {
+  /** Puts a guard next to (x, y) (the nearest open place), in `group`, on `route` (world pixels), `offset` to its side. */
+  add(def: GuardDef, group: string, x: number, y: number, route: readonly { readonly x: number; readonly y: number }[] = [], offset = 0): Guard {
     const at = resumePoint(this.world, x, y);
     const state = createPlayer(at.x, at.y);
     state.hp = def.hp;
@@ -126,7 +134,7 @@ export class Guards {
         routeIndex = i;
       }
     });
-    const guard: Guard = { id: this.nextId++, def, group, state, route, routeIndex, halted: false, target: null };
+    const guard: Guard = { id: this.nextId++, def, group, state, route, routeIndex, offset, halted: false, target: null };
     this.all.push(guard);
     return guard;
   }
@@ -137,9 +145,9 @@ export class Guards {
     this.lastHit.delete(id);
   }
 
-  /** The guards as targets for the horde: mobs hunt them, but they bring no new mobs. */
+  /** The guards as targets for the horde: the mobs of the story hunt them (a quarry), and they bring no new mobs. */
   targets(): HordePlayer[] {
-    return this.all.map((g) => ({ id: g.id, state: g.state, companion: true, traits: { ac: g.def.ac } }));
+    return this.all.map((g) => ({ id: g.id, state: g.state, companion: true, quarry: true, traits: { ac: g.def.ac } }));
   }
 
   /**
@@ -178,7 +186,13 @@ export class Guards {
       if (swung && guard.target) this.swing(guard, horde, players, dice);
       return;
     }
-    stepPlayer(state, guard.halted ? NO_MOVE : this.walk(guard), this.world, traits);
+    // A guard walks with the lead of its group (its first guard, the wagon): never ahead of it. A guard
+    // that talks stops for a character who stands close, as an NPC does.
+    const lead = this.all.find((g) => g.group === guard.group);
+    const ahead = lead !== undefined && lead !== guard && guard.routeIndex > lead.routeIndex + KEEP_WITH_LEAD;
+    const listener = def.content ? players.find((p) => p.state.down === 0 && Math.hypot(p.state.x - state.x, p.state.y - state.y) <= GUARD_HOLD) : undefined;
+    if (listener) state.facing = facingFor(state.facing, { x: listener.state.x - state.x, y: listener.state.y - state.y });
+    stepPlayer(state, guard.halted || ahead || listener ? NO_MOVE : this.walk(guard), this.world, traits);
   }
 
   /** The input of a fighter: at its target, or a swing when it is in reach; null with nothing to fight. */
@@ -200,8 +214,10 @@ export class Guards {
     let best: { kind: 'mob' | 'player'; id: number; x: number; y: number; radius: number } | null = null;
     let bestD = GUARD_SIGHT;
     const near = (x: number, y: number) => Math.hypot(x - anchor.x, y - anchor.y) <= GUARD_LEASH;
+    // The mobs of the story, and any mob that hunts a guard of the group: not the other beasts of the woods.
+    const hunters = new Set(horde ? this.all.filter((g) => g.group === guard.group).flatMap((g) => horde.huntersOf(g.id).map((m) => m.id)) : []);
     for (const mob of horde?.mobs ?? []) {
-      if (mob.state === 'dying' || !near(mob.x, mob.y)) continue;
+      if (mob.state === 'dying' || !near(mob.x, mob.y) || !(mob.story || hunters.has(mob.id))) continue;
       const d = Math.hypot(mob.x - state.x, mob.y - state.y);
       if (d < bestD) {
         best = { kind: 'mob', id: mob.id, x: mob.x, y: mob.y, radius: MOB_STATS[mob.kind].radius };
@@ -240,12 +256,18 @@ export class Guards {
   /** The walk along the route: to its next point; at its end, it stands. */
   private walk(guard: Guard): MoveInput {
     const { state, route } = guard;
-    while (guard.routeIndex < route.length && Math.hypot(route[guard.routeIndex]!.x - state.x, route[guard.routeIndex]!.y - state.y) < ROUTE_REACH) guard.routeIndex++;
+    while (guard.routeIndex < route.length && Math.hypot(route[guard.routeIndex]!.x - state.x, route[guard.routeIndex]!.y - state.y) < ROUTE_REACH + Math.abs(guard.offset)) guard.routeIndex++;
     if (guard.routeIndex >= route.length) return NO_MOVE;
     const p = route[guard.routeIndex]!;
-    const dx = p.x - state.x;
-    const dy = p.y - state.y;
+    // To the side of the route: across the way from this point to the next.
+    const q = route[Math.min(route.length - 1, guard.routeIndex + 1)]!;
+    const along = Math.hypot(q.x - p.x, q.y - p.y) || 1;
+    const gx = p.x - ((q.y - p.y) / along) * guard.offset;
+    const gy = p.y + ((q.x - p.x) / along) * guard.offset;
+    const dx = gx - state.x;
+    const dy = gy - state.y;
     const d = Math.hypot(dx, dy);
+    if (d < 1) return NO_MOVE;
     state.facing = facingFor(state.facing, { x: dx, y: dy });
     return { x: dx / d, y: dy / d };
   }

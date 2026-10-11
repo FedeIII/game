@@ -70,6 +70,18 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The caravan (protocol 31, 2026-10-11)
+
+- Guards (`docs/features/npcs/guards.md`): the Room runs them (`Room.guards`) and the convoys that
+  they walk in (`Room.convoys`). The snapshots send them with the companions (`cp`), with the leader 0.
+- The message `quest` can come from a guard that talks (`guard`: its id): the server checks that the
+  guard is there, within `DEAL_RANGE`, and that its conversation has the effect (the driver of the
+  caravan: "Hand over the cargo.").
+- An outlaw's blow (a robber) also goes to `Guards.strike()`.
+- `Room.deal()` refuses the deal of a person who refuses the character (`Dialog.refuse`: a wanted
+  robber).
+- The inn of Ironhold has two more people (the plot), so the list of NPCs changed.
+
 ## The burned homesteads (protocol 30, 2026-10-11)
 
 Protocol 30 changes no message: the Wilds got three burned homesteads (story phase 6,
