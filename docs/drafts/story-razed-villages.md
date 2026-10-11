@@ -1,0 +1,327 @@
+# The Razed Villages: the first story of the game (draft)
+
+> **Draft** · promotes to `docs/features/` (one document for each system) when built ·
+> **Status:** Planned (2026-10-11), nothing built
+
+This draft plans the first story of the game and the systems that it needs. The story comes
+from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
+uses the Arcane Raiders of the saga plan and the Ashen Seekers of the `RPG` notes. The systems
+are quest state, conversations with conditions, overheard scenes, world events, new mobs, new
+places and a second language.
+
+**The Drive is the source of the story, not this file.** Read the documents live (`CLAUDE.md`,
+"Lore: Kandrax, on Google Drive") before you build a quest. This draft keeps only the design and
+the names:
+
+- `Sagas/Dioses Olvidados/Capítulos/1.5.1 - Pueblos Arrasados`: route [A] "Interior" (A.1 the
+  canyon of the Picos de Poniente, A.2 the road to Ferrozar, A.3 Ferrozar to Silverspring, with the
+  quests "Incursión Hobgoblin" and "Asalto a la Caravana").
+- `Sagas/Dioses Olvidados/1.0 - Saga de los Dioses Olvidados`: section 1.5, "Los Saqueadores
+  Arcanos" (quests 1.5.1, 1.5.x "Aldea salvaje", 1.5.x "Asalto").
+- `RPG`, section "CONTEXTO IA", "Gang of Raiders": the Ashen Seekers, Verath Shadowweave, and the
+  six phases of "Shadows of the Ashen Seekers".
+
+The plan in `1.0` gives other places for 1.5.1 (Grimhollow, Saxum, Hondurria), and the text of
+1.5.1 does not show the raiders. This draft uses the places of route [A] and the Ashen Seekers as
+the thread that connects the quests.
+
+## Decisions
+
+- **Quest state for each character** (Fede, 2026-10-11). The server keeps it with the character.
+  Quest mobs come for the player at that step; other players see them and can help.
+- **English names that translate the Spanish names of Kandrax** (Fede, 2026-10-11). Thornwick
+  takes the English name of Ferrozar. A language setting gives Spanish, with the Spanish names of
+  Kandrax.
+- **Mobs enter a town only during an event** (Fede, 2026-10-11). The rule "a mob never steps into
+  a town" stays for every other mob.
+- **The start of the game follows route [A]** (proposed 2026-10-11). Routes [B] (by sea) and [C]
+  (along the coast) need ships, large cities, escorts and politics between towns. They stay for
+  later chapters.
+
+## The frame
+
+- **The Wilds** are the wild frontier between the **Iron Sovereignty** and the **Mithril
+  Enclave**. Both powers compete for this land, and neither one plays fair.
+- **Ironhold** (now Thornwick; Ferrozar in Kandrax) is the frontier village of the Sovereignty,
+  west of the home. Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the
+  head of the village; the watchman at the gate is a soldier of the Sovereignty.
+- **Silverspring** is the mithril village of the Enclave, a new fixed town north-east of
+  Ironhold, at the end of a new road.
+- **The razed villages:** the Ashen Seekers burn homesteads of the Wilds. They look for relics of
+  the old civilizations. Some houses of the Wilds are ruins with their mark, a phoenix.
+- **The hook:** a letter from Thrain Steelforge (Forjacero) on the table of the home. Thrain asks
+  the character to find out who burns the homesteads. In the saga plan, Thrain is the NPC of
+  1.5.1.
+
+## Names
+
+Each name has an English form and a Spanish form. The Spanish forms are the names of Kandrax.
+The English forms translate them. **The English names below are proposals: Fede confirms them.**
+
+| Kandrax (es) | Game (en), proposed | Notes |
+|---|---|---|
+| Kandrax | Kandrax | |
+| las Tierras Salvajes | the Wilds | the name of the world stays |
+| la Soberanía del Hierro | the Iron Sovereignty | |
+| el Enclave del Mithril | the Mithril Enclave | |
+| los Dominios Centrales | the Central Dominions | |
+| Ferrozar | Ironhold | the town of the game, now Thornwick |
+| Silverspring | Silverspring | English in Kandrax too |
+| Bronzal | Bronzehold | a later place |
+| Arboleda Blanca | Whitegrove | a later place |
+| los Picos de Poniente | the Western Peaks | a later place |
+| el Argén | the Argen | a river |
+| Bahía del Hierro | Iron Bay | |
+| Thrain Forjacero, la Fábrica Forjacero | Thrain Steelforge, the Steelforge Factory | `forja` + `acero`: forge, steel |
+| Elama Rothenel, la alguacil | Elama Rothenel, the reeve | now "Aldous, the reeve" (open) |
+| Kasmut Parnika | Kasmut Parnika | the veteran of the Enclave in Silverspring |
+| Himo, Brys | Himo, Brys | the scouts of Ironhold |
+| los Saqueadores Arcanos | the Arcane Raiders | |
+| los Buscadores de Ceniza | the Ashen Seekers | English in the `RPG` notes; Spanish form proposed |
+| Verath Shadowweave | Verath Shadowweave | the same in both |
+| hobgoblin, osgo, huargo, goblin | hobgoblin, bugbear, worg, goblin | |
+| Hobgoblin Devastador | Hobgoblin Devastator | |
+| Pueblos Arrasados | The Razed Villages | the story |
+| Incursión Hobgoblin | The Hobgoblin Raid | quest |
+| Asalto a la Caravana | The Caravan Ambush | quest |
+
+Every other name of the game also gets a Spanish form, in the same tables as the texts (for
+example the Crooked Lantern: el Farol Torcido).
+
+## The quests
+
+A quest has an id and steps. A step has an id, a text for the journal, and what moves it on.
+The rewards follow the economy of the game (a chest gives 1 to 15 coins), not the gold pieces of
+the chapter: Fede tunes them.
+
+### Q0 `letter`: the letter (the hook)
+
+- The letter is on the table of the home. To read it starts the quest `ashes` (Q4), step
+  `ashes.letter`.
+- The letter points to the reeve of Ironhold. Thus the first trip of every character goes to the
+  town.
+
+### Q1 `cart`: the broken cart (the tutorial)
+
+- A merchant stands by a broken cart on the road from the home to Ironhold. The merchant goes to
+  Ironhold to trade between Ironhold and Silverspring.
+- Two ways to help: lift the cart (gate Strength 13), or bring a tool from the smith of Ironhold
+  (any character). Thus a weak character also has a way.
+- Reward: coins. With the cart fixed, the merchant tells more (Intelligence 13 or Charisma 13
+  give more lines): the Sovereignty and the Enclave fight for the Wilds; Silverspring needs the
+  tools of Ironhold; Ironhold wants the mithril of Silverspring.
+- It teaches a conversation, a gate, an errand and a reward.
+
+### Q2 `raid`: the Hobgoblin Raid (the main quest)
+
+1. `raid.heard`: the first time that the character comes near the house of the reeve (after
+   `ashes.letter`), the scene "the argument" plays: the reeve, a villager and a guard argue.
+   Hobgoblins go through the hills to Silverspring. They took the scout Himo; the scout Brys
+   escaped. The villagers want to warn Silverspring; the soldiers refuse. A higher Wisdom hears
+   more of it (gates, see "Scenes").
+2. `raid.asked`: the reeve asks the character to warn Silverspring. Ironhold cannot pay. The
+   watchman tells the character to stay out of it (the soldiers want Silverspring to fall).
+3. `raid.scouts`: on the road to Silverspring, in **the grove**, the scouts ambush the character:
+   a hobgoblin and a bugbear on worgs, each with a goblin behind it. The goblins get off and
+   shoot; the worgs charge. Loot: coins and badger furs.
+4. `raid.band`: the war band, with the **Hobgoblin Devastator**. The character can catch it in
+   the grove, or follow its tracks.
+   - If the band dies before it comes to Silverspring, Himo is free in its camp. Himo goes home;
+     the family of Himo pays a reward in Ironhold.
+   - If the band comes to Silverspring first, the event "the raid on Silverspring" starts (see
+     "World events"): the hobgoblins attack the town. Himo is dead.
+5. The end: Silverspring gives the character a title in its guard (`raid.title`) and lodging (a
+   refuge: a bed in the town). If Himo lives, Silverspring also gives a permit to buy mithril at
+   cost (`raid.permit`), which a character can sell at a higher price in Ironhold.
+- Later (needs companions): two soldiers of Ironhold offer to come. They warn the scouts, and in
+  the fight they turn on the character.
+
+### Q3 `caravan`: the Caravan Ambush (the hidden quest)
+
+1. `caravan.heard`: in Ironhold (in the inn, after `raid.asked`), the scene "the plot": a guard
+   and a villager plan to send the hobgoblins against a caravan of Silverspring. The plan comes
+   from the Sovereignty, and the cargo is the pay of the men who do it. The chapter has three
+   lines at three difficulties; in the game, a higher Wisdom hears more of them (Wisdom 15: all
+   three; 13: two; less: the last one only).
+2. `caravan.road`: a character who heard where the attack will be can go there. The caravan (a
+   wagon, two horses, two militia of the Enclave) walks the road from Silverspring. The scouts
+   and then the raiders attack it.
+3. The choice:
+   - `caravan.saved`: defend it. The Enclave thanks the character (coins, a healing draught).
+   - `caravan.robbed`: take its cargo (furs, spices, a small chest of mithril nuggets). The
+     character becomes **wanted** by the Sovereignty and the Enclave (open: what wanted changes).
+
+### Q4 `ashes`: the Razed Villages (the thread)
+
+The six phases of "Shadows of the Ashen Seekers" in the `RPG` notes, in the Wilds:
+
+1. `ashes.ruins`: find three ruins. Each has the phoenix mark, ash and burned furniture. Some have
+   a survivor who saw only shadows. Intelligence 13 reads more in the mark (old magic, a power
+   older than the gods); Wisdom 13 calms a survivor.
+2. `ashes.symbol`: the priest of the chapel of Ironhold and the apothecary know old stories of the
+   symbol (Intelligence gates). Rumours of the Ashen Seekers start, and they contradict each
+   other.
+3. `ashes.next`: the clues point to the next homestead. The character must come first (a small
+   event at a named homestead).
+4. `ashes.captive`: a captive of the Seekers in a hobgoblin camp of the hills (it can be the camp
+   of Q2) tells what the Seekers want.
+5. `ashes.relic`: take a relic before the Seekers do.
+6. `ashes.dream`: when the character sleeps (the bed of the home or of the inn), Verath
+   Shadowweave speaks to it in a dream. The end of chapter 1; the next chapter starts from it.
+
+Phases 3 to 6 are a later stage; their details come from the Drive when we build them.
+
+### Later chapters
+
+- **A.1, the Western Peaks:** the sabre-tooth that an ogre's javelin kills in mid-air; the wild
+  horses, the stampede (a Dexterity gate decides the damage) and the griffons, with a nest to
+  climb (Strength and Dexterity gates; a griffon egg, a heavy item). They need a mountain and
+  canyon terrain.
+- **A.2, the road:** the lentils for Bronzehold (a delivery: the weight uses the slots of the
+  pack, from Strength), Whitegrove.
+- **Route [C]:** the Lost Temple (three clues, the Great Oak, the standing stones) is a good
+  exploration quest for a procedural world.
+
+## Systems to build
+
+### S1 Quest state (engine and server)
+
+- `packages/engine/src/quests.ts`: `QuestDef` (id, steps, the first step), `QuestStep` (id,
+  journal text key, what it gives), and `QuestBook`, the state of one character:
+  `{ [quest]: { step, flags, at } }`. `checkQuests()` checks a book, as `checkPack()` checks a
+  pack. Pure data, so a world tests its quests.
+- The store: a new step at the end of `MIGRATIONS` in `packages/engine-server/src/store.ts`,
+  `ALTER TABLE characters ADD COLUMN quests TEXT;` (JSON). `setQuests()`; `checkQuests()` on the
+  way in and on the way out, as for the pack.
+- The Room: `Room.join(..., { traits, pack, quests })`. The server owns the book. It sends the
+  book of each player to that player only (a new message, protocol 19), and it saves the book
+  after each change. It never sends the book of a player to another player.
+- An effect (start a quest, move it to a step, give a reward) goes through the server, as a deal
+  does (`Room.deal`): the client asks, the server checks the step, the gates and the nearness of
+  the NPC or the place, and then it changes the book and the pack.
+- A world that the page runs (`?offline`, for tests) keeps its book in the page, with the same
+  rules. A guest has no quests (open: a book for the session only).
+
+### S2 Conversations with conditions and effects
+
+- `DialogAnswer.when` (a condition: a quest at a step, a flag, or no quest) and
+  `DialogAnswer.effect` (an effect id of S1). `Dialog.starts`: the first node for each
+  condition, so an NPC greets a character by its step.
+- The conversation stays without state in the engine. The server checks each effect again
+  (as for deals).
+- `checkDialog()` also checks the conditions, the effects and the length of the texts in each
+  language.
+
+### S3 Scenes (overheard talks)
+
+- `SceneDef`: an id, an area of tiles, the step that starts it, and the lines in order (an NPC
+  and a line key, with an optional gate). The NPCs of the scene stand still and say the lines
+  one after the other, in their bubbles.
+- A scene is personal: the server sends it to the player at that step only. Other visitors see
+  only the normal lines of those NPCs.
+- A line behind a gate shows as a murmur ("…") under the gate, and with its gate tag when the
+  score is 1 or 2 under it (`gateView()`, as for all gates).
+
+### S4 World events (mobs in a town only during an event)
+
+- `EventDef`: an id, a target (a town and the area round it), the waves of mobs (kinds and
+  counts), where they come from, a time limit, and the results (all mobs dead: the defence wins;
+  the time limit: the town loses).
+- The Room runs the events. A quest effect starts one (for example `raid.band` at Silverspring).
+  If another player reaches the same step while the event runs, that player joins it. One event
+  for each town at a time.
+- The mobs of an event carry its id. They can step into the target town (`MobRules.hunt` of the
+  event). All other mobs keep the town rule, and a test checks it.
+- During an event, the NPCs of the town go into their buildings, and a banner shows the event to
+  the players near it (protocol). The quest result goes to the players with that quest step;
+  everyone gets the loot of the mobs that they kill.
+
+### S5 New mobs
+
+- The **goblin**: small, shoots arrows from a distance and keeps away (the arrows of the ranger
+  are in `render/arrows.ts`).
+- The **worg**: fast, charges in a straight line. A goblin can ride one: the pair is two mobs;
+  the goblin gets off when the pair sees the player.
+- The **hobgoblin**: a soldier, stronger than a brute, in a group.
+- The **bugbear**: a brute of the hobgoblin band.
+- The **Hobgoblin Devastator** (boss): its spell of 4 turns becomes a long wind-up (about 6 s)
+  with a circle on the ground. Each blow breaks a part of it, as a blow breaks the wind-up of a
+  brute now. If it ends, the hobgoblins in the circle hit harder for a time.
+- `MOB_STATS`, loot (badger furs, a splint armour, the hobgoblin luck amulet), art in the dark
+  style of the game, a new protocol version.
+- Later: the sabre-tooth, the ogre, the griffon, the wild horses (A.1).
+
+### S6 New places
+
+- **Silverspring:** a fixed town plan, as Ironhold has (`TOWN` and `MAP` in `town.ts`), north-east
+  of Ironhold. Kasmut Parnika and other NPCs. A refuge (a bed) for the title of Q2.
+- **The road to Silverspring:** as `road.ts`, from Ironhold.
+- **The grove:** a fixed wooded part of that road, for the ambushes of Q2 and Q3.
+- **The hobgoblin camp:** a fixed place in the hills; Himo is in it.
+- **The ruins:** a share of the houses of the Wilds are burned (from the seed, and more of them
+  far from the home): burned walls, no roof, ash, the phoenix mark. The world is shared, so the
+  ruins are the same for every player; the step of each character decides what its clues and
+  survivors say.
+- **The convoy (Q3):** an NPC group that walks a road from one end to the other. Mobs must be able
+  to attack NPCs, and NPCs need hit points: new in the engine.
+
+### S7 Language: English and Spanish
+
+- `Lang = 'en' | 'es'`. A "Language" choice in the settings panel, kept in localStorage
+  (`game.lang.v1`); `?lang=es` for tests. English is the default (open: the language of the
+  browser).
+- Engine texts: `STRINGS` in `packages/engine-client/src/ui/strings.ts` becomes one table for each
+  language, with the same keys. A type and a test make sure that no key is missing.
+- World texts: every text of a world (names, `examine`, item names, signs, lines, dialogs, the
+  intro, place names, quest texts) goes into a text table of the world, for example
+  `worlds/wilds/src/text/en.ts` and `es.ts`; the content refers to keys. A test checks that both
+  tables have the same keys.
+- The server sends ids, not texts (the lines already go as two numbers: `b` in the snapshot).
+  Quests, scenes and events do the same.
+- The character builder and the menu: the names of races, classes and abilities in Spanish (the
+  Spanish names of D&D 5e).
+- The font: the pixel font has á é í ó ú ü ñ ¿ ¡. A capital loses its accent (`plainCode()` in
+  `render/pixel-text.ts`), and name tags use capitals only. A Spanish text is about a quarter
+  longer: the conversation panel and the bubbles need a check in Spanish.
+- The rename: Thornwick becomes Ironhold (Ferrozar in Spanish) in `TOWN_NAME`
+  (`worlds/wilds/src/town.ts`), the signpost, the dialogs, the tests and the documents (about 20
+  files).
+- Code, comments and documents stay in English (Simplified Technical English).
+
+### S8 The journal
+
+- A "Journal" section (or panel; open): the open quests with the text of their step, and the done
+  quests.
+- A short banner when a quest starts, moves on or ends (as the band of the arrival intro).
+- The map panel (`ui/map-panel.ts`) marks the place of the current step.
+
+## Phases
+
+Each phase is built, tested, documented in `docs/features/` (the REQ/AC format) and deployed
+before the next one.
+
+1. **Language and names** (S7). First, so that every later text is in both languages from the
+   start, and the rename does not touch new code.
+2. **Quests and conversations** (S1, S2, S8), with Q0 (the letter) and Q1 (the broken cart). The
+   small quests test the whole chain: a step, a gate, an effect on the server, a reward, the
+   journal.
+3. **The hobgoblins** (S3, S5 without the Devastator, the road and the grove of S6), with Q2 up to
+   `raid.scouts`.
+4. **Silverspring and the raid** (S4, the Devastator, Silverspring and the camp of S6), with the end
+   of Q2.
+5. **The caravan** (the convoy of S6), with Q3.
+6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`.
+
+Later: the rest of Q4, A.1 with a mountain terrain, and the next chapters.
+
+## Open
+
+- The English names of the table.
+- The reeve: "Aldous" becomes Elama Rothenel, or Aldous stays.
+- The default language: English, or the language of the browser.
+- What "wanted" changes after the caravan (guards refuse to trade, or attack).
+- Reward items with no system yet (the splint armour, the luck amulet): items to sell, or the
+  start of an equipment system.
+- Guests and quests.
+- Himo after the camp: goes home alone, or the character escorts Himo (companions).
+- The journal: a section of the settings panel, or its own panel.

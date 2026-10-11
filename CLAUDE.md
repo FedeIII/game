@@ -828,8 +828,10 @@ D=$(mktemp -d); rclone copy $X --include "*.md" "$K/Personajes" "$D"; grep -ril 
   it after the search.
 
 **Where to look.** The folder has about 575,000 words: do not read all of it. The documents are
-in Spanish, except `Kandrax AI Context`. The game is in English: ask Fede before you translate
-or change a proper name.
+in Spanish, except `Kandrax AI Context`. The game is in English, and its names translate the
+Spanish names of Kandrax; a language setting is to give Spanish with the names of Kandrax (Fede's
+decisions, 2026-10-11; not built yet). The names and the plan of the first story are in
+`docs/drafts/story-razed-villages.md`. Ask Fede before you use a name that is not in its table.
 
 | Document | Contents |
 |---|---|
