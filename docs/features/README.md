@@ -53,6 +53,7 @@ streaming-platform project):
 | Abilities: Charisma | `CHA` | [`abilities/charisma.md`](abilities/charisma.md) |
 | Items: Pack and Loot | `PK` | [`items/pack-and-loot.md`](items/pack-and-loot.md) |
 | Items: Equipment | `EQ` | [`items/equipment.md`](items/equipment.md) |
+| NPCs: Companions | `CMP` | [`npcs/companions.md`](npcs/companions.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 
@@ -76,3 +77,9 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 |---|---|
 | [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel (each stack in its own slot, a detail of each item with its uses, drink and drop; a drag moves a stack to another slot or tosses it onto the world), the coins that a defeat takes, buying and selling, drinks and herbs to chew, the patches of herbs and the buried cache, items on the ground (drop them, pick them up, the overflow of a kill; 10 minutes; they fall on the screen and shine faintly), and the drink belt (keys 1 to 4) |
 | [Equipment](items/equipment.md) | The twelve worn slots of D&D 5e, the armour, shields, weapons and the luck amulet, what each class can use, the hands (two-handed weapons and shields), attunement (3), Armour Class and glancing blows (5% for each point over 10, in a fixed order), heavy and noisy armour, the damage from the die of the weapon (cantrips, martial arts, an unarmed strike), light and heavy weapons, bows for any class, a rogue's sneak attack, the 5e kit of each class, the worn slots round the picture in the pack panel (wear, take off, drag), the gear in the store of the server, the weapon and the shield on the figure for every player, the smith of Thornwick, who sells gear and buys it back for half, nine magic items of the SRD as rare loot, and a reach weapon (the glaive) |
+
+## NPCs
+
+| Document | Feature |
+|---|---|
+| [Companions](npcs/companions.md) | NPCs that follow a player: the shortest way of tiles round what blocks, doors that they open, the catch-up, the wait when there is no way and the follow again, mobs that hunt them (and bring no new mobs), the two kinds of defeat (gone or wakes), the events for the quests, the companions of every player in a shared world (protocol 22), their look, name and lantern on the screen, and the test switch `?companion=<look>` |

@@ -13,7 +13,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 21;
+export const PROTOCOL_VERSION = 22;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -260,6 +260,12 @@ export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number,
 ];
 
+/**
+ * A companion (companions.ts): [id, look, name, x, y, vx, vy, facing code, hp, most hp, stun,
+ * guard, down, the id of its leader]. Positions to 0.1 px; stun, guard and down are ticks.
+ */
+export type WireCompanion = readonly [number, string, string, number, number, number, number, number, number, number, number, number, number, number];
+
 /** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
 export type WireArrow = readonly [number, number, number, number, number];
 
@@ -464,6 +470,8 @@ export interface SnapshotMessage {
   readonly pl?: readonly WirePile[];
   /** The tosses onto piles near this player since the last snapshot: the client shows the items fall. */
   readonly ts?: readonly WireToss[];
+  /** The companions near this player (within MOB_SEND_RADIUS), when there are some (protocol 22). */
+  readonly cp?: readonly WireCompanion[];
   /** In a world with mobs: the arrows in flight near this player (within MOB_SEND_RADIUS). */
   readonly ar?: readonly WireArrow[];
   /** The refuges that the player's character has entered, when they changed (WorldSource.refuges). */

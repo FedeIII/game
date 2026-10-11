@@ -8,6 +8,7 @@ import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDealAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
+import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd } from '../npc.ts';
@@ -36,6 +37,7 @@ import {
   type WireLoot,
   type WireMob,
   type WireArrow,
+  type WireCompanion,
   type WireNpc,
   type WirePick,
   type WirePile,
@@ -186,6 +188,10 @@ export class Room {
   private doorVersion = 0;
   /** Goes up each time a name appears, changes or goes. A snapshot carries the names when it changed. */
   private namesVersion = 0;
+  /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
+  readonly companions: Companions;
+  /** What happened to the companions since the last takeCompanionEvents() (for the quests). */
+  private companionEvents: CompanionEvent[] = [];
   /** Goes up each time a player comes or goes, or what shows of its gear changes. A snapshot carries the looks when it changed. */
   private looksVersion = 0;
   /** The world's walking NPCs, or null if it has none. */
@@ -215,6 +221,7 @@ export class Room {
     this.horde = rules ? new Horde(world, rules, Math.floor((this.random?.() ?? 0.25) * 0xffffffff)) : null;
     this.spoils = new Spoils(world, random(Math.floor((this.random?.() ?? 0.75) * 0xffffffff)));
     this.piles = new Piles(world);
+    this.companions = new Companions(world);
   }
 
   /**
@@ -231,10 +238,17 @@ export class Room {
       if (events.doors) this.doorVersion++;
       this.barks.push(...events.barks);
     }
+    if (this.companions.list.length > 0) {
+      // Companions follow their leaders (before the mobs, which hunt them too).
+      const leaders = new Map([...this.players.values()].map((p) => [p.id, p.state] as const));
+      this.companionEvents.push(...this.companions.step(dt, leaders));
+      if (this.companions.takeDoors()) this.doorVersion++;
+    }
     if (this.horde) {
       // A mob's hit stuns the player's true state; its client learns it from the next snapshot.
       // Mobs see a player from less far with Dexterity, and less again while it sneaks.
       const players: HordePlayer[] = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, sight: sightOf(p.traits, p.state), traits: p.traits }));
+      players.push(...this.companions.targets());
       this.hits += this.horde.step(dt, players).length;
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
@@ -363,6 +377,19 @@ export class Room {
     return player;
   }
 
+  /** Puts a companion next to player `leader`, following it; null without that player. */
+  addCompanion(def: CompanionDef, leader: number): Companion | null {
+    const player = this.players.get(leader);
+    return player ? this.companions.add(def, leader, player.state.x, player.state.y) : null;
+  }
+
+  /** What happened to the companions since the last call: they fell, went, stopped or follow again. */
+  takeCompanionEvents(): CompanionEvent[] {
+    const events = this.companionEvents;
+    this.companionEvents = [];
+    return events;
+  }
+
   /** A player who leaves while it lies defeated wakes first: the server saves where it woke, and what it lost. */
   settle(id: number): void {
     const player = this.players.get(id);
@@ -371,6 +398,8 @@ export class Room {
 
   leave(id: number): void {
     this.settle(id);
+    // Its companions go with it (a quest puts them back at the next join).
+    for (const companion of this.companions.ofLeader(id)) this.companions.remove(companion.id);
     if (this.players.get(id)?.name) this.namesVersion++;
     if (this.players.has(id)) this.looksVersion++;
     this.players.delete(id);
@@ -682,6 +711,22 @@ export class Room {
     const looks: [number, WireLook][] = [...this.players.values()].map((p) => [p.id, toWireLook(shownGear(p.gear))]);
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
     const arrows: WireArrow[] = (this.horde?.arrows ?? []).map((a) => [a.id, a.owner, round(a.x), round(a.y), aimCode(a.aim)]);
+    const companions: WireCompanion[] = this.companions.list.map(({ id, def, state: c, leader }) => [
+      id,
+      def.look,
+      def.name,
+      round(c.x),
+      round(c.y),
+      Math.round(c.vx),
+      Math.round(c.vy),
+      facingCode(c.facing),
+      c.hp,
+      def.hp,
+      c.stun,
+      c.guard,
+      c.down,
+      leader,
+    ]);
     const npcs: WireNpc[] | null = this.npcs
       ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
       : null;
@@ -763,6 +808,7 @@ export class Room {
         ...(mobs ? { m: mobs.filter((m) => Math.hypot(m[2] - s.x, m[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
         ...(arrows.length > 0 ? { ar: arrows.filter((a) => Math.hypot(a[2] - s.x, a[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
         ...(hunters.length > 0 ? { h: hunters } : {}),
+        ...(companions.length > 0 ? { cp: companions.filter((c) => Math.hypot(c[3] - s.x, c[4] - s.y) <= MOB_SEND_RADIUS) } : {}),
       });
     }
   }

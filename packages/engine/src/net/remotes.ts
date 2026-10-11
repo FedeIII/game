@@ -39,6 +39,26 @@ export interface RemotePlayer {
   readonly down: number;
 }
 
+/** A companion from the server (companions.ts), where the client draws it now. */
+export interface RemoteCompanion {
+  readonly id: number;
+  readonly look: string;
+  readonly name: string;
+  readonly x: number;
+  readonly y: number;
+  readonly vx: number;
+  readonly vy: number;
+  readonly facing: Facing;
+  readonly hp: number;
+  readonly maxHp: number;
+  /** Ticks left of its stun, its guard and its defeat, at the time shown. */
+  readonly stun: number;
+  readonly guard: number;
+  readonly down: number;
+  /** The id of the player that it follows. */
+  readonly leader: number;
+}
+
 /** An arrow in flight from the server, where the client draws it now. */
 export interface RemoteArrow {
   readonly id: number;
@@ -118,6 +138,8 @@ const ticksAt = (value: number | undefined, sample: Sample, t: number) => Math.m
  */
 export class Remotes {
   private readonly players = new Map<number, { skin: number; samples: Sample[] }>();
+  /** The companions near the player, by id: what does not change, and a short history. */
+  private companions = new Map<number, { look: string; name: string; maxHp: number; leader: number; samples: Sample[] }>();
   /** The names from the last roster, by player id. */
   private names = new Map<number, string>();
   /** What shows of the gear of each player, from the last list of looks, by player id. */
@@ -140,6 +162,7 @@ export class Remotes {
     this.players.clear();
     this.names = new Map();
     this.looks = new Map();
+    this.companions.clear();
     this.npcs = [];
     this.mobs = null;
     this.arrows.clear();
@@ -166,6 +189,22 @@ export class Remotes {
       samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
+    // The companions near the player; one that is not in the snapshot went (or is far).
+    const near = new Set<number>();
+    for (const [id, look, name, x, y, vx, vy, facing, hp, maxHp, stun, guard, down, leader] of snapshot.cp ?? []) {
+      near.add(id);
+      let companion = this.companions.get(id);
+      if (!companion) {
+        companion = { look, name, maxHp, leader, samples: [] };
+        this.companions.set(id, companion);
+      }
+      companion.leader = leader;
+      const samples = companion.samples;
+      if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: stun, b: guard, c: hp, e: down });
+      while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
+    }
+    for (const id of this.companions.keys()) if (!near.has(id)) this.companions.delete(id);
     // A player that is not in the snapshot has left.
     for (const id of this.players.keys()) if (!seen.has(id)) this.players.delete(id);
     if (snapshot.m) {
@@ -228,6 +267,35 @@ export class Remotes {
   viewTime(localMs: number): number {
     if (this.offsets.length === 0) return 0;
     return localMs - Math.min(...this.offsets.map((o) => o.offset)) - INTERPOLATION_DELAY_MS;
+  }
+
+  /** The companions at local time `localMs`, drawn in the past like the players. */
+  companionsAt(localMs: number): RemoteCompanion[] {
+    if (this.offsets.length === 0) return [];
+    const t = this.viewTime(localMs);
+    const out: RemoteCompanion[] = [];
+    for (const [id, { look, name, maxHp, leader, samples }] of this.companions) {
+      if (samples.length === 0) continue;
+      const s = sampleAt(samples, t);
+      const since = s.since;
+      out.push({
+        id,
+        look,
+        name,
+        x: s.x,
+        y: s.y,
+        vx: s.vx,
+        vy: s.vy,
+        facing: facingFromCode(s.facing),
+        hp: since.c ?? maxHp,
+        maxHp,
+        stun: ticksAt(since.a, since, t),
+        guard: ticksAt(since.b, since, t),
+        down: ticksAt(since.e, since, t),
+        leader,
+      });
+    }
+    return out;
   }
 
   /** The mobs at local time `localMs`, drawn in the past like the players. */

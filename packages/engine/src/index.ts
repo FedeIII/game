@@ -15,6 +15,7 @@ export * from './gear.ts';
 export * from './inventory.ts';
 export * from './loot.ts';
 export * from './piles.ts';
+export * from './companions.ts';
 export * from './arrows.ts';
 export * from './dialog.ts';
 export * from './net/protocol.ts';

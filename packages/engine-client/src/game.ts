@@ -3,6 +3,8 @@ import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
   ATTACK_TICKS,
   EMPTY_PACK,
+  Companions,
+  PLAIN_HP,
   Horde,
   SNEAK_SPEED,
   MOB_STATS,
@@ -103,6 +105,7 @@ import { LootText } from './render/loot-text.ts';
 import { PileViews } from './render/piles.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
+import { CompanionViews, type CompanionPose } from './render/companions.ts';
 import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
@@ -511,6 +514,20 @@ async function run(options: GameOptions): Promise<void> {
       horde.spawn(kind, spot.x, spot.y);
     }
   });
+  // The companions (NPCs that follow a player) of a world that the page runs; a shared world gets
+  // the server's. ?companion=<look> puts one of that NPC look next to the player at the start,
+  // following it (for tests). Single-player worlds only, as ?mob.
+  const localCompanions = net ? null : new Companions(world);
+  const companionLook = params.get('companion');
+  if (localCompanions && companionLook && art.tryFrame(`npc/${companionLook}/down/stand`)) {
+    localCompanions.add({ id: 'test', name: STRINGS.companion, look: companionLook, hp: PLAIN_HP, fallen: 'wakes' }, 0, player.x - TILE_SIZE, player.y);
+  }
+  const companionViews = new CompanionViews(art, entityLayer, ghostLayer, tagLayer, glowLayer, smallFont);
+  /** The companions to draw now: the server's (100 ms in the past), or the page's own. */
+  const companionsNow = (now: number): CompanionPose[] =>
+    net
+      ? net.companionsAt(now)
+      : (localCompanions?.list ?? []).map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down }));
   let kills = 0;
   let confirmed = 0;
   let hitsTaken = 0;
@@ -1161,7 +1178,12 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     // Mobs see the player from less far with Dexterity, and less again while it sneaks.
-    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }]);
+    // Companions follow the player (before the mobs, which hunt them too).
+    if (localCompanions && localCompanions.list.length > 0) {
+      localCompanions.step(TICK_SECONDS * 1000, new Map([[0, player]]));
+      localCompanions.takeDoors();
+    }
+    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? [])]);
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now(), mob);
@@ -1245,6 +1267,7 @@ async function run(options: GameOptions): Promise<void> {
     // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
     fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek });
     others?.update(net!.playersAt(now), seconds, view, (x, y) => inShallows(world, x, y));
+    companionViews.update(companionsNow(now), seconds, view);
     // Free the skins that nobody here wears any more (now and then).
     if (now >= nextRetainAt) {
       nextRetainAt = now + 5000;
@@ -1253,7 +1276,7 @@ async function run(options: GameOptions): Promise<void> {
     // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
-    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...fixtures.lights(), ...buildings.lights()], now / 1000);
+    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000);
     edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());
@@ -1317,6 +1340,7 @@ async function run(options: GameOptions): Promise<void> {
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
+      `cmp     ${companionsNow(now).map((c) => `${c.name} ${Math.floor(c.x / TILE_SIZE)},${Math.floor(c.y / TILE_SIZE)}${c.stun ? ' stunned' : ''}${c.down ? ' down' : ''}`).join('; ') || '-'}${localCompanions?.list.length ? ` (${localCompanions.list.map((c) => `${c.mode}, hp ${c.state.hp}`).join('; ')})` : ''}`,
       ...(intro ? [`intro   ${introTitle!.phase(introClock(now))}, welcome ${welcome?.progress ?? '-'}${welcomed && !welcome?.active ? ' (done)' : ''}`] : []),
       ...(mobRules
         ? [

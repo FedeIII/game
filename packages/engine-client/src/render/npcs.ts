@@ -8,7 +8,7 @@ const FACINGS: readonly Facing[] = ['down', 'up', 'left', 'right'];
 const NPC_HEAD_HEIGHT = 30;
 
 /** The frames of an NPC look from the atlas: npc/<look>/<view>/stand and the npcwalk animations. */
-function npcTextures(art: Art, look: string): PlayerTextures {
+export function npcTextures(art: Art, look: string): PlayerTextures {
   const stand = {} as Record<Facing, Texture>;
   const walk = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {

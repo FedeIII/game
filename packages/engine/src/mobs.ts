@@ -195,6 +195,8 @@ export interface MobRules {
 export interface HordePlayer {
   readonly id: number;
   readonly state: PlayerState;
+  /** A companion (companions.ts): mobs hunt it, but no new mob comes for it, and no mob prowls to it. */
+  readonly companion?: boolean;
   /** How far mobs see it, as a share of their sight (Dexterity, sneaking: PlayerTraits.sight). Default 1. */
   readonly sight?: number;
   /**
@@ -443,7 +445,9 @@ export class Horde {
     const dt = Math.min(Math.max(0, dtMs), 250);
     const hits: [number, number][] = [];
     this.clockMs += dt;
-    this.populate(dt, players);
+    // The players without the companions: new mobs come round them, and mobs prowl to them.
+    const people = players.filter((p) => !p.companion);
+    this.populate(dt, people);
     const byId = new Map(players.map((p) => [p.id, p.state]));
     const bodies = new Map(players.map((p) => [p.id, p.traits ?? {}]));
     this.bodies = bodies;
@@ -459,7 +463,7 @@ export class Horde {
           if (this.despawn(mob, players)) break;
           if (brain.restMs > 0) brain.restMs -= dt;
           else if (this.notice(mob, brain, players)) break;
-          this.wander(mob, brain, dt, players);
+          this.wander(mob, brain, dt, people);
           break;
         case 'chase':
           this.chase(mob, brain, byId, dt);

@@ -84,6 +84,8 @@ export const STRINGS = {
   pickUp: (what: string): string => `Pick up ${what}`,
   pileOffline: 'I cannot pick it up now. No connection.',
   dropOffline: 'I cannot drop it now. No connection.',
+  /** The name of the companion that ?companion=<look> gives (a test). */
+  companion: 'Companion',
   /** A drink from the pack (items.ts, DRINKS): what the player says. */
   drank: {
     draught: 'The draught is bitter. The wound closes a little.',

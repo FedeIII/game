@@ -1,7 +1,7 @@
 # Companions: NPCs that follow a player (draft)
 
-> **Draft** · promotes to `docs/features/npcs/companions.md` when built · **Status:** Planned
-> 2026-10-11
+> **Draft** · promotes to `docs/features/npcs/companions.md` when built · **Status:** Built
+> 2026-10-11 (protocol 22; `docs/features/npcs/companions.md`). "Later" below is not built.
 
 In the first story (`docs/drafts/story-razed-villages.md`), the character frees the scout Himo
 in the hobgoblin camp and escorts Himo home to Ironhold. Fede decided (2026-10-11) to build the

@@ -32,6 +32,7 @@ import {
   type PlayerState,
   type RefusalReason,
   type RemoteArrow,
+  type RemoteCompanion,
   type RemoteMob,
   type RemotePlayer,
   type ServerMessage,
@@ -289,6 +290,11 @@ export class NetSession {
   /** The other players to draw now. */
   playersAt(nowMs: number): RemotePlayer[] {
     return this.status === 'online' ? this.remotes.at(nowMs) : [];
+  }
+
+  /** The companions near the player at local time `nowMs` (none while not online). */
+  companionsAt(nowMs: number): RemoteCompanion[] {
+    return this.status === 'online' ? this.remotes.companionsAt(nowMs) : [];
   }
 
   /** The visitor chose a new look: the others see it (and a reconnection keeps it). */

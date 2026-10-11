@@ -98,7 +98,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -616,7 +616,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 21.
+protocol: `docs/multiplayer.md`, protocol 22.
 
 ## Arrival in a world
 
@@ -718,6 +718,18 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.
   The client draws them with `render/npcs.ts` (frames `npc/<look>/<view>/stand|walk/<i>`).
 
+- **Companions** (`packages/engine/src/companions.ts`, since 2026-10-11, Fede's decision for the
+  escort of Himo; `docs/features/npcs/companions.md`): NPCs that follow a player (`CompanionDef`:
+  id, name, NPC look, hit points, `fallen` `gone` or `wakes`). A companion has a `PlayerState` and
+  walks with `stepPlayer()` (no wading) on the shortest way of tiles to its leader
+  (`followPath()`, 24 tiles round it), stops within 20 px, catches up (x 1.2) when more than 4
+  tiles behind, opens doors on its way, and waits (`lost`) with no way or a leader more than 20
+  tiles away, until it can follow again (`found`). Mobs hunt and hit it as a player
+  (`HordePlayer.companion`: no new mobs come for it, no mob prowls to it); it does not fight. At 0
+  HP: the event `fell`, then `gone` (it dies) or it wakes with all its HP. The Room runs them
+  (`Room.addCompanion()`, `takeCompanionEvents()`; they leave with their leader) and sends `cp`
+  (protocol 22); `render/companions.ts` draws them (NPC frames, a name, a small lantern). Only a
+  quest adds one (story phase 2); `?companion=<look>` for tests.
 - **Fixture types** (`packages/engine/src/fixtures.ts`, `FIXTURE_TYPES`): a kind, a footprint
   (tiles from the anchor = south-west tile, each with a solid box or none) and a depth line.
   **Structure codes:** each type has a range of codes in the structure layer, one per tile, after
@@ -976,7 +988,8 @@ Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, r
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
-`pack`, `gear` (the worn items, AC, the glance count, the attack and its damage, the walk) and
+`cmp` (each companion, its tile, a stun or a defeat; and its mode and HP in a world that the page
+runs), `pack`, `gear` (the worn items, AC, the glance count, the attack and its damage, the walk) and
 `piles`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
 for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with
@@ -984,7 +997,8 @@ for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-
 `.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
-`?mob=imp,brute` (mobs next to the player), `?nomobs` (no mobs: use it in tests that walk about),
+`?mob=imp,brute` (mobs next to the player), `?companion=<look>` (a companion of that NPC look
+next to the player, which follows it; a world that the page runs), `?nomobs` (no mobs: use it in tests that walk about),
 `?attackpose=<tick>,<facing or degrees>` (the player frozen at that tick of an attack in that
 direction, degrees clockwise from east: a screenshot of it),
 `?at=tx,ty`
