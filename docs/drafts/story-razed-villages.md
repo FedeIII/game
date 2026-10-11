@@ -126,8 +126,10 @@ the chapter: Fede tunes them.
    shoot; the worgs charge. Loot: coins and badger furs.
 4. `raid.band`: the war band, with the **Hobgoblin Devastator**. The character can catch it in
    the grove, or follow its tracks.
-   - If the band dies before it comes to Silverspring, Himo is free in its camp. Himo goes home;
-     the family of Himo pays a reward in Ironhold.
+   - If the band dies before it comes to Silverspring, Himo is free in its camp. The character
+     escorts Himo home to Ironhold (a companion: `docs/drafts/companions.md`; Fede, 2026-10-11).
+     The family of Himo pays a reward in Ironhold. If the mobs on the way defeat Himo, Himo is
+     dead, as in the other ending.
    - If the band comes to Silverspring first, the event "the raid on Silverspring" starts (see
      "World events"): the hobgoblins attack the town. Himo is dead.
 5. The end: Silverspring gives the character a title in its guard (`raid.title`) and lodging (a
@@ -149,7 +151,8 @@ the chapter: Fede tunes them.
 3. The choice:
    - `caravan.saved`: defend it. The Enclave thanks the character (coins, a healing draught).
    - `caravan.robbed`: take its cargo (furs, spices, a small chest of mithril nuggets). The
-     character becomes **wanted** by the Sovereignty and the Enclave (open: what wanted changes).
+     character becomes **wanted** by the Sovereignty and the Enclave: their guards and traders
+     refuse to deal with it, and they do not attack it (Fede, 2026-10-11).
 
 ### Q4 `ashes`: the Razed Villages (the thread)
 
@@ -200,7 +203,8 @@ Phases 3 to 6 are a later stage; their details come from the Drive when we build
   does (`Room.deal`): the client asks, the server checks the step, the gates and the nearness of
   the NPC or the place, and then it changes the book and the pack.
 - A world that the page runs (`?offline`, for tests) keeps its book in the page, with the same
-  rules. A guest has no quests (open: a book for the session only).
+  rules. There are no guests: every visitor signs in and plays a stored character (Fede,
+  2026-10-11; `?nomenu` gives a guest only on a page of the developer's machine, for tests).
 
 ### S2 Conversations with conditions and effects
 
@@ -290,7 +294,8 @@ Phases 3 to 6 are a later stage; their details come from the Drive when we build
 
 ### S8 The journal
 
-- A "Journal" section (or panel; open): the open quests with the text of their step, and the done
+- A "Journal" panel of its own, with a button at the top right as the map has (Fede, 2026-10-11):
+  the open quests with the text of their step, and the done
   quests.
 - A short banner when a quest starts, moves on or ends (as the band of the arrival intro).
 - The map panel (`ui/map-panel.ts`) marks the place of the current step.
@@ -319,10 +324,15 @@ Later: the rest of Q4, A.1 with a mountain terrain, and the next chapters.
 Decided on 2026-10-11: the names of the table, Elama Rothenel as the reeve, and the language of
 the browser as the default.
 
-- What "wanted" changes after the caravan (guards refuse to trade, or attack).
-- ~~Reward items with no system yet~~: decided 2026-10-11, an equipment system with the slots of
-  5e (`docs/drafts/equipment.md`, phase 1 built). The splint armour and the luck amulet are items
-  to wear now; the story only has to give them.
-- Guests and quests.
-- Himo after the camp: goes home alone, or the character escorts Himo (companions).
-- The journal: a section of the settings panel, or its own panel.
+Decided on 2026-10-11 too:
+
+- **Wanted:** the guards and the traders of both towns refuse to deal with a wanted character, but
+  they do not attack it.
+- **Reward items:** an equipment system with the slots of 5e (`docs/drafts/equipment.md`, built).
+  The splint armour and the luck amulet are items to wear; the story only has to give them.
+- **No guests:** every visitor signs in to play. Thus every player has a quest book.
+- **Himo:** the character escorts Himo home. The companion system (NPCs that follow a player) is
+  planned in `docs/drafts/companions.md`, and it comes before the story.
+- **The journal:** a panel of its own, with a button at the top right.
+
+Nothing is open now.

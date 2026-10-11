@@ -105,6 +105,9 @@ character.
   - with a bow in its kit, arrows that fly 5 tiles.
 - **AC-AS-004.4:** A guest does not pass a gate of 13. It cannot wade, force a barred door, or
   pick a lock.
+- **AC-AS-004.5:** A guest plays only on a page of the developer's machine (`localhost`, with
+  `?nomenu`), for tests. On game.azyr.io every visitor signs in and plays a stored character
+  (Fede's decision, 2026-10-11).
 
 ---
 

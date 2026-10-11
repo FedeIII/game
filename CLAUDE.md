@@ -340,7 +340,9 @@ For the HTML GUI:
 ## Menu, characters and accounts
 
 Since 2026-10-09 the game starts on a menu (`startGame({ accounts: true })`, `menu/`), HTML in the
-GUI style, over the whole page (it scrolls on a phone):
+GUI style, over the whole page (it scrolls on a phone). **Every visitor signs in to play (Fede's
+decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works only on a local page,
+`GUEST_HOSTS` in `game.ts`), so every player has a stored character (and later a quest book).
 
 - **Sign-in**: "Sign in with Google" (Google's dark button, with the "G"), or in development a
   dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
@@ -963,7 +965,9 @@ game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-
 `#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
 `#builder-create`), and wait for `#menu` to go. A conversation: `#conversation` (hidden when
 closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.selected`). `?nomenu` skips it: a guest. URL switches:
-`?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it),
+`?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it;
+only on `localhost` or `127.0.0.1`: every visitor of game.azyr.io signs in, Fede's decision of
+2026-10-11),
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and

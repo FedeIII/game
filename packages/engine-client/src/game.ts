@@ -148,11 +148,15 @@ export interface GameOptions {
   readonly title?: string;
   /**
    * The application has accounts (its server answers /api/ and /auth/): the menu comes first
-   * (sign-in, new game, continue), and the visitor plays a character of its account. ?nomenu skips
-   * the menu: a guest with a random look, for tests and screenshots.
+   * (sign-in, new game, continue), and the visitor plays a character of its account. Every visitor
+   * must sign in (Fede's decision, 2026-10-11): ?nomenu skips the menu (a guest with a random look,
+   * for tests and screenshots) only on a page of this machine (GUEST_HOSTS).
    */
   readonly accounts?: boolean;
 }
+
+/** The hosts where ?nomenu gives a guest: development and tests. On game.azyr.io every visitor signs in. */
+const GUEST_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1']);
 
 /** An attack (or a dodge) asked for this recently (ms) still starts when the player becomes able to. */
 const ATTACK_BUFFER_MS = 150;
@@ -237,7 +241,8 @@ async function run(options: GameOptions): Promise<void> {
   let character: Character | null = null;
   // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings; a guest never.
   let admin = false;
-  if (options.accounts && !params.has('nomenu')) {
+  const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
+  if (options.accounts && !guest) {
     ({ character, admin } = await runMenu({ title: definition.name, site: options.title ?? location.host, skins }));
   }
 
