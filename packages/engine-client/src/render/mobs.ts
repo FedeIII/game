@@ -52,8 +52,20 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
  * The circle of a rite on the ground (Rite): RING_DOTS points that light up round it as the rite
  * goes on, and its runes, lit while they are whole and dark when a blow broke them.
  */
-const RING_DOTS = 72;
-const RING = { lit: 0xff7a2a, dim: 0x5a1e0c, rune: 0xffc070, broken: 0x3a1208 } as const;
+const RING_DOTS = 120;
+const RING = { lit: 0xff7a2a, dim: 0x8a3414, rune: 0xffc070, broken: 0x4a1a0c } as const;
+/** A rune: a diamond of 5 x 5 pixels round a bright middle (offsets from its centre). */
+const RUNE: readonly (readonly [number, number])[] = [
+  [0, -2],
+  [1, -1],
+  [2, 0],
+  [1, 1],
+  [0, 2],
+  [-1, 1],
+  [-2, 0],
+  [-1, -1],
+  [0, 0],
+];
 /** The embers of a burning weapon: about this many each second, from the upper body. */
 const BURN_EMBERS = 14;
 /** A rider (state 'ride') sits this far up, on the back of its worg (world pixels). */
@@ -297,7 +309,7 @@ export class MobViews {
     if (!view.ring) {
       view.ring = new Container();
       view.ring.blendMode = 'add';
-      for (let i = 0; i < RING_DOTS + rite.runes * 5; i++) {
+      for (let i = 0; i < RING_DOTS + rite.runes * RUNE.length; i++) {
         const dot = new Sprite(Texture.WHITE);
         dot.width = 1;
         dot.height = 1;
@@ -316,7 +328,10 @@ export class MobViews {
       dot.position.set(Math.round(Math.cos(a) * rite.radius), Math.round(Math.sin(a) * rite.radius));
       const lit = i / RING_DOTS < progress;
       dot.tint = lit ? RING.lit : RING.dim;
-      dot.alpha = lit ? pulse : 0.5;
+      dot.alpha = lit ? pulse : 0.55;
+      // A lit dot is 2 x 2 pixels: the part of the rite that is done.
+      dot.width = lit ? 2 : 1;
+      dot.height = lit ? 2 : 1;
     }
     // The runes: small crosses, evenly round the circle.
     const runes = mob.runes ?? 0;
@@ -325,11 +340,11 @@ export class MobViews {
       const cx = Math.round(Math.cos(a) * rite.radius);
       const cy = Math.round(Math.sin(a) * rite.radius);
       const whole = r < runes;
-      [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy], k) => {
-        const dot = dots[RING_DOTS + r * 5 + k]!;
-        dot.position.set(cx + dx!, cy + dy!);
+      RUNE.forEach(([dx, dy], k) => {
+        const dot = dots[RING_DOTS + r * RUNE.length + k]!;
+        dot.position.set(cx + dx, cy + dy);
         dot.tint = whole ? RING.rune : RING.broken;
-        dot.alpha = whole ? 1 : 0.6;
+        dot.alpha = whole ? (k === RUNE.length - 1 ? 1 : pulse) : 0.7;
       });
     }
   }

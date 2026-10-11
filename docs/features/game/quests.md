@@ -10,8 +10,11 @@ each change, and the map marks where to go. A character can also overhear a scen
 among themselves. The first story of the Wilds starts with a letter from Thrain Steelforge on the
 table of the home; its first errand is a merchant's broken cart on the road to Ironhold, and in the
 reeve's house the character overhears that hobgoblins go to Silverspring (chapter 1.5.1 of Kandrax;
-plan: `docs/drafts/story-razed-villages.md`, phases 2 and 3). On the road to Silverspring, the scouts of
+plan: `docs/drafts/story-razed-villages.md`, phases 2 to 4). On the road to Silverspring, the scouts of
 the hobgoblins wait in a grove; their number follows the characters there (`docs/features/game/combat.md`).
+Then their war band marches on Silverspring. If the character stops it on the road, it frees the
+scout Himo in the band's camp and takes him home; if the band comes to the town first, it raids the
+town. Either way Silverspring gives the character a title in its guard.
 
 ## Terminology
 
@@ -250,6 +253,89 @@ ambush me in the grove, as in the chapter, so that the road is dangerous.
 
 ---
 
+### REQ-QST-013: The war band on the north road
+
+**User Story:** As a player who killed the scouts, I want their war band to march on Silverspring,
+so that I must choose: chase it now, or let it reach the town.
+
+**Acceptance Criteria:**
+- **AC-QST-013.1:** When a character at `scouts` is on the north road from the grove to Silverspring
+  (within 10 tiles of it, not in the town), the war band starts a little beyond the grove: the
+  Hobgoblin Devastator at the head, in a column. Alone, a character meets the Devastator and one
+  hobgoblin; more characters meet more of it (the 5e budget): two hobgoblins more, a bugbear, and two
+  hobgoblins more. Six characters meet the whole band.
+- **AC-QST-013.2:** The band walks the road to the gate of Silverspring at 36 px/s (a character walks
+  at 80). It hunts a character that it sees; after the hunt, it goes back to the road and on. It never
+  goes away, also with nobody near.
+- **AC-QST-013.3:** When all of the band has fallen on the road, the raid moves to `band` for each
+  character at `scouts` that was there when it started or is near.
+- **AC-QST-013.4:** When one of the band comes to the gate of Silverspring, the band leaves the road
+  (it goes from the world), and the raid moves to `raid` for each character of its party.
+- **AC-QST-013.5:** The Devastator drops a splint armour and the hobgoblin luck amulet, and 5 to 12
+  coins.
+
+---
+
+### REQ-QST-014: The camp and Himo
+
+**User Story:** As a player who stopped the war band on the road, I want to find its prisoner, so
+that the scout of Ironhold can live.
+
+**Acceptance Criteria:**
+- **AC-QST-014.1:** The camp of the war band stands in a clearing in the hills, off the north road
+  between the grove and Silverspring, with a trail of mud from the road: two shut tents, a fire with
+  its light, a crate, a barrel, and a post. No tree or rock grows within 2 tiles of it. Mobs come here as in the
+  woods.
+- **AC-QST-014.2:** At `band`, the map marks the post. A character at `band` sees Himo tied to the
+  post; others see a post with cut ropes.
+- **AC-QST-014.3:** A character at `band` who acts on the post reads "Himo, the scout of Ironhold, is
+  tied to the post. Bruised, and alive.", and the raid moves to `escort`.
+- **AC-QST-014.4:** At `escort`, Himo (16 hit points, AC 13) follows the character as a companion. He
+  comes back next to the character when it joins the world again.
+- **AC-QST-014.5:** When Himo comes into Ironhold, he is home: the raid moves to `home`, and his family
+  pays 20 coins. When he falls, he dies: the raid moves to `lost`.
+- **AC-QST-014.6:** At `home`, the reeve says that Himo is home; at `lost`, she says that she will tell
+  his mother herself.
+
+---
+
+### REQ-QST-015: The raid on Silverspring
+
+**User Story:** As a player whose war band reached Silverspring first, I want to defend the town, so
+that the story goes on to its other end.
+
+**Acceptance Criteria:**
+- **AC-QST-015.1:** When a character at `raid` comes within 6 tiles of Silverspring, the war band
+  comes in at the gate and marches up the main street. Its mobs may go into the town; every other mob
+  still keeps out of it.
+- **AC-QST-015.2:** While the raid runs, the five people of Silverspring take shelter and say nothing:
+  Kasmut, Tova and the jeweller go into their buildings, Doran holds the gate, and the panner hides
+  behind the crates by the inn.
+- **AC-QST-015.3:** When all of the band has fallen, the raid moves to `defended` for the characters at
+  `raid` there.
+
+---
+
+### REQ-QST-016: The end of the raid
+
+**User Story:** As a player who saved Silverspring, I want the town to thank me as in the chapter, so
+that my deed has a reward.
+
+**Acceptance Criteria:**
+- **AC-QST-016.1:** At `home` or `lost`, Kasmut asks if the war band died on the road. "Dead, all of it.
+  Its camp is empty." moves the raid to `title` with the flag `permit`, and gives the permit of
+  Silverspring.
+- **AC-QST-016.2:** At `defended`, "It was our fight." moves the raid to `title`, without the permit.
+- **AC-QST-016.3:** At `band` or `escort`, Kasmut sends the character to find Himo first.
+- **AC-QST-016.4:** At `title`, Tova gives the bed under the blue quilt: the Silver Trout is the
+  character's refuge (it wakes there after a defeat, if it is the nearest).
+- **AC-QST-016.5:** With the permit, Ilsa the jeweller sells a nugget of mithril for 5 coins (with the
+  price of Charisma). Without it, she sells nothing; the server checks it.
+- **AC-QST-016.6:** The smith of Ironhold buys a nugget of mithril for 10 coins (with the price of
+  Charisma). He asks for it first, when the character carries one.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -296,8 +382,8 @@ ambush me in the grove, as in the chapter, so that the road is dangerous.
   `Room.quest()` checks the area. The page: `render/scene.ts` (`ScenePlayer`: the time of a line as
   the welcome's), `game.ts` (`sceneLines()`: a murmur, `STRINGS.murmur`, for a line behind a gate).
   The debug line `quests` shows the scene that plays ("scene argument 3/9").
-- **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`, `scouts`; the step `title` comes
-  with Silverspring), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`, `RAID_SCOUTS`;
+- **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`, `scouts`, `band`, `escort`, `home`,
+  `lost`, `raid`, `defended`, `title`), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`, `RAID_SCOUTS`;
   `ARGUMENT` and `TOWN_SCENES` (`town.ts`: the area is the reeve's house and two rows south of it);
   the people `farmer` (pages) and `soldier` (`SOLDIER`) in the reeve's house; `REEVE` starts at
   `warn` (`heard`) and `go` (`asked`).
@@ -320,6 +406,27 @@ ambush me in the grove, as in the chapter, so that the road is dangerous.
 - **The badger fur**: the item `badger-fur` (stacks of 5), `sell-fur` in `PEDDLER`.
 - **The art**: `fixture/cart`, `fixture/cart-mended` (`art/fixtures.ts`), `item/crowbar`, `item/badger-fur`
   (`art/items.ts`), the NPC looks `merchant`, `farmer` and `soldier` (`art/characters.ts`).
+- **The war band** (`worlds/wilds/src/source.ts`): `BAND_UNITS`, `BAND_SPEED` (36), the ambush `band`
+  (`AmbushDef.march`: the route is the north road from `BAND_SPAN` (`road.ts`), `arrive` is
+  `RAID_ARRIVED`; its area is `RoadStretch` with `BAND_AREA`), and `raid` (`AmbushDef.raid`: its mobs
+  are let into the town, `Horde.unleash()`, `MobRules.raid`; its people shelter; the band marches
+  `RAID_STREET` (20) tiles up the main street). The engine: `Horde.march()`, `Horde.arrived()`,
+  `Horde.dismiss()`, `MARCH_GAP` (`ambushes.ts`), `Ambushes.sheltered`, `NpcDef.shelter`,
+  `NpcCrowd.setAlarm()`.
+- **The camp** (`worlds/wilds/src/camp.ts`): `CAMP` (a `Town` of `towns.ts`, not a town: it is in
+  `PLACES`, not in `TOWNS`, of `source.ts`), `CAMP_GATE`, `CAMP_STAKE`; `campSite()`, `campTrail()`,
+  `CAMP_SHARE` (0.66), `CAMP_OFFSET` (`road.ts`); `WildsSource.trail`; `CAMP_CLEARING` (2). The post:
+  the fixture `stake` (code 30) with `Fixture.variant.content` (`fixtureContent()`: the server checks
+  the variant's effect too); the fire: `campfire` (code 31).
+- **Himo** (`packages/engine/src/escorts.ts`): `EscortDef` (`companion`, `when`, `home`, `arrive`,
+  `fall`), `Escorts.step()`, `WorldSource.escorts()`; the Room runs them after the companions, the page
+  in a world that it runs. The Wilds: `HIMO` (look `scout`), `HIMO_FREE`, `HIMO_HOME`
+  (`HIMO_REWARD` 20), `HIMO_LOST`.
+- **The end** (`worlds/wilds/src`): `RAID_DEFENDED`, `RAID_TITLE_PERMIT`, `RAID_TITLE`; `KASMUT`
+  starts `guard`, `early`, `held`, `himo`, `road`; `HOST` (`TROUT_ROOM`, the refuge `trout`);
+  `JEWELLER` (`MITHRIL_COST` 5); `SMITH` (start `mithril`, `MITHRIL_PRICE` 10); `REEVE` (starts `himo`,
+  `himo-lost`). The items `mithril` (stacks of 10) and `mithril-permit`. The server checks the
+  condition (`when`) of an answer with a deal (`Room.deal()`).
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

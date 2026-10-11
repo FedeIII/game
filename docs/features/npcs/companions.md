@@ -107,8 +107,9 @@ that the world is the same for all.
 - **AC-CMP-006.1:** The server runs the companions, in ticks of 1/60 s, before the mobs.
 - **AC-CMP-006.2:** Every player within 30 tiles of a companion sees it, 100 ms in the past, as the
   other players.
-- **AC-CMP-006.3:** When its leader leaves the world, the companion goes too. (The quest book will
-  put it back next to the character at the next join.)
+- **AC-CMP-006.3:** When its leader leaves the world, the companion goes too. An escort of a quest
+  (Himo) puts it back next to the character when it joins again (`docs/features/game/quests.md`,
+  REQ-QST-014).
 - **AC-CMP-006.4:** Only the server adds a companion; no message of a page adds one.
 - **AC-CMP-006.5:** A page that runs its world runs its own companions, with the same rules.
 
@@ -155,6 +156,9 @@ that the world is the same for all.
   `npcTextures()` of `render/npcs.ts`, a `NameTag`, `COMPANION_LIGHT`, `DOWN_ALPHA`). The debug
   panel (`?debug`) has a line `cmp`: each companion, its tile, a stun or a defeat; in a world that
   the page runs also its mode and its hit points.
-- **Tests:** `packages/engine/test/companions.test.ts`.
-- **Not yet:** the escort of Himo (story phase 4) keeps the escort in the quest book and puts the companion back at a join;
-  companions that fight; NPCs that walk a road on their own (the caravan); a word with a companion.
+- **Escorts** (`packages/engine/src/escorts.ts`, story phase 4b): a step of a quest gives a
+  companion (`EscortDef`, `Escorts`, `WorldSource.escorts()`); it ends at the companion's home or
+  with its fall. The Room runs them after the companions; the page in a world that it runs.
+- **Tests:** `packages/engine/test/companions.test.ts`, `packages/engine/test/escorts.test.ts`.
+- **Not yet:** companions that fight; NPCs that walk a road on their own (the caravan); a word with a
+  companion.

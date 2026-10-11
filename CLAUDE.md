@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 28.
+protocol: `docs/multiplayer.md`, protocol 29.
 
 ## Language
 
@@ -674,7 +674,18 @@ phase 3c): mobs of the story that wait for a character at a step in an area (the
 hobgoblins in the grove on the north road to Silverspring); their number follows the characters
 within 12 tiles (`encounters.ts`, the 5e budget), riders sit on worgs (`Horde.spawnRider()`, state
 `ride`, protocol 27), and when they all fall the quest moves on (the Room saves those books at once:
-`takeQuestSaves()`).
+`takeQuestSaves()`). Since story phase 4 (2026-10-11, protocol 29; `docs/features/game/quests.md`
+REQ-QST-013 to 016): an ambush can **march** (`AmbushDef.march`: the war band walks the north road,
+`Horde.march()`; its mobs never despawn; at the end of the route `arrive` applies) or **raid**
+(`AmbushDef.raid`: its mobs may go into a town, `Horde.unleash()`/`MobRules.raid`, and the NPCs of
+`shelter` go to `NpcDef.shelter` or home, `NpcCrowd.setAlarm()`). **Escorts**
+(`packages/engine/src/escorts.ts`, `WorldSource.escorts()`): a step gives a companion (Himo), back
+at each join; home or a fall ends it. The `raid` quest: `scouts` -> the band falls on the road
+(`band`: Himo on the post of the camp, `camp.ts`, a variant with content, `fixtureContent()`) ->
+`escort` -> `home` (20 coins) or `lost`; or the band reaches Silverspring (`raid`) -> `defended`;
+then Kasmut gives `title` (and the permit of the mithril for the early ending). The Hobgoblin
+Devastator (`devastator`) casts a rite (`Rite`, state `rite`): three runes that hits break; at its
+end the weapons of its allies burn (+1, 1d4). `Room.deal()` checks `DialogAnswer.when`.
 
 ## Arrival in a world
 
@@ -933,10 +944,15 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   end of the north road (the road ends at the gate, `SILVERSPRING_SITE`, west of its main street).
   A spring in a pool at the north end, a stream south to a second pool (water, solid), two bridges of
   planks (`Ground.Floor`). North of the main street: the militia hall (Kasmut Parnika, veteran of the
-  Enclave: `KASMUT`), the Silver Trout (Tova: ale; a bed for the refuge `trout`, given in phase 4d),
-  the jeweller; four shut houses face the lane. Doran of the militia at the gate, a panner by the
-  stream. Its NPCs come after the merchant in `npcs()` (wire codes). Mobs keep out of it as out of
-  Ironhold (`TOWNS` in `source.ts`). `?at=180,-179` starts in its main street.
+  Enclave: `KASMUT`), the Silver Trout (Tova: ale; the bed of the refuge `trout`, for the guard of
+  Silverspring), the jeweller (Ilsa: mithril at 5 coins with the permit; the smith of Ironhold pays
+  10); four shut houses face the lane. Doran of the militia at the gate, a panner by the stream. Its
+  NPCs come after the merchant in `npcs()` (wire codes). Mobs keep out of it as out of Ironhold
+  (`TOWNS` in `source.ts`), except the war band during the raid. `?at=180,-179` starts in its main
+  street. **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
+  `PLACES`): off the north road at (91, -146), with a trail; `?at=92,-141` starts next to the post.
+- **Barks** are heard only within 18 tiles (`BARK_HEARING` in `game.ts`): with two towns, the lines of
+  a far town would sit on the edge of the screen.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,
   `/opt/azyr-town`), frozen. The engine keeps everything that the town uses (multiplayer, walking NPCs,
   lines, the arrival intro, signs, building styles), and a world of the game can use it.

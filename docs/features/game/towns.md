@@ -86,7 +86,10 @@ it feels like the mithril village of the Enclave.
 - **AC-TWN-004.3:** Tova ("Tova, of the Silver Trout") sells an ale for 2 coins. Her rooms are for
   the guard of the town and its friends.
 - **AC-TWN-004.4:** Doran ("Doran, of the militia") tells what the town is and who is in charge.
-- **AC-TWN-004.5:** The jeweller and the panner have three pages each.
+- **AC-TWN-004.5:** The panner has three pages. Ilsa the jeweller has a conversation: she sells
+  mithril to a character with the permit of Silverspring (REQ-QST-016).
+- **AC-TWN-004.6:** A bark (a line that an NPC says by itself) shows only for an NPC within 18 tiles of
+  the player.
 
 ---
 
@@ -103,8 +106,8 @@ hobgoblins, so that my errand has its end.
   of the Sovereignty." calms her, and she readies the militia.
 - **AC-TWN-005.3:** A character at `scouts` can also tell her that it killed the scouts in the
   grove. Then she says that the war band is close behind.
-- **AC-TWN-005.4:** The warning does not move the quest. The war band and the end of the quest come
-  with story phases 4b to 4d.
+- **AC-TWN-005.4:** The warning does not move the quest. The war band, the raid on the town and the end
+  of the quest are in `docs/features/game/quests.md` (REQ-QST-013 to REQ-QST-016).
 
 ---
 
@@ -123,7 +126,8 @@ hobgoblins, so that my errand has its end.
   `SILVERSPRING_NPCS`. Its north-west tile is one tile east of `SILVERSPRING_SITE` (`road.ts`) and 10
   rows north of it. Buildings: `militia-hall` (stone, battlement roof, the silver flag of the
   Enclave), `trout` (timber, clay), `jeweller` (brick, indigo), and the shut `panner-house`,
-  `miner-house`, `assay-house`, `stream-house`. Dialogs (`dialogs.ts`): `KASMUT`, `HOST`, `MILITIA`.
+  `miner-house`, `assay-house`, `stream-house`. Dialogs (`dialogs.ts`): `KASMUT`, `HOST`, `MILITIA`,
+  `JEWELLER`.
 - **The source** (`worlds/wilds/src/source.ts`): `TOWNS`, `townAt()`, `nearTown()`. A water tile is
   `Ground.Water`; a bridge is `Ground.Floor`. `npcs()`: the people of Ironhold, the merchant, then
   the people of Silverspring (the order is the code of an NPC on the wire). `landmarks()` adds
@@ -135,5 +139,8 @@ hobgoblins, so that my errand has its end.
   "La Trucha de Plata", the Jeweller "Joyería". Silverspring keeps its name.
 - **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, the
   people, the safety; Silverspring: the gate, the buildings, the stream, Kasmut, the map).
-- **Not yet**: the war band and the raid on Silverspring, the title, the room at the Silver Trout,
-  and the mithril of the jeweller (story phases 4b to 4d).
+- **The camp of the war band** (`camp.ts`) is a place of the builder too, but not a town: mobs go
+  there (`PLACES` and `TOWNS` in `source.ts`).
+- **During the raid** (REQ-QST-015) its mobs may go into Silverspring, and its people take shelter
+  (`NpcDef.shelter`: the panner at the crates by the inn; the others at their homes).
+- **Barks**: `BARK_HEARING` (18 tiles) in `packages/engine-client/src/game.ts`.

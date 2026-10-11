@@ -497,6 +497,8 @@ async function run(options: GameOptions): Promise<void> {
   // The lines that NPCs say by themselves, over their heads; never over a dialog with them.
   const barkBubbles = npcDefs.length > 0 ? new BarkBubbles(art, font, textScene) : null;
   let linesHeard = 0;
+  /** The player hears the lines of the NPCs within this many tiles. */
+  const BARK_HEARING = 18;
   let linesShown = 0;
   let lastLine = '-';
   const tileOf = (p: { x: number; y: number }) => [Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE)] as const;
@@ -515,6 +517,8 @@ async function run(options: GameOptions): Promise<void> {
       const pose = poses[index];
       const there = pose ? world.insideOf(...tileOf(pose)) : null;
       if (there !== null && there !== here) continue;
+      // Only an NPC within earshot: the people of a town far away are not heard (their bubbles would sit on the edge of the screen).
+      if (pose && Math.hypot(pose.x - player.x, pose.y - player.y) > BARK_HEARING * TILE_SIZE) continue;
       // Nobody talks over the arrival: the title and the host's welcome.
       if (arriving(now)) continue;
       if (dialogKey === targetKey({ kind: 'npc', tx: def.home[0], ty: def.home[1], distance: 0, fixture: npcFixture(def) })) continue;

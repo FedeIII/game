@@ -2,8 +2,8 @@
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
 > **Status:** Phases 1 to 3 built (2026-10-11: `docs/features/game/language.md`,
-> `docs/features/game/quests.md`, `docs/features/game/combat.md`); phase 4a built
-> (`docs/features/game/towns.md`); phases 4b to 6 planned
+> `docs/features/game/quests.md`, `docs/features/game/combat.md`); phase 4 built
+> (`docs/features/game/towns.md`, REQ-QST-013 to 016, REQ-CMB-007); phases 5 and 6 planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -336,9 +336,22 @@ before the next one.
    town (`Kandrax - Mundo`, 2.2.1.5: a village that pans mithril in the river that crosses it,
    defended by a militia of volunteers that a veteran of the Enclave advises), so the game gives it a
    spring and its stream. The river has a name in Kandrax that is not in the table above: the game
-   does not name it yet. 4b: the camp off the north road, the war band that marches on the road for
-   each party at `raid.scouts` (Fede's choice, 2026-10-11), the Hobgoblin Devastator, Himo. 4c: the
-   raid on Silverspring when the band comes there first. 4d: the rewards.
+   does not name it yet. 4b to 4d (built 2026-10-11, protocol 29): the war band marches on the north
+   road for each party at `raid.scouts` (Fede's choice: "Band walks the road"); the Hobgoblin
+   Devastator's spell of 4 turns is a rite of 6 s with three runes that blows break, and it makes the
+   weapons of the hobgoblins burn (Elemental Weapon). The band falls on the road: Himo is tied to a
+   post in its camp (Fede's choice: off the north road, between the grove and Silverspring), and he
+   follows the character home to Ironhold (his family pays 20 coins; if he falls, he dies). The band
+   reaches the gate first: it raids Silverspring (its mobs go into the town, the people take shelter;
+   no event banner for the players near, only the quest banner of the party). Kasmut gives the title
+   in the guard of Silverspring and Tova a bed at the Silver Trout (a refuge); for the early ending
+   also the permit of Silverspring: the jeweller sells mithril at cost (5 coins), and the smith of
+   Ironhold buys it (10). What changed from the plan: the permit goes with the early ending (the
+   chapter), not with Himo's life; the war band is the Devastator with five hobgoblins and a bugbear
+   (the chapter does not count it), sized to the characters there; a band that loses its party marches
+   on, and a band that comes to the gate goes from the world and comes back as the raid when a
+   character at `raid` comes near the town. Two soldiers who turn on the character (needs companions
+   that fight) stay for later.
 5. **The caravan** (the convoy of S6), with Q3.
 6. **The ruins** (the ruins of S6), with Q4 up to `ashes.symbol`.
 

@@ -176,6 +176,8 @@ const BAND_UNITS: readonly (readonly AmbushMember[])[] = [
 /** The band marches at this pace (px/s): a slow walk (a character walks at 80). */
 const BAND_SPEED = 36;
 
+/** No tree or rock grows this close to the camp of the war band (tiles): it stands in a clearing. */
+const CAMP_CLEARING = 2;
 /** The raid on Silverspring starts for a character at the step this close to the town (tiles); the band marches this many tiles up the main street. */
 const RAID_MARGIN = 6;
 const RAID_STREET = 20;
@@ -427,9 +429,10 @@ export class WildsSource implements WorldSource {
           // A short mud path leads to the door.
           chunk.ground[index] = house && tx === house.doorX && onApproach(house, tx, ty) ? Ground.Dirt : ground;
           // Nothing grows on a house, right next to it, or in front of its door; no tree grows
-          // right next to the signpost.
+          // right next to the signpost; no tree or rock in the ring round the camp (a clearing).
           const decor = house ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
-          chunk.decor[index] = decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1 ? Decor.None : decor;
+          const solid = decor === Decor.Tree || decor === Decor.Rock;
+          chunk.decor[index] = (decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1) || (solid && nearPlace(tx, ty, CAMP_CLEARING, [CAMP])) ? Decor.None : decor;
         }
       }
     }

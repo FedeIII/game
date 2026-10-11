@@ -53,6 +53,9 @@ as at the table.
 - **AC-CMB-002.2:** A hobgoblin adds 2d6 to its hit when another mob stands within 1.5 tiles of its
   target (its martial advantage).
 - **AC-CMB-002.3:** A poison bites 2 hit points every 3 s while it lasts, never the last one.
+- **AC-CMB-002.4:** The Hobgoblin Devastator, the leader of the war band, has 45 hit points, AC 13,
+  +3, and its staff hits for 1d6+1 (the HP and the AC of Volo's Guide; its XP for the encounters is
+  200, about CR 1, because it has no spells but its rite).
 
 ---
 
@@ -116,6 +119,26 @@ armour protects me.
 
 ---
 
+### REQ-CMB-007: The rite of the Devastator
+
+**User Story:** As a player who fights the war band, I want to see the Devastator's spell and to be
+able to break it, so that the fight has a target.
+
+**Acceptance Criteria:**
+- **AC-CMB-007.1:** When the Devastator hunts and a hobgoblin or a bugbear whose weapon does not burn
+  stands within 8 tiles of it, it stands still and casts its rite for 6 s.
+- **AC-CMB-007.2:** The page shows a circle of 8 tiles round it, which lights up round as the rite
+  goes on, and three runes on the circle.
+- **AC-CMB-007.3:** Each blow that hits the Devastator in its rite takes its damage and breaks one
+  rune (a dark rune); a miss breaks nothing. When the third rune breaks, the rite fails and the
+  Devastator reels.
+- **AC-CMB-007.4:** When the rite ends with a rune left, the weapons of the hobgoblins and the bugbears
+  in the circle burn for 30 s: +1 to hit and 1d4 more damage (5e: Elemental Weapon). Embers rise from
+  them.
+- **AC-CMB-007.5:** The Devastator begins another rite 15 s after the last one, failed or not.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Dice** (`packages/engine/src/dice.ts`): `Dice`, `dice()`, `plusDice()`, `formatDice()`,
@@ -139,6 +162,13 @@ armour protects me.
   The debug panel shows "ac 18, weapon +5 1d8+3" and "fight blows N".
 - **Tests**: `packages/engine/test/dice.test.ts`; the tests of the mobs, the gear and the abilities use
   `AVERAGE_DICE` where they count blows or hits.
-- **Encounters** (`packages/engine/src/encounters.ts`): the ambush of the scouts is sized to the
-  characters there with the 5e budget (`docs/features/game/quests.md`, REQ-QST-012).
+- **Encounters** (`packages/engine/src/encounters.ts`): the ambush of the scouts and the war band are
+  sized to the characters there with the 5e budget (`docs/features/game/quests.md`, REQ-QST-012 and
+  REQ-QST-013).
+- **The Devastator** (`packages/engine/src/mobs.ts`): the kind `devastator` (code 6), `MobStats.rite`
+  (`Rite`: `ms` 6000, `radius` 128, `runes` 3, `allies`, `burnMs` 30000, `cooldownMs` 15000), the state
+  `rite` (code 9), `Mob.runes`, `Mob.burning`, `BURN_TO_HIT`, `BURN_DICE`; the wire carries the runes
+  and the burning (`WireMob`, protocol 29). The page: `render/mobs.ts` (`placeRing()`, `RING_DOTS`,
+  `RUNE`, `BURN_EMBERS`); the art: `art/mobs.ts` (`DEVASTATOR`: a robe and a hood, a staff with an
+  ember).
 - **Not yet**: class features of levels 1 to 3 (second wind, rage, smite, spells).

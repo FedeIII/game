@@ -70,6 +70,22 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The war band (protocol 29, 2026-10-11)
+
+- A new mob kind, the Hobgoblin Devastator (`devastator`, code 6 of `MOB_KINDS`), and a new state,
+  `rite` (code 9 of `MOB_STATES`). A wire mob has two more numbers at its end: the runes left in a
+  rite (0 outside one) and 1 while its weapon burns (`WireMob`, `toWireMob()`; `RemoteMob.runes`,
+  `RemoteMob.burning`).
+- The Room runs the escorts of the story after the companions (`Room.escorts`; Himo), and it applies
+  the end of an escort as the end of an ambush (`applyStory()`; the server saves the book at once).
+- A raid (`AmbushDef.raid`): its mobs may go into a town (`Horde.unleash()`, `MobRules.raid`), and the
+  Room tells the NPCs to take shelter (`NpcCrowd.setAlarm()`); the snapshots carry their poses as
+  before.
+- `Room.deal()` checks the condition (`DialogAnswer.when`) of the answer with the deal: a page cannot
+  buy the mithril of Silverspring without the permit.
+- `Room.quest()` finds the effect of a thing in its variant too (`fixtureContent()`): the post of the
+  camp frees Himo only for a character at the step.
+
 ## Silverspring (protocol 28, 2026-10-11)
 
 Protocol 28 changes no message: the Wilds got a second town, Silverspring, at the end of the north
