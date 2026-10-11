@@ -127,7 +127,7 @@ New kinds (stack 1), each with an icon and a line of the world:
    the icons, AC in the "You" section.
 2. **The look follows the hands** (built 2026-10-11, protocol 20): the weapon and the shield on the
    figure come from the gear, for the player and for the others, and in the menu.
-3. **The smith of Thornwick** sells armour, shields and weapons, and buys them back. Plate and
-   studded leather come then.
+3. **The smith of Thornwick** (built 2026-10-11) sells armour, shields and weapons, and buys them
+   back for half. Plate and studded leather came with him.
 4. Later: the look of the armour and the helmet, magic items (+1 weapons, a cloak of protection),
    reach weapons, ammunition.

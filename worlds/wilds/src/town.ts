@@ -1,5 +1,5 @@
 import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, PEDDLER, REEVE, WATCHMAN } from './dialogs.ts';
+import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, PEDDLER, REEVE, SMITH, WATCHMAN } from './dialogs.ts';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -204,11 +204,8 @@ const BUILDINGS: readonly Plan[] = [
         id: 'smith',
         look: 'smith',
         doorstep: true,
-        pages: [
-          'Mind the forge. It bites.',
-          'I mend blades and I make nails. Lately more blades than nails.',
-          'Every blade in Thornwick has been through my hands twice.',
-        ],
+        // He sells armour, a shield and weapons, and buys them back (dialogs.ts).
+        dialog: SMITH,
         barks: ['Hot iron waits for nobody.', 'More blades. Always more blades.', 'Where are my tongs?'],
         greeting: '{name}. Good to see you whole.',
       },

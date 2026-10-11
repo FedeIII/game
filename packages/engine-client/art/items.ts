@@ -283,6 +283,13 @@ function cuirass(material: MaterialOf, extra: Part[] = []): Part[] {
   return [{ sdf: shape, material }, ...extra];
 }
 
+/** The rivets of a studded leather: small spheres of iron in rows on the front of the body. */
+function studs(): Part[] {
+  const rivets: Sdf[] = [];
+  for (const y of [2.4, 4.8, 7.2]) for (const x of [-2.8, -0.9, 0.9, 2.8]) rivets.push(sphere([x, y, 1.5], 0.55));
+  return [{ sdf: union(...rivets), material: I.steel }];
+}
+
 /** A greataxe: a long haft and a broad head of two crescents at its top. */
 function greataxe(): Part[] {
   const head = subtract(
@@ -398,6 +405,16 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['arcane-staff', () => staff(I.arcane, false)],
   ['druid-staff', () => staff(I.green, true)],
   ['luck-amulet', amulet],
+  // Leather with rows of iron rivets.
+  ['studded-leather', () => cuirass(I.leather, studs())],
+  // Smooth steel, a dark band at the waist, and big plates on the shoulders.
+  [
+    'plate-armour',
+    () =>
+      cuirass((x, y) => (y > 3.2 && y < 4.4 ? I.dark : I.silver), [
+        { sdf: union(ellipsoid([-4.2, 9.8, 0], [2.4, 1.6, 2.2]), ellipsoid([4.2, 9.8, 0], [2.4, 1.6, 2.2])), material: I.steel },
+      ]),
+  ],
 ];
 
 export function itemFrames(): Frame[] {

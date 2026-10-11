@@ -1,4 +1,4 @@
-import type { Dialog, Gate } from '@game/engine';
+import type { Dialog, Gate, ItemKind } from '@game/engine';
 
 /**
  * The conversations of the people of Thornwick (town.ts): what each one says, and what the
@@ -326,6 +326,124 @@ export const CAULDRON: Dialog = {
 };
 
 /** Something that the peddler buys: the player gives one and gets coins (more with Charisma). */
+/**
+ * What the smith asks for armour, shields and weapons (gear.ts), in coins, before Charisma. A draught
+ * costs 6 coins: leather is cheap, plate is the work of a season. The smith buys each one back for
+ * half of it (5e: a sale gives half the price), at least 1 coin.
+ */
+export const SMITH_PRICES = {
+  'leather-armour': 5,
+  'studded-leather': 10,
+  'scale-mail': 12,
+  'chain-mail': 18,
+  'splint-armour': 45,
+  'plate-armour': 150,
+  shield: 4,
+  longsword: 6,
+  shortsword: 4,
+  rapier: 8,
+  greataxe: 10,
+  mace: 3,
+  longbow: 12,
+  'arcane-staff': 4,
+  'druid-staff': 4,
+} as const satisfies Partial<Record<ItemKind, number>>;
+type SmithWare = keyof typeof SMITH_PRICES;
+
+/** What the smith pays for a piece of gear: half of the price, at least 1 coin. */
+export function smithPays(kind: SmithWare): number {
+  return Math.max(1, Math.floor(SMITH_PRICES[kind] / 2));
+}
+
+const forge = (kind: SmithWare, text: string) => ({ text, next: 'forged', deal: { id: `buy-${kind}`, goods: kind, price: SMITH_PRICES[kind], poor: 'short' } }) as const;
+const scrap = (kind: SmithWare, text: string) =>
+  ({ text, next: 'scrapped', deal: { id: `sell-${kind}`, goods: 'coins', price: 0, pay: smithPays(kind), items: [{ kind, count: 1 }], poor: 'none' } }) as const;
+
+/**
+ * The smith of Thornwick: armour, a shield and weapons for sale (not the staffs: wood is not his
+ * trade), and he buys them all back for half of the price. He buys only what is in the pack: a
+ * worn item must come off first.
+ */
+export const SMITH: Dialog = {
+  name: 'The smith',
+  start: 'forge',
+  nodes: {
+    forge: {
+      say: 'Mind the forge. It bites. I sell iron, and I buy it back when you do not need it.',
+      answers: [
+        { text: 'Show me armour.', next: 'armour' },
+        { text: 'Show me weapons.', next: 'weapons' },
+        { text: 'I have gear to sell.', next: 'sell' },
+        BYE,
+      ],
+    },
+    armour: {
+      say: 'Leather for the quick, steel for the stubborn.',
+      answers: [forge('leather-armour', 'Leather armour.'), forge('studded-leather', 'Studded leather.'), forge('scale-mail', 'Scale mail.'), { text: 'Something heavier.', next: 'heavy' }],
+    },
+    heavy: {
+      say: 'Heavy iron. It stops a tusk, and it slows the feet that carry it.',
+      answers: [forge('chain-mail', 'Chain mail.'), forge('splint-armour', 'Splint armour.'), forge('plate-armour', 'Plate armour.'), { text: 'And a shield?', next: 'shield' }],
+    },
+    shield: {
+      say: 'Oak, and a rim of iron. It turns more blows than you think.',
+      answers: [forge('shield', 'A shield.'), { text: 'Something else.', next: 'forge' }, BYE],
+    },
+    weapons: {
+      say: 'Every blade in Thornwick has been through my hands twice. These are new.',
+      answers: [forge('longsword', 'A longsword.'), forge('shortsword', 'A shortsword.'), forge('rapier', 'A rapier.'), { text: 'Something heavier.', next: 'heavier' }],
+    },
+    heavier: {
+      say: 'An axe for the strong, a mace for the plain, and a bow that a traveller left for its price.',
+      answers: [forge('greataxe', 'A greataxe.'), forge('mace', 'A mace.'), forge('longbow', 'The longbow.'), { text: 'Something else.', next: 'forge' }],
+    },
+    sell: {
+      say: 'I pay half of what I ask. Iron is iron. What is it?',
+      answers: [{ text: 'Armour or a shield.', next: 'sell-armour' }, { text: 'A weapon or a staff.', next: 'sell-weapon' }, { text: 'Something else.', next: 'forge' }, BYE],
+    },
+    'sell-armour': {
+      say: 'Put it on the bench. Light or heavy?',
+      answers: [scrap('leather-armour', 'Leather armour.'), scrap('studded-leather', 'Studded leather.'), scrap('scale-mail', 'Scale mail.'), { text: 'Something heavier.', next: 'sell-heavy' }],
+    },
+    'sell-heavy': {
+      say: 'Heavy, then. Let me see the rings and the rivets.',
+      answers: [scrap('chain-mail', 'Chain mail.'), scrap('splint-armour', 'Splint armour.'), scrap('plate-armour', 'Plate armour.'), { text: 'A shield.', next: 'sell-shield' }],
+    },
+    'sell-shield': {
+      say: 'A shield. Dented, I suppose.',
+      answers: [scrap('shield', 'A shield.'), { text: 'Something else.', next: 'sell' }, { text: 'Nothing now.' }],
+    },
+    'sell-weapon': {
+      say: 'A blade? Let me see the edge.',
+      answers: [scrap('longsword', 'A longsword.'), scrap('shortsword', 'A shortsword.'), scrap('rapier', 'A rapier.'), { text: 'Something else.', next: 'sell-weapon-2' }],
+    },
+    'sell-weapon-2': {
+      say: 'Heavier work, or wood. Wood I burn, but I pay for it.',
+      answers: [scrap('greataxe', 'A greataxe.'), scrap('mace', 'A mace.'), scrap('longbow', 'A longbow.'), { text: 'A staff.', next: 'sell-staff' }],
+    },
+    'sell-staff': {
+      say: 'Good wood for the forge. Which one?',
+      answers: [scrap('arcane-staff', 'An arcane staff.'), scrap('druid-staff', 'A druid staff.'), { text: 'Something else.', next: 'sell' }, { text: 'Nothing now.' }],
+    },
+    forged: {
+      say: 'Wear it well. Come back when it breaks.',
+      answers: [{ text: 'Something else.', next: 'forge' }, { text: 'Thank you.' }],
+    },
+    short: {
+      say: 'Coin first, and room in your pack for it.',
+      answers: [{ text: 'Something else.', next: 'forge' }, BYE],
+    },
+    scrapped: {
+      say: 'Iron is iron. Here is your coin.',
+      answers: [{ text: 'Something else.', next: 'sell' }, { text: 'That is all.' }],
+    },
+    none: {
+      say: 'I see none in your pack. If you wear it, take it off first.',
+      answers: [{ text: 'Something else.', next: 'sell' }, BYE],
+    },
+  },
+};
+
 const sell = (id: string, text: string, kind: 'ring' | 'cup' | 'candle' | 'imp-horn' | 'brute-tusk', pay: number) =>
   ({ text, next: 'sold', deal: { id, goods: 'coins', price: 0, pay, items: [{ kind, count: 1 }], poor: 'none' } }) as const;
 

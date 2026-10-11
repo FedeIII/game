@@ -49,7 +49,7 @@ searches give me something.
   REQ-STR-003).
 - **AC-PK-001.3:** There are nine kinds of item to carry. Their stacks are: imp horn 10, brute tusk
   10, candle stub 5, silver ring 5, pewter cup 5, bundle of herbs 10, healing draught 5, antidote 5,
-  strong draught 5. The fourteen kinds of item to wear stack one in a slot
+  strong draught 5. The sixteen kinds of item to wear stack one in a slot
   ([Equipment](equipment.md), REQ-EQ-002).
 - **AC-PK-001.4:** A new item goes onto a stack of its kind that has room, else into the first free
   slot. One kind can fill more than one slot when its stacks are full.
@@ -247,7 +247,9 @@ that I find have a use.
 - **AC-PK-010.2:** Isolde, the apothecary, sells a healing draught for 6 coins, an antidote for 8
   and a strong draught for 15 ([Charisma](../abilities/charisma.md), REQ-CHA-004).
 - **AC-PK-010.3:** Corwin, the peddler, buys a silver ring for 5 coins, a pewter cup for 3, a
-  candle stub for 1, an imp horn for 2 and a brute tusk for 4 (REQ-CHA-005).
+  candle stub for 1, an imp horn for 2 and a brute tusk for 4 (REQ-CHA-005). The smith sells
+  armour, a shield and weapons, and buys them back for half ([Equipment](equipment.md),
+  REQ-EQ-019).
 - **AC-PK-010.4:** Charisma changes every price and every sale (REQ-CHA-003). The conversation
   panel shows the price for the player after the answer: "(2 coins)", "(+7 coins)".
 - **AC-PK-010.5:** A player with fewer coins than the price, without the item to sell, or without

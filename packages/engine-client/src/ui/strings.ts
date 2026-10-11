@@ -67,6 +67,8 @@ export const STRINGS = {
     'arcane-staff': { name: 'Arcane staff', a: 'an arcane staff', many: 'arcane staffs' },
     'druid-staff': { name: 'Druid staff', a: 'a druid staff', many: 'druid staffs' },
     'luck-amulet': { name: 'Luck amulet', a: 'a luck amulet', many: 'luck amulets' },
+    'studded-leather': { name: 'Studded leather', a: 'a studded leather armour', many: 'studded leather armours' },
+    'plate-armour': { name: 'Plate armour', a: 'a plate armour', many: 'plate armours' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,

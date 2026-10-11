@@ -6,7 +6,7 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { Road, signpost } from './road.ts';
 export { WildsSource } from './source.ts';
 export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
-export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, WATCHMAN } from './dialogs.ts';
+export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
@@ -59,6 +59,8 @@ export const wilds: WorldDefinition = {
     'arcane-staff': 'A staff with a blue stone at its top. A mage casts through it.',
     'druid-staff': 'A crooked staff, still green at the top. A druid casts through it.',
     'luck-amulet': 'A charm of bone with a drop of amber. They say that it brings luck.',
+    'studded-leather': 'Leather set with rivets of iron. Light, and a little harder to cut.',
+    'plate-armour': 'Shaped plates of steel from head to foot. The best armour in the land, and the heaviest.',
   },
   darkness: 1,
   multiplayer: true,

@@ -463,7 +463,7 @@ builder and the "You" section still name every gate.
   `docs/drafts/equipment.md`; `docs/features/items/equipment.md`): twelve worn slots of D&D 5e
   (`GEAR_SLOTS`: head, neck, cloak, armour, bracers, gloves, belt, feet, two rings, main hand, off
   hand; `Gear`, `Character.gear`, the column `gear`). The items (`WEARABLES`, stack 1): leather
-  armour, scale mail, chain mail, splint armour, a shield, longsword, shortsword, rapier, greataxe,
+  armour, studded leather, scale mail, chain mail, splint armour, plate armour, a shield, longsword, shortsword, rapier, greataxe,
   mace, longbow, an arcane staff and a druid staff (a focus), the luck amulet (+1 to each score for
   every gate: `PlayerTraits.luck`, on `traits.scores`; attunement), and the silver ring on a finger.
   The 5e rules: proficiency by class (`PROFICIENCY`, `canUse()`), the hands (a two-handed weapon
@@ -482,8 +482,8 @@ builder and the "You" section still name every gate.
   traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
   `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
   slot) in `move` and `put`, protocol 19. The figure holds what the character wears (protocol 20:
-  `lk`, `RemotePlayer.look`, `dressSkin()` in the art). Not yet: nobody sells gear, and the armour
-  does not show on the figure.
+  `lk`, `RemotePlayer.look`, `dressSkin()` in the art). The smith of Thornwick sells and buys gear
+  (see "Shops"). Not yet: the armour does not show on the figure.
 - **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
   "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
   when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack. A
@@ -594,7 +594,10 @@ builder and the "You" section still name every gate.
 - **Shops**: a deal can take items and give coins (`goods: 'coins'`, `pay`: the peddler Corwin buys
   rings 5, cups 3, candles 1, imp horns 2, brute tusks 4) or give a refuge (`goods: 'refuge'`).
   Isolde sells the three draughts (6, 8, 15 coins; her friend's price 4, 6, 11, each answer behind
-  CHA 13 so that the server checks it).
+  CHA 13 so that the server checks it). The smith (`SMITH`, `SMITH_PRICES` in
+  `worlds/wilds/src/dialogs.ts`, since 2026-10-11) sells the armour, the shield and the weapons
+  (leather 5 to plate 150, a mace 3 to a longbow 12; not the staffs) and buys all of them back for
+  half (`smithPays()`), from the pack only: a worn piece must come off first.
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
   left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
@@ -807,7 +810,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   to their doorstep); in the streets the watchman at the gate, the peddler, the widow by the
   fountain and the child in the lane. Each one has three lines that it says by itself, a greeting
   by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
-  apothecary, the reeve and the peddler (`dialogs.ts`), three pages for the others. The inn has a
+  apothecary, the reeve, the peddler and the smith (`dialogs.ts`), three pages for the others. The inn has a
   bed by its east wall for a character with a room (Charisma).
   Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
   of mud from below the path to the home's door to the gate, also over water; nothing grows on it

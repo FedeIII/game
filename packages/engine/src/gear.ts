@@ -120,9 +120,11 @@ export interface Wearable {
 export const WEARABLES: Readonly<Partial<Record<ItemKind, Wearable>>> = {
   ring: { place: 'ring' },
   'leather-armour': { place: 'armour', armour: { type: 'light', ac: 11 } },
+  'studded-leather': { place: 'armour', armour: { type: 'light', ac: 12 } },
   'scale-mail': { place: 'armour', armour: { type: 'medium', ac: 14, noisy: true } },
   'chain-mail': { place: 'armour', armour: { type: 'heavy', ac: 16, str: 13, noisy: true } },
   'splint-armour': { place: 'armour', armour: { type: 'heavy', ac: 17, str: 15, noisy: true } },
+  'plate-armour': { place: 'armour', armour: { type: 'heavy', ac: 18, str: 15, noisy: true } },
   shield: { place: 'shield', shield: 2 },
   longsword: { place: 'hand', weapon: { die: 8, versatile: 10, martial: true } },
   shortsword: { place: 'hand', weapon: { die: 6, light: true, martial: true } },

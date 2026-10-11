@@ -41,6 +41,9 @@ export const ITEM_KINDS = [
   'arcane-staff',
   'druid-staff',
   'luck-amulet',
+  // The smith of Thornwick sells them too (2026-10-11).
+  'studded-leather',
+  'plate-armour',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -69,6 +72,8 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'arcane-staff': 1,
   'druid-staff': 1,
   'luck-amulet': 1,
+  'studded-leather': 1,
+  'plate-armour': 1,
 };
 
 /**
