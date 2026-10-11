@@ -461,7 +461,7 @@ describe('the gear in a shared world', () => {
     const s = scores({ str: 16 });
     const join = (cls: 'fighter' | 'cleric', pack: Pack = EMPTY_PACK) =>
       room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, cls, kitOf(cls)), traitsFor: (g) => traitsOf(s, cls, g), gear: kitOf(cls), pack })!;
-    const a = join('fighter', { coins: 0, items: [{ kind: 'greataxe', count: 1 }, { kind: 'leather-armour', count: 1 }] });
+    const a = join('fighter', { coins: 0, items: [{ kind: 'greataxe', count: 1 }, { kind: 'ring', count: 1 }, { kind: 'leather-armour', count: 1 }] });
     const b = join('cleric');
     const snaps = new Map<number, SnapshotMessage>();
     const send = (ms: number) => {
@@ -471,26 +471,30 @@ describe('the gear in a shared world', () => {
     send(0);
     // The first snapshot of each has the looks of everyone.
     expect(new Map(snaps.get(b.id)!.lk)).toEqual(new Map([
-      [a.id, toWireLook({ main: 'longsword', off: 'shield' })],
-      [b.id, toWireLook({ main: 'mace', off: 'shield' })],
+      [a.id, toWireLook({ main: 'longsword', off: 'shield', armour: 'chain-mail' })],
+      [b.id, toWireLook({ main: 'mace', off: 'shield', armour: 'scale-mail' })],
     ]));
     send(50);
     expect(snaps.get(b.id)!.lk).toBeUndefined();
-    // Armour does not show (yet): no looks.
-    room.move(a.id, 1, gearAddress('armour'));
-    expect(a.gear.armour).toBe('leather-armour');
+    // A ring does not show: no looks.
+    room.move(a.id, 1, gearAddress('ring-left'));
     send(100);
     expect(snaps.get(b.id)!.lk).toBeUndefined();
+    // The armour shows (protocol 21).
+    room.move(a.id, 2, gearAddress('armour'));
+    expect(a.gear.armour).toBe('leather-armour');
+    send(120);
+    expect(fromWireLook(new Map(snaps.get(b.id)!.lk).get(a.id)!).armour).toBe('leather-armour');
     // A weapon in the hands shows: the others get the new look.
     room.move(a.id, 0, gearAddress('main'));
     send(150);
     const look = new Map(snaps.get(b.id)!.lk).get(a.id)!;
-    expect(fromWireLook(look)).toEqual({ main: 'greataxe', off: null });
+    expect(fromWireLook(look)).toEqual({ main: 'greataxe', off: null, armour: 'leather-armour' });
     expect(fromWireLook(look)).toEqual(shownGear(a.gear));
     // The client keeps it for each other player.
     const remotes = new Remotes();
     remotes.apply(snaps.get(b.id)!, 1000);
-    expect(remotes.at(2000).find((p) => p.id === a.id)?.look).toEqual({ main: 'greataxe', off: null });
+    expect(remotes.at(2000).find((p) => p.id === a.id)?.look).toEqual({ main: 'greataxe', off: null, armour: 'leather-armour' });
     room.leave(a.id);
     send(200);
     expect(new Map(snaps.get(b.id)!.lk).has(a.id)).toBe(false);

@@ -174,7 +174,7 @@ describe('player skins', () => {
   it('holds what the character wears: the weapon in the main hand, a shield in the off hand', () => {
     const fighter = skinFromSeed(appearanceSeed({ race: 'human', class: 'fighter', gender: 'male', variant: 1 }));
     const dressed = (main: Parameters<typeof dressSkin>[1]['main'], off: Parameters<typeof dressSkin>[1]['off'] = null, skin: Skin = fighter) => {
-      const d = dressSkin(skin, { main, off });
+      const d = dressSkin(skin, { main, off, armour: null });
       return [d.spec.item, d.spec.shield === true, skinAttack(d)];
     };
     expect(dressed('longsword', 'shield')).toEqual(['sword', true, 'slash']);
@@ -195,11 +195,29 @@ describe('player skins', () => {
     expect(dressed(null, null, monk)).toEqual(['none', false, 'palm']);
   });
 
+  it('wears its armour: metal for medium and heavy armour, plates on the shoulders for splint and plate', () => {
+    const wizard = skinFromSeed(appearanceSeed({ race: 'elf', class: 'wizard', gender: 'male', variant: 5 }));
+    const fighter = skinFromSeed(appearanceSeed({ race: 'human', class: 'fighter', gender: 'male', variant: 1 }));
+    const body = (skin: Skin, armour: Parameters<typeof dressSkin>[1]['armour']) => {
+      const d = dressSkin(skin, { main: null, off: null, armour });
+      return [d.spec.body, d.spec.pauldrons];
+    };
+    expect(body(wizard, 'chain-mail')).toEqual(['armour', wizard.spec.pauldrons]);
+    expect(body(wizard, 'plate-armour')).toEqual(['armour', true]);
+    expect(body(wizard, 'scale-mail')[0]).toBe('armour');
+    // Light armour keeps the clothes of the look.
+    expect(body(wizard, 'leather-armour')).toEqual([wizard.spec.body, wizard.spec.pauldrons]);
+    // A knight without armour wears a jerkin.
+    expect(fighter.spec.body).toBe('armour');
+    expect(body(fighter, null)).toEqual(['jerkin', false]);
+    expect(body(fighter, 'studded-leather')).toEqual(['jerkin', false]);
+  });
+
   it('keys a look by its seed and what it holds', () => {
     expect(skinKey({ seed: 42 })).toBe('42');
-    expect(skinKey({ seed: 42, shown: { main: 'longsword', off: 'shield' } })).toBe('42:longsword/shield');
-    expect(skinKey({ seed: 42, shown: { main: null, off: null } })).toBe('42:-/-');
-    expect(skinOfLook({ seed: 42, shown: { main: 'longbow', off: null } }).spec.item).toBe('bow');
+    expect(skinKey({ seed: 42, shown: { main: 'longsword', off: 'shield', armour: 'chain-mail' } })).toBe('42:longsword/shield/chain-mail');
+    expect(skinKey({ seed: 42, shown: { main: null, off: null, armour: null } })).toBe('42:-/-/-');
+    expect(skinOfLook({ seed: 42, shown: { main: 'longbow', off: null, armour: null } }).spec.item).toBe('bow');
   });
 
   it('keeps every attack frame inside its frame with any weapon in the hands', () => {
@@ -209,11 +227,11 @@ describe('player skins', () => {
       appearanceSeed({ race: 'elf', class: 'wizard', gender: 'male', variant: 5 }),
     ];
     const held = [
-      { main: 'rapier', off: null },
-      { main: 'greataxe', off: null },
-      { main: 'longbow', off: null },
-      { main: 'arcane-staff', off: null },
-      { main: 'longsword', off: 'shield' },
+      { main: 'rapier', off: null, armour: null },
+      { main: 'greataxe', off: null, armour: 'plate-armour' },
+      { main: 'longbow', off: null, armour: 'leather-armour' },
+      { main: 'arcane-staff', off: null, armour: null },
+      { main: 'longsword', off: 'shield', armour: 'splint-armour' },
     ] as const;
     for (const seed of big) {
       for (const shown of held) {

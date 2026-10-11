@@ -339,6 +339,11 @@ on the figures of the others, so that the gear shows in the world.
 - **AC-EQ-018.6:** The other players see the same weapon and shield on the figure, and the change.
 - **AC-EQ-018.7:** The menu shows each character with its gear, and the builder shows the kit of
   the class that the player chooses.
+- **AC-EQ-018.8:** The figure wears its armour: medium or heavy armour (scale mail, chain mail,
+  splint armour, plate armour) is a body of metal, in the metal of the look, and splint or plate
+  armour adds plates on the shoulders. Light armour keeps the clothes of the look. A look in metal
+  (a fighter, a paladin, some clerics) without medium or heavy armour wears a jerkin, without the
+  plates.
 
 ---
 
@@ -424,13 +429,15 @@ do not use, so that the gear grows with my character.
 - **Texts** (`packages/engine-client/src/ui/strings.ts`): `STRINGS.items` for the new kinds,
   `STRINGS.gear`, and `ac`, `acValue`, `sneak`, `sneakValue`, `walk` and `walkValue` in
   `STRINGS.traits`. The world's line about each item is in `worlds/wilds/src/index.ts`.
-- **The figure** (phase 2, protocol 20): `SHOWN_SLOTS` (the main hand and the off hand),
+- **The figure** (phase 2, protocol 20; the armour: phase 4a, protocol 21): `SHOWN_SLOTS` (the
+  main hand, the off hand and the armour),
   `ShownGear`, `shownGear()` and `sameShown()` in `gear.ts`. The Room's `looksVersion` goes up when
   a player comes or goes, or when what shows of its gear changes (`dress()`); then each snapshot
   carries `lk: [id, look]` for every player (`toWireLook()`, `fromWireLook()`), and
   `RemotePlayer.look` keeps it. In `packages/engine-client/art/skins.ts`: `SkinLook` (a seed and
   the shown gear), `dressSkin()` (`HELD`: the figure item and the attack style of each weapon;
-  `Skin.style`), `skinOfLook()`, `skinKey()` (for example `42:longsword/shield`), `SKIN_VERSION` 7.
+  `Skin.style`), `skinOfLook()`, `skinKey()` (for example `42:longsword/shield/chain-mail`), `SKIN_VERSION` 8.
+  The armour sets `FigureSpec.body` and `pauldrons` (`HEAVY_PLATES_AC` 17).
   `SkinStore` keys the skins by `skinKey()` and gives the worker a look (`SkinRequest.look`).
   `characterLook()` (`src/skins/look.ts`) for the menu; `ownLook()` and `wearLook()` in `game.ts`
   (`followGear()` wears a new look); `OtherPlayers` wears `lookOf(player)`. The debug panel shows
@@ -441,5 +448,4 @@ do not use, so that the gear grows with my character.
   `sell-shield`, `sell-weapon`, `sell-weapon-2`, `sell-staff`, `forged`, `short`, `scrapped`,
   `none`); the smith of `town.ts` has it. Tests: `worlds/wilds/test/smith.test.ts`. The icons
   of the two armours of phase 3: `studs()` on the leather cuirass, and the plate of `cuirass()`.
-- **Not yet** (`docs/drafts/equipment.md`): the armour and the helmet do not show on the figure
-  (phase 4).
+- **Not yet** (`docs/drafts/equipment.md`): magic items and reach weapons (phase 4).

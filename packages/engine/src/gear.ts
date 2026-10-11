@@ -31,9 +31,10 @@ export type Gear = Readonly<Record<GearSlot, ItemKind | null>>;
 
 /**
  * The worn slots that show on the figure in the world: the item in the main hand and the off hand
- * (a weapon, a shield). The other players get them (protocol 20, `lk`), so they see them too.
+ * (a weapon, a shield; protocol 20), and the armour (protocol 21). The other players get them
+ * (`lk`), so they see them too.
  */
-export const SHOWN_SLOTS = ['main', 'off'] as const;
+export const SHOWN_SLOTS = ['main', 'off', 'armour'] as const;
 export type ShownSlot = (typeof SHOWN_SLOTS)[number];
 
 /** What shows of a character's gear: the kind in each shown slot, or null. */
@@ -41,7 +42,7 @@ export type ShownGear = Readonly<Record<ShownSlot, ItemKind | null>>;
 
 /** What shows of some gear (SHOWN_SLOTS). */
 export function shownGear(gear: Gear): ShownGear {
-  return { main: gear.main, off: gear.off };
+  return { main: gear.main, off: gear.off, armour: gear.armour };
 }
 
 /** Whether two shown gears are the same. */

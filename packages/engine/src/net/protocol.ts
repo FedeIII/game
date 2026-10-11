@@ -13,7 +13,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -332,7 +332,7 @@ export function toWireLook(shown: ShownGear): WireLook {
 
 /** The shown gear of the wire; a code that this client does not know, or a kind that does not fit its slot, shows as nothing. */
 export function fromWireLook(wire: WireLook): ShownGear {
-  const shown: Record<ShownSlot, ItemKind | null> = { main: null, off: null };
+  const shown = Object.fromEntries(SHOWN_SLOTS.map((slot) => [slot, null])) as Record<ShownSlot, ItemKind | null>;
   SHOWN_SLOTS.forEach((slot, i) => {
     const kind = ITEM_KINDS[wire[i] ?? -1];
     if (kind && fitsSlot(kind, slot)) shown[slot] = kind;

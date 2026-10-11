@@ -31,7 +31,7 @@ import {
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel } from './sdf.ts';
 
-export const SKIN_VERSION = 7;
+export const SKIN_VERSION = 8;
 
 /**
  * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
@@ -765,10 +765,14 @@ const HELD: Readonly<Partial<Record<ItemKind, { readonly item: Item; readonly st
 };
 
 /**
- * The skin with what the character holds (gear.ts): the weapon of its main hand, and a shield in
- * its off hand. A focus of its class is a staff with an orb, and the figure casts with it; another
- * staff is a plain staff that bashes. With an empty main hand a spellcaster casts from the hands
- * (its cantrip), a monk strikes with the palm, and the others punch.
+ * The skin with what the character wears (gear.ts): the weapon of its main hand, a shield in its
+ * off hand, and its armour. A focus of its class is a staff with an orb, and the figure casts with
+ * it; another staff is a plain staff that bashes. With an empty main hand a spellcaster casts from
+ * the hands (its cantrip), a monk strikes with the palm, and the others punch.
+ *
+ * The armour: medium or heavy armour is a body of metal (the `metal` of the look), and splint or
+ * plate adds plates on the shoulders. Light armour keeps the clothes of the look, as does no
+ * armour; but a look in metal without armour wears a jerkin, without the plates.
  */
 export function dressSkin(skin: Skin, shown: ShownGear): Skin {
   const cls = skin.appearance.class;
@@ -780,8 +784,20 @@ export function dressSkin(skin: Skin, shown: ShownGear): Skin {
   else if (focus) hands = CASTER_FOCUS[cls] === focus ? { item: 'orbstaff', style: 'spell' } : { item: 'staff', style: 'bash' };
   else if (CANTRIP_BASE[cls] !== undefined) hands = { item: 'none', style: 'spell' };
   else hands = { item: 'none', style: cls === 'monk' ? 'palm' : 'punch' };
-  return { ...skin, spec: { ...skin.spec, item: hands.item, shield: shown.off === 'shield' }, style: hands.style };
+  const armour = shown.armour ? WEARABLES[shown.armour]?.armour : undefined;
+  let { body, pauldrons } = skin.spec;
+  if (armour && armour.type !== 'light') {
+    body = 'armour';
+    if (armour.type === 'heavy' && armour.ac >= HEAVY_PLATES_AC) pauldrons = true;
+  } else if (body === 'armour') {
+    body = 'jerkin';
+    pauldrons = false;
+  }
+  return { ...skin, spec: { ...skin.spec, item: hands.item, shield: shown.off === 'shield', body, pauldrons }, style: hands.style };
 }
+
+/** Heavy armour of this AC or more (splint, plate) has plates on the shoulders. */
+const HEAVY_PLATES_AC = 17;
 
 /** The skin of a look: the skin of its seed, with what it holds. */
 export function skinOfLook(look: SkinLook): Skin {
