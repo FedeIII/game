@@ -56,9 +56,9 @@ the thread that connects the quests.
 ## Names
 
 Each name has an English form and a Spanish form. The Spanish forms are the names of Kandrax.
-The English forms translate them. **The English names below are proposals: Fede confirms them.**
+The English forms translate them. **Fede confirmed the English names below (2026-10-11).**
 
-| Kandrax (es) | Game (en), proposed | Notes |
+| Kandrax (es) | Game (en) | Notes |
 |---|---|---|
 | Kandrax | Kandrax | |
 | las Tierras Salvajes | the Wilds | the name of the world stays |
@@ -73,7 +73,7 @@ The English forms translate them. **The English names below are proposals: Fede 
 | el Argén | the Argen | a river |
 | Bahía del Hierro | Iron Bay | |
 | Thrain Forjacero, la Fábrica Forjacero | Thrain Steelforge, the Steelforge Factory | `forja` + `acero`: forge, steel |
-| Elama Rothenel, la alguacil | Elama Rothenel, the reeve | now "Aldous, the reeve" (open) |
+| Elama Rothenel, la alguacil | Elama Rothenel, the reeve | takes the place of "Aldous, the reeve" (Fede, 2026-10-11) |
 | Kasmut Parnika | Kasmut Parnika | the veteran of the Enclave in Silverspring |
 | Himo, Brys | Himo, Brys | the scouts of Ironhold |
 | los Saqueadores Arcanos | the Arcane Raiders | |
@@ -268,8 +268,8 @@ Phases 3 to 6 are a later stage; their details come from the Drive when we build
 ### S7 Language: English and Spanish
 
 - `Lang = 'en' | 'es'`. A "Language" choice in the settings panel, kept in localStorage
-  (`game.lang.v1`); `?lang=es` for tests. English is the default (open: the language of the
-  browser).
+  (`game.lang.v1`); `?lang=es` for tests. Without a choice, the game uses the language of the
+  browser: Spanish when `navigator.language` starts with `es`, else English (Fede, 2026-10-11).
 - Engine texts: `STRINGS` in `packages/engine-client/src/ui/strings.ts` becomes one table for each
   language, with the same keys. A type and a test make sure that no key is missing.
 - World texts: every text of a world (names, `examine`, item names, signs, lines, dialogs, the
@@ -316,9 +316,9 @@ Later: the rest of Q4, A.1 with a mountain terrain, and the next chapters.
 
 ## Open
 
-- The English names of the table.
-- The reeve: "Aldous" becomes Elama Rothenel, or Aldous stays.
-- The default language: English, or the language of the browser.
+Decided on 2026-10-11: the names of the table, Elama Rothenel as the reeve, and the language of
+the browser as the default.
+
 - What "wanted" changes after the caravan (guards refuse to trade, or attack).
 - Reward items with no system yet (the splint armour, the luck amulet): items to sell, or the
   start of an equipment system.
