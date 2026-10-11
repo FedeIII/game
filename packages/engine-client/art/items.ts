@@ -476,6 +476,16 @@ function crowbar(): Part[] {
   ];
 }
 
+/** A badger fur, rolled and tied: grey with the black and white stripes of the head at one end. */
+function badgerFur(): Part[] {
+  const roll = roundCone([-5, 3.2, 0], [4.6, 3.2, 0], 3.1, 2.8);
+  const stripe = (x: number, y: number, z: number) => (x > 2.4 ? (Math.abs(z) < 0.9 ? I.bone : I.dark) : Math.abs(((x + 20) % 3) - 1.5) < 0.25 ? I.dark : I.pewter);
+  return [
+    { sdf: roll, material: stripe },
+    { sdf: union(roundCone([-1.2, 3.2, -3.2], [-1.2, 3.2, 3.2], 0.45, 0.45), roundCone([2, 3.2, -3], [2, 3.2, 3], 0.45, 0.45)), material: I.leather },
+  ];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -525,6 +535,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['boots-of-elvenkind', boots],
   ['glaive', glaive],
   ['crowbar', crowbar],
+  ['badger-fur', badgerFur],
 ];
 
 export function itemFrames(): Frame[] {

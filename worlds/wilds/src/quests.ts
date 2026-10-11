@@ -54,9 +54,11 @@ export const RAID: QuestDef = {
     {
       id: 'asked',
       journal: 'Elama Rothenel asks me to warn Silverspring, north-east of Ironhold, before the hobgoblins come. Ironhold cannot pay. The soldiers of the Sovereignty want me to stay out of it.',
+      // The site of Silverspring at the end of the north road (road.ts, SILVERSPRING_SITE; a test checks it).
+      at: [171, -179],
     },
-    // The later steps come with the road to Silverspring, the grove and Silverspring (story phases 3 and 4).
-    { id: 'scouts', journal: 'I killed the scouts of the hobgoblins in the grove on the road to Silverspring. Their war band goes on.' },
+    // The scouts wait in the grove on the north road (source.ts, the ambush SCOUTS). The later steps come with Silverspring (story phase 4).
+    { id: 'scouts', journal: 'I killed the scouts of the hobgoblins in the grove on the road to Silverspring. Their war band goes on.', at: [171, -179] },
     { id: 'title', journal: 'Silverspring gave me a title in its guard, and a bed in the town.', end: true },
   ],
 };
@@ -90,3 +92,6 @@ export const CART_MEND: QuestEffect = {
 export const RAID_HEARD: QuestEffect = { id: 'raid-heard', quest: 'raid', to: 'heard' };
 /** The character tells the reeve that it will warn Silverspring. */
 export const RAID_ASKED: QuestEffect = { id: 'raid-asked', quest: 'raid', to: 'asked', from: ['heard'] };
+
+/** The end of the ambush in the grove: the scouts fell. Their packs had badger furs. */
+export const RAID_SCOUTS: QuestEffect = { id: 'raid-scouts', quest: 'raid', to: 'scouts', from: ['asked'], give: { coins: 0, items: [{ kind: 'badger-fur', count: 2 }] } };

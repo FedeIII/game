@@ -46,7 +46,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `quest` | an effect on a quest (protocol 23): an answer to an NPC (`npc`: its index), a thing that the player reads (`at`: a tile of it, the letter), or the end of a scene that it overheard (`scene`: its id; protocol 24), and the id of the effect there |
 | client to server | `move` | two places, `from` and `to`: slots of the pack, or worn slots (protocol 19): the player moves a stack (protocol 18), or puts an item on or takes it off |
 | server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11; null for a free slot, protocol 18), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17), and what its character wears (`gr`: an item code for each worn slot, -1 for none; protocol 19) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack, and the ticks of the spark of a glancing blow, protocol 19), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, health left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), what it wears when that changed (`gr`; protocol 19), what shows of the gear of every player when one changed (`lk`: the hands, protocol 20; the armour, protocol 21), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the companions near it (`cp`; protocol 22), its quest book when it changed (`qs`; protocol 23), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack, and the ticks of the spark of a glancing blow, protocol 19), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, hit points left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), what it wears when that changed (`gr`; protocol 19), what shows of the gear of every player when one changed (`lk`: the hands, protocol 20; the armour, protocol 21), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the companions near it (`cp`; protocol 22), its quest book when it changed (`qs`; protocol 23), what its own blows and arrows did since the last snapshot (`bl`: `[mob id, damage, critical]`; protocol 26), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -69,6 +69,35 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Ironhold, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Riders (protocol 27, 2026-10-11)
+
+- A mob can ride another (`Horde.spawnRider()`: a goblin on a worg). Its state is `ride` (code 8 of
+  `MOB_STATES`), and its position is on its mount. The page draws it 9 px up, over the mount, without
+  a shadow. It jumps off (another state) when the mount hunts, reels or dies, or a blow reaches it.
+- The ambushes of the story run in the Room (`Room.ambushes`), after the horde; their end changes
+  quest books by itself, and the server saves those books at once (`Room.takeQuestSaves()`).
+
+## The dice of a fight (protocol 26, 2026-10-11)
+
+- The fights use the 5e numbers of level 3 (`docs/features/game/combat.md`): a blow and a mob's hit
+  make an attack roll (d20 + an attack bonus against an Armour Class), and a hit rolls its damage
+  dice. The server rolls in a shared world: the horde of the Room has its own seeded dice
+  (`Horde.dice`), and the Room rolls the draughts with the same (`Room.dice`). `RoomOptions.dice`
+  gives other dice; the tests give `AVERAGE_DICE` (the average of the dice, and every attack hits).
+- A snapshot has `bl` when the blows or the arrows of its player touched mobs since the last one:
+  `[mob id, damage, critical]` for each mob (`WireBlow`, `toWireBlow()`), damage 0 for a miss, and
+  critical 1 for a natural 20, else 0. Only that player gets its own results
+  (`RoomPlayer.blows`). The Room adds a result for each mob that `Horde.strike()` touched, and for
+  each arrow of the player that reached a mob (`Horde.takeShotResults()`).
+- The page no longer shows a kill or a reel before the server's word: it flashes each mob that a
+  blow touches at once (`MobViews.touch()`), and shows the numbers of `bl` over the mobs
+  (`NetSession.onBlows()`, `render/fight-numbers.ts`). The death and the reel come with the state
+  of the mob in `m`.
+- A mob's attack that misses glances off: `you` carries the ticks of its spark (`glance`), and no
+  stun. `Room.hits` counts only the attacks that hit.
+- The welcome and `WireSelf` do not change. The meaning of the numbers changed (the hit points of
+  characters and mobs, the damage), so the version went up.
 
 ## Quests (protocol 23, 2026-10-11)
 
@@ -121,12 +150,12 @@ protocol 9 has another world, so the server refuses it, and the visitor reloads 
   or an item to take off (`takeOff()`). A `put` from a worn slot drops the worn item (count 1). A
   defeated character does not change its gear. The next snapshot has the pack and the gear, also
   when nothing moved.
-- The traits of a player follow its gear (`RoomPlayer.traitsFor`: its Armour Class, its damage, its
-  walk). The page makes the same traits from the same gear (`NetSession.setTraits()`), so the
-  prediction stays exact.
+- The traits of a player follow its gear (`RoomPlayer.traitsFor`: its Armour Class, its attack
+  bonus, its damage, its walk). The page makes the same traits from the same gear
+  (`NetSession.setTraits()`), so the prediction stays exact.
 - `WireSelf` has one more number at its end: `glance`, the ticks of the spark of a glancing blow
-  (`PlayerState.glance`). The count towards the next glancing blow (`PlayerState.ward`) stays on the
-  server. The others do not see the spark.
+  (`PlayerState.glance`; since protocol 26, a mob's attack roll that missed). The others do not see
+  the spark.
 - The store keeps the gear (the column `gear`); the server saves it with the pack.
 
 ## Slots and tosses (protocol 18, 2026-10-10)
@@ -200,8 +229,8 @@ protocol 9 has another world, so the server refuses it, and the visitor reloads 
 - The Room notes the chunks that each player sees (`seenChunks()`: the 3 x 3 chunks round it, at
   each tick). The welcome has all of them (`ex`), a snapshot the new ones. The server saves them
   with the place (the column `explored`; at most `MAX_EXPLORED`).
-- The opening of a wind-up (`Blow.opening`, from the player's INT) adds damage in the Room; the
-  page uses the same `blowDamage()` to show a kill at once.
+- The opening of a wind-up (`Blow.opening`, from the player's INT) adds damage in the Room
+  (`rollBlow()`; since protocol 26 the page shows the result from `bl`).
 
 ## Constitution: hit points, stamina, defeats, refuges and deals (protocol 13, 2026-10-10)
 
@@ -209,10 +238,11 @@ protocol 9 has another world, so the server refuses it, and the visitor reloads 
   poison clock, drink and wading, so the prediction replays all of them. `WirePlayer` carries
   the defeat ticks (the others see the fall).
 - A mob's hit takes hit points in the Room (`hitPlayer()`, with the player's `stun` and
-  `resist`). The Room wakes a defeated player on its last tick of `down` (`Room.wake`): at home
-  or at the nearest refuge of its character, with half of its coins; the snapshot has `wk` (the
-  coins that it lost). A player who leaves while it lies defeated wakes first (`Room.settle`), so
-  the server saves the place and the coins after the defeat.
+  `resist`; since protocol 26, only when the mob's attack roll hits the player's AC). The Room
+  wakes a defeated player on its last tick of `down` (`Room.wake`): at home or at the nearest
+  refuge of its character, with half of its coins; the snapshot has `wk` (the coins that it lost).
+  A player who leaves while it lies defeated wakes first (`Room.settle`), so the server saves the
+  place and the coins after the defeat.
 - The welcome has `hp` and `rf` (the refuges of the character); a snapshot has `rf` when a new
   refuge is entered (the Room checks `refugeAt()` at each tick).
 - A rest goes as `u` on the tile of the bed; the Room rests the player if it is in reach.
@@ -244,10 +274,11 @@ traits from the same character, so its prediction stays exact:
 
 - `stepPlayer(..., traits)`: a player with Strength 13 walks in shallow water, at half speed, and
   does not attack there. The prediction and the Room run the same rule.
-- A blow (`Horde.strike(..., blow)`) takes `traits.damage` health points (the attack ability of
-  the class) and pushes and staggers by Strength. Mob health is in points now (imp 3, brute 12):
-  the client predicts a kill when the health is not more than its damage. That changed the meaning
-  of the health in `WireMob`, so the version went up.
+- A blow (`Horde.strike(..., blow)`) takes `traits.damage` from the hit points of the mob (the
+  attack ability of the class) and pushes and staggers by Strength. Mob health is in points since
+  then: that changed the meaning of the health in `WireMob`, so the version went up. (Since protocol
+  26 the blow rolls its dice, the mobs have the hit points of their 5e stat blocks, imp 7 and brute
+  30, and the page does not predict a kill.)
 - A barred door (`Building.barred`): a door wish on it forces it if the player's scores pass its
   gate (`useDoor(..., traits)`), on the client (prediction) and in the Room. The welcome and the
   snapshots with the doors carry the forced doors (`fd`). The Room's `Spoils` bars a forced door
@@ -320,11 +351,10 @@ screen hits the mobs as the client shows them, 100 ms and a half round trip in t
 client sends the server time of what it shows (`Remotes.viewTime()`) with the attack (`k`), and
 the room checks the hit against the mobs now **and** where they were at that time (`Room` keeps
 700 ms of their positions). It never goes back more than 500 ms; without a time, 150 ms. The
-client shows the blow at once when the hit is clear (3 px inside the reach; `game.ts`): a mob
-with more health left than the blow's damage reels (`reeling`; the server's push follows), and a mob on its
-last health dies (`predicted`): it dies on the screen; when the
-server's snapshot says that it dies too, the death goes on with the local timing; if the server
-has not said so after 0.7 s, the mob shows alive again.
+client flashes a mob at once when the blow clearly touches it (3 px inside the reach,
+`TOUCH_MARGIN` in `game.ts`; `MobViews.touch()`). Since protocol 26 it does not show a reel or a
+kill before the server's word: the server rolls the dice, and `bl` and the state of the mob in `m`
+bring the result.
 
 **Attack directions (protocol 8, 2026-10-10).** An attack goes in any direction, not only to one
 of the four sides: the mouse aims it. `MoveInput.attack` is an angle in radians, and on the wire
@@ -381,7 +411,7 @@ it from the TypeScript sources (type stripping); there is no build step.
 ```bash
 scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
 npm run server                       # local, port 3020, allows the Vite origins
-curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":17,"players":{"wilds":0},"accounts":true} (one count per shared world)
+curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":26,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
 ```
 
@@ -414,6 +444,8 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
   prediction keeps, only the mobs near a player),
   skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
   a full room, and doors (shared, out of reach, never onto a player).
+- `packages/engine/test/dice.test.ts`: the dice, the attack roll, and `bl` only in the snapshot of
+  the player who struck (protocol 26).
 - `packages/engine/test/piles.test.ts`: the items on the ground: where a pile lies, a pick-up and
   its reach, the overflow of a kill, `pl` only when the piles change, and the messages.
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`

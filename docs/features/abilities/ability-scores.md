@@ -21,8 +21,14 @@ the other effects of INT, WIS and CHA come later (`docs/drafts/abilities.md`).
 - **Scale**: an effect in which a number changes with a modifier.
 - **Gate**: a fixed limit on one score. A character with that score or more can do a thing. The
   usual gate is 13.
-- **Attack ability**: the ability that a class attacks with. It gives the damage of a blow.
-- **Health points**: the health of a mob, in points. A blow takes some; at 0 the mob dies.
+- **Attack ability**: the ability that a class attacks with. It gives the attack bonus and the
+  damage of a blow.
+- **Attack bonus**: what a character adds to the d20 of its attack roll: +2 (the proficiency bonus
+  of a level-3 character), the modifier of its attack ability and a magic bonus.
+- **Attack roll**: d20 + the attack bonus against the Armour Class (AC) of a mob
+  ([Combat at Level 3](../game/combat.md)).
+- **Hit points of a mob**: the health of a mob, in points, from its 5e stat block. A blow that hits
+  takes some; at 0 the mob dies.
 - **Guest**: a visitor without a character (the URL switch `?nomenu`).
 - **Tick**: one step of the simulation: 1/60 s.
 
@@ -38,8 +44,9 @@ that my choices have a result.
   race, and the two +1 choices of a half-elf.
 - **AC-AS-001.2:** The modifier is −1 for a score of 8 or 9, 0 for 10 or 11, and +1 for 12 or 13.
   It is +2 for 14 or 15, and +3 for 16 or 17.
-- **AC-AS-001.3:** Each effect is a scale or a gate. No effect of a score uses a die roll: the
-  same scores always give the same result.
+- **AC-AS-001.3:** Each effect is a scale or a gate. No trait uses a die roll: the same scores and
+  the same gear always give the same traits. The dice roll only in a fight, and for the hit points
+  that a draught or herbs give back ([Combat at Level 3](../game/combat.md)).
 - **AC-AS-001.4:** A gate of 13 opens for a final score of 13 or more. It stays shut for a score
   of 12 or less.
 - **AC-AS-001.5:** The traits of a character do not change during play.
@@ -60,12 +67,16 @@ it, so that a wizard with a high INT hits as hard as a fighter with a high STR.
   - CHA: sorcerer, warlock.
 - **AC-AS-002.2:** The class decides the attack ability, not the item in the hand. A wizard with a
   plain staff strikes with INT, and a cleric with a mace strikes with WIS.
-- **AC-AS-002.3:** A blow takes the base damage of what is in the main hand
-  ([Equipment](../items/equipment.md), REQ-EQ-009) + the modifier of the attack ability from the
-  health of a mob. With a weapon of a d8 (base 4), that is 3 to 7 health points.
-- **AC-AS-002.4:** An imp has 3 health points. A brute has 12: with a base of 4, it takes 4 blows
-  at −1, 3 blows at 0 and +1, and 2 blows at +2 and +3.
-- **AC-AS-002.5:** An arrow takes the same damage as a blow of that character.
+- **AC-AS-002.3:** A blow that touches a mob makes an attack roll: d20 + the attack bonus against
+  the AC of the mob ([Combat at Level 3](../game/combat.md), REQ-CMB-003). The attack bonus is
+  +2 + the modifier of the attack ability + a magic bonus: +1 to +5 for the final scores 8 to 17.
+- **AC-AS-002.4:** A hit rolls its damage: the dice of what is in the main hand
+  ([Equipment](../items/equipment.md), REQ-EQ-009) + the modifier of the attack ability + a magic
+  bonus, at least 1. With a weapon of a d8, that is 1d8-1 to 1d8+3. The hit takes that damage from
+  the hit points of the mob. An imp has 7 hit points and AC 13; a brute has 30 hit points and AC 12
+  (every mob: REQ-CMB-002).
+- **AC-AS-002.5:** An arrow makes the same attack roll and takes the same damage as a blow of that
+  character.
 
 ---
 
@@ -80,7 +91,8 @@ character, so that no visitor can give itself better traits.
 - **AC-AS-003.2:** No message from a client carries traits or scores. A changed page cannot change
   its traits on the server.
 - **AC-AS-003.3:** The page makes the same traits from the same character. Its prediction of a
-  move, a roll, an attack or a door gives the same result as the server.
+  move, a dodge roll, the start of an attack or a door gives the same result as the server. The
+  page does not predict what a blow does: the server rolls its dice.
 - **AC-AS-003.4:** The server applies the traits to every rule that reads them: movement, attacks,
   arrows, doors, chests, the pack and the sight of mobs.
 
@@ -97,7 +109,8 @@ character.
   wears ([Equipment](../items/equipment.md), REQ-EQ-014). A guest with the look of a ranger shoots
   arrows.
 - **AC-AS-004.3:** A guest has these traits:
-  - the damage and the Armour Class of its kit, and the normal knockback and stagger;
+  - the attack bonus +2, the damage dice and the Armour Class of its kit, and the normal
+    knockback and stagger;
   - 6 slots;
   - one attack every 0.45 s (2 ticks quicker with a light weapon, 4 slower with a heavy one), a
     guard of 1.00 s, and a roll every 1.60 s;
@@ -120,10 +133,12 @@ game, so that I can choose my scores with knowledge.
 - **AC-AS-005.1:** Step 2 of the builder ("Abilities") shows the list "What your scores give"
   under the table of scores.
 - **AC-AS-005.2:** The list changes at once when the player raises or lowers a score, or changes
-  the choices of a half-elf. The damage row uses the class that the player chose in step 1.
+  the choices of a half-elf. The rows of the attack bonus and the damage use the class that the
+  player chose in step 1.
 - **AC-AS-005.3:** The list has these rows for STR and DEX, in this order (the value for a
   fighter with every score 10 in brackets):
-  - "Damage of a blow" ("4 (STR)": the damage and the attack ability).
+  - "Attack bonus" ("+2 (d20 against the AC of a mob)").
+  - "Damage of a blow" ("1d8 (STR)": the damage dice and the attack ability).
   - "Knockback" ("normal", or for example "+15%" and "−15%").
   - "Stagger" ("normal", or for example "+20%" and "−20%").
   - "Pack" ("6 slots").
@@ -180,9 +195,11 @@ which score to raise, without a list of everything that I cannot do.
   `sheetTraits(sheet, gear)` (a stored character), `guestTraits(skin, gear)` (a guest; its gear
   is `guestGear(skin)`), `GUEST_TRAITS` (every score 10, a fighter and `PLAIN_GEAR`, a rapier: for
   tests and for a player without a look), `PLAIN_SCORES`, `Gate`, `meetsGate()` and `GATE_SCORE`
-  (13). Each scale has its constant there: `BASE_DAMAGE` (4, the base of a d8: the damage before
-  the gear), the others in the Strength and Dexterity documents. The base damage of the gear is in
-  `packages/engine/src/gear.ts` ([Equipment](../items/equipment.md)).
+  (13). The attack bonus is `PlayerTraits.toHit`: `PROFICIENCY_BONUS` (2, at `LEVEL` 3) + the
+  modifier of the attack ability + the magic bonus of the weapon. The damage is
+  `PlayerTraits.damage`, a `Dice` (`packages/engine/src/dice.ts`): the dice of the gear
+  (`packages/engine/src/gear.ts`, [Equipment](../items/equipment.md)) + the same modifier and
+  bonus. The other scales have their constants in the document of each ability.
 - **The rules of a character** are in `packages/engine/src/character.ts`: `ATTACK_ABILITY`,
   `abilityModifier()`, `finalScores()`. `CLASS_PRIMARY` (the abilities that the builder marks) is
   another list: a sorcerer has CHA and CON as its main abilities, and it attacks with CHA.
@@ -191,9 +208,10 @@ which score to raise, without a list of everything that I cannot do.
   nothing in a fight.
 - **Push and stagger use STR for every class**, also for a class that attacks with another
   ability. A wizard with INT 16 and STR 8 does much damage, but pushes little.
-- **Limits in `traitsOf()`:** the damage is at least 1, and the slots at least 1. The attack
-  cooldown is at least `ATTACK_TICKS` + 1, the guard at least 0, and the dodge cooldown at least 1
-  tick. The share of the sight is at least 0.1. The scores from 8 to 17 never reach these limits.
+- **Limits:** a blow that hits does at least 1 damage (`rollBlow()` in `mobs.ts`). In
+  `traitsOf()` the slots are at least 1, the attack cooldown at least `ATTACK_TICKS` + 1, the guard
+  at least 0, and the dodge cooldown at least 1 tick. The share of the sight is at least 0.1. The
+  scores from 8 to 17 never reach the limits of `traitsOf()`.
 - **The server** (`packages/engine-server/src/index.ts`) passes `{ traits: sheetTraits(character),
   pack: character.pack }` to `Room.join()`. A server without accounts (no `GAME_DB`) gives each
   player `guestTraits()` of its skin seed and an empty pack. The `hello` message has no field for
@@ -201,11 +219,12 @@ which score to raise, without a list of everything that I cannot do.
 - **The page** (`packages/engine-client/src/game.ts`) makes `sheetTraits(character)`, or
   `guestTraits(skin)` for a guest, and gives the same traits to `NetSession` and `Prediction`.
   `?skin=<n>` shows another look for a character, but its traits stay the traits of the character.
-- **A predicted kill:** in a shared world, the page shows a kill at once when the health of the mob
-  is not more than its damage. Protocol 11 changed what the health in `WireMob` means: it is in
-  points now.
-- **The protocol versions:** 11 brought the traits and STR, and 12 brought DEX
-  (`docs/multiplayer.md`).
+- **No predicted kill:** in a shared world the server rolls each blow (`Horde.strike()`, with the
+  dice of the horde, `Horde.dice`). The page flashes a mob that a blow touches at once (`MobViews.touch()`),
+  and it shows the result when the snapshot brings it (`bl`). The health in `WireMob` is the hit
+  points that the mob has left (in points since protocol 11).
+- **The protocol versions:** 11 brought the traits and STR, 12 brought DEX, and 26 the results of
+  the dice of a fight (`docs/multiplayer.md`).
 - **The list of traits** is `traitsList()` in `packages/engine-client/src/ui/traits-list.ts`, with
   its texts in `STRINGS.traits` (`ui/strings.ts`). The builder (`menu/builder.ts`) puts it in a
   region with `aria-live="polite"`, so a screen reader hears a change. The "You" section is

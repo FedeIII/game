@@ -7,6 +7,7 @@ import {
   Room,
   TILE_SIZE,
   World,
+  Decor,
   checkConditions,
   checkDialog,
   checkEffect,
@@ -22,7 +23,7 @@ import {
   type Scores,
   type SnapshotMessage,
 } from '@game/engine';
-import { CART_REWARD, CART_SAFE, DEFAULT_SEED, REEVE, SOLDIER, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
+import { CART_REWARD, CART_SAFE, DEFAULT_SEED, NORTH_ROAD_START, RAID, REEVE, SILVERSPRING_SITE, SOLDIER, QUESTS, TOWN, TOWN_NPCS, WildsSource, inTown, wilds } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
 const npcIndex = (id: string) => source.npcs().findIndex((n) => n.id === id);
@@ -246,5 +247,91 @@ describe('the story through the server', () => {
     // Nothing changed since: no book.
     room.broadcast(50, (id, message) => sent.set(id, message as SnapshotMessage));
     expect(sent.get(a.id)?.qs).toBeUndefined();
+  });
+});
+
+describe('the north road and the grove', () => {
+  it('lead from Ironhold to the site of Silverspring, which the raid marks on the map', () => {
+    const north = source.north;
+    const [sx, sy] = north.points[0]!;
+    const [ex, ey] = north.points[north.points.length - 1]!;
+    expect([Math.floor(sx), Math.floor(sy)]).toEqual([NORTH_ROAD_START.tx, NORTH_ROAD_START.ty]);
+    expect([Math.floor(ex), Math.floor(ey)]).toEqual([SILVERSPRING_SITE.tx, SILVERSPRING_SITE.ty]);
+    expect(Math.hypot(ex - sx, ey - sy)).toBeGreaterThan(240);
+    expect(RAID.steps.find((s) => s.id === 'asked')!.at).toEqual([SILVERSPRING_SITE.tx, SILVERSPRING_SITE.ty]);
+  });
+
+  it('has a grove: trees close on both sides, the road open, no house in it', () => {
+    const world = new World(source);
+    const grove = source.grove;
+    let trees = 0;
+    let off = 0;
+    for (let ty = grove.y0; ty <= grove.y1; ty++) {
+      for (let tx = grove.x0; tx <= grove.x1; tx++) {
+        if (!grove.has(tx, ty)) continue;
+        if (source.north.on(tx, ty)) {
+          expect(world.solidBox(tx, ty), `${tx},${ty}`).toBeNull();
+          continue;
+        }
+        off++;
+        if (world.decor(tx, ty) === Decor.Tree) trees++;
+        expect(world.buildingAt(tx, ty)).toBeNull();
+      }
+    }
+    // Denser than the woods along the same road, out of the grove.
+    const along = (from: number, to: number): number => {
+      const pts = source.north.points;
+      let t = 0;
+      let n = 0;
+      for (let i = Math.floor(pts.length * from); i < pts.length * to; i += 4) {
+        const [x, y] = pts[i]!;
+        for (let dy = -6; dy <= 6; dy++) {
+          for (let dx = -6; dx <= 6; dx++) {
+            const tx = Math.floor(x) + dx;
+            const ty = Math.floor(y) + dy;
+            if (source.north.clear(tx, ty) || grove.has(tx, ty) || world.buildingAt(tx, ty)) continue;
+            n++;
+            if (world.decor(tx, ty) === Decor.Tree) t++;
+          }
+        }
+      }
+      return t / n;
+    };
+    expect(trees / off).toBeGreaterThan(1.2 * along(0.5, 0.7));
+  });
+});
+
+describe('the scouts in the grove', () => {
+  it('ambush a character that goes to warn Silverspring; when they fall, the raid moves on, with their furs', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [gx, gy] = source.grove.start;
+    const p = join(room, { x: Math.floor(gx) * TILE_SIZE + 8, y: Math.floor(gy) * TILE_SIZE + 12 });
+    p.quests = { raid: { step: 'asked', flags: [], n: 1 } };
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    // Alone: a worg with its goblin on its back.
+    expect(horde.mobs.map((m) => [m.kind, m.state])).toEqual([
+      ['worg', 'idle'],
+      ['goblin', 'ride'],
+    ]);
+    for (const mob of [...horde.mobs]) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+    }
+    for (let t = 100; t < 3000 && p.quests.raid?.step === 'asked'; t += 50) room.tick(t);
+    expect(p.quests.raid?.step).toBe('scouts');
+    expect(p.pack.items).toEqual([{ kind: 'badger-fur', count: 2 }]);
+    expect(room.takeQuestSaves()).toEqual([p.id]);
+    expect(room.takeQuestSaves()).toEqual([]);
+  });
+
+  it('wait only for a character at the step', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [gx, gy] = source.grove.start;
+    join(room, { x: Math.floor(gx) * TILE_SIZE + 8, y: Math.floor(gy) * TILE_SIZE + 12 });
+    room.tick(0);
+    room.tick(50);
+    expect(room.horde!.mobs.filter((m) => m.kind === 'worg' || m.kind === 'goblin')).toEqual([]);
   });
 });

@@ -2,10 +2,11 @@
 
 ## Overview
 
-Wisdom (WIS) is the perception and the insight of a character. It gives the damage of the blow of
-a cleric and a druid, a sense of the mobs that hunt the character out of its view, an eye for
-hidden things (herbs in the woods, a buried cache), eyes for the night, answers in conversations
-that see what people hide, Medicine (herbs for a hit point) and an arrow that points the way home.
+Wisdom (WIS) is the perception and the insight of a character. It gives the attack bonus and the
+damage of the blow of a cleric and a druid, a sense of the mobs that hunt the character out of its
+view, an eye for hidden things (herbs in the woods, a buried cache), eyes for the night, answers in
+conversations that see what people hide, Medicine (herbs for 1d4 hit points) and an arrow that
+points the way home.
 
 ## Terminology
 
@@ -16,7 +17,7 @@ that see what people hide, Medicine (herbs for a hit point) and an arrow that po
 - **Hidden thing**: a thing that shows only close by: a patch of herbs, the buried cache.
 - **Seek**: how far the character sees a hidden thing.
 - **Insight**: an answer in a conversation behind a gate of WIS 13.
-- **Medicine**: the skill to chew herbs for a hit point (WIS 13).
+- **Medicine**: the skill to chew herbs for 1d4 hit points (WIS 13).
 - **The way home**: a pale arrow at the edge of the screen that points to the home (WIS 13).
 - **Clue**: the dim display of a thing behind a gate for a character that is 1 or 2 short of it
   ([Ability Scores](ability-scores.md), REQ-AS-007).
@@ -29,10 +30,12 @@ that see what people hide, Medicine (herbs for a hit point) and an arrow that po
 that my main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-WIS-001.1:** A blow of a cleric or a druid does the base damage of its gear + WIS modifier
-  ([Ability Scores](ability-scores.md), REQ-AS-002). A cleric with its mace (base 3,
-  [Equipment](../items/equipment.md), REQ-EQ-009): 2 at WIS 8, 6 at WIS 16 or 17. A druid with its
-  druid staff (produce flame, base 4): 3 at WIS 8, 7 at WIS 16 or 17.
+- **AC-WIS-001.1:** A blow of a cleric or a druid rolls d20 + 2 + WIS modifier against the AC of
+  the mob, and a hit does the damage dice of its gear + WIS modifier
+  ([Ability Scores](ability-scores.md), REQ-AS-002). A cleric with its mace (1d6,
+  [Equipment](../items/equipment.md), REQ-EQ-009): 1d6-1 at WIS 8, 1d6+3 at WIS 16 or 17. A druid
+  with its druid staff (produce flame, 1d8): 1d8-1 at WIS 8, 1d8+3 at WIS 16 or 17. The attack
+  bonus is +1 at WIS 8 and +5 at WIS 16 or 17.
 
 ---
 
@@ -113,8 +116,8 @@ Ironhold tell me more.
 cauldron.
 
 **Acceptance Criteria:**
-- **AC-WIS-006.1:** With WIS 13 or more, the player chews a bundle of herbs for 1 hit point, from
-  the drink belt (key 4) or from the pack panel ([Pack and Loot](../items/pack-and-loot.md),
+- **AC-WIS-006.1:** With WIS 13 or more, the player chews a bundle of herbs for 1d4 hit points,
+  from the drink belt (key 4) or from the pack panel ([Pack and Loot](../items/pack-and-loot.md),
   REQ-PK-011 and REQ-PK-014).
 - **AC-WIS-006.2:** With WIS 11 or 12, the slot of the herbs shows "WIS 13" dim, and nothing can be
   chewed. With less, the slot is plain.

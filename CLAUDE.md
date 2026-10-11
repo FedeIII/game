@@ -150,7 +150,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `speech-bubble.ts` (pages of text over a head, above the darkness), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
-  drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `piles.ts` (the items on the
+  drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
+  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back), `piles.ts` (the items on the
   ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, a gold spark now and then
   above the darkness, and a very faint shine now and then; a toss shows the items fly from the hands, or out of a
   mob, on an arc to their pile, with one small hop: `pile/<kind>/bare` depth-sorted in `entityLayer`, `pile/shadow`
@@ -169,7 +170,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x with its AC and damage under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time),
   `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
   the one that the published page names: every 60 s while it is visible, when it shows again, and
   every 3 s for 2 minutes after a lost connection; nothing in development),
@@ -439,7 +440,8 @@ a guest). The server makes the traits from the stored character (`Room.join(...,
 pack })`); the page makes the same from the same character, so the prediction stays exact. A
 client never sends its traits. Two kinds of effect: a scale (a number changes with the modifier,
 -1 to +3) and a gate (`Gate`: a fixed limit on a score, 13 by default; `meetsGate()`), never a
-roll of a die. **How a gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
+roll of a die (the dice roll only in a fight and in a draught: see "Mobs and fights"). **How a
+gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
 gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
 with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
 builder and the "You" section still name every gate.
@@ -447,8 +449,9 @@ builder and the "You" section still name every gate.
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
   ranger, rogue; WIS cleric, druid; INT wizard; CHA sorcerer, warlock. The class decides the
-  ability, not the item in the hand. A blow takes `damage` = the base of the gear (a d8 weapon: 4;
-  see "Equipment") + that modifier from a mob's health.
+  ability, not the item in the hand. A blow rolls d20 + `toHit` (`PROFICIENCY_BONUS` 2 + that
+  modifier + a magic bonus) against the mob's AC; a hit takes `damage` (`Dice`: the die of the gear,
+  see "Equipment", + that modifier + a magic bonus) from its hit points. See "Mobs and fights".
 - **Strength**, for every class: the push of a blow (`push`: `knockback` x (1 + 0.15 x mod)), how
   long a mob reels (`stagger`: `hurtMs` x (1 + 0.2 x mod)), the slots of the pack (6 + 2 x mod: 4
   to 12), and two gates of 13: wading through shallow water (`WADE_GATE`; `stepPlayer(...,
@@ -480,15 +483,14 @@ builder and the "You" section still name every gate.
   (`traits.reach`, `Blow.reach`, `attackHits(..., reach)`).
   The 5e rules: proficiency by class (`PROFICIENCY`, `canUse()`), the hands (a two-handed weapon
   takes the off hand off), at most 3 attuned items. **AC** (`armourClass()`: 10 + DEX, the armour,
-  a shield +2, a barbarian + CON, a monk + WIS) gives **glancing blows** (`glanceShare()`: 5% for
-  each point over 10, no dice: `PlayerState.ward` counts, and the hit that brings it to 1 does
-  nothing; `PlayerState.glance` is the spark). Heavy armour without its STR: 3/4 of the walk
-  (`traits.speed`); noisy armour: mobs see a sneaking character from 3/4 (`traits.sneakSight`).
-  **Damage** (`attackGear()`): the base is half the die of the weapon (d6 3, d8 4, d12 6; a
+  a shield +2, a barbarian + CON, a monk + WIS) is what a mob's attack roll must reach; a miss
+  glances off (`glancePlayer()`: no damage, no stun; `PlayerState.glance` is the spark). Heavy
+  armour without its STR: 3/4 of the walk (`traits.speed`); noisy armour: mobs see a sneaking character from 3/4 (`traits.sneakSight`).
+  **Damage** (`attackGear()`, dice): one die of the weapon (`dieBase()`: 1d6, 1d8, 1d12; a
   versatile weapon with an empty off hand its bigger die), an unarmed strike 1, a monk's martial
-  arts 3, the cantrip of a sorcerer, a warlock or a wizard 5 and of a druid 4 (an empty hand or its
-  focus); a light weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the
-  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +3 on a mob that does not
+  arts 1d4, the cantrip of a sorcerer, a warlock or a wizard 1d10 and of a druid 1d8 (an empty hand
+  or its focus); a light weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the
+  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +2d6 on a mob that does not
   hunt it (`Blow.sneak`). **Kits** (`kitOf()`, `sheetKit()`): a new character, and one from before,
   gets the worn part of the SRD kit of its class; a guest the kit of its look (`guestGear()`). The
   traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
@@ -529,24 +531,26 @@ builder and the "You" section still name every gate.
   player in shallow water never sneaks. When stamina exists (CON),
   sneaking uses it too (Fede's note, 2026-10-10).
 - **Arrows** (`arrows.ts`): every attack with a bow in the hands (the ranger's kit) is an arrow (`Horde.shoot()`), 240 px/s, that
-  hits the first living mob on its way (the damage and force of the shooter's blow) or stops at a
-  thing (`World.shotBox()`: what is solid, except water) or at the end of its range; a kill is in
-  `Horde.takeShotKills()`, and the drop goes to the shooter. The page of the shooter flies its own
-  copy at once (`flyArrow()`) and shows the hit; the others draw the server's (`ar` in the
+  reaches the first living mob on its way (the attack roll, the damage and the force of the
+  shooter's blow) or stops at a thing (`World.shotBox()`: what is solid, except water) or at the end
+  of its range; a kill is in `Horde.takeShotKills()`, and the drop goes to the shooter; what each
+  arrow did is in `Horde.takeShotResults()` (`bl`). The page of the shooter flies its own copy at
+  once (`flyArrow()`) and flashes the mob that it reaches; the others draw the server's (`ar` in the
   snapshot, `render/arrows.ts`).
 - **Locked chests**: one chest in three of the Wilds houses that are not barred has a lock (DEX
   13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
   open."), never for one without ("It is locked. I cannot pick it."); it gives more (3 to 10
   coins, a second thing in about one of three).
-- **Constitution**: hit points (`maxHp` = 4 + mod: 3 to 7; `PlayerState.hp`), a shorter stun
-  (`stun`: x (1 - 0.1 x mod)), recovery (the first HP 8 s after a hit, `RECOVER_DELAY_TICKS`, then
-  one every 8 - mod s), stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per
-  second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
+- **Constitution**: hit points (`maxHp` = `levelHp(class, mod)`: level 3 of 5e, the hit die
+  `HIT_DIE` at its most, then half + 1 two times, and the mod at each level; a fighter with CON 10
+  has 22, a wizard 14; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
+  (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
+  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
   roll, and the sneak walk does not hide), and the length of a poison or a drink (`resist`:
   x (1 - 0.15 x mod)).
-- **A hit** (`hitPlayer()`): `MobStats.hitDamage` HP (imp 1, brute 2) and a stun; an imp's claws
-  also poison (`poisonTicks` 360: one HP every 3 s, never the last one). At 0 HP the player is
-  **defeated** (`down`, 3 s: it falls back and lies, mobs leave it, the screen goes dark); then
+- **A hit** (`hitPlayer()`, when the mob's attack roll hits): the rolled `MobStats.damage` and a
+  stun; an imp's claws also poison (`poisonTicks` 360: `POISON_DAMAGE` 2 HP every 3 s, never the
+  last one). At 0 HP the player is **defeated** (`down`, 3 s: it falls back and lies, mobs leave it, the screen goes dark); then
   it wakes (`wakePlayer()`) at home, or at the nearest refuge that its character has entered
   (`wakePoint()`, `WorldSource.refuges()`: the chapel of Ironhold; `Character.refuges`), with all
   its HP and a guard of 2 s, and a defeat takes half of its coins. The Room wakes it in a shared
@@ -557,9 +561,9 @@ builder and the "You" section still name every gate.
   Crooked Lantern, 2 coins: `drunk` for 60 s x `resist`, the walk sways); with too few coins the
   conversation goes to `deal.poor`. In a shared world the page sends `deal` and the server
   checks the NPC's nearness (`DEAL_RANGE`) and the coins.
-- **Intelligence**: the wizard's damage, and for every class the opening (`opening`: + max(0,
-  mod) damage on a mob in its wind-up, `blowDamage()`; arrows too). Gates in the page
-  (`ui/gates.ts`): read a mob (INT 13 a health bar over it, INT 15 a glint on its wind-up;
+- **Intelligence**: the wizard's attack bonus and damage, and for every class the opening
+  (`opening`: + max(0, mod) damage on a mob in its wind-up, after the dice, `rollBlow()`; arrows
+  too). Gates in the page (`ui/gates.ts`): read a mob (INT 13 a health bar over it, INT 15 a glint on its wind-up;
   `MobViews.setReading()`), the map (INT 11 houses and paths, 13 names and refuges, 15 barred
   houses and locked chests), lore (`LORE_GATE`, INT 13 in `worlds/wilds/src/dialogs.ts`).
 - **Lore** (`Interaction.lore`: a gate and pages): after its own pages, a thing shows its lore
@@ -586,7 +590,7 @@ builder and the "You" section still name every gate.
   seeker)`), and the night (`night`: the darkness x (1 - 0.08 x mod), only in the page). Gates of
   13: insight (`INSIGHT_GATE` in `worlds/wilds/src/dialogs.ts`: one answer each for the watchman,
   the innkeeper, the apothecary and the reeve), Medicine (`MEDICINE_GATE` in `items.ts`:
-  `DRINKS.herbs`, chew a bundle for 1 HP; the pack shows the dim tag `.pack-gate` 1 or 2 under it)
+  `DRINKS.herbs`, chew a bundle for 1d4 HP; the pack shows the dim tag `.pack-gate` 1 or 2 under it)
   and the way home (`HOMEWARD_GATE` in `ui/gates.ts`: a pale arrow at the screen edge to the home).
 - **Hidden things** of the Wilds: a patch of herbs (`herbpatch`, `herbs.ts`, `WildsSource.herbs()`:
   in about four cells in five, on open grass away from houses, the road and the town; one bundle,
@@ -611,15 +615,16 @@ builder and the "You" section still name every gate.
   (leather 5 to plate 150, a mace 3 to a longbow 12, a glaive 8; not the staffs) and buys all of them back for
   half (`smithPays()`), from the pack only: a worn piece must come off first.
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
-  `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top
-  left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
-  defeat.
+  `refuges`, `explored`; saved with the place; on 2026-10-11 a migration gave every character all
+  its HP on the new scale). The vitals (`ui/vitals.ts`): a red bar for HP with the numbers ("17 /
+  28") and a stamina bar at the top left, the effects in words, a red flash at the screen edges on
+  a hit, a dark veil on a defeat.
 
 In the client: the builder (step 2) and the "You" section show the traits in words and numbers
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 25.
+protocol: `docs/multiplayer.md`, protocol 27.
 
 ## Language
 
@@ -664,7 +669,12 @@ The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_S
 town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character
 overhears in an area at a step; its NPCs say the lines, a line behind a gate is a murmur, and the
 end applies an effect (the message `quest` with `scene`, protocol 24). Only that character's page
-plays it.
+plays it. **Ambushes** (`packages/engine/src/ambushes.ts`, `WorldSource.ambushes()`, since story
+phase 3c): mobs of the story that wait for a character at a step in an area (the scouts of the
+hobgoblins in the grove on the north road to Silverspring); their number follows the characters
+within 12 tiles (`encounters.ts`, the 5e budget), riders sit on worgs (`Horde.spawnRider()`, state
+`ride`, protocol 27), and when they all fall the quest moves on (the Room saves those books at once:
+`takeQuestSaves()`).
 
 ## Arrival in a world
 
@@ -682,13 +692,26 @@ Wilds have none now (the Town of Azyr has one: its crier explains the town). `?n
 
 **The hobgoblin band** (since 2026-10-11, story phase 3; protocol 25): four more kinds, which do not
 roam the Wilds (the population has none of them; the story brings them): the **goblin** (an archer:
-`MobStats.arrowRange`; from 104 px it aims for 0.75 s and looses an arrow that flies 150 px and hits
-the first player on its way that can be hit, then it runs off; its arrows have the negative id of
-the goblin as their owner and `Arrow.from`, and never hit mobs), the **worg** (a wolf: 112 px/s,
-straight at the player, `MobStats.straight`), the **hobgoblin** (a soldier: 16 health, a quick
-wind-up) and the **bugbear** (20 health, a heavy blow). Art: `art/mobs.ts` (`humanoid()` with a
-`Build` for the goblin, the hobgoblin and the bugbear; `worg()`). `?mob=goblin,worg` shows them in a
-world that the page runs. The atlas is 2048 px wide since then.
+`MobStats.arrowRange`; from 104 px it aims for 0.75 s and looses an arrow that flies 150 px and
+reaches the first player on its way that can be hit (then the goblin's attack roll against its AC),
+then it runs off; its arrows have the negative id of the goblin as their owner and `Arrow.from`, and
+never hit mobs), the **worg** (a wolf: 112 px/s, straight at the player, `MobStats.straight`), the
+**hobgoblin** (a soldier: a quick wind-up, and 2d6 more when another mob stands within 1.5 tiles
+of its target, `allyDice`) and the **bugbear** (a heavy blow). Art: `art/mobs.ts` (`humanoid()`
+with a `Build` for the goblin, the hobgoblin and the bugbear; `worg()`). `?mob=goblin,worg` shows
+them in a world that the page runs. The atlas is 2048 px wide since then.
+
+**The 5e scale of level 3** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
+`docs/features/game/combat.md`; protocol 26): a character is a level-3 character, the mobs have the
+numbers of their SRD stat blocks, and both sides roll to hit against the AC. `MOB_STATS` has
+`health`, `ac`, `toHit`, `damage` (dice) and `xp`: the imp (a quasit) 7 HP, AC 13, +4, 1d4+3; the
+brute (a half-ogre) 30, 12, +5, 2d8+3; the goblin 7, 15; the worg 26, 13; the hobgoblin 11, 18;
+the bugbear 27, 16. The dice are in `dice.ts` (`Dice`, `rollDice()`, `attackRoll()`,
+`formatDice()`). The rolls come from `Horde.dice` (seeded: the server's in a shared world, the
+page's in its own world). A test that counts blows or hits gives `AVERAGE_DICE` (the average of
+the dice, and every attack hits): `new Room(world, { dice: AVERAGE_DICE })`, or the 4th argument of
+`new Horde()`. `encounters.ts` (`sizeEncounter()`: the 5e XP budget) sizes the encounters of the
+story to the characters there.
 
 `packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
 small and quick (runs at 96 px/s, faster than a player, and keeps running during its short
@@ -700,11 +723,12 @@ than 6 tiles), so mobs find players who stand still (in the Town of Azyr, in abo
 edge). A mob that stays within 8 px of one point for 1.5 s while it wants to move is stuck (back
 and forth between trees): a walk ends, a chase bends the other way and gives up after 4 s. When it sees a player (close, out in
 the open, no building between), it runs at the player on a curve (an angle off the straight line
-that shrinks as it comes near); close enough, it winds up and strikes. A hit stuns
-the player and takes its hit points (`hitPlayer`: no move, no attack; see "Ability scores in
-the game", Constitution), and after it the player has a guard of 1 s in which
-no mob can hit it again; the mob runs away for 1 to 2 s and then comes back. **Mobs that hunt one
-player take turns** (`Horde.waitFor()`, `nextUp()`): their attacks start one after the other. The
+that shrinks as it comes near); close enough, it winds up and strikes. Its attack rolls d20 +
+`MobStats.toHit` against the player's AC: a hit stuns the player and takes the rolled
+`MobStats.damage` (`hitPlayer`: no move, no attack; see "Ability scores in the game",
+Constitution), and after it the player has a guard of 1 s in which no mob can hit it again; the
+mob runs away for 1 to 2 s and then comes back. A miss glances off (a spark, "miss"): no stun, and
+the mob chases on. **Mobs that hunt one player take turns** (`Horde.waitFor()`, `nextUp()`): their attacks start one after the other. The
 others hound the player: they keep `MobStats.harass` from it (imp 36 to 50 px, brute 42 to 56 px:
 out of their reach and out of the player's), move round it, keep apart, and look at it. The line
 goes in the order in which the mobs joined it; a miss or the end of a retreat puts a mob at the
@@ -727,13 +751,15 @@ in radians; `PlayerState.aim` keeps it, and the body faces the nearest side), so
 `stepPlayer` stays the one rule for prediction: an attack lasts `ATTACK_TICKS` (the player stands
 still), and the next can start `ATTACK_COOLDOWN_TICKS` after it. `stepPlayer` returns true when
 an attack starts; the caller asks the horde what it hits (`Horde.strike`: in reach, in front;
-`attackHits`). A blow (`Blow`, from the player's traits) takes `damage` health points from the
-mob (imp 3, brute 12; a blow does 3 to 7) and pushes it away from the attacker (`knockback`: imp
-10 px, brute 18 px, over 0.2 s, times the Strength of the attacker). The blow that takes the last
-of it kills it, and drops loot into the killer's pack (see "Ability scores in the game"): it
-flashes white, falls, fades, and ash rises. Another blow makes it reel (state `hurt`: a flash and
-a recoil frame, `hurtMs` times the Strength of the attacker): its wind-up or its blow breaks off,
-and then it goes for the attacker.
+`attackHits`). A blow (`Blow`, from the player's traits) rolls (`rollBlow()`: d20 + `toHit`
+against `MobStats.ac`; a natural 20 rolls the dice twice, a natural 1 misses). A hit takes its
+rolled `damage` from the mob's hit points (`MobStats.health`) and pushes it away from the attacker
+(`knockback`: imp 10 px, brute 18 px, over 0.2 s, times the Strength of the attacker); a miss does
+nothing, but the mob turns on the attacker. The blow that takes the last of them kills it, and
+drops loot into the killer's pack (see "Ability scores in the game"): it flashes white, falls,
+fades, and ash rises. Another hit makes it reel (state `hurt`: a flash and a recoil frame, `hurtMs`
+times the Strength of the attacker): its wind-up or its blow breaks off, and then it goes for the
+attacker.
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
@@ -741,7 +767,8 @@ water, the ground round a house and Ironhold (they do not live within 2 tiles of
 they never step into it, so the town is safe); 4 imps and 2 brutes. The client of a
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
-and it shows a kill at once (the server confirms it, or after 0.7 s the mob lives on). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
+and flashes a mob that a blow touches at once (`MobViews.touch()`); the server rolls, and the
+results come in `bl` (protocol 26). In the client: `render/mobs.ts` (frames, eyes, ash), `PlayerView` (the arc, a
 lunge, the attack frames of the skin and the effect of its style, in the colour of the style (a
 spell in the colour of the skin's orb; spells, flames and palms glow and give a short light),
 the red flash of a hit, stars over the head while stunned, a blink while guarded, the roll of a
@@ -778,7 +805,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 
 - **Companions** (`packages/engine/src/companions.ts`, since 2026-10-11, Fede's decision for the
   escort of Himo; `docs/features/npcs/companions.md`): NPCs that follow a player (`CompanionDef`:
-  id, name, NPC look, hit points, `fallen` `gone` or `wakes`). A companion has a `PlayerState` and
+  id, name, NPC look, hit points, an AC (`COMPANION_AC` 12 without one), `fallen` `gone` or
+  `wakes`). A companion has a `PlayerState` and
   walks with `stepPlayer()` (no wading) on the shortest way of tiles to its leader
   (`followPath()`, 24 tiles round it), stops within 20 px, catches up (x 1.2) when more than 4
   tiles behind, opens doors on its way, and waits (`lost`) with no way or a leader more than 20
@@ -1047,7 +1075,7 @@ stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
 `cmp` (each companion, its tile, a stun or a defeat; and its mode and HP in a world that the page
-runs), `pack`, `gear` (the worn items, AC, the glance count, the attack and its damage, the walk) and
+runs), `pack`, `gear` (the worn items, AC, the attack with its bonus and its dice, the walk) and
 `piles`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
 for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with

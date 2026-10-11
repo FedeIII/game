@@ -593,8 +593,7 @@ export class PackPanel {
 /** What a drink does, in words: "2 hit points back", "all your hit points back", "a poison ends". */
 function effectParts(drink: NonNullable<(typeof DRINKS)[ItemKind]>): string[] {
   const parts: string[] = [];
-  if (drink.full) parts.push(STRINGS.pack.fullHp);
-  else if (drink.hp) parts.push(STRINGS.pack.hp(formatDice(drink.hp)));
+  if (drink.hp) parts.push(STRINGS.pack.hp(formatDice(drink.hp)));
   if (drink.cure) parts.push(STRINGS.pack.cure);
   return parts;
 }

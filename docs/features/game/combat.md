@@ -34,7 +34,7 @@ adventures of Kandrax fit it.
 - **AC-CMB-001.3:** The damage of a blow is the die of the weapon (the bigger die of a versatile
   weapon with an empty off hand), plus the modifier and the magic bonus: a longsword with a shield
   and STR 16 is 1d8+3. A cantrip at level 3: fire bolt and eldritch blast 1d10, produce flame 1d8. A
-  monk's martial arts: 1d4 + DEX. An unarmed strike: 1 + STR.
+  monk's martial arts: 1d4 + DEX. An unarmed strike: 1 and the modifier of the attack ability.
 - **AC-CMB-001.4:** A rogue's sneak attack adds 2d6 on a mob that does not hunt the rogue.
 - **AC-CMB-001.5:** The builder, the "You" section and the pack panel show the AC, the attack bonus
   ("+5 to hit") and the dice of a blow ("1d8+3").
@@ -139,5 +139,6 @@ armour protects me.
   The debug panel shows "ac 18, weapon +5 1d8+3" and "fight blows N".
 - **Tests**: `packages/engine/test/dice.test.ts`; the tests of the mobs, the gear and the abilities use
   `AVERAGE_DICE` where they count blows or hits.
-- **Not yet**: the encounters of the story sized to the players there (with the ambush of the
-  scouts), class features of levels 1 to 3 (second wind, rage, smite, spells).
+- **Encounters** (`packages/engine/src/encounters.ts`): the ambush of the scouts is sized to the
+  characters there with the 5e budget (`docs/features/game/quests.md`, REQ-QST-012).
+- **Not yet**: class features of levels 1 to 3 (second wind, rage, smite, spells).

@@ -3,10 +3,10 @@
 ## Overview
 
 A character wears items in the twelve slots of D&D 5e: armour, a shield, a weapon, an amulet, two
-rings, and more. What it wears gives its Armour Class (AC) and the base of its damage. AC turns a
-share of the mob hits into glancing blows, in a fixed order, without dice. Each character starts
-with the 5e starting kit of its class, so a fighter starts in chain mail with a longsword and a
-shield, and a wizard with an arcane staff. The pack panel shows the worn slots round a picture of
+rings, and more. What it wears gives its Armour Class (AC) and the dice of its damage. A mob's
+attack rolls d20 against the AC, and a miss glances off ([Combat at Level 3](../game/combat.md)).
+Each character starts with the 5e starting kit of its class, so a fighter starts in chain mail
+with a longsword and a shield, and a wizard with an arcane staff. The pack panel shows the worn slots round a picture of
 the character, and the player puts items on and takes them off with a press or a drag. Fede's
 decisions of 2026-10-11 are in `docs/drafts/equipment.md`.
 
@@ -18,11 +18,13 @@ decisions of 2026-10-11 are in `docs/drafts/equipment.md`.
 - **Kit**: the gear that a new character gets from its class (SRD 5.1, the starting equipment).
 - **Proficiency**: the armour, the shields and the weapons that a class can use (SRD 5.1).
 - **Armour Class (AC)**: a number from the armour, the shield, DEX and the class.
-- **Glancing blow**: a mob hit that does nothing, because of the AC of the player.
+- **Glancing blow**: a mob's attack that does nothing, because its attack roll did not reach the AC
+  of the player (a miss).
 - **Attunement**: the bond with a magic item that it needs to work (5e). A character can be
   attuned to at most 3 items.
-- **Base damage**: the part of the damage of a blow that comes from what is in the main hand. The
-  modifier of the attack ability of the class (Ability Scores, REQ-AS-002) comes on top.
+- **Base damage**: the dice of the damage of a blow that come from what is in the main hand, for
+  example 1d8 for a longsword. The modifier of the attack ability of the class (Ability Scores,
+  REQ-AS-002) and a magic bonus come on top.
 - **Cantrip**: the attack spell of a spellcaster (5e: fire bolt, eldritch blast, produce flame).
 - **Focus**: a staff that a spellcaster casts its cantrip through.
 - **Address**: the number of a place in the inventory: a slot of the pack (0 to 15), or a worn slot
@@ -134,20 +136,21 @@ every charm.
 
 ### REQ-EQ-007: Glancing blows
 
-**User Story:** As a player in armour, I want some hits to do nothing, so that a high AC keeps me
-alive, without a roll of a die.
+**User Story:** As a player in armour, I want the mobs to miss me more often, so that a high AC
+keeps me alive.
 
 **Acceptance Criteria:**
-- **AC-EQ-007.1:** Each point of AC over 10 turns 5% of the mob hits into glancing blows, at most
-  95%. AC 10 or less: none.
-- **AC-EQ-007.2:** The order is fixed: each hit adds the share to a count, and the hit that brings
-  the count to 1 glances off. The count then drops by 1. With AC 15 (25%), the 4th, the 8th and the
-  12th hits glance off.
+- **AC-EQ-007.1:** A mob's attack that reaches the player rolls d20 + the attack bonus of the mob
+  against the AC of the player ([Combat at Level 3](../game/combat.md), REQ-CMB-004). Under the
+  AC, or a natural 1, it glances off; a natural 20 always hits. For example, an imp (+4) hits a
+  fighter with AC 18 only on a d20 of 14 or more (35%).
 - **AC-EQ-007.3:** A glancing blow takes no hit points, gives no stun and no poison, and gives no
   guard after it.
 - **AC-EQ-007.4:** A glancing blow shows a white spark at the chest of the player for 0.3 s, and
-  the body is pale for 0.11 s.
-- **AC-EQ-007.5:** The mob runs off after a glancing blow, as after a hit.
+  the body is pale for 0.11 s. The word "miss" rises over the player.
+- **AC-EQ-007.5:** After a blow that glances off, the mob does not run off as after a hit: it
+  chases the player again, at the end of the line of the mobs that hunt the player. A goblin runs
+  off after each arrow, hit or miss.
 
 ---
 
@@ -170,14 +173,16 @@ real choice.
 that the gear matters and no class is useless.
 
 **Acceptance Criteria:**
-- **AC-EQ-009.1:** The damage of a blow is the base damage + the modifier of the attack ability of
-  the class + a magic bonus, at least 1.
-- **AC-EQ-009.2:** With a weapon in the main hand, the base damage is half of its die: d4 2, d6 3,
-  d8 4, d10 5, d12 6.
-- **AC-EQ-009.3:** With an empty main hand, the base damage is 1 (an unarmed strike). A monk uses
-  martial arts: 3.
+- **AC-EQ-009.1:** The damage of a blow that hits is the base damage + the modifier of the attack
+  ability of the class + a magic bonus, at least 1 ([Combat at Level 3](../game/combat.md),
+  REQ-CMB-003).
+- **AC-EQ-009.2:** With a weapon in the main hand, the base damage is one die of the weapon: 1d6
+  for a mace, 1d8 for a longsword (1d10 with both hands), 1d12 for a greataxe.
+- **AC-EQ-009.3:** With an empty main hand, the base damage is 1, without a die (an unarmed
+  strike). A monk uses martial arts: 1d4.
 - **AC-EQ-009.4:** A sorcerer, a warlock or a wizard with an empty main hand or an arcane staff
-  casts a cantrip: base damage 5. A druid with an empty main hand or a druid staff: 4.
+  casts a cantrip: base damage 1d10 (fire bolt, eldritch blast). A druid with an empty main hand
+  or a druid staff: 1d8 (produce flame).
 - **AC-EQ-009.5:** The opening of INT (Intelligence, REQ-INT-002) adds to it on a mob in its
   wind-up.
 
@@ -214,10 +219,11 @@ only a part of the ranger.
 5e.
 
 **Acceptance Criteria:**
-- **AC-EQ-012.1:** A blow of a rogue does 3 more damage on a mob that does not hunt the
-  rogue: a mob that wanders, or that hunts another player.
-- **AC-EQ-012.2:** The "You" section and the builder show "Sneak attack: +3 on a mob that does not
-  hunt you" for a rogue.
+- **AC-EQ-012.1:** A blow of a rogue that hits does 2d6 more damage on a mob that does not hunt
+  the rogue: a mob that wanders, or that hunts another player. A critical hit rolls the 2d6 two
+  times too.
+- **AC-EQ-012.2:** The "You" section and the builder show "Sneak attack: +2d6 on a mob that does
+  not hunt you" for a rogue.
 
 ---
 
@@ -265,11 +271,11 @@ gear is as easy to use as the pack.
 - **AC-EQ-015.2:** An empty worn slot shows its short name, dim ("Head", "Ring", "Main", "Off"). Its
   name for a screen reader and its tooltip are "Main hand: nothing". A used one shows the icon of its
   item, and "Main hand: a longsword".
-- **AC-EQ-015.3:** Under the worn slots, the panel shows "AC 18 · Damage 7" and "40% of the hits
-  glance off" (or "no hit glances off").
+- **AC-EQ-015.3:** Under the worn slots, the panel shows the AC, the attack bonus and the damage
+  dice on one line, for example "AC 18 · +5 to hit · Damage 1d8+3".
 - **AC-EQ-015.4:** The detail of an item to wear says what it is: for example "Heavy armour: AC
   16.", "Without STR 13, you walk slower in it.", "Noisy: when you sneak, the mobs see you from
-  further away.", "Weapon (d8): 4 damage + your attack ability.", "With both hands (d10): 5.", "It
+  further away.", "Weapon: d8 damage + your attack ability.", "With both hands: d10.", "It
   needs both hands.", "Light: quicker attacks. It goes in the off hand too.", "Heavy: slower
   attacks.", "It shoots arrows.", "Your focus: you cast your cantrip with it.", "It goes on a
   finger.". A worn item also shows "Worn: main hand.".
@@ -313,7 +319,8 @@ it is there in my next session.
 
 **Acceptance Criteria:**
 - **AC-EQ-017.1:** The list of traits (the builder, with the kit of the class, and the "You"
-  section) starts with "Armour Class: 18 (40% of the hits glance off)" and the damage of a blow.
+  section) starts with "Armour Class" ("18"), "Attack bonus" ("+5 (d20 against the AC of a mob)")
+  and "Damage of a blow" ("1d8+3 (STR)").
 - **AC-EQ-017.2:** It shows "Walk: 25% slower (heavy armour)" in a heavy armour without its STR.
 - **AC-EQ-017.3:** It shows how far mobs see a sneaking character with the share of the armour.
 - **AC-EQ-017.4:** The traits change at once when the gear changes.
@@ -382,14 +389,14 @@ house can give me something that changes my character.
 - **AC-EQ-020.1:** There are nine magic items of the SRD: a longsword +1, a cloak of protection, a
   ring of protection, bracers of defence, gauntlets of ogre power, a headband of intellect, an
   amulet of health, a belt of dwarvenkind and boots of elvenkind.
-- **AC-EQ-020.2:** A longsword +1 is a longsword with 1 more damage: every class that can use a
-  longsword can use it, and the figure holds a sword.
+- **AC-EQ-020.2:** A longsword +1 is a longsword with +1 to the attack bonus and 1 more damage:
+  every class that can use a longsword can use it, and the figure holds a sword.
 - **AC-EQ-020.3:** A cloak of protection and a ring of protection add AC 1 each. Bracers of
   defence add AC 2 while the character wears no armour and no shield.
 - **AC-EQ-020.4:** Gauntlets of ogre power make STR 19, a headband of intellect INT 19, an amulet of
   health CON 19, while the character wears them, if the score is lower. A belt of dwarvenkind adds 2
-  to CON, at most 20. The raised score counts for everything: the damage, the slots, the hit
-  points, the gates. A heavy armour is not too heavy with STR 19.
+  to CON, at most 20. The raised score counts for everything: the attack bonus, the damage, the
+  slots, the hit points, the gates. A heavy armour is not too heavy with STR 19.
 - **AC-EQ-020.5:** When an amulet of health or a belt comes off, the hit points over the new most
   go.
 - **AC-EQ-020.6:** Boots of elvenkind give quiet steps: mobs see a sneaking character from 35% of
@@ -415,7 +422,8 @@ mob before it comes close.
   weapons: 30 px and the radius of the mob, not 22 px. It attacks 4 ticks slower (heavy).
 - **AC-EQ-021.2:** A mob that waits for its turn keeps 36 to 56 px from the player: a glaive reaches
   one that comes to the near edge of that distance, but not one at the far edge.
-- **AC-EQ-021.3:** The attack button, Space and the prediction of a kill use the longer reach.
+- **AC-EQ-021.3:** The attack button, Space and the flash of a mob that a blow touches use the
+  longer reach.
 - **AC-EQ-021.4:** The figure holds a long pole with a blade at its top, and sweeps it with both
   hands, as a staff.
 - **AC-EQ-021.5:** The detail says "Reach: it hits a little further than other weapons.". The
@@ -432,24 +440,28 @@ mob before it comes close.
   `PROFICIENCY`, `canUse()`, `fitsSlot()`, `MAX_ATTUNED` (3), `kitOf()`, `checkGear()`. This
   module imports only types: `traits.ts` uses it while the engine loads (`GUEST_TRAITS`), so a value
   import would make a loop of modules.
-- **What the gear gives** (`gear.ts`): `attackGear()` (`AttackGear`: `base`, `bonus`, `kind`
-  (`weapon`, `cantrip`, `martial-arts`, `unarmed`), `quicker`, `ranged`, `twoHands`),
-  `armourClass()`, `glanceShare()` (`GLANCE_PER_AC` 0.05, `MAX_GLANCE` 0.95), `gearLuck()`,
-  `tooHeavy()` and `HEAVY_SPEED` (0.75), `isNoisy()` and `NOISY_SIGHT` (0.75), `dieBase()`,
-  `UNARMED_BASE` (1), `MARTIAL_ARTS_BASE` (3), `CANTRIP_BASE`, `CASTER_FOCUS`, `SNEAK_ATTACK` (3),
-  `LIGHT_TICKS` (2), `HEAVY_TICKS` (4).
+- **What the gear gives** (`gear.ts`): `attackGear()` (`AttackGear`: `base` (a `Dice`, `dice.ts`),
+  `bonus`, `kind` (`weapon`, `cantrip`, `martial-arts`, `unarmed`), `quicker`, `ranged`,
+  `twoHands`), `armourClass()`, `gearLuck()`, `tooHeavy()` and `HEAVY_SPEED` (0.75), `isNoisy()`
+  and `NOISY_SIGHT` (0.75), `dieBase()` (one die of the weapon), `UNARMED_BASE` (1, no die),
+  `MARTIAL_ARTS_BASE` (1d4), `CANTRIP_BASE` (1d10; a druid 1d8), `CASTER_FOCUS`, `SNEAK_ATTACK`
+  (2d6), `LIGHT_TICKS` (2), `HEAVY_TICKS` (4).
 - **The traits** (`packages/engine/src/traits.ts`): `traitsOf(scores, class, gear)` gives the new
-  traits `class`, `luck`, `strike`, `sneak`, `ac`, `glance`, `speed` and `sneakSight`; `damage`,
-  `cooldown` and `ranged` come from the gear. `scores` has the luck on each score (for the gates);
-  the scales come from the scores without it. `sheetTraits(sheet, gear)`, `sheetKit(sheet)`,
-  `guestGear(skin)`, `guestTraits(skin, gear)`. `PLAIN_GEAR` (a rapier: base 4 and no other
-  property) keeps the tests of the abilities apart from the gear; `GUEST_TRAITS` uses it.
-- **A glancing blow** (`packages/engine/src/player.ts`): `PlayerState.ward` (the count) and
-  `PlayerState.glance` (the ticks of the spark, `GLANCE_TICKS` 18). `hitPlayer()` returns false for
-  a glancing blow; the `Horde` then gives no inspire. `StepTraits.speed` sets the walk.
-- **Sneak attack** (`packages/engine/src/mobs.ts`): `Blow.sneak`, `blowDamage(blow, mob, unaware)`
-  and `Horde.hunts()` (the test of `huntersOf()`). The page predicts a kill without the sneak
-  attack: it waits for the server's word then.
+  traits `class`, `luck`, `strike`, `sneak` (dice; none for a class other than the rogue), `ac`,
+  `speed` and `sneakSight`; `damage` (dice), `toHit`, `cooldown` and `ranged` come from the gear.
+  `scores` has the luck on each score (for the gates); the scales come from the scores without it.
+  `sheetTraits(sheet, gear)`, `sheetKit(sheet)`, `guestGear(skin)`, `guestTraits(skin, gear)`.
+  `PLAIN_GEAR` (a rapier: 1d8 and no other property) keeps the tests of the abilities apart from the
+  gear; `GUEST_TRAITS` uses it.
+- **A glancing blow** (`packages/engine/src/player.ts`): `PlayerState.glance` (the ticks of the
+  spark, `GLANCE_TICKS` 18). The Horde (`Horde.attack()` in `mobs.ts`) rolls `attackRoll()`
+  (`dice.ts`) with `MobStats.toHit` against `HordePlayer.traits.ac` (10 without traits; a companion:
+  `CompanionDef.ac`, else `COMPANION_AC` 12). A miss calls `glancePlayer()`, and the Horde gives no
+  inspire; a hit calls `hitPlayer()`. A mob whose blow missed goes back to its chase
+  (`Horde.blow()`). `StepTraits.speed` sets the walk.
+- **Sneak attack** (`packages/engine/src/mobs.ts`): `Blow.sneak` (dice), `rollBlow(blow, mob,
+  unaware, source)` and `Horde.hunts()` (the test of `huntersOf()`). The server rolls it with the
+  blow.
 - **The moves** (`packages/engine/src/inventory.ts`): `wear()` (gives `WearProblem`: `slot`,
   `class`, `attuned`, `full`), `takeOff()`, `moveItem()` (all four kinds of move),
   `wearSlotFor()`, `wearProblem()`, `takeOffSlotFor()`, `dropWorn()`. The addresses are in
@@ -479,8 +491,10 @@ mob before it comes close.
   and the materials `leather`, `steel`, `iron`, `wood`, `arcane` and `dark`. Each has its `item/`
   and `pile/` frames.
 - **Texts** (`packages/engine-client/src/ui/strings.ts`): `STRINGS.items` for the new kinds,
-  `STRINGS.gear`, and `ac`, `acValue`, `sneak`, `sneakValue`, `walk` and `walkValue` in
-  `STRINGS.traits`. The world's line about each item is in `worlds/wilds/src/index.ts`.
+  `STRINGS.gear` (`ac`, `toHit`, `damage`, `weapon`, `versatile`), and `ac`, `toHit`, `toHitValue`,
+  `damage`, `damageValue`, `sneak`, `sneakValue`, `walk` and `walkValue` in `STRINGS.traits`. The
+  panel writes the dice with `formatDice()`. The world's line about each item is in
+  `worlds/wilds/src/index.ts`.
 - **The figure** (phase 2, protocol 20; the armour: phase 4a, protocol 21): `SHOWN_SLOTS` (the
   main hand, the off hand and the armour),
   `ShownGear`, `shownGear()` and `sameShown()` in `gear.ts`. The Room's `looksVersion` goes up when
@@ -509,7 +523,7 @@ mob before it comes close.
   material `cloth`, and `torusY()`.
 - **Reach** (phase 4c): `WeaponDef.reach`, `REACH_BONUS` (8) and `AttackGear.reach` in `gear.ts`;
   `PlayerTraits.reach`; `Blow.reach` and the `reach` argument of `attackHits()` (`player.ts`), used
-  by `Horde.strike()`, the aim of the attack button and `predictKills()` in `game.ts`. The figure:
+  by `Horde.strike()`, the aim of the attack button and `touchMobs()` in `game.ts`. The figure:
   the item `glaive` (`figure.ts`: `glaiveHead()`, `Weapon.blade` on a staff; `attacks.ts`: the
   style `bash`); the icon `glaive()`.
 - **Not yet** (`docs/drafts/equipment.md`): ammunition (a decision of Fede).

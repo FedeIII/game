@@ -10,6 +10,7 @@ import { DEAL_RANGE, findDealAnswer, findEffectAnswer, makeDeal, type Dialog } f
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
+import { Ambushes } from '../ambushes.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
@@ -205,6 +206,10 @@ export class Room {
   private namesVersion = 0;
   /** Where the dice come from (the draughts; the horde rolls its fights with the same). */
   readonly dice: DiceSource;
+  /** The ambushes of the story (ambushes.ts): the scouts in the grove. */
+  readonly ambushes: Ambushes;
+  /** The players whose quest book the room changed by itself (an ambush that ended), for the server to save. */
+  private questSaves = new Set<number>();
   /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
   readonly companions: Companions;
   /** What happened to the companions since the last takeCompanionEvents() (for the quests). */
@@ -240,6 +245,14 @@ export class Room {
     this.spoils = new Spoils(world, random(Math.floor((this.random?.() ?? 0.75) * 0xffffffff)));
     this.piles = new Piles(world);
     this.companions = new Companions(world);
+    this.ambushes = new Ambushes(world, world.source.ambushes?.() ?? []);
+  }
+
+  /** The players whose quest book the room changed by itself since the last call (the server saves them). */
+  takeQuestSaves(): number[] {
+    const ids = [...this.questSaves];
+    this.questSaves.clear();
+    return ids;
   }
 
   /**
@@ -270,6 +283,20 @@ export class Room {
       // The attacks that hit (a miss glances off: the player's state shows its spark).
       this.hits += this.horde.step(dt, players).filter((hit) => hit[2] > 0).length;
       for (const result of this.horde.takeShotResults()) this.players.get(result.owner)?.blows.push(toWireBlow(result));
+      // The ambushes of the story: they start for a character at their step in their area, and their end moves the quest on.
+      const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
+      for (const { player: id, effect } of this.ambushes.step(this.horde, people)) {
+        const player = this.players.get(id);
+        const result = player ? applyEffect(effect, player.quests, player.pack, player.traits.slots) : null;
+        if (!player || !result) continue;
+        player.quests = result.book;
+        player.questsChanged = true;
+        player.pack = result.pack;
+        player.packChanged = true;
+        if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
+        if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
+        this.questSaves.add(id);
+      }
       for (const { mob, owner } of this.horde.takeShotKills()) {
         this.kills++;
         const shooter = this.players.get(owner);

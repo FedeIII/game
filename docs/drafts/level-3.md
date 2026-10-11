@@ -32,7 +32,8 @@ the turns of a pack, the wind-ups. The dice decide what a touch does.
   weapons, the casting ability for a cantrip) and a magic bonus.
 - **Damage:** the weapon's die (the versatile die with both hands), plus the modifier and the
   magic bonus. Cantrips at level 3: fire bolt and eldritch blast d10, produce flame d8. A monk's
-  martial arts: d4 + DEX. An unarmed strike: 1 + STR. A natural 20 doubles the dice; a natural 1
+  martial arts: d4 + DEX. An unarmed strike: 1 and the modifier of the attack ability. A natural 20
+  doubles the dice; a natural 1
   misses.
 - **Sneak attack** (rogue, level 3): +2d6 on a mob that does not hunt the rogue (the rule of now).
 - **Opening** (INT, the game's own): + the INT modifier on a mob in its wind-up (as now).

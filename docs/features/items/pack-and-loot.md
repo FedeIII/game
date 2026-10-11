@@ -205,8 +205,9 @@ choose what to keep, what to use and what to drop.
   drink does, the line of the world about the item, and the stack ("Up to 5 in a slot."). Before a
   choice, the detail says "Choose a thing to see what it does. Drag it to another slot, or out
   onto the ground."
-- **AC-PK-008.10:** What a drink does: "Drink it: 2 hit points back.", "Drink it: all your hit
-  points back.", "Drink it: a poison ends.", and for herbs with WIS 13 "Chew it: 1 hit point back."
+- **AC-PK-008.10:** What a drink does: "Drink it: 2d4+2 hit points back." (a healing draught),
+  "Drink it: 4d4+4 hit points back." (a strong draught), "Drink it: a poison ends.", and for herbs
+  with WIS 13 "Chew it: 1d4 hit points back."
 - **AC-PK-008.11:** The detail of a drink that the character can use has the button "Drink" (for
   herbs "Chew"), with the key of the drink on the belt (REQ-PK-014). A press drinks one
   (REQ-PK-011).
@@ -266,19 +267,21 @@ that I find have a use.
 woods.
 
 **Acceptance Criteria:**
-- **AC-PK-011.1:** A healing draught gives back 2 hit points, at most the most of the character.
-  The player says "The draught is bitter. The wound closes a little."
+- **AC-PK-011.1:** A healing draught gives back 2d4+2 hit points (5e: a potion of healing), at most
+  the most of the character. The player says "The draught is bitter. The wound closes a little."
 - **AC-PK-011.2:** An antidote ends a poison. The player says "The antidote burns. The poison is
   gone."
-- **AC-PK-011.3:** A strong draught gives back all the hit points. The player says "The strong
-  draught burns all the way down. I feel whole."
+- **AC-PK-011.3:** A strong draught gives back 4d4+4 hit points (5e: a potion of greater healing),
+  at most the most of the character. The player says "The strong draught burns all the way down. I
+  feel whole."
 - **AC-PK-011.4:** A drink goes from the pack (one of the stack). A defeated character cannot
   drink.
 - **AC-PK-011.7:** The player drinks from the drink belt (REQ-PK-014), with the key of the drink,
   or with "Drink" in the detail of the pack panel (REQ-PK-008).
-- **AC-PK-011.5:** In a shared world the page sends the drink to the server, which checks the pack
-  and gives the effect.
-- **AC-PK-011.6:** A character with WIS 13 or more chews a bundle of herbs for 1 hit point. The
+- **AC-PK-011.5:** In a shared world the page sends the drink to the server, which checks the pack,
+  rolls the dice and gives the effect. The hit points that come back rise over the player in
+  green, for example "+7".
+- **AC-PK-011.6:** A character with WIS 13 or more chews a bundle of herbs for 1d4 hit points. The
   player says "I chew the bitter leaves. I feel a little better." The server checks the gate too:
   without WIS 13, nothing changes.
 
@@ -407,10 +410,14 @@ thing out of the pack with one move, so that the pack is in my order and I can m
 
 ## Feature Behavior & Rules
 
-- **Drinks:** `DRINKS` (`Drink`: `hp`, `full`, `cure`, and `gate` for herbs: `MEDICINE_GATE`),
-  `drinkFrom()`, `hasItems()` and `removeFromPack()` in `packages/engine/src/items.ts`; the message
-  `{ t: 'drink', kind }` and `Room.drink()` (protocol 14); `drinkKind()` in
-  `packages/engine-client/src/game.ts`, which the belt and the panel call.
+- **Drinks:** `DRINKS` (`Drink`: `hp` (a `Dice`: `draught` 2d4+2, `strong-draught` 4d4+4, `herbs`
+  1d4), `full` (no drink uses it now), `cure`, and `gate` for herbs: `MEDICINE_GATE`),
+  `drinkFrom(pack, kind, state, traits, source)` (`source`: a `DiceSource`, `dice.ts`), `hasItems()`
+  and `removeFromPack()` in `packages/engine/src/items.ts`; the message `{ t: 'drink', kind }` and
+  `Room.drink()` (protocol 14), which rolls with `Room.dice`; `drinkKind()` in
+  `packages/engine-client/src/game.ts`, which the belt and the panel call. In a world that the page
+  runs, the page rolls with `LOCAL_DICE` (`Math.random`). The panel writes the dice with
+  `formatDice()` (`STRINGS.pack.hp`).
 - **The drink belt** (`packages/engine-client/src/ui/belt.ts`, `DrinkBelt`): `BELT` (the drinks in
   the order of their keys), `beltKey()`, `drinkView()` (the gate rule for a drink), `drinkTitle()`
   and `countOf()`. It is in the vitals box (`Vitals.element`, `#belt`, `.belt-drink`). It takes

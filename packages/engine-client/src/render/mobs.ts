@@ -43,6 +43,8 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
   hobgoblin: { height: 24, width: 12, count: 20 },
   bugbear: { height: 32, width: 16, count: 28 },
 };
+/** A rider (state 'ride') sits this far up, on the back of its worg (world pixels). */
+const RIDE_LIFT = 9;
 /** The death: the frames play over this share of the death; the body fades out over the end. */
 const DIE_FRAMES_SHARE = 0.6;
 const FADE_FROM = 0.55;
@@ -203,6 +205,10 @@ export class MobViews {
         // It reels back from the blow, then stands for a moment before it comes on again.
         name = mob.stateMs < stats.hurtMs * 0.75 ? 'hurt' : 'stand';
         break;
+      case 'ride':
+        // On the back of its worg: it stands there, raised (below).
+        name = 'stand';
+        break;
       case 'dying': {
         const t = mob.stateMs / stats.deathMs;
         name = 'die';
@@ -227,9 +233,12 @@ export class MobViews {
     }
     const texture = this.frame(mob.kind, mob.facing, name, index);
     const x = Math.round(mob.x);
-    const y = Math.round(mob.y);
+    const riding = mob.state === 'ride';
+    const y = Math.round(mob.y) - (riding ? RIDE_LIFT : 0);
     view.root.position.set(x, y);
-    view.root.zIndex = mob.y;
+    // A rider is drawn over its mount, and its shadow is the mount's.
+    view.root.zIndex = mob.y + (riding ? 1 : 0);
+    view.shadow.visible = !riding;
     view.body.texture = texture;
     view.body.alpha = alpha;
     view.shadow.alpha = alpha;

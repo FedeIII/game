@@ -88,6 +88,7 @@ const EN = {
     'boots-of-elvenkind': { name: 'Boots of elvenkind', a: 'boots of elvenkind', many: 'pairs of boots of elvenkind' },
     glaive: { name: 'Glaive', a: 'a glaive', many: 'glaives' },
     crowbar: { name: 'Lever', a: 'a lever', many: 'levers' },
+    'badger-fur': { name: 'Badger fur', a: 'a badger fur', many: 'badger furs' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -99,7 +100,7 @@ const EN = {
   drank: {
     draught: 'The draught is bitter. The wound closes a little.',
     antidote: 'The antidote burns. The poison is gone.',
-    'strong-draught': 'The strong draught burns all the way down. I feel whole.',
+    'strong-draught': 'The strong draught burns all the way down. I feel much better.',
     herbs: 'I chew the bitter leaves. I feel a little better.',
   } as Readonly<Partial<Record<ItemKind, string>>>,
   /** Lore that the player cannot read yet (Interaction.lore, a score 1 or 2 under the gate). */
@@ -173,7 +174,6 @@ const EN = {
     /** What a drink does (items.ts, DRINKS): "Drink it: 2d4+2 hit points back." */
     effect: (chew: boolean, parts: readonly string[]): string => `${chew ? 'Chew' : 'Drink'} it: ${parts.join(', ')}.`,
     hp: (dice: string): string => `${dice} hit points back`,
-    fullHp: 'all your hit points back',
     cure: 'a poison ends',
     stackOf: (n: number): string => `Up to ${n} in a slot.`,
     /** Put items on the ground, where the player stands (piles.ts), or where the player drags them. */
@@ -242,7 +242,7 @@ const EN = {
     luck: (n: number): string => `Luck: +${n} to each score for every test.`,
     /** A magic item (gear.ts). */
     magicAc: (n: number): string => `Magic: AC +${n}.`,
-    magicDamage: (n: number): string => `Magic: +${n} damage.`,
+    magicDamage: (n: number): string => `Magic: +${n} to hit and damage.`,
     unarmoured: (n: number): string => `Without armour and a shield: AC +${n}.`,
     sets: (ability: string, score: number): string => `Your ${ability} is ${score} while you wear it, if it is lower.`,
     adds: (ability: string, n: number, most: number): string => `+${n} ${ability} while you wear it, at most ${most}.`,
@@ -312,7 +312,7 @@ const EN = {
     insight: 'Insight',
     insightYes: 'you see what people hide',
     medicine: 'Medicine',
-    medicineYes: 'chew herbs for a hit point',
+    medicineYes: 'chew herbs for 1d4 hit points',
     homeward: 'The way home',
     homewardYes: 'an arrow points to it',
     prices: 'Prices',

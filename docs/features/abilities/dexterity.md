@@ -6,7 +6,8 @@ Dexterity (DEX) is the speed and the skill of the hands and the feet. For every 
 time between attacks and the guard after a hit. It also gives the time between dodge rolls, and
 how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
 picks the locks of chests, for every class. For the bard, the monk, the ranger and the rogue, DEX
-also gives the damage of a blow ([Ability Scores](ability-scores.md), REQ-AS-002).
+also gives the attack bonus and the damage of a blow ([Ability Scores](ability-scores.md),
+REQ-AS-002).
 
 ## Terminology
 
@@ -142,9 +143,11 @@ less.
   ranger.
 - **AC-DEX-006.3:** An arrow flies (5 + DEX modifier) tiles from the ranger: 4 tiles at −1, 5 at 0
   and 8 at +3.
-- **AC-DEX-006.4:** An arrow hits the first mob on its way that is alive. It takes the damage of the
-  ranger's blow (the base damage of the longbow, 4, + DEX modifier) and pushes and staggers with the ranger's STR. The mob then
-  goes for the ranger.
+- **AC-DEX-006.4:** An arrow reaches the first mob on its way that is alive, and makes the attack
+  roll of the ranger's blow: d20 + 2 + DEX modifier against the AC of the mob
+  ([Combat at Level 3](../game/combat.md), REQ-CMB-003). A hit takes the damage of the ranger's blow
+  (the die of the longbow, 1d8, + DEX modifier), and pushes and staggers with the ranger's STR. A
+  miss takes nothing. Either way the mob then goes for the ranger.
 - **AC-DEX-006.5:** A wall, a closed door, a window, a fixture with a solid box, a tree trunk or a
   rock stops an arrow. An arrow flies over deep and shallow water, and through an open door.
 - **AC-DEX-006.6:** The attack button and Space aim at the nearest mob that is alive, within the
@@ -152,8 +155,8 @@ less.
 - **AC-DEX-006.7:** A ranger cannot shoot in shallow water.
 - **AC-DEX-006.8:** A kill with an arrow drops its loot into the pack of the ranger who shot it.
 - **AC-DEX-006.9:** In a shared world, the page of the ranger shows its own arrow at once, and the
-  hit when the arrow reaches the mob. The other players see the arrows of the server within 30
-  tiles of them.
+  mob flashes when the arrow reaches it. The damage or "miss" shows over the mob when the server's
+  word comes. The other players see the arrows of the server within 30 tiles of them.
 - **AC-DEX-006.10:** The builder and the "You" section show "Arrows fly" with the range in tiles
   for a character with a bow.
 
@@ -229,9 +232,12 @@ loot in them.
   `ARROW_RADIUS` (1.5: an arrow hits a mob whose centre is this close, plus the radius of the mob),
   steps of 4 px. `newArrow()` and `flyArrow()`. `World.shotBox()` is the solid part of a tile
   without water. An arrow flies through a mob that dies (the death animation).
-- **Arrows in the horde:** `Horde.shoot()`, `Horde.arrows` and `Horde.takeShotKills()`
-  (`ShotKill`: the mob and its shooter). The Room gives the drop to the shooter; a shooter who left
-  the room gets nothing.
+- **Arrows in the horde:** `Horde.shoot()`, `Horde.arrows`, `Horde.takeShotKills()` (`ShotKill`:
+  the mob and its shooter) and `Horde.takeShotResults()` (`ShotResult`: what each arrow did, with
+  its shooter). An arrow keeps the `Blow` of its shooter, so it rolls as a blow (`rollBlow()`). The
+  Room gives the drop to the shooter; a shooter who left the room gets nothing. The Room puts each
+  result into the `bl` of the shooter's next snapshot (protocol 26); the page of the shooter flashes
+  the mob when its own copy of the arrow reaches it (`MobViews.touch()`).
 - **Arrows on the wire:** `ar` in the snapshot (`[id, shooter, x, y, aim code]`), only within
   `MOB_SEND_RADIUS` (30 tiles). The page flies its own copies (`ownArrows`, with negative ids) and
   `NetSession.arrowsAt()` drops the server's copies of its own arrows.

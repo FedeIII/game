@@ -2,9 +2,10 @@
 
 ## Overview
 
-Constitution (CON) is the health of the body. It gives the hit points of a character, how long a
-mob's hit stuns it, how fast its hit points come back, its stamina, and how long a poison or a
-drink lasts. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
+Constitution (CON) is the health of the body. With the hit die of the class, it gives the hit
+points of a character (5e, level 3). It also gives how long a mob's hit stuns it, its stamina, and
+how long a poison or a drink lasts. No hit points come back by themselves: a rest in a bed, a
+draught or a defeat heals. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
 refuge that it found, with half of its coins gone. A rest in the bed of the home, and an ale at
 the inn of Ironhold, are the first things that act on these vitals.
 
@@ -17,10 +18,12 @@ the inn of Ironhold, are the first things that act on these vitals.
 - **Waking**: the end of a defeat: the character stands up at home or in a refuge.
 - **Refuge**: a building where a defeated character can wake, after it has entered it once. In
   the Wilds: the chapel of Ironhold. The home is always a place to wake.
-- **Recovery**: hit points that come back by themselves, out of a fight.
+- **Hit die**: the die of the hit points of a class (5e): d6 to d12.
+- **Recovery**: hit points that come back by themselves, out of a fight. A character has none;
+  only a companion has it ([Companions](../npcs/companions.md)).
 - **Rest**: an action on the bed of the home: all hit points and stamina come back.
 - **Stamina**: the energy for a roll and for the sneak walk ([Dexterity](dexterity.md)).
-- **Poison**: an effect of an imp's claws: the character loses a hit point every 3 s for a time.
+- **Poison**: an effect of an imp's claws: the character loses 2 hit points every 3 s for a time.
 - **Drink**: the effect of an ale: for a time the walk of the character sways.
 - **Deal**: an answer in a conversation that buys goods for coins.
 - **Vitals**: the display of the hit points, the stamina and the effects at the top left of the
@@ -34,12 +37,17 @@ the inn of Ironhold, are the first things that act on these vitals.
 I fall.
 
 **Acceptance Criteria:**
-- **AC-CON-001.1:** A character has 4 + CON modifier hit points, at least 1: 3 at CON 8, 4 at
-  CON 10, 5 at CON 12, 6 at CON 14, 7 at CON 16 and 17.
-- **AC-CON-001.2:** A guest has 4 hit points (every score 10).
-- **AC-CON-001.3:** The vitals show one red pip for each hit point that the character has, and
-  one dark pip for each hit point that it lost.
+- **AC-CON-001.1:** A character has the hit points of a level-3 character of its class (5e,
+  [Combat at Level 3](../game/combat.md), REQ-CMB-001): the hit die at its most, then half the
+  die + 1 two times, and the CON modifier three times. Each level gives at least 1 hit point.
+- **AC-CON-001.2:** A guest has the hit points of the class of its look with CON 10, for example
+  22 for a fighter.
+- **AC-CON-001.3:** The vitals show the hit points as a red bar, and the numbers on it, for example
+  "17 / 28". The length of the red part is the share of the hit points that the character has.
 - **AC-CON-001.4:** A screen reader reads the hit points as "N of M hit points".
+- **AC-CON-001.5:** The hit die is d12 for a barbarian; d10 for a fighter, a paladin and a ranger;
+  d8 for a bard, a cleric, a druid, a monk, a rogue and a warlock; d6 for a sorcerer and a wizard.
+  A fighter has 19 hit points at CON 8, 22 at CON 10 and 31 at CON 17. A wizard has 14 at CON 10.
 
 ---
 
@@ -49,7 +57,11 @@ I fall.
 again sooner.
 
 **Acceptance Criteria:**
-- **AC-CON-002.1:** The hit of an imp takes 1 hit point; the hit of a brute takes 2.
+- **AC-CON-002.1:** A mob's attack that reaches the character rolls d20 + the attack bonus of the
+  mob against the AC of the character ([Combat at Level 3](../game/combat.md), REQ-CMB-004). A hit
+  takes the damage dice of the mob: 1d4+3 for an imp, 2d8+3 for a brute (every mob: REQ-CMB-002).
+  A miss glances off: it takes no hit points and does not stun
+  ([Equipment](../items/equipment.md), REQ-EQ-007).
 - **AC-CON-002.2:** A hit stuns for the stun of the mob × (1 − 0.1 × CON modifier), at least 0.1
   of it: an imp's 1 s is 1.1 s at CON 8 and 0.7 s at CON 17; a brute's 2 s is 2.2 s and 1.4 s.
 - **AC-CON-002.3:** When a hit point goes, the edges of the screen flash red for 0.45 s.
@@ -67,27 +79,27 @@ also after its hit.
 - **AC-CON-003.1:** A hit of an imp poisons the character for 6 s × (1 − 0.15 × CON modifier),
   at least 0.1 of it: 6.9 s at CON 8, 6 s at CON 10 and 3.3 s at CON 17. A new poison does not
   make a longer poison shorter.
-- **AC-CON-003.2:** While the poison lasts, it takes 1 hit point every 3 s: 2 hit points at CON
-  10, 1 at CON 17.
-- **AC-CON-003.3:** A poison never takes the last hit point: a poison alone never defeats a
-  character.
+- **AC-CON-003.2:** While the poison lasts, it takes 2 hit points every 3 s: 4 hit points at CON
+  10, 2 at CON 17.
+- **AC-CON-003.3:** A poison never takes the last hit point: a bite leaves at least 1, so a poison
+  alone never defeats a character.
 - **AC-CON-003.4:** While the character is poisoned, its figure shows a sick green now and then,
   and the vitals show "Poisoned".
 - **AC-CON-003.5:** A brute's hit does not poison.
 
 ---
 
-### REQ-CON-004: Hit points come back out of a fight
+### REQ-CON-004: No hit points come back by themselves
 
-**User Story:** As a player, I want my hit points to come back when I am out of danger, so that I
-can go on after a fight.
+**User Story:** As Fede, I want hit points to come back only as at the table, so that a fight
+costs something.
 
 **Acceptance Criteria:**
-- **AC-CON-004.1:** The first hit point comes back 8 s after the last hit (or the last bite of a
-  poison).
-- **AC-CON-004.2:** After the first, one hit point comes back every (8 − CON modifier) s, at least
-  1 s: every 9 s at CON 8, every 8 s at CON 10, every 5 s at CON 17.
-- **AC-CON-004.3:** A new hit starts the 8 s again.
+- **AC-CON-004.1:** No hit point of a character comes back by itself, in a fight or out of it, at
+  any CON (Fede's decision, 2026-10-11).
+- **AC-CON-004.2:** Hit points come back only with a rest in a bed (REQ-CON-005), a draught
+  ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-011), herbs with Medicine
+  ([Wisdom](wisdom.md), REQ-WIS-006), or the end of a defeat (REQ-CON-007).
 - **AC-CON-004.4:** The hit points never go above the most of the character.
 
 ---
@@ -226,25 +238,32 @@ that leaving the game does not heal it.
 I can choose my scores.
 
 **Acceptance Criteria:**
-- **AC-CON-012.1:** Step 2 of the builder and the "You" section list "Hit points", "Stun from a
-  hit", "A hit point back", "Stamina" and "Poison and drink" with their values for the scores.
+- **AC-CON-012.1:** Step 2 of the builder and the "You" section list "Hit points" (for the class
+  and the scores), "Stun from a hit", "Stamina" and "Poison and drink" with their values for the
+  scores.
 - **AC-CON-012.2:** The values change at once when a score changes in the builder.
 
 ## Feature Behavior & Rules
 
 - The traits: `maxHp`, `stun`, `recover`, `maxStamina`, `staminaRefill` and `resist` of
-  `PlayerTraits` (`packages/engine/src/traits.ts`, `HP_PER_MOD`, `STUN_PER_MOD`,
-  `RECOVER_PER_MOD`, `STAMINA_PER_MOD`, `REFILL_PER_MOD`, `RESIST_PER_MOD`). The plain values
-  (CON 10) are in `packages/engine/src/player.ts`: `PLAIN_HP`, `PLAIN_STAMINA`,
-  `STAMINA_REFILL`, `RECOVER_TICKS`.
+  `PlayerTraits` (`packages/engine/src/traits.ts`, `STUN_PER_MOD`, `STAMINA_PER_MOD`,
+  `REFILL_PER_MOD`, `RESIST_PER_MOD`). `maxHp` is `levelHp(class, CON modifier)`, with `HIT_DIE`
+  and `LEVEL` (3). `recover` is 0 for every character. The plain values are in
+  `packages/engine/src/player.ts`: `PLAIN_HP` (18: a d8 class with CON 10, for a player without
+  traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`.
 - The state is in `PlayerState`: `hp`, `recover`, `stamina`, `rest`, `down`, `poison`,
-  `poisonClock`, `drunk`, `wading`. `stepPlayer()` runs the recovery, the stamina, the poison
-  and the drink each tick (`body()`), on the page and on the server alike.
-- A hit is `hitPlayer()`: the Horde calls it with `MobStats.hitDamage`, `stunTicks` and
-  `poisonTicks` (imp 360, brute 0), and with the traits in `HordePlayer.traits`. The Horde also
-  uses the guard of each player (DEX) to time the next blow.
-- The recovery starts again after a hit and after each bite of a poison
-  (`RECOVER_DELAY_TICKS`, 480 ticks).
+  `poisonClock`, `drunk`, `wading`. `stepPlayer()` runs the stamina, the poison and the drink each
+  tick (`body()`), on the page and on the server alike. `body()` gives hit points back only with a
+  `recover` above 0: a companion (`COMPANION_RECOVER` in `companions.ts`), or a state stepped
+  without traits (`RECOVER_TICKS`).
+- A hit is `hitPlayer()`: the Horde (`Horde.attack()`) calls it when the attack roll of the mob
+  hits (`attackRoll()` in `dice.ts`, `MobStats.toHit` against `HordePlayer.traits.ac`), with the
+  rolled `MobStats.damage`, `stunTicks` and `poisonTicks` (imp 360, the other mobs 0), and with
+  the traits in `HordePlayer.traits`. A miss calls `glancePlayer()`. The Horde also uses the guard
+  of each player (DEX) to time the next blow.
+- A bite of a poison takes `POISON_DAMAGE` (2) every `POISON_EVERY` (180) ticks, and never the
+  last hit point. A hit and a bite set `PlayerState.recover` to `RECOVER_DELAY_TICKS` (480); only
+  a companion uses it.
 - A defeat is `down` (`DOWN_TICKS`, 180 ticks). `stepPlayer()` only counts it down; the caller
   wakes the player on its last tick: `Room.wake()` on the server, `wakeHere()` in `game.ts` in a
   world that the page runs (or while the page has no connection). `wakePlayer()` gives the guard
@@ -266,9 +285,11 @@ I can choose my scores.
 - The store keeps `hp` and `refuges` (columns of `characters`, migration 6 in
   `packages/engine-server/src/store.ts`) with the place and the pack (`savePlace()` in
   `packages/engine-server/src/index.ts`). `Room.settle()` wakes a defeated player before the
-  server saves it.
+  server saves it. Null `hp` means all the hit points. Migration 10 (2026-10-11, the 5e scale) set
+  `hp` to null for every character, so each one got all its hit points on the new scale.
 - The vitals are `packages/engine-client/src/ui/vitals.ts` (`#vitals`, `#hurt`, `#down-veil`).
-  The fall frames are `fallParts()` (`packages/engine-client/art/attacks.ts`), two frames in each
+  The hit points are `.vitals-hp`, with `.vitals-hp-fill` (the red part) and `.vitals-hp-numbers`
+  (`style.css`). The fall frames are `fallParts()` (`packages/engine-client/art/attacks.ts`), two frames in each
   skin sheet (`SKIN_FALL_FRAMES`).
 - The protocol (13): `WireSelf` carries the vitals, `WirePlayer` the defeat, the welcome `hp` and
   `rf`, the snapshot `rf` and `wk`. See `docs/multiplayer.md`.

@@ -62,7 +62,7 @@ export const FOLLOW_LEASH = 20;
 export const FOLLOW_SEARCH = 24;
 /** It finds the way again this often (ms), and when its leader goes to another tile. */
 export const REPATH_MS = 500;
-/** The ticks for each hit point that comes back out of a fight: a player's with CON 10. */
+/** The ticks for each hit point that comes back out of a fight (a companion heals; a character does not, level-3.md). */
 const COMPANION_RECOVER = RECOVER_TICKS;
 /** The Armour Class of a companion without one (5e: leather armour and DEX +1). */
 export const COMPANION_AC = 12;

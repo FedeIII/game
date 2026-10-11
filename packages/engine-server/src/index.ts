@@ -314,6 +314,10 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       // An empty room stands still: its NPCs wait for the next visitor.
       if (room.size === 0) continue;
       room.tick(t);
+      // A quest that the room moved on by itself (an ambush that ended): saved at once.
+      for (const id of room.takeQuestSaves()) {
+        for (const client of clients.values()) if (client.room === room && client.playerId === id) saveQuests(client);
+      }
       const bySocket = sockets.get(room)!;
       room.broadcast(
         t,

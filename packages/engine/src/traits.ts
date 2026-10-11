@@ -313,8 +313,8 @@ export function guestTraits(skin: number, gear: Gear = guestGear(skin)): PlayerT
 }
 
 /**
- * The plain gear: a rapier in the hand, a d8 without other properties. It gives the base damage of
- * every class before the gear (BASE_DAMAGE) and nothing else (tests, and the plain traits).
+ * The plain gear: a rapier in the hand, a d8 without other properties. It gives every class a blow
+ * of 1d8 and the modifier, and nothing else (tests, and the plain traits).
  */
 export const PLAIN_GEAR: Gear = { ...EMPTY_GEAR, main: 'rapier' };
 

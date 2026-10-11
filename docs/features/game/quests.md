@@ -10,7 +10,8 @@ each change, and the map marks where to go. A character can also overhear a scen
 among themselves. The first story of the Wilds starts with a letter from Thrain Steelforge on the
 table of the home; its first errand is a merchant's broken cart on the road to Ironhold, and in the
 reeve's house the character overhears that hobgoblins go to Silverspring (chapter 1.5.1 of Kandrax;
-plan: `docs/drafts/story-razed-villages.md`, phases 2 and 3).
+plan: `docs/drafts/story-razed-villages.md`, phases 2 and 3). On the road to Silverspring, the scouts of
+the hobgoblins wait in a grove; their number follows the characters there (`docs/features/game/combat.md`).
 
 ## Terminology
 
@@ -207,6 +208,45 @@ letter leads to an adventure.
 - **AC-QST-010.5:** At `heard` or `asked`, the soldier tells the character to stay out of it. With
   WIS 13, the character can say that the soldier wants the hobgoblins to reach Silverspring, and the
   soldier threatens it.
+- **AC-QST-010.6:** At `asked`, the map marks the site of Silverspring, at the end of the north road.
+
+---
+
+### REQ-QST-011: The north road and the grove
+
+**User Story:** As a player who goes to warn Silverspring, I want a road through the hills, so that I
+find the way.
+
+**Acceptance Criteria:**
+- **AC-QST-011.1:** A road leaves the north-east corner of Ironhold and goes about 250 tiles to the
+  north-east, to the site of Silverspring. Its tiles are mud (a causeway over water); nothing grows on
+  it or within 2 tiles of it, and no house of the Wilds stands on it.
+- **AC-QST-011.2:** From about a third of the way, for about a tenth of the road, the road goes through
+  the grove: the forest of the Wilds without its clearings, right to the edge of the road. No house
+  stands in the grove. The road itself stays open.
+
+---
+
+### REQ-QST-012: The ambush of the scouts
+
+**User Story:** As a player who goes to warn Silverspring, I want the scouts of the hobgoblins to
+ambush me in the grove, as in the chapter, so that the road is dangerous.
+
+**Acceptance Criteria:**
+- **AC-QST-012.1:** When a character at `asked` comes into the grove, the scouts come from the end
+  of the grove that is furthest from it: a worg with a goblin on its back.
+- **AC-QST-012.2:** More characters within 12 tiles bring more of the band, in this order: the
+  hobgoblin in front of that goblin, the second worg with its goblin, the bugbear in front of it. Four
+  or more characters meet the whole band of the chapter (the 5e budget: the units come while the
+  band stays under the "deadly" budget of the characters there, at least the first unit).
+- **AC-QST-012.3:** A rider sits on its worg and goes with it. When the worg hunts, reels or dies, or
+  a blow reaches the rider, the riders jump off and go for the worg's target.
+- **AC-QST-012.4:** When all the scouts have fallen, the raid moves to `scouts` for each character at
+  `asked` that was there or is near the grove, and each one gets two badger furs.
+- **AC-QST-012.5:** If the scouts go away (nobody near them), the ambush waits again for the next
+  character at `asked` in the grove.
+- **AC-QST-012.6:** Corwin, the peddler of Ironhold, buys a badger fur for 4 coins (with the price of
+  Charisma).
 
 ---
 
@@ -256,12 +296,29 @@ letter leads to an adventure.
   `Room.quest()` checks the area. The page: `render/scene.ts` (`ScenePlayer`: the time of a line as
   the welcome's), `game.ts` (`sceneLines()`: a murmur, `STRINGS.murmur`, for a line behind a gate).
   The debug line `quests` shows the scene that plays ("scene argument 3/9").
-- **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`; the steps `scouts` and `title` come
-  with the road, the grove and Silverspring), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`;
+- **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`, `scouts`; the step `title` comes
+  with Silverspring), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`, `RAID_SCOUTS`;
   `ARGUMENT` and `TOWN_SCENES` (`town.ts`: the area is the reeve's house and two rows south of it);
   the people `farmer` (pages) and `soldier` (`SOLDIER`) in the reeve's house; `REEVE` starts at
   `warn` (`heard`) and `go` (`asked`).
-- **The art**: `fixture/cart`, `fixture/cart-mended` (`art/fixtures.ts`), `item/crowbar`
+- **The north road and the grove** (`worlds/wilds/src/road.ts`): `Road` (any two ends, level at both),
+  `homeRoad()`, `northRoad()`, `NORTH_ROAD_START`, `SILVERSPRING_SITE` (171, -179; the step `asked`
+  marks it, and a test checks the numbers), `Grove` (`GROVE_SPAN` 0.36 to 0.46 of the road,
+  `GROVE_RADIUS` 7); `WildsSource.north`, `.grove` (`GROVE_THRESHOLD`: the trees of the grove).
+- **Ambushes** (`packages/engine/src/ambushes.ts`): `AmbushDef` (`id`, `inArea`, `when`, `from`,
+  `units` of `AmbushMember` (`kind`, `rides`, `seat`), `effect`), `Ambushes` (`step()`: it ends a
+  run whose mobs all fell, and gives the effects; it starts one for a character at the step in the
+  area; an ambush that ends does not start again in the same step), `AMBUSH_RADIUS` 12;
+  `WorldSource.ambushes()`; the Wilds: `SCOUT_UNITS` (`source.ts`). The Room runs them after the
+  horde, applies the effects and lists the books to save (`Room.takeQuestSaves()`; the server saves
+  them at once); the page runs its own in a world that it runs. Encounter budget:
+  `packages/engine/src/encounters.ts` (`XP_THRESHOLDS`, `xpMultiplier()`, `adjustedXp()`,
+  `sizeEncounter()`).
+- **Riders** (`packages/engine/src/mobs.ts`): `Horde.spawnRider()`, the state `ride` (protocol 27),
+  `Mob.mount`, `Mob.seat`, `SEAT_GAP`. The page draws a rider 9 px up, over its mount, without its
+  shadow (`render/mobs.ts`, `RIDE_LIFT`).
+- **The badger fur**: the item `badger-fur` (stacks of 5), `sell-fur` in `PEDDLER`.
+- **The art**: `fixture/cart`, `fixture/cart-mended` (`art/fixtures.ts`), `item/crowbar`, `item/badger-fur`
   (`art/items.ts`), the NPC looks `merchant`, `farmer` and `soldier` (`art/characters.ts`).
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,

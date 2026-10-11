@@ -232,7 +232,7 @@ export function fitsSlot(kind: ItemKind, slot: GearSlot): boolean {
 
 // ---------------------------------------------------------------- what the gear gives
 
-/** The base damage of a die: half of it (d8 gives 4, the base of every class before the gear). */
+/** The dice of a weapon's die (5e): one die of it (a d8 gives 1d8); the modifier comes in traits.ts. */
 export function dieBase(die: Die): Dice {
   return dice(1, die);
 }

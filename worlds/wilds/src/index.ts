@@ -5,12 +5,12 @@ import { TEXTS_ES } from './text-es.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
-export { Road, cartSpot, signpost } from './road.ts';
+export { GROVE_SPAN, Grove, NORTH_ROAD_START, Road, SILVERSPRING_SITE, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 export { CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { APOTHECARY, ATHLETICS_GATE, INNKEEPER, INSIGHT_GATE, MERCHANT, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, SOLDIER, WATCHMAN, smithPays } from './dialogs.ts';
-export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, RAID, RAID_ASKED, RAID_HEARD, READ_LETTER, TELL_REEVE } from './quests.ts';
+export { ASHES, CART, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, CART_REWARD, QUESTS, RAID, RAID_ASKED, RAID_HEARD, RAID_SCOUTS, READ_LETTER, TELL_REEVE } from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
 export const DEFAULT_SEED = 20261007;
@@ -77,6 +77,7 @@ export const wilds: WorldDefinition = {
     'boots-of-elvenkind': 'Soft boots of grey leather. Your steps make no sound in them.',
     glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
     crowbar: "A bar of dark iron from the smith of Ironhold. The merchant on the road needs it for the cart.",
+    'badger-fur': 'A thick grey fur from the packs of the hobgoblin scouts. Corwin, the peddler of Ironhold, buys it.',
   },
   // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
   quests: QUESTS,

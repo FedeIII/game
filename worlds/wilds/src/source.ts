@@ -19,6 +19,8 @@ import {
   type NpcDef,
   type Landmark,
   type Refuge,
+  type AmbushDef,
+  type AmbushMember,
   type SceneDef,
   type WorldSource,
 } from '@game/engine';
@@ -26,7 +28,8 @@ import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { MERCHANT } from './dialogs.ts';
-import { Road, cartSpot, signpost } from './road.ts';
+import { RAID_SCOUTS } from './quests.ts';
+import { Grove, Road, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { Plot, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown, plotAt, townFloor } from './town.ts';
 
 function onApproach(house: Building, tx: number, ty: number): boolean {
@@ -117,6 +120,20 @@ const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 /** No house of the wilds stands this close to the town (tiles), and mobs do not live this close to it. */
 const TOWN_MARGIN = 2;
 /**
+ * The scouts of the hobgoblins (chapter 1.5.1), in the order in which more characters meet more of
+ * them: a worg with a goblin behind; the hobgoblin in front of that goblin; the second worg with its
+ * goblin; the bugbear in front of it.
+ */
+const SCOUT_UNITS: readonly (readonly AmbushMember[])[] = [
+  [{ kind: 'worg' }, { kind: 'goblin', rides: 0, seat: 1 }],
+  [{ kind: 'hobgoblin', rides: 0, seat: 0 }],
+  [{ kind: 'worg' }, { kind: 'goblin', rides: 3, seat: 1 }],
+  [{ kind: 'bugbear', rides: 3, seat: 0 }],
+];
+
+/** The trees of the grove: the natural forest with no threshold (terrain.ts, hasTree): a tree at every local pick, also where the woods have a clearing. */
+const GROVE_THRESHOLD = 0;
+/**
  * The lantern of the merchant's cart keeps the mobs this far away (tiles, from the middle of the
  * cart), as the lamps of the town do: a character can talk to the merchant in peace.
  */
@@ -149,9 +166,12 @@ export class WildsSource implements WorldSource {
   private readonly houses = new Map<string, Building | null>();
   private readonly patches = new Map<string, Fixture | null>();
   private roadOf: Road | null = null;
+  private northOf: Road | null = null;
+  private groveOf: Grove | null = null;
   private signOf: Fixture | null = null;
   private cartOf: Fixture | null = null;
   private npcList: readonly NpcDef[] | null = null;
+  private ambushList: readonly AmbushDef[] | null = null;
 
   constructor(seed: number) {
     this.seed = seed;
@@ -159,8 +179,25 @@ export class WildsSource implements WorldSource {
 
   /** The road from the home to the town. */
   get road(): Road {
-    this.roadOf ??= new Road(this.home());
+    this.roadOf ??= homeRoad(this.home());
     return this.roadOf;
+  }
+
+  /** The north road, from Ironhold to Silverspring (road.ts). */
+  get north(): Road {
+    this.northOf ??= northRoad();
+    return this.northOf;
+  }
+
+  /** The grove on the north road, where the scouts of the hobgoblins wait (road.ts). */
+  get grove(): Grove {
+    this.groveOf ??= new Grove(this.north);
+    return this.groveOf;
+  }
+
+  /** Whether a tile is on a road or close to it, where nothing grows (but in the grove). */
+  private roadClear(tx: number, ty: number): boolean {
+    return this.road.clear(tx, ty) || this.north.clear(tx, ty);
   }
 
   /**
@@ -198,7 +235,7 @@ export class WildsSource implements WorldSource {
     return house;
   }
 
-  /** Whether the ground of a house of the wilds would touch the town, the road or the signpost. */
+  /** Whether the ground of a house of the wilds would touch the town, a road, the grove or the signpost. */
   private inTheWay(house: Building): boolean {
     const x0 = house.x0 - 1;
     const y0 = house.y0 - 1;
@@ -207,9 +244,13 @@ export class WildsSource implements WorldSource {
     if (overlaps(TOWN, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN)) return true;
     const sign = this.sign;
     if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
-    const road = this.road;
-    if (!overlaps(road, x0, y0, x1, y1)) return false;
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (road.clear(tx, ty)) return true;
+    for (const road of [this.road, this.north]) {
+      if (!overlaps(road, x0, y0, x1, y1)) continue;
+      for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (road.clear(tx, ty)) return true;
+    }
+    // No house in the grove either: it is a wood.
+    if (!overlaps(this.grove, x0, y0, x1, y1)) return false;
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.grove.has(tx, ty)) return true;
     return false;
   }
 
@@ -240,7 +281,7 @@ export class WildsSource implements WorldSource {
   private noHerbsAt(tx: number, ty: number): boolean {
     const m = TOWN_MARGIN + HERB_MARGIN;
     if (tx >= TOWN.x0 - m && tx <= TOWN.x1 + m && ty >= TOWN.y0 - m && ty <= TOWN.y1 + m) return true;
-    if (this.road.clear(tx, ty)) return true;
+    if (this.roadClear(tx, ty)) return true;
     if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
     const r = HERB_MARGIN + DOOR_PATH + 1;
     return this.cellHousesIn(tx - r, ty - r, tx + r, ty + r).some(
@@ -255,6 +296,8 @@ export class WildsSource implements WorldSource {
     const reach = DOOR_PATH + 1;
     const houses = this.cellHousesIn(cx * CHUNK_SIZE - reach, cy * CHUNK_SIZE - reach, cx * CHUNK_SIZE + CHUNK_SIZE - 1 + reach, cy * CHUNK_SIZE + CHUNK_SIZE - 1 + reach);
     const road = this.road;
+    const north = this.north;
+    const grove = this.grove;
     const sign = this.sign;
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
@@ -287,12 +330,22 @@ export class WildsSource implements WorldSource {
           continue;
         }
         const house = houses.find((h) => nearHouse(h, tx, ty));
-        if (!house && road.clear(tx, ty)) {
-          // The road: mud (over water too), and nothing grows on it or close to it.
+        const onRoad = road.on(tx, ty) || north.on(tx, ty);
+        if (!house && !onRoad && grove.has(tx, ty)) {
+          // The grove: trees close on both sides of the north road, right to its edge.
           const natural = naturalGround(this.seed, tx, ty);
-          const ground = road.on(tx, ty) ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
+          const ground = north.clear(tx, ty) && isWet(natural) ? Ground.Sand : natural;
           chunk.ground[index] = ground;
-          const decor = road.on(tx, ty) ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
+          // A close wood: the forest of the woods everywhere along it (no clearings), never two trees side by side.
+          chunk.decor[index] = naturalDecor(this.seed, tx, ty, ground, GROVE_THRESHOLD);
+          continue;
+        }
+        if (!house && (road.clear(tx, ty) || north.clear(tx, ty))) {
+          // A road: mud (over water too), and nothing grows on it or close to it.
+          const natural = naturalGround(this.seed, tx, ty);
+          const ground = onRoad ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
+          chunk.ground[index] = ground;
+          const decor = onRoad ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
           chunk.decor[index] = decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
           continue;
         }
@@ -456,6 +509,21 @@ export class WildsSource implements WorldSource {
       this.npcList = [...TOWN_NPCS, merchant];
     }
     return this.npcList;
+  }
+
+  /**
+   * The ambushes: the scouts of the hobgoblins wait in the grove for a character that goes to warn
+   * Silverspring (quests.ts, raid at `asked`; chapter 1.5.1): a hobgoblin and a bugbear on worgs, a
+   * goblin behind each one. Alone, a character meets one worg with its goblin; more characters meet
+   * more of the band (encounters.ts).
+   */
+  ambushes(): readonly AmbushDef[] {
+    if (!this.ambushList) {
+      const grove = this.grove;
+      const tile = ([x, y]: readonly [number, number]) => [Math.floor(x), Math.floor(y)] as const;
+      this.ambushList = [{ id: 'scouts', inArea: (tx, ty) => grove.has(tx, ty), when: { quest: 'raid', at: ['asked'] }, from: [tile(grove.start), tile(grove.end)], units: SCOUT_UNITS, effect: RAID_SCOUTS }];
+    }
+    return this.ambushList;
   }
 
   /** The talks that a character overhears: the argument in the house of the reeve (town.ts). */

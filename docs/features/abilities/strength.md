@@ -4,13 +4,14 @@
 
 Strength (STR) is the force of the body. For every class it gives the push and the stagger of a
 blow and the slots of the pack. Its gate of 13 lets a character wade through shallow water and
-force a barred door. For the barbarian, the fighter and the paladin, STR also gives the damage of
-a blow ([Ability Scores](ability-scores.md), REQ-AS-002).
+force a barred door. For the barbarian, the fighter and the paladin, STR also gives the attack
+bonus and the damage of a blow ([Ability Scores](ability-scores.md), REQ-AS-002).
 
 ## Terminology
 
 - **Knockback (push)**: how far a blow pushes a mob away from the attacker.
-- **Stagger**: how long a mob reels after a blow that does not kill it (the mob state `hurt`).
+- **Stagger**: how long a mob reels after a blow that hits it and does not kill it (the mob state
+  `hurt`).
 - **Shallow water**: a ground (`Ground.Shallows`): a band of water at the shore of each lake,
   between the deep water and the sand. A small pond is all shallow water.
 - **Wading**: a walk in shallow water.
@@ -32,7 +33,8 @@ room in a fight.
   for every class.
 - **AC-STR-001.2:** A blow pushes an imp (knockback 10 px) 8.5 px at −1, 10 px at 0 and 14.5 px
   at +3. It pushes a brute (knockback 18 px) 15.3 px at −1, 18 px at 0 and 26.1 px at +3.
-- **AC-STR-001.3:** The push takes 0.2 s. The blow that kills a mob pushes it too.
+- **AC-STR-001.3:** The push takes 0.2 s. The blow that kills a mob pushes it too. A blow that
+  misses ([Combat at Level 3](../game/combat.md), REQ-CMB-003) does not push the mob.
 - **AC-STR-001.4:** An arrow pushes the mob in the direction of its flight, with the STR of the
   ranger who shot it.
 
@@ -48,8 +50,9 @@ strike again or walk away before it attacks.
   every class.
 - **AC-STR-002.2:** An imp (250 ms) reels 200 ms at −1 and 400 ms at +3. A brute (320 ms) reels
   256 ms at −1 and 512 ms at +3.
-- **AC-STR-002.3:** A blow that does not kill a mob stops its wind-up or its strike. Then the mob
-  goes for the attacker.
+- **AC-STR-002.3:** A blow that hits a mob and does not kill it stops its wind-up or its strike.
+  Then the mob goes for the attacker. A blow that misses does not make the mob reel, but the mob
+  goes for the attacker too.
 
 ---
 
@@ -150,10 +153,11 @@ STR opens places that weaker characters cannot open.
 - **Constants** (`packages/engine/src/traits.ts`): `PUSH_PER_MOD` (0.15), `STAGGER_PER_MOD` (0.2),
   `PACK_SLOTS` (6), `SLOTS_PER_MOD` (2), and the gates `WADE_GATE` and `FORCE_GATE` (STR 13, from
   `GATE_SCORE`). The traits are `PlayerTraits.push`, `stagger`, `slots` and `wade`.
-- **Push and reel** (`packages/engine/src/mobs.ts`): a `Blow` is `{ damage, push, stagger }`, and
-  `PlayerTraits` passes as one. `Horde.hit()` keeps `MobStats.knockback × blow.push` and
-  `MobStats.hurtMs × blow.stagger` in the brain of the mob. `KNOCKBACK_MS` (200) is the time of the
-  push. A solid thing (a wall, a tree trunk, water) stops the push.
+- **Push and reel** (`packages/engine/src/mobs.ts`): a `Blow` is `{ toHit, damage, push, stagger }`
+  (and `opening`, `sneak`, `reach`), and `PlayerTraits` passes as one. After a hit (`rollBlow()`),
+  `Horde.hit()` keeps `MobStats.knockback × blow.push` and `MobStats.hurtMs × blow.stagger` in the
+  brain of the mob. After a miss it keeps no push and no reel. `KNOCKBACK_MS` (200) is the time of
+  the push. A solid thing (a wall, a tree trunk, water) stops the push.
 - **Push and stagger use STR for every class** (Fede's decision, 2026-10-10), not the attack
   ability of the class.
 - **Wading** (`packages/engine/src/player.ts`): `stepPlayer(player, input, world, traits)` gives a

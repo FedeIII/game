@@ -1,8 +1,8 @@
 # The Razed Villages: the first story of the game (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** Phases 1 and 2 built, phase 3 in part (2026-10-11: `docs/features/game/language.md`,
-> `docs/features/game/quests.md`); the rest of phase 3, and phases 4 to 6, planned
+> **Status:** Phases 1 to 3 built (2026-10-11: `docs/features/game/language.md`,
+> `docs/features/game/quests.md`, `docs/features/game/combat.md`); phases 4 to 6 planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -321,8 +321,10 @@ before the next one.
    `raid.scouts`. Built in three parts: 3a, the scenes (S3), the argument and the reeve's request
    (`raid.heard`, `raid.asked`; built 2026-10-11, protocol 24); 3b, the new mobs (built
    2026-10-11, protocol 25: the goblin shoots arrows that hit players, the worg charges straight;
-   no riders yet, and none of the band roams the woods); 3c, the road to
-   Silverspring, the grove and the ambush (`raid.scouts`). In 3a, the guard of the scene is a soldier
+   none of the band roams the woods); 3c (built 2026-10-11, protocol 27): the north road to
+   Silverspring (about 250 tiles, Fede's choice), the grove, the riders (Fede's choice: build
+   them), and the ambush of the scouts sized to the characters there (docs/drafts/level-3.md: Fede's
+   level-3 decisions came first). In 3a, the guard of the scene is a soldier
    of the Sovereignty in the reeve's house, not Brann (Brann says that he is the whole town watch),
    and a villager stands with them; neither has a name. The soldier, not Brann, tells the character
    to stay out of it.

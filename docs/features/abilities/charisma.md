@@ -2,10 +2,11 @@
 
 ## Overview
 
-Charisma (CHA) is the force of personality of a character. It gives the damage of the blow of a
-sorcerer and a warlock, better prices, answers in conversations that win people over (a room at
-the inn, a friend's price), a presence that makes a pack of mobs press the character less, a guard
-that it gives to the other players near it, and a good name: the people of Ironhold greet it.
+Charisma (CHA) is the force of personality of a character. It gives the attack bonus and the
+damage of the blow of a sorcerer and a warlock, better prices, answers in conversations that win
+people over (a room at the inn, a friend's price), a presence that makes a pack of mobs press the
+character less, a guard that it gives to the other players near it, and a good name: the people of
+Ironhold greet it.
 
 ## Terminology
 
@@ -28,9 +29,11 @@ that it gives to the other players near it, and a good name: the people of Ironh
 so that my main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-CHA-001.1:** A blow of a sorcerer or a warlock does the base damage of its gear + CHA
-  modifier ([Ability Scores](ability-scores.md), REQ-AS-002). With its cantrip (base 5,
-  [Equipment](../items/equipment.md), REQ-EQ-009): 4 at CHA 8, 8 at CHA 16 or 17.
+- **AC-CHA-001.1:** A blow of a sorcerer or a warlock rolls d20 + 2 + CHA modifier against the AC
+  of the mob, and a hit does the damage dice of its gear + CHA modifier
+  ([Ability Scores](ability-scores.md), REQ-AS-002). With its cantrip (fire bolt or eldritch blast,
+  1d10, [Equipment](../items/equipment.md), REQ-EQ-009): +1 to hit and 1d10-1 at CHA 8, +5 to hit
+  and 1d10+3 at CHA 16 or 17.
 
 ---
 
@@ -114,7 +117,8 @@ ground.
   8 or 9. Without Charisma the overlap is 0.2 for two mobs, 0.4 for three, 0.6 for four, at most
   0.75.
 - **AC-CHA-006.2:** After a mob hits the character, it runs off × (1 + 0.1 × CHA modifier) as long:
-  30% longer at CHA 16 or 17, 10% shorter at CHA 8 or 9.
+  30% longer at CHA 16 or 17, 10% shorter at CHA 8 or 9. A mob whose blow misses does not run
+  off ([Equipment](../items/equipment.md), REQ-EQ-007).
 
 ---
 

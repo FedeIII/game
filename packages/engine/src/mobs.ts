@@ -284,11 +284,11 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
- * strikes, runs away after a hit (retreat), dies, or reels from a blow that did not kill it
- * (hurt). The order is the code on the wire.
+ * strikes, runs away after a hit (retreat), dies, reels from a blow that did not kill it (hurt), or
+ * rides another mob (ride: a goblin on a worg, protocol 27). The order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride'];
 
 export interface Mob {
   readonly id: number;
@@ -304,7 +304,14 @@ export interface Mob {
   stateMs: number;
   /** The health points that it has left (MobStats.health at first). */
   health: number;
+  /** The mob that it rides, while it rides (state 'ride'): its id. */
+  mount?: number;
+  /** Where it sits: 0 on the back of its mount, 1 behind (a goblin behind the hobgoblin). */
+  seat?: number;
 }
+
+/** A rider sits this far behind the middle of its mount for each seat (world pixels). */
+export const SEAT_GAP = 5;
 
 /**
  * A player's blow (traits.ts): its attack bonus and the dice of its damage (5e), and its force as
@@ -590,6 +597,56 @@ export class Horde {
     return n;
   }
 
+  /**
+   * Puts a new mob of `kind` on the back of `mount` (in seat `seat`): it rides it (state 'ride') and
+   * goes where it goes. When the mount starts to hunt, reels or dies, the rider jumps off and goes
+   * for the mount's target (the chapter: the goblins get off and shoot, the worgs charge).
+   */
+  spawnRider(kind: MobKind, mount: Mob, seat: number): Mob {
+    const rider = this.spawn(kind, mount.x, mount.y);
+    rider.mount = mount.id;
+    rider.seat = seat;
+    rider.state = 'ride';
+    this.seat(rider, mount);
+    return rider;
+  }
+
+  /** Puts a rider on its seat on its mount: behind the middle, as the mount faces. */
+  private seat(rider: Mob, mount: Mob): void {
+    const [fx, fy] = mount.facing === 'left' ? [-1, 0] : mount.facing === 'right' ? [1, 0] : mount.facing === 'up' ? [0, -1] : [0, 1];
+    const back = SEAT_GAP * (rider.seat ?? 0);
+    rider.x = mount.x - fx * back;
+    rider.y = mount.y - fy * back + 0.5;
+    rider.vx = mount.vx;
+    rider.vy = mount.vy;
+    rider.facing = mount.facing;
+  }
+
+  /** A rider rides on, or jumps off when its mount hunts, reels, dies or is gone. */
+  private ride(rider: Mob, brain: Brain): void {
+    const mount = rider.mount === undefined ? undefined : this.mobs.find((m) => m.id === rider.mount);
+    if (mount && (mount.state === 'idle' || mount.state === 'walk' || mount.state === 'ride')) {
+      this.seat(rider, mount);
+      return;
+    }
+    // Off it goes, beside the mount, and at its target.
+    const side = (rider.seat ?? 0) === 0 ? 1 : -1;
+    delete rider.mount;
+    delete rider.seat;
+    if (mount) {
+      rider.x = mount.x + (mount.facing === 'up' || mount.facing === 'down' ? side * 8 : 0);
+      rider.y = mount.y + (mount.facing === 'left' || mount.facing === 'right' ? side * 6 : 0);
+    }
+    brain.home = { x: rider.x, y: rider.y };
+    const target = mount ? this.brains.get(mount.id)?.target : null;
+    if (target !== null && target !== undefined) {
+      brain.target = target;
+      brain.lostMs = 0;
+      brain.curve = this.newCurve();
+      this.enter(rider, 'chase');
+    } else this.enter(rider, 'idle');
+  }
+
   /** Puts a new mob at (x, y), which is also its home. */
   spawn(kind: MobKind, x: number, y: number): Mob {
     const mob: Mob = { id: this.nextId++, kind, x, y, vx: 0, vy: 0, facing: 'down', state: 'idle', stateMs: 0, health: MOB_STATS[kind].health };
@@ -699,6 +756,9 @@ export class Horde {
         case 'hurt':
           this.reel(mob, brain, byId, dt);
           break;
+        case 'ride':
+          this.ride(mob, brain);
+          break;
       }
     }
     return hits;
@@ -766,6 +826,13 @@ export class Horde {
    */
   private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number): BlowResult {
     const brain = this.brains.get(mob.id)!;
+    // A rider that a blow reaches is off its mount, hit or not.
+    if (mob.state === 'ride') {
+      delete mob.mount;
+      delete mob.seat;
+      brain.home = { x: mob.x, y: mob.y };
+      this.enter(mob, 'idle');
+    }
     const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
     const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
     if (damage === 0) {

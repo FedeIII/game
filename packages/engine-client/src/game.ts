@@ -65,6 +65,7 @@ import {
   meetsGate,
   sheetTraits,
   EMPTY_BOOK,
+  Ambushes,
   MOB_KINDS,
   formatDice,
   rollingDice,
@@ -555,6 +556,8 @@ async function run(options: GameOptions): Promise<void> {
   // the server's. ?companion=<look> puts one of that NPC look next to the player at the start,
   // following it (for tests). Single-player worlds only, as ?mob.
   const localCompanions = net ? null : new Companions(world);
+  // The ambushes of the story (ambushes.ts) in a world that the page runs; the server runs them in a shared world.
+  const localAmbushes = horde ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
   const companionLook = params.get('companion');
   if (localCompanions && companionLook && art.tryFrame(`npc/${companionLook}/down/stand`)) {
     localCompanions.add({ id: 'test', name: STRINGS.companion, look: companionLook, hp: PLAIN_HP, fallen: 'wakes' }, 0, player.x - TILE_SIZE, player.y);
@@ -1276,6 +1279,8 @@ async function run(options: GameOptions): Promise<void> {
       localCompanions.takeDoors();
     }
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? [])]);
+    // An ambush that ends moves the quest on (here the page applies it: where does not matter).
+    if (horde && localAmbushes) for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now(), mob);
@@ -1477,7 +1482,7 @@ async function run(options: GameOptions): Promise<void> {
           ]
         : []),
       `doors   ${world.openDoorList().map(([x, y]) => `${x},${y}`).join(' ') || 'all closed'}${world.forcedDoorList().length ? `, forced ${world.forcedDoorList().map(([x, y]) => `${x},${y}`).join(' ')}` : ''}`,
-      `traits  str ${traits.scores.str}: damage ${traits.damage} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
+      `traits  str ${traits.scores.str}: damage ${formatDice(traits.damage)} +${traits.toHit} (${traits.attack}), push ${traits.push.toFixed(2)}, stagger ${traits.stagger.toFixed(2)}, slots ${traits.slots}, wade ${traits.wade ? 'yes' : 'no'}${inShallows(world, player.x, player.y) ? ' (wading)' : ''}`,
       `int     ${traits.scores.int}: opening +${traits.opening}, read ${meetsGate(traits.scores, READ_OPENING_GATE) ? 'health, wind-up' : meetsGate(traits.scores, READ_FOE_GATE) ? 'health' : '-'}, map ${traits.scores.int >= 15 ? 'secrets' : traits.scores.int >= 13 ? 'names' : traits.scores.int >= 11 ? 'houses' : 'ground'}, seen ${(net && net.explored.size > 0 ? net.explored : localExplored).size} chunks${mapPanel.isOpen ? ' (map open)' : ''}`,
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,

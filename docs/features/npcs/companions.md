@@ -75,8 +75,9 @@ escort is a real task.
 **Acceptance Criteria:**
 - **AC-CMP-004.1:** Mobs see, chase and hit a companion as they do a player, and they take turns on
   it as on a player.
-- **AC-CMP-004.2:** A hit stuns it and takes its hit points; then it has a guard. Its hit points
-  come back out of a fight, as for a player with CON 10.
+- **AC-CMP-004.2:** A mob's attack rolls against its Armour Class (its own, or 12): a hit stuns it
+  and takes its rolled damage; then it has a guard. A miss glances off. Unlike a character's, its
+  hit points come back out of a fight: one every 8 s.
 - **AC-CMP-004.3:** A companion does not fight back.
 - **AC-CMP-004.4:** New mobs come round the players only, and mobs prowl towards the players only:
   a companion brings no mob.
@@ -132,7 +133,7 @@ that the world is the same for all.
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/companions.ts`): `CompanionDef` (`id`, `name`, `look`,
-  `hp`, `fallen`: `gone` or `wakes`), `Companion` (`id`, `def`, `leader`, `state`: a
+  `hp`, `ac` (else `COMPANION_AC`, 12), `fallen`: `gone` or `wakes`), `Companion` (`id`, `def`, `leader`, `state`: a
   `PlayerState`, `mode`), `CompanionEvent` (`fell`, `gone`, `lost`, `found`), and `Companions`
   (`add()`, `remove()`, `list`, `ofLeader()`, `targets()`, `step()`, `takeDoors()`). The way:
   `followPath()` (a search in four directions, `FOLLOW_SEARCH` 24 tiles). The constants:

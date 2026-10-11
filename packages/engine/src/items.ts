@@ -59,6 +59,8 @@ export const ITEM_KINDS = [
   'glaive',
   // Quest items (2026-10-11): the smith's lever for the merchant's cart.
   'crowbar',
+  // The loot of the scouts of the hobgoblins (chapter 1.5.1): the peddler buys it.
+  'badger-fur',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -100,10 +102,11 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'boots-of-elvenkind': 1,
   glaive: 1,
   crowbar: 1,
+  'badger-fur': 5,
 };
 
 /**
- * A character with this chews a bundle of herbs for a hit point (Medicine). It is here, not in
+ * A character with this chews a bundle of herbs for 1d4 hit points (Medicine). It is here, not in
  * traits.ts with the other gates, because traits.ts imports this module through player.ts.
  */
 export const MEDICINE_GATE: Gate = { ability: 'wis', min: 13 };
@@ -112,7 +115,6 @@ export const MEDICINE_GATE: Gate = { ability: 'wis', min: 13 };
 export interface Drink {
   /** The hit points that it gives back (5e dice). */
   readonly hp?: Dice;
-  readonly full?: boolean;
   readonly cure?: boolean;
   readonly gate?: Gate;
 }
@@ -199,7 +201,6 @@ export function drinkFrom(pack: Pack, kind: ItemKind, state: PlayerState, traits
   if (!drink || state.down > 0 || !hasItems(pack, [{ kind, count: 1 }])) return null;
   if (drink.gate && !meetsGate(traits.scores, drink.gate)) return null;
   if (drink.hp) state.hp = Math.min(traits.maxHp, state.hp + rollDice(drink.hp, source));
-  if (drink.full) state.hp = traits.maxHp;
   if (drink.cure) {
     state.poison = 0;
     state.poisonClock = 0;

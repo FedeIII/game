@@ -523,7 +523,7 @@ export const SMITH: Dialog = {
   },
 };
 
-const sell = (id: string, text: string, kind: 'ring' | 'cup' | 'candle' | 'imp-horn' | 'brute-tusk', pay: number) =>
+const sell = (id: string, text: string, kind: 'ring' | 'cup' | 'candle' | 'imp-horn' | 'brute-tusk' | 'badger-fur', pay: number) =>
   ({ text, next: 'sold', deal: { id, goods: 'coins', price: 0, pay, items: [{ kind, count: 1 }], poor: 'none' } }) as const;
 
 /**
@@ -548,8 +548,8 @@ export const PEDDLER: Dialog = {
       answers: [sell('sell-ring', 'A silver ring.', 'ring', 5), sell('sell-cup', 'A pewter cup.', 'cup', 3), sell('sell-candle', 'A candle stub.', 'candle', 1), { text: 'Nothing now.' }],
     },
     trophies: {
-      say: 'Horns and tusks. The apothecary pays me for them, and I pay you. Everybody wins.',
-      answers: [sell('sell-horn', 'An imp horn.', 'imp-horn', 2), sell('sell-tusk', 'A brute tusk.', 'brute-tusk', 4), { text: 'Something else.', next: 'wares' }, { text: 'Nothing now.' }],
+      say: 'Horns, tusks and furs. The apothecary pays me for the horns and the tusks; the furs go south. Everybody wins.',
+      answers: [sell('sell-horn', 'An imp horn.', 'imp-horn', 2), sell('sell-tusk', 'A brute tusk.', 'brute-tusk', 4), sell('sell-fur', 'A badger fur.', 'badger-fur', 4), { text: 'Something else.', next: 'wares' }],
     },
     candles: {
       say: 'The chandler shut his shop when the roads went bad. Now I sell what I can find, and I find nothing.',

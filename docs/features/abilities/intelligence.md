@@ -2,10 +2,10 @@
 
 ## Overview
 
-Intelligence (INT) is the knowledge and the reason of a character. It gives the damage of a
-wizard's blow, extra damage on a mob in its wind-up for every class, the reading of a mob (its
-health and its wind-up), the old writing on things and the clever answers in conversations, the
-detail of the map, and the recipes of the cauldron of Ironhold. It makes the things that a
+Intelligence (INT) is the knowledge and the reason of a character. It gives the attack bonus and
+the damage of a wizard's blow, extra damage on a mob in its wind-up for every class, the reading of
+a mob (its health and its wind-up), the old writing on things and the clever answers in
+conversations, the detail of the map, and the recipes of the cauldron of Ironhold. It makes the things that a
 character finds useful: herbs and trophies become draughts.
 
 ## Terminology
@@ -28,9 +28,10 @@ character finds useful: herbs and trophies become draughts.
 main ability counts in a fight.
 
 **Acceptance Criteria:**
-- **AC-INT-001.1:** A wizard's blow does the base damage of its gear + INT modifier
-  ([Ability Scores](ability-scores.md), REQ-AS-002). With its arcane staff (fire bolt, base 5,
-  [Equipment](../items/equipment.md), REQ-EQ-009): 4 at INT 8, 8 at INT 16 or 17.
+- **AC-INT-001.1:** A wizard's blow rolls d20 + 2 + INT modifier against the AC of the mob, and a
+  hit does the damage dice of its gear + INT modifier ([Ability Scores](ability-scores.md),
+  REQ-AS-002). With its arcane staff (fire bolt, 1d10, [Equipment](../items/equipment.md),
+  REQ-EQ-009): +1 to hit and 1d10-1 at INT 8, +5 to hit and 1d10+3 at INT 16 or 17.
 
 ---
 
@@ -40,13 +41,13 @@ main ability counts in a fight.
 gives me more damage.
 
 **Acceptance Criteria:**
-- **AC-INT-002.1:** A blow or an arrow on a mob in its wind-up does its damage + the INT modifier,
-  for every class.
+- **AC-INT-002.1:** A blow or an arrow that hits a mob in its wind-up does its damage + the INT
+  modifier, for every class. The bonus is a fixed number: a critical hit does not double it.
 - **AC-INT-002.2:** The bonus is never less than 0: INT 8 or 9 gives no bonus and takes no damage
   away. INT 12 or 13 gives +1, INT 16 or 17 gives +3.
 - **AC-INT-002.3:** The bonus counts only in the wind-up, not in the blow or in other states.
-- **AC-INT-002.4:** In a shared world, the page shows a kill at once when the blow with the bonus
-  takes the last health of the mob.
+- **AC-INT-002.4:** In a shared world, the server adds the bonus to the rolled damage. The damage
+  that rises over the mob ([Combat at Level 3](../game/combat.md), REQ-CMB-006) includes the bonus.
 
 ---
 
@@ -57,7 +58,7 @@ can choose my moment.
 
 **Acceptance Criteria:**
 - **AC-INT-003.1:** With INT 13 or more, a thin red bar over each living mob shows the share of
-  its health that it has left.
+  its hit points that it has left.
 - **AC-INT-003.2:** With INT 15 or more, a white glint blinks on a mob while it winds up.
 - **AC-INT-003.3:** The bar and the glint are above the darkness. A dying mob has no bar.
 
@@ -161,8 +162,8 @@ can choose my scores.
 ## Feature Behavior & Rules
 
 - **The opening:** `PlayerTraits.opening` (`max(0, INT modifier)`, `packages/engine/src/traits.ts`),
-  `Blow.opening` and `blowDamage()` (`packages/engine/src/mobs.ts`). An arrow keeps the blow of its
-  shooter, so the bonus counts for a ranger too.
+  `Blow.opening` and `rollBlow()` (`packages/engine/src/mobs.ts`: it adds the opening after the
+  dice, once). An arrow keeps the blow of its shooter, so the bonus counts for a ranger too.
 - **Reading a mob:** `READ_FOE_GATE` (INT 13) and `READ_OPENING_GATE` (INT 15) in
   `packages/engine-client/src/ui/gates.ts`; `MobViews.setReading()` in
   `packages/engine-client/src/render/mobs.ts` (`BAR`, `HEAD`, `GLINT_BLINK_MS`). Only the page

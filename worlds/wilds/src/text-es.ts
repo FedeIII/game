@@ -249,7 +249,7 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "A silver ring.": "Un anillo de plata.",
   "A pewter cup.": "Una copa de peltre.",
   "A candle stub.": "Un cabo de vela.",
-  "Horns and tusks. The apothecary pays me for them, and I pay you. Everybody wins.": "Cuernos y colmillos. La boticaria me los paga, y yo te pago a ti. Todos ganamos.",
+  "Horns, tusks and furs. The apothecary pays me for the horns and the tusks; the furs go south. Everybody wins.": "Cuernos, colmillos y pieles. La boticaria me paga los cuernos y los colmillos; las pieles van al sur. Todos ganamos.",
   "An imp horn.": "Un cuerno de diablillo.",
   "A brute tusk.": "Un colmillo de bruto.",
   "The chandler shut his shop when the roads went bad. Now I sell what I can find, and I find nothing.": "El velero cerró su tienda cuando los caminos se volvieron peligrosos. Ahora vendo lo que encuentro, y no encuentro nada.",
@@ -433,4 +433,7 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "Elama Rothenel asks me to warn Silverspring, north-east of Ironhold, before the hobgoblins come. Ironhold cannot pay. The soldiers of the Sovereignty want me to stay out of it.": "Elama Rothenel me pide que avise a Silverspring, al noreste de Ferrozar, antes de que lleguen los hobgoblins. Ferrozar no puede pagar. Los soldados de la Soberanía quieren que no me meta.",
   "I killed the scouts of the hobgoblins in the grove on the road to Silverspring. Their war band goes on.": "Maté a los exploradores de los hobgoblins en la arboleda del camino a Silverspring. Su partida de guerra sigue adelante.",
   "Silverspring gave me a title in its guard, and a bed in the town.": "Silverspring me dio un título en su guardia, y una cama en el pueblo.",
+  // Story phase 3c (2026-10-11): the loot of the scouts.
+  "A thick grey fur from the packs of the hobgoblin scouts. Corwin, the peddler of Ironhold, buys it.": "Una piel gris y espesa de las mochilas de los exploradores hobgoblin. Corwin, el buhonero de Ferrozar, la compra.",
+  "A badger fur.": "Una piel de tejón.",
 };
