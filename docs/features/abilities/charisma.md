@@ -5,7 +5,7 @@
 Charisma (CHA) is the force of personality of a character. It gives the damage of the blow of a
 sorcerer and a warlock, better prices, answers in conversations that win people over (a room at
 the inn, a friend's price), a presence that makes a pack of mobs press the character less, a guard
-that it gives to the other players near it, and a good name: the people of Thornwick greet it.
+that it gives to the other players near it, and a good name: the people of Ironhold greet it.
 
 ## Terminology
 
@@ -16,7 +16,7 @@ that it gives to the other players near it, and a good name: the people of Thorn
 - **Daunt**: how much longer a mob runs off after it hits the character.
 - **Inspire**: the extra guard that the character gives to the other players near it when a mob
   hits them.
-- **Reputation**: the people of Thornwick greet the character by its name (CHA 13).
+- **Reputation**: the people of Ironhold greet the character by its name (CHA 13).
 - **Clue**: the dim display of a thing behind a gate for a character that is 1 or 2 short of it
   ([Ability Scores](ability-scores.md), REQ-AS-007).
 
@@ -40,7 +40,7 @@ so that my main ability counts in a fight.
 words.
 
 **Acceptance Criteria:**
-- **AC-CHA-002.1:** Brann, Marta, Isolde and Aldous each have one answer behind CHA 13, with the
+- **AC-CHA-002.1:** Brann, Marta, Isolde and Elama each have one answer behind CHA 13, with the
   gate rule: open with CHA 13, dim with CHA 11 or 12, not there with less.
 - **AC-CHA-002.2:** Marta, the innkeeper: "[CHA 13] Surely there is a corner for a friendly face?"
   gives the character a room. The Crooked Lantern becomes its refuge: it wakes there after a
@@ -51,8 +51,8 @@ words.
 - **AC-CHA-002.4:** Isolde, the apothecary: "[CHA 13] Then I need a friend who knows the labels. A
   friend's price, perhaps?" opens her friend's price (REQ-CHA-004).
 - **AC-CHA-002.5:** Brann, the watchman: "[CHA 13] You look like a man who needs a drink. The next
-  one is on me." He tells that the brutes are slow. Aldous, the reeve: "[CHA 13] You can tell me. I
-  keep secrets." He tells of the last reeve and the granary.
+  one is on me." He tells that the brutes are slow. Elama Rothenel, the reeve: "[CHA 13] You can
+  tell me. I keep secrets." She tells of the last reeve and the granary.
 - **AC-CHA-002.6:** In a shared world the server gives the room only to a character with CHA 13,
   within 48 px of Marta.
 
@@ -137,7 +137,7 @@ that we fight better together.
 mine.
 
 **Acceptance Criteria:**
-- **AC-CHA-008.1:** With CHA 13 or more, each person of Thornwick greets the character once, by its
+- **AC-CHA-008.1:** With CHA 13 or more, each person of Ironhold greets the character once, by its
   name, when it comes within 2 tiles in the same place (both outside, or in the same building):
   for example "Evening, Lulu. Keep to the lamps." over Brann.
 - **AC-CHA-008.2:** A guest (no name) gets no greeting. Nobody greets during the arrival or in a

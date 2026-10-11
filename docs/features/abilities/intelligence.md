@@ -5,7 +5,7 @@
 Intelligence (INT) is the knowledge and the reason of a character. It gives the damage of a
 wizard's blow, extra damage on a mob in its wind-up for every class, the reading of a mob (its
 health and its wind-up), the old writing on things and the clever answers in conversations, the
-detail of the map, and the recipes of the cauldron of Thornwick. It makes the things that a
+detail of the map, and the recipes of the cauldron of Ironhold. It makes the things that a
 character finds useful: herbs and trophies become draughts.
 
 ## Terminology
@@ -86,7 +86,7 @@ secrets of the world.
 ### REQ-INT-005: Clever answers in conversations
 
 **User Story:** As a clever player, I want to say things that others cannot, so that the people of
-Thornwick tell me more.
+Ironhold tell me more.
 
 **Acceptance Criteria:**
 - **AC-INT-005.1:** An answer behind a gate shows its gate before its text, for example "[INT 13]
@@ -94,14 +94,14 @@ Thornwick tell me more.
 - **AC-INT-005.2:** With the score of the gate, the player can give it. With a score 1 or 2 under
   it, the answer is dim and the player cannot give it (a click, a number or E do nothing, and the
   selection goes past it). With a lower score, the answer is not there.
-- **AC-INT-005.3:** Aldous, the reeve, has two clever answers (on the map, and on the granary).
+- **AC-INT-005.3:** Elama Rothenel, the reeve, has two clever answers (on the map, and on the granary).
   Isolde, the apothecary, has one (a remedy that the player can brew).
 - **AC-INT-005.4:** Every node of a conversation keeps an answer without a gate, and a way to end
   the conversation without a gate.
 
 ---
 
-### REQ-INT-006: The cauldron of Thornwick
+### REQ-INT-006: The cauldron of Ironhold
 
 **User Story:** As a clever player, I want to brew draughts from what I find, so that my herbs and
 trophies have a use.
@@ -138,7 +138,7 @@ find my way back.
   its name.
 - **AC-INT-007.5:** With INT 11 or more, the map also shows the houses (their walls and floors) and
   the paths and the road.
-- **AC-INT-007.6:** With INT 13 or more, it also shows the names of places (Thornwick, Chapel) and
+- **AC-INT-007.6:** With INT 13 or more, it also shows the names of places (Ironhold, Chapel) and
   the refuges.
 - **AC-INT-007.7:** With INT 15 or more, it also shows a red cross on the door of a barred house and
   a gold dot on a locked chest.

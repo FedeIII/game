@@ -1,5 +1,6 @@
 import { CRT_DEFAULTS, type CrtFilter, type CrtSettings } from '../render/crt.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
+import { STRINGS } from './strings.ts';
 
 interface Slider {
   readonly key: keyof CrtSettings;
@@ -14,10 +15,10 @@ interface Slider {
  * of 1 the 5-tap blur skips pixels and edges show a double image.
  */
 export const SLIDERS: readonly Slider[] = [
-  { key: 'spread', label: 'Spread', min: 0, max: 1, step: 0.05 },
-  { key: 'mix', label: 'Blur', min: 0, max: 1, step: 0.05 },
-  { key: 'glow', label: 'Glow', min: 0, max: 1, step: 0.05 },
-  { key: 'scanline', label: 'Scanlines', min: 0, max: 0.5, step: 0.01 },
+  { key: 'spread', label: STRINGS.settings.spread, min: 0, max: 1, step: 0.05 },
+  { key: 'mix', label: STRINGS.settings.mix, min: 0, max: 1, step: 0.05 },
+  { key: 'glow', label: STRINGS.settings.glow, min: 0, max: 1, step: 0.05 },
+  { key: 'scanline', label: STRINGS.settings.scanline, min: 0, max: 0.5, step: 0.01 },
 ];
 
 export interface CrtState {
@@ -107,7 +108,7 @@ export class SettingsPanel {
     this.button = document.createElement('button');
     this.button.id = 'settings-button';
     this.button.type = 'button';
-    this.button.setAttribute('aria-label', 'Settings');
+    this.button.setAttribute('aria-label', STRINGS.settings.button);
     this.button.setAttribute('aria-expanded', 'false');
     this.button.setAttribute('aria-controls', 'settings');
     this.button.innerHTML = ICON;
@@ -115,7 +116,7 @@ export class SettingsPanel {
     this.panel = document.createElement('section');
     this.panel.id = 'settings';
     this.panel.hidden = true;
-    this.panel.setAttribute('aria-label', 'Settings');
+    this.panel.setAttribute('aria-label', STRINGS.settings.button);
 
     // The display settings: in the panel only for an admin.
     const display = document.createDocumentFragment();
@@ -123,7 +124,7 @@ export class SettingsPanel {
     title.className = 'settings-title';
     this.toggle = document.createElement('input');
     this.toggle.type = 'checkbox';
-    title.append(this.toggle, ' CRT effect');
+    title.append(this.toggle, ` ${STRINGS.settings.crt}`);
     display.append(title);
 
     for (const slider of SLIDERS) {
@@ -150,8 +151,8 @@ export class SettingsPanel {
     const footer = document.createElement('div');
     footer.className = 'settings-footer';
     this.query = document.createElement('code');
-    this.copy = this.smallButton('Copy link', () => void this.copyLink());
-    footer.append(this.query, this.copy, this.smallButton('Reset', () => this.reset()));
+    this.copy = this.smallButton(STRINGS.settings.copyLink, () => void this.copyLink());
+    footer.append(this.query, this.copy, this.smallButton(STRINGS.settings.reset, () => this.reset()));
     display.append(footer);
     if (controls) this.panel.append(display);
 
@@ -237,10 +238,10 @@ export class SettingsPanel {
     const url = `${location.origin}${location.pathname}${this.query.textContent}`;
     try {
       await navigator.clipboard.writeText(url);
-      this.copy.textContent = 'Copied';
+      this.copy.textContent = STRINGS.settings.copied;
     } catch {
-      this.copy.textContent = 'Copy failed';
+      this.copy.textContent = STRINGS.settings.copyFailed;
     }
-    setTimeout(() => (this.copy.textContent = 'Copy link'), 1500);
+    setTimeout(() => (this.copy.textContent = STRINGS.settings.copyLink), 1500);
   }
 }

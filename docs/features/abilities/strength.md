@@ -179,7 +179,7 @@ STR opens places that weaker characters cannot open.
   can give another gate. `World.doorBar()` gives the gate, or null for a forced door.
   `World.setDoorForced()` and `World.forcedDoorList()` keep the forced doors. `useDoor(..., traits)`
   (`interact.ts`) gives `'barred'` or `'forced'`; `'forced'` also opens the door. No NPC of the
-  Wilds walks near a barred door: the NPCs live in Thornwick, which has no barred door.
+  Wilds walks near a barred door: the NPCs live in Ironhold, which has no barred door.
 - **The look of a barred door** is the art `wall/<walls>/door/boarded`, the same as the door of a
   building that is shut for good (`Building.locked`). The texts are `STRINGS.forceDoor`,
   `tryDoor`, `barred` and `forced`. The shake is `SHAKE` in `game.ts` (220 ms, 2 px).

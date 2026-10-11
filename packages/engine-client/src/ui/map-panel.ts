@@ -3,6 +3,7 @@ import { isFormField } from '../input/keyboard.ts';
 import { MAP_HOUSES, MAP_NAMES, MAP_SECRETS } from './gates.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
+import { tw } from '../i18n.ts';
 
 const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
 <path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6"/><path d="M6 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2"/><path d="M9 9l2 2 4-4M9 15h6"/></svg>`;
@@ -147,7 +148,7 @@ export class MapPanel {
       if (this.int >= MAP_NAMES || mark.kind === 'home') {
         const label = document.createElement('span');
         label.className = 'map-label';
-        label.textContent = mark.name;
+        label.textContent = tw(mark.name);
         label.style.left = `${(100 * mx) / SPAN}%`;
         label.style.top = `${(100 * my) / SPAN}%`;
         this.labels.append(label);

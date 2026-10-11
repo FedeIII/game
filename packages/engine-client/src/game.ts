@@ -118,6 +118,8 @@ import { skinKey, skinName, type SkinLook } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
 import { markResume } from './menu/resume.ts';
+import { languageChoice } from './ui/language-choice.ts';
+import { LANG, setWorldTexts, tw } from './i18n.ts';
 import { skinSeed } from './skins/seed.ts';
 import { SkinStore, attackLook } from './skins/skin-store.ts';
 import { ActionButton, type PressSource } from './ui/action-button.ts';
@@ -190,7 +192,7 @@ const GREET_RANGE = 2 * TILE_SIZE;
 
 /** "a, b and c". */
 function andList(parts: readonly string[]): string {
-  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} ${STRINGS.and} ${parts[parts.length - 1]}`;
 }
 
 /** What the player says when it opens a chest: what it found, that it is empty, or that the pack is full. */
@@ -211,11 +213,11 @@ function sourceLine(fixture: Fixture | null, taken: Loot, full: boolean): string
   return `${fixture?.lock ? `${STRINGS.picked} ` : ''}${chestLine(taken, full)}`;
 }
 
-/** The lines that rise over the player for a drop: "+3 coins", "+1 imp horn". */
+/** The lines that rise over the player for a drop: "+3 coins", "+1 imp horn" (the small font draws them in capitals). */
 function dropLines(taken: Loot): string[] {
   return [
     ...(taken.coins > 0 ? [`+${STRINGS.coins(taken.coins)}`] : []),
-    ...taken.items.map((s) => `+${s.count} ${s.count === 1 ? STRINGS.items[s.kind].a.replace(/^an? /, '') : STRINGS.items[s.kind].many}`),
+    ...taken.items.map((s) => `+${s.count} ${s.count === 1 ? STRINGS.items[s.kind].name : STRINGS.items[s.kind].many}`),
   ];
 }
 
@@ -230,7 +232,10 @@ async function run(options: GameOptions): Promise<void> {
   const params = new URLSearchParams(location.search);
   const definition = options.worlds.find((w) => w.id === params.get('world')) ?? options.worlds.find((w) => w.id === options.defaultWorld) ?? options.worlds[0];
   if (!definition) throw new Error('startGame: no worlds');
-  if (options.title) document.title = `${definition.name} · ${options.title}`;
+  // The language of the page (i18n.ts): the world's texts in it, and the page says it.
+  setWorldTexts(definition.texts?.[LANG]);
+  document.documentElement.lang = LANG;
+  if (options.title) document.title = `${tw(definition.name)} · ${options.title}`;
   const seed = Number.parseInt(params.get('seed') ?? '', 10);
 
   // Pixel art: no smoothing on any texture, and sprites on whole pixels.
@@ -246,7 +251,7 @@ async function run(options: GameOptions): Promise<void> {
   let admin = false;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
   if (options.accounts && !guest) {
-    ({ character, admin } = await runMenu({ title: definition.name, site: options.title ?? location.host, skins }));
+    ({ character, admin } = await runMenu({ title: tw(definition.name), site: options.title ?? location.host, skins }));
   }
 
   // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
@@ -495,7 +500,7 @@ async function run(options: GameOptions): Promise<void> {
       if (world.insideOf(...tileOf(pose)) !== here) return;
       greeted.add(def.id);
       if (talkWith === npcFixture(def)) return;
-      barkBubbles.say(index, def.greeting.replace('{name}', name), () => npcViews!.headOf(index), now);
+      barkBubbles.say(index, tw(def.greeting).replace('{name}', name), () => npcViews!.headOf(index), now);
     });
   };
 
@@ -711,6 +716,21 @@ async function run(options: GameOptions): Promise<void> {
   const crtText = new CrtFilter(CRT_TEXT, 8);
   textLayer.filters = [crtText];
   const settings = new SettingsPanel(crt, crtStateFrom(params, admin ? loadSavedCrt() : null), [crtText], admin);
+  // The language (for every visitor): a new choice reloads the page, and the menu starts the same
+  // character again in the new language.
+  const language = document.createElement('div');
+  language.className = 'settings-language';
+  const languageHeading = document.createElement('p');
+  languageHeading.className = 'settings-heading';
+  languageHeading.textContent = STRINGS.settings.language;
+  language.append(
+    languageHeading,
+    languageChoice('settings-lang lang-choice', () => {
+      if (character) markResume(character.id);
+      void savePlace(true).finally(() => location.reload());
+    }),
+  );
+  settings.addSection(language);
   settings.addSection(you.element);
   // The worlds menu only when there is another world to go to.
   if (options.worlds.length > 1) new WorldMenu(options.worlds, definition);

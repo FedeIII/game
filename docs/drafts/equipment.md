@@ -127,7 +127,7 @@ New kinds (stack 1), each with an icon and a line of the world:
    the icons, AC in the "You" section.
 2. **The look follows the hands** (built 2026-10-11, protocol 20): the weapon and the shield on the
    figure come from the gear, for the player and for the others, and in the menu.
-3. **The smith of Thornwick** (built 2026-10-11) sells armour, shields and weapons, and buys them
+3. **The smith of Ironhold** (built 2026-10-11) sells armour, shields and weapons, and buys them
    back for half. Plate and studded leather came with him.
 4. **More** (2026-10-11, one deploy each): (a) the armour on the figure (built, protocol 21);
    (b) magic items (built: nine items of the SRD as rare loot); (c) reach weapons (built: the

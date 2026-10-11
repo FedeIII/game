@@ -11,7 +11,7 @@ const besideNpc = (id: string) => {
   return { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 };
 };
 
-describe('persuasion in the conversations of Thornwick', () => {
+describe('persuasion in the conversations of Ironhold', () => {
   it('gives each of the four people a way behind CHA 13, and the dialogs stay good', () => {
     expect(PERSUASION_GATE).toEqual({ ability: 'cha', min: 13 });
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE, PEDDLER]) expect(checkDialog(dialog), dialog.name).toEqual([]);
@@ -30,7 +30,7 @@ describe('persuasion in the conversations of Thornwick', () => {
   });
 });
 
-describe('Charisma in Thornwick, through the server', () => {
+describe('Charisma in Ironhold, through the server', () => {
   const join = (room: Room, id: string, cha: number, pack = { coins: 20, items: [] as { kind: 'ring'; count: number }[] }) =>
     room.join(0, 1, undefined, '', besideNpc(id), { traits: withCha(cha), pack, hp: 1 })!;
 
@@ -86,7 +86,7 @@ describe('Charisma in Thornwick, through the server', () => {
 });
 
 describe('reputation', () => {
-  it('gives every person of Thornwick a greeting by name', () => {
+  it('gives every person of Ironhold a greeting by name', () => {
     for (const npc of TOWN_NPCS) expect(npc.greeting, npc.id).toContain('{name}');
   });
 });

@@ -6,7 +6,7 @@ This file gives guidance to Claude Code when it works in this repository.
 
 A pixel-art game **engine** for the browser, and the applications on it. It runs at
 https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
-stone houses, mobs, and the town of Thornwick west of the home). A visitor signs in with Google, makes a character (D&D 5e races,
+stone houses, mobs, and the town of Ironhold west of the home). A visitor signs in with Google, makes a character (D&D 5e races,
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 | `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
-| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Thornwick (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
+| `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the town of Ironhold (`town.ts`), the road to it and the signpost (`road.ts`), and its texts. | `@game/engine` |
 | `apps/game` | `@game/app` | game.azyr.io: `index.html`, `src/worlds.ts` (the worlds, for the page and the server; `shareWorlds()`, the dev switch), `src/main.ts` (calls `startGame`), `server/main.ts` (calls `startServer`), Vite config. | all |
 
 Worlds are pure data and functions (no DOM), so a server can run them too.
@@ -208,7 +208,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `characters.ts`: the default player (the hooded wanderer, about 28 px tall, 8-frame walk, four
   real views: frames `player/<view>/...`) and the NPC looks (`NPC_LOOKS`: cloak colours, hood up
   or down, hair, and optional `spec` and `palette` that change parts of the wanderer: the
-  people of Thornwick `watchman`, `innkeeper`, `priest`, `child`; frames `npc/<look>`), all from
+  people of Ironhold `watchman`, `innkeeper`, `priest`, `child`; frames `npc/<look>`), all from
   `figure.ts`.
 - `skins.ts`: player skins. A skin is a 32-bit seed that holds the look of a character:
   `appearanceOf(seed)` (`@game/engine`, `character.ts`) gives its race, class and gender (the
@@ -330,8 +330,11 @@ For the HTML GUI:
   them: the link card. Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
-- Every engine text the player reads goes in `src/ui/strings.ts`; what things say is content and
-  belongs to the world.
+- Every engine text the player reads goes in `src/ui/strings.ts` (English) and `src/ui/strings-es.ts`
+  (Spanish: the type `Strings` checks that no key is missing); what things say is content and
+  belongs to the world, in English, with a Spanish table (`WorldDefinition.texts.es`; for the
+  Wilds `worlds/wilds/src/text-es.ts`: a test fails when a text has no Spanish form). See
+  "Language".
 - A control gives the focus back after use, or WASD stops working (see `SettingsPanel`).
 - A link must be a real `<a>` (the link card): a browser opens a new tab from a key press or a
   click, but not from the start of a touch. So E opens the link, and a tap on the action button
@@ -492,7 +495,7 @@ builder and the "You" section still name every gate.
   `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
   slot) in `move` and `put`, protocol 19. The figure holds and wears what the character
   wears (protocols 20 and 21: `lk`, `RemotePlayer.look`, `dressSkin()` in the art). The smith of
-  Thornwick sells and buys gear (see "Shops").
+  Ironhold sells and buys gear (see "Shops").
 - **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
   "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
   when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack. A
@@ -545,7 +548,7 @@ builder and the "You" section still name every gate.
   also poison (`poisonTicks` 360: one HP every 3 s, never the last one). At 0 HP the player is
   **defeated** (`down`, 3 s: it falls back and lies, mobs leave it, the screen goes dark); then
   it wakes (`wakePlayer()`) at home, or at the nearest refuge that its character has entered
-  (`wakePoint()`, `WorldSource.refuges()`: the chapel of Thornwick; `Character.refuges`), with all
+  (`wakePoint()`, `WorldSource.refuges()`: the chapel of Ironhold; `Character.refuges`), with all
   its HP and a guard of 2 s, and a defeat takes half of its coins. The Room wakes it in a shared
   world (`Room.wake`, `settle()` before a save), the page in its own world.
 - **Rest**: a fixture with `Interaction.rest` (the bed of the home) gives all HP and stamina
@@ -561,7 +564,7 @@ builder and the "You" section still name every gate.
   houses and locked chests), lore (`LORE_GATE`, INT 13 in `worlds/wilds/src/dialogs.ts`).
 - **Lore** (`Interaction.lore`: a gate and pages): after its own pages, a thing shows its lore
   to a character with the gate, the clue `STRINGS.loreHint` to one 1 or 2 under it (`contentOf()`
-  in `game.ts`). The Wilds: the books of the houses (`BOOKS`, `houses.ts`), and in Thornwick the
+  in `game.ts`). The Wilds: the books of the houses (`BOOKS`, `houses.ts`), and in Ironhold the
   lectern, the apothecary's shelf, the reeve's ledgers and map table, the notice board.
 - **Gated answers** (`DialogAnswer.gate`): the conversation panel hides, dims (`.dim`, not
   selectable) or opens each one with `gateView()`. `checkDialog()` wants an answer without a gate
@@ -587,7 +590,7 @@ builder and the "You" section still name every gate.
   and the way home (`HOMEWARD_GATE` in `ui/gates.ts`: a pale arrow at the screen edge to the home).
 - **Hidden things** of the Wilds: a patch of herbs (`herbpatch`, `herbs.ts`, `WildsSource.herbs()`:
   in about four cells in five, on open grass away from houses, the road and the town; one bundle,
-  it grows again after 20 minutes, `LootTable.refillMs`) and the buried cache of Thornwick
+  it grows again after 20 minutes, `LootTable.refillMs`) and the buried cache of Ironhold
   (`cache`, `TOWN_CACHE`: across the lane from the cottage; the reeve tells of it with insight).
   Neither collides (`FixtureTile.reach`: a target without a solid box).
 - **Charisma**: the damage of the sorcerer and the warlock, and for every class prices
@@ -598,7 +601,7 @@ builder and the "You" section still name every gate.
   within 3 tiles of a hit; `PlayerState.inspired`, in `WireSelf`). Gates of 13: persuasion
   (`PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`: Marta gives a room, `ROOM`, the refuge `inn`
   with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price; Brann and
-  Aldous words) and reputation (`REPUTATION_GATE` in `ui/gates.ts`: each NPC says its
+  Elama words) and reputation (`REPUTATION_GATE` in `ui/gates.ts`: each NPC says its
   `NpcDef.greeting` once, with the character's name, within 2 tiles).
 - **Shops**: a deal can take items and give coins (`goods: 'coins'`, `pay`: the peddler Corwin buys
   rings 5, cups 3, candles 1, imp horns 2, brute tusks 4) or give a refuge (`goods: 'refuge'`).
@@ -617,6 +620,22 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
 protocol: `docs/multiplayer.md`, protocol 22.
+
+## Language
+
+English and Spanish (Fede's decision, 2026-10-11; `docs/features/game/language.md`). The page
+chooses once, when it loads (`src/i18n.ts`, `LANG`): `?lang=en|es` (not kept), the kept choice
+(localStorage `game.lang.v1`), the browser's language (Spanish when it starts with `es`). The menu
+and the settings panel show "English · Español" (`ui/language-choice.ts`); a choice reloads the
+page (the game resumes the same character). `STRINGS` is the table of `LANG`. A world's content is
+in English, and `tw()` translates it where it reaches the screen (bubbles, barks, welcome, the
+conversation panel, signs, map labels, item lines, the intro, the link card, the title). In Spanish
+the names are those of Kandrax (Ironhold: Ferrozar; the Wilds: las Tierras Salvajes; the reeve:
+Elama Rothenel, la alguacil), and the D&D terms those of the Spanish 5e books (FUE, DES, CON, INT,
+SAB, CAR; CA). **A Spanish line about the player has no word that must agree with its gender.**
+New Spanish text must fit the conversation panel and use only letters that the pixel font draws
+(tests: `worlds/wilds/test/texts.test.ts`, `apps/game/test/texts.test.ts`). The privacy page has a
+Spanish copy at `/privacy/es/`.
 
 ## Arrival in a world
 
@@ -679,7 +698,7 @@ and then it goes for the attacker.
 
 A world opts in with `WorldSource.mobs()` (`MobRules`: `roam` where mobs live and wander, `hunt`
 where they may step while they chase, `population` per player). The Wilds: everywhere except
-water, the ground round a house and Thornwick (they do not live within 2 tiles of the town, and
+water, the ground round a house and Ironhold (they do not live within 2 tiles of the town, and
 they never step into it, so the town is safe); 4 imps and 2 brutes. The client of a
 single-player world runs its own `Horde`; in a shared world the server runs it (protocol 5, see
 `docs/multiplayer.md`): the client sends its attacks with the time of the mobs that it showed,
@@ -819,7 +838,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   home's chest is the character's own: no loot. Every lake has a band of shallow water at its
   shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all
   shallow: a character with Strength 13 wades through it.
-- **Thornwick** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
+- **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
   fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) west of
   the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.
   The main street runs east to west (cobblestones, lamps); the road from the home comes in at its
@@ -997,7 +1016,7 @@ for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-
 `.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
-`?mob=imp,brute` (mobs next to the player), `?companion=<look>` (a companion of that NPC look
+`?lang=en|es` (the language, not kept), `?mob=imp,brute` (mobs next to the player), `?companion=<look>` (a companion of that NPC look
 next to the player, which follows it; a world that the page runs), `?nomobs` (no mobs: use it in tests that walk about),
 `?attackpose=<tick>,<facing or degrees>` (the player frozen at that tick of an attack in that
 direction, degrees clockwise from east: a screenshot of it),

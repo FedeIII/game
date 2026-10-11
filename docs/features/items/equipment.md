@@ -354,7 +354,7 @@ on the figures of the others, so that the gear shows in the world.
 do not use, so that the gear grows with my character.
 
 **Acceptance Criteria:**
-- **AC-EQ-019.1:** The smith of Thornwick has a conversation: "Show me armour.", "Show me
+- **AC-EQ-019.1:** The smith of Ironhold has a conversation: "Show me armour.", "Show me
   weapons.", "I have gear to sell." and "Goodbye.".
 - **AC-EQ-019.2:** He sells, before Charisma: leather armour 5 coins, studded leather 10, scale
   mail 12, chain mail 18, splint armour 45, plate armour 150, a shield 4, a longsword 6, a
@@ -400,7 +400,7 @@ house can give me something that changes my character.
   lower.", "+2 CON while you wear it, at most 20.", "Quiet steps: when you sneak, the mobs see you
   only from nearby.".
 - **AC-EQ-020.9:** They are rare loot: a locked chest gives one in 16, the chest of a barred house
-  one in 8, the buried cache of Thornwick one in 6. A longsword +1, a cloak of protection and boots
+  one in 8, the buried cache of Ironhold one in 6. A longsword +1, a cloak of protection and boots
   of elvenkind come most often, an amulet of health least often. Nobody sells or buys them.
 
 ---

@@ -1,6 +1,7 @@
 import type { Texture } from 'pixi.js';
 import { PLAIN_SCORES, gateView, type Deal, type Dialog, type DialogAnswer, type DialogNode, type Gate, type Scores } from '@game/engine';
 import { STRINGS } from './strings.ts';
+import { tw } from '../i18n.ts';
 
 /**
  * A conversation with an NPC that has a dialog (Interaction.dialog, the engine's dialog.ts): the
@@ -225,7 +226,7 @@ export class ConversationPanel {
   start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES, priceOf: (deal: Deal) => string | null = () => null): void {
     this.talk = new Conversation(dialog, scores);
     this.priceOf = priceOf;
-    this.name.textContent = dialog.name;
+    this.name.textContent = tw(dialog.name);
     if (face) drawCloseup(this.portrait, face);
     this.portrait.hidden = face === null;
     this.panel.hidden = false;
@@ -265,8 +266,8 @@ export class ConversationPanel {
   private render(): void {
     const talk = this.talk!;
     this.said.hidden = talk.answered === null;
-    this.said.textContent = talk.answered === null ? '' : `${STRINGS.conversation.you}: ${talk.answered}`;
-    this.text.textContent = talk.node.say;
+    this.said.textContent = talk.answered === null ? '' : `${STRINGS.conversation.you}: ${tw(talk.answered)}`;
+    this.text.textContent = tw(talk.node.say);
     this.list.replaceChildren(
       ...talk.answers.map((answer, i) => {
         const item = document.createElement('li');
@@ -281,7 +282,7 @@ export class ConversationPanel {
         // An answer behind a gate shows the gate: open, or as a dim clue that the player cannot give.
         const tag = answer.gate ? `${gateTag(answer.gate)} ` : '';
         const price = answer.deal ? this.priceOf(answer.deal) : null;
-        button.append(key, tag + answer.text + (price ? ` ${price}` : ''));
+        button.append(key, tag + tw(answer.text) + (price ? ` ${price}` : ''));
         if (talk.dim(i)) {
           button.classList.add('dim');
           button.setAttribute('aria-disabled', 'true');

@@ -41,7 +41,7 @@ function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1:
 }
 
 describe('the signpost and the road', () => {
-  it('stand by the home: the sign points west, to Thornwick', () => {
+  it('stand by the home: the sign points west, to Ironhold', () => {
     for (const seed of SEEDS) {
       const s = new WildsSource(seed);
       const home = s.home();
@@ -108,7 +108,7 @@ describe('the signpost and the road', () => {
   });
 });
 
-describe('Thornwick', () => {
+describe('Ironhold', () => {
   it('has a main street with nine buildings round it: five open and four shut for good', () => {
     expect(TOWN_BUILDINGS).toHaveLength(9);
     expect(TOWN_BUILDINGS.filter((b) => b.locked)).toHaveLength(4);

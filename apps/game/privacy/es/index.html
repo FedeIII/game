@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#08090b" />
+    <title>Privacidad · game.azyr.io</title>
+    <style>
+      /* The colours and fonts of the game's theme (packages/engine-client/src/style.css). */
+      :root {
+        color-scheme: dark;
+        --ui-ink: #d8ccb0;
+        --ui-panel: rgb(8 6 8 / 0.85);
+        --ui-border: rgb(122 48 46 / 0.6);
+        --ui-accent: #9a3a36;
+        --ui-backdrop: #08090b;
+        --ui-menu-glow: rgb(122 48 46 / 0.14);
+        --ui-radius: 2px;
+        --ui-serif: Georgia, 'Times New Roman', serif;
+        --ui-mono: ui-monospace, Menlo, Consolas, monospace;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px 16px;
+        box-sizing: border-box;
+        background: radial-gradient(ellipse at 50% 20%, var(--ui-menu-glow) 0%, transparent 65%), var(--ui-backdrop);
+        color: var(--ui-ink);
+        font: 16px/1.55 var(--ui-serif);
+      }
+      main {
+        box-sizing: border-box;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 18px 22px;
+        border: 1px solid var(--ui-border);
+        border-radius: var(--ui-radius);
+        background: var(--ui-panel);
+      }
+      h1 {
+        margin: 0 0 4px;
+        font: italic 30px/1.2 var(--ui-serif);
+        letter-spacing: 0.04em;
+      }
+      h2 {
+        margin: 20px 0 4px;
+        font: italic 18px var(--ui-serif);
+      }
+      p {
+        margin: 0 0 8px;
+      }
+      code,
+      .date {
+        font: 13px var(--ui-mono);
+      }
+      .date {
+        opacity: 0.6;
+      }
+      a {
+        color: var(--ui-ink);
+        text-decoration-color: var(--ui-accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacidad</h1>
+      <p class="date">game.azyr.io · último cambio: 11 de octubre de 2026 · <a href="/privacy/" hreflang="en" lang="en">In English</a></p>
+
+      <h2>Qué guarda el juego</h2>
+      <p>
+        Cuando inicias sesión con Google, el juego pide a Google el identificador de tu cuenta de Google (un número) y tu
+        dirección de correo. No recibe ni guarda tu nombre ni tu foto. Guarda ese identificador, tu dirección de correo,
+        cuándo iniciaste sesión por primera y por última vez, tus sesiones, y los personajes que creas (nombre, raza,
+        clase, género, aspecto, características, cuándo creaste cada uno y cuándo jugaste con él por última vez, dónde
+        estaba por última vez en el mundo del juego, lo que lleva encima y lo que lleva puesto, sus puntos de golpe, los
+        lugares seguros que ha encontrado y las partes del mapa del mundo que ha visto).
+      </p>
+
+      <h2>Para qué</h2>
+      <p>
+        Para guardarte tus personajes y saber que son tuyos. El juego usa tu dirección de correo solo para saber quiénes
+        lo administran; no te envía correos. Nada más: ni anuncios, ni estadísticas, ni rastreadores. El juego no
+        comparte nada con nadie.
+      </p>
+
+      <h2>Cuánto tiempo</h2>
+      <p>
+        Hasta que borres tu cuenta. Una sesión termina como mucho 30 días después de usarla por última vez. Cada noche se
+        hace una copia de la base de datos, cifrada, que se guarda 14 días: los datos borrados salen de las copias en 14
+        días.
+      </p>
+
+      <h2>Cómo borrarlo todo</h2>
+      <p>En el menú del juego, elige <em>Borrar la cuenta</em>. Tu cuenta, sus sesiones y todos sus personajes se borran a la vez.</p>
+
+      <h2>Cookies y almacenamiento</h2>
+      <p>
+        Una cookie, <code>game_session</code>, mantiene tu sesión; es necesaria para iniciar sesión, así que el juego no
+        pide consentimiento para ella. Otra, <code>game_login</code>, dura 10 minutos mientras inicias sesión. Tu
+        navegador guarda además tus ajustes de pantalla, el idioma que elijas y los dibujos de los personajes, solo en tu
+        dispositivo. Google gestiona el inicio de sesión, y su propia política de privacidad cubre tu cuenta de Google.
+      </p>
+
+      <p><a href="/">Volver al juego</a></p>
+    </main>
+  </body>
+</html>

@@ -5,6 +5,7 @@ import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
 import { shadowedText } from './name-tag.ts';
 import type { PixelFont } from './pixel-text.ts';
+import { tw } from '../i18n.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
 const FRONT_WALL_INSIDE_ALPHA = 0.35;
@@ -172,8 +173,8 @@ export class Buildings {
    * A wooden board with the building's name, centred over the door. The name is drawn as the
    * names over heads are: the small font, the parchment ink and a 1-pixel shadow.
    */
-  private sign(building: Building, text: string): Container {
-    const lines = this.font.wrap(text, 120);
+  private sign(building: Building, english: string): Container {
+    const lines = this.font.wrap(tw(english), 120);
     // The shadow adds a pixel to the right and below the letters.
     const width = Math.max(...lines.map((l) => this.font.measure(l))) + 1 + 8;
     const height = (lines.length - 1) * this.font.lineHeight + this.font.height + 1 + 6;

@@ -41,7 +41,7 @@ export const ITEM_KINDS = [
   'arcane-staff',
   'druid-staff',
   'luck-amulet',
-  // The smith of Thornwick sells them too (2026-10-11).
+  // The smith of Ironhold sells them too (2026-10-11).
   'studded-leather',
   'plate-armour',
   // Magic items of the SRD (gear.ts), rare loot (2026-10-11).

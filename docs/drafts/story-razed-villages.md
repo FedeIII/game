@@ -1,7 +1,7 @@
 # The Razed Villages: the first story of the game (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** Planned (2026-10-11), nothing built
+> **Status:** Phase 1 built (2026-10-11: `docs/features/game/language.md`); phases 2 to 6 planned
 
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
@@ -42,7 +42,7 @@ the thread that connects the quests.
 
 - **The Wilds** are the wild frontier between the **Iron Sovereignty** and the **Mithril
   Enclave**. Both powers compete for this land, and neither one plays fair.
-- **Ironhold** (now Thornwick; Ferrozar in Kandrax) is the frontier village of the Sovereignty,
+- **Ironhold** (Thornwick until 2026-10-11; Ferrozar in Kandrax) is the frontier village of the Sovereignty,
   west of the home. Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the
   head of the village; the watchman at the gate is a soldier of the Sovereignty.
 - **Silverspring** is the mithril village of the Enclave, a new fixed town north-east of
@@ -65,7 +65,7 @@ The English forms translate them. **Fede confirmed the English names below (2026
 | la Soberanía del Hierro | the Iron Sovereignty | |
 | el Enclave del Mithril | the Mithril Enclave | |
 | los Dominios Centrales | the Central Dominions | |
-| Ferrozar | Ironhold | the town of the game, now Thornwick |
+| Ferrozar | Ironhold | the town of the game (Thornwick until 2026-10-11) |
 | Silverspring | Silverspring | English in Kandrax too |
 | Bronzal | Bronzehold | a later place |
 | Arboleda Blanca | Whitegrove | a later place |
@@ -305,8 +305,10 @@ Phases 3 to 6 are a later stage; their details come from the Drive when we build
 Each phase is built, tested, documented in `docs/features/` (the REQ/AC format) and deployed
 before the next one.
 
-1. **Language and names** (S7). First, so that every later text is in both languages from the
-   start, and the rename does not touch new code.
+1. **Language and names** (S7; built 2026-10-11). First, so that every later text is in both
+   languages from the start, and the rename does not touch new code. The world's content stays in
+   English, and a table gives the Spanish (`WorldDefinition.texts.es`, `tw()`): the content needs no
+   keys.
 2. **Quests and conversations** (S1, S2, S8), with Q0 (the letter) and Q1 (the broken cart). The
    small quests test the whole chain: a step, a gate, an effect on the server, a reward, the
    journal.

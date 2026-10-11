@@ -3,7 +3,7 @@ import { DOOR_PATH } from './houses.ts';
 import { TOWN_GATE, TOWN_NAME } from './town.ts';
 
 /**
- * The road from the home to Thornwick, and the signpost by the home that points the way.
+ * The road from the home to Ironhold, and the signpost by the home that points the way.
  *
  * The road starts below the path to the home's door and ends at the gate of the town (the east
  * end of its main street). It is a smooth curve: it leaves the home to the west and comes into

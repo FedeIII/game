@@ -10,7 +10,7 @@ const besideSmith = () => {
   return { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 };
 };
 
-describe('the smith of Thornwick', () => {
+describe('the smith of Ironhold', () => {
   it('has a good conversation, and the smith of the town has it', () => {
     expect(checkDialog(SMITH)).toEqual([]);
     expect(TOWN_NPCS[smith]!.content.dialog).toBe(SMITH);

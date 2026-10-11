@@ -8,7 +8,7 @@ const dialog: Dialog = {
   nodes: {
     halt: { say: 'Halt!', answers: [{ text: 'Who are you?', next: 'who' }, { text: 'What is this place?', next: 'place' }, { text: 'Goodbye.' }] },
     who: { say: 'The watch.', answers: [{ text: 'And this place?', next: 'place' }, { text: 'Goodbye.' }] },
-    place: { say: 'Thornwick.', answers: [{ text: 'Thank you.' }] },
+    place: { say: 'Ironhold.', answers: [{ text: 'Thank you.' }] },
   },
 };
 
@@ -33,7 +33,7 @@ describe('a conversation', () => {
     talk.move(1);
     expect(talk.choose(0)?.say).toBe('The watch.');
     expect([talk.id, talk.answered, talk.selected]).toEqual(['who', 'Who are you?', 0]);
-    expect(talk.choose(0)?.say).toBe('Thornwick.');
+    expect(talk.choose(0)?.say).toBe('Ironhold.');
     expect(talk.answered).toBe('And this place?');
   });
 

@@ -6,7 +6,7 @@ Constitution (CON) is the health of the body. It gives the hit points of a chara
 mob's hit stuns it, how fast its hit points come back, its stamina, and how long a poison or a
 drink lasts. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
 refuge that it found, with half of its coins gone. A rest in the bed of the home, and an ale at
-the inn of Thornwick, are the first things that act on these vitals.
+the inn of Ironhold, are the first things that act on these vitals.
 
 ## Terminology
 
@@ -16,7 +16,7 @@ the inn of Thornwick, are the first things that act on these vitals.
   hit it.
 - **Waking**: the end of a defeat: the character stands up at home or in a refuge.
 - **Refuge**: a building where a defeated character can wake, after it has entered it once. In
-  the Wilds: the chapel of Thornwick. The home is always a place to wake.
+  the Wilds: the chapel of Ironhold. The home is always a place to wake.
 - **Recovery**: hit points that come back by themselves, out of a fight.
 - **Rest**: an action on the bed of the home: all hit points and stamina come back.
 - **Stamina**: the energy for a roll and for the sneak walk ([Dexterity](dexterity.md)).
@@ -148,7 +148,7 @@ cost for the defeat.
 home does not send me all the way back.
 
 **Acceptance Criteria:**
-- **AC-CON-008.1:** In the Wilds, the chapel of Thornwick is a refuge. The point to wake there is
+- **AC-CON-008.1:** In the Wilds, the chapel of Ironhold is a refuge. The point to wake there is
   the tile north of the chapel door.
 - **AC-CON-008.2:** When a character comes into the chapel for the first time, the player says
   "This place feels safe. If I fall, I can wake here."

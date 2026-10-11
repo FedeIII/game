@@ -398,6 +398,13 @@ export interface WorldDefinition {
    */
   readonly items?: Readonly<Partial<Record<ItemKind, string>>>;
   /**
+   * The world's texts in other languages: for each language code ('es'), a table from the English
+   * text (as the content has it: a page, a line, a dialog, a sign, a name) to its translation. The
+   * page shows a text without a translation in English. A world tests that the table has every
+   * text of its content.
+   */
+  readonly texts?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /**
    * Whether visitors share this world through the multiplayer server: each one sees the others,
    * and the server owns the state (positions, doors). Without it, the world is single-player.
    */

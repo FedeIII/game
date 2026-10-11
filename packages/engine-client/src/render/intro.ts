@@ -1,6 +1,7 @@
 import { Container, Sprite, Texture } from 'pixi.js';
 import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
+import { tw } from '../i18n.ts';
 
 /** The ink of the title (the parchment of the GUI) and of its shadow. */
 const INK = 0xd8ccb0;
@@ -34,7 +35,8 @@ export class IntroTitle {
   private startAt: number | null = null;
   private finished = false;
 
-  constructor(font: PixelFont, title: string) {
+  constructor(font: PixelFont, english: string) {
+    const title = tw(english);
     this.textWidth = font.measure(title) * SCALE;
     this.textHeight = font.height * SCALE;
     this.band = new Sprite(Texture.WHITE);

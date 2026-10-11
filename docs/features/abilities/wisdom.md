@@ -79,7 +79,7 @@ the woods give me more.
 - **AC-WIS-004.2:** A character always sees a hidden thing when it stands next to it, so the action
   button can always act on it.
 - **AC-WIS-004.3:** The hidden things of the Wilds are the patches of herbs and the buried cache of
-  Thornwick ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-012). They do not collide.
+  Ironhold ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-012). They do not collide.
 - **AC-WIS-004.4:** A patch of herbs grows in about four cells in five, on open grass with a way out
   between the trees. It never grows within 4 tiles of the town, on or near the road, within 2
   tiles of the signpost, or within 2 tiles of the ground of a house.
@@ -89,10 +89,10 @@ the woods give me more.
 ### REQ-WIS-005: Insight in conversations
 
 **User Story:** As a wise player, I want to see what people do not say, so that the people of
-Thornwick tell me more.
+Ironhold tell me more.
 
 **Acceptance Criteria:**
-- **AC-WIS-005.1:** Each of the four people of Thornwick with a conversation has one answer behind
+- **AC-WIS-005.1:** Each of the four people of Ironhold with a conversation has one answer behind
   WIS 13, with the gate rule ([Intelligence](intelligence.md), REQ-INT-005): open with WIS 13, dim
   with WIS 11 or 12, not there with less.
 - **AC-WIS-005.2:** Brann, the watchman: "[WIS 13] You do not believe the priest." He tells that
@@ -101,7 +101,7 @@ Thornwick tell me more.
   the green drink.
 - **AC-WIS-005.4:** Isolde, the apothecary: "[WIS 13] You do not grow your ashroot here. Where do
   you find it?" She tells that it grows wild between the trees (the patches of herbs).
-- **AC-WIS-005.5:** Aldous, the reeve: "[WIS 13] You miss the old couple." He tells that they
+- **AC-WIS-005.5:** Elama Rothenel, the reeve: "[WIS 13] You miss the old couple." She tells that they
   buried their savings across the lane from their door, a few steps to the west (the buried
   cache).
 

@@ -2,6 +2,7 @@ import { Container, NineSliceSprite, Sprite } from 'pixi.js';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
+import { tw } from '../i18n.ts';
 
 /** How long a single short line stays, and how long it takes to appear and to fade, in milliseconds. */
 const DURATION = 2500;
@@ -106,7 +107,8 @@ export class SpeechBubble {
     // Do not fade in again when a dialog replaces one that is still on screen.
     if (!this.root.visible) this.shownAt = now;
     this.stay = stay;
-    this.pages = pages;
+    // The world's texts in the language of the page (a text of the engine is in it already).
+    this.pages = pages.map(tw);
     this.page = 0;
     this.anchor = anchor;
     this.layout(now);

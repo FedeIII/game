@@ -82,7 +82,7 @@ export const NPC_LOOKS: Record<string, Look> = {
   },
   archivist: { cloak: ramp('#0d1014', '#151a20', '#1e252d', '#28303a', '#333d49', '#3f4b59'), hood: true },
   crier: { cloak: ramp('#14070a', '#260c10', '#3a1216', '#501a1d', '#662325', '#7c302e'), hood: false, hair: HAIR.blond },
-  // The people of Thornwick (worlds/wilds, town.ts).
+  // The people of Ironhold (worlds/wilds, town.ts).
   /** A town guard: a helm, mail, a short cloak and a tabard in the town's dark red, a sword. */
   watchman: {
     cloak: ramp('#16080a', '#240d10', '#341316', '#45191c', '#572023', '#69282a'),

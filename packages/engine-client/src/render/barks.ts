@@ -3,6 +3,7 @@ import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { SpeechBubble, type Anchor } from './speech-bubble.ts';
+import { tw } from '../i18n.ts';
 
 /** A line stays this long, and a little longer for each letter: time to read it. */
 const BASE_MS = 3000;
@@ -27,7 +28,8 @@ export class BarkBubbles {
   }
 
   /** Shows `line` over NPC `index`, which `anchor` follows. */
-  say(index: number, line: string, anchor: Anchor, now: number): void {
+  say(index: number, english: string, anchor: Anchor, now: number): void {
+    const line = tw(english);
     let bubble = this.bubbles.get(index);
     if (!bubble) {
       bubble = new SpeechBubble(this.art, this.font, {

@@ -1,4 +1,6 @@
 import { MAX_CHARACTERS, NAME_MAX, type Character, type CharacterSheet } from '@game/engine';
+import { LANG } from '../i18n.ts';
+import { languageChoice } from '../ui/language-choice.ts';
 import { characterLook } from '../skins/look.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
@@ -28,7 +30,7 @@ export interface MenuChoice {
 /** "3 days ago", "yesterday". */
 function ago(ms: number): string {
   const seconds = (ms - Date.now()) / 1000;
-  const format = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  const format = new Intl.RelativeTimeFormat(LANG, { numeric: 'auto' });
   const units: [Intl.RelativeTimeFormatUnit, number][] = [
     ['year', 365 * 86400],
     ['month', 30 * 86400],
@@ -65,7 +67,7 @@ function googleMark(): SVGSVGElement {
 
 /** The privacy page (apps/game/public/privacy/), in a new tab: the menu stays as it is. */
 function privacyLink(): HTMLAnchorElement {
-  return el('a', { href: '/privacy/', target: '_blank', rel: 'noopener', class: 'menu-link' }, T.privacy);
+  return el('a', { href: LANG === 'es' ? '/privacy/es/' : '/privacy/', target: '_blank', rel: 'noopener', class: 'menu-link' }, T.privacy);
 }
 
 /**
@@ -171,6 +173,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       }
       if (!me?.login.google && !me?.login.dev) parts.push(el('p', { class: 'menu-hint' }, T.noSignIn));
       parts.push(el('p', { class: 'menu-account' }, privacyLink()));
+      parts.push(languageChoice('menu-account lang-choice', () => location.reload()));
       show(el('section', { class: 'menu-screen' }, ...parts));
     };
 
@@ -217,6 +220,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           el('h2', { class: 'sr-only', tabindex: '-1' }, options.title),
           el('div', { class: 'menu-actions menu-stack' }, newGame, resume),
           account,
+          languageChoice('menu-account lang-choice', () => location.reload()),
         ),
       );
       newGame.focus();

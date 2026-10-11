@@ -1,7 +1,7 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
 
 /**
- * The conversations of the people of Thornwick (town.ts): what each one says, and what the
+ * The conversations of the people of Ironhold (town.ts): what each one says, and what the
  * player can answer (see the engine's dialog.ts). Every node has a way out; a test checks each
  * dialog with checkDialog().
  */
@@ -42,7 +42,7 @@ export const WATCHMAN: Dialog = {
       answers: [{ text: 'Why did they leave?', next: 'south' }, { text: 'What is this place?', next: 'place' }, BYE],
     },
     place: {
-      say: 'Thornwick. An inn, a forge, a chapel, and more empty houses every year.',
+      say: 'Ironhold. An inn, a forge, a chapel, and more empty houses every year.',
       answers: [{ text: 'Where should I go first?', next: 'advice' }, { text: 'What is out there in the woods?', next: 'woods' }, BYE],
     },
     woods: {
@@ -58,7 +58,7 @@ export const WATCHMAN: Dialog = {
       answers: [{ text: 'Can I come in?', next: 'enter' }, BYE],
     },
     enter: {
-      say: 'The gate is open to anyone who is not an imp. Welcome to Thornwick.',
+      say: 'The gate is open to anyone who is not an imp. Welcome to Ironhold.',
       answers: [
         { text: 'Where should I go first?', next: 'advice' },
         { text: 'You look like a man who needs a drink. The next one is on me.', next: 'treat', gate: PERSUASION_GATE },
@@ -225,13 +225,13 @@ export const APOTHECARY: Dialog = {
   },
 };
 
-/** Aldous, the reeve: he runs what is left of the town. */
+/** Elama Rothenel, the reeve: she runs what is left of the town (Fede's choice of the name, 2026-10-11). */
 export const REEVE: Dialog = {
-  name: 'Aldous, the reeve',
+  name: 'Elama Rothenel, the reeve',
   start: 'reeve',
   nodes: {
     reeve: {
-      say: 'I am the reeve of Thornwick. Of what is left of it.',
+      say: 'I am the reeve of Ironhold. Of what is left of it.',
       answers: [
         { text: 'What happened to the town?', next: 'happened' },
         { text: 'Who lived in the shut houses?', next: 'shut' },
@@ -361,7 +361,7 @@ const scrap = (kind: SmithWare, text: string) =>
   ({ text, next: 'scrapped', deal: { id: `sell-${kind}`, goods: 'coins', price: 0, pay: smithPays(kind), items: [{ kind, count: 1 }], poor: 'none' } }) as const;
 
 /**
- * The smith of Thornwick: armour, a shield and weapons for sale (not the staffs: wood is not his
+ * The smith of Ironhold: armour, a shield and weapons for sale (not the staffs: wood is not his
  * trade), and he buys them all back for half of the price. He buys only what is in the pack: a
  * worn item must come off first.
  */
@@ -391,7 +391,7 @@ export const SMITH: Dialog = {
       answers: [forge('shield', 'A shield.'), { text: 'Something else.', next: 'forge' }, BYE],
     },
     weapons: {
-      say: 'Every blade in Thornwick has been through my hands twice. These are new.',
+      say: 'Every blade in Ironhold has been through my hands twice. These are new.',
       answers: [forge('longsword', 'A longsword.'), forge('shortsword', 'A shortsword.'), forge('rapier', 'A rapier.'), { text: 'Something heavier.', next: 'heavier' }],
     },
     heavier: {

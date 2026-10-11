@@ -37,8 +37,8 @@ export default defineConfig({
     // Keep the atlas a separate file with a content hash, as real art will be.
     assetsInlineLimit: 0,
     rolldownOptions: {
-      // Two pages: the game, and the privacy notice at /privacy/ (the same in development).
-      input: { main: resolve(here, 'index.html'), privacy: resolve(here, 'privacy/index.html') },
+      // The pages: the game, and the privacy notice at /privacy/ and in Spanish at /privacy/es/ (the same in development).
+      input: { main: resolve(here, 'index.html'), privacy: resolve(here, 'privacy/index.html'), privacyEs: resolve(here, 'privacy/es/index.html') },
     },
   },
   server: {

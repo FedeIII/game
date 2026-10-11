@@ -68,7 +68,7 @@ describe('the herbs of the wilds', () => {
   });
 });
 
-describe('the buried cache of Thornwick', () => {
+describe('the buried cache of Ironhold', () => {
   const source = new WildsSource(DEFAULT_SEED);
   const world = new World(source);
 
@@ -96,7 +96,7 @@ describe('the buried cache of Thornwick', () => {
   });
 });
 
-describe('insight in the conversations of Thornwick', () => {
+describe('insight in the conversations of Ironhold', () => {
   const insight = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers.filter((a) => a.gate === INSIGHT_GATE));
 
   it('gives each of the four people one answer behind WIS 13', () => {

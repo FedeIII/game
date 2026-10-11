@@ -54,6 +54,7 @@ streaming-platform project):
 | Items: Pack and Loot | `PK` | [`items/pack-and-loot.md`](items/pack-and-loot.md) |
 | Items: Equipment | `EQ` | [`items/equipment.md`](items/equipment.md) |
 | NPCs: Companions | `CMP` | [`npcs/companions.md`](npcs/companions.md) |
+| Game: Language | `LANG` | [`game/language.md`](game/language.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 
@@ -67,7 +68,7 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [Strength](abilities/strength.md) | The push and the stagger of a blow, the slots of the pack, wading through shallow water (half speed, no attack, the band at each shore, the look of a wader), and barred doors (force them with STR 13, the boards come back after 30 minutes, one Wilds house with a chest in four) |
 | [Dexterity](abilities/dexterity.md) | Quicker attacks, a longer guard, the dodge roll (Shift, the right mouse button, the touch button), stealth and sneaking (the sneak walk on C, the smaller torch), the arrows of a bow (range 5 + mod tiles), and locked chests (pick them with DEX 13) |
 | [Constitution](abilities/constitution.md) | Hit points (4 + mod), a shorter stun, the poison of an imp, recovery out of a fight, a rest in the bed of the home, a defeat at 0 HP and waking at home or in a refuge (the chapel) with half the coins, stamina for the roll and the sneak walk, an ale at the inn for 2 coins, and the HP between sessions |
-| [Intelligence](abilities/intelligence.md) | The wizard's damage, more damage on a wind-up, reading a mob (a health bar at INT 13, a glint at 15), lore on things and clever answers (INT 13, with the gate rule), the cauldron of Thornwick (three brews at INT 10, 13 and 15), and the map of the seen land (more detail with INT) |
+| [Intelligence](abilities/intelligence.md) | The wizard's damage, more damage on a wind-up, reading a mob (a health bar at INT 13, a glint at 15), lore on things and clever answers (INT 13, with the gate rule), the cauldron of Ironhold (three brews at INT 10, 13 and 15), and the map of the seen land (more detail with INT) |
 | [Wisdom](abilities/wisdom.md) | The damage of the cleric and the druid, red marks at the screen edge for the mobs that hunt you out of view (6 to 14 tiles), hidden herbs and the buried cache that show only close by (1 to 9 tiles), a lighter night, insight answers in four conversations (WIS 13), Medicine (chew herbs for a hit point, WIS 13), and an arrow that points home (WIS 13) |
 | [Charisma](abilities/charisma.md) | The damage of the sorcerer and the warlock, better prices and sales (±10% per modifier), persuasion answers (CHA 13: a room at the inn that is a refuge with a bed, Isolde's friend's price), Isolde's shop and the peddler who buys, a pack that presses less and mobs that run off longer, more guard for the players near you, and a greeting by name (CHA 13) |
 
@@ -76,10 +77,16 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | Document | Feature |
 |---|---|
 | [Pack and Loot](items/pack-and-loot.md) | The pack (a purse and slots, the stacks of the items), the drops of kills, the chests of the Wilds (ordinary, locked, barred), one loot per chest for every player and the refill after 30 minutes, a full pack, the pack in the store of the server, the pack panel (each stack in its own slot, a detail of each item with its uses, drink and drop; a drag moves a stack to another slot or tosses it onto the world), the coins that a defeat takes, buying and selling, drinks and herbs to chew, the patches of herbs and the buried cache, items on the ground (drop them, pick them up, the overflow of a kill; 10 minutes; they fall on the screen and shine faintly), and the drink belt (keys 1 to 4) |
-| [Equipment](items/equipment.md) | The twelve worn slots of D&D 5e, the armour, shields, weapons and the luck amulet, what each class can use, the hands (two-handed weapons and shields), attunement (3), Armour Class and glancing blows (5% for each point over 10, in a fixed order), heavy and noisy armour, the damage from the die of the weapon (cantrips, martial arts, an unarmed strike), light and heavy weapons, bows for any class, a rogue's sneak attack, the 5e kit of each class, the worn slots round the picture in the pack panel (wear, take off, drag), the gear in the store of the server, the weapon and the shield on the figure for every player, the smith of Thornwick, who sells gear and buys it back for half, nine magic items of the SRD as rare loot, and a reach weapon (the glaive) |
+| [Equipment](items/equipment.md) | The twelve worn slots of D&D 5e, the armour, shields, weapons and the luck amulet, what each class can use, the hands (two-handed weapons and shields), attunement (3), Armour Class and glancing blows (5% for each point over 10, in a fixed order), heavy and noisy armour, the damage from the die of the weapon (cantrips, martial arts, an unarmed strike), light and heavy weapons, bows for any class, a rogue's sneak attack, the 5e kit of each class, the worn slots round the picture in the pack panel (wear, take off, drag), the gear in the store of the server, the weapon and the shield on the figure for every player, the smith of Ironhold, who sells gear and buys it back for half, nine magic items of the SRD as rare loot, and a reach weapon (the glaive) |
 
 ## NPCs
 
 | Document | Feature |
 |---|---|
 | [Companions](npcs/companions.md) | NPCs that follow a player: the shortest way of tiles round what blocks, doors that they open, the catch-up, the wait when there is no way and the follow again, mobs that hunt them (and bring no new mobs), the two kinds of defeat (gone or wakes), the events for the quests, the companions of every player in a shared world (protocol 22), their look, name and lantern on the screen, and the test switch `?companion=<look>` |
+
+## Game
+
+| Document | Feature |
+|---|---|
+| [Language](game/language.md) | English and Spanish: the language of the page (`?lang=`, the kept choice, the browser), the choice in the menu and the settings, the engine's texts in both languages with the names of the Spanish books of 5e, the world's texts in Spanish with the names of Kandrax (Ferrozar, las Tierras Salvajes, la alguacil), lines without gender for the player, the limits and the letters of the pixel font, the English names (Ironhold, Elama Rothenel), and the privacy page in Spanish |

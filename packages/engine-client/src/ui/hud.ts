@@ -1,3 +1,4 @@
+import { STRINGS } from './strings.ts';
 /** The HTML overlay: the control hint, the debug panel and the fatal-error screen. */
 export class Hud {
   private readonly hint: HTMLElement;
@@ -40,5 +41,5 @@ export function showFatal(error: unknown): void {
   const fatal = document.getElementById('fatal');
   if (!fatal) return;
   fatal.hidden = false;
-  fatal.textContent = `The game could not start: ${error instanceof Error ? error.message : String(error)}`;
+  fatal.textContent = STRINGS.fatal(error instanceof Error ? error.message : String(error));
 }

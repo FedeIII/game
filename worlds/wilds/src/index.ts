@@ -1,10 +1,12 @@
 import type { WorldDefinition } from '@game/engine';
 import { WildsSource } from './source.ts';
+import { TEXTS_ES } from './text-es.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { Road, signpost } from './road.ts';
 export { MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
+export { TEXTS_ES } from './text-es.ts';
 export { TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { APOTHECARY, INNKEEPER, INSIGHT_GATE, PEDDLER, PERSUASION_GATE, REEVE, SMITH, SMITH_PRICES, WATCHMAN, smithPays } from './dialogs.ts';
 
@@ -13,7 +15,7 @@ export const DEFAULT_SEED = 20261007;
 
 /**
  * The wilds: an endless dark forest with lakes, paths and lonely stone houses, and the town of
- * Thornwick to the west of the home. Shared since 2026-10-10 (Fede's decision): every visitor is
+ * Ironhold (Ferrozar in Spanish) to the west of the home. Shared since 2026-10-10 (Fede's decision): every visitor is
  * in the same Wilds, and a new character starts in the home, the house of the cell (0, 0).
  */
 export const wilds: WorldDefinition = {
@@ -36,15 +38,15 @@ export const wilds: WorldDefinition = {
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {
-    'imp-horn': 'Torn from an imp. Corwin, the peddler of Thornwick, buys it, and the cauldron needs one for an antidote.',
-    'brute-tusk': 'Torn from a brute. Corwin, the peddler of Thornwick, buys it, and the cauldron needs one for a strong draught.',
-    candle: 'A stub of old wax. Corwin, the peddler of Thornwick, buys it.',
-    ring: 'Silver, with a dark red stone. Corwin, the peddler of Thornwick, buys it.',
-    cup: 'Old, dented pewter. Corwin, the peddler of Thornwick, buys it.',
-    herbs: 'Bitter leaves from the woods. The cauldron of Thornwick brews them into draughts.',
-    draught: 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from two bundles of herbs.',
-    antidote: 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from herbs and an imp horn.',
-    'strong-draught': 'Isolde, the apothecary of Thornwick, sells it. The cauldron makes it from two bundles of herbs and a brute tusk.',
+    'imp-horn': 'Torn from an imp. Corwin, the peddler of Ironhold, buys it, and the cauldron needs one for an antidote.',
+    'brute-tusk': 'Torn from a brute. Corwin, the peddler of Ironhold, buys it, and the cauldron needs one for a strong draught.',
+    candle: 'A stub of old wax. Corwin, the peddler of Ironhold, buys it.',
+    ring: 'Silver, with a dark red stone. Corwin, the peddler of Ironhold, buys it.',
+    cup: 'Old, dented pewter. Corwin, the peddler of Ironhold, buys it.',
+    herbs: 'Bitter leaves from the woods. The cauldron of Ironhold brews them into draughts.',
+    draught: 'Isolde, the apothecary of Ironhold, sells it. The cauldron makes it from two bundles of herbs.',
+    antidote: 'Isolde, the apothecary of Ironhold, sells it. The cauldron makes it from herbs and an imp horn.',
+    'strong-draught': 'Isolde, the apothecary of Ironhold, sells it. The cauldron makes it from two bundles of herbs and a brute tusk.',
     'leather-armour': 'Boiled leather, stiff and scarred. It turns a claw now and then.',
     'scale-mail': 'Scales of steel on leather, like the skin of a fish. It rattles at each step.',
     'chain-mail': 'Thousands of small steel rings. Heavy on the shoulders, and loud.',
@@ -72,6 +74,8 @@ export const wilds: WorldDefinition = {
     'boots-of-elvenkind': 'Soft boots of grey leather. Your steps make no sound in them.',
     glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
   },
+  // The texts in Spanish, with the Spanish names of Kandrax (Fede's decision, 2026-10-11).
+  texts: { es: TEXTS_ES },
   darkness: 1,
   multiplayer: true,
 };

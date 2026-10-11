@@ -31,6 +31,7 @@ import { gateTag } from './conversation.ts';
 import { drawIcon } from './icons.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
+import { tw } from '../i18n.ts';
 
 const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
 <path d="M8 8V6.5a4 4 0 0 1 8 0V8"/><path d="M5 9.5h14l-1.2 10.5H6.2z"/><path d="M9.5 13.5h5"/></svg>`;
@@ -401,7 +402,7 @@ export class PackPanel {
     if (problem === 'class') words.append(this.line('pack-detail-use dim', STRINGS.gear.cannot(STRINGS.classes[this.traits.class].name)));
     if (problem === 'attuned') words.append(this.line('pack-detail-use dim', STRINGS.gear.attuned));
     const about = this.lines[kind];
-    if (about) words.append(this.line('pack-detail-about', about));
+    if (about) words.append(this.line('pack-detail-about', tw(about)));
     if (!wornIn) words.append(this.line('pack-detail-stack', STRINGS.pack.stackOf(ITEM_STACK[kind])));
     top.append(icon, words);
 

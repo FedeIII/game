@@ -3,7 +3,7 @@ import { APOTHECARY, CAULDRON, INNKEEPER, LORE_GATE, PEDDLER, REEVE, SMITH, WATC
 import { CANDLE } from './houses.ts';
 
 /**
- * Thornwick: the town nearest the home, west of it in the wilds. A road leads there from the
+ * Ironhold: the town nearest the home, west of it in the wilds. A road leads there from the
  * home (road.ts), and a signpost by the home points the way.
  *
  * The plan of the town, one character per tile, north at the top; its north-west tile is
@@ -48,7 +48,7 @@ const MAP = [
   'T........T..................T...............T',
 ];
 
-export const TOWN_NAME = 'Thornwick';
+export const TOWN_NAME = 'Ironhold';
 
 /** The rectangle of the town, in tiles (inclusive). */
 export const TOWN = { x0: -52, y0: -8, x1: -52 + MAP[0]!.length - 1, y1: -8 + MAP.length - 1 } as const;

@@ -41,7 +41,7 @@ describe('world generation', () => {
         }
       }
     }
-    // Every ground: the cobblestones and the stone floors are in the town of Thornwick.
+    // Every ground: the cobblestones and the stone floors are in the town of Ironhold.
     expect([...seen].sort()).toEqual(Object.values(Ground).sort());
     expect(trees).toBeGreaterThan(100);
   });

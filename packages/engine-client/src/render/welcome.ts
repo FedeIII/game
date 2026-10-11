@@ -3,6 +3,7 @@ import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { SpeechBubble, type Anchor } from './speech-bubble.ts';
+import { tw } from '../i18n.ts';
 
 /** Time to read a line: a base and a little more for each letter. */
 const BASE_MS = 2600;
@@ -40,7 +41,8 @@ export class WelcomeSpeech {
     return this.active ? `${this.index + 1}/${this.lines.length}` : '-';
   }
 
-  start(lines: readonly string[], anchor: Anchor, now: number): void {
+  start(english: readonly string[], anchor: Anchor, now: number): void {
+    const lines = english.map(tw);
     this.lines = lines;
     this.index = -1;
     this.nextAt = now;

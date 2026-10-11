@@ -4,7 +4,7 @@
 
 A character carries what it finds in a pack: coins in a purse, and items in slots. A kill drops
 loot into the pack of the killer. The chests of the houses of the Wilds, the hidden patches of
-herbs in the woods and the buried cache of Thornwick also give loot. Each source holds one loot
+herbs in the woods and the buried cache of Ironhold also give loot. Each source holds one loot
 for every player of a world, and it fills again after a time. Herbs and trophies go into brews,
 the brews are drinks, and a character with Medicine chews herbs. The pack panel shows what each
 thing is and what it is for, and the player puts each stack in the slot that it wants with a drag.
@@ -90,7 +90,7 @@ visit to a house has a reward.
 **Acceptance Criteria:**
 - **AC-PK-003.1:** Every chest in a house of the Wilds gives loot. The chest of the home gives no
   loot: a press on it shows "Your chest. Nothing in it yet."
-- **AC-PK-003.2:** No chest in Thornwick gives loot.
+- **AC-PK-003.2:** No chest in Ironhold gives loot.
 - **AC-PK-003.3:** At a chest with loot, the action label is "Open the chest". At a locked chest,
   it is "Pick the lock" for a character with DEX 13 or more ([Dexterity](../abilities/dexterity.md),
   REQ-DEX-007).
@@ -295,7 +295,7 @@ woods and the town have more to give.
 - **AC-PK-012.2:** A patch gives one bundle for every player of the world. After that, a press says
   "Somebody picked them. They will grow again." The patch grows again 20 minutes after it was
   picked.
-- **AC-PK-012.3:** The buried cache of Thornwick ("Dig here") gives 8 to 20 coins, a silver ring,
+- **AC-PK-012.3:** The buried cache of Ironhold ("Dig here") gives 8 to 20 coins, a silver ring,
   and a second thing (a candle stub, a silver ring, a pewter cup or a bundle of herbs) in one of
   two: "I dig up a small box. I find 19 coins and a silver ring." After that it says "Somebody
   dug it up before me.", until it fills again 30 minutes later. In one of six it also gives a

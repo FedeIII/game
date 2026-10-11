@@ -50,7 +50,7 @@ const TRINKETS = [
 const CHEST_LOOT: LootTable = { coins: [1, 6], items: [{ chance: 1, pick: TRINKETS }] };
 /**
  * The magic items of the SRD (gear.ts), by weight: rare loot in a locked chest (1 in 16), a barred
- * house (1 in 8) and the buried cache of Thornwick (1 in 6). The common ones come more often.
+ * house (1 in 8) and the buried cache of Ironhold (1 in 6). The common ones come more often.
  */
 export const MAGIC_ITEMS = [
   ['longsword-plus-1', 3],
@@ -85,7 +85,7 @@ const BARRED_CHEST_LOOT: LootTable = {
 
 /** A patch of herbs gives a bundle, and grows again 20 minutes after it was picked (Fede's choice, 2026-10-10). */
 const HERB_LOOT: LootTable = { items: [{ chance: 1, pick: [['herbs', 1]] }], refillMs: 20 * 60_000 };
-/** The savings that the old couple of Thornwick buried (the reeve tells of it, to a character with Wisdom 13). */
+/** The savings that the old couple of Ironhold buried (the reeve tells of it, to a character with Wisdom 13). */
 const CACHE_LOOT: LootTable = {
   coins: [8, 20],
   items: [
@@ -131,7 +131,7 @@ const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: num
 
 /**
  * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, the
- * player's home in the middle (home.ts), where every character starts, and the town of Thornwick
+ * player's home in the middle (home.ts), where every character starts, and the town of Ironhold
  * to the west (town.ts), at the end of a road from the home (road.ts).
  */
 export class WildsSource implements WorldSource {
@@ -375,7 +375,7 @@ export class WildsSource implements WorldSource {
   /**
    * The chests of the houses of the wilds give loot (not the home's: that one is the character's
    * own); a locked chest gives more, and the chest of a barred house the most. A patch of herbs
-   * gives a bundle, and the buried cache of Thornwick its savings.
+   * gives a bundle, and the buried cache of Ironhold its savings.
    */
   loot(fixture: Fixture): LootTable | null {
     if (fixture.kind === 'herbpatch') return HERB_LOOT;
@@ -387,7 +387,7 @@ export class WildsSource implements WorldSource {
   }
 
   /**
-   * The refuges of Thornwick: a character can wake in one after a defeat, if it is nearer than
+   * The refuges of Ironhold: a character can wake in one after a defeat, if it is nearer than
    * the home (Fede's choice, 2026-10-10). The chapel, for a character that has been inside it
    * (the tile north of its door); the inn, for one with a room there (REFUGES).
    */
@@ -395,7 +395,7 @@ export class WildsSource implements WorldSource {
     return REFUGES;
   }
 
-  /** The named places for the map: the home, Thornwick, and its chapel. */
+  /** The named places for the map: the home, Ironhold, and its chapel. */
   landmarks(): readonly Landmark[] {
     const home = this.spawn();
     const town = { x: ((TOWN.x0 + TOWN.x1 + 1) / 2) * TILE_SIZE, y: ((TOWN.y0 + TOWN.y1 + 1) / 2) * TILE_SIZE };
@@ -406,7 +406,7 @@ export class WildsSource implements WorldSource {
     ];
   }
 
-  /** The people of Thornwick. */
+  /** The people of Ironhold. */
   npcs(): readonly NpcDef[] {
     return TOWN_NPCS;
   }

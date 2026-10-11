@@ -1,5 +1,6 @@
 import type { Link } from '@game/engine';
 import { STRINGS } from './strings.ts';
+import { tw } from '../i18n.ts';
 
 /**
  * A card with a real link, for a fixture whose content has one (a portal to a project). A game
@@ -48,10 +49,10 @@ export class LinkCard {
 
   show(link: Link): void {
     this.link = link;
-    this.title.textContent = link.title;
+    this.title.textContent = tw(link.title);
     this.host.textContent = new URL(link.url).host + new URL(link.url).pathname.replace(/\/$/, '');
     this.go.href = link.url;
-    this.go.textContent = `${link.label} ↗`;
+    this.go.textContent = `${tw(link.label)} ↗`;
     this.card.hidden = false;
   }
 

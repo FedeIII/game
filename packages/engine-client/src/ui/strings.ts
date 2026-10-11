@@ -1,11 +1,15 @@
 import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, Race } from '@game/engine';
+import { LANG } from '../i18n.ts';
+import { ES } from './strings-es.ts';
 
 /**
- * Every text of the engine that the player reads, in one place. Do not put a user-facing text in
- * another file: add it here, so a translation later is one file. What things say is not here:
- * that is content, and each world brings its own (WorldDefinition.examine, fixture content).
+ * Every text of the engine that the player reads, in one place, in English (EN) and in Spanish
+ * (strings-es.ts, ES: the same keys, the type checks it). Do not put a user-facing text in another
+ * file: add it here and in ES. STRINGS is the table of the language of the page (i18n.ts). What
+ * things say is not here: that is content, and each world brings its own, with its translations
+ * (WorldDefinition.examine, fixture content, WorldDefinition.texts).
  */
-export const STRINGS = {
+const EN = {
   hintKeyboard: 'WASD or arrow keys to move · E to act',
   hintKeyboardFight: 'WASD or arrow keys to move · E to act · Click to attack · Shift to roll · C to sneak',
   attack: 'Attack',
@@ -41,6 +45,10 @@ export const STRINGS = {
   /** A chest in a shared world while the connection is down: the server decides what is in it. */
   chestOffline: 'I cannot open it now. No connection.',
   found: (things: string): string => `I find ${things}.`,
+  /** The last link of a list: "4 coins and a silver ring". */
+  and: 'and',
+  /** The game could not start (ui/hud.ts). */
+  fatal: (why: string): string => `The game could not start: ${why}`,
   coins: (n: number): string => (n === 1 ? '1 coin' : `${n} coins`),
   /** An item: its name (a heading), with an article ("a silver ring"), and the plural ("silver rings"). */
   items: {
@@ -306,6 +314,7 @@ export const STRINGS = {
     forceYes: 'you break them',
   },
   readSign: 'Read the sign',
+  /** "Examine the map table": `names` gives the thing (in Spanish with its article). */
   examine: (name: string): string => `Examine the ${name}`,
   talk: 'Talk',
   next: 'Next',
@@ -461,6 +470,20 @@ export const STRINGS = {
   } satisfies Record<Ability, { name: string; short: string }>,
   worlds: 'Worlds',
   worldsCurrent: 'you are here',
+  /** The settings panel (ui/settings-panel.ts): its name, the display settings of an admin, and the language. */
+  settings: {
+    button: 'Settings',
+    crt: 'CRT effect',
+    spread: 'Spread',
+    mix: 'Blur',
+    glow: 'Glow',
+    scanline: 'Scanlines',
+    copyLink: 'Copy link',
+    copied: 'Copied',
+    copyFailed: 'Copy failed',
+    reset: 'Reset',
+    language: 'Language',
+  },
   /** The presence label of a shared (multiplayer) world. */
   presence: {
     connecting: 'Looking for other visitors…',
@@ -474,4 +497,13 @@ export const STRINGS = {
     account: 'Sign in to see other visitors',
     elsewhere: 'You signed in on another device',
   },
-} as const;
+};
+
+/** The texts of the engine: every language has a table of this type. */
+export type Strings = typeof EN;
+
+/** The English table, for tests. */
+export const STRINGS_EN: Strings = EN;
+
+/** The texts of the language of the page. */
+export const STRINGS: Strings = LANG === 'es' ? ES : EN;

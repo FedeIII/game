@@ -1636,6 +1636,15 @@ a.menu-link {
   color: inherit;
 }
 
+/* The choice of the language (ui/language-choice.ts): the language of the page as text, the other a link. */
+.lang-choice {
+  margin-top: 8px;
+}
+
+.lang-current {
+  font-weight: bold;
+}
+
 .account-ask {
   margin: 18px auto 0;
   max-width: 360px;
