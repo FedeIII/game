@@ -1,17 +1,17 @@
 /// <reference lib="webworker" />
-import { renderSkinSheet, skinFromSeed } from '../../art/skins.ts';
+import { renderSkinSheet, skinKey, skinOfLook, type SkinLook } from '../../art/skins.ts';
 
 /**
  * Renders player skins away from the main thread: a skin is 52 SDF-rendered frames, about a
- * third of a second on a desktop and more on a phone. Gets { seed }, answers with the sheet's
- * RGBA pixels (transferred, not copied).
+ * third of a second on a desktop and more on a phone. Gets { look } (a seed, and what shows of
+ * the gear), answers with the key of the look and the sheet's RGBA pixels (transferred, not copied).
  */
 export interface SkinRequest {
-  readonly seed: number;
+  readonly look: SkinLook;
 }
 
 export interface SkinResult {
-  readonly seed: number;
+  readonly key: string;
   readonly width: number;
   readonly height: number;
   readonly pixels: ArrayBuffer;
@@ -20,9 +20,9 @@ export interface SkinResult {
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 scope.onmessage = (event: MessageEvent<SkinRequest>) => {
-  const { seed } = event.data;
-  const sheet = renderSkinSheet(skinFromSeed(seed));
+  const { look } = event.data;
+  const sheet = renderSkinSheet(skinOfLook(look));
   const pixels = sheet.image.data.buffer as ArrayBuffer;
-  const result: SkinResult = { seed, width: sheet.image.width, height: sheet.image.height, pixels, headHeight: sheet.headHeight };
+  const result: SkinResult = { key: skinKey(look), width: sheet.image.width, height: sheet.image.height, pixels, headHeight: sheet.headHeight };
   scope.postMessage(result, [pixels]);
 };

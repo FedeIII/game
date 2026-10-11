@@ -13,7 +13,7 @@
  * Node imports. Change SKIN_VERSION when a seed would give a different picture: the clients
  * keep rendered skins in localStorage under that version.
  */
-import { appearanceOf, type Appearance, type CharacterClass, type Gender, type Race } from '@game/engine';
+import { CANTRIP_BASE, CASTER_FOCUS, SHOWN_SLOTS, WEARABLES, appearanceOf, type Appearance, type CharacterClass, type Gender, type ItemKind, type Race, type ShownGear } from '@game/engine';
 import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, attackStyle, fallParts, rollParts, type AttackStyle } from './attacks.ts';
 import {
   figure,
@@ -31,7 +31,7 @@ import {
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel } from './sdf.ts';
 
-export const SKIN_VERSION = 6;
+export const SKIN_VERSION = 7;
 
 /**
  * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
@@ -58,6 +58,17 @@ export interface Skin {
   readonly appearance: Appearance;
   readonly spec: FigureSpec;
   readonly palette: Palette;
+  /** How it attacks, when the gear decides it (dressSkin); else its class and its item (attackStyle). */
+  readonly style?: AttackStyle;
+}
+
+/**
+ * A look: a skin seed, and what shows of the gear of the character (gear.ts, SHOWN_SLOTS). Without
+ * `shown`, the figure holds the item of its seed; with it, the figure holds what it wears.
+ */
+export interface SkinLook {
+  readonly seed: number;
+  readonly shown?: ShownGear | null;
 }
 
 export interface SkinSheet {
@@ -742,6 +753,49 @@ export function skinFromSeed(seed: number): Skin {
   return { seed: seed >>> 0, appearance, ...make(appearance, r) };
 }
 
+/** How a weapon in the main hand shows on the figure (figure.ts, Item), and how the figure attacks with it (attacks.ts). */
+const HELD: Readonly<Partial<Record<ItemKind, { readonly item: Item; readonly style: AttackStyle }>>> = {
+  longsword: { item: 'sword', style: 'slash' },
+  rapier: { item: 'sword', style: 'thrust' },
+  // A short blade for the thrust: at this size, the dagger of the figure.
+  shortsword: { item: 'dagger', style: 'thrust' },
+  greataxe: { item: 'axe', style: 'slash' },
+  mace: { item: 'mace', style: 'slash' },
+  longbow: { item: 'bow', style: 'shoot' },
+};
+
+/**
+ * The skin with what the character holds (gear.ts): the weapon of its main hand, and a shield in
+ * its off hand. A focus of its class is a staff with an orb, and the figure casts with it; another
+ * staff is a plain staff that bashes. With an empty main hand a spellcaster casts from the hands
+ * (its cantrip), a monk strikes with the palm, and the others punch.
+ */
+export function dressSkin(skin: Skin, shown: ShownGear): Skin {
+  const cls = skin.appearance.class;
+  const main = shown.main;
+  const held = main ? HELD[main] : undefined;
+  const focus = main ? WEARABLES[main]?.weapon?.focus : undefined;
+  let hands: { readonly item: Item; readonly style: AttackStyle };
+  if (held) hands = held;
+  else if (focus) hands = CASTER_FOCUS[cls] === focus ? { item: 'orbstaff', style: 'spell' } : { item: 'staff', style: 'bash' };
+  else if (CANTRIP_BASE[cls] !== undefined) hands = { item: 'none', style: 'spell' };
+  else hands = { item: 'none', style: cls === 'monk' ? 'palm' : 'punch' };
+  return { ...skin, spec: { ...skin.spec, item: hands.item, shield: shown.off === 'shield' }, style: hands.style };
+}
+
+/** The skin of a look: the skin of its seed, with what it holds. */
+export function skinOfLook(look: SkinLook): Skin {
+  const skin = skinFromSeed(look.seed);
+  return look.shown ? dressSkin(skin, look.shown) : skin;
+}
+
+/** A short key for a look (the skin store, its cache): the seed, and the kinds in the shown slots. */
+export function skinKey(look: SkinLook): string {
+  const seed = String(look.seed >>> 0);
+  const shown = look.shown;
+  return shown ? `${seed}:${SHOWN_SLOTS.map((slot) => shown[slot] ?? '-').join('/')}` : seed;
+}
+
 // ---------------------------------------------------------------- names
 
 /** First names: short, old and dark. Each fits with every title below in 16 characters. */
@@ -791,9 +845,9 @@ export function describeSkin(skin: Skin): string {
 
 export type { BodyCut, CloakCut, Ears, HairCut, Headwear, Item };
 
-/** How a skin attacks (attacks.ts): from its class and its item. */
+/** How a skin attacks (attacks.ts): from its gear (dressSkin), or from its class and its item. */
 export function skinAttack(skin: Skin): AttackStyle {
-  return attackStyle(skin.appearance.class, skin.spec);
+  return skin.style ?? attackStyle(skin.appearance.class, skin.spec);
 }
 
 /** Renders the sheet of a skin: every view, the stand, the walk, the attack, the roll and the fall. */

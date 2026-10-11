@@ -1,6 +1,6 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
-import { EMPTY_GEAR, gearSlotAt, type Gear } from '../gear.ts';
+import { EMPTY_GEAR, gearSlotAt, sameShown, shownGear, type Gear } from '../gear.ts';
 import { dropWorn, moveItem } from '../inventory.ts';
 import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSlot, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
@@ -24,6 +24,7 @@ import {
   toWireLoot,
   toWireMob,
   toWireGear,
+  toWireLook,
   toWirePack,
   toWirePile,
   toWireToss,
@@ -31,6 +32,7 @@ import {
   type SnapshotMessage,
   type WelcomeMessage,
   type WireDoor,
+  type WireLook,
   type WireLoot,
   type WireMob,
   type WireArrow,
@@ -117,6 +119,8 @@ export interface RoomPlayer {
   gear: Gear;
   /** Whether the gear changed since the last snapshot. */
   gearChanged: boolean;
+  /** The looks version that its client has (Room.looksVersion). */
+  looksVersion: number;
   /** Whether the pack changed since the last snapshot, and the loot that it got since then. */
   packChanged: boolean;
   loot: WireLoot[];
@@ -182,6 +186,8 @@ export class Room {
   private doorVersion = 0;
   /** Goes up each time a name appears, changes or goes. A snapshot carries the names when it changed. */
   private namesVersion = 0;
+  /** Goes up each time a player comes or goes, or what shows of its gear changes. A snapshot carries the looks when it changed. */
+  private looksVersion = 0;
   /** The world's walking NPCs, or null if it has none. */
   readonly npcs: NpcCrowd | null;
   private lastTickMs: number | null = null;
@@ -338,6 +344,8 @@ export class Room {
       pack: character?.pack ?? EMPTY_PACK,
       gear: character ? (character.gear ?? EMPTY_GEAR) : guestGear(skin),
       gearChanged: false,
+      // The first snapshot carries the looks of everyone already there.
+      looksVersion: -1,
       packChanged: false,
       loot: [],
       refuges: [...(character?.refuges ?? [])],
@@ -351,6 +359,7 @@ export class Room {
     player.newlyExplored = [];
     this.players.set(player.id, player);
     if (player.name) this.namesVersion++;
+    this.looksVersion++;
     return player;
   }
 
@@ -363,6 +372,7 @@ export class Room {
   leave(id: number): void {
     this.settle(id);
     if (this.players.get(id)?.name) this.namesVersion++;
+    if (this.players.has(id)) this.looksVersion++;
     this.players.delete(id);
   }
 
@@ -592,8 +602,9 @@ export class Room {
     if (moved.gear !== player.gear) this.dress(player, moved.gear);
   }
 
-  /** New gear for a player: its traits follow it (its Armour Class, its damage, its walk). */
+  /** New gear for a player: its traits follow it (its Armour Class, its damage, its walk), and the others see what shows of it. */
   private dress(player: RoomPlayer, gear: Gear): void {
+    if (!sameShown(shownGear(player.gear), shownGear(gear))) this.looksVersion++;
     player.gear = gear;
     player.gearChanged = true;
     if (player.traitsFor) player.traits = player.traitsFor(gear);
@@ -664,6 +675,7 @@ export class Room {
     });
     const names: [number, string][] = [];
     for (const p of this.players.values()) if (p.name) names.push([p.id, p.name]);
+    const looks: [number, WireLook][] = [...this.players.values()].map((p) => [p.id, toWireLook(shownGear(p.gear))]);
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
     const arrows: WireArrow[] = (this.horde?.arrows ?? []).map((a) => [a.id, a.owner, round(a.x), round(a.y), aimCode(a.aim)]);
     const npcs: WireNpc[] | null = this.npcs
@@ -679,6 +691,8 @@ export class Room {
       p.doorVersion = this.doorVersion;
       const renamed = p.namesVersion !== this.namesVersion;
       p.namesVersion = this.namesVersion;
+      const relooked = p.looksVersion !== this.looksVersion;
+      p.looksVersion = this.looksVersion;
       const pack = p.packChanged;
       p.packChanged = false;
       const gear = p.gearChanged;
@@ -740,6 +754,7 @@ export class Room {
         ...(npcs ? { n: npcs } : {}),
         ...(barks.length > 0 ? { b: barks } : {}),
         ...(renamed ? { names } : {}),
+        ...(relooked ? { lk: looks } : {}),
         // The mobs near this player only: the others are far off its screen.
         ...(mobs ? { m: mobs.filter((m) => Math.hypot(m[2] - s.x, m[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
         ...(arrows.length > 0 ? { ar: arrows.filter((a) => Math.hypot(a[2] - s.x, a[3] - s.y) <= MOB_SEND_RADIUS) } : {}),

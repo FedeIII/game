@@ -219,7 +219,12 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   the headwear, the item and the colour families (a barbarian's fur and axe, a cleric's mace and
   shield, a druid's antlers, a ranger's bow and quiver, a wizard's pointed hat). The gender gives
   the shoulders, beards and the hair; the variant picks the rest. Thus every race, class and
-  gender has 2^23 looks. `Skin` is `{ seed, appearance, spec, palette }`.
+  gender has 2^23 looks. `Skin` is `{ seed, appearance, spec, palette, style? }`. A look
+  (`SkinLook`) is a seed and what shows of the gear (`ShownGear`: the main hand and the off hand):
+  `dressSkin()` gives the figure the weapon and the shield that the character wears, and the
+  attack style of the weapon (`HELD`; a focus of the class casts, another staff bashes, an empty
+  hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
+  skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
@@ -476,8 +481,9 @@ builder and the "You" section still name every gate.
   gets the worn part of the SRD kit of its class; a guest the kit of its look (`guestGear()`). The
   traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
   `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
-  slot) in `move` and `put`, protocol 19. Not yet: the figure in the world shows the item and
-  the shield of its look, not of its gear, and nobody sells gear.
+  slot) in `move` and `put`, protocol 19. The figure holds what the character wears (protocol 20:
+  `lk`, `RemotePlayer.look`, `dressSkin()` in the art). Not yet: nobody sells gear, and the armour
+  does not show on the figure.
 - **Items on the ground** (`piles.ts`, `Piles`; since 2026-10-10, Fede's request): "Drop one" or
   "Drop all" in the pack panel puts items 10 px in front of the player (`dropPoint()`; at its feet
   when a wall, a door, a tree, a thing or water is there) as a pile: one kind, up to its stack. A
@@ -598,7 +604,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 19.
+protocol: `docs/multiplayer.md`, protocol 20.
 
 ## Arrival in a world
 

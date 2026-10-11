@@ -256,8 +256,8 @@ export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus
 }
 
 /** The 5e kit of a stored character's class (gear.ts, kitOf): the gear of a new character. */
-export function sheetKit(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>): Gear {
-  return kitOf(sheet.class, finalScores(sheet.base, sheet.race, sheet.bonus));
+export function sheetKit(sheet: Pick<CharacterSheet, 'class'>): Gear {
+  return kitOf(sheet.class);
 }
 
 /** Every score at 10 (every modifier 0). */
@@ -265,7 +265,7 @@ export const PLAIN_SCORES: Scores = Object.fromEntries(ABILITIES.map((a) => [a, 
 
 /** The gear of a player without a character (a guest): the kit of the class of its look, with every score 10. */
 export function guestGear(skin: number): Gear {
-  return kitOf(appearanceOf(skin).class, PLAIN_SCORES);
+  return kitOf(appearanceOf(skin).class);
 }
 
 /** The traits of a player without a character (a guest): every score 10, the class of its look, and its kit (guestGear). */

@@ -27,6 +27,7 @@ import {
   type Race,
   type Scores,
   kitOf,
+  shownGear,
 } from '@game/engine';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
@@ -142,7 +143,8 @@ export class CharacterBuilder {
     const title = el('h2', { id: 'builder-title', class: 'menu-title', tabindex: '-1' }, T.newTitle);
     const step = el('p', { class: 'builder-step' }, T.step(1, 2, T.appearance));
 
-    this.portrait.show(this.seed);
+    // The figure holds the kit of its class (gear.ts, kitOf): what the character starts with.
+    this.portrait.show({ seed: this.seed, shown: shownGear(kitOf(this.cls)) });
     const kind = el('p', { class: 'builder-kind' }, `${STRINGS.races[this.race].name} ${STRINGS.classes[this.cls].name.toLowerCase()}`);
     const another = el('button', { type: 'button', id: 'builder-another', class: 'menu-small' }, this.portrait.pending ? T.drawing : T.anotherLook);
     another.addEventListener('click', () => {
@@ -315,7 +317,7 @@ export class CharacterBuilder {
       this.bonus = [];
       this.render();
     });
-    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls, kitOf(this.cls, final))));
+    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls, kitOf(this.cls))));
     const missing = choosing > 0 && this.bonus.length < choosing;
     const create = el('button', { type: 'button', id: 'builder-create', class: 'menu-button menu-primary' }, this.busy ?? T.create);
     create.disabled = missing || this.busy !== null;

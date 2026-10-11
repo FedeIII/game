@@ -1,5 +1,5 @@
 import { TILE_SIZE } from '../constants.ts';
-import { EMPTY_GEAR, GEAR_BASE, GEAR_SLOTS, fitsSlot, type Gear, type GearSlot } from '../gear.ts';
+import { EMPTY_GEAR, GEAR_BASE, GEAR_SLOTS, SHOWN_SLOTS, fitsSlot, type Gear, type GearSlot, type ShownGear, type ShownSlot } from '../gear.ts';
 import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemKind, type ItemStack, type Loot, type Pack, type PackSlot } from '../items.ts';
 import { MOB_KINDS, MOB_STATES, type Mob, type MobKind, type MobState } from '../mobs.ts';
 import type { Pile, Toss } from '../piles.ts';
@@ -13,7 +13,7 @@ import { clampInput, normalAngle, type Facing, type MoveInput } from '../player.
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 19;
+export const PROTOCOL_VERSION = 20;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -320,6 +320,26 @@ export function fromWireGear(wire: WireGear): Gear {
   return gear;
 }
 
+/** What shows of a player's gear on the wire: an item code for each slot of SHOWN_SLOTS, or -1 for none. */
+export type WireLook = readonly number[];
+
+export function toWireLook(shown: ShownGear): WireLook {
+  return SHOWN_SLOTS.map((slot) => {
+    const kind = shown[slot];
+    return kind === null ? -1 : ITEM_KINDS.indexOf(kind);
+  });
+}
+
+/** The shown gear of the wire; a code that this client does not know, or a kind that does not fit its slot, shows as nothing. */
+export function fromWireLook(wire: WireLook): ShownGear {
+  const shown: Record<ShownSlot, ItemKind | null> = { main: null, off: null };
+  SHOWN_SLOTS.forEach((slot, i) => {
+    const kind = ITEM_KINDS[wire[i] ?? -1];
+    if (kind && fitsSlot(kind, slot)) shown[slot] = kind;
+  });
+  return shown;
+}
+
 /** Whether a number is an address of the inventory: a slot of the pack, or a worn slot. */
 function isAddress(value: unknown): value is number {
   return isInt(value, 0, MAX_SLOTS - 1) || isInt(value, GEAR_BASE, GEAR_BASE + GEAR_SLOTS.length - 1);
@@ -436,6 +456,8 @@ export interface SnapshotMessage {
   readonly pk?: WirePack;
   /** What the player wears, when it changed. */
   readonly gr?: WireGear;
+  /** What shows of the gear of every player (SHOWN_SLOTS), `[id, look]`, when one changed or a player came or went (protocol 20). */
+  readonly lk?: readonly (readonly [number, WireLook])[];
   /** The loot that the player got since the last snapshot. */
   readonly l?: readonly WireLoot[];
   /** The piles on the ground near this player (within PILE_SEND_RADIUS): all of them, when they changed. */

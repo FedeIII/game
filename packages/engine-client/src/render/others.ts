@@ -1,7 +1,7 @@
 import { Container } from 'pixi.js';
 import { isSneakWalk, type RemotePlayer } from '@game/engine';
 import type { Art } from '../assets.ts';
-import { skinName } from '../../art/skins.ts';
+import { skinKey, skinName, type SkinLook } from '../../art/skins.ts';
 import { attackLook, type SkinStore } from '../skins/skin-store.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
@@ -16,7 +16,8 @@ const OTHER_TORCH = { radius: 96, sneaking: 48, colour: 0xff8a3c } as const;
 
 interface OtherView {
   readonly view: PlayerView;
-  skin: number;
+  /** The key of the look that it wears (skinKey): its seed and what shows of its gear. */
+  skin: string;
   /** The name over its head: the one it chose, or else the name of its look. */
   readonly tag: NameTag;
   x: number;
@@ -57,8 +58,8 @@ export class OtherPlayers {
     this.font = smallFont;
   }
 
-  /** The skins that the other players wear now: the skin store keeps them. */
-  get skinsWorn(): number[] {
+  /** The keys of the looks that the other players wear now: the skin store keeps them. */
+  get skinsWorn(): string[] {
     return [...this.views.values()].map((v) => v.skin);
   }
 
@@ -75,7 +76,8 @@ export class OtherPlayers {
     for (const player of players) {
       present.add(player.id);
       let other = this.views.get(player.id);
-      if (other && other.skin !== player.skin) this.reskin(player.id, other, player.skin);
+      const look = lookOf(player);
+      if (other && other.skin !== skinKey(look)) this.reskin(player.id, other, look);
       if (!other) other = this.add(player);
       other.tag.set(player.name || skinName(player.skin));
       other.here = true;
@@ -113,18 +115,19 @@ export class OtherPlayers {
     this.layer.addChild(view.root);
     this.ghostLayer.addChild(view.ghost);
     this.glowLayer.addChild(view.overlay);
-    const other: OtherView = { view, skin: -1, tag: new NameTag(this.font, this.textLayer), x: player.x, y: player.y, alpha: 0, here: true, sneaking: false };
+    const other: OtherView = { view, skin: '', tag: new NameTag(this.font, this.textLayer), x: player.x, y: player.y, alpha: 0, here: true, sneaking: false };
     this.views.set(player.id, other);
-    this.reskin(player.id, other, player.skin);
+    this.reskin(player.id, other, lookOf(player));
     return other;
   }
 
-  /** Wears skin `skin`: at once if it is ready, else when it is (the old look stays until then). */
-  private reskin(id: number, other: OtherView, skin: number): void {
+  /** Wears a look: at once if it is ready, else when it is (the old look stays until then). */
+  private reskin(id: number, other: OtherView, look: SkinLook): void {
+    const skin = skinKey(look);
     other.skin = skin;
-    const look = attackLook(skin);
-    other.view.setAttackStyle(look.style, look.tint);
-    const ready = this.skins.get(skin, (textures) => {
+    const attack = attackLook(look);
+    other.view.setAttackStyle(attack.style, attack.tint);
+    const ready = this.skins.get(look, (textures) => {
       if (this.views.get(id) === other && other.skin === skin) {
         other.view.setTextures(textures);
         other.view.setPending(false);
@@ -143,4 +146,9 @@ export class OtherPlayers {
     other.tag.destroy();
     this.views.delete(id);
   }
+}
+
+/** The look of another player: its skin seed, and what shows of its gear (until the server says it: the look of the seed). */
+function lookOf(player: RemotePlayer): SkinLook {
+  return player.look ? { seed: player.skin, shown: player.look } : { seed: player.skin };
 }

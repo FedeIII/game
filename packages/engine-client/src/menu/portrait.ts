@@ -1,4 +1,4 @@
-import { SKIN_FRAME, SKIN_PORTRAIT, SKIN_WALK_FRAMES } from '../../art/skins.ts';
+import { SKIN_FRAME, SKIN_PORTRAIT, SKIN_WALK_FRAMES, skinKey, type SkinLook } from '../../art/skins.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 
 /**
@@ -22,7 +22,7 @@ export class SkinPortrait {
   readonly element: HTMLCanvasElement;
   private readonly skins: SkinStore;
   private readonly walk: boolean;
-  private seed: number | null = null;
+  private look: SkinLook | null = null;
   private sheet: HTMLCanvasElement | null = null;
   private frame = 0;
   private readonly started = performance.now();
@@ -47,7 +47,7 @@ export class SkinPortrait {
 
   /** Whether the look asked for last is still being drawn. */
   get pending(): boolean {
-    return this.seed !== null && this.skins.sheet(this.seed) === null;
+    return this.look !== null && this.skins.sheet(this.look) === null;
   }
 
   /** Called when the look asked for last is ready. */
@@ -55,19 +55,20 @@ export class SkinPortrait {
     this.readyListener = listener;
   }
 
-  show(seed: number): void {
-    if (seed === this.seed) return;
-    if (this.seed !== null && this.skins.sheet(this.seed) === null) this.skins.cancel(this.seed);
-    this.seed = seed;
+  /** Shows a look: a seed, and what shows of its gear. */
+  show(look: SkinLook): void {
+    if (this.look && skinKey(look) === skinKey(this.look)) return;
+    if (this.look !== null && this.skins.sheet(this.look) === null) this.skins.cancel(this.look);
+    this.look = look;
     const ready = this.skins.get(
-      seed,
+      look,
       () => {
-        if (seed !== this.seed) return;
-        this.use(this.skins.sheet(seed));
+        if (look !== this.look) return;
+        this.use(this.skins.sheet(look));
       },
       true,
     );
-    if (ready) this.use(this.skins.sheet(seed));
+    if (ready) this.use(this.skins.sheet(look));
     else this.element.classList.add('drawing');
   }
 

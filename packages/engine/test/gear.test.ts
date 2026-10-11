@@ -48,6 +48,10 @@ import {
   type Pack,
   type Scores,
   type SnapshotMessage,
+  Remotes,
+  fromWireLook,
+  toWireLook,
+  shownGear,
 } from '../src/index.ts';
 import { textSource } from './helpers.ts';
 
@@ -108,28 +112,25 @@ describe('the proficiencies of the classes (SRD 5.1)', () => {
 describe('the kits of the classes', () => {
   it('can be worn by their class', () => {
     for (const cls of CLASSES) {
-      for (const str of [8, 13, 17]) {
-        const kit = kitOf(cls, scores({ str }));
-        for (const slot of GEAR_SLOTS) {
-          const kind = kit[slot];
-          if (kind === null) continue;
-          expect(fitsSlot(kind, slot)).toBe(true);
-          expect(canUse(cls, kind)).toBe(true);
-        }
-        expect(checkGear(kit)).toEqual(kit);
+      const kit = kitOf(cls);
+      for (const slot of GEAR_SLOTS) {
+        const kind = kit[slot];
+        if (kind === null) continue;
+        expect(fitsSlot(kind, slot)).toBe(true);
+        expect(canUse(cls, kind)).toBe(true);
       }
+      expect(checkGear(kit)).toEqual(kit);
     }
   });
 
-  it('give a fighter chain mail, a longsword and a shield; with STR under 13, leather and a longbow', () => {
-    expect(kitOf('fighter', scores({ str: 15 }))).toEqual(gear({ armour: 'chain-mail', main: 'longsword', off: 'shield' }));
-    expect(kitOf('fighter', scores({ str: 12 }))).toEqual(gear({ armour: 'leather-armour', main: 'longbow' }));
+  it('give a fighter chain mail, a longsword and a shield, whatever its scores', () => {
+    expect(kitOf('fighter')).toEqual(gear({ armour: 'chain-mail', main: 'longsword', off: 'shield' }));
   });
 
   it('give the balance of the plan (main score 17, DEX 14, the third score 14)', () => {
     const row = (cls: (typeof CLASSES)[number], over: Partial<Scores>) => {
       const s = scores(over);
-      const t = traitsOf(s, cls, kitOf(cls, s));
+      const t = traitsOf(s, cls, kitOf(cls));
       return { ac: t.ac, damage: t.damage, cooldown: t.cooldown, ranged: t.ranged };
     };
     const quick = ATTACK_COOLDOWN_TICKS - 4;
@@ -401,7 +402,7 @@ describe('the gear in a shared world', () => {
   it('starts with the gear of the character, follows a move, changes the traits, and goes into the snapshot', () => {
     const room = new Room(new World(textSource([])));
     const s = scores({ str: 16 });
-    const kit = kitOf('fighter', s);
+    const kit = kitOf('fighter');
     const p = room.join(0, 1, [5, 5], '', undefined, {
       traits: traitsOf(s, 'fighter', kit),
       traitsFor: (g) => traitsOf(s, 'fighter', g),
@@ -424,7 +425,7 @@ describe('the gear in a shared world', () => {
   it('drops a worn item on the ground with put, and the next snapshot has no gear when nothing changed', () => {
     const room = new Room(new World(textSource([])));
     const s = scores();
-    const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kitOf('cleric', s)), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kitOf('cleric', s) })!;
+    const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kitOf('cleric')), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kitOf('cleric') })!;
     room.welcome(p);
     room.put(p.id, { slot: gearAddress('off'), kind: ITEM_KINDS.indexOf('shield'), count: 1 }, 0);
     expect(p.gear.off).toBeNull();
@@ -448,10 +449,50 @@ describe('the gear in a shared world', () => {
   it('does not change while the character lies defeated', () => {
     const room = new Room(new World(textSource([])));
     const s = scores();
-    const kit = kitOf('cleric', s);
+    const kit = kitOf('cleric');
     const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'cleric', kit), traitsFor: (g) => traitsOf(s, 'cleric', g), gear: kit })!;
     p.state.down = 10;
     room.move(p.id, gearAddress('off'), 0);
     expect(p.gear).toEqual(kit);
+  });
+
+  it('sends what shows of every gear (the hands) when a player comes, and when that changes only', () => {
+    const room = new Room(new World(textSource([])));
+    const s = scores({ str: 16 });
+    const join = (cls: 'fighter' | 'cleric', pack: Pack = EMPTY_PACK) =>
+      room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, cls, kitOf(cls)), traitsFor: (g) => traitsOf(s, cls, g), gear: kitOf(cls), pack })!;
+    const a = join('fighter', { coins: 0, items: [{ kind: 'greataxe', count: 1 }, { kind: 'leather-armour', count: 1 }] });
+    const b = join('cleric');
+    const snaps = new Map<number, SnapshotMessage>();
+    const send = (ms: number) => {
+      snaps.clear();
+      room.broadcast(ms, (id, m) => snaps.set(id, m));
+    };
+    send(0);
+    // The first snapshot of each has the looks of everyone.
+    expect(new Map(snaps.get(b.id)!.lk)).toEqual(new Map([
+      [a.id, toWireLook({ main: 'longsword', off: 'shield' })],
+      [b.id, toWireLook({ main: 'mace', off: 'shield' })],
+    ]));
+    send(50);
+    expect(snaps.get(b.id)!.lk).toBeUndefined();
+    // Armour does not show (yet): no looks.
+    room.move(a.id, 1, gearAddress('armour'));
+    expect(a.gear.armour).toBe('leather-armour');
+    send(100);
+    expect(snaps.get(b.id)!.lk).toBeUndefined();
+    // A weapon in the hands shows: the others get the new look.
+    room.move(a.id, 0, gearAddress('main'));
+    send(150);
+    const look = new Map(snaps.get(b.id)!.lk).get(a.id)!;
+    expect(fromWireLook(look)).toEqual({ main: 'greataxe', off: null });
+    expect(fromWireLook(look)).toEqual(shownGear(a.gear));
+    // The client keeps it for each other player.
+    const remotes = new Remotes();
+    remotes.apply(snaps.get(b.id)!, 1000);
+    expect(remotes.at(2000).find((p) => p.id === a.id)?.look).toEqual({ main: 'greataxe', off: null });
+    room.leave(a.id);
+    send(200);
+    expect(new Map(snaps.get(b.id)!.lk).has(a.id)).toBe(false);
   });
 });

@@ -40,7 +40,7 @@ const TICK_MS = TICK_SECONDS * 1000;
 // The plain gear (a d8, no other property), and a ranger's kit (a longbow): the tests of DEX stay apart from the gear.
 const withDex = (dex: number, cls: CharacterClass = 'rogue') => {
   const scores = { ...PLAIN_SCORES, dex } as Scores;
-  return traitsOf(scores, cls, cls === 'ranger' ? kitOf('ranger', scores) : PLAIN_GEAR);
+  return traitsOf(scores, cls, cls === 'ranger' ? kitOf('ranger') : PLAIN_GEAR);
 };
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
 

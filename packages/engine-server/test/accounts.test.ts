@@ -552,7 +552,7 @@ describe('accounts: personal data', () => {
       db.prepare('UPDATE characters SET gear = NULL').run();
       db.close();
       const again = new AccountStore(file);
-      expect(again.character(user.id, made.id)!.gear).toEqual(kitOf('wizard', { ...sheet.base, con: 16 }));
+      expect(again.character(user.id, made.id)!.gear).toEqual(kitOf('wizard'));
       expect(again.character(user.id, made.id)!.gear.main).toBe('arcane-staff');
       again.close();
     } finally {

@@ -44,6 +44,7 @@ import {
   GEAR_SLOTS,
   dropWorn,
   gearSlotAt,
+  shownGear,
   guestGear,
   guestTraits,
   inShallows,
@@ -111,7 +112,7 @@ import { ConversationPanel, gateTag } from './ui/conversation.ts';
 import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './ui/gates.ts';
 import { MapPanel } from './ui/map-panel.ts';
 import { Terrain } from './render/terrain.ts';
-import { skinName } from '../art/skins.ts';
+import { skinKey, skinName, type SkinLook } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
 import { markResume } from './menu/resume.ts';
@@ -379,24 +380,29 @@ async function run(options: GameOptions): Promise<void> {
   const fixtures = new Fixtures(world, art, entityLayer);
   // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
   // darker wanderer.
-  /** Wears skin `seed` when it is ready (at once if it is), unless another one was asked for since. */
   // The standing frame of the skin's sheet: the "You" section and the pack panel show it.
   let lookSheet: HTMLCanvasElement | null = null;
   let showPackLook: ((sheet: HTMLCanvasElement | null) => void) | null = null;
-  const wear = (seed: number, then: () => void = () => {}) => {
-    // How it attacks follows the skin at once; the frames come when the skin is ready.
-    const look = attackLook(seed);
-    playerView.setAttackStyle(look.style, look.tint);
+  /** The look of the player now: its skin seed, and what shows of its gear (the weapon, the shield). */
+  const ownLook = (): SkinLook => ({ seed: skin, shown: shownGear(gearNow()) });
+  // The key of the look that the player wears now (skinKey).
+  let lookKey = '';
+  /** Wears a look when it is ready (at once if it is), unless another one was asked for since. */
+  const wearLook = (look: SkinLook) => {
+    const key = skinKey(look);
+    lookKey = key;
+    // How it attacks follows the look at once; the frames come when the skin is ready.
+    const attack = attackLook(look);
+    playerView.setAttackStyle(attack.style, attack.tint);
     const apply = (textures: PlayerTextures) => {
-      if (seed !== skin) return;
+      if (key !== lookKey) return;
       playerView.setTextures(textures);
       playerView.setPending(false);
-      lookSheet = skins.sheet(seed);
+      lookSheet = skins.sheet(look);
       you.showLook(lookSheet);
       showPackLook?.(lookSheet);
-      then();
     };
-    const ready = skins.get(seed, apply, true);
+    const ready = skins.get(look, apply, true);
     if (ready) apply(ready);
   };
   const playerView = new PlayerView(art, atlasPlayerTextures(art), true);
@@ -431,7 +437,7 @@ async function run(options: GameOptions): Promise<void> {
       signOut: () => void savePlace().finally(() => api.signOut().finally(() => location.reload())),
     },
   );
-  wear(skin);
+  wearLook(ownLook());
   const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, tagLayer, glowLayer, smallFont) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
   // is alone (a single-player world, or no server). Its seed differs per page: nobody else sees it.
@@ -857,6 +863,9 @@ async function run(options: GameOptions): Promise<void> {
     belt.setScores(traits.scores);
     mapPanel.setInt(traits.scores.int);
     you.setTraits(traits);
+    // The figure holds what it wears now.
+    const look = ownLook();
+    if (skinKey(look) !== lookKey) wearLook(look);
   };
   /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). */
   const takeDrop = (drop: Loot, now: number, at: { readonly x: number; readonly y: number }) => {
@@ -1232,7 +1241,7 @@ async function run(options: GameOptions): Promise<void> {
     // Free the skins that nobody here wears any more (now and then).
     if (now >= nextRetainAt) {
       nextRetainAt = now + 5000;
-      skins.retain(new Set([skin, ...(others?.skinsWorn ?? [])]));
+      skins.retain(new Set([lookKey, ...(others?.skinsWorn ?? [])]));
     }
     // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
@@ -1281,7 +1290,7 @@ async function run(options: GameOptions): Promise<void> {
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,
-      `skin    ${skin} (${look.race} ${look.class} ${look.gender}), name ${displayName()}${name ? '' : ' (from the look)'}`,
+      `skin    ${skin} (${look.race} ${look.class} ${look.gender}), look ${lookKey}, name ${displayName()}${name ? '' : ' (from the look)'}`,
       `char    ${character ? `${character.id}` : 'guest'}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
@@ -1292,7 +1301,7 @@ async function run(options: GameOptions): Promise<void> {
             `others  ${
               net
                 .playersAt(now)
-                .map((o) => `skin ${o.skin} "${o.name || skinName(o.skin)}" at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}${o.attack ? ' attacking' : ''}${o.stun ? ' stunned' : ''}`)
+                .map((o) => `skin ${o.skin}${o.look ? ` holds ${o.look.main ?? '-'}/${o.look.off ?? '-'}` : ''} "${o.name || skinName(o.skin)}" at ${Math.floor(o.x / TILE_SIZE)},${Math.floor(o.y / TILE_SIZE)}${o.attack ? ' attacking' : ''}${o.stun ? ' stunned' : ''}`)
                 .join('; ') || '-'
             }`,
           ]

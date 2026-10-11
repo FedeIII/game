@@ -2,7 +2,8 @@ import { TICK_SECONDS } from '../constants.ts';
 import { MOB_KINDS, MOB_STATES, type MobKind, type MobState } from '../mobs.ts';
 import type { Facing } from '../player.ts';
 import type { NpcPose } from '../npc.ts';
-import { aimFromCode, facingFromCode, type SnapshotMessage } from './protocol.ts';
+import type { ShownGear } from '../gear.ts';
+import { aimFromCode, facingFromCode, fromWireLook, type SnapshotMessage } from './protocol.ts';
 
 /**
  * The other players are drawn this far in the past, between two snapshots that have both
@@ -21,6 +22,8 @@ export interface RemotePlayer {
   readonly skin: number;
   /** The name over its head; '' for none. */
   readonly name: string;
+  /** What shows of its gear (gear.ts, SHOWN_SLOTS), or null before the server said it. */
+  readonly look: ShownGear | null;
   readonly x: number;
   readonly y: number;
   readonly vx: number;
@@ -117,6 +120,8 @@ export class Remotes {
   private readonly players = new Map<number, { skin: number; samples: Sample[] }>();
   /** The names from the last roster, by player id. */
   private names = new Map<number, string>();
+  /** What shows of the gear of each player, from the last list of looks, by player id. */
+  private looks = new Map<number, ShownGear>();
   /** The NPCs of the world, by their index: a short history of each. */
   private npcs: Sample[][] = [];
   /** The mobs near the player, by id: their kind and a short history. Null until a snapshot has mobs. */
@@ -134,6 +139,7 @@ export class Remotes {
   clear(): void {
     this.players.clear();
     this.names = new Map();
+    this.looks = new Map();
     this.npcs = [];
     this.mobs = null;
     this.arrows.clear();
@@ -143,6 +149,7 @@ export class Remotes {
   /** Takes the other players of a snapshot that arrived at local time `localMs`. */
   apply(snapshot: SnapshotMessage, localMs: number): void {
     if (snapshot.names) this.names = new Map(snapshot.names);
+    if (snapshot.lk) this.looks = new Map(snapshot.lk.map(([id, look]) => [id, fromWireLook(look)]));
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     const seen = new Set<number>();
@@ -285,6 +292,7 @@ export class Remotes {
         id,
         skin,
         name: this.names.get(id) ?? '',
+        look: this.looks.get(id) ?? null,
         x: s.x,
         y: s.y,
         vx: s.vx,

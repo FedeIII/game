@@ -2,7 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { CLASSES, GENDERS, RACES, appearanceSeed, cleanName, type Appearance } from '@game/engine';
 import { attackStyle } from './attacks.ts';
 import { SMALL_GLYPHS } from './font.ts';
-import { SKIN_ATTACK_FRAMES, SKIN_FRAME, SKIN_VIEWS, SKIN_WALK_FRAMES, renderSkinSheet, skinAttack, skinFromSeed, skinName, type Skin } from './skins.ts';
+import {
+  SKIN_ATTACK_FRAMES,
+  SKIN_FRAME,
+  SKIN_VIEWS,
+  SKIN_WALK_FRAMES,
+  dressSkin,
+  renderSkinSheet,
+  skinAttack,
+  skinFromSeed,
+  skinKey,
+  skinName,
+  skinOfLook,
+  type Skin,
+} from './skins.ts';
 
 const skin = (look: Partial<Appearance> = {}): Skin => skinFromSeed(appearanceSeed({ race: 'human', class: 'fighter', gender: 'male', variant: 1, ...look }));
 /** Many variants of one combination of race, class and gender. */
@@ -157,4 +170,69 @@ describe('player skins', () => {
     expect(names({ race: 'human', class: 'cleric', gender: 'female' }).every((n) => /^(Sister|Mother) /.test(n))).toBe(true);
     expect(names({ race: 'dwarf', class: 'paladin', gender: 'male' }).every((n) => n.startsWith('Sir '))).toBe(true);
   });
+
+  it('holds what the character wears: the weapon in the main hand, a shield in the off hand', () => {
+    const fighter = skinFromSeed(appearanceSeed({ race: 'human', class: 'fighter', gender: 'male', variant: 1 }));
+    const dressed = (main: Parameters<typeof dressSkin>[1]['main'], off: Parameters<typeof dressSkin>[1]['off'] = null, skin: Skin = fighter) => {
+      const d = dressSkin(skin, { main, off });
+      return [d.spec.item, d.spec.shield === true, skinAttack(d)];
+    };
+    expect(dressed('longsword', 'shield')).toEqual(['sword', true, 'slash']);
+    expect(dressed('rapier')).toEqual(['sword', false, 'thrust']);
+    expect(dressed('shortsword')).toEqual(['dagger', false, 'thrust']);
+    expect(dressed('greataxe')).toEqual(['axe', false, 'slash']);
+    expect(dressed('mace', 'shield')).toEqual(['mace', true, 'slash']);
+    expect(dressed('longbow')).toEqual(['bow', false, 'shoot']);
+    // A focus of another class is a plain staff, and an empty hand punches.
+    expect(dressed('arcane-staff')).toEqual(['staff', false, 'bash']);
+    expect(dressed(null)).toEqual(['none', false, 'punch']);
+    const wizard = skinFromSeed(appearanceSeed({ race: 'elf', class: 'wizard', gender: 'female', variant: 2 }));
+    expect(dressed('arcane-staff', null, wizard)).toEqual(['orbstaff', false, 'spell']);
+    expect(dressed(null, null, wizard)).toEqual(['none', false, 'spell']);
+    const druid = skinFromSeed(appearanceSeed({ race: 'human', class: 'druid', gender: 'male', variant: 3 }));
+    expect(dressed('druid-staff', 'shield', druid)).toEqual(['orbstaff', true, 'spell']);
+    const monk = skinFromSeed(appearanceSeed({ race: 'human', class: 'monk', gender: 'male', variant: 3 }));
+    expect(dressed(null, null, monk)).toEqual(['none', false, 'palm']);
+  });
+
+  it('keys a look by its seed and what it holds', () => {
+    expect(skinKey({ seed: 42 })).toBe('42');
+    expect(skinKey({ seed: 42, shown: { main: 'longsword', off: 'shield' } })).toBe('42:longsword/shield');
+    expect(skinKey({ seed: 42, shown: { main: null, off: null } })).toBe('42:-/-');
+    expect(skinOfLook({ seed: 42, shown: { main: 'longbow', off: null } }).spec.item).toBe('bow');
+  });
+
+  it('keeps every attack frame inside its frame with any weapon in the hands', () => {
+    const { width, height } = SKIN_FRAME;
+    const big = [
+      appearanceSeed({ race: 'half-orc', class: 'fighter', gender: 'male', variant: 8 }),
+      appearanceSeed({ race: 'elf', class: 'wizard', gender: 'male', variant: 5 }),
+    ];
+    const held = [
+      { main: 'rapier', off: null },
+      { main: 'greataxe', off: null },
+      { main: 'longbow', off: null },
+      { main: 'arcane-staff', off: null },
+      { main: 'longsword', off: 'shield' },
+    ] as const;
+    for (const seed of big) {
+      for (const shown of held) {
+        const sheet = renderSkinSheet(skinOfLook({ seed, shown }));
+        for (let row = 0; row < SKIN_VIEWS.length; row++) {
+          for (let column = 1 + SKIN_WALK_FRAMES; column <= SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES; column++) {
+            const x0 = column * width;
+            const y0 = row * height;
+            for (let i = 0; i < width; i++) {
+              expect(sheet.image.get(x0 + i, y0) & 0xff, `${seed} ${shown.main} top`).toBe(0);
+              expect(sheet.image.get(x0 + i, y0 + height - 1) & 0xff, `${seed} ${shown.main} bottom`).toBe(0);
+            }
+            for (let j = 0; j < height; j++) {
+              expect(sheet.image.get(x0, y0 + j) & 0xff, `${seed} ${shown.main} left`).toBe(0);
+              expect(sheet.image.get(x0 + width - 1, y0 + j) & 0xff, `${seed} ${shown.main} right`).toBe(0);
+            }
+          }
+        }
+      }
+    }
+  }, 240_000);
 });

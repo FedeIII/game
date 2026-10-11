@@ -29,6 +29,26 @@ export type GearSlot = (typeof GEAR_SLOTS)[number];
 /** What a character wears: an item kind in each slot, or null. */
 export type Gear = Readonly<Record<GearSlot, ItemKind | null>>;
 
+/**
+ * The worn slots that show on the figure in the world: the item in the main hand and the off hand
+ * (a weapon, a shield). The other players get them (protocol 20, `lk`), so they see them too.
+ */
+export const SHOWN_SLOTS = ['main', 'off'] as const;
+export type ShownSlot = (typeof SHOWN_SLOTS)[number];
+
+/** What shows of a character's gear: the kind in each shown slot, or null. */
+export type ShownGear = Readonly<Record<ShownSlot, ItemKind | null>>;
+
+/** What shows of some gear (SHOWN_SLOTS). */
+export function shownGear(gear: Gear): ShownGear {
+  return { main: gear.main, off: gear.off };
+}
+
+/** Whether two shown gears are the same. */
+export function sameShown(a: ShownGear, b: ShownGear): boolean {
+  return SHOWN_SLOTS.every((slot) => a[slot] === b[slot]);
+}
+
 export const EMPTY_GEAR: Gear = {
   head: null,
   neck: null,
@@ -304,10 +324,11 @@ export function attunedCount(gear: Gear): number {
 
 /**
  * The 5e starting kit of a class (SRD 5.1), only what it wears: the daggers, the packs and the
- * tools stay out (the pack is small). A fighter with STR under 13 takes the other kit of 5e:
- * leather armour and a longbow, not chain mail.
+ * tools stay out (the pack is small). It depends on the class only, so the builder shows it before
+ * the scores: a fighter takes chain mail, a longsword and a shield (without STR 13, it walks slower
+ * in the chain mail, and it can take it off).
  */
-export function kitOf(cls: CharacterClass, scores: Scores): Gear {
+export function kitOf(cls: CharacterClass): Gear {
   const kit = (worn: Partial<Record<GearSlot, ItemKind>>): Gear => ({ ...EMPTY_GEAR, ...worn });
   switch (cls) {
     case 'barbarian':
@@ -319,7 +340,7 @@ export function kitOf(cls: CharacterClass, scores: Scores): Gear {
     case 'druid':
       return kit({ main: 'druid-staff', off: 'shield', armour: 'leather-armour' });
     case 'fighter':
-      return scores.str < 13 ? kit({ main: 'longbow', armour: 'leather-armour' }) : kit({ main: 'longsword', off: 'shield', armour: 'chain-mail' });
+      return kit({ main: 'longsword', off: 'shield', armour: 'chain-mail' });
     case 'monk':
       return kit({});
     case 'paladin':

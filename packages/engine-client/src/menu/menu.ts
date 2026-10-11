@@ -1,4 +1,5 @@
-import { MAX_CHARACTERS, NAME_MAX, characterSkin, type Character, type CharacterSheet } from '@game/engine';
+import { MAX_CHARACTERS, NAME_MAX, type Character, type CharacterSheet } from '@game/engine';
+import { characterLook } from '../skins/look.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
 import { ApiError, api, type Me } from './api.ts';
@@ -134,7 +135,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       try {
         const played = await api.play(character.id);
         // The look of the character first: the game wears it at once.
-        options.skins.get(characterSkin(played), undefined, true);
+        options.skins.get(characterLook(played), undefined, true);
         root.classList.add('leaving');
         setTimeout(() => root.remove(), 400);
         resolve({ character: played, admin: me?.user?.admin === true });
@@ -250,7 +251,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       const list = el('ul', { class: 'character-list' });
       for (const character of characters) {
         const portrait = new SkinPortrait(options.skins, 2, false);
-        portrait.show(characterSkin(character));
+        portrait.show(characterLook(character));
         portraits.push(portrait);
         const race = STRINGS.races[character.race].name;
         const cls = STRINGS.classes[character.class].name;

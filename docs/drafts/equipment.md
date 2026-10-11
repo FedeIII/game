@@ -100,8 +100,9 @@ CON or WIS 14 for the defence of the barbarian and the monk; the tests check thi
 | Warlock | leather armour | 11 + DEX: 13 | 8 (eldritch blast) | as now |
 | Wizard | arcane staff | 10 + DEX: 12 | 8 (fire bolt) | as now |
 
-A fighter with STR under 13 gets the other 5e kit: leather armour and a longbow. The kits put
-nothing into the pack (the daggers, packs and tools of 5e stay out: the pack is small).
+The kit depends on the class only (since phase 2), so the builder shows it before the scores: a
+fighter without STR 13 walks slower in its chain mail, and can take it off. The kits put nothing
+into the pack (the daggers, packs and tools of 5e stay out: the pack is small).
 
 ## The items
 
@@ -124,8 +125,8 @@ New kinds (stack 1), each with an icon and a line of the world:
    protocol 19 (the gear in the welcome and the snapshot; `move` and `put` take a worn slot too;
    the glance in `WireSelf`), the worn slots in the pack panel round a picture of the character,
    the icons, AC in the "You" section.
-2. **The look follows the hands**: the weapon and the shield on the figure come from the gear, for
-   the player and for the others, and in the menu.
+2. **The look follows the hands** (built 2026-10-11, protocol 20): the weapon and the shield on the
+   figure come from the gear, for the player and for the others, and in the menu.
 3. **The smith of Thornwick** sells armour, shields and weapons, and buys them back. Plate and
    studded leather come then.
 4. Later: the look of the armour and the helmet, magic items (+1 weapons, a cloak of protection),
