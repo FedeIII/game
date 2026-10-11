@@ -310,11 +310,11 @@ export function facingOfAngle(angle: number): Facing {
  * Whether an attack from (px, py) in the direction `aim` (radians) hits a thing at (x, y) with
  * radius `radius`: close enough, and in front (or so close that the direction does not matter).
  */
-export function attackHits(px: number, py: number, aim: number, x: number, y: number, radius: number): boolean {
+export function attackHits(px: number, py: number, aim: number, x: number, y: number, radius: number, reach = ATTACK_REACH): boolean {
   const dx = x - px;
   const dy = y - py;
   const d = Math.hypot(dx, dy);
-  if (d > ATTACK_REACH + radius) return false;
+  if (d > reach + radius) return false;
   if (d <= radius + 4) return true;
   return (dx * Math.cos(aim) + dy * Math.sin(aim)) / d >= Math.cos(ATTACK_ARC);
 }

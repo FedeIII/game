@@ -166,6 +166,8 @@ export interface Blow {
   readonly opening?: number;
   /** The damage that it adds on a mob that does not hunt the attacker (a rogue's sneak attack). */
   readonly sneak?: number;
+  /** How far it hits (world pixels, plus the radius of the mob); without it, ATTACK_REACH. A reach weapon hits further. */
+  readonly reach?: number;
 }
 
 /** The blow of a player whose scores are all 10 (GUEST_TRAITS). */
@@ -529,7 +531,8 @@ export class Horde {
       const radius = MOB_STATS[mob.kind].radius;
       const then = at?.(mob) ?? null;
       const hit =
-        attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius) || (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius));
+        attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius, blow.reach) ||
+        (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius, blow.reach));
       if (!hit) continue;
       this.hit(mob, mob.x - attacker.x, mob.y - attacker.y, blow, attackerId);
       struck.push(mob);

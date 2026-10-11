@@ -1,7 +1,6 @@
 import './style.css';
 import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
 import {
-  ATTACK_REACH,
   ATTACK_TICKS,
   EMPTY_PACK,
   Horde,
@@ -531,7 +530,7 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     for (const mob of net?.mobsAt(now) ?? []) {
       // Only a clear hit: a blow at the edge of the reach waits for the server's word.
-      if (attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN)) predictHit(mob, now);
+      if (attackHits(player.x, player.y, player.aim, mob.x, mob.y, MOB_STATS[mob.kind].radius - PREDICT_MARGIN, traits.reach)) predictHit(mob, now);
     }
   };
   // A ranger's arrows in a shared world: the page flies its own at once (the server flies the true
@@ -625,7 +624,7 @@ async function run(options: GameOptions): Promise<void> {
       if (mob.state === 'dying') continue;
       const d = Math.hypot(mob.x - player.x, mob.y - player.y);
       // A ranger aims at the nearest mob in the range of its arrows.
-      const reach = traits.ranged ? traits.range : ATTACK_REACH + MOB_STATS[mob.kind].radius + AIM_SLACK;
+      const reach = traits.ranged ? traits.range : traits.reach + MOB_STATS[mob.kind].radius + AIM_SLACK;
       if (d < bestD && d <= reach) {
         best = mob;
         bestD = d;

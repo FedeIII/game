@@ -183,6 +183,9 @@ describe('player skins', () => {
     expect(dressed('greataxe')).toEqual(['axe', false, 'slash']);
     expect(dressed('mace', 'shield')).toEqual(['mace', true, 'slash']);
     expect(dressed('longbow')).toEqual(['bow', false, 'shoot']);
+    expect(dressed('glaive')).toEqual(['glaive', false, 'bash']);
+    // A magic weapon looks like its plain one.
+    expect(dressed('longsword-plus-1')).toEqual(['sword', false, 'slash']);
     // A focus of another class is a plain staff, and an empty hand punches.
     expect(dressed('arcane-staff')).toEqual(['staff', false, 'bash']);
     expect(dressed(null)).toEqual(['none', false, 'punch']);
@@ -232,6 +235,7 @@ describe('player skins', () => {
       { main: 'longbow', off: null, armour: 'leather-armour' },
       { main: 'arcane-staff', off: null, armour: null },
       { main: 'longsword', off: 'shield', armour: 'splint-armour' },
+      { main: 'glaive', off: null, armour: 'chain-mail' },
     ] as const;
     for (const seed of big) {
       for (const shown of held) {

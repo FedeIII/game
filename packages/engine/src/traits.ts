@@ -20,6 +20,7 @@ import {
 } from './gear.ts';
 import {
   ATTACK_COOLDOWN_TICKS,
+  ATTACK_REACH,
   ATTACK_TICKS,
   DODGE_COOLDOWN_TICKS,
   GUARD_TICKS,
@@ -59,6 +60,8 @@ export interface PlayerTraits {
   readonly damage: number;
   /** The damage that a blow adds on a mob that does not hunt it (a rogue's sneak attack; else 0). */
   readonly sneak: number;
+  /** How far its blows hit (world pixels, plus the radius of the mob): ATTACK_REACH, more with a reach weapon. */
+  readonly reach: number;
   /** Its Armour Class (armourClass). */
   readonly ac: number;
   /** The share of the mob hits that glance off it (glanceShare of `ac`). */
@@ -225,6 +228,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     strike,
     damage: Math.max(1, strike.base + strike.bonus + abilityModifier(scores[attack])),
     sneak: cls === 'rogue' ? SNEAK_ATTACK : 0,
+    reach: ATTACK_REACH + strike.reach,
     ac,
     glance: glanceShare(ac),
     speed: tooHeavy(gear, scores) ? HEAVY_SPEED : 1,

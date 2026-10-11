@@ -306,6 +306,16 @@ function greataxe(): Part[] {
   ];
 }
 
+/** A glaive: a long shaft from the bottom left to the top right, and a broad curved blade at its end. */
+function glaive(): Part[] {
+  const head = subtract(ellipsoid([4.4, 11.2, 0], [2.4, 3.4, 0.5]), ellipsoid([6.2, 12.4, 0], [1.6, 2.6, 2]));
+  return [
+    { sdf: roundCone([-6, 0.4, 0], [3.4, 9.6, 0], 0.75, 0.7), material: I.wood },
+    { sdf: head, material: I.silver },
+    { sdf: sphere([3.3, 9.4, 0], 0.8), material: I.iron },
+  ];
+}
+
 /** A mace: a haft, and a head with flanges. */
 function mace(): Part[] {
   const head = union(
@@ -504,6 +514,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['amulet-of-health', () => [...amulet().slice(0, 2), { sdf: sphere([0, 4.2, 0.6], 1.2), material: I.red }]],
   ['belt-of-dwarvenkind', belt],
   ['boots-of-elvenkind', boots],
+  ['glaive', glaive],
 ];
 
 export function itemFrames(): Frame[] {

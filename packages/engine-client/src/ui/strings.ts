@@ -78,6 +78,7 @@ export const STRINGS = {
     'amulet-of-health': { name: 'Amulet of health', a: 'an amulet of health', many: 'amulets of health' },
     'belt-of-dwarvenkind': { name: 'Belt of dwarvenkind', a: 'a belt of dwarvenkind', many: 'belts of dwarvenkind' },
     'boots-of-elvenkind': { name: 'Boots of elvenkind', a: 'boots of elvenkind', many: 'pairs of boots of elvenkind' },
+    glaive: { name: 'Glaive', a: 'a glaive', many: 'glaives' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -206,6 +207,7 @@ export const STRINGS = {
     light: 'Light: quicker attacks. It goes in the off hand too.',
     heavyWeapon: 'Heavy: slower attacks.',
     ranged: 'It shoots arrows.',
+    reach: 'Reach: it hits a little further than other weapons.',
     focus: 'Your focus: you cast your cantrip with it.',
     luck: (n: number): string => `Luck: +${n} to each score for every test.`,
     /** A magic item (gear.ts). */

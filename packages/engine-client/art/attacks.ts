@@ -56,6 +56,7 @@ export function attackStyle(cls: CharacterClass, spec: FigureSpec): AttackStyle 
     case 'bow':
       return 'shoot';
     case 'staff':
+    case 'glaive':
       return 'bash';
     case 'orbstaff':
       return 'spell';
@@ -230,7 +231,8 @@ export function attackAction(style: AttackStyle, frame: number, spec: FigureSpec
   const item = spec.item ?? 'none';
   if (style === 'slash') weapon = item === 'axe' ? { kind: 'axe' } : item === 'mace' ? { kind: 'mace' } : { kind: 'blade', length: 8.5, width: 0.42 };
   else if (style === 'thrust') weapon = item === 'sword' ? { kind: 'blade', length: 10, width: 0.3 } : { kind: 'blade', length: 3.6, width: 0.34 };
-  else if ((style === 'bash' || style === 'spell') && (item === 'staff' || item === 'orbstaff')) weapon = { kind: 'staff', dir: poses.staff![frame]!, orb: item === 'orbstaff' };
+  else if ((style === 'bash' || style === 'spell') && (item === 'staff' || item === 'orbstaff' || item === 'glaive'))
+    weapon = { kind: 'staff', dir: poses.staff![frame]!, orb: item === 'orbstaff', ...(item === 'glaive' ? { blade: true } : {}) };
   else if (style === 'flame') weapon = { kind: 'lantern' };
   else if (style === 'shoot') weapon = { kind: 'bow', draw: [0.4, 1, 0, 0][frame]! };
   return { right, ...(left ? { left } : {}), lean: poses.lean[frame]!, ...(weapon ? { weapon } : {}) };

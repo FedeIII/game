@@ -762,6 +762,8 @@ const HELD: Readonly<Partial<Record<ItemKind, { readonly item: Item; readonly st
   greataxe: { item: 'axe', style: 'slash' },
   mace: { item: 'mace', style: 'slash' },
   longbow: { item: 'bow', style: 'shoot' },
+  // A polearm sweeps with both hands, as a staff does.
+  glaive: { item: 'glaive', style: 'bash' },
 };
 
 /**

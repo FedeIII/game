@@ -54,6 +54,8 @@ export const ITEM_KINDS = [
   'amulet-of-health',
   'belt-of-dwarvenkind',
   'boots-of-elvenkind',
+  // A reach weapon (2026-10-11).
+  'glaive',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -93,6 +95,7 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'amulet-of-health': 1,
   'belt-of-dwarvenkind': 1,
   'boots-of-elvenkind': 1,
+  glaive: 1,
 };
 
 /**

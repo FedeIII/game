@@ -52,12 +52,13 @@ as it does at the table.
 - **AC-EQ-002.1:** There are sixteen new kinds of item, each one item in a slot of the pack:
   leather armour, studded leather, scale mail, chain mail, splint armour, plate armour, shield,
   longsword, shortsword, rapier, greataxe, mace, longbow, arcane staff, druid staff and luck
-  amulet; and nine magic items (REQ-EQ-020).
+  amulet; nine magic items (REQ-EQ-020); and the glaive (REQ-EQ-021).
 - **AC-EQ-002.2:** The armour: leather armour is light, AC 11. Studded leather is light, AC 12.
   Scale mail is medium, AC 14, noisy. Chain mail is heavy, AC 16, STR 13, noisy. Splint armour is
   heavy, AC 17, STR 15, noisy. Plate armour is heavy, AC 18, STR 15, noisy. A shield adds AC 2.
 - **AC-EQ-002.3:** The weapons: longsword d8 (versatile d10), shortsword d6 (light), rapier d8,
-  greataxe d12 (heavy, two-handed), mace d6, longbow d8 (two-handed, it shoots arrows). The arcane
+  greataxe d12 (heavy, two-handed), glaive d10 (heavy, two-handed, reach), mace d6, longbow d8
+  (two-handed, it shoots arrows). The arcane
   staff and the druid staff are quarterstaffs (d6, versatile d8) and a focus: the arcane staff for a
   sorcerer, a warlock or a wizard, the druid staff for a druid.
 - **AC-EQ-002.4:** The luck amulet goes on the neck and needs attunement.
@@ -357,7 +358,8 @@ do not use, so that the gear grows with my character.
   weapons.", "I have gear to sell." and "Goodbye.".
 - **AC-EQ-019.2:** He sells, before Charisma: leather armour 5 coins, studded leather 10, scale
   mail 12, chain mail 18, splint armour 45, plate armour 150, a shield 4, a longsword 6, a
-  shortsword 4, a rapier 8, a greataxe 10, a mace 3, a longbow 12. He does not sell the staffs.
+  shortsword 4, a rapier 8, a greataxe 10, a glaive 8, a mace 3, a longbow 12. He does not sell
+  the staffs.
 - **AC-EQ-019.3:** He buys each of them, and the two staffs, for half of his price, rounded down,
   at least 1 coin: plate armour 75, chain mail 9, a mace 1, a staff 2.
 - **AC-EQ-019.4:** He buys only from the pack. For a worn item, or one that the player does not
@@ -400,6 +402,24 @@ house can give me something that changes my character.
 - **AC-EQ-020.9:** They are rare loot: a locked chest gives one in 16, the chest of a barred house
   one in 8, the buried cache of Thornwick one in 6. A longsword +1, a cloak of protection and boots
   of elvenkind come most often, an amulet of health least often. Nobody sells or buys them.
+
+---
+
+### REQ-EQ-021: Reach weapons
+
+**User Story:** As a player, I want a weapon that keeps the claws at a distance, so that I can hit a
+mob before it comes close.
+
+**Acceptance Criteria:**
+- **AC-EQ-021.1:** A glaive (5e: d10, heavy, two-handed, reach) hits 8 px further than the other
+  weapons: 30 px and the radius of the mob, not 22 px. It attacks 4 ticks slower (heavy).
+- **AC-EQ-021.2:** A mob that waits for its turn keeps 36 to 56 px from the player: a glaive reaches
+  one that comes to the near edge of that distance, but not one at the far edge.
+- **AC-EQ-021.3:** The attack button, Space and the prediction of a kill use the longer reach.
+- **AC-EQ-021.4:** The figure holds a long pole with a blade at its top, and sweeps it with both
+  hands, as a staff.
+- **AC-EQ-021.5:** The detail says "Reach: it hits a little further than other weapons.". The
+  smith sells a glaive for 8 coins and buys it back for 4.
 
 ---
 
@@ -477,7 +497,7 @@ house can give me something that changes my character.
 - **The smith** (phase 3): `SMITH`, `SMITH_PRICES` and `smithPays()` in
   `worlds/wilds/src/dialogs.ts` (the deals `buy-<kind>` and `sell-<kind>`; the nodes `forge`,
   `armour`, `heavy`, `shield`, `weapons`, `heavier`, `sell`, `sell-armour`, `sell-heavy`,
-  `sell-shield`, `sell-weapon`, `sell-weapon-2`, `sell-staff`, `forged`, `short`, `scrapped`,
+  `sell-shield`, `sell-weapon`, `sell-weapon-2`, `sell-wood`, `bow`, `forged`, `short`, `scrapped`,
   `none`); the smith of `town.ts` has it. Tests: `worlds/wilds/test/smith.test.ts`. The icons
   of the two armours of phase 3: `studs()` on the leather cuirass, and the plate of `cuirass()`.
 - **Magic items** (phase 4b): in `WEARABLES`, the fields `bonus`, `base` (the plain item: for
@@ -487,4 +507,9 @@ house can give me something that changes my character.
   `MAGIC_ITEMS` and `MAGIC_CHANCE` in `worlds/wilds/src/source.ts`. The icons: `magicSword()`,
   `cloak()`, `stoneRing()`, `bracers()`, `gauntlet()`, `headband()`, `belt()`, `boots()`, the
   material `cloth`, and `torusY()`.
-- **Not yet** (`docs/drafts/equipment.md`): reach weapons (phase 4c).
+- **Reach** (phase 4c): `WeaponDef.reach`, `REACH_BONUS` (8) and `AttackGear.reach` in `gear.ts`;
+  `PlayerTraits.reach`; `Blow.reach` and the `reach` argument of `attackHits()` (`player.ts`), used
+  by `Horde.strike()`, the aim of the attack button and `predictKills()` in `game.ts`. The figure:
+  the item `glaive` (`figure.ts`: `glaiveHead()`, `Weapon.blade` on a staff; `attacks.ts`: the
+  style `bash`); the icon `glaive()`.
+- **Not yet** (`docs/drafts/equipment.md`): ammunition (a decision of Fede).

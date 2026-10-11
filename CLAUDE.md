@@ -470,7 +470,9 @@ builder and the "You" section still name every gate.
   Nine magic items of the SRD (phase 4b; rare loot: `MAGIC_ITEMS` in `source.ts`): a longsword +1,
   a cloak and a ring of protection (AC +1), bracers of defence (AC +2 without armour or shield),
   gauntlets of ogre power, a headband of intellect and an amulet of health (STR, INT, CON 19:
-  `wornScores()`), a belt of dwarvenkind (CON +2), boots of elvenkind (quiet steps).
+  `wornScores()`), a belt of dwarvenkind (CON +2), boots of elvenkind (quiet steps). A reach
+  weapon, the glaive (phase 4c: d10, heavy, two-handed), hits `REACH_BONUS` (8 px) further
+  (`traits.reach`, `Blow.reach`, `attackHits(..., reach)`).
   The 5e rules: proficiency by class (`PROFICIENCY`, `canUse()`), the hands (a two-handed weapon
   takes the off hand off), at most 3 attuned items. **AC** (`armourClass()`: 10 + DEX, the armour,
   a shield +2, a barbarian + CON, a monk + WIS) gives **glancing blows** (`glanceShare()`: 5% for
@@ -601,7 +603,7 @@ builder and the "You" section still name every gate.
   Isolde sells the three draughts (6, 8, 15 coins; her friend's price 4, 6, 11, each answer behind
   CHA 13 so that the server checks it). The smith (`SMITH`, `SMITH_PRICES` in
   `worlds/wilds/src/dialogs.ts`, since 2026-10-11) sells the armour, the shield and the weapons
-  (leather 5 to plate 150, a mace 3 to a longbow 12; not the staffs) and buys all of them back for
+  (leather 5 to plate 150, a mace 3 to a longbow 12, a glaive 8; not the staffs) and buys all of them back for
   half (`smithPays()`), from the pack only: a worn piece must come off first.
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place). The vitals (`ui/vitals.ts`): red pips for HP and a stamina bar at the top

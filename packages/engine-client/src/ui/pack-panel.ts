@@ -619,6 +619,7 @@ export function wearLines(kind: ItemKind, traits: Pick<PlayerTraits, 'class'>): 
     if (weapon.light) lines.push(g.light);
     if (weapon.heavy && !weapon.ranged) lines.push(g.heavyWeapon);
     if (weapon.ranged) lines.push(g.ranged);
+    if (weapon.reach) lines.push(g.reach);
     if (weapon.focus && CASTER_FOCUS[traits.class] === weapon.focus) lines.push(g.focus);
   }
   if (item.bonus) lines.push(item.weapon ? g.magicDamage(item.bonus) : g.magicAc(item.bonus));

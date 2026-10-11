@@ -70,6 +70,7 @@ export const wilds: WorldDefinition = {
     'amulet-of-health': 'A red stone on a chain. Its warmth goes into the blood.',
     'belt-of-dwarvenkind': 'A broad belt with a buckle of a bearded face. It makes you hardy.',
     'boots-of-elvenkind': 'Soft boots of grey leather. Your steps make no sound in them.',
+    glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
   },
   darkness: 1,
   multiplayer: true,

@@ -39,7 +39,7 @@ export type BodyCut = 'jerkin' | 'robe' | 'armour';
  * hip, a lantern in the right hand, an axe upright in the right hand, a mace that hangs from the
  * right hand, a dagger at the right hip, or a bow in the left hand.
  */
-export type Item = 'none' | 'staff' | 'orbstaff' | 'sword' | 'lantern' | 'axe' | 'mace' | 'dagger' | 'bow';
+export type Item = 'none' | 'staff' | 'orbstaff' | 'sword' | 'lantern' | 'axe' | 'mace' | 'dagger' | 'bow' | 'glaive';
 /** Pointed ears: short (a half-elf) or long (an elf). */
 export type Ears = 'short' | 'long';
 
@@ -106,7 +106,7 @@ export interface FigureAction {
  */
 export type Weapon =
   | { readonly kind: 'blade'; readonly length: number; readonly width: number }
-  | { readonly kind: 'staff'; readonly dir: Vec3; readonly orb: boolean }
+  | { readonly kind: 'staff'; readonly dir: Vec3; readonly orb: boolean; readonly blade?: boolean }
   | { readonly kind: 'lantern' }
   | { readonly kind: 'axe' }
   | { readonly kind: 'mace' }
@@ -493,11 +493,18 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   }
   if (spec.feather && spec.headwear === 'brim') part(C(at([1.8, 1.6, -0.5]), at([3.1, 5.0, -2.4]), 0.62 * k, 0.12 * k), FM.scarf);
 
+  /** The head of a glaive at the top of its shaft: a broad blade of steel along `d`, a little to the side. */
+  const glaiveHead = (top: Vec3, d: Vec3): void => {
+    const side = unit(-d[1] || 0.0001, d[0], 0);
+    const root = add(top, scale(side, 0.35));
+    part(C(root, add(add(root, scale(d, 2.4)), scale(side, 0.5)), 0.85, 0.15), FM.metal);
+  };
+
   // ---------------------------------------------------------------- what it carries
   const right = hands[1]!;
   const weapon = action?.weapon;
   // In an attack the weapon is in the hand: a staff or a lantern moves there; a sword leaves its scabbard.
-  const inHand = spec.item === 'staff' || spec.item === 'orbstaff' || spec.item === 'lantern' || spec.item === 'axe' || spec.item === 'mace';
+  const inHand = spec.item === 'staff' || spec.item === 'orbstaff' || spec.item === 'glaive' || spec.item === 'lantern' || spec.item === 'axe' || spec.item === 'mace';
   const carried = weapon && inHand ? 'none' : (spec.item ?? 'none');
   if (weapon?.kind === 'blade') {
     const f = rightForearm;
@@ -511,7 +518,8 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
     const foot = add(right, scale(d, -6 * h));
     const top = add(right, scale(d, 13 * h));
     part(C(foot, top, 0.42, 0.42), FM.wood);
-    if (weapon.orb) part(S(add(top, scale(d, 1.0)), 1.0), FM.glass);
+    if (weapon.blade) glaiveHead(top, d);
+    else if (weapon.orb) part(S(add(top, scale(d, 1.0)), 1.0), FM.glass);
     else part(S(add(top, scale(d, 0.3)), 0.7), FM.wood);
   } else if (weapon?.kind === 'axe' || weapon?.kind === 'mace') {
     // A haft along the forearm; an axe has a wedge of a blade across it at the end, a mace a head.
@@ -537,12 +545,14 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   }
   switch (carried) {
     case 'staff':
-    case 'orbstaff': {
+    case 'orbstaff':
+    case 'glaive': {
       // Held upright in the right hand, from the ground to above the head.
       const foot: Vec3 = [right[0] + 0.5, Math.max(0.5, right[1] - 11.5 * h), right[2] + 0.4];
       const top: Vec3 = [right[0] + 0.5, right[1] + 17 * h, right[2] - 0.3];
       part(C(foot, top, 0.42, 0.42), FM.wood);
-      if (spec.item === 'orbstaff') part(S(add(top, [0, 1.0, 0]), 1.0), FM.glass);
+      if (spec.item === 'glaive') glaiveHead(top, unit(0, 1, 0));
+      else if (spec.item === 'orbstaff') part(S(add(top, [0, 1.0, 0]), 1.0), FM.glass);
       else part(S(add(top, [0, 0.3, 0]), 0.7), FM.wood);
       break;
     }

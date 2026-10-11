@@ -343,6 +343,7 @@ export const SMITH_PRICES = {
   shortsword: 4,
   rapier: 8,
   greataxe: 10,
+  glaive: 8,
   mace: 3,
   longbow: 12,
   'arcane-staff': 4,
@@ -394,8 +395,12 @@ export const SMITH: Dialog = {
       answers: [forge('longsword', 'A longsword.'), forge('shortsword', 'A shortsword.'), forge('rapier', 'A rapier.'), { text: 'Something heavier.', next: 'heavier' }],
     },
     heavier: {
-      say: 'An axe for the strong, a mace for the plain, and a bow that a traveller left for its price.',
-      answers: [forge('greataxe', 'A greataxe.'), forge('mace', 'A mace.'), forge('longbow', 'The longbow.'), { text: 'Something else.', next: 'forge' }],
+      say: 'An axe for the strong, a glaive to keep the claws away, a mace for the plain.',
+      answers: [forge('greataxe', 'A greataxe.'), forge('glaive', 'A glaive.'), forge('mace', 'A mace.'), { text: 'And a bow?', next: 'bow' }],
+    },
+    bow: {
+      say: 'A traveller left a longbow for its price. Yew, and a good string.',
+      answers: [forge('longbow', 'The longbow.'), { text: 'Something else.', next: 'forge' }, BYE],
     },
     sell: {
       say: 'I pay half of what I ask. Iron is iron. What is it?',
@@ -418,12 +423,12 @@ export const SMITH: Dialog = {
       answers: [scrap('longsword', 'A longsword.'), scrap('shortsword', 'A shortsword.'), scrap('rapier', 'A rapier.'), { text: 'Something else.', next: 'sell-weapon-2' }],
     },
     'sell-weapon-2': {
-      say: 'Heavier work, or wood. Wood I burn, but I pay for it.',
-      answers: [scrap('greataxe', 'A greataxe.'), scrap('mace', 'A mace.'), scrap('longbow', 'A longbow.'), { text: 'A staff.', next: 'sell-staff' }],
+      say: 'Heavier work. Let me feel the weight.',
+      answers: [scrap('greataxe', 'A greataxe.'), scrap('glaive', 'A glaive.'), scrap('mace', 'A mace.'), { text: 'A bow or a staff.', next: 'sell-wood' }],
     },
-    'sell-staff': {
-      say: 'Good wood for the forge. Which one?',
-      answers: [scrap('arcane-staff', 'An arcane staff.'), scrap('druid-staff', 'A druid staff.'), { text: 'Something else.', next: 'sell' }, { text: 'Nothing now.' }],
+    'sell-wood': {
+      say: 'Wood. I burn it in the forge, but I pay for it.',
+      answers: [scrap('longbow', 'A longbow.'), scrap('arcane-staff', 'An arcane staff.'), scrap('druid-staff', 'A druid staff.'), { text: 'Nothing now.' }],
     },
     forged: {
       say: 'Wear it well. Come back when it breaks.',

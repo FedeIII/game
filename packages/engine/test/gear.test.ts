@@ -48,6 +48,8 @@ import {
   type Pack,
   type Scores,
   type SnapshotMessage,
+  ATTACK_REACH,
+  REACH_BONUS,
   Remotes,
   fromWireLook,
   toWireLook,
@@ -559,6 +561,34 @@ describe('the magic items', () => {
     room.move(p.id, gearAddress('neck'), 0);
     expect(p.traits.maxHp).toBe(4);
     expect(p.state.hp).toBe(4);
+  });
+});
+
+describe('a reach weapon', () => {
+  it('hits REACH_BONUS further: a glaive, d10, heavy and two-handed', () => {
+    const glaive = traitsOf(scores(), 'fighter', gear({ main: 'glaive' }));
+    expect(glaive.reach).toBe(ATTACK_REACH + REACH_BONUS);
+    expect(glaive.damage).toBe(5);
+    expect(glaive.cooldown).toBe(ATTACK_COOLDOWN_TICKS + 4);
+    expect(traitsOf(scores(), 'fighter', gear({ main: 'longsword' })).reach).toBe(ATTACK_REACH);
+    expect(wear({ pack: pack('glaive'), gear: gear({ main: 'mace', off: 'shield' }) }, 0, 'main', 6, 'fighter')).toEqual({
+      pack: pack('mace', 'shield'),
+      gear: gear({ main: 'glaive' }),
+    });
+  });
+
+  it('strikes a mob a little further away, but not one at the far edge of the hounding', () => {
+    const everywhere: MobRules = { roam: () => true, hunt: () => true, population: { imp: 0, brute: 0 } };
+    const horde = new Horde(new World(textSource([])), everywhere, 5);
+    const imp = horde.spawn('imp', 100 + 33, 100);
+    const sword = traitsOf(scores(), 'fighter', gear({ main: 'longsword' }));
+    const glaive = traitsOf(scores(), 'fighter', gear({ main: 'glaive' }));
+    // The imp's radius is 7: a sword reaches 29, a glaive 37.
+    expect(horde.strike({ x: 100, y: 100 }, 0, undefined, 1, sword)).toEqual([]);
+    expect(horde.strike({ x: 100, y: 100 }, 0, undefined, 1, glaive)).toEqual([imp]);
+    const far = horde.spawn('imp', 100, 100 + 46);
+    expect(horde.strike({ x: 100, y: 100 }, Math.PI / 2, undefined, 1, glaive)).toEqual([]);
+    expect(far.health).toBe(3);
   });
 });
 

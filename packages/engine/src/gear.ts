@@ -91,6 +91,8 @@ export interface WeaponDef {
   readonly twoHanded?: boolean;
   /** Its attacks are arrows (arrows.ts). */
   readonly ranged?: boolean;
+  /** Reach (5e): it hits REACH_BONUS further. */
+  readonly reach?: boolean;
   /** A martial weapon (5e); else a simple one. */
   readonly martial?: boolean;
   /** A spellcasting focus: the class of that focus casts its cantrip with it (CANTRIP). */
@@ -146,6 +148,7 @@ export const WEARABLES: Readonly<Partial<Record<ItemKind, Wearable>>> = {
   greataxe: { place: 'hand', weapon: { die: 12, heavy: true, twoHanded: true, martial: true } },
   mace: { place: 'hand', weapon: { die: 6 } },
   longbow: { place: 'hand', weapon: { die: 8, heavy: true, twoHanded: true, ranged: true, martial: true } },
+  glaive: { place: 'hand', weapon: { die: 10, heavy: true, twoHanded: true, reach: true, martial: true } },
   // A staff that is a focus: for another class it is a quarterstaff.
   'arcane-staff': { place: 'hand', weapon: { die: 6, versatile: 8, focus: 'arcane' } },
   'druid-staff': { place: 'hand', weapon: { die: 6, versatile: 8, focus: 'druidic' } },
@@ -249,6 +252,12 @@ export const SNEAK_ATTACK = 3;
 export const LIGHT_TICKS = 2;
 /** A heavy melee weapon attacks this many ticks slower. */
 export const HEAVY_TICKS = 4;
+/**
+ * A reach weapon hits this much further (world pixels): half a tile. A mob that waits for its turn
+ * stays a little out of the usual reach (MobStats.harass); with a glaive the player can hit one
+ * that comes close, but not one at the far edge.
+ */
+export const REACH_BONUS = 8;
 /** Below the Strength of a heavy armour, the character walks at this share of its speed (5e: 10 ft less). */
 export const HEAVY_SPEED = 0.75;
 /** In a noisy armour, mobs see a sneaking character from this share of their sight (not SNEAK_SIGHT). */
@@ -274,6 +283,8 @@ export interface AttackGear {
   readonly ranged: boolean;
   /** Whether it holds the weapon with both hands (a two-handed weapon, or a versatile one with an empty off hand). */
   readonly twoHands: boolean;
+  /** How much further it hits than the usual reach (REACH_BONUS for a reach weapon, else 0). */
+  readonly reach: number;
 }
 
 /** How a class attacks with this gear. */
@@ -283,19 +294,19 @@ export function attackGear(gear: Gear, cls: CharacterClass): AttackGear {
   const offQuicker = off?.weapon?.light ? LIGHT_TICKS : 0;
   const cantrip = CANTRIP_BASE[cls];
   if (cantrip !== undefined && (!main || (main.weapon?.focus && main.weapon.focus === CASTER_FOCUS[cls]))) {
-    return { base: cantrip, bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false };
+    return { base: cantrip, bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
   }
   if (!main?.weapon) {
     return cls === 'monk'
-      ? { base: MARTIAL_ARTS_BASE, bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false }
-      : { base: UNARMED_BASE, bonus: 0, kind: 'unarmed', quicker: offQuicker, ranged: false, twoHands: false };
+      ? { base: MARTIAL_ARTS_BASE, bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false, reach: 0 }
+      : { base: UNARMED_BASE, bonus: 0, kind: 'unarmed', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
   }
   const weapon = main.weapon;
   const twoHands = weapon.twoHanded === true || (weapon.versatile !== undefined && gear.off === null);
   const die = weapon.versatile !== undefined && gear.off === null ? weapon.versatile : weapon.die;
   const ranged = weapon.ranged === true;
   const quicker = (weapon.light ? LIGHT_TICKS : 0) - (weapon.heavy && !ranged ? HEAVY_TICKS : 0) + offQuicker;
-  return { base: dieBase(die), bonus: main.bonus ?? 0, kind: 'weapon', quicker, ranged, twoHands };
+  return { base: dieBase(die), bonus: main.bonus ?? 0, kind: 'weapon', quicker, ranged, twoHands, reach: weapon.reach ? REACH_BONUS : 0 };
 }
 
 /** The Armour Class of a character (5e): its armour and DEX, its shield, the defence of its class, magic. */
