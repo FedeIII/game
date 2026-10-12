@@ -55,7 +55,9 @@ export interface RemoteCompanion {
   readonly stun: number;
   readonly guard: number;
   readonly down: number;
-  /** The id of the player that it follows. */
+  /** Ticks left of its attack (a guard that fights), at the time shown. */
+  readonly attack: number;
+  /** The id of the player that it follows (0: a guard). */
   readonly leader: number;
 }
 
@@ -195,7 +197,7 @@ export class Remotes {
     }
     // The companions near the player; one that is not in the snapshot went (or is far).
     const near = new Set<number>();
-    for (const [id, look, name, x, y, vx, vy, facing, hp, maxHp, stun, guard, down, leader] of snapshot.cp ?? []) {
+    for (const [id, look, name, x, y, vx, vy, facing, hp, maxHp, stun, guard, down, leader, attack] of snapshot.cp ?? []) {
       near.add(id);
       let companion = this.companions.get(id);
       if (!companion) {
@@ -205,7 +207,7 @@ export class Remotes {
       companion.leader = leader;
       const samples = companion.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: stun, b: guard, c: hp, e: down });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: stun, b: guard, c: hp, e: down, f: attack });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     for (const id of this.companions.keys()) if (!near.has(id)) this.companions.delete(id);
@@ -296,6 +298,7 @@ export class Remotes {
         stun: ticksAt(since.a, since, t),
         guard: ticksAt(since.b, since, t),
         down: ticksAt(since.e, since, t),
+        attack: ticksAt(since.f, since, t),
         leader,
       });
     }

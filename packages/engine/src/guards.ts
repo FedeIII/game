@@ -289,17 +289,36 @@ export class Guards {
     for (const guard of this.all) {
       if (guard.state.down > 0 || !outlaw.includes(guard.group)) continue;
       if (!attackHits(attacker.x, attacker.y, aim, guard.state.x, guard.state.y, GUARD_RADIUS, blow.reach)) continue;
-      // As a blow on a mob (mobs.ts, rollBlow): d20 and the bonus against its AC; a natural 20 doubles the dice.
-      const roll = attackRoll(blow.toHit, guard.def.ac, dice);
-      const damage = roll.hit ? Math.max(1, rollDice(blow.damage, dice, roll.crit)) : 0;
-      const crit = roll.hit && roll.crit;
-      if (damage > 0) {
-        hitPlayer(guard.state, damage, 20, 0);
-        this.lastHit.set(guard.id, attackerId);
-      }
-      out.push({ guard, damage, crit });
+      out.push(this.roll(guard, attackerId, blow, dice));
     }
     return out;
+  }
+
+  /** A blow on a guard, as a blow on a mob (mobs.ts, rollBlow): d20 and the bonus against its AC; a natural 20 doubles the dice. */
+  private roll(guard: Guard, attackerId: number, blow: Blow, dice: DiceSource): GuardBlow {
+    const roll = attackRoll(blow.toHit, guard.def.ac, dice);
+    const damage = roll.hit ? Math.max(1, rollDice(blow.damage, dice, roll.crit)) : 0;
+    if (damage > 0) {
+      hitPlayer(guard.state, damage, 20, 0);
+      this.lastHit.set(guard.id, attackerId);
+    }
+    return { guard, damage, crit: roll.hit && roll.crit };
+  }
+
+  /**
+   * The guards that a character's arrow may hit: those of the groups that it robs (`outlaw`), standing,
+   * as targets of an arrow (Horde.arrowBodies).
+   */
+  bodies(outlaw: readonly string[]): { id: number; x: number; y: number; radius: number }[] {
+    if (outlaw.length === 0) return [];
+    return this.all.filter((g) => g.state.down === 0 && outlaw.includes(g.group)).map((g) => ({ id: g.id, x: g.state.x, y: g.state.y, radius: GUARD_RADIUS }));
+  }
+
+  /** A character's arrow (its `blow`) on guard `id`: it rolls as a blow on the guard (strike). */
+  shot(id: number, attackerId: number, blow: Blow, dice: DiceSource): GuardBlow | null {
+    const guard = this.all.find((g) => g.id === id);
+    if (!guard || guard.state.down > 0) return null;
+    return this.roll(guard, attackerId, blow, dice);
   }
 
   /** A mob's hit on a guard (the horde reports it): the guard remembers who brought it down. */

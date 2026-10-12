@@ -777,8 +777,9 @@ export const SOLDIER: Dialog = {
 /**
  * Kasmut Parnika, the veteran of the Mithril Enclave who trains the militia of Silverspring
  * (chapter 1.5.1): hopeful; kind when she is calm, quick to argue under stress; loyal to the
- * Enclave, and with no love for the rich and the powerful. She left the capital of the Enclave
- * because she kept a secret. A character who goes to warn Silverspring (quests.ts, raid) tells her
+ * Enclave, and with no love for the rich and the powerful; openly cynical of Simtu, the god of nature
+ * and water, whom the priests say watches over the Silvervein. She left Great Bwini (Gran Bwini), the
+ * capital of the Enclave, because she kept a secret. A character who goes to warn Silverspring (quests.ts, raid) tells her
  * of the hobgoblins.
  */
 export const KASMUT: Dialog = {
@@ -838,11 +839,11 @@ export const KASMUT: Dialog = {
       ],
     },
     town: {
-      say: 'The spring brings mithril down from the hills, a pinch at a time. The people pan it from the stream, and the jeweller makes rings of it. Small work. Honest work.',
+      say: 'The Silvervein brings mithril down from the hills, a pinch at a time. The people pan it as it runs through the town, and the jeweller makes rings of it. Honest work.',
       answers: [{ text: 'Mithril? Then the town must be rich.', next: 'rich' }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
     },
     rich: {
-      say: 'Rich? A pinch a day feeds a family. The rich live in the capital, and they never pan anything.',
+      say: 'Rich? A pinch a day feeds a family. The rich live in Great Bwini, and they never pan anything.',
       answers: [{ text: 'You do not like the rich.', next: 'dislike', gate: INSIGHT_GATE }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
     },
     dislike: {
@@ -850,7 +851,7 @@ export const KASMUT: Dialog = {
       answers: [BYE],
     },
     want: {
-      say: 'Everybody. The Enclave buys it, and the Iron Sovereignty wants the stream. Ironhold has iron and tools, and we have mithril. We should trade. Instead we watch each other.',
+      say: 'Everybody. The Enclave buys it, and the Iron Sovereignty wants the Silvervein. Ironhold has iron and tools, and we have mithril. We should trade. Instead we watch each other.',
       answers: [{ text: 'A militia? Of whom?', next: 'militia' }, BYE],
     },
     militia: {
@@ -859,14 +860,14 @@ export const KASMUT: Dialog = {
     },
     why: {
       say: 'The Enclave sent me. That is all.',
-      answers: [{ text: 'That is not all.', next: 'secret', gate: INSIGHT_GATE }, { text: 'The priests say that the gods watch the spring.', next: 'gods' }, BYE],
+      answers: [{ text: 'That is not all.', next: 'secret', gate: INSIGHT_GATE }, { text: 'The priests say that Simtu watches over the Silvervein.', next: 'gods' }, BYE],
     },
     secret: {
-      say: '...No, it is not. I left the capital because I kept a secret, and powerful people wanted it. I keep it still. Ask me again, and we are done.',
+      say: '...No, it is not. I left Great Bwini because I kept a secret, and powerful people wanted it. I keep it still. Ask me again, and we are done.',
       answers: [BYE],
     },
     gods: {
-      say: 'The priests say many things. The gods watch the spring, and I watch the hills. Guess which of us sees the hobgoblins first.',
+      say: 'Simtu! The priests say many things. Simtu watches the river, and I watch the hills. Guess which of us sees the hobgoblins first.',
       answers: [BYE],
     },
     road: {
@@ -908,7 +909,7 @@ export const HOST: Dialog = {
   nodes: {
     wanted: wanted('Not you. You robbed our caravan. Pay Kasmut your fine, and then come back.'),
     welcome: {
-      say: 'Welcome to the Silver Trout! Shut the door, the wind off the stream is cold.',
+      say: 'Welcome to the Silver Trout! Shut the door, the wind off the river is cold.',
       answers: [
         { text: 'What do you have to drink?', next: 'drink' },
         { text: 'Do you have a room?', next: 'room' },
@@ -925,7 +926,7 @@ export const HOST: Dialog = {
       answers: [{ text: 'Any news?', next: 'news' }, { text: 'Thank you.' }],
     },
     poor: {
-      say: 'An ale costs coin, friend. The stream does not pay me either.',
+      say: 'An ale costs coin, friend. The river does not pay me either.',
       answers: [{ text: 'Any news?', next: 'news' }, { text: 'I understand.' }],
     },
     room: {
@@ -955,7 +956,7 @@ export const MILITIA: Dialog = {
       answers: [{ text: 'What is this place?', next: 'place' }, { text: 'Who are you?', next: 'who' }, BYE],
     },
     place: {
-      say: 'Silverspring. The spring rises at the north end of the town, and the stream carries mithril dust past every door.',
+      say: 'Silverspring. The Silvervein comes down from the hills through the town, and it carries mithril dust past every door.',
       answers: [{ text: 'Who is in charge here?', next: 'charge' }, BYE],
     },
     who: {

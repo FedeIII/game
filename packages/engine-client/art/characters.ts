@@ -4,7 +4,7 @@
  * figure (skins.ts). Change the proportions in figure.ts, not in the frames.
  */
 import { ramp } from './raster.ts';
-import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, fallParts, rollParts } from './attacks.ts';
+import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, fallParts, rollParts, type AttackStyle } from './attacks.ts';
 import { WANDERER, figure, figureMaterials, type FigureAction, type FigureSpec, type Palette } from './figure.ts';
 import type { Image } from './image.ts';
 import { renderModel, type Material, type Part } from './sdf.ts';
@@ -250,17 +250,29 @@ export function playerFrames(): Frame[] {
  * facing south, for an NPC that stands still as a fixture), and for walking NPCs
  * `npc/<look>/<view>/stand` and `npc/<look>/<view>/walk/<i>`.
  */
+/**
+ * The NPC looks that fight (guards.ts: the militia of the caravan): they also have the frames of a
+ * swing, `npc/<look>/<view>/attack/<i>`, in the style of their item.
+ */
+export const FIGHTING_LOOKS: Readonly<Record<string, AttackStyle>> = { militia: 'bash' };
+
 export function npcFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
   const frames: Frame[] = [];
   for (const [name, look] of Object.entries(NPC_LOOKS)) {
     const { spec, materials } = npcFigure(look);
     frames.push({ name: `npc/${name}`, image: renderModel(figure(spec, 0, 0), materials, { ...PLAYER_FRAME, yaw: 0 }), anchor });
+    const style = FIGHTING_LOOKS[name];
     for (const view of VIEWS) {
       const render = (parts: Part[]) => renderModel(parts, materials, { ...PLAYER_FRAME, yaw: view.yaw });
       frames.push({ name: `npc/${name}/${view.name}/stand`, image: render(figure(spec, 0, 0)), anchor });
       for (let i = 0; i < WALK_FRAMES; i++) {
         frames.push({ name: `npc/${name}/${view.name}/walk/${i}`, image: render(figure(spec, (i / WALK_FRAMES) * 2 * Math.PI, 1)), anchor });
+      }
+      if (!style) continue;
+      for (let i = 0; i < ATTACK_FRAMES; i++) {
+        const [phase, amount] = ATTACK_STANCE[i]!;
+        frames.push({ name: `npc/${name}/${view.name}/attack/${i}`, image: render(figure(spec, phase, amount, attackAction(style, i, spec))), anchor });
       }
     }
   }

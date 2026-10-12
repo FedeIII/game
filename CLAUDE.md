@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 31.
+protocol: `docs/multiplayer.md`, protocol 32.
 
 ## Language
 
@@ -964,6 +964,13 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   a robber is an outlaw (its blows hit the guards; they fight it). A robber is wanted: traders and
   guards refuse it (`Dialog.refuse`) until it pays 60 coins (`QuestEffect.cost`) to the reeve or Kasmut.
   Only the mobs of the story (`Mob.story`) hunt guards (`HordePlayer.quarry`).
+- **The Silvervein** (`worlds/wilds/src/river.ts`, 2026-10-12): the river of Silverspring (el río Vena de
+  Plata), from a spring 34 tiles north of the town, across the town (its map's channel), to a pool 50
+  tiles south. Water, shallows, and a bank with no tree, house or herb.
+- **The atlas has pages** (2026-10-12): `art/build.ts` packs the frames into pages of at most 2048 x
+  2048 (16-bit GPUs: `atlas.png`, `atlas-1.png`, ...; each frame has its `page` in `atlas.json`), and
+  `loadArt()` (`src/assets.ts`) loads them all. `ATLAS_PAGE=1024 npm run art` builds small pages, to
+  test the loader.
 - **Barks** are heard only within 18 tiles (`BARK_HEARING` in `game.ts`): with two towns, the lines of
   a far town would sit on the edge of the screen.
 - **The Town of Azyr** is not here any more: it is on the branch `town` (azyr.io; on the VPS,

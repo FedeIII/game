@@ -147,3 +147,23 @@ describe('guards', () => {
     expect(guards.list).toHaveLength(0);
   });
 });
+
+describe('a robber with a bow', () => {
+  it('hits the guards of the convoy that it robs with its arrows, and no others', () => {
+    const { world, horde, guards } = setup();
+    const militia = guards.add(MILITIA, 'caravan', at(14, 5).x, at(14, 5).y);
+    const outlaw = new Set<number>([2]);
+    horde.arrowBodies = (owner) => guards.bodies(outlaw.has(owner) ? ['caravan'] : []);
+    horde.onArrowBody = (owner, id, blow) => void guards.shot(id, owner, blow, AVERAGE_DICE);
+    const shotBlow = { toHit: 99, damage: dice(0, 0, 3), push: 1, stagger: 1, opening: 0 };
+    // A friend's arrow flies by the militia.
+    horde.shoot(at(10, 5), 0, 160, 1, shotBlow);
+    for (let t = 0; t < 1500; t += TICK_MS) horde.step(TICK_MS, []);
+    expect(militia.state.hp).toBe(11);
+    // The robber's arrow hits it.
+    horde.shoot(at(10, 5), 0, 160, 2, shotBlow);
+    for (let t = 0; t < 1500; t += TICK_MS) horde.step(TICK_MS, []);
+    expect(militia.state.hp).toBe(8);
+    void world;
+  });
+});

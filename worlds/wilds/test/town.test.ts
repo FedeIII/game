@@ -27,6 +27,7 @@ import {
   SILVERSPRING_NAME,
   SILVERSPRING_NPCS,
   SILVERSPRING_SITE,
+  SILVERVEIN,
   TOWN,
   TOWN_BUILDINGS,
   TOWN_GATE,
@@ -184,7 +185,7 @@ describe('Silverspring', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('has a stream from a spring to a pool, with bridges where the main street and the lane cross it', () => {
+  it('has the Silvervein across it, from its north edge to its south edge, with bridges where the main street and the lane cross it', () => {
     let water = 0;
     let bridges = 0;
     for (let ty = s.y0; ty <= s.y1; ty++) {
@@ -202,8 +203,20 @@ describe('Silverspring', () => {
         }
       }
     }
-    expect(water).toBeGreaterThan(40);
+    expect(water).toBe(2 * 24 - 12);
     expect(bridges).toBe(12);
+    // The river goes on outside the town, north to its spring and south to its pool, and it is water there too.
+    for (const ty of [s.y0 - 1, s.y0 - 10, s.y1 + 1, s.y1 + 10]) {
+      const wet = [195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206].filter((tx) => SILVERVEIN.wet(tx, ty));
+      expect(wet.length, `row ${ty}`).toBeGreaterThanOrEqual(2);
+      for (const tx of wet) expect([Ground.Water, Ground.Shallows]).toContain(world.ground(tx, ty));
+    }
+    for (const [cx, cy] of [SILVERVEIN.spring, SILVERVEIN.pool]) expect(world.ground(Math.floor(cx), Math.floor(cy))).toBe(Ground.Water);
+    expect(SILVERVEIN.spring[1]).toBeLessThan(s.y0);
+    expect(SILVERVEIN.pool[1]).toBeGreaterThan(s.y1);
+    // No mob lives in it.
+    const rules = source.mobs();
+    expect(rules.roam(202, s.y1 + 10)).toBe(false);
   });
 
   it('has Kasmut Parnika in the militia hall, with a conversation for a character who comes to warn the town', () => {

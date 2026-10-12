@@ -5,25 +5,25 @@ import { LAMP, Town, type Plan } from './towns.ts';
 
 /**
  * Silverspring: the mithril village of the Mithril Enclave, at the end of the north road, about
- * 250 tiles north-east of Ironhold (story phase 4, chapter 1.5.1 of Kandrax). A spring rises at
- * the north end of the town, and its stream carries mithril dust south through the town to a pool;
- * the people pan the dust and a jeweller works it. A militia of volunteers defends it, trained by
- * Kasmut Parnika, a veteran of the Enclave.
+ * 250 tiles north-east of Ironhold (story phase 4, chapter 1.5.1 of Kandrax). The Silvervein (el
+ * río Vena de Plata in Kandrax: river.ts) comes down from a spring in the hills and crosses the town
+ * from north to south, with mithril dust in it; the people pan the dust and a jeweller works it. A
+ * militia of volunteers defends it, trained by Kasmut Parnika, a veteran of the Enclave.
  *
  * The plan of the town, one character per tile, north at the top (towns.ts). The north road comes
  * in at the west end of the main street (road.ts, SILVERSPRING_SITE). Three buildings face the
  * street from the north (the militia hall, the inn and the jeweller), four houses face the lane in
- * the south, and two bridges of planks cross the stream.
+ * the south, and two bridges of planks cross the river.
  *
  *   .  garden    T  a tree    =  cobblestones    :  the dirt lane    ~  water    h  a bridge
  *   1-7  BUILDINGS[n - 1]    N  the notice board (2 x 1)    L  a lamp post    b  a barrel    x  a crate
  */
 const MAP = [
-  'T........T.........T.....T.........T.....T',
-  '............................~~~~..........',
-  '..11111111111==2222222222..~~~~~~.........',
-  '..11111111111==2222222222..~~~~~~.3333333.',
-  '..11111111111==2222222222...~~~~..3333333.',
+  'T........T.........T.....T...~~....T.....T',
+  '.............................~~...........',
+  '..11111111111==2222222222....~~...........',
+  '..11111111111==2222222222....~~...3333333.',
+  '..11111111111==2222222222....~~...3333333.',
   '..11111111111==2222222222==..~~b==3333333.',
   '..11111111111==2222222222==..~~===3333333.',
   '..11111111111==2222222222x=..~~===3333333.',
@@ -40,9 +40,9 @@ const MAP = [
   '==4444444==5555555==6666666==~~==7777777==',
   'b::::::::::::::::::::::::::::hh::::::::::x',
   ':::::::::L::::::::L::::::::L:hh:L:::::::L:',
-  '...........................~~~~~~.........',
-  '............................~~~~..........',
-  'T.........T........T....T...........T....T',
+  '.............................~~...........',
+  '.............................~~...........',
+  'T.........T........T....T....~~.....T....T',
 ];
 
 export const SILVERSPRING_NAME = 'Silverspring';
@@ -109,7 +109,7 @@ const BUILDINGS: readonly Plan[] = [
       '#+##D##+##',
     ],
     things: {
-      b: { kind: 'barrel', pages: ['Cider from the valley, and stream water to cut it.'] },
+      b: { kind: 'barrel', pages: ['Cider from the valley, and river water to cut it.'] },
       a: { kind: 'apothecary', pages: ['Bottles of cider, and a jar of pickled trout.'] },
       c: { kind: 'candelabra' },
       t: { kind: 'table', pages: ['A scrubbed table. Someone has carved a trout into its edge.'] },
@@ -244,12 +244,12 @@ const WALKERS: readonly NpcDef[] = [
       speaker: 'fixture',
       pages: [
         'See the glitter in the water? Mithril dust. A whole day of panning for a pinch.',
-        'The spring rises at the north end of the town. Nobody knows how deep it goes.',
-        'The Sovereignty wants this stream. Over my bones.',
+        'The Silvervein rises at a spring in the hills, north of the town. A gift of Simtu, the priests say.',
+        'The Sovereignty wants this river. Over my bones.',
       ],
     },
     barks: ['A pinch, a pinch...', 'Cold water, cold hands.', 'There! ...No. Sand.'],
-    greeting: 'Mind your boots in the stream, {name}.',
+    greeting: 'Mind your boots in the river, {name}.',
   },
 ];
 

@@ -10,7 +10,7 @@ import type { PixelFont } from './pixel-text.ts';
 import { PlayerView } from './player-view.ts';
 
 /** What the view needs of a companion: a RemoteCompanion of the server, or one that the page runs. */
-export type CompanionPose = Pick<RemoteCompanion, 'id' | 'look' | 'name' | 'x' | 'y' | 'vx' | 'vy' | 'facing' | 'stun' | 'guard' | 'down'>;
+export type CompanionPose = Pick<RemoteCompanion, 'id' | 'look' | 'name' | 'x' | 'y' | 'vx' | 'vy' | 'facing' | 'stun' | 'guard' | 'down' | 'attack'>;
 
 /** A companion carries a small lantern: the player sees it in the dark. */
 const COMPANION_LIGHT = { radius: 48, colour: 0xffb060 } as const;

@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 31;
+export const PROTOCOL_VERSION = 32;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -301,7 +301,11 @@ export type WireSelf = readonly [
  * A companion (companions.ts): [id, look, name, x, y, vx, vy, facing code, hp, most hp, stun,
  * guard, down, the id of its leader]. Positions to 0.1 px; stun, guard and down are ticks.
  */
-export type WireCompanion = readonly [number, string, string, number, number, number, number, number, number, number, number, number, number, number];
+/**
+ * A companion or a guard: [id, look, name, x, y, vx, vy, facing code, hp, most hp, stun, guard, down,
+ * leader (0 for a guard), ticks left of its attack (protocol 32)].
+ */
+export type WireCompanion = readonly [number, string, string, number, number, number, number, number, number, number, number, number, number, number, number];
 
 /** An arrow in flight: [id, the id of its shooter, x, y, aim code]. Positions to 0.1 px. */
 export type WireArrow = readonly [number, number, number, number, number];

@@ -62,9 +62,11 @@ road, so that the road leads somewhere.
 - **AC-TWN-003.2:** It has seven buildings: the militia hall ("Militia"), the inn ("The Silver
   Trout") and the jeweller ("Jeweller") face the main street from the north, and four shut houses
   face the lane in the south.
-- **AC-TWN-003.3:** A spring rises in a pool at the north end of the town, and its stream runs south
-  to a second pool. The water is solid. Two bridges of planks (12 tiles) cross it, where the main
-  street and the lane cross the stream.
+- **AC-TWN-003.3:** The Silvervein (el río Vena de Plata) crosses the town from its north edge to its
+  south edge, two tiles wide. The water is solid. Two bridges of planks (12 tiles) cross it, where the
+  main street and the lane cross the river. Outside the town it goes on: north to its spring in the
+  hills, and south to a pool; deep in the middle, shallows at its banks (STR 13 wades them), and a bank
+  where no tree, rock, house or herb stands. No mob lives in it.
 - **AC-TWN-003.4:** The map shows Silverspring as a town.
 - **AC-TWN-003.5:** The inn has a bed for a guest of the town (the refuge `trout`): it rests only a
   character with that refuge.
@@ -80,9 +82,9 @@ it feels like the mithril village of the Enclave.
 - **AC-TWN-004.1:** Five NPCs: Kasmut Parnika in the militia hall, Tova in the inn, the jeweller in
   her shop; Doran of the militia at the west end of the main street, and a panner by the stream.
 - **AC-TWN-004.2:** Kasmut Parnika ("Kasmut Parnika, of the Enclave") is the veteran of the Mithril
-  Enclave who trains the militia. She talks of the town, the mithril, the militia and the Enclave.
-  With WIS 13, a character sees that she does not like the rich, and that she hides why she left
-  the capital.
+  Enclave who trains the militia. She talks of the town, the mithril, the militia and the Enclave, and
+  she is openly cynical of Simtu ("Simtu watches the river, and I watch the hills."). With WIS 13, a
+  character sees that she does not like the rich, and that she hides why she left Great Bwini.
 - **AC-TWN-004.3:** Tova ("Tova, of the Silver Trout") sells an ale for 2 coins. Her rooms are for
   the guard of the town and its friends.
 - **AC-TWN-004.4:** Doran ("Doran, of the militia") tells what the town is and who is in charge.
@@ -128,8 +130,9 @@ hobgoblins, so that my errand has its end.
   Enclave), `trout` (timber, clay), `jeweller` (brick, indigo), and the shut `panner-house`,
   `miner-house`, `assay-house`, `stream-house`. Dialogs (`dialogs.ts`): `KASMUT`, `HOST`, `MILITIA`,
   `JEWELLER`.
-- **The source** (`worlds/wilds/src/source.ts`): `TOWNS`, `townAt()`, `nearTown()`. A water tile is
-  `Ground.Water`; a bridge is `Ground.Floor`. `npcs()`: the people of Ironhold, the merchant, then
+- **The source** (`worlds/wilds/src/source.ts`): `TOWNS`, `townAt()`, `nearPlace()`. A water tile is
+  `Ground.Water`; a bridge is `Ground.Floor`. **The Silvervein** (`worlds/wilds/src/river.ts`): `River`
+  (`band()`: `deep`, `shallow` or `bank`; `wet()`, `has()`, `spring`, `pool`), `SILVERVEIN`. `npcs()`: the people of Ironhold, the merchant, then
   the people of Silverspring (the order is the code of an NPC on the wire). `landmarks()` adds
   Silverspring.
 - **The art**: the NPC looks `veteran`, `militia`, `jeweller`, `prospector` and `host`

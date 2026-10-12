@@ -8,6 +8,7 @@ export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
+export { River, SILVERVEIN } from './river.ts';
 export { CARAVAN_MEET, CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
@@ -147,7 +148,7 @@ export const wilds: WorldDefinition = {
     glaive: 'A heavy blade on a long pole. It keeps a claw at a distance.',
     crowbar: "A bar of dark iron from the smith of Ironhold. The merchant on the road needs it for the cart.",
     'badger-fur': 'A thick grey fur from the packs of the hobgoblin scouts. Corwin, the peddler of Ironhold, buys it.',
-    mithril: 'A nugget of mithril from the stream of Silverspring, light as a feather. The smith of Ironhold buys it.',
+    mithril: 'A nugget of mithril from the Silvervein, the river of Silverspring, light as a feather. The smith of Ironhold buys it.',
     'mithril-permit': 'The permit of Silverspring, sealed by Kasmut Parnika: the jeweller of Silverspring sells mithril at cost to its holder.',
   },
   // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.

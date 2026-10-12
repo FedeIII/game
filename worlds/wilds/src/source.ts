@@ -35,6 +35,7 @@ import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
@@ -341,12 +342,15 @@ export class WildsSource implements WorldSource {
     return house;
   }
 
-  /** Whether the ground of a house of the wilds would touch a town, a road, the grove or the signpost. */
+  /** Whether the ground of a house of the wilds would touch a town, a road, the grove, the river or the signpost. */
   private inTheWay(house: Building): boolean {
     const x0 = house.x0 - 1;
     const y0 = house.y0 - 1;
     const x1 = house.x1 + 1;
     const y1 = house.y1 + DOOR_PATH;
+    if (overlaps(SILVERVEIN, x0, y0, x1, y1)) {
+      for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (SILVERVEIN.has(tx, ty)) return true;
+    }
     if (PLACES.some((t) => overlaps(t, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN))) return true;
     const sign = this.sign;
     if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
@@ -386,6 +390,7 @@ export class WildsSource implements WorldSource {
   /** Where no herbs grow: near a town, on or near a road, near the signpost, and on or near the ground of a house. */
   private noHerbsAt(tx: number, ty: number): boolean {
     if (nearPlace(tx, ty, TOWN_MARGIN + HERB_MARGIN)) return true;
+    if (SILVERVEIN.has(tx, ty)) return true;
     if (this.roadClear(tx, ty)) return true;
     if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
     const r = HERB_MARGIN + DOOR_PATH + 1;
@@ -427,6 +432,16 @@ export class WildsSource implements WorldSource {
           const natural = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = isWet(natural) ? Ground.Sand : natural;
           chunk.structure[index] = fixtureTiles(cart)[tx - cart.tx]![2];
+          continue;
+        }
+        const river = SILVERVEIN.band(tx, ty);
+        if (river) {
+          // The Silvervein (river.ts): deep water, shallows at its banks, and a bank where nothing tall grows.
+          const natural = naturalGround(this.seed, tx, ty);
+          const ground = river === 'deep' ? Ground.Water : river === 'shallow' ? Ground.Shallows : isWet(natural) ? Ground.Grass : natural;
+          chunk.ground[index] = ground;
+          const decor = river === 'bank' ? naturalDecor(this.seed, tx, ty, ground) : Decor.None;
+          chunk.decor[index] = decor === Decor.Tree || decor === Decor.Rock ? Decor.None : decor;
           continue;
         }
         const patch = this.patchAt(tx, ty);
@@ -740,6 +755,7 @@ export class WildsSource implements WorldSource {
     return {
       roam: (tx, ty) =>
         !isWet(naturalGround(this.seed, tx, ty)) &&
+        !SILVERVEIN.wet(tx, ty) &&
         !nearPlace(tx, ty, TOWN_MARGIN, TOWNS) &&
         !nearCart(tx, ty) &&
         !this.cellHousesIn(tx - DOOR_PATH - 1, ty - DOOR_PATH - 1, tx + DOOR_PATH + 1, ty + DOOR_PATH + 1).some((h) => nearHouse(h, tx, ty)),

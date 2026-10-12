@@ -583,6 +583,11 @@ async function run(options: GameOptions): Promise<void> {
   // The NPCs that fight and the convoys that they walk in (guards.ts, convoys.ts: the caravan), in a world that the page runs.
   const localGuards = net ? null : new Guards(world);
   const localConvoys = horde && localGuards ? new Convoys(world, world.source.convoys?.() ?? []) : null;
+  if (horde && localGuards && localConvoys) {
+    // A robber's arrows hit the guards of the convoy that it robs.
+    horde.arrowBodies = () => localGuards.bodies(localConvoys.outlawOf({ quests: localQuests, pack }));
+    horde.onArrowBody = (_owner, id, blow) => void localGuards.shot(id, 0, blow, LOCAL_DICE);
+  }
   /** The kinds of guard that talk (the driver of the wagon), by their look: a guard of the server comes with its look only. */
   const talkingGuards = new Map((world.source.convoys?.() ?? []).flatMap((c) => c.members.filter((m) => m.content)).map((m) => [m.look, m] as const));
   /** A guard that talks, as a target of the action button: one fixture for each guard (by its id), so a dialog stays with it. */
@@ -607,7 +612,7 @@ async function run(options: GameOptions): Promise<void> {
   const companionsNow = (now: number): CompanionPose[] =>
     net
       ? net.companionsAt(now)
-      : [...(localCompanions?.list ?? []), ...(localGuards?.list ?? [])].map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down }));
+      : [...(localCompanions?.list ?? []), ...(localGuards?.list ?? [])].map(({ id, def, state: c }) => ({ id, look: def.look, name: def.name, x: c.x, y: c.y, vx: c.vx, vy: c.vy, facing: c.facing, stun: c.stun, guard: c.guard, down: c.down, attack: c.attack }));
   /** The guards that talk, as targets of the action button (their place now). */
   const guardActors = (now: number): Actor[] =>
     companionsNow(now).flatMap((c) => {

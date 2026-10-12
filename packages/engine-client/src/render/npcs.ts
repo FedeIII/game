@@ -15,9 +15,12 @@ export function npcTextures(art: Art, look: string): PlayerTextures {
     stand[facing] = art.frame(`npc/${look}/${facing}/stand`);
     walk[facing] = art.animation(`npcwalk/${look}/${facing}`);
   }
-  // NPCs never attack or roll: their attack and their roll are the stand.
-  const attack = Object.fromEntries(FACINGS.map((facing) => [facing, [stand[facing]]])) as Record<Facing, Texture[]>;
-  return { stand, walk, attack, roll: attack, fall: attack, headHeight: NPC_HEAD_HEIGHT };
+  // A look that fights (a militia of a caravan: art/characters.ts, FIGHTING_LOOKS) has the frames of
+  // a swing; for the others the attack is the stand. No NPC rolls or falls: those are the stand too.
+  const still = Object.fromEntries(FACINGS.map((facing) => [facing, [stand[facing]]])) as Record<Facing, Texture[]>;
+  const fights = art.tryFrame(`npc/${look}/down/attack/0`) !== null;
+  const attack = fights ? (Object.fromEntries(FACINGS.map((facing) => [facing, art.variants(`npc/${look}/${facing}/attack`)])) as Record<Facing, Texture[]>) : still;
+  return { stand, walk, attack, roll: still, fall: still, headHeight: NPC_HEAD_HEIGHT };
 }
 
 /**

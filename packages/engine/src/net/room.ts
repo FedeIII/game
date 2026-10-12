@@ -258,6 +258,14 @@ export class Room {
     this.escorts = new Escorts(world.source.escorts?.() ?? []);
     this.guards = new Guards(world);
     this.convoys = new Convoys(world, world.source.convoys?.() ?? []);
+    if (this.horde) {
+      // A robber's arrows hit the guards of the convoy that it robs.
+      this.horde.arrowBodies = (owner) => {
+        const player = this.players.get(owner);
+        return player ? this.guards.bodies(this.convoys.outlawOf(player)) : [];
+      };
+      this.horde.onArrowBody = (owner, id, blow) => void this.guards.shot(id, owner, blow, this.dice);
+    }
   }
 
   /**
@@ -859,7 +867,7 @@ export class Room {
     const mobs: WireMob[] | null = this.horde ? this.horde.mobs.map(toWireMob) : null;
     const arrows: WireArrow[] = (this.horde?.arrows ?? []).map((a) => [a.id, a.owner, round(a.x), round(a.y), aimCode(a.aim)]);
     // The guards go as companions without a leader (leader 0).
-    const guards: WireCompanion[] = this.guards.list.map(({ id, def, state: c }) => [id, def.look, def.name, round(c.x), round(c.y), Math.round(c.vx), Math.round(c.vy), facingCode(c.facing), c.hp, def.hp, c.stun, c.guard, c.down, 0]);
+    const guards: WireCompanion[] = this.guards.list.map(({ id, def, state: c }) => [id, def.look, def.name, round(c.x), round(c.y), Math.round(c.vx), Math.round(c.vy), facingCode(c.facing), c.hp, def.hp, c.stun, c.guard, c.down, 0, c.attack]);
     const companions: WireCompanion[] = this.companions.list.map(({ id, def, state: c, leader }) => [
       id,
       def.look,
@@ -875,6 +883,7 @@ export class Room {
       c.guard,
       c.down,
       leader,
+      c.attack,
     ]);
     companions.push(...guards);
     const npcs: WireNpc[] | null = this.npcs

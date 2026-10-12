@@ -667,6 +667,12 @@ export class Horde {
   readonly dice: DiceSource;
   /** The guard after a stun of each player (ticks), from the last step. */
   private guards = new Map<number, number>();
+  /**
+   * Other bodies that a player's arrow may hit besides the mobs (the guards of a caravan that its owner
+   * robs: guards.ts), and what a hit on one does. The Room sets them; none by default.
+   */
+  arrowBodies: ((owner: number) => readonly { readonly id: number; readonly x: number; readonly y: number; readonly radius: number }[]) | null = null;
+  onArrowBody: ((owner: number, id: number, blow: Blow) => void) | null = null;
   /** The traits of each player that change how mobs fight it, from the last step. */
   private bodies = new Map<number, NonNullable<HordePlayer['traits']>>();
   private readonly brains = new Map<number, Brain>();
@@ -1065,10 +1071,15 @@ export class Horde {
         this.attack(shooter as Mob, p.id, p.state, players, hits);
         continue;
       }
-      const hit = flyArrow(arrow, this.world, dtMs / 1000, targets);
+      const bodies = this.arrowBodies?.(arrow.owner) ?? [];
+      const hit = flyArrow(arrow, this.world, dtMs / 1000, bodies.length > 0 ? [...targets, ...bodies] : targets);
       if (hit === null) continue;
       this.arrows.splice(this.arrows.indexOf(arrow), 1);
       if (hit < 0) continue;
+      if (hit >= living.length) {
+        this.onArrowBody?.(arrow.owner, bodies[hit - living.length]!.id, arrow.blow);
+        continue;
+      }
       const mob = living[hit]!;
       if (mob.state === 'dying') continue;
       const result = this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner);

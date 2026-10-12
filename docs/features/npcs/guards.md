@@ -45,7 +45,7 @@ caravan is not a burden only.
 - **AC-GRD-002.1:** A guard with a blow goes for the nearest foe that it sees within 10 tiles: a mob of
   the story, or a mob that hunts a guard of its group, within 12 tiles of the lead; or an outlaw of its
   group. It does not go for the other beasts of the woods.
-- **AC-GRD-002.2:** In reach, it swings as a player does; on a mob, the blow rolls as a player's blow
+- **AC-GRD-002.2:** In reach, it swings as a player does (the page shows the swing); on a mob, the blow rolls as a player's blow
   (its attack bonus against the mob's AC); on an outlaw, d20 + its bonus against the outlaw's AC, and a
   hit stuns and hurts.
 - **AC-GRD-002.3:** A militia of the caravan has 11 hit points, AC 16, and a spear: +3, 1d6+1 (5e: a
@@ -62,7 +62,7 @@ that I never hurt them by accident.
 
 **Acceptance Criteria:**
 - **AC-GRD-003.1:** The blow of an outlaw of a group hits the guards of that group in its reach: d20 +
-  the attack bonus against the guard's AC; a hit takes its damage.
+  the attack bonus against the guard's AC; a hit takes its damage. Its arrows hit them too.
 - **AC-GRD-003.2:** The blow of any other character never touches a guard.
 - **AC-GRD-003.3:** A guard whose hit points come to 0 falls, lies for 3 s, and then it is gone (dead).
   The world knows who brought it down.
@@ -91,5 +91,8 @@ that I never hurt them by accident.
   horses, `OTHER_LOOKS`); the militia use the NPC look `militia`.
 - **Tests**: `packages/engine/test/guards.test.ts`, `packages/engine/test/convoys.test.ts`,
   `worlds/wilds/test/story.test.ts` (the caravan).
-- **Not yet**: a guard has no swing in its frames (the NPC looks have no attack frames); a ranger's
-  arrows do not hit guards (a robber must fight them in melee).
+- **The swing**: a look that fights has attack frames (`FIGHTING_LOOKS` in `art/characters.ts`: the
+  militia thrusts its glaive); the wire carries the attack ticks of companions and guards (protocol
+  32), and `npcTextures()` uses the frames when the look has them.
+- **Arrows**: a robber's arrows hit the guards that it robs (`Horde.arrowBodies`, `Horde.onArrowBody`,
+  `Guards.bodies()`, `Guards.shot()`).

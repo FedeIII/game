@@ -70,6 +70,11 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The swing of a guard (protocol 32, 2026-10-12)
+
+A companion or a guard on the wire (`WireCompanion`) has one more number at its end: the ticks left
+of its attack. The page shows the swing of a guard that fights (`RemoteCompanion.attack`).
+
 ## The caravan (protocol 31, 2026-10-11)
 
 - Guards (`docs/features/npcs/guards.md`): the Room runs them (`Room.guards`) and the convoys that

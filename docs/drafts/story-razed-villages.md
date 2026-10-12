@@ -78,6 +78,9 @@ The English forms translate them. **Fede confirmed the English names below (2026
 | Thrain Forjacero, la Fábrica Forjacero | Thrain Steelforge, the Steelforge Factory | `forja` + `acero`: forge, steel |
 | Elama Rothenel, la alguacil | Elama Rothenel, the reeve | takes the place of "Aldous, the reeve" (Fede, 2026-10-11) |
 | Kasmut Parnika | Kasmut Parnika | the veteran of the Enclave in Silverspring |
+| el río Vena de Plata | the Silvervein | the river of Silverspring (Fede, 2026-10-12: use the names) |
+| Gran Bwini | Great Bwini | the capital of the Mithril Enclave |
+| Simtu | Simtu | the god of nature, water and the woods (an avatar of the god of matter) |
 | Himo, Brys | Himo, Brys | the scouts of Ironhold |
 | los Saqueadores Arcanos | the Arcane Raiders | |
 | los Buscadores de Ceniza | the Ashen Seekers | English in the `RPG` notes; Spanish form proposed |
@@ -336,8 +339,9 @@ before the next one.
    character at `raid.asked` or `raid.scouts` warns her (no step yet). The Drive tells little of the
    town (`Kandrax - Mundo`, 2.2.1.5: a village that pans mithril in the river that crosses it,
    defended by a militia of volunteers that a veteran of the Enclave advises), so the game gives it a
-   spring and its stream. The river has a name in Kandrax that is not in the table above: the game
-   does not name it yet. 4b to 4d (built 2026-10-11, protocol 29): the war band marches on the north
+   river. Since 2026-10-12 (Fede: "use them all") the river is the Silvervein (el río Vena de Plata),
+   and it crosses the town from a spring in the hills to a pool in the south (`river.ts`); Kasmut is
+   openly cynical of Simtu, and she left Great Bwini (Gran Bwini). 4b to 4d (built 2026-10-11, protocol 29): the war band marches on the north
    road for each party at `raid.scouts` (Fede's choice: "Band walks the road"); the Hobgoblin
    Devastator's spell of 4 turns is a rite of 6 s with three runes that blows break, and it makes the
    weapons of the hobgoblins burn (Elemental Weapon). The band falls on the road: Himo is tied to a
