@@ -109,12 +109,13 @@ describe('an ambush', () => {
     // Only once while it runs.
     one.ambushes.step(one.horde, one.list);
     expect(one.horde.mobs).toHaveLength(2);
-    const two = setup(2);
-    two.ambushes.step(two.horde, two.list);
-    expect(two.horde.mobs.map((m) => m.kind)).toEqual(['worg', 'goblin', 'hobgoblin']);
+    // Level-1 characters (since 2026-10-13): the band of the chapter is for about thirteen of them.
     const six = setup(6);
     six.ambushes.step(six.horde, six.list);
-    expect(six.horde.mobs.map((m) => m.kind)).toEqual(['worg', 'goblin', 'hobgoblin', 'worg', 'goblin', 'bugbear']);
+    expect(six.horde.mobs.map((m) => m.kind)).toEqual(['worg', 'goblin', 'hobgoblin']);
+    const thirteen = setup(13);
+    thirteen.ambushes.step(thirteen.horde, thirteen.list);
+    expect(thirteen.horde.mobs.map((m) => m.kind)).toEqual(['worg', 'goblin', 'hobgoblin', 'worg', 'goblin', 'bugbear']);
   });
 
   it('does not start for a character without the step, or out of the area', () => {
@@ -190,9 +191,9 @@ describe('a band that marches', () => {
     const [lead, next] = horde.mobs;
     expect(lead!.x).toBeGreaterThan(next!.x);
     expect(Math.abs(lead!.y - at(10, 5).y)).toBeLessThan(TILE_SIZE);
-    const three = band(3);
-    three.ambushes.step(three.horde, three.list);
-    expect(three.horde.mobs.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin', 'hobgoblin', 'hobgoblin']);
+    const eleven = band(11);
+    eleven.ambushes.step(eleven.horde, eleven.list);
+    expect(eleven.horde.mobs.map((m) => m.kind)).toEqual(['devastator', 'hobgoblin', 'hobgoblin', 'hobgoblin']);
   });
 
   it('walks its route at its pace with nobody near, and never goes away', () => {

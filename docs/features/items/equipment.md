@@ -4,7 +4,7 @@
 
 A character wears items in the twelve slots of D&D 5e: armour, a shield, a weapon, an amulet, two
 rings, and more. What it wears gives its Armour Class (AC) and the dice of its damage. A mob's
-attack rolls d20 against the AC, and a miss glances off ([Combat at Level 3](../game/combat.md)).
+attack rolls d20 against the AC, and a miss glances off ([Combat](../game/combat.md)).
 Each character starts with the 5e starting kit of its class, so a fighter starts in chain mail
 with a longsword and a shield, and a wizard with an arcane staff. The pack panel shows the worn slots round a picture of
 the character, and the player puts items on and takes them off with a press or a drag. Fede's
@@ -141,7 +141,7 @@ keeps me alive.
 
 **Acceptance Criteria:**
 - **AC-EQ-007.1:** A mob's attack that reaches the player rolls d20 + the attack bonus of the mob
-  against the AC of the player ([Combat at Level 3](../game/combat.md), REQ-CMB-004). Under the
+  against the AC of the player ([Combat](../game/combat.md), REQ-CMB-004). Under the
   AC, or a natural 1, it glances off; a natural 20 always hits. For example, an imp (+4) hits a
   fighter with AC 18 only on a d20 of 14 or more (35%).
 - **AC-EQ-007.3:** A glancing blow takes no hit points, gives no stun and no poison, and gives no
@@ -174,7 +174,7 @@ that the gear matters and no class is useless.
 
 **Acceptance Criteria:**
 - **AC-EQ-009.1:** The damage of a blow that hits is the base damage + the modifier of the attack
-  ability of the class + a magic bonus, at least 1 ([Combat at Level 3](../game/combat.md),
+  ability of the class + a magic bonus, at least 1 ([Combat](../game/combat.md),
   REQ-CMB-003).
 - **AC-EQ-009.2:** With a weapon in the main hand, the base damage is one die of the weapon: 1d6
   for a mace, 1d8 for a longsword (1d10 with both hands), 1d12 for a greataxe.
@@ -222,7 +222,7 @@ only a part of the ranger.
 - **AC-EQ-012.1:** A blow of a rogue that hits does 2d6 more damage on a mob that does not hunt
   the rogue: a mob that wanders, or that hunts another player. A critical hit rolls the 2d6 two
   times too.
-- **AC-EQ-012.2:** The "You" section and the builder show "Sneak attack: +2d6 on a mob that does
+- **AC-EQ-012.2:** The "You" section and the builder show "Sneak attack: +1d6 on a mob that does
   not hunt you" for a rogue.
 
 ---

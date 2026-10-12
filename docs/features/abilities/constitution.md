@@ -3,7 +3,7 @@
 ## Overview
 
 Constitution (CON) is the health of the body. With the hit die of the class, it gives the hit
-points of a character (5e, level 3). It also gives how long a mob's hit stuns it, its stamina, and
+points of a character (5e, level 1). It also gives how long a mob's hit stuns it, its stamina, and
 how long a poison or a drink lasts. No hit points come back by themselves: a rest in a bed, a
 draught or a defeat heals. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
 refuge that it found, with half of its coins gone. A rest in the bed of the home, and an ale at
@@ -37,13 +37,14 @@ the inn of Ironhold, are the first things that act on these vitals.
 I fall.
 
 **Acceptance Criteria:**
-- **AC-CON-001.1:** A character has the hit points of a level-3 character of its class (5e,
-  [Combat at Level 3](../game/combat.md), REQ-CMB-001): the hit die at its most, then half the
+- **AC-CON-001.1:** A character has the hit points of a level-1 character of its class (5e,
+  [Combat](../game/combat.md), REQ-CMB-001; level 3 until 2026-10-12): the hit die at its most and the
+  CON modifier (at least 1). Until 2026-10-12: the hit die at its most, then half the
   die + 1 two times, and the CON modifier three times. Each level gives at least 1 hit point.
 - **AC-CON-001.2:** A guest has the hit points of the class of its look with CON 10, for example
   22 for a fighter.
 - **AC-CON-001.3:** The vitals show the hit points as a red bar, and the numbers on it, for example
-  "17 / 28". The length of the red part is the share of the hit points that the character has.
+  "7 / 11". The length of the red part is the share of the hit points that the character has.
 - **AC-CON-001.4:** A screen reader reads the hit points as "N of M hit points".
 - **AC-CON-001.5:** The hit die is d12 for a barbarian; d10 for a fighter, a paladin and a ranger;
   d8 for a bard, a cleric, a druid, a monk, a rogue and a warlock; d6 for a sorcerer and a wizard.
@@ -58,7 +59,7 @@ again sooner.
 
 **Acceptance Criteria:**
 - **AC-CON-002.1:** A mob's attack that reaches the character rolls d20 + the attack bonus of the
-  mob against the AC of the character ([Combat at Level 3](../game/combat.md), REQ-CMB-004). A hit
+  mob against the AC of the character ([Combat](../game/combat.md), REQ-CMB-004). A hit
   takes the damage dice of the mob: 1d4+3 for an imp, 2d8+3 for a brute (every mob: REQ-CMB-002).
   A miss glances off: it takes no hit points and does not stun
   ([Equipment](../items/equipment.md), REQ-EQ-007).

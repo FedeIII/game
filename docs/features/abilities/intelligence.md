@@ -47,7 +47,7 @@ gives me more damage.
   away. INT 12 or 13 gives +1, INT 16 or 17 gives +3.
 - **AC-INT-002.3:** The bonus counts only in the wind-up, not in the blow or in other states.
 - **AC-INT-002.4:** In a shared world, the server adds the bonus to the rolled damage. The damage
-  that rises over the mob ([Combat at Level 3](../game/combat.md), REQ-CMB-006) includes the bonus.
+  that rises over the mob ([Combat](../game/combat.md), REQ-CMB-006) includes the bonus.
 
 ---
 

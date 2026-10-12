@@ -1,10 +1,10 @@
-# Combat at Level 3
+# Combat (5e, Level 1)
 
 ## Overview
 
-The adventures of Kandrax are made for a party of level-3 characters. Since 2026-10-11 (Fede's
-decision; plan: `docs/drafts/level-3.md`) the game uses the basic 5e numbers: a new character is a
-level-3 character, the mobs have the hit points, the Armour Class, the attack bonus and the damage of
+Since 2026-10-11 (Fede's decision; plan: `docs/drafts/level-3.md`) the game uses the basic 5e
+numbers. A character is a level-1 character since 2026-10-13 (Fede's decision: a system to level up
+comes later; from 2026-10-11 to 2026-10-12 it was level 3), the mobs have the hit points, the Armour Class, the attack bonus and the damage of
 their SRD stat blocks, and the dice roll. A blow and a mob's hit roll d20 against the Armour Class;
 a hit rolls its damage dice. No hit points come back by themselves: a bed, a draught or a defeat
 heals. The real-time rules stay: a blow must touch the mob, the dodge, the guard after a stun, the
@@ -20,22 +20,23 @@ turns of a pack, the wind-ups.
 
 ## Requirements
 
-### REQ-CMB-001: A character of level 3
+### REQ-CMB-001: A character of level 1
 
-**User Story:** As Fede, I want a new character to be a level-3 character of 5e, so that the
-adventures of Kandrax fit it.
+**User Story:** As Fede, I want a new character to be a level-1 character of 5e, so that it starts
+at the beginning and grows later (a system to level up comes later).
 
 **Acceptance Criteria:**
-- **AC-CMB-001.1:** The hit points of a character are those of level 3: the hit die of its class at
-  its most, its average (half + 1) twice, and 3 times the CON modifier (at least 1 for each level).
-  A fighter (d10) with CON 10 has 22; with CON 14, 28; a wizard (d6) with CON 10, 14.
+- **AC-CMB-001.1:** The hit points of a character are those of level 1: the hit die of its class at
+  its most and the CON modifier (at least 1). A fighter (d10) with CON 10 has 10; with CON 14, 12; a
+  wizard (d6) with CON 10, 6. On 2026-10-13 every stored character got all its hit points on this
+  scale.
 - **AC-CMB-001.2:** The attack bonus of a character is +2 and the modifier of its attack ability,
   and a magic bonus. A fighter with STR 16 has +5.
 - **AC-CMB-001.3:** The damage of a blow is the die of the weapon (the bigger die of a versatile
   weapon with an empty off hand), plus the modifier and the magic bonus: a longsword with a shield
-  and STR 16 is 1d8+3. A cantrip at level 3: fire bolt and eldritch blast 1d10, produce flame 1d8. A
+  and STR 16 is 1d8+3. A cantrip at level 1: fire bolt and eldritch blast 1d10, produce flame 1d8. A
   monk's martial arts: 1d4 + DEX. An unarmed strike: 1 and the modifier of the attack ability.
-- **AC-CMB-001.4:** A rogue's sneak attack adds 2d6 on a mob that does not hunt the rogue.
+- **AC-CMB-001.4:** A rogue's sneak attack adds 1d6 (level 1) on a mob that does not hunt the rogue.
 - **AC-CMB-001.5:** The builder, the "You" section and the pack panel show the AC, the attack bonus
   ("+5 to hit") and the dice of a blow ("1d8+3").
 
@@ -115,7 +116,7 @@ armour protects me.
   damage ("7"), a critical hit in orange ("14!"), or "miss" in grey ("fallo" in Spanish).
 - **AC-CMB-006.2:** Over the player: the damage that it takes in red, the hit points that come back in
   green ("+7"), and "miss" when a mob's attack glances off.
-- **AC-CMB-006.3:** The hit points show as a red bar with the numbers ("17 / 28").
+- **AC-CMB-006.3:** The hit points show as a red bar with the numbers ("7 / 11").
 
 ---
 
@@ -186,8 +187,9 @@ feel different from the hobgoblins, so that the new enemy is a mystery and a thr
 - **Tests**: `packages/engine/test/dice.test.ts`; the tests of the mobs, the gear and the abilities use
   `AVERAGE_DICE` where they count blows or hits.
 - **Encounters** (`packages/engine/src/encounters.ts`): the ambush of the scouts and the war band are
-  sized to the characters there with the 5e budget (`docs/features/game/quests.md`, REQ-QST-012 and
-  REQ-QST-013).
+  sized to the characters there with the 5e budget of level 1 (easy 25, medium 50, hard 75, deadly
+  100 XP for each character; `docs/features/game/quests.md`, REQ-QST-012 and REQ-QST-013). The band
+  of the chapter is for about thirteen level-1 characters; one gets its first unit.
 - **The Devastator** (`packages/engine/src/mobs.ts`): the kind `devastator` (code 6), `MobStats.rite`
   (`Rite`: `ms` 6000, `radius` 128, `runes` 3, `allies`, `burnMs` 30000, `cooldownMs` 15000), the state
   `rite` (code 9), `Mob.runes`, `Mob.burning`, `BURN_TO_HIT`, `BURN_DICE`; the wire carries the runes

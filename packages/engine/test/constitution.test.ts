@@ -35,17 +35,17 @@ const withCon = (con: number) => traitsOf({ ...PLAIN_SCORES, con } as Scores, 'f
 const open = new World(textSource([]));
 
 describe('the Constitution traits', () => {
-  it('give the hit points of level 3, the stun, the stamina and the resistance; no recovery by itself', () => {
-    // A fighter (d10) at level 3: 10, then 6 and 6, and the CON modifier at each level (level-3.md).
+  it('give the hit points of level 1, the stun, the stamina and the resistance; no recovery by itself', () => {
+    // A fighter (d10) at level 1: the die at its most and the CON modifier (5e; level 1 since 2026-10-13).
     const tough = withCon(17);
-    expect(tough.maxHp).toBe(10 + 6 + 6 + 3 * 3);
+    expect(tough.maxHp).toBe(10 + 3);
     expect(tough.stun).toBeCloseTo(0.7);
     expect(tough.recover).toBe(0);
     expect(tough.maxStamina).toBe(130);
     expect(tough.staminaRefill).toBe(32);
     expect(tough.resist).toBeCloseTo(0.55);
     const frail = withCon(8);
-    expect(frail.maxHp).toBe(10 + 6 + 6 - 3);
+    expect(frail.maxHp).toBe(10 - 1);
     expect(frail.stun).toBeCloseTo(1.1);
     expect(frail.recover).toBe(0);
     expect(frail.maxStamina).toBe(90);
@@ -194,13 +194,13 @@ describe('Constitution in a shared world', () => {
   it('wakes a defeated player at the spawn when its defeat is over, with all its hit points and half its coins', () => {
     const room = new Room(new World(refugeSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [20, 20], '', undefined, { traits: withCon(12), pack: { coins: 9, items: [] } })!;
-    // A fighter with CON 12 at level 3: 11 + 7 + 7.
-    expect(room.welcome(p).hp).toBe(25);
+    // A fighter with CON 12 at level 1: 10 + 1.
+    expect(room.welcome(p).hp).toBe(11);
     hitPlayer(p.state, 99, 60, 0);
     const quiet = Array.from({ length: 30 }, () => [0, 0] as const);
     for (let s = 1; s <= DOWN_TICKS; s += 30) room.input(p.id, { t: 'in', s, i: quiet }, s * 16);
     expect(p.state.down).toBe(0);
-    expect(p.state).toMatchObject({ hp: 25, guard: WAKE_GUARD_TICKS });
+    expect(p.state).toMatchObject({ hp: 11, guard: WAKE_GUARD_TICKS });
     expect([p.state.x, p.state.y]).toEqual([room.world.spawn().x, room.world.spawn().y]);
     expect(p.pack.coins).toBe(5);
     let snap: SnapshotMessage | null = null;
@@ -225,7 +225,7 @@ describe('Constitution in a shared world', () => {
     hitPlayer(p.state, 9, 1, 0);
     room.settle(p.id);
     expect(p.state.down).toBe(0);
-    expect(p.state.hp).toBe(22);
+    expect(p.state.hp).toBe(10);
   });
 
   it('sells an ale next to the NPC, for its price, and never without the coins', () => {

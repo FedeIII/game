@@ -34,7 +34,7 @@ room in a fight.
 - **AC-STR-001.2:** A blow pushes an imp (knockback 10 px) 8.5 px at −1, 10 px at 0 and 14.5 px
   at +3. It pushes a brute (knockback 18 px) 15.3 px at −1, 18 px at 0 and 26.1 px at +3.
 - **AC-STR-001.3:** The push takes 0.2 s. The blow that kills a mob pushes it too. A blow that
-  misses ([Combat at Level 3](../game/combat.md), REQ-CMB-003) does not push the mob.
+  misses ([Combat](../game/combat.md), REQ-CMB-003) does not push the mob.
 - **AC-STR-001.4:** An arrow pushes the mob in the direction of its flight, with the STR of the
   ranger who shot it.
 

@@ -243,16 +243,16 @@ export function dieBase(die: Die): Dice {
 
 /** An unarmed strike (5e: 1 + the mod). */
 export const UNARMED_BASE: Dice = dice(0, 0, 1);
-/** A monk's martial arts at level 3 (5e: d4 + DEX): its unarmed strike, as quick as a light weapon. */
+/** A monk's martial arts at level 1 (5e: d4 + DEX): its unarmed strike, as quick as a light weapon. */
 export const MARTIAL_ARTS_BASE: Dice = dice(1, 4);
 /**
- * The cantrip of a spellcaster with an empty main hand or with its focus (CASTER_FOCUS), at level 3:
+ * The cantrip of a spellcaster with an empty main hand or with its focus (CASTER_FOCUS), at level 1:
  * fire bolt and eldritch blast (1d10), produce flame (1d8).
  */
 export const CANTRIP_BASE: Readonly<Partial<Record<CharacterClass, Dice>>> = { druid: dice(1, 8), sorcerer: dice(1, 10), warlock: dice(1, 10), wizard: dice(1, 10) };
 export const CASTER_FOCUS: Readonly<Partial<Record<CharacterClass, Focus>>> = { druid: 'druidic', sorcerer: 'arcane', warlock: 'arcane', wizard: 'arcane' };
-/** A rogue's sneak attack at level 3 (2d6): on a mob that does not hunt the rogue. */
-export const SNEAK_ATTACK: Dice = dice(2, 6);
+/** A rogue's sneak attack at level 1 (1d6): on a mob that does not hunt the rogue. */
+export const SNEAK_ATTACK: Dice = dice(1, 6);
 /** A light weapon attacks this many ticks quicker; so does a light weapon in the off hand. */
 export const LIGHT_TICKS = 2;
 /** A heavy melee weapon attacks this many ticks slower. */

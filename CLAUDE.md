@@ -547,7 +547,7 @@ builder and the "You" section still name every gate.
   versatile weapon with an empty off hand its bigger die), an unarmed strike 1, a monk's martial
   arts 1d4, the cantrip of a sorcerer, a warlock or a wizard 1d10 and of a druid 1d8 (an empty hand
   or its focus); a light weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the
-  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +2d6 on a mob that does not
+  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +1d6 (level 1) on a mob that does not
   hunt it (`Blow.sneak`). **Kits** (`kitOf()`, `sheetKit()`): a new character, and one from before,
   gets the worn part of the SRD kit of its class; a guest the kit of its look (`guestGear()`). The
   traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
@@ -598,9 +598,8 @@ builder and the "You" section still name every gate.
   13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
   open."), never for one without ("It is locked. I cannot pick it."); it gives more (3 to 10
   coins, a second thing in about one of three).
-- **Constitution**: hit points (`maxHp` = `levelHp(class, mod)`: level 3 of 5e, the hit die
-  `HIT_DIE` at its most, then half + 1 two times, and the mod at each level; a fighter with CON 10
-  has 22, a wizard 14; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
+- **Constitution**: hit points (`maxHp` = `levelHp(class, mod)`: level 1 of 5e (`LEVEL`), the hit die
+  `HIT_DIE` at its most and the mod; a fighter with CON 10 has 10, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
   stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
   roll, and the sneak walk does not hide), and the length of a poison or a drink (`resist`:
@@ -770,8 +769,9 @@ of its target, `allyDice`) and the **bugbear** (a heavy blow). Art: `art/mobs.ts
 with a `Build` for the goblin, the hobgoblin and the bugbear; `worg()`). `?mob=goblin,worg` shows
 them in a world that the page runs. The atlas is 2048 px wide since then.
 
-**The 5e scale of level 3** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
-`docs/features/game/combat.md`; protocol 26): a character is a level-3 character, the mobs have the
+**The 5e scale** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
+`docs/features/game/combat.md`; protocol 26): a character is a **level-1** character (Fede's decision,
+2026-10-13; level 3 before; a system to level up comes later), the mobs have the
 numbers of their SRD stat blocks, and both sides roll to hit against the AC. `MOB_STATS` has
 `health`, `ac`, `toHit`, `damage` (dice) and `xp`: the imp (a quasit) 7 HP, AC 13, +4, 1d4+3; the
 brute (a half-ogre) 30, 12, +5, 2d8+3; the goblin 7, 15; the worg 26, 13; the hobgoblin 11, 18;
@@ -779,8 +779,8 @@ the bugbear 27, 16. The dice are in `dice.ts` (`Dice`, `rollDice()`, `attackRoll
 `formatDice()`). The rolls come from `Horde.dice` (seeded: the server's in a shared world, the
 page's in its own world). A test that counts blows or hits gives `AVERAGE_DICE` (the average of
 the dice, and every attack hits): `new Room(world, { dice: AVERAGE_DICE })`, or the 4th argument of
-`new Horde()`. `encounters.ts` (`sizeEncounter()`: the 5e XP budget) sizes the encounters of the
-story to the characters there.
+`new Horde()`. `encounters.ts` (`sizeEncounter()`: the 5e XP budget of level 1) sizes the encounters
+of the story to the characters there.
 
 `packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
 small and quick (runs at 96 px/s, faster than a player, and keeps running during its short

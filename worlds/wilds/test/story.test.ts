@@ -908,7 +908,7 @@ describe('the camp of the Seekers', () => {
     for (let ty = SEEKER_CAMP.y0; ty <= SEEKER_CAMP.y1; ty++) for (let tx = SEEKER_CAMP.x0; tx <= SEEKER_CAMP.x1; tx++) expect(world.ground(tx, ty)).not.toBe(Ground.Water);
   });
 
-  it('is guarded for a character at `held` or `late`: alone, a blade and an adept; when they fall, the quest moves to `camp`', () => {
+  it('is guarded for a character at `held` or `late`: alone (level 1), a blade; when the guards fall, the quest moves to `camp`', () => {
     const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const [sx, sy] = SEEKER_STAKE;
     const p = join(room, { x: (sx - 4) * TILE_SIZE + 8, y: (sy + 2) * TILE_SIZE + 12 });
@@ -918,7 +918,7 @@ describe('the camp of the Seekers', () => {
     room.tick(50);
     const horde = room.horde!;
     const guards = horde.mobs.filter((m) => m.story);
-    expect(guards.map((m) => m.kind)).toEqual(['seeker', 'adept']);
+    expect(guards.map((m) => m.kind)).toEqual(['seeker']);
     for (const mob of guards) {
       mob.health = 1;
       horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);

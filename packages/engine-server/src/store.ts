@@ -94,6 +94,9 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-11: the 5e scale of level 3 (docs/drafts/level-3.md): a character has about 25 hit
   // points, not 4. The old numbers mean nothing on the new scale: every character gets all of them.
   `UPDATE characters SET hp = NULL;`,
+  // 2026-10-13: characters are level 1 (Fede's decision): a fighter has about 10 hit points, not 25.
+  // Every character gets all of them on the new scale.
+  `UPDATE characters SET hp = NULL;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */

@@ -59,7 +59,7 @@ export interface PlayerTraits {
   readonly damage: Dice;
   /** Its attack bonus (5e): d20 + this against the AC of a mob. PROFICIENCY_BONUS + the modifier of the attack ability + a magic bonus. */
   readonly toHit: number;
-  /** The dice that a blow adds on a mob that does not hunt it (a rogue's sneak attack, 2d6 at level 3; else none). */
+  /** The dice that a blow adds on a mob that does not hunt it (a rogue's sneak attack, 1d6 at level 1; else none). */
   readonly sneak: Dice;
   /** How far its blows hit (world pixels, plus the radius of the mob): ATTACK_REACH, more with a reach weapon. */
   readonly reach: number;
@@ -90,7 +90,7 @@ export interface PlayerTraits {
   /** Whether its attacks are arrows (a bow in its hands), and how far an arrow flies (world pixels; DEX). */
   readonly ranged: boolean;
   readonly range: number;
-  /** Its most hit points at level 3 (the hit die of its class, and CON: levelHp). */
+  /** Its most hit points at its level (the hit die of its class, and CON: levelHp). */
   readonly maxHp: number;
   /** The length of a stun that a mob gives it, as a share (CON). */
   readonly stun: number;
@@ -129,8 +129,11 @@ export interface Gate {
 /** No dice: a sneak attack of a class without it. */
 const NO_DICE: Dice = dice(0, 6);
 
-/** The level of a new character (Fede's decision, 2026-10-11: the adventures are for level 3), and its proficiency bonus (5e). */
-export const LEVEL = 3;
+/**
+ * The level of a character, and its proficiency bonus (5e). Level 1 since 2026-10-13 (Fede's decision:
+ * characters start at level 1; a system to level up comes later). From 2026-10-11 it was level 3.
+ */
+export const LEVEL = 1;
 export const PROFICIENCY_BONUS = 2;
 /** The hit die of each class (5e). */
 export const HIT_DIE: Readonly<Record<CharacterClass, number>> = {

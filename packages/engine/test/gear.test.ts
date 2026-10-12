@@ -257,9 +257,9 @@ describe('the damage with the gear', () => {
   it("adds a rogue's sneak attack on a mob that does not hunt it", () => {
     const rogue = traitsOf(scores({ dex: 16 }), 'rogue', gear({ main: 'shortsword' }));
     expect(rogue.sneak).toBe(SNEAK_ATTACK);
-    expect(formatDice(SNEAK_ATTACK)).toBe('2d6');
-    // With the average of the dice: 1d6+3 is 6, and 2d6 adds 7.
-    expect(rollBlow(rogue, { kind: 'imp', state: 'walk' }, true, AVERAGE_DICE).damage).toBe(6 + 7);
+    expect(formatDice(SNEAK_ATTACK)).toBe('1d6');
+    // With the average of the dice: 1d6+3 is 6, and the sneak attack (1d6 at level 1) adds 3.
+    expect(rollBlow(rogue, { kind: 'imp', state: 'walk' }, true, AVERAGE_DICE).damage).toBe(6 + 3);
     expect(rollBlow(rogue, { kind: 'imp', state: 'chase' }, false, AVERAGE_DICE).damage).toBe(6);
     expect(traitsOf(scores(), 'fighter', EMPTY_GEAR).sneak.count).toBe(0);
   });
@@ -269,12 +269,12 @@ describe('the damage with the gear', () => {
     const horde = new Horde(new World(textSource([])), everywhere, 5, AVERAGE_DICE);
     const brute = horde.spawn('brute', 40, 12);
     const rogue = traitsOf(scores({ dex: 10 }), 'rogue', gear({ main: 'shortsword' }));
-    // The brute wanders: it does not hunt the rogue. 1d6 (3) + 2d6 (7).
+    // The brute wanders: it does not hunt the rogue. 1d6 (3) + the sneak attack, 1d6 (3).
     horde.strike({ x: 20, y: 12 }, 0, undefined, 7, rogue);
-    expect(brute.health).toBe(MOB_STATS.brute.health - 10);
+    expect(brute.health).toBe(MOB_STATS.brute.health - 6);
     // Now it hunts the rogue (a blow turns it on the attacker): 3.
     horde.strike({ x: brute.x - 20, y: brute.y }, 0, undefined, 7, rogue);
-    expect(brute.health).toBe(MOB_STATS.brute.health - 10 - 3);
+    expect(brute.health).toBe(MOB_STATS.brute.health - 6 - 3);
   });
 });
 
@@ -521,8 +521,8 @@ describe('the magic items', () => {
     const headband = traitsOf(weak, 'wizard', gear({ head: 'headband-of-intellect' }));
     expect(headband.scores.int).toBe(19);
     expect(headband.opening).toBe(4);
-    // CON 19 (+4) for a wizard (d6) at level 3: 6 + 4 + 4, and 3 times 4.
-    expect(traitsOf(weak, 'wizard', gear({ neck: 'amulet-of-health' })).maxHp).toBe(14 + 12);
+    // CON 19 (+4) for a wizard (d6) at level 1: 6 + 4.
+    expect(traitsOf(weak, 'wizard', gear({ neck: 'amulet-of-health' })).maxHp).toBe(6 + 4);
     expect(traitsOf(scores({ con: 15 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(17);
     expect(traitsOf(scores({ con: 19 }), 'wizard', gear({ belt: 'belt-of-dwarvenkind' })).scores.con).toBe(20);
   });
@@ -556,10 +556,10 @@ describe('the magic items', () => {
     const s = scores({ con: 10 });
     const worn = gear({ neck: 'amulet-of-health' });
     const p = room.join(0, 1, [5, 5], '', undefined, { traits: traitsOf(s, 'wizard', worn), traitsFor: (g) => traitsOf(s, 'wizard', g), gear: worn })!;
-    expect(p.state.hp).toBe(26);
+    expect(p.state.hp).toBe(10);
     room.move(p.id, gearAddress('neck'), 0);
-    expect(p.traits.maxHp).toBe(14);
-    expect(p.state.hp).toBe(14);
+    expect(p.traits.maxHp).toBe(6);
+    expect(p.state.hp).toBe(6);
   });
 });
 

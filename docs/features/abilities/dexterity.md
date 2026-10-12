@@ -145,7 +145,7 @@ less.
   and 8 at +3.
 - **AC-DEX-006.4:** An arrow reaches the first mob on its way that is alive, and makes the attack
   roll of the ranger's blow: d20 + 2 + DEX modifier against the AC of the mob
-  ([Combat at Level 3](../game/combat.md), REQ-CMB-003). A hit takes the damage of the ranger's blow
+  ([Combat](../game/combat.md), REQ-CMB-003). A hit takes the damage of the ranger's blow
   (the die of the longbow, 1d8, + DEX modifier), and pushes and staggers with the ranger's STR. A
   miss takes nothing. Either way the mob then goes for the ranger.
 - **AC-DEX-006.5:** A wall, a closed door, a window, a fixture with a solid box, a tree trunk or a

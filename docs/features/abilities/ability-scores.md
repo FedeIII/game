@@ -24,9 +24,9 @@ the other effects of INT, WIS and CHA come later (`docs/drafts/abilities.md`).
 - **Attack ability**: the ability that a class attacks with. It gives the attack bonus and the
   damage of a blow.
 - **Attack bonus**: what a character adds to the d20 of its attack roll: +2 (the proficiency bonus
-  of a level-3 character), the modifier of its attack ability and a magic bonus.
+  of a level-1 character), the modifier of its attack ability and a magic bonus.
 - **Attack roll**: d20 + the attack bonus against the Armour Class (AC) of a mob
-  ([Combat at Level 3](../game/combat.md)).
+  ([Combat](../game/combat.md)).
 - **Hit points of a mob**: the health of a mob, in points, from its 5e stat block. A blow that hits
   takes some; at 0 the mob dies.
 - **Guest**: a visitor without a character (the URL switch `?nomenu`).
@@ -46,7 +46,7 @@ that my choices have a result.
   It is +2 for 14 or 15, and +3 for 16 or 17.
 - **AC-AS-001.3:** Each effect is a scale or a gate. No trait uses a die roll: the same scores and
   the same gear always give the same traits. The dice roll only in a fight, and for the hit points
-  that a draught or herbs give back ([Combat at Level 3](../game/combat.md)).
+  that a draught or herbs give back ([Combat](../game/combat.md)).
 - **AC-AS-001.4:** A gate of 13 opens for a final score of 13 or more. It stays shut for a score
   of 12 or less.
 - **AC-AS-001.5:** The traits of a character do not change during play.
@@ -68,7 +68,7 @@ it, so that a wizard with a high INT hits as hard as a fighter with a high STR.
 - **AC-AS-002.2:** The class decides the attack ability, not the item in the hand. A wizard with a
   plain staff strikes with INT, and a cleric with a mace strikes with WIS.
 - **AC-AS-002.3:** A blow that touches a mob makes an attack roll: d20 + the attack bonus against
-  the AC of the mob ([Combat at Level 3](../game/combat.md), REQ-CMB-003). The attack bonus is
+  the AC of the mob ([Combat](../game/combat.md), REQ-CMB-003). The attack bonus is
   +2 + the modifier of the attack ability + a magic bonus: +1 to +5 for the final scores 8 to 17.
 - **AC-AS-002.4:** A hit rolls its damage: the dice of what is in the main hand
   ([Equipment](../items/equipment.md), REQ-EQ-009) + the modifier of the attack ability + a magic

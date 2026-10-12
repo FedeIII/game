@@ -4,6 +4,12 @@
 > `docs/features/game/combat.md`) when built · **Status:** B1 built 2026-10-11 (protocol 26); B2
 > (the encounters) comes with the ambush of story phase 3c
 
+> **2026-10-13: level 1** (Fede's decision). Characters start at level 1; a system to level up comes
+> later. What changed: the hit points (the hit die at its most and the CON modifier: a fighter with
+> CON 10 has 10), the sneak attack (1d6), and the encounter budget (one level-1 character: easy 25,
+> medium 50, hard 75, deadly 100 XP). The rest of this draft (the dice, the rolls both ways, the SRD
+> mobs, the healing) stays. `docs/features/game/combat.md` is the record.
+
 The adventures of Kandrax (the chapters on the Drive) are made for a party of level-3 characters,
 about six of them. The game used small numbers of its own: a character had about 4 hit points, a
 mob did 1 or 2 damage, and a blow always landed. Fede decided (2026-10-11) that the game uses the
