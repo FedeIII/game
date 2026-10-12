@@ -158,7 +158,7 @@ describe('the theme of Kandrax', () => {
 
   it('plays in the prologue as an opening that goes round without the choir, and a rise that starts with it', () => {
     const sections = (track: typeof KANDRAX_OPENING, n: number) => {
-      const next = track.compose();
+      const next = track.compose!();
       return Array.from({ length: n }, (_, i) => next(i, Math.random));
     };
     const insts = (notes: readonly { inst: string }[]) => new Set(notes.map((n) => n.inst));
