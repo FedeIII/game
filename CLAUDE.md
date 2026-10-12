@@ -6,12 +6,13 @@ This file gives guidance to Claude Code when it works in this repository.
 
 A pixel-art game **engine** for the browser, and the applications on it. It runs at
 https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
-stone houses, mobs, and the town of Ironhold west of the home). A visitor signs in with Google, makes a character (D&D 5e races,
+stone houses, mobs, two hamlets and the town of Ironhold north of the home). A visitor signs in with Google, makes a character (D&D 5e races,
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
 (`docs/multiplayer.md`); the Wilds are shared since 2026-10-10 (Fede's decision): every visitor
-is in the same Wilds, and every new character starts in the home, the house of the cell (0, 0).
+is in the same Wilds, and every new character starts in the home, the house of the cell `HOME_CELL`
+(1, 5), south of Ironhold.
 An account is signed in on one device at a time. Read `docs/stack.md` before you
 change the stack.
 
@@ -973,7 +974,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **The Wilds** (`worlds/wilds`): the engine's natural terrain from a seed (`?seed=`), the
   player's home in the middle (`home.ts`), and a house in about a third of the 24 x 24-tile cells
   (`houses.ts`; the cell east of the home always tries). **The home** is the house of the cell
-  (0, 0), id `home`: a timber hut with a thatch roof, 7 x 6 tiles, an earth floor, a lit window
+  `HOME_CELL` (1, 5; `houses.ts`), id `home`, in the forest at the northern edge of the Iron
+  Sovereignty, south of Ironhold (Fede, 2026-10-12 and 2026-10-13): a timber hut with a thatch roof, 7 x 6 tiles, an earth floor, a lit window
   and a chimney, a bed with a chest, a shelf, a table with a candle and a barrel, each with its
   own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
   dry in any case). A new character (and a guest) starts in it, on the tile north of the door
@@ -993,13 +995,29 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   shallow: a character with Strength 13 wades through it.
 - **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
-  Wilds", which are far north and far south). The texts say so (the prologue, Thrain's letter); the
-  game still has Ironhold west of the home: the next work moves the hut and the road to Ironhold.
+  Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
+  `FOREST_EDGE_Y` 24: south of that row): only goblin patrols live there (`MobRules.populationAt`,
+  `roam(tx, ty, kind)`; the skirmisher), round the hut and the two hamlets; imps and brutes keep the
+  wildlands north of it. Plan: `docs/drafts/tutorial.md`.
+- **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below
+  the path to the hut's door west and north to **Whitegrove** (Arboleda Blanca), up its lane, on to
+  **Bronzehold** (Bronzal), up its lane, and north to the south edge of Ironhold (`TOWN_SOUTH`, below an
+  open tile of its south edge; the lane behind the south houses). A road is a chain of legs (`Leg`:
+  `from`, `to`, `start`, `end` headings `x` or `y`); `road()` makes a one-leg road. The merchant's
+  cart stands beside the first leg (`cartSpot()`: north of a road that runs east and west, or east of
+  one that runs north and south). `gateRoad()` keeps the east gate of Ironhold open: from it north to
+  the start of the north road. **The hamlets** (`hamlets.ts`, town plans of 19 x 22 tiles, safe as
+  towns): Whitegrove (x -20, y 88: the farmer at the market stall, `FARMER`; a villager; the shrine,
+  a refuge `whitegrove`; an open farmhouse, two shut houses) and Bronzehold (x -45, y 38, west of the
+  lake: the guard post of the Sovereignty with the sergeant, `SERGEANT`; a guard on the lane,
+  `BRONZEHOLD_GUARD`; a cold forge; two shut houses). Their NPCs come last in `npcs()` (`HAMLET_NPCS`).
+  `?at=-11,99` starts in Whitegrove, `?at=-36,49` in Bronzehold, `?at=-32,16` at the south edge of
+  Ironhold.
 - **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
-  fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) west of
+  fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) north of
   the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.
-  The main street runs east to west (cobblestones, lamps); the road from the home comes in at its
-  east end (`TOWN_GATE`). North of the street: the inn (the Crooked Lantern), the smithy, a square
+  The main street runs east to west (cobblestones, lamps); its east end is the gate (`TOWN_GATE`),
+  which leads to the north road; the road from the home comes in at the south edge (`TOWN_SOUTH`). North of the street: the inn (the Crooked Lantern), the smithy, a square
   with the fountain and the notice board, the chapel, and the chandler. South of it, back to back
   with it and facing a lane by the lake, with alleys between them: the apothecary, a cottage, the
   reeve's house, the granary and a house. Five open; four are shut for good (`locked`: the
@@ -1010,11 +1028,11 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
   apothecary, the reeve, the peddler and the smith (`dialogs.ts`), three pages for the others. The inn has a
   bed by its east wall for a character with a room (Charisma).
-  Nothing stands in the 5 x 3 tiles in front of a door. **The road** (`road.ts`): a smooth curve
-  of mud from below the path to the home's door to the gate, also over water; nothing grows on it
-  or close to it. **The signpost** stands outside the hut, two tiles below the door on the west
-  side of its path, and points west: "It reads: IRONHOLD." Tests (`town.test.ts`): the sign and
-  the road for five seeds, the walls and doors, the shut doors, every thing and door reachable,
+  Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
+  water; nothing grows on it or close to it. **The signpost** stands outside the hut, two tiles below
+  the door on the west side of its path, and points west, where the road leaves: "It reads:
+  WHITEGROVE, BRONZEHOLD, IRONHOLD." Tests (`town.test.ts`): the sign and the road for five seeds, the
+  hamlets, the walls and doors, the shut doors, every thing and door reachable,
   the NPC areas, and no mob in the town. `?at=-12,3` starts at the gate. Since 2026-10-11 a
   builder makes the towns (`towns.ts`: `TownPlan`, `Town`); `town.ts` keeps the plan and the old
   names (`TOWN`, `TOWN_BUILDINGS`, `inTown()`...), and `IRONHOLD` is the built town.
@@ -1031,10 +1049,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   street. **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
   `PLACES`): off the north road at (91, -146), with a trail; `?at=92,-141` starts next to the post.
 - **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6, 2026-10-11): the Hale, the
-  Marrow and the Tanner homestead, fixed, north, east and south-west of the home; roofless charred
+  Marrow and the Tanner homestead, fixed, in the wildlands north of Ironhold (Hale north, Marrow north-east, Tanner north-west; 2026-10-13); roofless charred
   houses (`{ walls: 'charred', roof: 'none' }`), each with a phoenix (the fixture `brand`) that moves
   `ashes` on in order; survivors at Hale and Tanner (WIS 13 calms them); then the priest (`PRIEST`)
-  or the apothecary tells of the phoenix (`symbol`). `?at=14,-26` starts at the Hale homestead.
+  or the apothecary tells of the phoenix (`symbol`). `?at=-30,-36` starts at the Hale homestead.
 - **The caravan** (story phase 5, 2026-10-11; `docs/features/npcs/guards.md` and REQ-QST-019 to 021):
   **guards** (`packages/engine/src/guards.ts`) are NPCs that fight, with the bodies of players; a
   **convoy** (`convoys.ts`, `WorldSource.convoys()`) walks them on a route and sends the attackers at a

@@ -361,6 +361,12 @@ export const TOWN = { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRO
 
 /** Where the road comes in: the tile just east of the town, in the middle of the main street. */
 export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
+/**
+ * Where the road from the hut comes in (Fede, 2026-10-12 and 2026-10-13: the hut is south of
+ * Ironhold): the tile just south of the town, below an open garden tile of its south edge, and the
+ * lane behind the houses of the south side above that.
+ */
+export const TOWN_SOUTH = { tx: TOWN.x0 + 20, ty: TOWN.y1 + 1 } as const;
 
 export const TOWN_BUILDINGS: readonly Building[] = IRONHOLD.buildings;
 

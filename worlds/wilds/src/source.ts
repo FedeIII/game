@@ -15,6 +15,7 @@ import {
   type Chunk,
   type Fixture,
   type LootTable,
+  type MobKind,
   type MobRules,
   type NpcDef,
   type Landmark,
@@ -35,7 +36,8 @@ import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
-import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
+import { BRONZEHOLD, HAMLET_NPCS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -46,7 +48,7 @@ import { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
 import { SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 
 /** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). No mob comes into them. */
-const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING];
+const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING, WHITEGROVE, BRONZEHOLD];
 /**
  * The places in a clearing of the woods, where mobs go as in the woods: the camp of the war band
  * (camp.ts), the burned homesteads (ruins.ts), the Wren homestead (wren.ts) and the camp of the
@@ -154,11 +156,25 @@ const REFUGES: readonly Refuge[] = [
   { id: 'chapel', building: CHAPEL.id, x: CHAPEL.doorX * TILE_SIZE + TILE_SIZE / 2, y: (CHAPEL.y1 - 1) * TILE_SIZE + 12 },
   { id: 'inn', building: INN.id, x: (INN.x0 + 7) * TILE_SIZE + TILE_SIZE / 2, y: (INN.y0 + 4) * TILE_SIZE + 12, given: true },
   { id: 'trout', building: TROUT.id, x: (TROUT.x0 + 7) * TILE_SIZE + TILE_SIZE / 2, y: (TROUT.y0 + 2) * TILE_SIZE + 12, given: true },
+  // The shrine of Whitegrove, on the road to Ironhold (the tutorial): the tile north of its door.
+  { id: 'whitegrove', building: WHITEGROVE_SHRINE.id, x: WHITEGROVE_SHRINE.doorX * TILE_SIZE + TILE_SIZE / 2, y: (WHITEGROVE_SHRINE.y1 - 1) * TILE_SIZE + 12 },
 ];
 
-/** Mobs in the wilds: four imps and two brutes round each player. */
-/** The mobs round each player in the woods. The hobgoblin band comes only with the story: none of it roams. */
+/** The mobs round each player in the wildlands: four imps and two brutes. The hobgoblin band comes only with the story: none of it roams. */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
+
+/**
+ * The forest at the northern edge of the Iron Sovereignty, from this row south (tiles): the woods of
+ * the tutorial, round the hut, Whitegrove and Bronzehold (Fede, 2026-10-13). Only goblin patrols live
+ * there (the skirmisher: mobs.ts); imps and brutes keep the wildlands north of it, round Ironhold.
+ */
+export const FOREST_EDGE_Y = 24;
+/** The goblins round a player in the forest of the tutorial: one patrol of 2 or 3. */
+const FOREST_POPULATION = { skirmisher: 3 } as const;
+/** Whether a tile is in the forest of the tutorial. */
+export function inTutorialForest(_tx: number, ty: number): boolean {
+  return ty >= FOREST_EDGE_Y;
+}
 
 /** No house of the wilds stands this close to a town (tiles), and mobs do not live this close to it. */
 const TOWN_MARGIN = 2;
@@ -310,6 +326,7 @@ export class WildsSource implements WorldSource {
   private roadOf: Road | null = null;
   private northOf: Road | null = null;
   private trailOf: Road | null = null;
+  private gateOf: Road | null = null;
   private groveOf: Grove | null = null;
   private signOf: Fixture | null = null;
   private cartOf: Fixture | null = null;
@@ -339,9 +356,15 @@ export class WildsSource implements WorldSource {
     return this.trailOf;
   }
 
-  /** The roads: to Ironhold, to Silverspring, the trail to the camp, and the burned trail of the Seekers (wren.ts). */
+  /** The way from the east gate of Ironhold to the start of the north road (road.ts). */
+  get gate(): Road {
+    this.gateOf ??= gateRoad();
+    return this.gateOf;
+  }
+
+  /** The roads: to Ironhold, to Silverspring and from the gate to it, the trail to the camp, and the burned trail of the Seekers (wren.ts). */
   private get roads(): readonly Road[] {
-    return [this.road, this.north, this.trail, SEEKER_TRAIL];
+    return [this.road, this.north, this.gate, this.trail, SEEKER_TRAIL];
   }
 
   /** The grove on the north road, where the scouts of the hobgoblins wait (road.ts). */
@@ -360,7 +383,7 @@ export class WildsSource implements WorldSource {
    * the mud; mended for a character who helped the merchant (quests.ts, cart).
    */
   get cart(): Fixture {
-    this.cartOf ??= { kind: 'cart', ...cartSpot(this.road), light: CART_LANTERN, variant: { when: { quest: 'cart', at: ['done'] }, frame: 'fixture/cart-mended' } };
+    this.cartOf ??= { kind: 'cart', ...cartSpot(new Road([homeLegs(this.home())[0]!])), light: CART_LANTERN, variant: { when: { quest: 'cart', at: ['done'] }, frame: 'fixture/cart-mended' } };
     return this.cartOf;
   }
 
@@ -456,6 +479,7 @@ export class WildsSource implements WorldSource {
     const road = this.road;
     const north = this.north;
     const trail = this.trail;
+    const gate = this.gate;
     const grove = this.grove;
     const sign = this.sign;
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
@@ -508,7 +532,7 @@ export class WildsSource implements WorldSource {
           continue;
         }
         const house = houses.find((h) => nearHouse(h, tx, ty));
-        const onRoad = road.on(tx, ty) || north.on(tx, ty) || trail.on(tx, ty) || SEEKER_TRAIL.on(tx, ty);
+        const onRoad = road.on(tx, ty) || north.on(tx, ty) || gate.on(tx, ty) || trail.on(tx, ty) || SEEKER_TRAIL.on(tx, ty);
         if (!house && !onRoad && grove.has(tx, ty)) {
           // The grove: trees close on both sides of the north road, right to its edge.
           const natural = naturalGround(this.seed, tx, ty);
@@ -518,7 +542,7 @@ export class WildsSource implements WorldSource {
           chunk.decor[index] = naturalDecor(this.seed, tx, ty, ground, GROVE_THRESHOLD);
           continue;
         }
-        if (!house && (road.clear(tx, ty) || north.clear(tx, ty) || trail.clear(tx, ty) || SEEKER_TRAIL.clear(tx, ty))) {
+        if (!house && (road.clear(tx, ty) || north.clear(tx, ty) || gate.clear(tx, ty) || trail.clear(tx, ty) || SEEKER_TRAIL.clear(tx, ty))) {
           // A road: mud (over water too), and nothing grows on it or close to it.
           const natural = naturalGround(this.seed, tx, ty);
           const ground = onRoad ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
@@ -696,20 +720,26 @@ export class WildsSource implements WorldSource {
         around('war-camp', 'camp', CAMP, 4),
         around('seeker-camp', 'camp', SEEKER_CAMP, 4),
         around('shrine', 'shrine', SHRINE_RECT, 4),
+        around('whitegrove', 'town', WHITEGROVE, 3),
+        around('bronzehold', 'town', BRONZEHOLD, 3),
       ];
     }
     return this.soundAreaList;
   }
 
-  /** The named places for the map: the home, Ironhold and its chapel, and Silverspring. */
+  /** The named places for the map: the home, Ironhold and its chapel, Silverspring, and the two hamlets with the shrine of Whitegrove. */
   landmarks(): readonly Landmark[] {
     const home = this.spawn();
     const middle = (t: Town) => ({ x: ((t.x0 + t.x1 + 1) / 2) * TILE_SIZE, y: ((t.y0 + t.y1 + 1) / 2) * TILE_SIZE });
+    const shrine = REFUGES.find((r) => r.id === 'whitegrove')!;
     return [
       { name: 'Home', kind: 'home', x: home.x, y: home.y },
       { name: IRONHOLD.name, kind: 'town', ...middle(IRONHOLD) },
       { name: 'Chapel', kind: 'refuge', x: REFUGES[0]!.x, y: REFUGES[0]!.y },
       { name: SILVERSPRING.name, kind: 'town', ...middle(SILVERSPRING) },
+      { name: WHITEGROVE.name, kind: 'town', ...middle(WHITEGROVE) },
+      { name: BRONZEHOLD.name, kind: 'town', ...middle(BRONZEHOLD) },
+      { name: 'Shrine', kind: 'refuge', x: shrine.x, y: shrine.y },
     ];
   }
 
@@ -722,17 +752,35 @@ export class WildsSource implements WorldSource {
     if (!this.npcList) {
       const cart = this.cart;
       const road = this.road;
+      // The merchant walks on the road round his cart (cartSpot: north or east of it): the road tiles
+      // within 2 tiles of the cart, in one piece with the one nearest to it, where he stands.
+      const near = (tx: number, ty: number) => road.on(tx, ty) && tx >= cart.tx - 2 && tx <= cart.tx + 3 && ty >= cart.ty - 2 && ty <= cart.ty + 2;
+      let home: [number, number] = [cart.tx, cart.ty + 1];
+      for (let ty = cart.ty - 2; ty <= cart.ty + 2; ty++) {
+        for (let tx = cart.tx - 2; tx <= cart.tx + 3; tx++) {
+          if (near(tx, ty) && Math.hypot(tx - cart.tx - 0.5, ty - cart.ty) < Math.hypot(home[0] - cart.tx - 0.5, home[1] - cart.ty) - 1e-9) home = [tx, ty];
+          if (near(tx, ty) && !near(home[0], home[1])) home = [tx, ty];
+        }
+      }
       const area: [number, number][] = [];
-      for (let tx = cart.tx - 1; tx <= cart.tx + 2; tx++) if (road.on(tx, cart.ty + 1)) area.push([tx, cart.ty + 1]);
+      const seen = new Set<string>();
+      const queue: [number, number][] = [home];
+      while (queue.length) {
+        const [tx, ty] = queue.pop()!;
+        if (seen.has(`${tx},${ty}`) || !near(tx, ty)) continue;
+        seen.add(`${tx},${ty}`);
+        area.push([tx, ty]);
+        queue.push([tx + 1, ty], [tx - 1, ty], [tx, ty + 1], [tx, ty - 1]);
+      }
       const merchant: NpcDef = {
         id: 'merchant',
         look: 'merchant',
-        home: [cart.tx, cart.ty + 1],
+        home,
         area,
         content: { speaker: 'fixture', dialog: MERCHANT },
         barks: ['A long road, and a bad one.', 'Ironhold, then Silverspring. Then home.', 'Who walks there? A friend, I hope.'],
       };
-      this.npcList = [...TOWN_NPCS, merchant, ...SILVERSPRING_NPCS, ...RUIN_NPCS, ...WREN_NPCS];
+      this.npcList = [...TOWN_NPCS, merchant, ...SILVERSPRING_NPCS, ...RUIN_NPCS, ...WREN_NPCS, ...HAMLET_NPCS];
     }
     return this.npcList;
   }
@@ -885,13 +933,18 @@ export class WildsSource implements WorldSource {
    * Mobs live everywhere in the woods, except on water, on the ground of a house (its ring and
    * the path to its door: a player who comes out of a door does not walk into one) and in or near
    * a town. They hunt everywhere outside the houses and the towns: they never come into a town, so
-   * it is safe. They never come near the lantern of the merchant's cart (CART_SAFE).
+   * it is safe. They never come near the lantern of the merchant's cart (CART_SAFE). In the forest
+   * of the tutorial (inTutorialForest) only goblin patrols live, and only there (Fede, 2026-10-13).
    */
   mobs(): MobRules {
     const cart = this.cart;
     const nearCart = (tx: number, ty: number) => Math.hypot(tx + 0.5 - (cart.tx + 1), ty + 0.5 - (cart.ty + 0.5)) <= CART_SAFE;
+    // A margin of two rows between the two kinds of woods: no mob lives on the line itself.
+    const kindFits = (ty: number, kind: MobKind | undefined) =>
+      kind === undefined || (kind === 'skirmisher' ? ty >= FOREST_EDGE_Y + 2 : ty < FOREST_EDGE_Y - 2);
     return {
-      roam: (tx, ty) =>
+      roam: (tx, ty, kind) =>
+        kindFits(ty, kind) &&
         !isWet(naturalGround(this.seed, tx, ty)) &&
         !SILVERVEIN.wet(tx, ty) &&
         !nearPlace(tx, ty, TOWN_MARGIN, TOWNS) &&
@@ -901,6 +954,7 @@ export class WildsSource implements WorldSource {
       // The mobs of the raid on Silverspring go into the town too (an event: Fede's decision, 2026-10-11).
       raid: (tx, ty) => !nearCart(tx, ty),
       population: MOB_POPULATION,
+      populationAt: (tx, ty) => (inTutorialForest(tx, ty) ? FOREST_POPULATION : MOB_POPULATION),
     };
   }
 }

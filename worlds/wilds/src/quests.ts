@@ -24,11 +24,11 @@ export const ASHES: QuestDef = {
     // The burned homesteads (story phase 6, ruins.ts; a test checks the tiles): each one points to the next.
     {
       id: 'reeve',
-      journal: 'Elama Rothenel, the reeve of Ironhold, says that three homesteads burned since the spring. Each house was searched before the fire. The nearest is the Hale homestead, north of my hut.',
-      at: [15, -32],
+      journal: 'Elama Rothenel, the reeve of Ironhold, says that three homesteads burned since the spring. Each house was searched before the fire. The nearest is the Hale homestead, north of the town.',
+      at: [-29, -42],
     },
-    { id: 'ruin1', journal: 'In the ashes of the Hale homestead, a phoenix is burned into a plank. Tracks lead east, to the Marrow homestead.', at: [57, -2] },
-    { id: 'ruin2', journal: 'The Marrow homestead burned too, with the same phoenix. Its tracks go south-west, to the Tanner homestead.', at: [-15, 28] },
+    { id: 'ruin1', journal: 'In the ashes of the Hale homestead, a phoenix is burned into a plank. Tracks lead east, to the Marrow homestead.', at: [8, -47] },
+    { id: 'ruin2', journal: 'The Marrow homestead burned too, with the same phoenix. Its tracks go south-west, to the Tanner homestead.', at: [-60, -27] },
     { id: 'ruins', journal: 'Three burned homesteads, three phoenixes. The priest or the apothecary of Ironhold may know the sign.', npc: 'priest' },
     {
       id: 'symbol',

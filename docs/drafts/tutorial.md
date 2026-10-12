@@ -1,7 +1,9 @@
 # The road to Ironhold: the tutorial (draft)
 
-> **Draft** · promotes to `docs/features/` when built · **Status:** proposed 2026-10-13; it waits for
-> Fede's answers (the last section).
+> **Draft** · promotes to `docs/features/` when built · **Status:** Fede answered on 2026-10-13
+> (below). Built: level 1 (`docs/features/game/combat.md`), the tips (`docs/features/game/tips.md`),
+> the goblins (REQ-CMB-009), the geography and the hamlets (`docs/features/game/towns.md`,
+> REQ-TWN-006). Next: the quests (phase 4).
 
 The first quest of the game takes a new character from its hut to Ironhold. On that road the game
 teaches its basics: the controls, combat, conversations, quests, and the hut as the place where the
@@ -93,7 +95,16 @@ to show the tips again.
    waits for it, the lentils, the cart before Whitegrove.
 5. **The tips**, and their switch in the settings.
 
-## Questions for Fede
+## Fede's answers (2026-10-13)
+
+1. **Level 1.** Characters start at level 1; a system to level up comes later, not now. What was for
+   level 3 is for level 1 (hit points, sneak attack, the encounter budget). The goblins are about as
+   the SRD (AC 15, 7 HP, +4, 1d6+2).
+2. **Through both hamlets.**
+3. **The burned homesteads move into the wildlands north of Ironhold.**
+4. **The farmer of Whitegrove lends a lever** for the cart; the smith's lever stays as another way.
+
+## Questions for Fede (answered above)
 
 1. **The level.** Fede said "weak for level 1", and the game is at level 3 since 2026-10-11
    (`docs/drafts/level-3.md`). Do characters keep level 3 (then the tutorial goblins are weaker than

@@ -6,14 +6,15 @@ import { PROLOGUE } from './prologue.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
-export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
+export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeLegs, homeRoad, northRoad, road, signpost, type Heading, type Leg } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
 export { River, SILVERVEIN } from './river.ts';
-export { CARAVAN_MEET, CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from './source.ts';
+export { CARAVAN_MEET, CART_SAFE, FOREST_EDGE_Y, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource, inTutorialForest } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
-export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
+export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_SOUTH, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
+export { BRONZEHOLD, BRONZEHOLD_NAME, BRONZEHOLD_NORTH, BRONZEHOLD_SOUTH, HAMLET_NPCS, WHITEGROVE, WHITEGROVE_NAME, WHITEGROVE_NORTH, WHITEGROVE_SHRINE, WHITEGROVE_SOUTH } from './hamlets.ts';
 export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 export { SEEKER_CAMP, SEEKER_STAKE } from './seekers.ts';
 export { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';

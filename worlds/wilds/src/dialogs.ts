@@ -351,7 +351,7 @@ export const REEVE: Dialog = {
       answers: [{ text: 'Where are the homesteads?', next: 'where' }, { text: 'I will find out who.' }],
     },
     where: {
-      say: 'The nearest is the Hale homestead, north of your hut. Old Hale would not leave the ashes. Start there.',
+      say: 'The nearest is the Hale homestead, north of the town. Old Hale would not leave the ashes. Start there.',
       answers: [{ text: 'I will find out who.' }],
     },
     fear: {
@@ -1323,6 +1323,71 @@ export const VERATH: Dialog = {
     lied: {
       say: '...The north, then. I will wait for you there. Do not make me wait long.',
       answers: [{ text: 'Wake.' }],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the hamlets on the road to Ironhold (hamlets.ts)
+
+/**
+ * The farmer of Whitegrove (chapter 1.5.1, [A.2]): at the market stall, impatient. He waits for the
+ * merchant of the broken cart, who should buy his lentils for Bronzehold.
+ */
+export const FARMER: Dialog = {
+  name: 'The farmer of Whitegrove',
+  start: 'wait',
+  nodes: {
+    wait: {
+      say: 'Have you seen a merchant on the road from the south? A cart with a bad wheel. He should be here by now.',
+      answers: [{ text: 'His cart is stuck, down the road.', next: 'stuck' }, { text: 'What is this place?', next: 'place' }, BYE],
+    },
+    stuck: {
+      say: 'Again! That man and his wheel. My lentils wait for him, and Bronzehold waits for my lentils.',
+      answers: [{ text: 'What is this place?', next: 'place' }, BYE],
+    },
+    place: {
+      say: 'Whitegrove: birches, lentils, and a shrine for the road. Bronzehold is the last village of the Sovereignty. Past it, only Ironhold and the wildlands.',
+      answers: [BYE],
+    },
+  },
+};
+
+/** The sergeant of Bronzehold (chapter 1.5.1, [A.2]): the guards of Bronzal know where the Sovereignty pushes. */
+export const SERGEANT: Dialog = {
+  name: 'The sergeant of Bronzehold',
+  start: 'halt',
+  nodes: {
+    halt: {
+      say: 'Bronzehold, a post of the Iron Sovereignty. State your business, traveller.',
+      answers: [{ text: 'I go to Ironhold.', next: 'ironhold' }, { text: 'What do you guard here?', next: 'guard' }, BYE],
+    },
+    ironhold: {
+      say: 'Up the road, north. Keep to it: the woods are full of goblins this year.',
+      answers: [{ text: 'What do you guard here?', next: 'guard' }, BYE],
+    },
+    guard: {
+      say: 'The road, and the edge of the Sovereignty. Past Ironhold the wildlands start, and nobody rules them.',
+      answers: [{ text: 'You expect trouble.', next: 'trouble', gate: INSIGHT_GATE }, BYE],
+    },
+    trouble: {
+      say: 'The Sovereignty sends soldiers and settlers from the central cities to claim the wildlands. Lately they all go one way: towards Silverspring.',
+      answers: [BYE],
+    },
+  },
+};
+
+/** The guard on the lane of Bronzehold: how the goblins of the woods fight. */
+export const BRONZEHOLD_GUARD: Dialog = {
+  name: 'A guard of Bronzehold',
+  start: 'halt',
+  nodes: {
+    halt: {
+      say: 'Halt. Where to?',
+      answers: [{ text: 'To Ironhold.', next: 'north' }, BYE],
+    },
+    north: {
+      say: 'North, then, through the woods. Goblins patrol them. Some run, some fight. The ones that run are slow: you can catch them.',
+      answers: [BYE],
     },
   },
 };

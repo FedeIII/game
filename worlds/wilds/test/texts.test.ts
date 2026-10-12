@@ -23,8 +23,9 @@ describe('the texts of the Wilds in Spanish', () => {
     const dialogs: Dialog[] = [];
     for (const npc of source.npcs()) if (npc.content.dialog) dialogs.push(npc.content.dialog);
     for (const fixture of source.fixturesIn(TOWN.x0, TOWN.y0, TOWN.x1, TOWN.y1)) if (fixture.content?.dialog) dialogs.push(fixture.content.dialog);
-    // Eight people of Ironhold, the cauldron, the merchant on the road, four people of Silverspring, two survivors, and Mira Wren.
-    expect(dialogs.length).toBe(17);
+    // Eight people of Ironhold, the cauldron, the merchant on the road, four people of Silverspring, two survivors, Mira Wren,
+    // and three people of the hamlets (the farmer of Whitegrove, the sergeant and the guard of Bronzehold).
+    expect(dialogs.length).toBe(20);
     for (const dialog of dialogs) {
       expect(TEXTS_ES[dialog.name]!.length, dialog.name).toBeLessThanOrEqual(DIALOG_LIMITS.name);
       for (const node of Object.values(dialog.nodes)) {

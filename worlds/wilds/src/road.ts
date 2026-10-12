@@ -1,34 +1,67 @@
 import type { Building, Fixture } from '@game/engine';
+import { BRONZEHOLD_NORTH, BRONZEHOLD_SOUTH, WHITEGROVE_NORTH, WHITEGROVE_SOUTH } from './hamlets.ts';
 import { DOOR_PATH } from './houses.ts';
-import { TOWN, TOWN_GATE, TOWN_NAME, inTown } from './town.ts';
+import { TOWN, TOWN_GATE, TOWN_SOUTH, inTown } from './town.ts';
 
 /**
  * The roads of the Wilds, and the signpost by the home that points the way.
  *
- * The road to Ironhold starts below the path to the home's door and ends at the gate of the town
- * (the east end of its main street). The north road (story phase 3, chapter 1.5.1) leaves the
- * north-east corner of the town for Silverspring, about 250 tiles to the north-east, through the
- * grove (Grove). A road is a smooth curve, level at both ends. Its tiles are mud, also over water (a
- * causeway); nothing grows on it or close to it (except in the grove), and no house of the wilds
- * stands on its ground.
+ * The road to Ironhold (Fede, 2026-10-12 and 2026-10-13: the hut is south of Ironhold, near the
+ * northern edge of the Iron Sovereignty; the road of chapter 1.5.1 passes Arboleda Blanca and Bronzal)
+ * starts below the path to the home's door, goes west and turns north to Whitegrove, crosses it and
+ * Bronzehold on their streets (hamlets.ts), and ends at the south edge of Ironhold, below its lane
+ * (TOWN_SOUTH). The north road (story phase 3, chapter 1.5.1) leaves the north-east corner of the town for
+ * Silverspring, about 250 tiles to the north-east, through the grove (Grove). A road is a chain of
+ * smooth curves (legs); each leg leaves and enters its ends along a heading. Its tiles are mud, also
+ * over water (a causeway); nothing grows on it or close to it (except in the grove), and no house of
+ * the wilds stands on its ground.
  */
 
 /** Tiles this close to the middle line of the road (tiles) are road; this close, nothing grows. */
 const HALF_WIDTH = 1.05;
 const CLEAR = 2.3;
 
-/** The signpost: on the west side of the path to the home's door, two tiles below the door. */
+/** The signpost: on the west side of the path to the home's door, two tiles below the door. The road leaves west, and turns north. */
 export function signpost(home: Building): Fixture {
   return {
     kind: 'signpost',
     tx: home.doorX - 2,
     ty: home.y1 + 2,
-    content: { pages: [`It reads: ${TOWN_NAME.toUpperCase()}. The arrow points west, down the road.`, 'Under it, cut with a knife: KEEP TO THE ROAD.'] },
+    content: { pages: ['It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road.', 'Under it, cut with a knife: KEEP TO THE ROAD.'] },
   };
 }
 
+/** Which way a road leaves or enters an end of a leg: along x (east or west) or along y (north or south). */
+export type Heading = 'x' | 'y';
+
+/** A leg of a road: a smooth curve from `from` to `to` (tiles, as fractions), along `start` and `end` at its ends (x by default). */
+export interface Leg {
+  readonly from: readonly [number, number];
+  readonly to: readonly [number, number];
+  readonly start?: Heading;
+  readonly end?: Heading;
+}
+
+/** The points of a leg: a cubic curve whose ends go along their headings. */
+function legPoints(leg: Leg): [number, number][] {
+  const [ax, ay] = leg.from;
+  const [bx, by] = leg.to;
+  const c1 = (leg.start ?? 'x') === 'x' ? [ax + (bx - ax) / 2, ay] : [ax, ay + (by - ay) / 2];
+  const c2 = (leg.end ?? 'x') === 'x' ? [bx - (bx - ax) / 2, by] : [bx, by - (by - ay) / 2];
+  const points: [number, number][] = [];
+  const steps = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    const x = u * u * u * ax + 3 * u * u * t * c1[0]! + 3 * u * t * t * c2[0]! + t * t * t * bx;
+    const y = u * u * u * ay + 3 * u * u * t * c1[1]! + 3 * u * t * t * c2[1]! + t * t * t * by;
+    points.push([x, y]);
+  }
+  return points;
+}
+
 export class Road {
-  /** The middle line, from the home to the gate (tiles, as fractions). */
+  /** The middle line, from its start to its end (tiles, as fractions): the points of its legs, in order. */
   readonly points: readonly (readonly [number, number])[];
   /** For each tile near the road: its distance to the middle line (tiles). */
   private readonly near = new Map<string, number>();
@@ -38,18 +71,9 @@ export class Road {
   readonly x1: number;
   readonly y1: number;
 
-  /** A road from (ax, ay) to (bx, by) (tiles, as fractions): a cubic curve, level at both ends. */
-  constructor(ax: number, ay: number, bx: number, by: number) {
-    const pull = (Math.sign(bx - ax) * Math.abs(ax - bx)) / 2;
-    const points: [number, number][] = [];
-    const steps = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const u = 1 - t;
-      const x = u * u * u * ax + 3 * u * u * t * (ax + pull) + 3 * u * t * t * (bx - pull) + t * t * t * bx;
-      const y = u * u * u * ay + 3 * u * u * t * ay + 3 * u * t * t * by + t * t * t * by;
-      points.push([x, y]);
-    }
+  /** A road of legs, one after the other (each leg starts where the one before it ends, or a place between them joins them). */
+  constructor(legs: readonly Leg[]) {
+    const points = legs.flatMap(legPoints);
     this.points = points;
     const reach = Math.ceil(CLEAR);
     for (const [x, y] of points) {
@@ -80,29 +104,58 @@ export class Road {
   }
 }
 
+/** A road of one leg, from (ax, ay) to (bx, by) (tiles, as fractions), level (along x) at both ends. */
+export function road(ax: number, ay: number, bx: number, by: number): Road {
+  return new Road([{ from: [ax, ay], to: [bx, by] }]);
+}
+
 /**
- * Where the merchant's cart stands (its anchor, the west one of its two tiles): just north of the
- * road, beside it, with the road under it, where the merchant walks. The first such place from
- * three fifths of the way to the town (so a character from the home comes to it before the town),
- * then back towards the home. Never in the town.
+ * Where the merchant's cart stands (its anchor, the west one of its two tiles): beside the road, off
+ * it, on its cleared ground, where the merchant walks on the road next to it. Where the road runs east
+ * and west, the cart stands just north of it; where it runs north and south, just east of it. The
+ * first such place from three fifths of the way along `road` (the leg from the home to Whitegrove:
+ * chapter 1.5.1 puts the cart before Arboleda Blanca), then back towards the home. Never in a town.
  */
 export function cartSpot(road: Road): { tx: number; ty: number } {
   const n = road.points.length;
   const from = Math.floor(n * 0.6);
   const order = [...Array.from({ length: n - from }, (_, i) => from + i), ...Array.from({ length: from }, (_, i) => from - 1 - i)];
+  const off = (tx: number, ty: number) => [0, 1].every((dx) => road.clear(tx + dx, ty) && !road.on(tx + dx, ty) && !inTown(tx + dx, ty));
   for (const i of order) {
     const [x, y] = road.points[i]!;
-    const tx = Math.floor(x) - 1;
-    const ty = Math.floor(y) - 2;
-    const fits = [0, 1].every((dx) => road.clear(tx + dx, ty) && !road.on(tx + dx, ty) && road.on(tx + dx, ty + 1) && !inTown(tx + dx, ty) && !inTown(tx + dx, ty + 1));
-    if (fits) return { tx, ty };
+    // North of a road that runs east and west: the road under both tiles.
+    const north = { tx: Math.floor(x) - 1, ty: Math.floor(y) - 2 };
+    if (off(north.tx, north.ty) && [0, 1].every((dx) => road.on(north.tx + dx, north.ty + 1) && !inTown(north.tx + dx, north.ty + 1))) return north;
+    // East of a road that runs north and south: the cart right after the east edge of the road, which
+    // runs on in the rows above and below it. (The chunk clears the cart's own tiles: source.ts.)
+    const ty = Math.floor(y);
+    let edge = Number.NEGATIVE_INFINITY;
+    for (let tx = Math.floor(x) - 3; tx <= Math.floor(x) + 3; tx++) if (road.on(tx, ty)) edge = tx;
+    const east = { tx: edge + 1, ty };
+    const beside = [0, 1].every((dx) => !road.on(east.tx + dx, ty) && !inTown(east.tx + dx, ty));
+    if (Number.isFinite(edge) && beside && road.on(edge, ty - 1) && road.on(edge, ty + 1)) return east;
   }
   throw new Error('the road has no place for the cart');
 }
 
-/** The road from the home to the gate of Ironhold: from below the path to the home's door. */
+/**
+ * The legs of the road from the home to Ironhold: from below the path to the home's door west and then
+ * north to the south end of Whitegrove's street; from its north end to the south end of Bronzehold's
+ * street; from its north end north to the south edge of Ironhold (TOWN_SOUTH). The streets of the two
+ * hamlets join the legs.
+ */
+export function homeLegs(home: Building): Leg[] {
+  const mid = ([tx, ty]: readonly [number, number]) => [tx + 0.5, ty + 0.5] as const;
+  return [
+    { from: [home.doorX + 0.5, home.y1 + DOOR_PATH + 1.5], to: mid(WHITEGROVE_SOUTH), start: 'x', end: 'y' },
+    { from: mid(WHITEGROVE_NORTH), to: mid(BRONZEHOLD_SOUTH), start: 'y', end: 'y' },
+    { from: mid(BRONZEHOLD_NORTH), to: [TOWN_SOUTH.tx + 0.5, TOWN_SOUTH.ty + 0.5], start: 'y', end: 'y' },
+  ];
+}
+
+/** The road from the home to Ironhold (homeLegs). */
 export function homeRoad(home: Building): Road {
-  return new Road(home.doorX + 0.5, home.y1 + DOOR_PATH + 1.5, TOWN_GATE.tx + 0.5, TOWN_GATE.ty + 0.5);
+  return new Road(homeLegs(home));
 }
 
 /** Where the north road leaves Ironhold: the tile east of the north-east corner of the town, a row in. */
@@ -110,9 +163,17 @@ export const NORTH_ROAD_START = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 1 } as const;
 /** Where the north road ends: the site of Silverspring, about 250 tiles north-east of the town (Fede's choice, 2026-10-11). */
 export const SILVERSPRING_SITE = { tx: NORTH_ROAD_START.tx + 178, ty: NORTH_ROAD_START.ty - 172 } as const;
 
+/**
+ * The way from the east gate of Ironhold (the east end of its main street) north along the town to the
+ * start of the north road: the gate stays open, and joins the road to Silverspring.
+ */
+export function gateRoad(): Road {
+  return new Road([{ from: [TOWN_GATE.tx + 0.5, TOWN_GATE.ty + 0.5], to: [NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5], start: 'y', end: 'y' }]);
+}
+
 /** The north road, from Ironhold to Silverspring. */
 export function northRoad(): Road {
-  return new Road(NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5, SILVERSPRING_SITE.tx + 0.5, SILVERSPRING_SITE.ty + 0.5);
+  return road(NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5, SILVERSPRING_SITE.tx + 0.5, SILVERSPRING_SITE.ty + 0.5);
 }
 
 /** The grove: this share of the north road (from Ironhold), and its trees this far from the middle line (tiles). */
@@ -198,14 +259,14 @@ export const CAMP_OFFSET = [-13, -13] as const;
 
 /** The middle of the camp of the war band (tiles). */
 export function campSite(): { tx: number; ty: number } {
-  const road = northRoad();
-  const [x, y] = road.points[Math.floor(road.points.length * CAMP_SHARE)]!;
+  const north = northRoad();
+  const [x, y] = north.points[Math.floor(north.points.length * CAMP_SHARE)]!;
   return { tx: Math.floor(x) + CAMP_OFFSET[0], ty: Math.floor(y) + CAMP_OFFSET[1] };
 }
 
 /** The trail from the north road to the camp: from the point of the road at CAMP_SHARE to `to` (the camp's way in, tiles). */
 export function campTrail(to: { tx: number; ty: number }): Road {
-  const road = northRoad();
-  const [x, y] = road.points[Math.floor(road.points.length * CAMP_SHARE)]!;
-  return new Road(x, y, to.tx + 0.5, to.ty + 0.5);
+  const north = northRoad();
+  const [x, y] = north.points[Math.floor(north.points.length * CAMP_SHARE)]!;
+  return road(x, y, to.tx + 0.5, to.ty + 0.5);
 }

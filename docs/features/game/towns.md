@@ -2,9 +2,10 @@
 
 ## Overview
 
-The Wilds have two fixed towns: Ironhold, west of the home, and Silverspring, the mithril village of
+The Wilds have two fixed towns: Ironhold, north of the home, and Silverspring, the mithril village of
 the Mithril Enclave at the end of the north road (story phase 4a, 2026-10-11; plan:
-`docs/drafts/story-razed-villages.md`). Each town is a fixed plan of characters, one for each tile,
+`docs/drafts/story-razed-villages.md`). Since 2026-10-13 two hamlets of the Iron Sovereignty stand on
+the road from the home to Ironhold: Whitegrove and Bronzehold (the tutorial: `docs/drafts/tutorial.md`). Each town is a fixed plan of characters, one for each tile,
 the same for every seed. One builder makes both: the buildings with their things and people, the
 streets with their lamps and props, and the people who walk the streets. No mob lives near a town
 or steps into it.
@@ -110,6 +111,32 @@ hobgoblins, so that my errand has its end.
   grove. Then she says that the war band is close behind.
 - **AC-TWN-005.4:** The warning does not move the quest. The war band, the raid on the town and the end
   of the quest are in `docs/features/game/quests.md` (REQ-QST-013 to REQ-QST-016).
+
+---
+
+### REQ-TWN-006: The road to Ironhold and its hamlets
+
+**User Story:** As a new player, I want the road from my hut to Ironhold to pass through living
+villages, so that the first journey of the game teaches me the world and its people (Fede,
+2026-10-13; chapter 1.5.1 of Kandrax, [A.2]: the broken cart, Arboleda Blanca and Bronzal).
+
+**Acceptance Criteria:**
+- **AC-TWN-006.1:** The hut is south of Ironhold, near the northern edge of the Iron Sovereignty. The
+  road leaves the path of its door to the west, where the signpost points ("WHITEGROVE, BRONZEHOLD,
+  IRONHOLD"), turns north, passes the merchant's broken cart, goes up the lane of Whitegrove, then up
+  the lane of Bronzehold, and comes to the south edge of Ironhold, below the lane behind its south
+  houses. A player walks it from the door of the hut into Ironhold.
+- **AC-TWN-006.2:** Whitegrove (Arboleda Blanca): a market with the farmer at his stall (a
+  conversation: he waits for the merchant), a villager on the lane, a shrine that is a refuge (a
+  character that entered it wakes there after a defeat, if it is the nearest), an open farmhouse and
+  two shut houses.
+- **AC-TWN-006.3:** Bronzehold (Bronzal): the guard post of the Sovereignty with its sergeant (a
+  conversation; with insight, WIS 13, he tells where the Sovereignty pushes: towards Silverspring), a
+  guard on the lane (how the goblins of the woods fight), the standard of the Sovereignty, a cold
+  forge and two shut houses.
+- **AC-TWN-006.4:** Both hamlets are safe as towns (no mob lives near them or steps into them), are
+  on the map with their names (Spanish: Arboleda Blanca, Bronzal), and follow AC-TWN-001.1 to 001.7.
+- **AC-TWN-006.5:** The east gate of Ironhold stays open: a short road joins it to the north road.
 
 ---
 

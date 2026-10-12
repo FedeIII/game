@@ -20,8 +20,17 @@ import {
   findDeal,
 } from '@game/engine';
 import {
+  BRONZEHOLD,
+  BRONZEHOLD_NORTH,
+  BRONZEHOLD_SOUTH,
   DEFAULT_SEED,
+  FOREST_EDGE_Y,
+  HAMLET_NPCS,
   IRONHOLD,
+  WHITEGROVE,
+  WHITEGROVE_NORTH,
+  WHITEGROVE_SHRINE,
+  WHITEGROVE_SOUTH,
   Plot,
   SILVERSPRING,
   SILVERSPRING_NAME,
@@ -32,6 +41,7 @@ import {
   TOWN_BUILDINGS,
   TOWN_GATE,
   TOWN_NAME,
+  TOWN_SOUTH,
   TOWN_NPCS,
   TOWN_STREET_FIXTURES,
   WildsSource,
@@ -58,7 +68,7 @@ function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1:
 }
 
 describe('the signpost and the road', () => {
-  it('stand by the home: the sign points west, to Ironhold', () => {
+  it('stand by the home: the sign points west, along the road that turns north to Ironhold', () => {
     for (const seed of SEEDS) {
       const s = new WildsSource(seed);
       const home = s.home();
@@ -70,8 +80,10 @@ describe('the signpost and the road', () => {
       expect(Math.abs(sign.ty - home.y1)).toBeLessThanOrEqual(3);
       expect(sign.content?.pages?.join(' ')).toContain(TOWN_NAME.toUpperCase());
       expect(sign.content?.pages?.join(' ')).toContain('west');
-      // The town is that way.
-      expect(TOWN.x1).toBeLessThan(home.x0);
+      // The road leaves the hut west; Ironhold is north of the hut (Fede, 2026-10-12).
+      const road = s.road;
+      expect(road.points[8]![0]).toBeLessThan(road.points[0]![0]);
+      expect(TOWN.y1).toBeLessThan(home.y0 - 100);
       const w = new World(s);
       expect(w.fixtureAt(sign.tx, sign.ty)).toBe(sign);
       expect(w.fixturesIn(sign.tx, sign.ty, sign.tx, sign.ty)).toContain(sign);
@@ -113,10 +125,11 @@ describe('the signpost and the road', () => {
   it('keep the houses of the wilds off the town and the road', () => {
     for (const seed of SEEDS) {
       const s = new WildsSource(seed);
-      for (let cy = -3; cy <= 2; cy++) {
+      // The cells round the town and along the road to the hut (HOME_CELL: 0, 6).
+      for (let cy = -3; cy <= 7; cy++) {
         for (let cx = -4; cx <= 1; cx++) {
           const house = s.house(cx, cy);
-          if (!house || (cx === 0 && cy === 0)) continue;
+          if (!house || house.id === 'home') continue;
           expect(house.x1 < TOWN.x0 - 2 || house.x0 > TOWN.x1 + 2 || house.y1 + 3 < TOWN.y0 - 2 || house.y0 > TOWN.y1 + 2, `${seed}: ${house.id}`).toBe(true);
           for (let ty = house.y0 - 1; ty <= house.y1 + 3; ty++) for (let tx = house.x0 - 1; tx <= house.x1 + 1; tx++) expect(s.road.clear(tx, ty)).toBe(false);
         }
@@ -154,10 +167,20 @@ describe('Ironhold', () => {
     }
   });
 
-  it('comes first in the list of NPCs: then the merchant on the road, the people of Silverspring and the survivors of the burned homesteads', () => {
+  it('comes first in the list of NPCs: then the merchant on the road, the people of Silverspring, the survivors of the burned homesteads, Mira Wren and the people of the hamlets', () => {
     // The order is the code of each NPC on the wire.
     expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
-    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id), 'hale-survivor', 'tanner-survivor', 'mira']);
+    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual([
+      'merchant',
+      ...SILVERSPRING_NPCS.map((n) => n.id),
+      'hale-survivor',
+      'tanner-survivor',
+      'mira',
+      'bronzehold-sergeant',
+      'whitegrove-farmer',
+      'whitegrove-villager',
+      'bronzehold-guard',
+    ]);
   });
 });
 
@@ -421,6 +444,157 @@ describe('Intelligence in the Wilds', () => {
       }
     }
     expect(shelves).toBeGreaterThan(5);
-    expect(source.landmarks().map((l) => l.kind)).toEqual(['home', 'town', 'refuge', 'town']);
+    expect(source.landmarks().map((l) => l.kind)).toEqual(['home', 'town', 'refuge', 'town', 'town', 'town', 'refuge']);
   });
 });
+
+describe('the road through the hamlets', () => {
+  it('runs from the hut through Whitegrove and Bronzehold to the south edge of Ironhold, on their lanes', () => {
+    for (const seed of SEEDS) {
+      const s = new WildsSource(seed);
+      const w = new World(s);
+      // The road ends next to each end of the lanes, and the lanes are open.
+      for (const [tx, ty] of [WHITEGROVE_SOUTH, WHITEGROVE_NORTH, BRONZEHOLD_SOUTH, BRONZEHOLD_NORTH, [TOWN_SOUTH.tx, TOWN_SOUTH.ty] as const]) {
+        expect(s.road.on(tx, ty), `${seed}: ${tx},${ty}`).toBe(true);
+        expect(w.solidBox(tx, ty)).toBeNull();
+      }
+      for (const town of [WHITEGROVE, BRONZEHOLD]) {
+        const [lx] = town === WHITEGROVE ? WHITEGROVE_SOUTH : BRONZEHOLD_SOUTH;
+        for (let ty = town.y0; ty <= town.y1; ty++) expect(w.solidBox(lx, ty), `${town.name}: ${lx},${ty}`).toBeNull();
+      }
+      // A player walks from the door of the hut to the gate.
+      const home = s.home();
+      const area = reachable(w, home.doorX, home.y1 + 1, -60, TOWN.y0 - 4, 40, home.y1 + 10);
+      expect(area.has(key(TOWN_GATE.tx, TOWN_GATE.ty)), `seed ${seed}`).toBe(true);
+    }
+  });
+
+  it("puts the merchant's cart before Whitegrove, on the road from the hut", () => {
+    const cart = source.cart;
+    expect(cart.ty).toBeGreaterThan(WHITEGROVE.y1);
+    expect(cart.ty).toBeLessThan(source.home().y0);
+  });
+});
+
+/** What every hamlet checks (hamlets.ts): Whitegrove and Bronzehold, from the south end of their lanes. */
+const HAMLETS = [
+  { town: WHITEGROVE, entry: WHITEGROVE_SOUTH },
+  { town: BRONZEHOLD, entry: BRONZEHOLD_SOUTH },
+];
+
+describe.each(HAMLETS)('the hamlet of $town.name', ({ town, entry }) => {
+  it('builds each building with a wall ring and one door in the south wall, and a clear doorstep', () => {
+    for (const b of town.buildings) {
+      expect(world.buildingAt(b.doorX, b.y1)).toBe(b);
+      expect(world.structure(b.doorX, b.y1)).toBe(Structure.Door);
+      for (let ty = b.y1 + 1; ty <= b.y1 + 3; ty++) {
+        for (let tx = b.doorX - 2; tx <= b.doorX + 2; tx++) expect(world.solidBox(tx, ty), `${b.id}: ${tx},${ty}`).toBeNull();
+      }
+    }
+  });
+
+  it('opens the doors of the open buildings, and never the doors of the shut ones; every door and thing is reachable from the road', () => {
+    const w = new World(new WildsSource(DEFAULT_SEED));
+    const outside = reachable(w, entry[0], entry[1], town.x0, town.y0, town.x1, entry[1]);
+    for (const f of town.streetFixtures) {
+      const near = fixtureTiles(f).some(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].some(([nx, ny]) => outside.has(key(nx!, ny!))));
+      expect(near, `${f.kind} at ${f.tx},${f.ty}`).toBe(true);
+    }
+    for (const b of town.buildings) {
+      expect(outside.has(key(b.doorX, b.y1 + 1)), b.id).toBe(true);
+      const player = createPlayer(b.doorX * TILE_SIZE + 8, (b.y1 + 1) * TILE_SIZE + 4);
+      player.facing = 'up';
+      expect(useDoor(w, player, b.doorX, b.y1)).toBe(b.locked ? 'locked' : 'opened');
+      if (b.locked) continue;
+      const inside = reachable(w, b.doorX, b.y1 + 1, b.x0, b.y0, b.x1, b.y1 + 1);
+      for (const item of b.fixtures) {
+        const near = fixtureTiles(item).some(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].some(([nx, ny]) => inside.has(key(nx!, ny!))));
+        expect(near, `${item.kind} at ${item.tx},${item.ty} in ${b.id}`).toBe(true);
+      }
+    }
+  });
+
+  it('is safe: no mob lives near it or comes into it', () => {
+    const rules = source.mobs();
+    for (let ty = town.y0 - 2; ty <= town.y1 + 2; ty++) for (let tx = town.x0 - 2; tx <= town.x1 + 2; tx++) expect(rules.roam(tx, ty, 'skirmisher')).toBe(false);
+    for (let ty = town.y0; ty <= town.y1; ty++) for (let tx = town.x0; tx <= town.x1; tx++) expect(rules.hunt(tx, ty)).toBe(false);
+  });
+
+  it('is a town of the map', () => {
+    const mark = source.landmarks().find((l) => l.name === town.name)!;
+    expect(mark.kind).toBe('town');
+    expect(town.has(Math.floor(mark.x / TILE_SIZE), Math.floor(mark.y / TILE_SIZE))).toBe(true);
+  });
+});
+
+describe('the people of the hamlets', () => {
+  it('each have something to say, and walk in an open area in one piece', () => {
+    expect(HAMLET_NPCS.map((n) => n.id)).toEqual(['bronzehold-sergeant', 'whitegrove-farmer', 'whitegrove-villager', 'bronzehold-guard']);
+    for (const npc of HAMLET_NPCS) {
+      expect(WHITEGROVE.has(npc.home[0], npc.home[1]) || BRONZEHOLD.has(npc.home[0], npc.home[1]), npc.id).toBe(true);
+      if (npc.content.dialog) expect(checkDialog(npc.content.dialog), npc.id).toEqual([]);
+      else expect(npc.content.pages!.length, npc.id).toBeGreaterThanOrEqual(2);
+      expect(npc.barks!.length, npc.id).toBeGreaterThanOrEqual(2);
+      const tiles = new Set(npc.area.map(([x, y]) => key(x, y)));
+      for (const [x, y] of npc.area) if (world.structure(x, y) !== Structure.Door) expect(world.solidBox(x, y), `${npc.id}: ${x},${y}`).toBeNull();
+      const seen = new Set<string>();
+      const queue: [number, number][] = [[npc.home[0], npc.home[1]]];
+      while (queue.length) {
+        const [x, y] = queue.pop()!;
+        if (seen.has(key(x, y)) || !tiles.has(key(x, y))) continue;
+        seen.add(key(x, y));
+        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      }
+      expect(seen.size, npc.id).toBe(tiles.size);
+    }
+  });
+});
+
+describe('the shrine of Whitegrove', () => {
+  it('is a refuge: its point is open, inside the shrine', () => {
+    const w = new World(new WildsSource(DEFAULT_SEED));
+    const refuge = source.refuges().find((r) => r.id === 'whitegrove')!;
+    expect(refuge.building).toBe(WHITEGROVE_SHRINE.id);
+    const tx = Math.floor(refuge.x / TILE_SIZE);
+    const ty = Math.floor(refuge.y / TILE_SIZE);
+    expect(w.buildingAt(tx, ty)).toBe(WHITEGROVE_SHRINE);
+    expect(w.solidBox(tx, ty)).toBeNull();
+    expect(refugeAt(w, refuge.x, refuge.y)?.id).toBe('whitegrove');
+  });
+});
+
+describe('the forest of the tutorial', () => {
+  it('has only goblin patrols, round the hut and the hamlets; imps and brutes keep the wildlands north of it', () => {
+    const rules = source.mobs();
+    const home = source.home();
+    expect(home.y0).toBeGreaterThan(FOREST_EDGE_Y);
+    expect(WHITEGROVE.y0).toBeGreaterThan(FOREST_EDGE_Y);
+    expect(BRONZEHOLD.y0).toBeGreaterThan(FOREST_EDGE_Y);
+    expect(TOWN.y1).toBeLessThan(FOREST_EDGE_Y);
+    expect(rules.populationAt!(home.doorX, home.y1 + 4)).toEqual({ skirmisher: 3 });
+    expect(rules.populationAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toEqual({ imp: 4, brute: 2 });
+    // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
+    let forest = 0;
+    let wild = 0;
+    for (let ty = FOREST_EDGE_Y + 10; ty < FOREST_EDGE_Y + 60; ty += 3) {
+      for (let tx = 30; tx < 90; tx += 3) {
+        if (!rules.roam(tx, ty)) continue;
+        forest++;
+        expect(rules.roam(tx, ty, 'skirmisher')).toBe(true);
+        expect(rules.roam(tx, ty, 'imp')).toBe(false);
+        expect(rules.roam(tx, ty, 'brute')).toBe(false);
+      }
+    }
+    for (let ty = -80; ty < -30; ty += 3) {
+      for (let tx = 30; tx < 90; tx += 3) {
+        if (!rules.roam(tx, ty)) continue;
+        wild++;
+        expect(rules.roam(tx, ty, 'skirmisher')).toBe(false);
+        expect(rules.roam(tx, ty, 'imp')).toBe(true);
+      }
+    }
+    expect(forest).toBeGreaterThan(20);
+    expect(wild).toBeGreaterThan(20);
+  });
+});
+

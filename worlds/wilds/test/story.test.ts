@@ -93,6 +93,7 @@ import {
   DREAM_GIVE,
   DREAM_LIE,
   DREAM_REFUSE,
+  WHITEGROVE,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -201,31 +202,35 @@ describe('the quests of the Wilds', () => {
 });
 
 describe('the cart on the road', () => {
-  it('stands beside the road, between the home and the town, with the merchant on the road in front of it', () => {
+  it('stands beside the road, between the home and Whitegrove, with the merchant on the road next to it', () => {
     const world = new World(source);
     const cart = source.cart;
     const road = source.road;
-    for (const [tx, ty, code] of fixtureTiles(cart)) {
+    const tiles = fixtureTiles(cart);
+    for (const [tx, ty, code] of tiles) {
       expect(world.structure(tx, ty)).toBe(code);
-      expect(road.clear(tx, ty) && !road.on(tx, ty)).toBe(true);
-      expect(road.on(tx, ty + 1)).toBe(true);
+      expect(road.on(tx, ty)).toBe(false);
       expect(inTown(tx, ty)).toBe(false);
     }
+    // Beside the road: north of it (the road under the cart) or east of it (the road west of the cart).
+    const [west] = tiles[0]![0] < tiles[1]![0] ? tiles : [tiles[1]!];
+    expect(tiles.every(([tx, ty]) => road.on(tx, ty + 1)) || road.on(west![0] - 1, west![1])).toBe(true);
     expect(world.fixtureAt(cart.tx + 1, cart.ty)).toBe(cart);
-    const home = source.home();
-    expect(cart.tx).toBeGreaterThan(TOWN.x1);
-    expect(cart.tx).toBeLessThan(home.x0);
-    // The merchant: the NPC after the people of Ironhold, on open road tiles in one row, outside the town.
+    // Chapter 1.5.1: before Arboleda Blanca, on the road from the hut.
+    expect(cart.ty).toBeGreaterThan(WHITEGROVE.y1);
+    expect(cart.ty).toBeLessThan(source.home().y0);
+    // The merchant: the NPC after the people of Ironhold, on open road tiles round the cart, in one piece, outside the towns.
     const merchant = source.npcs()[TOWN_NPCS.length]!;
     expect(merchant.id).toBe('merchant');
     expect(merchant.area.length).toBeGreaterThanOrEqual(2);
+    const area = new Set(merchant.area.map(([tx, ty]) => `${tx},${ty}`));
+    expect(area.has(`${merchant.home[0]},${merchant.home[1]}`)).toBe(true);
     for (const [tx, ty] of merchant.area) {
       expect(world.solidBox(tx, ty), `${tx},${ty}`).toBeNull();
-      expect(ty).toBe(cart.ty + 1);
+      expect(road.on(tx, ty)).toBe(true);
+      expect(Math.abs(ty - cart.ty)).toBeLessThanOrEqual(2);
       expect(inTown(tx, ty)).toBe(false);
     }
-    const xs = merchant.area.map(([tx]) => tx).sort((a, b) => a - b);
-    expect(xs[xs.length - 1]! - xs[0]!).toBe(xs.length - 1);
   });
 
   it('shows mended to a character who helped the merchant', () => {

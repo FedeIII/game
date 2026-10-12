@@ -9,7 +9,13 @@ import { LORE_GATE } from './dialogs.ts';
 export const BUILDING_CELL = 24;
 
 /**
- * The chance that a cell has a house. The cell at (0, 0) has the player's home (home.ts) instead,
+ * The cell of the player's home (home.ts): in the forest at the northern edge of the Iron Sovereignty,
+ * south of Ironhold (Fede, 2026-10-12 and 2026-10-13). Cells are BUILDING_CELL tiles square.
+ */
+export const HOME_CELL = [1, 5] as const;
+
+/**
+ * The chance that a cell has a house. The cell HOME_CELL has the player's home (home.ts) instead,
  * and the cell east of it always tries, so a house stands near the home.
  */
 const BUILDING_CHANCE = 0.35;
@@ -117,7 +123,7 @@ export const CANDLE = { radius: 48, colour: 0xffa850, x: 8, y: -24 } as const;
  * with water right round it, or with water on the approach to its door.
  */
 export function generateHouse(seed: number, cellX: number, cellY: number, isWater: (tx: number, ty: number) => boolean): Building | null {
-  const forced = cellX === 1 && cellY === 0;
+  const forced = cellX === HOME_CELL[0] + 1 && cellY === HOME_CELL[1];
   if (!forced && hash01(cellX, cellY, seed + SEED_OFFSET) >= BUILDING_CHANCE) return null;
   const rand = random(hash2(cellX, cellY, seed + SEED_OFFSET + 1));
   const width = 7 + Math.floor(rand() * 5);

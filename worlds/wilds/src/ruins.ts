@@ -8,8 +8,9 @@ import { Town, type Tile } from './towns.ts';
  * of Kandrax): three houses of the Wilds that the Ashen Seekers burned since the spring. Each one is
  * a shell of charred planks with no roof, and in each one their sign is burned into a plank: a
  * phoenix that rises from ashes. Each phoenix moves the quest `ashes` on, in order: the reeve names
- * the Hale homestead, north of the home; its tracks lead east to the Marrow homestead, and those to
- * the Tanner homestead, south-west. A survivor lives in the ashes of two of them: it saw only shadows
+ * the Hale homestead, north of Ironhold; its tracks lead east to the Marrow homestead, and those to
+ * the Tanner homestead, south-west. All three are in the wildlands north of Ironhold (Fede,
+ * 2026-10-13: where Thrain's letter says that homesteads burn). A survivor lives in the ashes of two of them: it saw only shadows
  * (Wisdom 13 calms it, and it tells more).
  *
  * Places of the town builder (towns.ts), but not towns: mobs come here as in the woods. No tree or
@@ -60,17 +61,17 @@ function ruin(id: string, name: string, x0: number, y0: number, effect: QuestEff
   });
 }
 
-export const HALE = ruin('hale', 'the Hale homestead', 9, -35, RUIN_HALE, {
+export const HALE = ruin('hale', 'the Hale homestead', -35, -45, RUIN_HALE, {
   shelf: 'Ash, and the spines of books. Every book was opened before the fire.',
   chest: 'Its lid is torn off. Empty.',
   crate: 'Burned through. Someone kicked it over first.',
 });
-export const MARROW = ruin('marrow', 'the Marrow homestead', 51, -5, RUIN_MARROW, {
+export const MARROW = ruin('marrow', 'the Marrow homestead', 2, -50, RUIN_MARROW, {
   shelf: 'The shelves were pulled from the wall, and then they burned.',
   chest: 'Empty. The boards of its bottom were pried up.',
   crate: 'Seed grain, black and spilled.',
 });
-export const TANNER = ruin('tanner', 'the Tanner homestead', -21, 25, RUIN_TANNER, {
+export const TANNER = ruin('tanner', 'the Tanner homestead', -66, -30, RUIN_TANNER, {
   shelf: 'Tools of a tanner, black with soot.',
   chest: 'Empty, and the hearthstone beside it is lifted.',
   crate: 'Hides, burned stiff.',

@@ -1,15 +1,17 @@
 import { TILE_SIZE, type Building, type Fixture } from '@game/engine';
-import { BUILDING_CELL, CANDLE, DOOR_PATH } from './houses.ts';
+import { BUILDING_CELL, CANDLE, DOOR_PATH, HOME_CELL } from './houses.ts';
 import { READ_LETTER } from './quests.ts';
 import { DREAM_BED } from './dream.ts';
 
 /**
- * The player's home: a small hut in the middle of the wilds, in the cell (0, 0). Every character
- * starts here, inside, by the door. It is always the same hut in the same place for a seed: the
- * dry spot of the cell nearest its middle (WildsSource keeps its ground dry in any case).
+ * The player's home: a small hut in the forest at the northern edge of the Iron Sovereignty, south
+ * of Ironhold (Fede, 2026-10-12 and 2026-10-13), in the cell HOME_CELL. Every character starts here,
+ * inside, by the door. It is always the same hut in the same place for a seed: the dry spot of the
+ * cell nearest its middle (WildsSource keeps its ground dry in any case). From its door the road goes
+ * west and north, through Whitegrove and Bronzehold, to Ironhold (road.ts).
  */
 export const HOME_ID = 'home';
-export const HOME_CELL = [0, 0] as const;
+export { HOME_CELL };
 
 /** Outer size, walls included: an interior of 5 x 4 tiles. */
 const WIDTH = 7;

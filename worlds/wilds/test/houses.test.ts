@@ -77,10 +77,10 @@ describe('buildings', () => {
     }
   });
 
-  it('there is the home in the middle, and a house next to it', () => {
+  it('there is the home in its cell, and a house next to it', () => {
     const source = new WildsSource(DEFAULT_SEED);
-    expect(source.house(0, 0)?.id).toBe(HOME_ID);
-    expect(source.house(1, 0)).not.toBeNull();
+    expect(source.house(HOME_CELL[0], HOME_CELL[1])?.id).toBe(HOME_ID);
+    expect(source.house(HOME_CELL[0] + 1, HOME_CELL[1])).not.toBeNull();
   });
 
   it('stay inside their cell, off water, with a wall ring and one door in the south wall', () => {
@@ -165,7 +165,7 @@ describe('buildings', () => {
 
 describe('walls and doors', () => {
   const world = newWorld(DEFAULT_SEED);
-  const b = houseOf(world, 0, 0)!;
+  const b = houseOf(world, HOME_CELL[0], HOME_CELL[1])!;
   // The centre of the tile just outside the door, and of the tile just inside it.
   const outside = { x: b.doorX * TILE_SIZE + 8, y: (b.y1 + 1) * TILE_SIZE + 8 };
 
