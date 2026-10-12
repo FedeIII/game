@@ -495,6 +495,9 @@ shows them, the people, the questlines (how each quest starts, its steps, what i
 and the prologue. The code matches those documents at all points: a change of the story updates them in
 the same commit, and a mismatch gets a fix, or at least a plan in `docs/drafts/`.
 
+**Fede's to-do list** is `docs/drafts/todo.md`: when Fede gives an item between developments, write it
+there (what, the date, where it is in the code); do not fix it at once.
+
 Fede's rules for the design of the game are in `docs/game-design.md`: read them before you design a
 quest, an encounter, a mob or an ability. In short: **no chains of quests in what the player sees**
 (events unlock quests; some events wait until another quest is finished), the first quest is to
