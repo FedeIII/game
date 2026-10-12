@@ -973,7 +973,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   the cinder hounds of the Ashen Seekers race it from the east on the burned trail (`SEEKER_TRAIL`; the
   ambush `cinders`). New mob kinds: `hound`, `watcher` (never fights, goes in ash), `seeker`, `adept`
   (fire bolts), `warden` (goes in ash at half health). `?at=182,-101` starts in the yard of the
-  homestead.
+  homestead. Phase 8: **the camp of the Seekers** (`seekers.ts`) at the east end of the trail; its
+  guards fall (`camp`), Sela is tied to the post (her conversation is on the post), and she sends the
+  character to the shrine of Tigris (`captive`). `?at=240,-96` starts next to the post.
 - **The atlas has pages** (2026-10-12): `art/build.ts` packs the frames into pages of at most 2048 x
   2048 (16-bit GPUs: `atlas.png`, `atlas-1.png`, ...; each frame has its `page` in `atlas.json`), and
   `loadArt()` (`src/assets.ts`) loads them all. `ATLAS_PAGE=1024 npm run art` builds small pages, to

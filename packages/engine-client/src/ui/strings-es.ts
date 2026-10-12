@@ -345,6 +345,7 @@ export const ES: Strings = {
     stake: 'el poste',
     campfire: 'la hoguera',
     brand: 'el tablón quemado',
+    standard: 'el estandarte',
     pile: 'las cosas del suelo',
   },
   linkClose: 'Cerrar',

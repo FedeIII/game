@@ -318,6 +318,8 @@ export const WALL_STYLES: Record<string, WallStyle> = {
   rubble,
   gothic,
   canvas: canvas(M.canvasWine, M.canvasBone),
+  // The tents of the Ashen Seekers (story phase 8): stripes of ash grey and bone.
+  ashcanvas: canvas(M.rubble, M.canvasBone),
   painted,
   charred,
 };
@@ -790,12 +792,14 @@ function indigoTile(row: RoofRow, column: Column, variant: number): Image {
 
 const STRIPE_WINE = ramp('#14060a', '#220b0f', '#341014', '#46161a', '#581e20');
 const STRIPE_BONE = ramp('#1c1a16', '#2a2721', '#39352d', '#48433a', '#575146');
+const STRIPE_ASH = ramp('#0e0e0e', '#181817', '#232221', '#2e2d2b', '#3a3836');
 
 export const ROOF_STYLES: Record<string, (row: RoofRow, column: Column, variant: number) => Image> = {
   slate: slateTile,
   shingle: shingleTile,
   thatch: thatchTile,
   canvas: canvasTile(STRIPE_WINE, STRIPE_BONE),
+  ashcanvas: canvasTile(STRIPE_ASH, STRIPE_BONE),
   indigo: indigoTile,
   battlement: battlementTile,
   clay: clayTile,

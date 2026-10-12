@@ -191,6 +191,22 @@ export const NPC_LOOKS: Record<string, Look> = {
     hair: HAIR.blond,
     spec: { height: 0.7, build: 0.82, head: 1.15, cloak: 'short', pauldrons: false },
   },
+  // The Arcane Raiders (story phases 7 and 8, 2026-10-12).
+  /** Mira Wren of the homestead by the pool: chestnut hair in a tail, a short cloak of moss green, a jerkin, a pouch. */
+  homesteader: {
+    cloak: ramp('#0c0f08', '#14190d', '#1d2413', '#27301a', '#313c21', '#3c4929'),
+    hood: false,
+    hair: HAIR.chestnut,
+    leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
+    spec: { hair: 'tail', cloak: 'short', pauldrons: false, pouch: true },
+  },
+  /** Sela, a Seeker who would not burn a family: the robe of ash of the Seekers, no mask, long black hair. */
+  defector: {
+    cloak: ramp('#0c0b0b', '#181615', '#252220', '#34302d', '#443f3b', '#554f4a'),
+    hood: false,
+    hair: HAIR.black,
+    spec: { hair: 'long', body: 'robe', cloak: 'none', pauldrons: false },
+  },
 };
 
 /**

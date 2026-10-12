@@ -85,7 +85,8 @@ export interface QuestEffect {
   /** The server finds the effect by it: two effects with the same id must be the same. */
   readonly id: string;
   readonly quest: string;
-  readonly to: string;
+  /** The step that it moves the quest to. Without it, the quest stays at its step (a thing given back); then it needs `from`. */
+  readonly to?: string;
   readonly from?: readonly string[];
   readonly flag?: string;
   /** Items that the character gives (the lever that it brings). It must have them. */
@@ -115,7 +116,7 @@ export function applyEffect(effect: QuestEffect, book: QuestBook, pack: Pack, sl
   const n = Math.max(0, ...Object.values(book).map((e) => e.n)) + 1;
   const next: QuestBook = {
     ...book,
-    [effect.quest]: { step: effect.to, flags: effect.flag && !flags.includes(effect.flag) ? [...flags, effect.flag].slice(-MAX_FLAGS) : flags, n },
+    [effect.quest]: { step: effect.to ?? entry!.step, flags: effect.flag && !flags.includes(effect.flag) ? [...flags, effect.flag].slice(-MAX_FLAGS) : flags, n },
   };
   const taken = removeFromPack(pack, effect.take ?? []);
   const paid = effect.cost ? { ...taken, coins: taken.coins - effect.cost } : taken;
@@ -179,7 +180,8 @@ export function checkEffect(effect: QuestEffect, quests: readonly QuestDef[]): s
   if (!QUEST_ID.test(effect.id)) return [`the effect id "${effect.id}" is not good`];
   if (!quest) return [`${effect.id}: no quest "${effect.quest}"`];
   const problems: string[] = [];
-  for (const step of [effect.to, ...(effect.from ?? [])]) if (!questStep(quest, step)) problems.push(`${effect.id}: no step "${step}" in ${quest.id}`);
+  if (effect.to === undefined && !effect.from) problems.push(`${effect.id}: an effect without a step to go to must have steps to come from`);
+  for (const step of [...(effect.to === undefined ? [] : [effect.to]), ...(effect.from ?? [])]) if (!questStep(quest, step)) problems.push(`${effect.id}: no step "${step}" in ${quest.id}`);
   if (effect.flag !== undefined && !QUEST_ID.test(effect.flag)) problems.push(`${effect.id}: the flag "${effect.flag}" is not good`);
   if (effect.cost !== undefined && (!Number.isInteger(effect.cost) || effect.cost < 0)) problems.push(`${effect.id}: the cost is not a whole number of coins`);
   return problems;

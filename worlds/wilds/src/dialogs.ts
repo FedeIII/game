@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, MIRA_STONE, MIRA_STONE_AFTER, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -1200,6 +1200,56 @@ export const WAGON_DRIVER: Dialog = {
     thief: {
       say: 'Thief! Militia, to me!',
       answers: [{ text: 'So be it.' }],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the camp of the Seekers (story phase 8)
+
+/**
+ * Sela, tied to the post of the camp of the Seekers (seekers.ts): a Seeker who would not burn a
+ * family. Freed (SELA_FREE), she tells what the Seekers want and where they strike next; Wisdom 13
+ * hears her doubt, and Intelligence 13 hears where the Seekers come from (a hook for chapter 2).
+ */
+export const SELA: Dialog = {
+  name: 'Sela',
+  start: 'bound',
+  nodes: {
+    bound: {
+      say: 'You killed them. ...Good. No, not good. Cut me loose, and I will tell you what you want to know.',
+      answers: [{ text: 'Who are you?', next: 'who' }, { text: 'I will cut the ropes.', next: 'free', effect: SELA_FREE }, { text: 'Not yet.' }],
+    },
+    who: {
+      say: 'Sela. I wore the mask for six years. Then they told me to burn a house with a family in it, and I would not. They were to judge me tonight.',
+      answers: [{ text: 'I will cut the ropes.', next: 'free', effect: SELA_FREE }, { text: 'Not yet.' }],
+    },
+    free: {
+      say: 'Thank you. Ask, and be quick: the others will come back for the camp.',
+      answers: [{ text: 'What do the Seekers want?', next: 'want' }, { text: 'Who leads you?', next: 'verath' }, { text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
+    },
+    want: {
+      say: 'They say that the four gods are thieves on stolen thrones, and that each old relic is one of their chains. Break the chains, and the true god wakes. I believed it once.',
+      answers: [{ text: 'Do you still believe it?', next: 'doubt', gate: INSIGHT_GATE }, { text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
+    },
+    doubt: {
+      say: '...Some nights. That is what frightens me. Verath does not lie, you see. Verath only tells half of the truth.',
+      answers: [{ text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
+    },
+    verath: {
+      say: 'Verath Shadowweave. I never saw Verath awake. Verath comes in dreams, and you wake knowing what to do. Pray that you never hear a voice in the ash.',
+      answers: [{ text: 'Where do they strike next?', next: 'shrine' }, { text: 'Where do the Seekers come from?', next: 'north', gate: LORE_GATE }, { text: 'Go, then.' }],
+    },
+    north: {
+      say: 'From a village in the far north, past the spring of the Silvervein. Our children grow up there. It is on no map.',
+      answers: [{ text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
+    },
+    shrine: {
+      say: 'The shrine of Tigris, under the pool of the Silvervein. The old stones of the Wrens are its keys: the wave stone opens it. Get there first, or they will.',
+      answers: [{ text: 'And you?', next: 'bye' }, { text: 'Go, then.' }],
+    },
+    bye: {
+      say: 'I have nowhere to go. North, maybe. If you ever go north... look for me.',
+      answers: [{ text: 'Go safely.' }],
     },
   },
 };

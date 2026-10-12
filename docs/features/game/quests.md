@@ -462,6 +462,31 @@ next and to get there first, so that I can stop one fire.
 
 ---
 
+### REQ-QST-023: The camp of the Seekers and Sela
+
+**User Story:** As a player who follows the burned trail, I want to find the camp of the Seekers and
+someone there who talks, so that the mystery opens a little.
+
+**Acceptance Criteria:**
+- **AC-QST-023.1:** The camp of the Seekers stands at the east end of the burned trail: two grey tents
+  (shut), a standard with a red phoenix, a cold fire, a post, a chest and a reading stand.
+- **AC-QST-023.2:** At `held` or `late`, a character within 6 tiles of the camp starts the fight: blades
+  and cinder adepts come out by the tents. Alone, a character meets a blade and an adept; six
+  characters meet four blades and two adepts. When they fall, the quest moves to `camp`, and the map
+  marks the post.
+- **AC-QST-023.3:** At `camp`, Sela is tied to the post (only for that character). She talks; "I will
+  cut the ropes." moves the quest to `captive`. Then she tells what the Seekers believe, who leads them
+  (Verath Shadowweave, who comes in dreams), and where they strike next: the shrine of Tigris under the
+  pool of the Silvervein, which the wave stone opens. WIS 13 hears her doubt; INT 13 hears that the
+  Seekers come from a village in the far north.
+- **AC-QST-023.4:** At `camp` or `captive`, the chest gives the wave stone to a character who has none.
+  The quest stays at its step.
+- **AC-QST-023.5:** The torn page on the stand tells of the Four and the Sleeper; INT 13 reads
+  "Hondurria, then the walls" in its margin.
+- **AC-QST-023.6:** At `captive`, the map marks the south edge of the pool of the Silvervein.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -573,7 +598,7 @@ next and to get there first, so that I can stop one fire.
   `docs/features/npcs/guards.md`.
 - **The Wren homestead** (`worlds/wilds/src/wren.ts`, story phase 7): `WREN` (13 x 11 tiles at (176,
   -108), in `CLEARINGS`), the house `wren-house` (planks and thatch), Mira Wren (`WREN_NPCS`, look
-  `survivor`, the dialog `MIRA`; the last NPC of the list), `WREN_GATE`, `SEEKER_TRAIL` (a `Road` to
+  `homesteader`, the dialog `MIRA`; the last NPC of the list), `WREN_GATE`, `SEEKER_TRAIL` (a `Road` to
   `SEEKER_CAMP_SITE`, one of the roads of `WildsSource`), the steps `next`, `stone`, `held`, `late`, the
   effects `ASHES_NEXT` (the node `pattern` of `PRIEST`), `MIRA_STONE`, `ASHES_HELD` (`WREN_REWARD` 12),
   `ASHES_LATE`, `MIRA_STONE_AFTER`; the item `wave-stone`; the ambush `cinders` of
@@ -581,6 +606,13 @@ next and to get there first, so that I can stop one fire.
   `AmbushDef.shelter` (NPCs that take shelter, with no raid), a march whose `arrive` applies to nobody
   stays, and the watchers of an ambush go in ash when its fighters fell (`Horde.vanish()`); the mobs:
   `docs/features/game/combat.md`, REQ-CMB-008.
+- **The camp of the Seekers** (`worlds/wilds/src/seekers.ts`, story phase 8): `SEEKER_CAMP` (16 x 12
+  tiles round `SEEKER_CAMP_SITE`, in `CLEARINGS`), the tents `seeker-tent` and `seeker-tent-2` (the
+  style `ashcanvas`), `SEEKER_STAKE` (the post, look `defector` for the face; the variant frame
+  `fixture/stake-bound-sela`), the fixture `standard` (code 33); the steps `camp` and `captive`; the
+  effects `CAMP_TAKEN` (the ambush `camp-guard`: `CAMP_GUARD_UNITS`, `CAMP_GUARD_MARGIN` 6), `SELA_FREE`
+  (the dialog `SELA` on the post), `STONE_BACK` (on the chest; an effect without `to` keeps the step:
+  `QuestEffect.to` is optional with `from`).
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

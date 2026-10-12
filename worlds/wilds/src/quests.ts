@@ -46,7 +46,15 @@ export const ASHES: QuestDef = {
     // Both ends point to the burned trail and the camp of the Seekers at its east end (story phase 8).
     { id: 'held', journal: 'The cinder hounds of the Seekers fell at the Wren homestead. A masked figure watched from the trees, and it was gone in a puff of ash. A burned trail leads east, into the hills.', at: [236, -100] },
     { id: 'late', journal: 'The Seekers came to the Wren homestead before me. Mira hid with her children; the Seekers took only the carved stone. A burned trail leads east, into the hills.', at: [236, -100] },
-    // The end of the story comes with its later steps (the captive, the relic, the dream).
+    // The camp of the Seekers (story phase 8, seekers.ts; a test checks the tiles): its guards fall, and
+    // Sela is tied to its post. She sends the character to the shrine of Tigris at the pool (phase 9).
+    { id: 'camp', journal: 'The guards of the camp of the Seekers fell. The camp is half packed. A woman in the robe of the Seekers is tied to a post there.', at: [240, -98] },
+    {
+      id: 'captive',
+      journal: 'Sela, a Seeker who would not burn a family, told me what the Seekers want next: the shrine of Tigris under the pool of the Silvervein. The wave stone opens it. I must get there first.',
+      at: [196, -109],
+    },
+    // The end of the story comes with its later steps (the relic, the dream).
     { id: 'found', journal: 'I know now who burns the homesteads of the Wilds.', end: true },
   ],
 };
@@ -178,6 +186,12 @@ export const MIRA_STONE: QuestEffect = { id: 'mira-stone', quest: 'ashes', to: '
 export const ASHES_HELD: QuestEffect = { id: 'ashes-held', quest: 'ashes', to: 'held', from: ['next', 'stone'], give: { coins: WREN_REWARD, items: [{ kind: 'draught', count: 1 }] } };
 /** The hounds came to the homestead first: the Seekers took the stone. */
 export const ASHES_LATE: QuestEffect = { id: 'ashes-late', quest: 'ashes', to: 'late', from: ['next'] };
+/** The guards of the camp of the Seekers fell (story phase 8). */
+export const CAMP_TAKEN: QuestEffect = { id: 'camp-taken', quest: 'ashes', to: 'camp', from: ['held', 'late'] };
+/** The character cuts the ropes of Sela, at the post of the camp. */
+export const SELA_FREE: QuestEffect = { id: 'sela-free', quest: 'ashes', to: 'captive', from: ['camp'] };
+/** The chest of the camp gives the wave stone back to a character who has none (the quest stays at its step). */
+export const STONE_BACK: QuestEffect = { id: 'stone-back', quest: 'ashes', from: ['camp', 'captive'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 /** Mira gives the stone after the fight to a character who has none (it fought the hounds before it warned her, or lost the stone). */
 export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'ashes', to: 'held', from: ['held'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 

@@ -46,7 +46,7 @@ const BUILDINGS: readonly Plan[] = [
     people: {
       M: {
         id: 'mira',
-        look: 'survivor',
+        look: 'homesteader',
         dialog: MIRA,
         barks: ['Pip! Away from the water!', 'The goats are restless tonight.', 'Who goes there?'],
         doorstep: true,

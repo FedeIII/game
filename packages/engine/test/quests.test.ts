@@ -187,3 +187,20 @@ describe('scenes', () => {
     expect(checkScenes([{ ...scene, effect: { ...START, to: 'nowhere' } }], ['asker', 'other'], [ERRAND])).toEqual(['talk: start: no step "nowhere" in errand']);
   });
 });
+
+describe('an effect without a step to go to', () => {
+  const BACK: QuestEffect = { id: 'stone-back', quest: 'ashes', from: ['camp'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
+  const QUEST: QuestDef = { id: 'ashes', title: 'The Razed Villages', steps: [{ id: 'camp', journal: 'A camp.' }, { id: 'found', journal: 'The end.', end: true }] };
+
+  it('keeps the quest at its step, and gives what it gives', () => {
+    const book: QuestBook = { ashes: { step: 'camp', flags: [], n: 3 } };
+    const result = applyEffect(BACK, book, { coins: 0, items: [] }, 6)!;
+    expect(result.book.ashes!.step).toBe('camp');
+    expect(result.pack.items).toEqual([{ kind: 'wave-stone', count: 1 }]);
+    expect(checkEffect(BACK, [QUEST])).toEqual([]);
+  });
+
+  it('needs steps to come from', () => {
+    expect(checkEffect({ id: 'nowhere', quest: 'ashes' }, [QUEST])).toHaveLength(1);
+  });
+});

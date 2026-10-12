@@ -391,6 +391,7 @@ const EN = {
     stake: 'post',
     campfire: 'campfire',
     brand: 'burned plank',
+    standard: 'standard',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

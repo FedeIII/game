@@ -78,6 +78,11 @@ import {
   WREN,
   WREN_GATE,
   WREN_REWARD,
+  SEEKER_CAMP,
+  SEEKER_STAKE,
+  SELA,
+  SELA_FREE,
+  STONE_BACK,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -97,7 +102,7 @@ function contentOfTheWilds(): { effects: QuestEffect[]; conditions: Conditions[]
   const effects: QuestEffect[] = [];
   const conditions: Conditions[] = [];
   const dialogs: Dialog[] = [];
-  const fixtures = [...new Set([...source.home().fixtures, ...source.fixturesIn(TOWN.x0 - 200, TOWN.y0 - 200, 200, 200)])];
+  const fixtures = [...new Set([...source.home().fixtures, ...source.fixturesIn(TOWN.x0 - 200, TOWN.y0 - 200, 260, 200)])];
   for (const content of [...source.npcs().map((n) => n.content), ...fixtures.flatMap((f) => [f.content, f.variant?.content])]) {
     if (content?.effect) effects.push(content.effect);
     if (!content?.dialog) continue;
@@ -142,6 +147,9 @@ describe('the quests of the Wilds', () => {
       'ruin-hale',
       'ruin-marrow',
       'ruin-tanner',
+      'sela-free',
+      'sela-free',
+      'stone-back',
       'tell-reeve',
       'tell-reeve',
       'tell-reeve',
@@ -861,5 +869,63 @@ describe('the Wren homestead', () => {
     expect(room.quest(p.id, { npc: npcIndex('mira') }, MIRA_STONE_AFTER.id, 0)).toBe(true);
     expect(p.pack.items).toEqual([{ kind: 'wave-stone', count: 1 }]);
     expect(p.quests.ashes?.step).toBe('held');
+  });
+});
+
+describe('the camp of the Seekers', () => {
+  const at = (id: string) => ASHES.steps.find((s) => s.id === id)!.at;
+
+  it('stands at the east end of the burned trail, with a post that the map marks at `camp`', () => {
+    const world = new World(source);
+    expect(SEEKER_CAMP.has(SEEKER_CAMP_SITE.tx, SEEKER_CAMP_SITE.ty)).toBe(true);
+    const [ex, ey] = SEEKER_TRAIL.points[SEEKER_TRAIL.points.length - 1]!;
+    expect(SEEKER_CAMP.has(Math.floor(ex), Math.floor(ey))).toBe(true);
+    expect(at('camp')).toEqual(SEEKER_STAKE);
+    const post = world.fixtureAt(SEEKER_STAKE[0], SEEKER_STAKE[1])!;
+    expect(post.kind).toBe('stake');
+    expect(post.variant?.content?.dialog).toBe(SELA);
+    for (let ty = SEEKER_CAMP.y0; ty <= SEEKER_CAMP.y1; ty++) for (let tx = SEEKER_CAMP.x0; tx <= SEEKER_CAMP.x1; tx++) expect(world.ground(tx, ty)).not.toBe(Ground.Water);
+  });
+
+  it('is guarded for a character at `held` or `late`: alone, a blade and an adept; when they fall, the quest moves to `camp`', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [sx, sy] = SEEKER_STAKE;
+    const p = join(room, { x: (sx - 4) * TILE_SIZE + 8, y: (sy + 2) * TILE_SIZE + 12 });
+    p.quests = { ashes: { step: 'late', flags: [], n: 9 } };
+    p.state.hp = 10_000;
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    const guards = horde.mobs.filter((m) => m.story);
+    expect(guards.map((m) => m.kind)).toEqual(['seeker', 'adept']);
+    for (const mob of guards) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+    }
+    let t = 100;
+    for (; t < 4000 && p.quests.ashes?.step === 'late'; t += 50) room.tick(t);
+    expect(p.quests.ashes?.step).toBe('camp');
+  });
+
+  it('gives the stone back from its chest to a character without one, and Sela tells where the Seekers strike next', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [sx, sy] = SEEKER_STAKE;
+    const chest = SEEKER_CAMP.at(11, 10);
+    const p = join(room, { x: chest[0] * TILE_SIZE + 8, y: (chest[1] + 1) * TILE_SIZE + 4 });
+    p.quests = { ashes: { step: 'camp', flags: [], n: 10 } };
+    room.tick(0);
+    expect(room.quest(p.id, { at: chest }, STONE_BACK.id, 0)).toBe(true);
+    expect(p.pack.items).toEqual([{ kind: 'wave-stone', count: 1 }]);
+    expect(p.quests.ashes?.step).toBe('camp');
+    // With the stone, the chest gives no other.
+    expect(room.quest(p.id, { at: chest }, STONE_BACK.id, 0)).toBe(false);
+    Object.assign(p.state, { x: sx * TILE_SIZE + 8, y: (sy + 1) * TILE_SIZE + 4 });
+    expect(startNode(SELA, p.quests, p.pack)).toBe('bound');
+    expect(room.quest(p.id, { at: SEEKER_STAKE }, SELA_FREE.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('captive');
+    // Freed, she is gone from the post.
+    expect(room.quest(p.id, { at: SEEKER_STAKE }, SELA_FREE.id, 0)).toBe(false);
+    expect(SELA.nodes.doubt).toBeDefined();
+    expect(Object.values(SELA.nodes).flatMap((n) => n.answers).find((a) => a.next === 'north')?.gate).toEqual({ ability: 'int', min: 13 });
   });
 });

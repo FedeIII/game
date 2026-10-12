@@ -33,22 +33,24 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
-import { ASHES_HELD, ASHES_LATE, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { ASHES_HELD, ASHES_LATE, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
+import { SEEKER_CAMP } from './seekers.ts';
 import { SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 
 /** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). No mob comes into them. */
 const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING];
 /**
  * The places in a clearing of the woods, where mobs go as in the woods: the camp of the war band
- * (camp.ts), the burned homesteads (ruins.ts) and the Wren homestead (wren.ts).
+ * (camp.ts), the burned homesteads (ruins.ts), the Wren homestead (wren.ts) and the camp of the
+ * Ashen Seekers (seekers.ts).
  */
-const CLEARINGS: readonly Town[] = [CAMP, ...RUINS, WREN];
+const CLEARINGS: readonly Town[] = [CAMP, ...RUINS, WREN, SEEKER_CAMP];
 /** Every fixed place of the Wilds. */
 const PLACES: readonly Town[] = [...TOWNS, ...CLEARINGS];
 
@@ -237,6 +239,13 @@ const HOUND_UNITS: readonly (readonly AmbushMember[])[] = [
   [{ kind: 'hound' }, { kind: 'hound' }],
   [{ kind: 'hound' }, { kind: 'hound' }],
 ];
+/**
+ * The guards of the camp of the Ashen Seekers (story phase 8): blades and cinder adepts. Alone, a
+ * character meets a blade and an adept; six characters meet four blades and two adepts.
+ */
+const CAMP_GUARD_UNITS: readonly (readonly AmbushMember[])[] = [[{ kind: 'seeker' }], [{ kind: 'adept' }], [{ kind: 'seeker' }], [{ kind: 'seeker' }], [{ kind: 'adept' }], [{ kind: 'seeker' }]];
+/** The guards of the camp come for a character at the step this close to the camp (tiles). */
+const CAMP_GUARD_MARGIN = 6;
 /** The race starts for a character at the step this close to the middle of the Wren homestead (tiles); the hounds march at this pace (px/s). */
 const RACE_RADIUS = 32;
 const RACE_SPEED = 32;
@@ -718,7 +727,17 @@ export class WildsSource implements WorldSource {
         march: { route: [...[...SEEKER_TRAIL.points].reverse(), ...yard], speed: RACE_SPEED, arrive: ASHES_LATE },
         shelter: WREN_NPCS.map((n) => n.id),
       };
-      this.ambushList = [scouts, band, raid, cinders];
+      // The guards of the camp of the Seekers (story phase 8): they come out of the tents.
+      const k = SEEKER_CAMP;
+      const campGuard: AmbushDef = {
+        id: 'camp-guard',
+        inArea: (tx, ty) => tx >= k.x0 - CAMP_GUARD_MARGIN && tx <= k.x1 + CAMP_GUARD_MARGIN && ty >= k.y0 - CAMP_GUARD_MARGIN && ty <= k.y1 + CAMP_GUARD_MARGIN,
+        when: { quest: 'ashes', at: ['held', 'late'] },
+        from: [k.at(3, 6), k.at(12, 6)],
+        units: CAMP_GUARD_UNITS,
+        effect: CAMP_TAKEN,
+      };
+      this.ambushList = [scouts, band, raid, cinders, campGuard];
     }
     return this.ambushList;
   }

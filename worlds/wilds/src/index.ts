@@ -14,6 +14,7 @@ export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
 export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
+export { SEEKER_CAMP, SEEKER_STAKE } from './seekers.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
@@ -33,6 +34,7 @@ export {
   PERSUASION_GATE,
   PRIEST,
   REEVE,
+  SELA,
   SMITH,
   SMITH_PRICES,
   SOLDIER,
@@ -44,6 +46,9 @@ export {
 } from './dialogs.ts';
 export {
   ASHES,
+  CAMP_TAKEN,
+  SELA_FREE,
+  STONE_BACK,
   ASHES_HELD,
   ASHES_LATE,
   ASHES_NEXT,
@@ -116,6 +121,7 @@ export const wilds: WorldDefinition = {
     stake: 'A thick post, driven deep into the ground.',
     campfire: 'A fire in a ring of stones.',
     brand: 'A charred plank.',
+    standard: 'A standard of grey cloth with a red phoenix.',
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {

@@ -5,9 +5,9 @@ import type { Dialog, Interaction, WorldDefinition, WorldSource } from '@game/en
  * the name of the world, the lines of `examine` and `items`, the signs and the lines of the
  * buildings, the pages, lore, links and dialogs of the fixtures and the NPCs, the lines and
  * greetings of the NPCs, the names of the landmarks, the lines of the scenes, and the titles and journal lines of the quests. It reads the content through the source,
- * in a square of `radius` tiles round the home: the two towns and many houses of the Wilds.
+ * in a square of `radius` tiles round the home: the two towns, the camps and many houses of the Wilds.
  */
-export function worldTexts(definition: WorldDefinition, source: WorldSource, radius = 220): Set<string> {
+export function worldTexts(definition: WorldDefinition, source: WorldSource, radius = 260): Set<string> {
   const texts = new Set<string>();
   const add = (text: string | undefined) => {
     if (text) texts.add(text);

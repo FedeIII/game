@@ -510,16 +510,17 @@ function stake(): Part[] {
 }
 
 /**
- * The post with Himo tied to it (`stake-bound`, the frame of a character at the step: Fixture.variant):
- * the figure of the scout stands just south of the post, its arms behind its back, with two turns
- * of rope round it. The figure is drawn over the post, its feet on the ground point (8, -5).
+ * A post with a prisoner tied to it (the frame of a character at the step: Fixture.variant): Himo
+ * (`stake-bound`, the NPC look `scout`) or Sela (`stake-bound-sela`, the look `defector`). The figure
+ * stands just south of the post, its arms behind its back, with two turns of rope round it. The
+ * figure is drawn over the post, its feet on the ground point (8, -5).
  */
-function stakeBound(): Frame {
+function stakeBound(look = 'scout', name = 'fixture/stake-bound'): Frame {
   const width = 24;
   const height = 48;
   const pivotY = height - MARGIN_BELOW;
   const image = render(stake(), width, height);
-  const body = boundFigure('scout');
+  const body = boundFigure(look);
   const ox = PIVOT_X + 8 - PLAYER_FRAME.pivotX;
   const oy = pivotY - 5 - PLAYER_FRAME.pivotY;
   for (let y = 0; y < body.height; y++) {
@@ -538,7 +539,7 @@ function stakeBound(): Frame {
     for (let x = 0; x < body.width; x++) if ((body.get(x, y) & 0xff) > 0) image.set(x + ox, y + oy, rope[(x + shade) % 2]!);
   }
   const cropped = cropToContent(image, PIVOT_X, pivotY);
-  return { name: 'fixture/stake-bound', image: cropped.image, anchor: cropped.anchor };
+  return { name, image: cropped.image, anchor: cropped.anchor };
 }
 
 /** A fire in a ring of stones, with two crossed logs, coals and flames (the camp of the war band). */
@@ -578,6 +579,26 @@ function brand(): Part[] {
   ];
 }
 
+/**
+ * The standard of the Ashen Seekers (story phase 8): a pole of dark wood with a crossbar, and a cloth
+ * of pale grey with a phoenix in dark red that rises from ashes.
+ */
+function standard(): Part[] {
+  const phoenix = (x: number, y: number): boolean => {
+    const dx = Math.abs(x - 8);
+    if (dx < 0.7 && y > 21 && y < 30) return true;
+    if (y > 24 && y < 31.5 && Math.abs(dx - (y - 24) * 0.75) < 0.6) return true;
+    if (Math.hypot(x - 8, y - 31) < 0.9) return true;
+    return y > 19.5 && y < 22 && Math.abs(dx - (22 - y) * 1.1) < 0.6;
+  };
+  return [
+    { sdf: cylinder([8, 18, -7], 'y', 0.8, 36), material: M.woodDark },
+    { sdf: roundCone([8, 36, -7], [8, 37.6, -7], 0.8, 0.2), material: M.iron },
+    { sdf: roundCone([3, 34, -6.2], [13, 34, -6.2], 0.45, 0.45), material: M.woodDark },
+    { sdf: box([3.4, 17, -6.4], [12.6, 33.6, -5.8], 0.15), material: (x, y, z) => (z > -6 && phoenix(x, y) ? M.wine : y < 18.5 && noise3(x, y, z, 7) > 0.5 ? M.rubble : M.canvasBone) },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -612,7 +633,9 @@ export function fixtureFrames(): Frame[] {
     { ...fixture('cart', cart(true), 48, 40), name: 'fixture/cart-mended' },
     fixture('stake', stake(), 24, 48),
     stakeBound(),
+    stakeBound('defector', 'fixture/stake-bound-sela'),
     fixture('campfire', campfire(), 24, 32),
     fixture('brand', brand(), 24, 32),
+    fixture('standard', standard(), 24, 56),
   ];
 }

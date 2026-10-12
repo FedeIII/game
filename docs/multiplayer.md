@@ -75,8 +75,9 @@ protocol 9 has another world, so the server refuses it, and the visitor reloads 
 - Five new kinds of mob (`MOB_KINDS`, codes 7 to 11): `hound`, `watcher`, `seeker`, `adept`, `warden`
   (`docs/features/game/combat.md`, REQ-CMB-008). A mob that goes in ash is `dying` with its health
   left.
-- The item `wave-stone` (a new code of `ITEM_KINDS`).
-- The Wilds have the Wren homestead and Mira Wren, so the list of NPCs changed (Mira is the last one).
+- The item `wave-stone` (a new code of `ITEM_KINDS`), and the fixture type `standard` (code 33).
+- The Wilds have the Wren homestead and Mira Wren, so the list of NPCs changed (Mira is the last one),
+  and the camp of the Seekers.
 
 ## The swing of a guard (protocol 32, 2026-10-12)
 

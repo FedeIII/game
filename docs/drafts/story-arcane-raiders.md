@@ -1,7 +1,7 @@
 # The Arcane Raiders: the end of chapter 1 and chapter 2 (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** planned 2026-10-12; phase 7 built (2026-10-12: REQ-QST-022, REQ-CMB-008, protocol 33)
+> **Status:** planned 2026-10-12; phases 7 and 8 built (2026-10-12: REQ-QST-022 and 023, REQ-CMB-008, protocol 33)
 
 This draft continues `docs/drafts/story-razed-villages.md` (phases 1 to 6, all built). It plans the
 rest of the quest `ashes` (the end of chapter 1) and chapter 2 of the game. The phases keep the
@@ -121,6 +121,11 @@ apothecary of Ironhold told what they know of the phoenix.
   the chest gives it back).
 - **A page.** A torn page in the camp (Intelligence gates), from a book of the Seekers: a fragment of
   their prophecy ("fragmentary texts").
+- **Built** (2026-10-12). What changed from the plan: the fight starts within 6 tiles of the camp, and
+  alone a character meets a blade and an adept; Sela talks at the post (her conversation is on the
+  post: the variant of a character at `camp`), and she is gone from it once she is free; the chest
+  gives the stone to any character at `camp` or `captive` without one; the margin of the torn page
+  names Hondurria (a hook for phase 13).
 
 ### Phase 9: the relic of Tigris (`ashes.relic`, "Indirect Confrontation")
 

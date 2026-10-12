@@ -113,6 +113,8 @@ export const FIXTURE_TYPES = [
   { id: 31, kind: 'campfire', tiles: ONE_TILE([2, 4, 14, 14]), depth: 6 },
   // A charred plank with the phoenix of the Ashen Seekers burned into it (the ruins, story phase 6).
   { id: 32, kind: 'brand', tiles: ONE_TILE([3, 2, 13, 10]), depth: 4 },
+  // The standard of the Ashen Seekers: a pole with a grey cloth and a red phoenix (story phase 8).
+  { id: 33, kind: 'standard', tiles: ONE_TILE([6, 10, 10, 14]), depth: 12 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
