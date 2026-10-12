@@ -177,15 +177,21 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `presence.ts` (shared worlds only, and for an admin only (Fede's decision, 2026-10-10): how many
   other visitors are here, or why the visitor is alone; a line under the heading of the "You"
   section, `#presence`; the others see no presence at all).
-- `audio/` (2026-10-12, `docs/features/game/sound.md`): music and sound effects, all made in the
-  page with Web Audio (no sound files). `audio.ts` (`audio`, one `AudioEngine`: the context starts on
-  the first click, touch or key; it sleeps while the page is hidden or the sound is muted; buses for
-  music, effects and ambience; a clock schedules 0.8 s ahead), `synth.ts` (the instruments), `music.ts`
-  (`KANDRAX_THEME`), `sounds.ts` (`EFFECTS`, `AMBIENCES`), `settings.ts` (localStorage
-  `game.audio.v1`). The "Sound" section of the settings: `ui/sound-section.ts`. Only the prologue uses
-  it now. This box cannot listen: check a change with `renderOffline()` in a headless page (levels,
-  a spectrogram), and keep the work light for phones (a 4.6 s hall reverb cost about 8 % of a core
-  more than 3.2 s).
+- `audio/` (2026-10-12, `docs/features/game/sound.md`): music and sound effects. The music plays on
+  **recorded instruments**: samples of the VSCO 2 CE orchestra (CC0) and the FluidR3 choir (CC BY 3.0,
+  credited in the Sound settings), built by hand with `npm run sounds` (`sounds/catalog.ts` chooses the
+  recordings; `sounds/build.ts` downloads, cuts, measures the pitch and encodes them into
+  `src/generated/sounds/*.mp3` and `sounds.json`, both in git; it needs the network the first time).
+  `audio.ts` (`audio`, one `AudioEngine`: the context starts on the first click, touch or key; it sleeps
+  while the page is hidden or muted; buses for music, effects and ambience; a clock schedules 0.8 s
+  ahead), `samples.ts` (`SampleBank`: loads an instrument when a track needs it), `sampler.ts`
+  (`playNote()`; long notes by crossfaded copies of a loop), `music.ts` (`scoreTrack()`, the notation
+  `line()`/`chord()`/`hits()`, `SEATING`, `LEVELS`), `themes/kandrax.ts` (the prologue's theme),
+  `sounds.ts` (`EFFECTS`, `AMBIENCES`), `synth.ts` (synthesized effects), `settings.ts` (localStorage
+  `game.audio.v1`). The "Sound" section of the settings: `ui/sound-section.ts`. This box cannot listen:
+  check a change with `renderOffline()` in a headless page (levels, a spectrogram), and keep every score
+  note within 3 semitones of a recorded note (the test checks it). The horn has no samples between C4 and
+  D5. A Vite page in a long `page.evaluate` may reload itself: run it again.
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 

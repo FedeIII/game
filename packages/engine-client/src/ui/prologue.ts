@@ -1,7 +1,7 @@
 import type { PrologueCard } from '@game/engine';
 import { audio } from '../audio/audio.ts';
-import { KANDRAX_THEME } from '../audio/music.ts';
-import { AMBIENCES, type AmbienceId } from '../audio/sounds.ts';
+import { KANDRAX_THEME, THEME_FIRST } from '../audio/themes/kandrax.ts';
+import { AMBIENCES, EFFECT_INSTRUMENTS, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
 import { tw } from '../i18n.ts';
 import { STRINGS } from './strings.ts';
@@ -394,6 +394,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   fit();
   window.addEventListener('resize', fit);
 
+  // The orchestra loads with the art: the first instruments of the theme, and those of the effects.
+  audio.preload([...THEME_FIRST, ...EFFECT_INSTRUMENTS]);
   let sheet: HTMLImageElement;
   try {
     sheet = await loadSheet();

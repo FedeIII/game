@@ -1794,6 +1794,13 @@ body.conversing #link-card {
   border-bottom: 1px solid var(--ui-ink-faint);
 }
 
+.settings-credits {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.6;
+}
+
 .settings-you {
   padding-bottom: 10px;
   margin-bottom: 8px;

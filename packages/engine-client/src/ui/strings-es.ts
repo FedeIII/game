@@ -371,6 +371,7 @@ export const ES: Strings = {
     music: 'Música',
     effects: 'Efectos',
     mute: 'Silenciar todo',
+    credits: 'Grabaciones:',
   },
   gameMenu: {
     label: 'Menú de la partida',

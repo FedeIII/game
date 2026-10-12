@@ -4,8 +4,14 @@
  * audio/synth.ts, with a little chance in each, so a sound that repeats does not sound the same.
  */
 import type { Pattern } from './music.ts';
+import { midi } from './notes.ts';
+import { playNote } from './sampler.ts';
+import type { SampleBank } from './samples.ts';
 import { anvil, bell, boom, brownBuffer, noiseHit, whoosh } from './synth.ts';
 import { hz } from './notes.ts';
+
+/** The recorded instruments that the effects use (a page loads them with the music that comes with them). */
+export const EFFECT_INSTRUMENTS = ['gong', 'glock', 'timpaniSoft', 'harp'] as const;
 
 /** The effects (one-shots). */
 export const EFFECTS = ['whoosh', 'title', 'tick', 'click', 'end'] as const;
@@ -15,13 +21,26 @@ export type EffectId = (typeof EFFECTS)[number];
 export const AMBIENCES = ['night', 'wind', 'gale', 'candle', 'forge', 'hearth'] as const;
 export type AmbienceId = (typeof AMBIENCES)[number];
 
-/** Plays an effect at time `t`. */
-export function playEffect(id: EffectId, ctx: BaseAudioContext, out: AudioNode, t: number): void {
+/** Plays an effect at time `t`, on the recorded instruments of `bank` where it has them, else synthesized. */
+export function playEffect(id: EffectId, ctx: BaseAudioContext, out: AudioNode, t: number, bank?: SampleBank): void {
+  const gong = bank?.get('gong');
+  const glock = bank?.get('glock');
+  const timpani = bank?.get('timpaniSoft');
+  const harp = bank?.get('harp');
   switch (id) {
     case 'whoosh':
       whoosh(ctx, out, t, 1.5, 0.12, 240, 1300);
       break;
     case 'title':
+      if (gong && glock && timpani) {
+        // A soft gong and a timpani under a breath of air, and two glockenspiel notes a fifth apart.
+        playNote(ctx, out, gong, null, { t, dur: 6, vel: 0.45 });
+        playNote(ctx, out, timpani, null, { t, dur: 3, vel: 0.6 });
+        whoosh(ctx, out, t, 3.2, 0.05, 120, 700);
+        playNote(ctx, out, glock, midi('D6'), { t: t + 0.05, dur: 2, vel: 0.45, pan: -0.25 });
+        playNote(ctx, out, glock, midi('A6'), { t: t + 0.12, dur: 2, vel: 0.35, pan: 0.25 });
+        break;
+      }
       // A deep drum, a long breath of air, and two bells a fifth apart.
       boom(ctx, out, t, 0.42, 46, 3.6);
       whoosh(ctx, out, t, 3.2, 0.07, 120, 700);
@@ -45,6 +64,12 @@ export function playEffect(id: EffectId, ctx: BaseAudioContext, out: AudioNode, 
       break;
     }
     case 'end':
+      if (glock && harp) {
+        // The chord of D minor on the glockenspiel, with the harp under it.
+        ['D6', 'F6', 'A6'].forEach((note, i) => playNote(ctx, out, glock, midi(note), { t: t + i * 0.22, dur: 2, vel: 0.45, pan: (i - 1) * 0.3 }));
+        ['D3', 'A3', 'D4', 'F4'].forEach((note, i) => playNote(ctx, out, harp, midi(note), { t: t + i * 0.11, dur: 3, vel: 0.5, pan: -0.3 }));
+        break;
+      }
       bell(ctx, out, t, hz('D5'), 0.04, 5, -0.3);
       bell(ctx, out, t + 0.22, hz('F5'), 0.035, 5, 0);
       bell(ctx, out, t + 0.44, hz('A5'), 0.035, 6, 0.3);

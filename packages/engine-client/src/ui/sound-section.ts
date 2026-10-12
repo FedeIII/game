@@ -1,4 +1,5 @@
 import { audio } from '../audio/audio.ts';
+import { SOUND_CREDITS } from '../audio/samples.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -40,6 +41,11 @@ export function soundSection(): HTMLElement {
   mute.append(box, ` ${T.mute}`);
   section.append(mute);
   box.addEventListener('change', () => audio.setSettings({ ...audio.settings, muted: box.checked }));
+  // The credits of the recordings (the choir's licence, CC BY, asks for them).
+  const credits = document.createElement('p');
+  credits.className = 'settings-credits';
+  credits.textContent = `${T.credits} ${SOUND_CREDITS.join('; ')}.`;
+  section.append(credits);
   const show = () => {
     const s = audio.settings;
     for (const { key, input, output } of sliders) {

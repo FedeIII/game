@@ -1,6 +1,7 @@
 /**
- * The instruments of the game's music and sounds (audio/music.ts, audio/sounds.ts): each one builds a
- * few Web Audio nodes at a time `t` of the context, plays once, and stops by itself. They work in an
+ * The synthesized instruments of the game's sounds (audio/sounds.ts; the music plays on recorded
+ * instruments, audio/samples.ts): each one builds a few Web Audio nodes at a time `t` of the
+ * context, plays once, and stops by itself. They work in an
  * AudioContext (the page) and in an OfflineAudioContext (tests: a render to a file). Nothing here
  * keeps a node: a sound that has played is gone.
  */
@@ -158,112 +159,6 @@ export function pluck(ctx: BaseAudioContext, out: AudioNode, t: number, freq: nu
   panned(ctx, g, out, pan);
   src.start(t);
   src.stop(t + entry.buffer.duration);
-}
-
-/** A warm pad: two detuned saws for each note, through a low-pass that opens slowly. */
-export function pad(ctx: BaseAudioContext, out: AudioNode, t: number, duration: number, freqs: readonly number[], gain = 0.05, cutoff = 900, attack = 2.2, release = 3): void {
-  const end = t + duration + release;
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.Q.value = 0.6;
-  filter.frequency.setValueAtTime(cutoff * 0.5, t);
-  filter.frequency.linearRampToValueAtTime(cutoff, t + attack + duration * 0.5);
-  filter.frequency.linearRampToValueAtTime(cutoff * 0.6, end);
-  const env = envelope(ctx, t, attack, end, release, gain);
-  filter.connect(env).connect(out);
-  for (const freq of freqs) {
-    for (const cents of [-7, 6]) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      osc.detune.value = cents;
-      osc.connect(filter);
-      osc.start(t);
-      osc.stop(end + 0.05);
-    }
-  }
-}
-
-/** A low flute: a sine with a little of its octave, a breath of noise, and a vibrato that grows. */
-export function flute(ctx: BaseAudioContext, out: AudioNode, t: number, duration: number, freq: number, gain = 0.09, pan = 0): void {
-  const end = t + duration + 0.45;
-  const env = envelope(ctx, t, 0.14, end, 0.45, gain);
-  panned(ctx, env, out, pan);
-  const vibrato = ctx.createOscillator();
-  vibrato.frequency.value = 4.8;
-  const depth = ctx.createGain();
-  depth.gain.setValueAtTime(0, t);
-  depth.gain.linearRampToValueAtTime(9, t + Math.min(0.9, duration));
-  vibrato.connect(depth);
-  for (const [type, mult, level] of [
-    ['sine', 1, 1],
-    ['triangle', 2, 0.12],
-  ] as const) {
-    const osc = ctx.createOscillator();
-    osc.type = type;
-    osc.frequency.value = freq * mult;
-    depth.connect(osc.detune);
-    const g = ctx.createGain();
-    g.gain.value = level;
-    osc.connect(g).connect(env);
-    osc.start(t);
-    osc.stop(end + 0.05);
-  }
-  const breath = ctx.createBufferSource();
-  breath.buffer = noiseBuffer(ctx);
-  breath.loop = true;
-  const band = ctx.createBiquadFilter();
-  band.type = 'bandpass';
-  band.frequency.value = freq * 2;
-  band.Q.value = 3;
-  const bg = ctx.createGain();
-  bg.gain.value = 0.18;
-  breath.connect(band).connect(bg).connect(env);
-  breath.start(t, Math.random());
-  breath.stop(end + 0.05);
-  vibrato.start(t);
-  vibrato.stop(end + 0.05);
-}
-
-/** A choir that sings "ah": detuned saws through the formants of the vowel. */
-export function choir(ctx: BaseAudioContext, out: AudioNode, t: number, duration: number, freqs: readonly number[], gain = 0.03, attack = 1.8, release = 2.6): void {
-  const end = t + duration + release;
-  const env = envelope(ctx, t, attack, end, release, gain);
-  env.connect(out);
-  const formants: [number, number, number][] = [
-    [720, 7, 1],
-    [1180, 8, 0.55],
-    [2700, 10, 0.22],
-  ];
-  const voices = ctx.createGain();
-  for (const [f, q, level] of formants) {
-    const band = ctx.createBiquadFilter();
-    band.type = 'bandpass';
-    band.frequency.value = f;
-    band.Q.value = q;
-    const g = ctx.createGain();
-    g.gain.value = level * 3;
-    voices.connect(band).connect(g).connect(env);
-  }
-  const vibrato = ctx.createOscillator();
-  vibrato.frequency.value = 5.3;
-  const depth = ctx.createGain();
-  depth.gain.value = 7;
-  vibrato.connect(depth);
-  vibrato.start(t);
-  vibrato.stop(end + 0.05);
-  for (const freq of freqs) {
-    for (const cents of [-9, 0, 8]) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      osc.detune.value = cents;
-      depth.connect(osc.detune);
-      osc.connect(voices);
-      osc.start(t);
-      osc.stop(end + 0.05);
-    }
-  }
 }
 
 /** A bell, by frequency modulation: bright at the strike, a pure tone as it rings out. */

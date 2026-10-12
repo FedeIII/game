@@ -6,10 +6,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "art": "node art/build.ts"
+    "art": "node art/build.ts",
+    "sounds": "node sounds/build.ts"
   },
   "dependencies": {
     "@game/engine": "*",
     "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "mpg123-decoder": "^1.0.3",
+    "wasm-media-encoders": "^0.7.0"
   }
 }

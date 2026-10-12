@@ -421,6 +421,8 @@ const EN = {
     music: 'Music',
     effects: 'Effects',
     mute: 'Mute all',
+    /** Before the credits of the recorded instruments. */
+    credits: 'Recordings:',
   },
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
   gameMenu: {

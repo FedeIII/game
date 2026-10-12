@@ -1,8 +1,8 @@
 /**
  * The sound of the game (2026-10-12, Fede's request: music and sound effects): one Web Audio context
  * for the page, made and started on the first touch, click or key (a browser starts no sound before
- * the visitor does something). Everything is synthesized in the page (audio/synth.ts): there are no
- * sound files.
+ * the visitor does something). The music plays on recorded instruments (audio/samples.ts: the bank
+ * loads them when a track needs them); some effects are synthesized in the page (audio/synth.ts).
  *
  * The buses, each to the master (a compressor keeps the sum from clipping):
  *   music     (audio/music.ts)   with a hall reverb, at the music volume
@@ -14,6 +14,7 @@
 import type { MusicTrack, Pattern } from './music.ts';
 import { loadSound, saveSound, type SoundSettings } from './settings.ts';
 import { playEffect, startAmbience, type Ambience, type AmbienceId, type EffectId } from './sounds.ts';
+import { SampleBank } from './samples.ts';
 import { reverbBuffer } from './synth.ts';
 
 /** The clock looks this far ahead (s), every CLOCK_MS. */
@@ -50,7 +51,8 @@ export function makeBuses(ctx: BaseAudioContext, settings: SoundSettings): Buses
   // 3.2 s: a longer tail costs a phone much more work for little more space.
   hall.buffer = reverbBuffer(ctx, 3.2, 101);
   const hallWet = ctx.createGain();
-  hallWet.gain.value = 0.55;
+  // The recordings have a room of their own: a little hall over it.
+  hallWet.gain.value = 0.38;
   music.connect(musicDry).connect(musicOut);
   music.connect(hall).connect(hallWet).connect(musicOut);
   musicOut.connect(master);
@@ -90,7 +92,13 @@ interface Playing {
 }
 
 export class AudioEngine {
+  /** The recorded instruments: they load without a context (they decode in their own), so a page can load them early. */
+  readonly bank = new SampleBank();
   private ctx: AudioContext | null = null;
+  /** Changes with each start and stop of the music: a track whose instruments come after a newer call does not start. */
+  private musicToken = 0;
+  /** The track that waits for its instruments. */
+  private loadingMusic: string | null = null;
   private buses: Buses | null = null;
   private clock: number | null = null;
   private settingsNow: SoundSettings = loadSound();
@@ -182,27 +190,55 @@ export class AudioEngine {
     for (const playing of [this.music, this.ambience]) if (playing && !playing.stopping) playing.pattern.schedule(this.ctx, playing.gain, until);
   }
 
-  /** Plays a track, fading it in over `fade` s; another track fades out. Before the visitor did anything, it waits. */
+  /** Fetches and decodes instruments now (a track that will play soon), with or without a context. */
+  preload(ids: readonly string[]): void {
+    void this.bank.load(ids);
+  }
+
+  /**
+   * Plays a track, fading it in over `fade` s, when its first instruments are ready; another track
+   * fades out. Before the visitor did anything, it waits.
+   */
   playMusic(track: MusicTrack, fade = 2.5): void {
+    if ((this.music && !this.music.stopping && this.music.id === track.id) || this.loadingMusic === track.id) return;
+    const first = track.first ?? track.instruments;
+    void this.bank.load(first).then(() => this.bank.load(track.instruments));
     if (!this.ctx || this.ctx.state !== 'running' || !this.buses) {
       if (this.music && this.music.id !== track.id) this.stopMusic(fade);
       this.wanted.music = track;
       this.resume();
       return;
     }
-    if (this.music && !this.music.stopping && this.music.id === track.id) return;
     this.stopMusic(fade);
-    const t = this.ctx.currentTime + 0.05;
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(1, t + fade);
-    gain.connect(this.buses.music);
-    this.music = { id: track.id, pattern: track.start(t), gain, bus: this.buses.music, stopping: false };
-    this.tick();
+    const token = ++this.musicToken;
+    this.loadingMusic = track.id;
+    void this.bank.load(first).then(() => {
+      if (token !== this.musicToken) return;
+      this.loadingMusic = null;
+      if (!this.ctx || !this.buses) return;
+      if (this.ctx.state !== 'running') {
+        this.wanted.music = track;
+        return;
+      }
+      const t = this.ctx.currentTime + 0.05;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(1, t + fade);
+      gain.connect(this.buses.music);
+      this.music = { id: track.id, pattern: track.start(t, this.bank), gain, bus: this.buses.music, stopping: false };
+      this.tick();
+    });
+  }
+
+  /** The id of the track that plays (or waits for its instruments), or null. */
+  get musicId(): string | null {
+    return this.loadingMusic ?? (this.music && !this.music.stopping ? this.music.id : null) ?? this.wanted.music?.id ?? null;
   }
 
   /** Fades the music out over `fade` s. */
   stopMusic(fade = 2.5): void {
+    this.musicToken++;
+    this.loadingMusic = null;
     if (this.wanted.music) this.wanted.music = null;
     const music = this.music;
     if (!music || !this.ctx) return;
@@ -238,7 +274,7 @@ export class AudioEngine {
   /** Plays an effect now (nothing before the visitor did anything: a sound that late would be wrong). */
   play(id: EffectId, delay = 0): void {
     if (!this.ctx || this.ctx.state !== 'running' || !this.buses || this.settingsNow.muted) return;
-    playEffect(id, this.ctx, this.buses.effects, this.ctx.currentTime + 0.01 + delay);
+    playEffect(id, this.ctx, this.buses.effects, this.ctx.currentTime + 0.01 + delay, this.bank);
   }
 
   /** Fades a playing thing out, then lets it go. */
@@ -263,10 +299,11 @@ export const audio = new AudioEngine();
  * Renders `seconds` of a track (and optionally an ambience) without a page's context: the same buses
  * and instruments in an OfflineAudioContext. For tests (a file to measure) and a look at the sound.
  */
-export async function renderOffline(seconds: number, track: MusicTrack | null, ambience: AmbienceId | null = null, settings: SoundSettings = { music: 0.6, effects: 0.8, muted: false }, sampleRate = 44100): Promise<AudioBuffer> {
+export async function renderOffline(seconds: number, track: MusicTrack | null, ambience: AmbienceId | null = null, settings: SoundSettings = { music: 0.6, effects: 0.8, muted: false }, sampleRate = 44100, bank: SampleBank = new SampleBank()): Promise<AudioBuffer> {
+  if (track) await bank.load(track.instruments);
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
   const buses = makeBuses(ctx, settings);
-  if (track) track.start(0.05).schedule(ctx, buses.music, seconds);
+  if (track) track.start(0.05, bank).schedule(ctx, buses.music, seconds);
   if (ambience) startAmbience(ambience, ctx, buses.ambience, 0.05).schedule(ctx, buses.ambience, seconds);
   return ctx.startRendering();
 }
