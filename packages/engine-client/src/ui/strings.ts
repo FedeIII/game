@@ -490,6 +490,31 @@ const EN = {
     columns: { ability: 'Ability', base: 'Base', race: 'Race', total: 'Score', mod: 'Mod' },
     unspent: (n: number): string => `You still have ${n === 1 ? '1 point' : `${n} points`} to spend.`,
     chooseTwo: 'Choose two abilities for the half-elf +1.',
+    prologue: 'Prologue',
+    settings: 'Settings',
+    controls: 'Controls',
+    touch: 'Touch',
+    or: 'or',
+    display: 'Display',
+    /**
+     * The controls of the game, to read in the settings of the menu: what each one does, its keys
+     * (each list is one choice; the choices are joined by "or") and what a touch screen has instead.
+     */
+    controlList: [
+      { action: 'Walk', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']], touch: 'The stick, bottom left' },
+      { action: 'Sneak walk, on or off', keys: [['C']], touch: 'A small push of the stick' },
+      { action: 'Talk, open, read, pick up', keys: [['E']], touch: 'The action button, bottom right' },
+      { action: 'Attack', keys: [['Space'], ['J'], ['Left click']], note: 'A click attacks towards the pointer.', touch: 'The attack button' },
+      { action: 'Dodge', keys: [['Shift'], ['Right click']], touch: 'The dodge button' },
+      { action: 'Drink', keys: [['1', '2', '3', '4']], note: 'Healing draught, strong draught, antidote, herbs.', touch: 'The drink belt, top left' },
+      { action: 'Pack', keys: [['I']], touch: 'The bag button, top right' },
+      { action: 'Map', keys: [['M']], touch: 'The map button, top right' },
+      { action: 'Journal', keys: [['L']], touch: 'The journal button, top right' },
+      { action: 'Choose an answer', keys: [['W', 'S'], ['↑', '↓']], touch: 'Tap the answer' },
+      { action: 'Answer', keys: [['E'], ['Enter'], ['Space'], ['1–9']], touch: 'Tap the answer' },
+      { action: 'End a conversation', keys: [['Esc']], touch: 'The close button' },
+      { action: 'Game menu', keys: [['Esc']], touch: 'The faint icon under the settings button' },
+    ] as readonly { readonly action: string; readonly keys: readonly (readonly string[])[]; readonly note?: string; readonly touch: string }[],
   },
   races: {
     human: { name: 'Human', line: 'Adaptable and driven, found everywhere.' },

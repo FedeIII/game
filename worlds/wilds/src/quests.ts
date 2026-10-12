@@ -18,7 +18,7 @@ export const ASHES: QuestDef = {
   steps: [
     {
       id: 'letter',
-      journal: 'Thrain Steelforge asks me to find out who burns the homesteads of the Wilds. His letter says: begin with Elama Rothenel, the reeve of Ironhold.',
+      journal: 'Thrain Steelforge asks me to find out who burns the homesteads of the wildlands. His letter says: begin with Elama Rothenel, the reeve of Ironhold.',
       npc: 'reeve',
     },
     // The burned homesteads (story phase 6, ruins.ts; a test checks the tiles): each one points to the next.

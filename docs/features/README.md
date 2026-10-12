@@ -62,6 +62,7 @@ streaming-platform project):
 | Game: The Prologue | `PRO` | [`game/prologue.md`](game/prologue.md) |
 | Game: Sound | `SND` | [`game/sound.md`](game/sound.md) |
 | Game: The Game Menu | `GMN` | [`game/game-menu.md`](game/game-menu.md) |
+| Game: The Main Menu | `MNU` | [`game/main-menu.md`](game/main-menu.md) |
 | Game: The Prologue | `PRO` | [`game/prologue.md`](game/prologue.md) |
 | Game: The Towns of the Wilds | `TWN` | [`game/towns.md`](game/towns.md) |
 
@@ -102,5 +103,6 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [Quests and the Journal](game/quests.md) | The quest book of each character (kept by the server), effects and conditions in conversations and on things, the journal, the banner, the map marks, the letter of Thrain Steelforge, and the merchant's broken cart |
 | [Combat at Level 3](game/combat.md) | The 5e numbers of a level-3 character and of the SRD mobs, attack rolls both ways against the Armour Class, rolled damage, critical hits, healing as at the table, and the numbers of a fight on the screen |
 | [The Game Menu](game/game-menu.md) | Escape (or a faint icon on a touch screen) opens a menu over the game: "Resume", "Load game", "New game" and "Prologue" |
-| [The Prologue](game/prologue.md) | Eight painted scenes of Kandrax with Fede's texts, for each new character and from the game menu: the world, the Dominions, the gods, Thrain's factory, and the character's identity and mission; its pace and how to skip it |
+| [The Main Menu](game/main-menu.md) | The menu before the game: Nivalia in pixel art behind it, "Prologue" once the browser saw it, and "Settings" with the controls to read, the language and (for an admin) the CRT settings |
+| [The Prologue](game/prologue.md) | Nine painted scenes of Kandrax with Fede's texts, for each new character and from the game menu: the world, the Dominions, the gods, Thrain's factory, and the character's identity and mission; its pace and how to skip it |
 | [Sound](game/sound.md) | Music on a recorded orchestra and choir (VSCO 2 CE, FluidR3), loaded when needed: the theme of Kandrax in the prologue, and in the game a music that follows the places, a hunt, a fight, a battle, a dream, a defeat, with stingers for discoveries and quests; the sounds of fights, steps, mobs' voices, doors, chests, coins, drinks and the GUI; an ambience for each place and the sounds of water, fires, fountains and forges near the player; when the sound starts and sleeps, and the "Sound" settings |

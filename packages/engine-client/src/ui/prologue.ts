@@ -564,6 +564,26 @@ export function prologuePlaying(): boolean {
   return playing;
 }
 
+/** Where this browser keeps that the prologue played once: then the menu offers it again. */
+const SEEN_KEY = 'game.prologue.v1';
+
+/** Whether this browser played the prologue once (to its end, or until "Skip"). */
+export function prologueSeen(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === 'seen';
+  } catch {
+    return false;
+  }
+}
+
+function markSeen(): void {
+  try {
+    localStorage.setItem(SEEN_KEY, 'seen');
+  } catch {
+    // Storage is blocked: the menu does not offer the prologue.
+  }
+}
+
 /**
  * Plays the prologue over the page. It resolves when the last card ends, or when the player skips
  * it. Without a card, or when its art does not load, it resolves at once.
@@ -884,6 +904,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   }
 
   function finishNow(): void {
+    markSeen();
     unfollow();
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', fit);

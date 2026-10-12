@@ -719,7 +719,7 @@ export const MERCHANT: Dialog = {
       ],
     },
     claim: {
-      say: 'You know your history. The Iron Sovereignty and the Mithril Enclave both want the Wilds, and neither of them plays fair.',
+      say: 'You know your history. The Iron Sovereignty and the Mithril Enclave both want the unclaimed wildlands, and neither of them plays fair.',
       answers: [BYE],
     },
     rest: {

@@ -82,32 +82,132 @@ export function crtQuery(values: CrtSettings): string {
   return SLIDERS.map((slider) => String(Number(values[slider.key].toFixed(2)))).join(',');
 }
 
-const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`;
-
 /**
- * The settings: a button in the top-right corner opens a panel. It has the sections that the game
- * adds on top (addSection: the visitor's look and name), and for an admin the display settings (an
- * on/off switch and a slider for each CRT setting). Changes apply at once and are saved in this
- * browser. The panel is outside the game surface, so a touch on it never moves the player.
+ * The display settings: an on/off switch for the CRT effect, a slider for each setting, the ?crt=
+ * value with "Copy link", and "Reset". Each change goes to `apply` and is saved in this browser. The
+ * settings panel of the game shows it (to an admin), and so does the settings screen of the menu.
  */
-export class SettingsPanel {
-  private readonly crt: CrtFilter;
-  /** Filters that follow the on/off switch only (the text filter has fixed settings). */
-  private readonly linked: readonly CrtFilter[];
+export class CrtControls {
+  readonly element: HTMLElement;
   private readonly state: CrtState;
-  private readonly panel: HTMLElement;
-  private readonly button: HTMLButtonElement;
+  private readonly apply: (state: CrtState) => void;
   private readonly toggle: HTMLInputElement;
   private readonly inputs = new Map<keyof CrtSettings, { input: HTMLInputElement; output: HTMLOutputElement }>();
   private readonly query: HTMLElement;
   private readonly copy: HTMLButtonElement;
 
+  constructor(state: CrtState, apply: (state: CrtState) => void) {
+    this.state = state;
+    this.apply = apply;
+    this.element = document.createElement('div');
+    this.element.className = 'settings-display';
+    const title = document.createElement('label');
+    title.className = 'settings-title';
+    this.toggle = document.createElement('input');
+    this.toggle.type = 'checkbox';
+    title.append(this.toggle, ` ${STRINGS.settings.crt}`);
+    this.element.append(title);
+
+    for (const slider of SLIDERS) {
+      const row = document.createElement('label');
+      row.className = 'settings-row';
+      const name = document.createElement('span');
+      name.textContent = slider.label;
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = String(slider.min);
+      input.max = String(slider.max);
+      input.step = String(slider.step);
+      const output = document.createElement('output');
+      row.append(name, input, output);
+      this.element.append(row);
+      this.inputs.set(slider.key, { input, output });
+      input.addEventListener('input', () => {
+        this.state.values[slider.key] = Number(input.value);
+        this.changed();
+      });
+    }
+
+    const footer = document.createElement('div');
+    footer.className = 'settings-footer';
+    this.query = document.createElement('code');
+    this.copy = this.smallButton(STRINGS.settings.copyLink, () => void this.copyLink());
+    footer.append(this.query, this.copy, this.smallButton(STRINGS.settings.reset, () => this.reset()));
+    this.element.append(footer);
+
+    this.toggle.addEventListener('change', () => {
+      this.state.enabled = this.toggle.checked;
+      this.changed();
+    });
+    this.sync();
+  }
+
+  private smallButton(text: string, action: () => void): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'settings-small';
+    button.textContent = text;
+    button.addEventListener('click', action);
+    return button;
+  }
+
+  /** Puts the state into the controls. */
+  private sync(): void {
+    this.toggle.checked = this.state.enabled;
+    for (const slider of SLIDERS) {
+      const { input, output } = this.inputs.get(slider.key)!;
+      input.value = String(this.state.values[slider.key]);
+      input.disabled = !this.state.enabled;
+      output.value = this.state.values[slider.key].toFixed(2);
+    }
+    this.query.textContent = this.state.enabled ? `?crt=${crtQuery(this.state.values)}` : '?nocrt';
+  }
+
+  private changed(): void {
+    this.sync();
+    saveCrt(this.state);
+    this.apply(this.state);
+  }
+
+  private reset(): void {
+    this.state.enabled = true;
+    this.state.values = { ...CRT_DEFAULTS };
+    this.changed();
+  }
+
+  /** Copies a link to the game with these settings, to send to someone. */
+  private async copyLink(): Promise<void> {
+    const url = `${location.origin}${location.pathname}${this.query.textContent}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      this.copy.textContent = STRINGS.settings.copied;
+    } catch {
+      this.copy.textContent = STRINGS.settings.copyFailed;
+    }
+    setTimeout(() => (this.copy.textContent = STRINGS.settings.copyLink), 1500);
+  }
+}
+
+const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`;
+
+/**
+ * The settings: a button in the top-right corner opens a panel. It has the sections that the game
+ * adds on top (addSection: the visitor's look and name), and for an admin the display settings
+ * (CrtControls). Changes apply at once and are saved in this browser. The panel is outside the game
+ * surface, so a touch on it never moves the player.
+ */
+export class SettingsPanel {
+  private readonly crt: CrtFilter;
+  /** Filters that follow the on/off switch only (the text filter has fixed settings). */
+  private readonly linked: readonly CrtFilter[];
+  private readonly panel: HTMLElement;
+  private readonly button: HTMLButtonElement;
+
   /** `controls`: the display settings show (an admin). Without them, the filters keep `state`. */
   constructor(crt: CrtFilter, state: CrtState, linked: readonly CrtFilter[] = [], controls = true) {
     this.crt = crt;
     this.linked = linked;
-    this.state = state;
 
     this.button = document.createElement('button');
     this.button.id = 'settings-button';
@@ -123,49 +223,8 @@ export class SettingsPanel {
     this.panel.setAttribute('aria-label', STRINGS.settings.button);
 
     // The display settings: in the panel only for an admin.
-    const display = document.createElement('div');
-    display.className = 'settings-display';
-    const title = document.createElement('label');
-    title.className = 'settings-title';
-    this.toggle = document.createElement('input');
-    this.toggle.type = 'checkbox';
-    title.append(this.toggle, ` ${STRINGS.settings.crt}`);
-    display.append(title);
+    if (controls) this.panel.append(new CrtControls(state, (changed) => this.applyCrt(changed)).element);
 
-    for (const slider of SLIDERS) {
-      const row = document.createElement('label');
-      row.className = 'settings-row';
-      const name = document.createElement('span');
-      name.textContent = slider.label;
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = String(slider.min);
-      input.max = String(slider.max);
-      input.step = String(slider.step);
-      const output = document.createElement('output');
-      row.append(name, input, output);
-      display.append(row);
-      this.inputs.set(slider.key, { input, output });
-      input.addEventListener('input', () => {
-        this.state.values[slider.key] = Number(input.value);
-        this.crt.set({ [slider.key]: this.state.values[slider.key] });
-        this.changed();
-      });
-    }
-
-    const footer = document.createElement('div');
-    footer.className = 'settings-footer';
-    this.query = document.createElement('code');
-    this.copy = this.smallButton(STRINGS.settings.copyLink, () => void this.copyLink());
-    footer.append(this.query, this.copy, this.smallButton(STRINGS.settings.reset, () => this.reset()));
-    display.append(footer);
-    if (controls) this.panel.append(display);
-
-    this.toggle.addEventListener('change', () => {
-      this.state.enabled = this.toggle.checked;
-      this.applyEnabled();
-      this.changed();
-    });
     this.button.addEventListener('click', () => this.show(this.panel.hidden !== false));
     window.addEventListener('keydown', (event) => {
       if (event.code === 'Escape') this.show(false);
@@ -184,9 +243,7 @@ export class SettingsPanel {
     });
 
     document.body.append(this.button, this.panel);
-    this.applyEnabled();
-    this.crt.set(state.values);
-    this.sync();
+    this.applyCrt(state);
   }
 
   /** Puts a section at the top of the panel, over the display settings. */
@@ -194,59 +251,15 @@ export class SettingsPanel {
     this.panel.prepend(section);
   }
 
-  private applyEnabled(): void {
-    for (const filter of [this.crt, ...this.linked]) filter.enabled = this.state.enabled;
-  }
-
-  private smallButton(text: string, action: () => void): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'settings-small';
-    button.textContent = text;
-    button.addEventListener('click', action);
-    return button;
+  /** The filters take the settings: the switch for all of them, the values for the world's. */
+  private applyCrt(state: CrtState): void {
+    for (const filter of [this.crt, ...this.linked]) filter.enabled = state.enabled;
+    this.crt.set(state.values);
   }
 
   private show(open: boolean): void {
     this.panel.hidden = !open;
     this.button.setAttribute('aria-expanded', String(open));
     if (open) announceOpenPanel('settings');
-  }
-
-  /** Puts the state into the controls. */
-  private sync(): void {
-    this.toggle.checked = this.state.enabled;
-    for (const slider of SLIDERS) {
-      const { input, output } = this.inputs.get(slider.key)!;
-      input.value = String(this.state.values[slider.key]);
-      input.disabled = !this.state.enabled;
-      output.value = this.state.values[slider.key].toFixed(2);
-    }
-    this.query.textContent = this.state.enabled ? `?crt=${crtQuery(this.state.values)}` : '?nocrt';
-  }
-
-  private changed(): void {
-    this.sync();
-    saveCrt(this.state);
-  }
-
-  private reset(): void {
-    this.state.enabled = true;
-    this.state.values = { ...CRT_DEFAULTS };
-    this.applyEnabled();
-    this.crt.set(this.state.values);
-    this.changed();
-  }
-
-  /** Copies a link to the game with these settings, to send to someone. */
-  private async copyLink(): Promise<void> {
-    const url = `${location.origin}${location.pathname}${this.query.textContent}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      this.copy.textContent = STRINGS.settings.copied;
-    } catch {
-      this.copy.textContent = STRINGS.settings.copyFailed;
-    }
-    setTimeout(() => (this.copy.textContent = STRINGS.settings.copyLink), 1500);
   }
 }

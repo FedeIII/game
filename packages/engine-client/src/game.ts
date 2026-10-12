@@ -323,16 +323,24 @@ async function run(options: GameOptions): Promise<void> {
   let admin = false;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
   let fresh = false;
-  if (options.accounts && !guest) {
-    ({ character, admin, fresh } = await runMenu({ title: options.name ?? tw(definition.name), site: options.title ?? location.host, skins }));
-  }
   // The prologue (ui/prologue.ts): once for a new character, before it enters the world (?prologue
-  // plays it for any visitor, for tests). The game menu plays it again.
-  const prologueFor = (): { name: string; kind: string } => {
-    const look = appearanceOf(character ? characterSkin(character) : skinSeed(params));
-    return { name: character?.name ?? skinName(skinSeed(params)), kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}` };
+  // plays it for any visitor, for tests). The game menu plays it again, and so does the menu before
+  // the game once this browser saw it (with the character played last, or a guest's name).
+  const prologueOf = (who: Character | null): { name: string; kind: string } => {
+    const look = appearanceOf(who ? characterSkin(who) : skinSeed(params));
+    return { name: who?.name ?? skinName(skinSeed(params)), kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}` };
   };
-  if ((fresh || params.has('prologue')) && definition.prologue) await playPrologue({ cards: definition.prologue, ...prologueFor() });
+  const cards = definition.prologue;
+  if (options.accounts && !guest) {
+    ({ character, admin, fresh } = await runMenu({
+      title: options.name ?? tw(definition.name),
+      site: options.title ?? location.host,
+      skins,
+      ...(cards ? { prologue: (latest: Character | null) => playPrologue({ cards, ...prologueOf(latest) }) } : {}),
+    }));
+  }
+  const prologueFor = () => prologueOf(character);
+  if ((fresh || params.has('prologue')) && cards) await playPrologue({ cards, ...prologueFor() });
 
   // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
   // some Adreno) compute it with 16-bit floats: a texture coordinate near the bottom of the

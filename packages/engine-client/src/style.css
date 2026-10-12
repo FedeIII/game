@@ -2088,6 +2088,39 @@ body.conversing #link-card {
   pointer-events: none;
 }
 
+/*
+ * The picture behind the menu (art/menu-art.ts: Nivalia at sunset, after Fede's picture on the Drive),
+ * scaled by a whole number to cover the page (menu/menu.ts sets the size), sharp, and darkened a little
+ * so that the panel reads well over it.
+ */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--ui-backdrop);
+  background-position: center;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.9s;
+}
+
+.menu-backdrop.shown {
+  opacity: 1;
+}
+
+.menu-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgb(8 9 11 / 0) 0%, rgb(8 9 11 / 0.5) 80%), linear-gradient(rgb(8 9 11 / 0.05), rgb(8 9 11 / 0.25));
+}
+
+#menu .menu-panel {
+  position: relative;
+}
+
 .menu-panel {
   box-sizing: border-box;
   width: min(600px, 100%);
@@ -2247,6 +2280,67 @@ a.menu-link {
 .account-ask .menu-actions {
   justify-content: center;
   margin-top: 8px;
+}
+
+/* The settings of the menu: the controls to read, the language, and for an admin the display. */
+#menu .menu-subtitle {
+  margin: 18px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ui-ink-faint);
+  font: italic 15px var(--ui-serif);
+  letter-spacing: 0.04em;
+}
+
+#menu input[type='range'],
+#menu input[type='checkbox'] {
+  accent-color: var(--ui-accent);
+}
+
+.control-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.control dt {
+  font-size: 14px;
+}
+
+.control dd {
+  margin: 2px 0 0;
+}
+
+.menu-key {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 5px;
+  border: 1px solid var(--ui-ink-faint);
+  border-bottom-width: 2px;
+  border-radius: var(--ui-radius);
+  background: rgb(0 0 0 / 0.35);
+  font: 12px/1.6 var(--ui-mono);
+  text-align: center;
+}
+
+.control-keys {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* The keys of one choice stay together on a line; a line breaks only at "or". */
+.control-choice {
+  white-space: nowrap;
+}
+
+.control-note,
+.control-touch {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.menu-settings-lang {
+  margin: 0;
 }
 
 #menu input[type='text'] {

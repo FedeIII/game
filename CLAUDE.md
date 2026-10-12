@@ -377,8 +377,11 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
 - **Sign-in**: "Sign in with Google" (Google's dark button, with the "G"), or in development a
   dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
   `?login=failed` or `cancelled` once.
-- **Main screen**: "New game", "Continue" (off without characters), and "Signed in with Google
-  · Sign out · Delete account · Privacy". "Delete account" asks first, then deletes the account,
+- **Main screen**: "New game", "Continue" (off without characters), "Prologue" (only once this
+  browser saw it), "Settings" (the controls to read, the language, and for an admin the CRT settings),
+  and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
+  sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). See
+  `docs/features/game/main-menu.md`. "Delete account" asks first, then deletes the account,
   its sessions and all its characters. "Privacy" opens `/privacy/` (`apps/game/privacy/
   index.html`, a second Vite page; its text must say what the server keeps, so change it with
   the data). The sign-in screen links it too. An account keeps at most `MAX_CHARACTERS` (12).

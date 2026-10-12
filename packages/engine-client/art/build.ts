@@ -15,6 +15,7 @@ import { FONT, SMALL_FONT, fontFrames } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 import { PROLOGUE_VIEW, prologueScenes } from './prologue.ts';
+import { menuBackground } from './menu-art.ts';
 
 /**
  * Each page of the atlas stays within MAX_ATLAS_SIZE on both sides: a GPU that samples with 16-bit
@@ -208,6 +209,13 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
   writeFileSync(join(outDir, 'prologue.png'), encodePng(sheet));
   writeFileSync(join(outDir, 'prologue.json'), JSON.stringify(prologue, null, 1) + '\n');
   console.log(`art: ${scenes.length} scenes of the prologue -> src/generated/prologue.png (${sheet.width}x${sheet.height})`);
+}
+
+// The picture behind the menu (art/menu-art.ts): a page of its own, which the menu loads at once.
+{
+  const picture = menuBackground();
+  writeFileSync(join(outDir, 'menu.png'), encodePng(picture));
+  console.log(`art: the picture of the menu -> src/generated/menu.png (${picture.width}x${picture.height})`);
 }
 
 const previewAt = process.argv.indexOf('--preview');

@@ -1,6 +1,8 @@
 import { MAX_CHARACTERS, NAME_MAX, type Character, type CharacterSheet } from '@game/engine';
 import { LANG } from '../i18n.ts';
 import { languageChoice } from '../ui/language-choice.ts';
+import { prologueSeen } from '../ui/prologue.ts';
+import { CrtControls, crtStateFrom, loadSavedCrt } from '../ui/settings-panel.ts';
 import { characterLook } from '../skins/look.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
@@ -12,6 +14,36 @@ import { takeMenuScreen, takeResume } from './resume.ts';
 
 const T = STRINGS.menu;
 
+/** The picture behind the menu (art/menu-art.ts, made by `npm run art`). */
+const BACKDROP_URL = Object.values(import.meta.glob('../generated/menu.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)[0];
+
+/**
+ * The picture behind the menu: Nivalia at sunset, in pixel art. It covers the page at a whole scale,
+ * so its pixels stay sharp (a narrow screen shows its middle), and it fades in once it is loaded.
+ * Returns the element and a function that stops it.
+ */
+function backdrop(): { element: HTMLElement; stop: () => void } {
+  const element = el('div', { class: 'menu-backdrop', 'aria-hidden': 'true' });
+  if (!BACKDROP_URL) return { element, stop: () => {} };
+  const picture = new Image();
+  picture.src = BACKDROP_URL;
+  const cover = () => {
+    if (!picture.naturalWidth) return;
+    const scale = Math.max(1, Math.ceil(Math.max(innerWidth / picture.naturalWidth, innerHeight / picture.naturalHeight)));
+    element.style.backgroundSize = `${picture.naturalWidth * scale}px ${picture.naturalHeight * scale}px`;
+  };
+  picture.decode().then(
+    () => {
+      element.style.backgroundImage = `url(${BACKDROP_URL})`;
+      cover();
+      element.classList.add('shown');
+    },
+    () => {},
+  );
+  window.addEventListener('resize', cover);
+  return { element, stop: () => window.removeEventListener('resize', cover) };
+}
+
 export interface MenuOptions {
   /** The big title: the world's name. */
   readonly title: string;
@@ -19,6 +51,11 @@ export interface MenuOptions {
   readonly site: string;
   /** The store that renders skins: the game goes on with it, so the chosen look is ready. */
   readonly skins: SkinStore;
+  /**
+   * Plays the world's prologue over the menu, for the character played last (or none). The main
+   * screen offers it once this browser saw the prologue (it plays first after "Create").
+   */
+  readonly prologue?: (latest: Character | null) => Promise<void>;
 }
 
 /** The chosen character, if the account is an admin, and if the character was just made (its prologue plays). */
@@ -66,6 +103,33 @@ function googleMark(): SVGSVGElement {
   return svg;
 }
 
+/** A key or a button of the controls, as a small plate. */
+function key(name: string): HTMLElement {
+  return el('kbd', { class: 'menu-key' }, name);
+}
+
+/** The controls of the game, to read: what each one does, its keys, and what a touch screen has instead. */
+function controlList(): HTMLElement {
+  const list = el('dl', { class: 'control-list' });
+  for (const control of T.controlList) {
+    const keys = el('dd', { class: 'control-keys' });
+    control.keys.forEach((choice, i) => {
+      if (i > 0) keys.append(` ${T.or} `);
+      const group = el('span', { class: 'control-choice' });
+      choice.forEach((name, k) => {
+        if (k > 0) group.append(' ');
+        group.append(key(name));
+      });
+      keys.append(group);
+    });
+    const row = el('div', { class: 'control' }, el('dt', {}, control.action), keys);
+    if (control.note) row.append(el('dd', { class: 'control-note' }, control.note));
+    row.append(el('dd', { class: 'control-touch' }, `${T.touch}: ${control.touch}`));
+    list.append(row);
+  }
+  return list;
+}
+
 /** The privacy page (apps/game/public/privacy/), in a new tab: the menu stays as it is. */
 function privacyLink(): HTMLAnchorElement {
   return el('a', { href: LANG === 'es' ? '/privacy/es/' : '/privacy/', target: '_blank', rel: 'noopener', class: 'menu-link' }, T.privacy);
@@ -88,7 +152,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       screen,
       status,
     );
-    root.append(panel);
+    const picture = backdrop();
+    root.append(picture.element, panel);
     document.body.append(root);
 
     let me: Me | null = null;
@@ -140,6 +205,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         // The look of the character first: the game wears it at once.
         options.skins.get(characterLook(played), undefined, true);
         root.classList.add('leaving');
+        picture.stop();
         setTimeout(() => root.remove(), 400);
         resolve({ character: played, admin: me?.user?.admin === true, fresh });
       } catch (error) {
@@ -184,6 +250,24 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       const resume = el('button', { type: 'button', class: 'menu-button' }, T.continue);
       resume.disabled = characters.length === 0;
       resume.addEventListener('click', pickCharacter);
+      const buttons = [newGame, resume];
+      // The prologue again, once this browser saw it (it plays first after "Create").
+      const prologue = options.prologue;
+      if (prologue && prologueSeen()) {
+        const again = el('button', { type: 'button', class: 'menu-button' }, T.prologue);
+        again.addEventListener('click', () => {
+          again.disabled = true;
+          // The character played last: the list comes from the server in that order.
+          void prologue(characters[0] ?? null).then(() => {
+            again.disabled = false;
+            again.focus();
+          });
+        });
+        buttons.push(again);
+      }
+      const settings = el('button', { type: 'button', class: 'menu-button' }, T.settings);
+      settings.addEventListener('click', settingsScreen);
+      buttons.push(settings);
       const out = el('button', { type: 'button', class: 'menu-link' }, T.signOut);
       out.addEventListener('click', () => {
         out.disabled = true;
@@ -219,12 +303,33 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           'section',
           { class: 'menu-screen menu-main' },
           el('h2', { class: 'sr-only', tabindex: '-1' }, options.title),
-          el('div', { class: 'menu-actions menu-stack' }, newGame, resume),
+          el('div', { class: 'menu-actions menu-stack' }, ...buttons),
           account,
           languageChoice('menu-account lang-choice', () => location.reload()),
         ),
       );
       newGame.focus();
+    };
+
+    /**
+     * The settings: the controls of the game (to read), the language, and for an admin the display
+     * settings (the CRT effect; the game reads them when it starts).
+     */
+    const settingsScreen = () => {
+      const back = el('button', { type: 'button', class: 'menu-button' }, T.back);
+      back.addEventListener('click', main);
+      const parts: HTMLElement[] = [
+        el('h2', { class: 'menu-title', tabindex: '-1' }, T.settings),
+        el('h3', { class: 'menu-subtitle' }, T.controls),
+        controlList(),
+        el('h3', { class: 'menu-subtitle' }, STRINGS.settings.language),
+        languageChoice('lang-choice menu-settings-lang', () => location.reload()),
+      ];
+      if (me?.user?.admin === true) {
+        const display = new CrtControls(crtStateFrom(new URLSearchParams(location.search), loadSavedCrt()), () => {});
+        parts.push(el('h3', { class: 'menu-subtitle' }, T.display), display.element);
+      }
+      show(el('section', { class: 'menu-screen menu-settings' }, ...parts, el('div', { class: 'menu-actions' }, back)));
     };
 
     const create = () => {
@@ -332,7 +437,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     // Escape goes back from the builder and from the list.
     root.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || !me?.user) return;
-      if (builder || screen.querySelector('.character-list')) main();
+      if (builder || screen.querySelector('.character-list, .menu-settings')) main();
     });
 
     void home();
