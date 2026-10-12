@@ -9,19 +9,19 @@ export interface CrtSettings {
 
 /**
  * The default settings of the CRT look: soft pixels, as on the screens that pixel art was made
- * for. Fede selected these values with the sliders on 2026-10-07 (?crt=0.6,1,1,0): full blur
- * and glow, no scanlines. The player can change them in the display settings
- * (settings-panel.ts).
+ * for. Fede selected these values on 2026-10-12 (?crt=0.25,1,1,0.1), the same as in the game:
+ * a small spread, full blur and glow, and light scanlines. Before, they were 0.6,1,1,0
+ * (2026-10-07). The player can change them in the display settings (settings-panel.ts).
  */
 export const CRT_DEFAULTS: Readonly<CrtSettings> = {
   /** How far each game pixel bleeds into its neighbours, in game pixels (horizontal). */
-  spread: 0.6,
+  spread: 0.25,
   /** How much of the blurred image is mixed in (0 = sharp, 1 = all blur). */
   mix: 1,
   /** Strength of the halo round bright points (light glints, pale flowers, bones). */
   glow: 1,
   /** How much darker the border between two rows of game pixels is (0 = no scanlines). */
-  scanline: 0,
+  scanline: 0.1,
 };
 
 /**

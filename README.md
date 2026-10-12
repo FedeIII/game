@@ -33,7 +33,7 @@ npm run server     # the multiplayer server, port 3009
 
 Debug panel: press F3, or open `/?debug`. Other switches: `/?at=11,10` (start on a tile), `/?nolight` (no darkness). Display settings: the button
 in the top-right corner (your look and name, CRT on/off and sliders; saved in the browser). The same from the URL:
-`/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults `0.6,1,1,0`).
+`/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults `0.25,1,1,0.1`).
 
 - `packages/engine`: the simulation (no browser). `packages/engine-client`: the browser
   runtime and the art. `worlds/town`: the town. `apps/game`: the page and the server of the

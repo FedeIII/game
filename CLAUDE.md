@@ -98,7 +98,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon; only in an app with more than one world, so not on azyr.io), `settings-panel.ts` (top right: CRT on/off and sliders, saved in localStorage
-  `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
+  `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `you-section.ts` (the "You" section of the settings: the player's look, "New look", the name), `panels.ts` (one top-right panel at a time),
   `presence.ts` (shared worlds only: how many other visitors are here; top centre on a wide
   screen, top left on a phone).
@@ -389,8 +389,9 @@ change needs a request; see "What this is"). Kandrax Rol speaks
 - **Do not mirror lit sprites.** The light in all art comes from the top left.
 - **Ground edges**: a tile draws the edges of each neighbour with a higher `BLEND_ORDER`
   (`render/terrain.ts`). A new ground type needs a blend order, variants and edge pieces.
-- **The CRT defaults are Fede's choice** (`0.6,1,1,0`; text `CRT_TEXT` = `0.3,0.5,0.5,0.3`, set
-  2026-10-07): do not change them without a request. The stage has two layers, `worldLayer`
+- **The CRT defaults are Fede's choice** (`0.25,1,1,0.1`, set 2026-10-12 as in the game; before,
+  `0.6,1,1,0`; text `CRT_TEXT` = `0.3,0.5,0.5,0.3`, set 2026-10-07): do not change them without a
+  request. The stage has two layers, `worldLayer`
   (full-screen filter) and `textLayer` (filter on the text's bounds plus 8 px of padding), and
   the camera moves `scene` and `textScene` together. The scanlines stay on the game-pixel grid:
   `CrtFilter.setGrid()` every frame; a filter that does not cover the whole screen starts lower
