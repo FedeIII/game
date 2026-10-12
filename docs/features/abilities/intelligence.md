@@ -132,8 +132,9 @@ find my way back.
 **Acceptance Criteria:**
 - **AC-INT-007.1:** The map button (top right, left of the pack button) and the M key open and
   close the map. Esc closes it. One panel at the top right is open at a time.
-- **AC-INT-007.2:** The map shows 256 × 256 tiles round the player, one pixel for each tile, and
-  only the seen chunks. The player is a red dot in the middle.
+- **AC-INT-007.2:** The map fills its panel. It shows 256 tiles on its short side and more on its
+  long side (the shape of the panel), round the player, one pixel for each tile, and only the
+  seen chunks. The player is a red dot in the middle.
 - **AC-INT-007.3:** A chunk is seen when the player is in it or in one of the eight chunks round it.
 - **AC-INT-007.4:** Everyone sees the ground (water, sand, grass, trees, rocks) and the home with
   its name.

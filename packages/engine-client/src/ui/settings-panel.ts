@@ -119,7 +119,8 @@ export class SettingsPanel {
     this.panel.setAttribute('aria-label', STRINGS.settings.button);
 
     // The display settings: in the panel only for an admin.
-    const display = document.createDocumentFragment();
+    const display = document.createElement('div');
+    display.className = 'settings-display';
     const title = document.createElement('label');
     title.className = 'settings-title';
     this.toggle = document.createElement('input');

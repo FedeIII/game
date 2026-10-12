@@ -38,11 +38,13 @@ const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
 
 /** The big icon of the chosen item, in the detail: 16 x 16 at 3x. */
 const DETAIL_SCALE = 3;
+/** The icon in a slot (and in a drag) has the pixels of the art; the page scales it (--pack-icon: 2x, or 3x on a big screen). */
+const SLOT_SCALE = 1;
 /**
- * The picture of the character among the worn slots: at 3x, the rows of the portrait from
- * PORTRAIT_TOP down, so that it fits two rows of slots (a staff over the head can be cut).
+ * The picture of the character among the worn slots: the rows of the portrait from PORTRAIT_TOP
+ * down, so that it fits two rows of slots (a staff over the head can be cut). The canvas has the
+ * pixels of the art; the page scales it (3x, or 4x on a big screen: --pack-portrait).
  */
-const PORTRAIT_SCALE = 3;
 const PORTRAIT_TOP = 13;
 const PORTRAIT_ROWS = 31;
 /** The pack button shines this long when something comes into the pack (ms). */
@@ -169,8 +171,8 @@ export class PackPanel {
     figure.setAttribute('aria-hidden', 'true');
     this.portrait = document.createElement('canvas');
     this.portrait.className = 'gear-portrait';
-    this.portrait.width = SKIN_PORTRAIT.width * PORTRAIT_SCALE;
-    this.portrait.height = PORTRAIT_ROWS * PORTRAIT_SCALE;
+    this.portrait.width = SKIN_PORTRAIT.width;
+    this.portrait.height = PORTRAIT_ROWS;
     figure.append(this.portrait);
     this.worn.append(figure);
     this.stats = document.createElement('div');
@@ -195,13 +197,23 @@ export class PackPanel {
     this.empty = document.createElement('p');
     this.empty.className = 'menu-hint';
     this.empty.textContent = text.empty;
-    this.panel.append(head, wornHeading, this.worn, this.stats, purse, this.grid, this.detail, this.empty);
+    // Two parts under the heading: what the character wears, and the pack. Side by side on a wide screen.
+    const wornPart = document.createElement('div');
+    wornPart.className = 'pack-worn';
+    wornPart.append(wornHeading, this.worn, this.stats);
+    const packPart = document.createElement('div');
+    packPart.className = 'pack-side';
+    packPart.append(purse, this.grid, this.detail, this.empty);
     if (note) {
       const line = document.createElement('p');
       line.className = 'menu-hint';
       line.textContent = note;
-      this.panel.append(line);
+      packPart.append(line);
     }
+    const body = document.createElement('div');
+    body.className = 'pack-body';
+    body.append(wornPart, packPart);
+    this.panel.append(head, body);
 
     this.button.addEventListener('click', () => this.open(this.panel.hidden !== false));
     window.addEventListener('keydown', (event) => {
@@ -332,7 +344,7 @@ export class PackPanel {
     button.setAttribute('aria-pressed', String(this.chosen?.index === index));
     const icon = document.createElement('canvas');
     icon.setAttribute('aria-hidden', 'true');
-    drawIcon(icon, this.art.frame(`item/${kind}`));
+    drawIcon(icon, this.art.frame(`item/${kind}`), SLOT_SCALE);
     const number = document.createElement('span');
     number.className = 'pack-stack';
     number.textContent = count > 1 ? String(count) : '';
@@ -558,7 +570,7 @@ export class PackPanel {
     ghost.className = 'pack-ghost';
     ghost.setAttribute('aria-hidden', 'true');
     const icon = document.createElement('canvas');
-    drawIcon(icon, this.art.frame(`item/${drag.kind}`));
+    drawIcon(icon, this.art.frame(`item/${drag.kind}`), SLOT_SCALE);
     ghost.append(icon);
     if (count > 1) {
       const number = document.createElement('span');

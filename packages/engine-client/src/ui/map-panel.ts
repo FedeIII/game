@@ -8,8 +8,13 @@ import { tw } from '../i18n.ts';
 const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
 <path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6"/><path d="M6 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2"/><path d="M9 9l2 2 4-4M9 15h6"/></svg>`;
 
-/** The map shows this many tiles across (one canvas pixel each), round the player. */
+/**
+ * The map shows this many tiles across its short side (one canvas pixel each), round the player.
+ * The long side shows more: the canvas has the shape of its frame, which fills the panel.
+ */
 const SPAN = 256;
+/** The long side shows at most this many tiles (a very wide or very tall frame). */
+const MAX_SIDE = 4 * SPAN;
 /** At most this many new chunks are drawn in one redraw; the rest come in the next ones. */
 const CHUNK_BUDGET = 12;
 /** While the panel is open, it draws again this often (ms). */
@@ -43,8 +48,12 @@ export class MapPanel {
   private readonly world: World;
   private readonly button: HTMLButtonElement;
   private readonly panel: HTMLElement;
+  private readonly frame: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly labels: HTMLElement;
+  /** The tiles that the map shows across and down: the size of the canvas. */
+  private cols = SPAN;
+  private rows = SPAN;
   private int: number;
   private readonly chunks = new Map<string, ImageData>();
   private drawnAt = -Infinity;
@@ -73,6 +82,7 @@ export class MapPanel {
     title.textContent = text.heading;
     const frame = document.createElement('div');
     frame.className = 'map-frame';
+    this.frame = frame;
     this.canvas = document.createElement('canvas');
     this.canvas.width = SPAN;
     this.canvas.height = SPAN;
@@ -119,15 +129,17 @@ export class MapPanel {
   update(now: number, x: number, y: number, explored: ReadonlySet<string>): void {
     if (this.panel.hidden || now - this.drawnAt < REDRAW_MS) return;
     this.drawnAt = now;
+    this.fit();
     const context = this.canvas.getContext('2d');
     if (!context) return;
-    const tx0 = Math.floor(x / TILE_SIZE) - SPAN / 2;
-    const ty0 = Math.floor(y / TILE_SIZE) - SPAN / 2;
+    const { cols, rows } = this;
+    const tx0 = Math.floor(x / TILE_SIZE) - Math.floor(cols / 2);
+    const ty0 = Math.floor(y / TILE_SIZE) - Math.floor(rows / 2);
     context.fillStyle = '#060506';
-    context.fillRect(0, 0, SPAN, SPAN);
+    context.fillRect(0, 0, cols, rows);
     let budget = CHUNK_BUDGET;
-    for (let cy = Math.floor(ty0 / CHUNK_SIZE); cy <= Math.floor((ty0 + SPAN) / CHUNK_SIZE); cy++) {
-      for (let cx = Math.floor(tx0 / CHUNK_SIZE); cx <= Math.floor((tx0 + SPAN) / CHUNK_SIZE); cx++) {
+    for (let cy = Math.floor(ty0 / CHUNK_SIZE); cy <= Math.floor((ty0 + rows) / CHUNK_SIZE); cy++) {
+      for (let cx = Math.floor(tx0 / CHUNK_SIZE); cx <= Math.floor((tx0 + cols) / CHUNK_SIZE); cx++) {
         const key = `${cx},${cy}`;
         if (!explored.has(key)) continue;
         let image = this.chunks.get(key);
@@ -150,7 +162,7 @@ export class MapPanel {
     for (const mark of this.world.source.landmarks?.() ?? []) {
       const mx = Math.floor(mark.x / TILE_SIZE) - tx0;
       const my = Math.floor(mark.y / TILE_SIZE) - ty0;
-      if (mx < 0 || my < 0 || mx >= SPAN || my >= SPAN || !seen(mark.x / TILE_SIZE, mark.y / TILE_SIZE)) continue;
+      if (mx < 0 || my < 0 || mx >= cols || my >= rows || !seen(mark.x / TILE_SIZE, mark.y / TILE_SIZE)) continue;
       if (mark.kind !== 'home' && this.int < MAP_NAMES) continue;
       context.fillStyle = mark.kind === 'refuge' ? '#d8ccb0' : '#c9a64a';
       context.fillRect(mx - 1, my - 1, 3, 3);
@@ -158,22 +170,37 @@ export class MapPanel {
         const label = document.createElement('span');
         label.className = 'map-label';
         label.textContent = tw(mark.name);
-        label.style.left = `${(100 * mx) / SPAN}%`;
-        label.style.top = `${(100 * my) / SPAN}%`;
+        label.style.left = `${(100 * mx) / cols}%`;
+        label.style.top = `${(100 * my) / rows}%`;
         this.labels.append(label);
       }
     }
     // The places of the quests: a gold diamond with a dark rim.
     for (const [tx, ty] of this.marks) {
-      const mx = Math.max(3, Math.min(SPAN - 4, tx - tx0));
-      const my = Math.max(3, Math.min(SPAN - 4, ty - ty0));
+      const mx = Math.max(3, Math.min(cols - 4, tx - tx0));
+      const my = Math.max(3, Math.min(rows - 4, ty - ty0));
       for (const [colour, r] of [['#07050a', 3], ['#e0c060', 2]] as const) {
         context.fillStyle = colour;
         for (let d = -r; d <= r; d++) context.fillRect(mx - (r - Math.abs(d)), my + d, 2 * (r - Math.abs(d)) + 1, 1);
       }
     }
     context.fillStyle = '#e04a3a';
-    context.fillRect(SPAN / 2 - 1, SPAN / 2 - 1, 3, 3);
+    context.fillRect(Math.floor(cols / 2) - 1, Math.floor(rows / 2) - 1, 3, 3);
+  }
+
+  /** Gives the canvas the shape of its frame: SPAN tiles on the short side. A new size clears it. */
+  private fit(): void {
+    const width = this.frame.clientWidth;
+    const height = this.frame.clientHeight;
+    if (width <= 0 || height <= 0) return;
+    const short = Math.min(width, height);
+    const cols = Math.min(MAX_SIDE, Math.round((SPAN * width) / short));
+    const rows = Math.min(MAX_SIDE, Math.round((SPAN * height) / short));
+    if (cols === this.cols && rows === this.rows) return;
+    this.cols = cols;
+    this.rows = rows;
+    this.canvas.width = cols;
+    this.canvas.height = rows;
   }
 
   /** One chunk as pixels: the ground, trees and rocks; with INT 11 also the paths and the walls. */
@@ -198,14 +225,14 @@ export class MapPanel {
 
   /** INT 15: a red cross on the door of a barred house, and a gold dot on a locked chest. */
   private drawSecrets(context: CanvasRenderingContext2D, tx0: number, ty0: number, seen: (tx: number, ty: number) => boolean): void {
-    for (const building of this.world.source.buildingsIn(tx0, ty0, tx0 + SPAN, ty0 + SPAN)) {
+    for (const building of this.world.source.buildingsIn(tx0, ty0, tx0 + this.cols, ty0 + this.rows)) {
       if (!building.barred || !seen(building.doorX, building.y1)) continue;
       const x = building.doorX - tx0;
       const y = building.y1 - ty0;
       context.fillStyle = '#d0302a';
       for (const [dx, dy] of [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]] as const) context.fillRect(x + dx, y + dy, 1, 1);
     }
-    for (const fixture of this.world.source.fixturesIn(tx0, ty0, tx0 + SPAN, ty0 + SPAN)) {
+    for (const fixture of this.world.source.fixturesIn(tx0, ty0, tx0 + this.cols, ty0 + this.rows)) {
       if (!fixture.lock || !seen(fixture.tx, fixture.ty)) continue;
       context.fillStyle = '#e0c060';
       context.fillRect(fixture.tx - tx0, fixture.ty - ty0, 1, 1);

@@ -107,8 +107,11 @@ export class JournalPanel {
     if (key === this.shown) return;
     this.shown = key;
     const text = STRINGS.journal;
+    // Each part in a box of its own: on a wide screen the parts stand side by side.
     const section = (heading: string, entries: readonly JournalEntry[], className: string): HTMLElement[] => {
       if (entries.length === 0) return [];
+      const part = document.createElement('div');
+      part.className = 'journal-section';
       const head = document.createElement('p');
       head.className = 'journal-heading';
       head.textContent = heading;
@@ -124,7 +127,8 @@ export class JournalPanel {
         item.append(name, line);
         return item;
       });
-      return [head, ...items];
+      part.append(head, ...items);
+      return [part];
     };
     const empty = document.createElement('p');
     empty.className = 'journal-empty';

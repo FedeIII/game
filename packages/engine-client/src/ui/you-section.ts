@@ -31,6 +31,7 @@ export class YouSection {
   readonly element: HTMLElement;
   private readonly preview: HTMLCanvasElement;
   private readonly traits: HTMLElement;
+  private readonly traitsHeading: HTMLElement;
 
   constructor(info: YouInfo, callbacks: YouCallbacks) {
     const text = STRINGS.you;
@@ -75,7 +76,10 @@ export class YouSection {
     row.append(this.preview, about);
     this.traits = document.createElement('div');
     this.traits.className = 'you-traits';
-    this.traits.append(traitsList(info.traits));
+    this.traitsHeading = document.createElement('p');
+    this.traitsHeading.className = 'settings-heading';
+    this.traitsHeading.textContent = STRINGS.traits.heading;
+    this.traits.append(this.traitsHeading, traitsList(info.traits));
 
     const actions = document.createElement('div');
     actions.className = 'you-actions';
@@ -102,7 +106,7 @@ export class YouSection {
 
   /** Shows new traits (the gear changed). */
   setTraits(traits: PlayerTraits): void {
-    this.traits.replaceChildren(traitsList(traits));
+    this.traits.replaceChildren(this.traitsHeading, traitsList(traits));
   }
 
   /** Puts a line under the heading of the section (the presence of other visitors, for an admin). */
