@@ -48,7 +48,8 @@ that the world feels real.
   character's hut in the Wilds.
 - **AC-PRO-002.2:** The last card has the character's name as its title and its race and class as its
   subtitle ("Human ranger"). Its lines: the character is a consultant for Thrain Steelforge; homesteads
-  burn in the Wilds and Thrain has a mission for it; his letter waits on the table of its hut.
+  burn in the Northern Wilds (las Tierras Salvajes del Norte) and Thrain has a mission for it; his
+  letter waits on the table of its hut.
 - **AC-PRO-002.3:** The texts tell only what a character of Kandrax knows (the secret of the gods is
   not told). They are in English and in Spanish (Fede's own Spanish); the title "World of Kandrax" is
   the same in both.
@@ -62,8 +63,10 @@ that the world feels real.
   Mithril"). The texts say that each one is one of the Central Dominions, a little of each (the
   Sovereignty: the south-west, on the Great Sea Ápeiron, its capital Iron Bay, a port and a republic of
   guilds, mining, metalwork and engineering; the Enclave: the north, under the mountains, its capital
-  Great Bwini, ruled from a great temple, arcane and divine magic), and that the two are neighbours with
-  the Wilds between them, lands that nobody has claimed yet.
+  Great Bwini, ruled from a great temple, arcane and divine magic), and that the two are neighbours.
+  Between them lie lands that no dominion claims: nobody rules there, and they are dangerous and
+  lawless. They are not the Wilds (Fede, 2026-10-12): the Wilds (las Tierras Salvajes) are north of the
+  Human Dominions and south of the Elven Dominions.
 - **AC-PRO-002.6:** The factory card starts in the dominion of the Iron Sovereignty, next to Iron Bay, so
   that the player knows where Thalesferro is.
 - **AC-PRO-002.7:** The map is Fede's map of the Central Dominions on the Drive (`Images/maps/
@@ -128,6 +131,9 @@ holds me back.
   cog). The factory follows Fede's pictures on the Drive (`Images/regions/central_dominions/
   fabrica_forjacero`): towers of brick and copper plates with steep roofs, round towers with a gallery
   and a cone, stacks with iron rings, a long hall with dormers, bridges on arches, a yard of cobbles.
+- **The look of the hut** (Fede, 2026-10-12: realistic, not naive): a log hut in a three-quarter view,
+  with a thick thatch with moss, a fieldstone chimney, a lit window with shutters, a door ajar with a
+  lantern, a woodpile, a fence and the signpost, in a clearing of a spruce forest under a full moon.
 - **The player** (`packages/engine-client/src/ui/prologue.ts`): `playPrologue()` (a promise),
   `prologuePlaying()`, `PROLOGUE_TIMING`, `PROLOGUE_BANNER`, `lineMs()`, `cardMs()`, `cardTexts()`,
   `layerOffset()`, `layerShows()`, `prologueLayout()` (under or beside the scene; a hidden box measures

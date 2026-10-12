@@ -58,7 +58,7 @@ export const PROLOGUE: readonly PrologueCard[] = [
     lines: [
       'The Mithril Enclave is also one of the Central Dominions: the northernmost, under the mountains. Its capital, Great Bwini, is ruled from a great temple.',
       'It knows arcane and divine magic, and it sells magic services and holy objects.',
-      'The two dominions are neighbours, but between them lie the Wilds: lands that nobody has claimed yet.',
+      'The two dominions are neighbours. Between them lie lands that no dominion claims: nobody rules there, and they are dangerous and lawless.',
     ],
   },
   {
@@ -75,7 +75,7 @@ export const PROLOGUE: readonly PrologueCard[] = [
     subtitle: '{kind}',
     lines: [
       'You are a consultant for Thrain Steelforge: you go where something strange happens, and you tell him what you find.',
-      'Now homesteads burn in the Wilds, and nobody knows who burns them. Thrain has a mission for you.',
+      'Now homesteads burn in the Northern Wilds, and nobody knows who burns them. Thrain has a mission for you.',
       'His letter waits on the table of your hut.',
     ],
   },

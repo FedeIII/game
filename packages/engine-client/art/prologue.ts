@@ -745,79 +745,500 @@ function factory(): PrologueScene {
 
 // ---------------------------------------------------------------- 9. Your hut in the Wilds
 
+/**
+ * A spruce of the north: tiers of branches that droop at their tips, ragged at the edge, lit from the
+ * left by the moon. `ramp` goes from the shadow to the lit needles; `rim` is the cold edge on the lit
+ * side (none for a far tree). The lowest tier ends `skirt` pixels above the foot, where the trunk shows.
+ */
+function spruce(c: Canvas, x: number, foot: number, height: number, ramp: readonly number[], rim: number | null, seed: number, skirt = 0, trunk: number | null = null): void {
+  const top = foot - height;
+  const bottom = foot - skirt;
+  const tiers = Math.max(3, Math.round(height / 7));
+  const widest = height * 0.27;
+  if (trunk !== null && skirt > 0) c.rect(Math.round(x) - 1, bottom - 4, Math.round(x) + 1, foot, trunk);
+  for (let y = Math.floor(top); y <= bottom; y++) {
+    const t = (y - top) / Math.max(1, bottom - top);
+    const tier = (t * tiers) % 1;
+    const jag = (noise1(y * 1.7, seed) - 0.5) * 2.4 * Math.min(1, t * 3);
+    const half = Math.max(0.5, widest * (0.1 + 0.9 * t) * (0.42 + 0.58 * tier ** 0.8) + jag);
+    const x0 = Math.round(x - half);
+    const x1 = Math.round(x + half);
+    for (let px = x0; px <= x1; px++) {
+      const u = (px - x) / Math.max(1, half);
+      const needles = noise1(px * 0.9 + y * 2.3, seed + 7) - 0.5;
+      // Lit on the left; the top of each tier lies in the shadow of the tier above it.
+      const shade = 0.6 - u * 0.32 - (1 - tier) * 0.28 + needles * 0.4 - t * 0.12;
+      c.set(px, y, Canvas.rampAt(ramp, shade, px, y));
+    }
+    // The tips of a tier droop: one pixel lower at both ends.
+    if (tier > 0.78 && t > 0.15) {
+      c.set(x0 - 1, y + 1, ramp[0]!);
+      c.set(x1 + 1, y + 1, ramp[0]!);
+    }
+    if (rim !== null && t > 0.05 && tier > 0.3) c.set(x0, y, rim);
+  }
+  c.set(Math.round(x), Math.floor(top) - 1, ramp[0]!);
+}
+
+/**
+ * The character's home at night (CLAUDE.md, "The worlds": the hut of the cell (0, 0)): a log hut with
+ * a steep thatch roof, a stone chimney, a lit window and a door ajar, alone in a clearing of the spruce
+ * forest. The view is three-quarters: the long front wall faces the viewer, and the gable end goes
+ * back to the left. The moon, high on the left, lights the gable, the thatch and the left edges of the
+ * trees with a cold light; the fire inside lights the window, the door and the ground with a warm one.
+ */
 function hut(): PrologueScene {
+  // ---- The sky: a deep night, stars, the moon on the left, and thin clouds that it lights.
   const sky = new Canvas(PROLOGUE_VIEW.w, H);
-  sky.vgrad(0, 0, sky.w - 1, H - 1, hexes('#04050a', '#070a14', '#0b1020', '#10172c', '#161f38'), (t) => t ** 1.2);
-  stars(sky, 181, 300, 120);
-  // A thin moon.
-  sky.glow(66, 34, 30, hex('#8090c0'), 0.25);
-  sky.disc(66, 34, 8, (x, y) => (Math.hypot(x + 0.5 - 70, y + 0.5 - 31) < 7.5 ? null : Canvas.rampAt(hexes('#c8c4b8', '#ece6d4'), (66 - x) / 8, x, y)));
+  sky.vgrad(0, 0, sky.w - 1, H - 1, hexes('#03050a', '#060912', '#0a0f1c', '#0e1526', '#131b30', '#18223a'), (t) => t ** 1.1);
+  stars(sky, 181, 340, 125);
+  moon(sky, 54, 30, 9, 187);
+  streakClouds(sky, 188, 44, 92, hex('#0c1222'), hex('#56627e'), 54, 30, 0.7);
 
+  // ---- Far: mountains of the north with snow, and a far line of spruces in the mist.
   const far = new Canvas(WIDE, H);
-  const farTop = heights(128, 18, 40, 182);
-  far.ridge(farTop, () => hex('#0c1222'));
-  for (let x = 0; x < far.w; x += 2) far.pine(x, Math.round(farTop(x)) + 2, 6 + noise1(x * 0.21, 183) * 14, hex('#0c1222'), hex('#18223a'), -1);
+  mountains(far, peaks(112, 56, 82, 189), hexes('#0b101c', '#0f1524', '#141b2c', '#1a2336', '#212b42'), hex('#46526e'), 82, -1);
+  const farTrees = hexes('#0c121e', '#101828', '#152034');
+  const farLine = heights(124, 6, 30, 190);
+  far.ridge(farLine, () => farTrees[0]!);
+  for (let x = -4; x < far.w + 4; x += 3) spruce(far, x + noise1(x * 0.5, 191) * 2, Math.round(farLine(x)) + 3, 8 + noise1(x * 0.23, 192) * 12, farTrees, hex('#1c2840'), 193 + x);
+  for (let y = 112; y < H; y++) for (let x = 0; x < far.w; x++) far.mix(x, y, hex('#3a4660'), 0.22 * Math.max(0, 1 - Math.abs(y - 128) / 14) * (0.6 + fbm2(x / 30, y / 6, 194, 3) * 0.8));
 
+  // ---- The forest round the clearing: tall dark spruces, with the moon on their left edges.
+  const forest = new Canvas(WIDE, H);
+  const wood = hexes('#070b12', '#0a1018', '#0e1620', '#131d2a', '#1a2636');
+  const edge = (x: number) => 136 + fbm1(x / 26, 195, 3) * 5;
+  forest.ridge((x) => edge(x) - 4, (x, y) => Canvas.rampAt(hexes('#0a0f15', '#080c11'), (y - edge(x)) / 30, x, y));
+  const stand = rng(196);
+  for (let x = -8; x < forest.w + 8; ) {
+    // Lower in the middle left, where the mountains show; taller behind the hut and at the right.
+    const lift = x > 70 && x < 160 ? -12 : x > 180 ? 8 : 0;
+    const h = Math.max(16, 26 + stand() * 30 + (stand() < 0.18 ? 26 : 0) + lift);
+    spruce(forest, x, Math.round(edge(x)) + 2, h, wood, hex('#23324a'), 197 + x);
+    x += 6 + Math.floor(stand() * 12);
+  }
+  // A second row in front, lower: the forest has depth.
+  for (let x = -4; x < forest.w + 8; ) {
+    const h = 22 + stand() * 26;
+    spruce(forest, x, Math.round(edge(x)) + 6, h, hexes('#05080d', '#080d14', '#0c131c', '#121b28'), hex('#1e2b40'), 198 + x);
+    x += 12 + Math.floor(stand() * 16);
+  }
+  // Mist at the foot of the trees.
+  for (let y = 118; y < 150; y++) for (let x = 0; x < forest.w; x++) forest.mix(x, y, hex('#4a5670'), 0.16 * Math.max(0, 1 - Math.abs(y - 136) / 12) * fbm2(x / 24, y / 5, 199, 3));
+
+  // ---- The clearing and the hut.
   const mid = new Canvas(WIDE, H);
-  // The clearing.
-  for (let y = 140; y < H; y++) for (let x = 0; x < mid.w; x++) mid.set(x, y, Canvas.rampAt(hexes('#0e1418', '#121a1e', '#162024'), (y - 140) / 40 + noise1(x * 0.4 + y, 184) * 0.2, x, y));
-  // The hut: walls of planks, a roof of straw, a stone chimney, a lit window and a door ajar.
-  const hx0 = 168;
-  const hx1 = 232;
-  const base = 156;
-  const plank = hexes('#1a120c', '#24180e', '#302012', '#3c2a18');
-  for (let y = 126; y <= base; y++) for (let x = hx0; x <= hx1; x++) mid.set(x, y, Canvas.rampAt(plank, (x % 5 === 0 ? 0.1 : 0.45) + (x < 200 ? 0.15 : -0.1), x, y));
-  mid.glow(200, 140, 70, hex('#ffb050'), 0.18);
-  const straw = hexes('#1e160c', '#2c2010', '#3c2c16', '#4e3a1c', '#644a24');
+  const lamp = hexes('#c06a2c', '#f0a048', '#ffd07a', '#fff0c0');
+  const ground = hexes('#0b1012', '#0f1517', '#131b1c', '#18221f', '#1e2a26');
+  const groundTop = (x: number) => 133 + fbm1(x / 20, 200, 3) * 4;
+  for (let x = 0; x < mid.w; x++) {
+    const t0 = Math.round(groundTop(x));
+    for (let y = t0; y < H; y++) {
+      const n = fbm2(x / 9, y / 4, 201, 3);
+      mid.set(x, y, Canvas.rampAt(ground, 0.25 + (y - t0) / 90 + (n - 0.5) * 0.5, x, y));
+    }
+    // Tufts of grass on the edge of the clearing, and the moon on them.
+    if (noise1(x * 1.3, 202) > 0.55) mid.set(x, t0 - 1, ground[1]!);
+    if (noise1(x * 2.1, 203) > 0.72) mid.set(x, t0 - 2, ground[0]!);
+  }
+  const tufts = rng(204);
+  for (let i = 0; i < 260; i++) {
+    const x = Math.floor(tufts() * mid.w);
+    const y = 138 + Math.floor(tufts() * 42);
+    mid.set(x, y, ground[3 + (tufts() < 0.3 ? 1 : 0)]!);
+    if (tufts() < 0.5) mid.set(x, y - 1, ground[2]!);
+  }
+
+  // The hut, in the coordinates of the layer. The front wall runs from fx0 to fx1; the gable end goes
+  // back to the left by (gdx, gdy); the ridge stands over the middle of the gable.
+  const fx0 = 188;
+  const fx1 = 258;
+  const base = 150;
+  const wallH = 26;
+  const top = base - wallH;
+  const gdx = -26;
+  const gdy = -10;
+  const gableH = 26;
+  const p1: readonly [number, number] = [fx0, top];
+  const p2: readonly [number, number] = [fx0 + gdx, top + gdy];
+  const g: readonly [number, number] = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 - gableH];
+  const log = hexes('#140d08', '#20150d', '#2c1d12', '#3a2818', '#4a3520', '#5c442c');
+  const coldLog = log.map((c) => lerpColour(c, hex('#5a6888'), 0.18));
+  const stone = hexes('#141418', '#1e1e24', '#2a2a32', '#383842', '#4a4a56', '#5e5e6c');
+
+  // The shadow of the hut on the ground, away from the moon (to the lower right).
   mid.poly(
     [
-      [hx0 - 8, 128],
-      [200, 98],
-      [hx1 + 8, 128],
+      [fx0, base + 1],
+      [fx1 + 2, base + 1],
+      [fx1 + 30, base + 9],
+      [fx0 + 24, base + 9],
     ],
-    (x, y) => Canvas.rampAt(straw, 0.25 + ((x + y * 2) % 5) * 0.06 + (x < 200 ? 0.25 : 0) + noise1(x * 1.3 + y * 0.2, 185) * 0.25, x, y),
+    (x, y) => lerpColour(mid.get(x, y), hex('#05080a'), 0.45),
   );
-  for (let x = hx0 - 8; x <= hx1 + 8; x++) mid.set(x, 128, straw[0]!);
-  mid.rect(218, 96, 225, 112, hexes('#2a2826')[0]!);
-  for (let y = 96; y < 112; y += 3) for (let x = 218; x <= 225; x++) if ((x + y) % 4 === 0) mid.set(x, y, hex('#3a3836'));
-  // The window, warm.
-  mid.rect(178, 134, 190, 144, hex('#120c08'));
-  mid.rect(179, 135, 189, 143, hex('#ffc060'));
-  mid.rect(184, 135, 184, 143, hex('#7a4a20'));
-  mid.rect(179, 139, 189, 139, hex('#7a4a20'));
-  mid.glow(184, 139, 18, hex('#ffb050'), 0.5);
-  // The door, ajar: a line of light, and light on the ground before it.
-  mid.rect(204, 134, 216, base, hex('#140e08'));
-  mid.rect(205, 135, 206, base, hex('#ffcf70'));
-  for (let y = base + 1; y < H; y++) for (let x = 196; x < 228; x++) mid.mix(x + (y - base) * 0.3, y, hex('#ffc060'), 0.3 * (1 - (y - base) / 24) * (1 - Math.abs(x - 210) / 16));
-  // A woodpile, and a path from the door.
-  for (let k = 0; k < 9; k++) mid.disc(240 + (k % 3) * 4, base - 1 - Math.floor(k / 3) * 3, 1.8, (x, y, d) => (d < 0.5 ? hex('#5a4024') : hex('#2a1c10')));
 
+  // The gable wall: logs that go back to the left, lit by the moon.
+  const gableTop = (x: number) => top + (x - fx0) * (gdy / gdx);
+  for (let x = p2[0]; x <= fx0; x++) {
+    const yt = Math.round(gableTop(x));
+    for (let y = yt; y <= base + Math.round((x - fx0) * (gdy / gdx)); y++) {
+      const r = y - yt;
+      const row = r % 4;
+      const course = Math.floor(r / 4);
+      const tone = row === 3 ? 0.05 : row === 0 ? 0.78 : 0.55 - row * 0.08;
+      const grain = noise1(x * 0.7 + course * 13.1, 205) * 0.18;
+      mid.set(x, y, Canvas.rampAt(coldLog, tone + grain - (fx0 - x) / 140, x, y));
+    }
+  }
+  // The front wall: logs along the front, in the shadow of the eave at the top.
+  for (let y = top; y <= base; y++) {
+    const r = y - top;
+    const row = r % 4;
+    const course = Math.floor(r / 4);
+    for (let x = fx0 + 1; x <= fx1; x++) {
+      const tone = row === 3 ? 0.04 : row === 0 ? 0.6 : 0.45 - row * 0.07;
+      const grain = (noise1(x * 0.6 + course * 17.3, 206) - 0.5) * 0.22 + (noise1(course * 5.1, 207) - 0.5) * 0.15;
+      const eave = y < top + 5 ? 0.25 : 0;
+      mid.set(x, y, Canvas.rampAt(log, tone + grain - eave - (x - fx0) / 260, x, y));
+    }
+  }
+  // The corner where the walls meet, and the round ends of the logs at the corners.
+  for (let y = top; y <= base; y++) mid.set(fx0, y, log[1]!);
+  for (let k = 0; k * 4 + 2 <= wallH; k++) {
+    const yk = top + k * 4 + 1.5;
+    for (const [cx, cy, cold] of [
+      [fx0 - 0.5, yk, true],
+      [fx1 + 1.5, yk, false],
+      [p2[0] - 0.5, yk + gdy, true],
+    ] as const) {
+      mid.disc(cx, cy, 1.9, (x, y, d) => {
+        const ring = d > 0.7 ? 0 : d > 0.35 ? 0.65 : 0.4;
+        const lit = (x < cx ? 0.2 : -0.1) + (y < cy ? 0.15 : -0.1);
+        return Canvas.rampAt(cold ? coldLog : log, ring + lit + 0.15, x, y);
+      });
+    }
+  }
+  // The footing: fieldstones under both walls.
+  const footing = (x: number, y: number) => {
+    const sx = Math.floor((x + (Math.floor(y / 3) % 2) * 2) / 5);
+    const sy = Math.floor(y / 3);
+    const joint = (x + (Math.floor(y / 3) % 2) * 2) % 5 === 0 || y % 3 === 0;
+    const tone = 0.3 + noise1(sx * 7.3 + sy * 3.1, 208) * 0.4 - (joint ? 0.3 : 0) + ((x + y) % 5 === 1 ? 0.1 : 0);
+    mid.set(x, y, Canvas.rampAt(stone, tone, x, y));
+  };
+  for (let x = fx0 - 1; x <= fx1 + 2; x++) for (let y = base - 1; y <= base + 2; y++) footing(x, y);
+  for (let x = p2[0] - 1; x < fx0 - 1; x++) {
+    const yb = Math.round(base + (x - fx0) * (gdy / gdx));
+    for (let y = yb - 1; y <= yb + 2; y++) footing(x, y);
+  }
+
+  // The window: a frame, four panes with the fire behind them, a sill, and shutters open on both sides.
+  const wx0 = 200;
+  const wy0 = 135;
+  mid.glow(wx0 + 6, wy0 + 5, 20, lamp[1]!, 0.22);
+  mid.rect(wx0 - 1, wy0 - 1, wx0 + 12, wy0 + 10, log[0]!);
+  for (let y = wy0; y <= wy0 + 9; y++) {
+    for (let x = wx0; x <= wx0 + 11; x++) {
+      const heat = 1 - Math.hypot((x - wx0 - 6) / 7, (y - wy0 - 7) / 6) * 0.6;
+      mid.set(x, y, Canvas.rampAt(lamp, 0.3 + heat * 0.7 + (noise1(x * 3.1 + y * 7.7, 209) - 0.5) * 0.25, x, y));
+    }
+  }
+  mid.rect(wx0 + 5, wy0, wx0 + 6, wy0 + 9, log[1]!);
+  mid.rect(wx0, wy0 + 4, wx0 + 11, wy0 + 4, log[1]!);
+  mid.rect(wx0 - 2, wy0 + 11, wx0 + 13, wy0 + 11, log[4]!);
+  mid.rect(wx0 - 2, wy0 + 12, wx0 + 13, wy0 + 12, log[1]!);
+  for (const [sx0, lit] of [
+    [wx0 - 6, 0.5],
+    [wx0 + 13, 0.35],
+  ] as const) {
+    for (let y = wy0 - 1; y <= wy0 + 10; y++) {
+      for (let x = sx0; x < sx0 + 5; x++) mid.set(x, y, Canvas.rampAt(log, lit + ((x - sx0) % 2 === 0 ? 0.1 : -0.05) - (y === wy0 + 4 ? 0.25 : 0), x, y));
+    }
+    mid.line(sx0, wy0 + 9, sx0 + 4, wy0, log[1]!);
+  }
+  // The light of the window on the ground in front of the hut: a soft pool.
+  const pool = (cx: number, cy: number, rx: number, ry: number, colour: number, strength: number) => {
+    for (let y = Math.floor(cy - ry); y <= cy + ry; y++) {
+      for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+        const dd = Math.hypot((x - cx) / rx, (y - cy) / ry);
+        if (dd < 1) mid.mix(x, y, colour, strength * (1 - dd) ** 1.5);
+      }
+    }
+  };
+  pool(wx0 + 5, base + 6, 15, 5, lamp[1]!, 0.24);
+
+  // The door: a heavy door of planks with iron straps, ajar, the fire's light in the gap, a lintel.
+  const dx0 = 226;
+  const dx1 = 237;
+  const dy0 = 133;
+  mid.rect(dx0 - 1, dy0 - 2, dx1 + 1, dy0 - 1, log[4]!);
+  mid.rect(dx0 - 1, dy0 - 1, dx1 + 1, dy0 - 1, log[2]!);
+  mid.rect(dx0 - 1, dy0, dx0 - 1, base, log[0]!);
+  mid.rect(dx1 + 1, dy0, dx1 + 1, base, log[0]!);
+  for (let y = dy0; y <= base; y++) {
+    for (let x = dx0; x <= dx0 + 3; x++) mid.set(x, y, Canvas.rampAt(lamp, 0.95 - (x - dx0) * 0.12 - (y - dy0) / 60, x, y));
+    for (let x = dx0 + 4; x <= dx1; x++) {
+      const plank = (x - dx0 - 4) % 3 === 0;
+      mid.set(x, y, Canvas.rampAt(log, (plank ? 0.12 : 0.32) + (noise1(x * 5.3 + y * 0.4, 210) - 0.5) * 0.15 - (x - dx0) / 40, x, y));
+    }
+  }
+  for (const sy of [dy0 + 4, base - 4]) {
+    mid.rect(dx0 + 4, sy, dx1, sy, hex('#2a2a30'));
+    for (let x = dx0 + 5; x <= dx1; x += 3) mid.set(x, sy, hex('#4a4a54'));
+  }
+  mid.set(dx0 + 5, dy0 + 10, hex('#4a4a54'));
+  mid.set(dx0 + 5, dy0 + 11, hex('#2a2a30'));
+  // A lantern on a hook by the door.
+  mid.line(dx1 + 3, dy0 - 1, dx1 + 5, dy0 - 1, hex('#2a2a30'));
+  mid.rect(dx1 + 4, dy0, dx1 + 6, dy0 + 3, hex('#1e1c1e'));
+  mid.rect(dx1 + 5, dy0 + 1, dx1 + 5, dy0 + 2, lamp[3]!);
+  mid.glow(dx1 + 5, dy0 + 2, 12, lamp[1]!, 0.35);
+
+  // The thatch: first the end of the roof over the gable (straw ends), then the gable boards under it.
+  const strawEnd = hexes('#120d08', '#1c150c', '#281e12', '#34281a');
+  const straw = hexes('#1a140b', '#261d10', '#342816', '#44361e', '#564528', '#6a5634', '#7e6a44');
+  const moss = hexes('#141c10', '#1c2716', '#26331c');
+  const a: readonly [number, number] = [fx0 - 3, top + 4];
+  const e: readonly [number, number] = [p2[0] - 4, p2[1] + 4];
+  const d: readonly [number, number] = [g[0] - 2, g[1] - 2];
+  mid.poly([d, a, e], (x, y) => Canvas.rampAt(strawEnd, 0.5 + (noise1(x * 2.7 + y * 1.9, 211) - 0.5) * 0.8 - (y - d[1]) / 80, x, y));
+  mid.poly(
+    [
+      [p1[0] - 1, p1[1] + 2],
+      [p2[0] + 2, p2[1] + 2],
+      [g[0], g[1] + 9],
+    ],
+    (x, y) => Canvas.rampAt(coldLog, ((x - p2[0]) % 3 === 0 ? 0.15 : 0.5) + (noise1(x * 3.1 + y * 0.3, 212) - 0.5) * 0.2 - (g[1] + 22 - y) / 60, x, y),
+  );
+  // A small vent in the gable.
+  mid.rect(Math.round(g[0]) - 1, Math.round(g[1]) + 12, Math.round(g[0]) + 1, Math.round(g[1]) + 14, log[0]!);
+  // The cold light of the moon on the edge of the verge.
+  mid.line(d[0], d[1], e[0], e[1], hex('#4c5670'));
+
+  // The front slope: courses of straw from the eave up to the ridge, lit from the upper left,
+  // with patches of moss, a ragged eave and a ridge of bound straw.
+  const b: readonly [number, number] = [fx1 + 6, top + 4];
+  const c: readonly [number, number] = [b[0] + (d[0] - a[0]), d[1]];
+  const slopeX = (d[0] - a[0]) / (d[1] - a[1]);
+  mid.poly([a, b, c, d], (x, y) => {
+    const v = (y - d[1]) / (a[1] - d[1]);
+    const along = x - (y - a[1]) * slopeX;
+    // Stalks run down the slope; the layers of the thatch make soft bands across it.
+    const stalks = noise1(along * 1.6 + Math.floor(v * 14) * 0.35, 213) * 0.65 + noise1(along * 0.45, 226) * 0.35;
+    const band = Math.sin(v * Math.PI * 4.5) * 0.06;
+    let tone = 0.36 + (stalks - 0.5) * 0.7 + band + (1 - v) * 0.16 - (along - a[0]) / 380 - Math.max(0, v - 0.82) * 1.2;
+    // The moon lights the upper left of the slope.
+    tone += Math.max(0, 1 - Math.hypot((along - a[0]) / 40, v / 0.7)) * 0.18;
+    const mossy = fbm2(x / 6, y / 3.5, 214, 3);
+    if (mossy > 0.66 && v > 0.3) return Canvas.rampAt(moss, (mossy - 0.66) * 7 + (stalks - 0.5) * 0.5, x, y);
+    return Canvas.rampAt(straw, tone, x, y);
+  });
+  // The eave: thick, dark, with straw ends that hang down, and the shadow under it.
+  for (let x = Math.round(a[0]) - 1; x <= Math.round(b[0]) + 1; x++) {
+    const corner = Math.min(x - (a[0] - 1), b[0] + 1 - x);
+    const thick = 3 + Math.floor(noise1(x * 1.9, 215) * 2.6) - (corner < 2 ? 2 - corner : 0);
+    for (let k = -1; k <= thick; k++) {
+      const end = noise1(x * 2.3 + k * 5.1, 227);
+      mid.set(x, a[1] + k, Canvas.rampAt(strawEnd, k < 0 ? 0.75 : 0.55 - k * 0.12 + (end - 0.5) * 0.6, x, a[1] + k));
+    }
+  }
+  // The shadow of the eave on the wall below it.
+  for (let x = fx0 + 1; x <= fx1; x++) for (let y = a[1] + 3; y <= a[1] + 6; y++) mid.set(x, y, lerpColour(mid.get(x, y), hex('#05060a'), 0.5 - (y - a[1] - 3) * 0.12));
+  // The right edge of the slope: the end of the thatch, in the shadow.
+  for (let y = Math.round(c[1]); y <= b[1]; y++) {
+    const xr = Math.round(c[0] + ((b[0] - c[0]) * (y - c[1])) / (b[1] - c[1]));
+    mid.set(xr, y, strawEnd[1]!);
+    mid.set(xr + 1, y, strawEnd[0]!);
+  }
+  // The left edge of the slope catches the moon.
+  mid.line(a[0], a[1] - 1, d[0], d[1], hex('#6a6c74'));
+  mid.line(a[0] + 1, a[1] - 1, d[0] + 1, d[1] + 1, straw[5]!);
+  // The ridge: bound straw, lit on top, with pegs across it.
+  for (let x = Math.round(d[0]); x <= Math.round(c[0]) + 1; x++) {
+    const i = x - Math.round(d[0]);
+    const scallop = Math.abs(((i % 6) - 2.5) / 2.5) < 0.5 ? 1 : 0;
+    for (let y = d[1] - 2; y <= d[1] + 3 + scallop; y++) {
+      const spar = (y - d[1] > 0 && y - d[1] < 3 && ((i + y) % 6 === 0 || (i - y + 60) % 6 === 0));
+      const tone = y === d[1] - 2 ? 0.85 : y === d[1] + 3 + scallop ? 0.05 : 0.6 - (y - d[1]) * 0.08 - i / 260;
+      mid.set(x, y, spar ? strawEnd[1]! : Canvas.rampAt(straw, tone + (noise1(i * 1.7 + y, 228) - 0.5) * 0.25, x, y));
+    }
+  }
+  mid.line(d[0], d[1] - 2, d[0] + 26, d[1] - 2, hex('#7a7c84'));
+
+  // The chimney of fieldstones, through the slope near the right end, with a slab on top.
+  const cx0 = 238;
+  const cx1 = 245;
+  const cTop = 82;
+  const cFoot = 110;
+  for (let y = cTop; y <= cFoot; y++) {
+    for (let x = cx0; x <= cx1 + 2; x++) {
+      const side = x > cx1;
+      const sx = Math.floor((x + (Math.floor(y / 3) % 2) * 2) / 4);
+      const joint = (x + (Math.floor(y / 3) % 2) * 2) % 4 === 0 || y % 3 === 0;
+      const tone = (side ? 0.12 : 0.55 - (x - cx0) * 0.04) + noise1(sx * 5.7 + Math.floor(y / 3) * 2.3, 216) * 0.25 - (joint ? 0.22 : 0);
+      mid.set(x, y, Canvas.rampAt(stone, tone, x, y));
+    }
+  }
+  mid.rect(cx0 - 1, cTop - 1, cx1 + 3, cTop, stone[4]!);
+  mid.rect(cx0 - 1, cTop - 1, cx0 + 2, cTop - 1, stone[5]!);
+  mid.rect(cx0 + 1, cTop - 2, cx1, cTop - 2, stone[0]!);
+  // The straw round the foot of the chimney.
+  for (let x = cx0 - 1; x <= cx1 + 3; x++) mid.set(x, cFoot + 1, straw[0]!);
+
+  // A lean-to on the right, with split logs stacked under it.
+  const lx0 = fx1 + 4;
+  const lx1 = 292;
+  for (let x = lx0; x <= lx1 + 2; x++) {
+    const y = Math.round(131 + ((x - lx0) / (lx1 - lx0)) * 8);
+    mid.set(x, y, log[4]!);
+    mid.set(x, y + 1, log[2]!);
+    mid.set(x, y + 2, log[0]!);
+  }
+  mid.rect(lx1, 140, lx1 + 1, base + 1, log[2]!);
+  mid.rect(lx1, 140, lx1, base + 1, log[3]!);
+  const pile = rng(217);
+  for (let row = 0; row < 5; row++) {
+    for (let x = lx0 + 3 + (row % 2) * 2; x <= lx1 - 3; x += 4) {
+      const cy = base - 1 - row * 3.4;
+      const lit = pile() * 0.3;
+      mid.disc(x, cy, 1.8, (px, py, dd) => Canvas.rampAt(hexes('#1a120a', '#3a2a1a', '#5e4a32', '#7a6446'), dd > 0.75 ? 0.1 : 0.5 + lit + (px < x ? 0.15 : -0.1) - (py > cy ? 0.15 : 0), px, py));
+    }
+  }
+
+  // A water barrel by the front corner: staves, two iron hoops, dark water with the moon in it.
+  const bx = 181;
+  for (let y = 140; y <= base + 2; y++) {
+    const bulge = 4 + Math.sin(((y - 140) / 12) * Math.PI) * 0.8;
+    for (let x = Math.round(bx - bulge); x <= Math.round(bx + bulge); x++) {
+      const u = (x - bx) / bulge;
+      const hoop = y === 142 || y === base - 1;
+      mid.set(x, y, hoop ? Canvas.rampAt(stone, 0.35 - u * 0.25, x, y) : Canvas.rampAt(log, 0.55 - u * 0.4 - ((x - bx + 9) % 3 === 0 ? 0.15 : 0), x, y));
+    }
+  }
+  for (let x = bx - 3; x <= bx + 3; x++) mid.set(x, 139, hex('#0a0e16'));
+  mid.set(bx - 1, 139, hex('#5a6684'));
+  for (let x = bx - 4; x <= bx + 4; x++) mid.set(x, 138, log[3]!);
+
+  // The chopping block in the yard, with an axe in it.
+  const kx = 280;
+  const ky = 160;
+  for (let y = ky; y <= ky + 5; y++) for (let x = kx - 4; x <= kx + 4; x++) mid.set(x, y, Canvas.rampAt(log, 0.35 - (x - kx) / 10 + ((x + y) % 3 === 0 ? -0.1 : 0), x, y));
+  mid.disc(kx, ky, 4.2, (x, y, dd) => (y > ky ? null : Canvas.rampAt(hexes('#3a2a1a', '#5e4a32', '#7a6446', '#8e7a5a'), dd > 0.8 ? 0.2 : 0.75 - dd * 0.4 + (x < kx ? 0.1 : 0), x, y)));
+  mid.line(kx + 1, ky - 1, kx + 6, ky - 8, log[4]!);
+  mid.line(kx + 2, ky - 1, kx + 7, ky - 8, log[2]!);
+  mid.rect(kx - 1, ky - 2, kx + 2, ky - 1, hex('#4a4a54'));
+  mid.set(kx - 1, ky - 2, hex('#8a8c98'));
+
+  // The path from the door, worn into the grass, with stones at its edges.
+  const earth = hexes('#12110e', '#181612', '#1f1c16', '#27231b');
+  const stones = rng(218);
+  for (let y = base + 1; y < H; y++) {
+    const k = (y - base) / (H - base);
+    const mx = dx0 + 2 - 28 * k ** 1.5 + Math.sin(k * Math.PI) * 6;
+    const half = 3 + k * 6 + (noise1(y * 0.6, 229) - 0.5) * 2;
+    for (let x = Math.round(mx - half); x <= Math.round(mx + half); x++) {
+      const edgeK = Math.abs(x - mx) / half;
+      if (edgeK > 0.85 && noise1(x * 1.7 + y * 3.1, 219) > 0.5) continue;
+      mid.set(x, y, Canvas.rampAt(earth, 0.45 + (noise1(x * 0.8 + y * 2.2, 220) - 0.5) * 0.5 - edgeK * 0.2, x, y));
+    }
+    if (stones() < 0.35) {
+      const sx = mx + (stones() < 0.5 ? -1 : 1) * (half + 1);
+      mid.set(sx, y, stone[3]!);
+      mid.set(sx - 1, y, stone[4]!);
+    }
+  }
+  // The light of the door on the threshold and the path: a pool, and a faint shaft from the gap.
+  pool(dx0 + 1, base + 5, 16, 7, lamp[1]!, 0.34);
+
+  // Rocks with the moon on their tops, and low bushes, about the clearing.
+  for (const [rx, ry, rr] of [
+    [150, 160, 3.2],
+    [156, 162, 2],
+    [302, 156, 2.6],
+    [252, 170, 2.4],
+    [96, 166, 3.6],
+  ] as const) {
+    mid.disc(rx, ry, rr, (x, y, dd) => (y > ry + 1 ? null : Canvas.rampAt(stone, 0.6 - dd * 0.45 - (x - rx) / (rr * 3) - (y - ry + rr) / (rr * 4), x, y)));
+  }
+  for (const [bx0, by0, bw] of [
+    [132, 152, 9],
+    [312, 150, 11],
+    [168, 168, 7],
+  ] as const) {
+    for (let k = 0; k < bw * 3; k++) {
+      const x = bx0 + noise1(k * 1.7, 230 + bx0) * bw;
+      const y = by0 - noise1(k * 2.3, 231 + bx0) * 4 * Math.sin(((x - bx0) / bw) * Math.PI);
+      mid.set(x, y, Canvas.rampAt(hexes('#0a100e', '#111a16', '#1a2620', '#24332a'), 0.3 + (bx0 + bw / 2 - x) / (bw * 2) + (by0 - y) / 8, x, y));
+    }
+  }
+
+  // The signpost by the path, on its west side, pointing west.
+  const spx = 202;
+  const spFoot = 175;
+  mid.rect(spx, spFoot - 22, spx + 1, spFoot, log[2]!);
+  mid.rect(spx, spFoot - 22, spx, spFoot, coldLog[4]!);
+  mid.poly(
+    [
+      [spx - 15, spFoot - 17.5],
+      [spx - 11, spFoot - 21],
+      [spx + 4, spFoot - 21],
+      [spx + 4, spFoot - 14],
+      [spx - 11, spFoot - 14],
+    ],
+    (x, y) => Canvas.rampAt(log, 0.75 - (y - spFoot + 21) * 0.07 + (x < spx - 10 ? 0.08 : 0), x, y),
+  );
+  mid.line(spx - 15, spFoot - 18, spx - 11, spFoot - 22, hex('#6a7290'));
+  mid.line(spx - 11, spFoot - 22, spx + 4, spFoot - 22, hex('#4e5670'));
+  for (let x = spx - 9; x <= spx + 1; x += 2) mid.rect(x, spFoot - 18, x, spFoot - 17, log[0]!);
+  mid.rect(spx - 15, spFoot - 13, spx + 4, spFoot - 13, log[0]!);
+
+  // A fence of stakes and rails on the left, going off into the dark.
+  for (let k = 0; k < 5; k++) {
+    const px = 108 + k * 13;
+    const py = 146 + k;
+    mid.rect(px, py - 9, px + 1, py, log[2]!);
+    mid.set(px, py - 9, coldLog[4]!);
+    mid.rect(px, py - 8, px, py, coldLog[3]!);
+    if (k < 4) {
+      for (const ry of [py - 7, py - 3]) mid.line(px + 2, ry + 1, px + 12, ry + 2, log[3]!);
+    }
+  }
+
+  // ---- The near trees, very dark, at the edges, and the grass before them.
   const near = new Canvas(WIDE, H);
-  for (const [x, h] of [
-    [-6, 150],
-    [16, 120],
-    [42, 90],
-    [300, 100],
-    [330, 140],
-    [362, 160],
-    [384, 120],
-  ] as const) near.pine(x, H + 4, h * 0.9, hex('#04060b'), hex('#141c30'), -1);
-  const grass = rng(186);
-  for (let x = 0; x < near.w; x++) if (grass() < 0.3) near.line(x, H - 1, x + (grass() < 0.5 ? -1 : 1), H - 3 - Math.floor(grass() * 5), hex('#04060b'));
+  const dark = hexes('#030508', '#05080c', '#080c12', '#0c121a', '#111a24');
+  for (const [x, h, seed] of [
+    [-8, 196, 221],
+    [24, 150, 222],
+    [372, 170, 223],
+    [400, 196, 224],
+  ] as const) spruce(near, x, H + 6, h, dark, hex('#1a2436'), seed, 8, hex('#06080a'));
+  const grass = rng(225);
+  for (let x = 0; x < near.w; x++) {
+    if (grass() < 0.55) near.line(x, H - 1, x + (grass() < 0.5 ? -1 : 1), H - 2 - Math.floor(grass() * 6), dark[grass() < 0.7 ? 0 : 2]!);
+    if (grass() < 0.05) near.set(x, H - 4 - Math.floor(grass() * 4), hex('#1e2a30'));
+  }
+  // Ferns on the lower left, and a mossy rock on the right.
+  for (let i = 0; i < 6; i++) {
+    const fx = 70 + i * 9 + Math.floor(grass() * 4);
+    for (let k = 0; k < 6; k++) near.line(fx, H - 1, fx - 6 + k * 2, H - 7 - (k % 3), dark[1]!);
+  }
+  near.disc(318, H - 2, 7, (x, y, dd) => Canvas.rampAt(hexes('#06080c', '#0e131a', '#171e28', '#222c3a'), 0.75 - dd * 0.6 - (x - 312) / 14 + (y < H - 6 ? 0.1 : 0), x, y));
 
   return {
     id: 'hut',
     layers: [
       { image: sky.image, depth: 0 },
-      { image: far.image, depth: 0.25 },
+      { image: far.image, depth: 0.15 },
+      { image: forest.image, depth: 0.35 },
       { image: mid.image, depth: 0.55 },
       { image: near.image, depth: 1 },
     ],
     emitters: [
       { kind: 'twinkle', layer: 0, x: 0, y: 0, w: 320, h: 110, rate: 30, colour: '#e8ecff' },
-      { kind: 'smoke', layer: 2, x: 219, y: 90, w: 6, h: 4, rate: 1.5, colour: '#2a3040' },
-      { kind: 'fireflies', layer: 3, x: 40, y: 120, w: 300, h: 56, rate: 10, colour: '#d8f0a0' },
+      { kind: 'smoke', layer: 3, x: cx0 + 1, y: cTop - 6, w: 6, h: 4, rate: 1.6, colour: '#2e3444' },
+      { kind: 'mist', layer: 3, x: 0, y: 136, w: WIDE, h: 14, rate: 0.5, colour: '#8a96b0' },
+      { kind: 'fireflies', layer: 4, x: 40, y: 124, w: 300, h: 52, rate: 10, colour: '#d8f0a0' },
     ],
   };
 }

@@ -65,6 +65,7 @@ The English forms translate them. **Fede confirmed the English names below (2026
 |---|---|---|
 | Kandrax | Kandrax | |
 | las Tierras Salvajes | the Wilds | the name of the world stays |
+| las Tierras Salvajes del Norte | the Northern Wilds | the prologue (Fede, 2026-10-12): the Wilds are north of the Human Dominions and south of the Elven Dominions; the land between the Sovereignty and the Enclave is unclaimed, lawless land, not the Wilds |
 | la Soberanía del Hierro | the Iron Sovereignty | |
 | el Enclave del Mithril | the Mithril Enclave | |
 | los Dominios Centrales | the Central Dominions | |
