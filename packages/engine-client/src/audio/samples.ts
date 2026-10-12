@@ -88,15 +88,45 @@ function onsetOf(data: Float32Array): number {
   return 0;
 }
 
+/** An instrument that no music has used for this long (ms) may go (SampleBank.sweep). */
+export const IDLE_MS = 180_000;
+
 export class SampleBank {
   private readonly loaded = new Map<string, Instrument>();
   private readonly loading = new Map<string, Promise<Instrument | null>>();
   private active = 0;
   private readonly queue: (() => void)[] = [];
+  /** The instruments that stay (the sudden moods). */
+  private readonly pinned = new Set<string>();
+  /** When each instrument was last asked for (ms). */
+  private readonly used = new Map<string, number>();
 
   /** An instrument, if it is ready. */
   get(id: string): Instrument | null {
-    return this.loaded.get(id) ?? null;
+    const instrument = this.loaded.get(id) ?? null;
+    if (instrument) this.used.set(id, performance.now());
+    return instrument;
+  }
+
+  /** These instruments stay loaded (once they are). */
+  pin(ids: readonly string[]): void {
+    for (const id of ids) this.pinned.add(id);
+  }
+
+  /** Lets go of the instruments that are not pinned, not in `keep`, and idle for IDLE_MS: their memory comes back. */
+  sweep(keep: readonly string[], now = performance.now()): string[] {
+    const gone: string[] = [];
+    for (const id of this.loaded.keys()) {
+      if (this.pinned.has(id) || keep.includes(id) || now - (this.used.get(id) ?? 0) < IDLE_MS) continue;
+      this.loaded.delete(id);
+      gone.push(id);
+    }
+    return gone;
+  }
+
+  /** The ids of the instruments that are ready. */
+  get readyIds(): string[] {
+    return [...this.loaded.keys()];
   }
 
   /** Whether all of these are ready. */
@@ -116,7 +146,10 @@ export class SampleBank {
     if (!pending) {
       pending = this.decode(id).then(
         (instrument) => {
-          if (instrument) this.loaded.set(id, instrument);
+          if (instrument) {
+            this.loaded.set(id, instrument);
+            this.used.set(id, performance.now());
+          }
           this.loading.delete(id);
           return instrument;
         },

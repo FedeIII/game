@@ -111,6 +111,8 @@ import {
   type PlayerTraits,
   type Pile,
   type WorldDefinition,
+  soundAreaAt,
+  type SoundArea,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
@@ -133,6 +135,8 @@ import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { DreamVeil } from './ui/dream.ts';
 import { audio } from './audio/audio.ts';
+import { Discoveries, MusicDirector, PLACE_MOODS, type Mood } from './audio/director.ts';
+import { GameMusic } from './audio/game-music.ts';
 import { soundSection } from './ui/sound-section.ts';
 import { GameMenu, escapeAction } from './ui/game-menu.ts';
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
@@ -238,6 +242,16 @@ const LOCAL_DICE = rollingDice(Math.random);
 const RELOAD_DELAY_MS = 1200;
 /** An NPC greets a player with a good name (Charisma) when it comes this close (world pixels). */
 const GREET_RANGE = 2 * TILE_SIZE;
+/** The great foes: a fight with one of them has the music of a battle. */
+const BOSS_KINDS: ReadonlySet<MobKind> = new Set(['warden', 'devastator']);
+/** A mob this close (world pixels) that winds up, strikes or reels is a fight, for the music. */
+const FIGHT_RANGE = 8 * TILE_SIZE;
+/** The mob states of a fight. */
+const FIGHT_STATES: ReadonlySet<string> = new Set(['windup', 'strike', 'hurt']);
+/** A mob that chases the player this close (world pixels) is in the fight already. */
+const CLOSE_CHASE = 3 * TILE_SIZE;
+/** A blow, a hit or a kill keeps the music of a fight this long at least (ms); the director holds it longer. */
+const FIGHT_SIGN_MS = 1500;
 
 /** "a, b and c". */
 function andList(parts: readonly string[]): string {
@@ -389,6 +403,25 @@ async function run(options: GameOptions): Promise<void> {
   const holdsNow = (when: Conditions): boolean => holds(when, questsNow(), packNow());
   // The chests and the barred doors of a world that the page runs (a shared world: the server's).
   const spoils = new Spoils(world, Math.random);
+  // The music of the game (audio/director.ts): the mood of the place, of a hunt, of a fight, and stingers.
+  const soundAreas: readonly SoundArea[] = world.source.soundAreas?.() ?? [];
+  const director = new MusicDirector();
+  const gameMusic = new GameMusic();
+  const discoveries = new Discoveries(character ? String(character.id) : 'guest');
+  /** The sound area where the player is, and the mood of its music ('wilds' outside every area). */
+  const placeNow = (): { readonly mood: Mood; readonly area: SoundArea | null } => {
+    const tx = Math.floor(player.x / TILE_SIZE);
+    const ty = Math.floor(player.y / TILE_SIZE);
+    const area = soundAreaAt(soundAreas, tx, ty, world.insideOf(tx, ty)?.id ?? null);
+    const music = area?.music;
+    return { mood: music && (PLACE_MOODS as readonly string[]).includes(music) ? (music as Mood) : 'wilds', area };
+  };
+  // The place where the game starts is not a discovery; its music loads first.
+  const startArea = placeNow();
+  if (startArea.area) discoveries.see(startArea.area.id);
+  gameMusic.start(startArea.mood);
+  /** When the last sign of a fight came: a blow of the player, a hit on it, a kill. */
+  let fightSignAt = -Infinity;
   // What is left to hide of a correction from the server, in world pixels.
   const smoothing = { x: 0, y: 0 };
   // Where the character is: in a world that the page runs, the page tells the server now and then
@@ -902,6 +935,7 @@ async function run(options: GameOptions): Promise<void> {
     if (!mob) return;
     blows++;
     const now = performance.now();
+    fightSignAt = now;
     const y = mob.y - mobHead(mob.kind) - 4;
     if (damage === 0) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, mob.x, y, now);
     else fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.crit : FIGHT_INK.blow, mob.x, y, now);
@@ -925,7 +959,10 @@ async function run(options: GameOptions): Promise<void> {
     say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now());
   };
   net?.onWoke((lost) => say(lost > 0 ? STRINGS.wokeLost(lost) : STRINGS.woke, performance.now()));
-  net?.onRefuges(() => say(STRINGS.refuge, performance.now()));
+  net?.onRefuges(() => {
+    say(STRINGS.refuge, performance.now());
+    director.moment('refuge');
+  });
   /** A drink (or herbs to chew, with Medicine), from the belt or the pack panel: the server in a shared world, the page in its own world. */
   const drinkKind = (kind: ItemKind): void => {
     const now = performance.now();
@@ -1059,6 +1096,7 @@ async function run(options: GameOptions): Promise<void> {
       const kicker = change.kind === 'start' ? STRINGS.journal.started : change.kind === 'end' ? STRINGS.journal.ended : STRINGS.journal.moved;
       banner.show(kicker, tw(change.quest.title));
       journal?.notice();
+      director.moment(change.kind === 'start' ? 'questStart' : change.kind === 'end' ? 'questEnd' : 'questStep');
     }
   };
   net?.onQuests((before, after) => {
@@ -1115,6 +1153,7 @@ async function run(options: GameOptions): Promise<void> {
       if (deal.goods === 'refuge' && deal.refuge && !localRefuges.includes(deal.refuge)) {
         localRefuges.push(deal.refuge);
         say(STRINGS.refuge, performance.now());
+        director.moment('refuge');
       }
       return true;
     },
@@ -1133,6 +1172,7 @@ async function run(options: GameOptions): Promise<void> {
       deal.goods === 'coins' ? STRINGS.conversation.pay(dealPay(deal, traits)) : deal.price > 0 ? STRINGS.conversation.price(dealPrice(deal, traits)) : null;
     const face = pendingTalk.face ?? talkWith.look;
     if (pendingTalk.dream) dreamVeil.show();
+    gameMusic.conversation();
     // What the character wears counts for the answers too (ownedPack): Verath asks for the Tear on its neck.
     conversation.start(pendingTalk.dialog, face ? art.tryFrame(`npc/${face}`) : null, traits.scores, priceOf, { book: questsNow, pack: () => ownedPack({ pack: packNow(), gear: gearNow() }) });
     pendingTalk = null;
@@ -1208,6 +1248,7 @@ async function run(options: GameOptions): Promise<void> {
         if (!net.use(target.tx, target.ty)) rest(player, traits);
       } else rest(player, traits);
       say(STRINGS.rested, now);
+      director.moment('rest');
       return;
     }
     if (target.fixture && spoils.isSource(target.fixture)) {
@@ -1373,6 +1414,46 @@ async function run(options: GameOptions): Promise<void> {
   resize();
   window.addEventListener('resize', resize);
 
+  /** While the prologue plays (from the game menu), it has the music; after it, the game's music comes back. */
+  let musicWaits = false;
+  let lastPlace: string | null = startArea.area?.id ?? null;
+  let nextNear = 0;
+  /** The music follows the game (audio/director.ts): each frame, the mood and the moments. */
+  const directMusic = (now: number, view: { x: number; y: number; width: number; height: number }): void => {
+    if (prologuePlaying()) {
+      musicWaits = true;
+      return;
+    }
+    if (musicWaits) {
+      musicWaits = false;
+      gameMusic.reset();
+    }
+    const { mood: place, area } = placeNow();
+    // A place seen for the first time: the music of discovery.
+    if ((area?.id ?? null) !== lastPlace) {
+      lastPlace = area?.id ?? null;
+      if (area?.discover && discoveries.see(area.id)) director.moment('discover');
+    }
+    // The music of a place loads before the player comes in.
+    if (now >= nextNear) {
+      nextNear = now + 2000;
+      const tx = Math.floor(player.x / TILE_SIZE);
+      const ty = Math.floor(player.y / TILE_SIZE);
+      for (const a of soundAreas) if (tx >= a.x0 - 14 && tx <= a.x1 + 14 && ty >= a.y0 - 14 && ty <= a.y1 + 14 && (PLACE_MOODS as readonly string[]).includes(a.music)) gameMusic.near(a.music as Mood, Boolean(a.discover) && !discoveries.has(a.id));
+    }
+    const mobs = mobsNow().filter((m) => m.state !== 'dying');
+    const near = (m: MobLook, range: number) => Math.hypot(m.x - player.x, m.y - player.y) <= range;
+    // A fight: a mob close by winds up, strikes or reels, or chases the player at arm's length; or a recent blow, hit or kill.
+    const fighting = mobs.some((m) => (FIGHT_STATES.has(m.state) && near(m, FIGHT_RANGE)) || (m.state === 'chase' && near(m, CLOSE_CHASE))) || now - fightSignAt < FIGHT_SIGN_MS;
+    const boss = fighting && mobs.some((m) => BOSS_KINDS.has(m.kind) && near(m, 2 * FIGHT_RANGE));
+    // The hunters that the player senses (Wisdom), or sees on the screen.
+    const hunting = net ? mobs.filter((m) => net.hunters.has(m.id)) : (horde?.huntersOf(0) ?? []).filter((m) => m.state !== 'dying');
+    const inView = (m: MobLook) => m.x >= view.x && m.x <= view.x + view.width && m.y >= view.y && m.y <= view.y + view.height;
+    const hunters = hunting.filter((m) => near(m, traits.sense) || inView(m)).length;
+    const direction = director.update({ place, hunters, fighting, boss, kills, dream: dreamVeil.shown, down: player.down > 0 }, now);
+    gameMusic.apply(direction.mood, direction.stinger);
+  };
+
   const sim = new FixedStep(TICK_SECONDS, () => {
     followGear();
     previous.x = player.x;
@@ -1404,6 +1485,7 @@ async function run(options: GameOptions): Promise<void> {
           showBlow(result.mob.id, result.damage, result.crit);
           if (result.mob.state !== 'dying') continue;
           kills++;
+          fightSignAt = performance.now();
           takeDrop(horde.drop(result.mob), performance.now(), result.mob);
         }
         // A robber's blow also hits the guards of the convoy that it robs.
@@ -1420,6 +1502,7 @@ async function run(options: GameOptions): Promise<void> {
       if (refuge && !localRefuges.includes(refuge.id)) {
         localRefuges.push(refuge.id);
         say(STRINGS.refuge, performance.now());
+        director.moment('refuge');
       }
     }
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
@@ -1559,6 +1642,7 @@ async function run(options: GameOptions): Promise<void> {
     // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; a draught, what it gave back.
     if (player.down === 0 && player.hp !== numbersHp) {
       const change = player.hp - numbersHp;
+      if (change < 0) fightSignAt = now;
       fightNumbers.show(change > 0 ? `+${change}` : String(-change), change > 0 ? FIGHT_INK.heal : FIGHT_INK.hurt, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
     if (player.glance > numbersGlance) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
@@ -1566,6 +1650,7 @@ async function run(options: GameOptions): Promise<void> {
     numbersGlance = player.glance;
     fightNumbers.update(now);
     vitals.update(player, traits.maxHp, traits.maxStamina);
+    directMusic(now, view);
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
     // The quest book changed (an effect, the server's word): the journal, the map's marks and the answers follow.
     const book = questsNow();
@@ -1668,6 +1753,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
+      `music   ${director.mood ?? '-'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,
       `seed    ${world.seed}`,

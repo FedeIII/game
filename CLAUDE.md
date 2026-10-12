@@ -192,6 +192,12 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   check a change with `renderOffline()` in a headless page (levels, a spectrogram), and keep every score
   note within 3 semitones of a recorded note (the test checks it). The horn has no samples between C4 and
   D5. A Vite page in a long `page.evaluate` may reload itself: run it again.
+  **The music follows the game** (`audio/director.ts`, `audio/game-music.ts`, `audio/themes/`): a mood
+  from the place (`WorldSource.soundAreas()`), a hunt, a fight, a dream or a defeat, and stingers for a
+  discovery, a quest, a victory, a refuge, a rest. A new world area: add it to `soundAreas()` with one of
+  the moods of `PLACE_MOODS`. A new piece: a composer in `audio/themes/`, a track in `MOOD_TRACKS`.
+  The debug panel's `music` line shows the mood. A headless test of a fight: `?offline&mob=imp,brute`
+  (in development the Wilds is a shared world, and `?mob` works only alone).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 

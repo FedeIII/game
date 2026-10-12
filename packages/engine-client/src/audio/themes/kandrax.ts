@@ -124,7 +124,7 @@ export function themeSection(round: number): Section {
 }
 
 /** The theme of Kandrax. */
-export const KANDRAX_THEME = scoreTrack('kandrax', THEME_INSTRUMENTS, (index) => themeSection(index), THEME_FIRST);
+export const KANDRAX_THEME = scoreTrack('kandrax', THEME_INSTRUMENTS, () => (index) => themeSection(index), { first: THEME_FIRST });
 
 /** The length of a round of the theme (s). */
 export const THEME_ROUND_SECONDS = (ROUND_BEATS * 60) / KANDRAX_BPM;

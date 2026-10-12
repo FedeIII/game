@@ -4,11 +4,14 @@
 
 The game has music and sound effects (Fede's request, 2026-10-12: "add support for music and sound
 effects. Test it in the intro"). The same day Fede asked for a richer sound with identifiable
-instruments: the music now plays on recordings of a real orchestra and choir (small MP3 samples, one
+instruments, for sound in the whole game, and for music that follows the events: "hasty on
+confrontations, dangerous on tense situations, awe-provoking on new areas or revelations". The music
+now plays on recordings of a real orchestra and choir (small MP3 samples, one
 for every few notes of each instrument), which the page loads when a piece needs them. Some effects
-and the ambiences are made in the page (Web Audio synthesis). The first use is the prologue: the
-theme of Kandrax plays from its first scene to its end, each scene has its own ambience, and the
-texts and the cards have small effects.
+and the ambiences are made in the page (Web Audio synthesis). In the prologue, the theme of Kandrax
+plays from its first scene to its end, each scene has its own ambience, and the texts and the cards
+have small effects. In the game, a director chooses the music from what happens: the place, a hunt,
+a fight, a dream, a defeat, a discovery, a quest.
 
 ## Terminology
 
@@ -20,6 +23,10 @@ texts and the cards have small effects.
   steady stretch (its loop) that holds a note as long as the music wants.
 - **An effect**: a sound that plays once (`EffectId`).
 - **An ambience**: a sound that loops under a place or a scene: wind, a fire, a forge (`AmbienceId`).
+- **A mood**: what the music of the game expresses now: a place's (wilds, town, haven, home, chapel,
+  ruins, camp, shrine), or tension, combat, battle, dream, silent. Each mood has a track.
+- **A stinger**: a short piece for a moment (a discovery, a quest, a victory, a defeat), over the music.
+- **A sound area**: a part of the world with a mood of its own (`SoundArea`).
 - **To sleep**: the context is suspended. Nothing sounds and the device does no audio work. When it
   wakes, the music goes on where it stopped.
 
@@ -109,6 +116,39 @@ download or a slow game, so that it adds to the game and costs it little.
 
 ---
 
+### REQ-SND-005: The music follows the game
+
+**User Story:** As a player, I want the music to tell me what happens: calm or sad in the places,
+tense when I am hunted, fast in a fight, full of awe in a new place, so that the world reacts to me.
+
+**Acceptance Criteria:**
+- **AC-SND-005.1:** The music has a mood, the first of these that holds: a dream; the player down
+  (no music, after the stinger of the defeat); a battle (a fight with the Shrine Warden or the Hobgoblin
+  Devastator: it holds until the fight is over); a fight; a hunt; else the mood of the place.
+- **AC-SND-005.2:** A fight begins at once (the music cuts to it in 0.3 s, on a cymbal and the drums) when
+  a mob within 8 tiles winds up, strikes or reels, a mob chases the player within 3 tiles, or the player
+  strikes, is hit or kills; it holds 6 s after the last of these.
+- **AC-SND-005.3:** A hunt: mobs hunt the player (those that it senses, or sees on the screen) for 1.2 s;
+  the tension holds 6 s after the last hunter. It fades in over 2 s.
+- **AC-SND-005.4:** The places of the Wilds: the home (inside it) and the Wren homestead: a lullaby;
+  the chapel (inside it): an organ and voices; Ironhold: a folk dance; Silverspring: a bright tune in D
+  major; the burned homesteads: a lament; the camps of the war band and of the Seekers: low drums and
+  trembling strings; the shrine of Tigris: an organ, voices, bells and a gong; the rest of the Wilds:
+  slow pieces with a soloist, and silences of 30 to 70 s between them. The area of a town, a camp or the
+  shrine reaches a few tiles past it. The music changes when the player has been in a new place for
+  1.5 s, over about 3 s.
+- **AC-SND-005.5:** Stingers, over the music (which steps back to 30 % under them): the first visit of a
+  character to a place (all the places but the home): awe; a quest that starts, moves on or ends; a
+  fight won (with kills, and no hunter left); a defeat; a refuge found; a rest in a bed. At most one in
+  3.5 s, unless the new one matters more (defeat, quest end, discovery, quest start, quest step,
+  victory, refuge, rest).
+- **AC-SND-005.6:** The place where the game starts is not a discovery. The browser keeps the places
+  that each character has seen.
+- **AC-SND-005.7:** While the prologue plays from the game menu, it has the music; after it, the game's
+  music comes back.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine-client/src/audio/audio.ts`): `audio` (one `AudioEngine` for the
@@ -156,6 +196,30 @@ download or a slow game, so that it adds to the game and costs it little.
 - **The settings** (`settings.ts`): `SoundSettings`, `DEFAULT_SOUND`, localStorage `game.audio.v1`,
   `parseSound()` (each value checked). The section: `ui/sound-section.ts` (`.settings-sound`); the texts:
   `STRINGS.sound`, and `STRINGS.prologue.soundOn` and `soundOff`.
+- **The areas** (`packages/engine/src/world.ts`): `SoundArea` (`id`, `music`, a rectangle of tiles,
+  `building`, `discover`), `WorldSource.soundAreas()`, `soundAreaAt()`. The Wilds: `soundAreas()` in
+  `worlds/wilds/src/source.ts` (home, chapel, ironhold, silverspring, ruin-1 to ruin-3, wren, war-camp,
+  seeker-camp, shrine).
+- **The director** (`audio/director.ts`): `MusicDirector` (`update(input, now)` gives the mood and a
+  stinger; `moment(id)`), `FIGHT_HOLD_MS`, `TENSION_AFTER_MS`, `TENSION_HOLD_MS`, `PLACE_AFTER_MS`;
+  `Discoveries` (localStorage `game.discovered.v1:<character id>`, or `guest`). `game.ts` gives it the
+  place, the hunters, the signs of a fight (`FIGHT_RANGE`, `FIGHT_STATES`, `CLOSE_CHASE`,
+  `FIGHT_SIGN_MS`, `BOSS_KINDS`), the kills, the dream and the defeat, in each frame (`directMusic`).
+- **The pieces** (`audio/themes/`): `wilds.ts` (`wildsComposer`: progressions, soloists, the theme's
+  melody now and then, silences), `places.ts` (town, haven, home, chapel, ruins, camp, shrine, dream),
+  `fight.ts` (tension, combat, battle), `stingers.ts` (`STINGERS`), `common.ts` (the voicings `CHORDS`,
+  the phrases `CELLS`). `audio/game-music.ts`: `MOOD_TRACKS` (each with a `level`: the calm pieces are
+  about 5 dB under a fight), `MOOD_FADE`, `GameMusic` (`start`, `apply`, `near`, `conversation`). Their
+  cost, measured as for the theme: 9 % (the Wilds) to 15 % (a battle) of one core of this server.
+- **Loading**: the music of the starting place first, then the fight's first instruments, then the
+  instruments of the hunt and of the fights, which stay (`PINNED_INSTRUMENTS`). The music of a place
+  loads when the player is within 14 tiles of it, with the stinger of discovery if the place is new; the
+  stingers of the quests when a conversation opens; the defeat's when a fight starts. A stinger whose
+  instruments come more than 1.5 s late does not play. Every 30 s, the instruments that are not pinned,
+  not in the track that plays and not used for 3 minutes go (`SampleBank.sweep`, `IDLE_MS`). The Wilds,
+  the hunt and the fights together take about 49 MB of memory decoded; all the instruments, 77 MB.
+- **The debug panel** (F3): the line `music`: the mood, the track, the area, and how many instruments
+  are loaded.
 - **The prologue**: each scene names its ambience (`AMBIENCE_OF` in `art/prologue.ts`, carried in
   `prologue.json`); `ui/prologue.ts` loads the first instruments with its art, and plays the theme, the
   ambiences and the effects (`.prologue-sound`).
@@ -163,5 +227,6 @@ download or a slow game, so that it adds to the game and costs it little.
   is silent. This is on purpose.
 - **Tests**: `audio/audio.test.ts` (notes, the notation, the choice of a sample, the copies of a loop,
   the decoder's delay, the manifest, the bars of the theme, every note near a recorded note, the rounds,
-  the settings). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to
+  the settings); `audio/director.test.ts` (the moods and their timing, the stingers, every note of 40
+  sections of each piece and of each stinger near a recorded note of an instrument of its list). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to
   measure the levels in a browser.

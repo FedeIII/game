@@ -117,6 +117,34 @@ export interface WorldSource {
   refuges?(): readonly Refuge[];
   /** The named places of the world, for the map (INT 13 shows their names). */
   landmarks?(): readonly Landmark[];
+  /** The places with a sound of their own (the music of the client). Without it, the whole world has one. */
+  soundAreas?(): readonly SoundArea[];
+}
+
+/**
+ * A place with a sound of its own (2026-10-12, Fede's request: the music follows the places): the
+ * mood of its music, and the first time a character comes in, a moment of awe. The world names the
+ * moods; the client has a piece for each mood that it knows ('wilds', 'town', 'haven', 'home',
+ * 'chapel', 'ruins', 'camp', 'shrine'), and the rest of the world is 'wilds'. The first area of the
+ * list that holds a tile wins: a building's area before the area of its town.
+ */
+export interface SoundArea {
+  readonly id: string;
+  readonly music: string;
+  /** Tiles, inclusive. */
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+  /** Only inside this building (its id): the home, the chapel. */
+  readonly building?: string;
+  /** The first visit of a character has the music of discovery. */
+  readonly discover?: boolean;
+}
+
+/** The sound area of a tile (`inside`: the id of the building that the player is in, or null), or null. */
+export function soundAreaAt(areas: readonly SoundArea[], tx: number, ty: number, inside: string | null): SoundArea | null {
+  return areas.find((a) => tx >= a.x0 && tx <= a.x1 && ty >= a.y0 && ty <= a.y1 && (a.building === undefined || a.building === inside)) ?? null;
 }
 
 /** A named place for the map: the home, a town, a refuge. */

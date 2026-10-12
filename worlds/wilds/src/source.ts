@@ -26,6 +26,7 @@ import {
   type EscortDef,
   type GuardDef,
   type SceneDef,
+  type SoundArea,
   type WorldSource,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
@@ -314,6 +315,7 @@ export class WildsSource implements WorldSource {
   private cartOf: Fixture | null = null;
   private npcList: readonly NpcDef[] | null = null;
   private ambushList: readonly AmbushDef[] | null = null;
+  private soundAreaList: readonly SoundArea[] | null = null;
 
   constructor(seed: number) {
     this.seed = seed;
@@ -664,6 +666,39 @@ export class WildsSource implements WorldSource {
    */
   refuges(): readonly Refuge[] {
     return REFUGES;
+  }
+
+  /**
+   * The places with a music of their own (2026-10-12): the home and the chapel (inside them), the
+   * two towns, the burned homesteads, the Wren homestead, the two camps and the shrine, each with a
+   * margin round it (the music changes as the player comes near). All but the home have the music of
+   * discovery the first time a character comes.
+   */
+  soundAreas(): readonly SoundArea[] {
+    if (!this.soundAreaList) {
+      const home = this.home();
+      const around = (id: string, music: string, t: { x0: number; y0: number; x1: number; y1: number }, margin: number): SoundArea => ({
+        id,
+        music,
+        x0: t.x0 - margin,
+        y0: t.y0 - margin,
+        x1: t.x1 + margin,
+        y1: t.y1 + margin,
+        discover: true,
+      });
+      this.soundAreaList = [
+        { id: 'home', music: 'home', x0: home.x0, y0: home.y0, x1: home.x1, y1: home.y1, building: home.id },
+        { id: 'chapel', music: 'chapel', x0: CHAPEL.x0, y0: CHAPEL.y0, x1: CHAPEL.x1, y1: CHAPEL.y1, building: CHAPEL.id },
+        around('ironhold', 'town', IRONHOLD, 3),
+        around('silverspring', 'haven', SILVERSPRING, 3),
+        ...RUINS.map((ruin, i) => around(`ruin-${i + 1}`, 'ruins', ruin, 2)),
+        around('wren', 'home', WREN, 2),
+        around('war-camp', 'camp', CAMP, 4),
+        around('seeker-camp', 'camp', SEEKER_CAMP, 4),
+        around('shrine', 'shrine', SHRINE_RECT, 4),
+      ];
+    }
+    return this.soundAreaList;
   }
 
   /** The named places for the map: the home, Ironhold and its chapel, and Silverspring. */

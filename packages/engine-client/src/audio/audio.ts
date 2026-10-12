@@ -11,7 +11,9 @@
  * The volumes and the mute come from the settings (audio/settings.ts). A clock schedules what plays a
  * little ahead of the context's time, so a busy page never makes a note late.
  */
-import type { MusicTrack, Pattern } from './music.ts';
+import { seatBus, type MusicTrack, type Pattern } from './music.ts';
+import { playNote } from './sampler.ts';
+import type { Stinger } from './themes/stingers.ts';
 import { loadSound, saveSound, type SoundSettings } from './settings.ts';
 import { playEffect, startAmbience, type Ambience, type AmbienceId, type EffectId } from './sounds.ts';
 import { SampleBank } from './samples.ts';
@@ -25,6 +27,8 @@ const CLOCK_MS = 100;
 export interface Buses {
   readonly master: GainNode;
   readonly music: GainNode;
+  /** The tracks go through it into `music`: it lowers them under a stinger. */
+  readonly duck: GainNode;
   readonly musicOut: GainNode;
   readonly effects: GainNode;
   readonly effectsOut: GainNode;
@@ -44,6 +48,8 @@ export function makeBuses(ctx: BaseAudioContext, settings: SoundSettings): Buses
   master.connect(compressor);
 
   const music = ctx.createGain();
+  const duck = ctx.createGain();
+  duck.connect(music);
   const musicOut = ctx.createGain();
   const musicDry = ctx.createGain();
   musicDry.gain.value = 0.62;
@@ -70,7 +76,7 @@ export function makeBuses(ctx: BaseAudioContext, settings: SoundSettings): Buses
   const ambience = ctx.createGain();
   ambience.connect(master);
 
-  const buses = { master, music, musicOut, effects, effectsOut, ambience };
+  const buses = { master, music, duck, musicOut, effects, effectsOut, ambience };
   applySettings(buses, settings, ctx.currentTime);
   return buses;
 }
@@ -85,6 +91,8 @@ function applySettings(buses: Buses, settings: SoundSettings, t: number): void {
 
 interface Playing {
   readonly pattern: Pattern;
+  /** The instruments that a track plays: they stay loaded while it plays. */
+  readonly instruments?: readonly string[];
   readonly gain: GainNode;
   /** Where its notes go (the gain), and the bus that the gain feeds. */
   readonly bus: GainNode;
@@ -176,7 +184,11 @@ export class AudioEngine {
 
   private onState(): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
-    if (this.clock === null) this.clock = window.setInterval(() => this.tick(), CLOCK_MS);
+    if (this.clock === null) {
+      this.clock = window.setInterval(() => this.tick(), CLOCK_MS);
+      // Now and then, the instruments that no music has used for a while go (their memory comes back).
+      window.setInterval(() => this.bank.sweep(this.music?.instruments ?? []), 30_000);
+    }
     const { music, ambience } = this.wanted;
     this.wanted = { music: null, ambience: null };
     if (music && !this.music) this.playMusic(music);
@@ -223,11 +235,49 @@ export class AudioEngine {
       const t = this.ctx.currentTime + 0.05;
       const gain = this.ctx.createGain();
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(1, t + fade);
-      gain.connect(this.buses.music);
-      this.music = { id: track.id, pattern: track.start(t, this.bank), gain, bus: this.buses.music, stopping: false };
+      gain.gain.linearRampToValueAtTime(track.level ?? 1, t + fade);
+      gain.connect(this.buses.duck);
+      this.music = { id: track.id, pattern: track.start(t, this.bank), gain, bus: this.buses.duck, stopping: false, instruments: track.instruments };
       this.tick();
     });
+  }
+
+  /**
+   * Plays a stinger over the music, which steps back for it (to 30 %) and comes back at its end.
+   * Its instruments must be ready (the game loads them early): if they come more than 1.5 s late,
+   * the moment has passed and it does not play.
+   */
+  playStinger(stinger: Stinger): void {
+    if (!this.ctx || this.ctx.state !== 'running' || !this.buses || this.settingsNow.muted) return;
+    const asked = performance.now();
+    const go = () => {
+      const ctx = this.ctx;
+      const buses = this.buses;
+      if (!ctx || !buses || ctx.state !== 'running') return;
+      const t = ctx.currentTime + 0.05;
+      const beat = 60 / stinger.bpm;
+      const seconds = stinger.beats * beat;
+      buses.duck.gain.cancelScheduledValues(t);
+      buses.duck.gain.setTargetAtTime(0.3, t, 0.12);
+      buses.duck.gain.setTargetAtTime(1, t + Math.max(0.5, seconds - 1), 0.8);
+      const seats = new Map<string, AudioNode>();
+      for (const note of stinger.notes) {
+        const instrument = this.bank.get(note.inst);
+        if (!instrument) continue;
+        let seat = seats.get(note.inst);
+        if (!seat) seats.set(note.inst, (seat = seatBus(ctx, buses.music, note.inst)));
+        playNote(ctx, seat, instrument, note.midi, {
+          t: t + note.beat * beat,
+          dur: note.beats * beat,
+          vel: note.vel,
+          ...(note.attack !== undefined ? { attack: note.attack } : {}),
+          ...(note.release !== undefined ? { release: note.release } : {}),
+          ...(note.cut ? { cut: true } : {}),
+        });
+      }
+    };
+    if (this.bank.ready(stinger.instruments)) go();
+    else void this.bank.load(stinger.instruments).then(() => performance.now() - asked < 1500 && go());
   }
 
   /** The id of the track that plays (or waits for its instruments), or null. */

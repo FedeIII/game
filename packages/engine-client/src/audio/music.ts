@@ -25,6 +25,10 @@ export interface MusicTrack {
   readonly instruments: readonly string[];
   /** The instruments that it needs to start (the others load while it plays, and join when ready). Default: all. */
   readonly first?: readonly string[];
+  /** A score's composer (scoreTrack): the tests read its sections. */
+  readonly compose?: () => Composer;
+  /** Its gain in the mix (default 1): a quiet piece a little up, so that the moods sit together. */
+  readonly level?: number;
   start(t0: number, bank: SampleBank): Pattern;
 }
 
@@ -167,21 +171,40 @@ export const LEVELS: Readonly<Record<string, number>> = {
   triangle: 0.35,
 };
 
+/** A section's place in the orchestra: a gain at its level, panned to its seat, into `out`. */
+export function seatBus(ctx: BaseAudioContext, out: AudioNode, inst: string): AudioNode {
+  const gain = ctx.createGain();
+  gain.gain.value = LEVELS[inst] ?? 0.7;
+  const seat = SEATING[inst] ?? 0;
+  if (seat !== 0 && 'createStereoPanner' in ctx) {
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = seat;
+    gain.connect(pan).connect(out);
+  } else gain.connect(out);
+  return gain;
+}
+
 /** The instruments without fixed notes, whose timing stays tight. */
 const DRUMS: ReadonlySet<string> = new Set(['timpani', 'timpaniSoft', 'timpaniRoll', 'bassDrum', 'bassDrumRoll', 'taiko', 'drumSticks', 'snare', 'tenorDrum', 'frameDrum', 'logDrum', 'tambourine']);
 
+/** Gives the sections of a track one after another (index 0, 1, ...); it may keep a state (a piece that goes on). */
+export type Composer = (index: number, random: () => number) => Section;
+
 /**
- * A track from a score: `next(index, random)` gives its sections one after another (index 0, 1,
- * ...). The notes are humanized a little: a few milliseconds early or late, a little softer or
+ * A track from a score: `compose()` makes a composer for each time the track starts, which gives its
+ * sections. The notes are humanized a little: a few milliseconds early or late, a little softer or
  * louder, except the drums' timing.
  */
-export function scoreTrack(id: string, instruments: readonly string[], next: (index: number, random: () => number) => Section, first?: readonly string[]): MusicTrack {
+export function scoreTrack(id: string, instruments: readonly string[], compose: () => Composer, o: { readonly first?: readonly string[]; readonly level?: number } = {}): MusicTrack {
   return {
     id,
     instruments,
-    ...(first ? { first } : {}),
+    compose,
+    ...(o.first ? { first: o.first } : {}),
+    ...(o.level !== undefined ? { level: o.level } : {}),
     start(t0: number, bank: SampleBank): Pattern {
       const random = Math.random;
+      const next = compose();
       let index = 0;
       let sectionAt = t0;
       let pending: { t: number; note: ScoreNote; seconds: number }[] = [];
@@ -189,16 +212,8 @@ export function scoreTrack(id: string, instruments: readonly string[], next: (in
       const busOf = (ctx: BaseAudioContext, out: AudioNode, inst: string): AudioNode => {
         let bus = buses.get(inst);
         if (!bus) {
-          const gain = ctx.createGain();
-          gain.gain.value = LEVELS[inst] ?? 0.7;
-          const seat = SEATING[inst] ?? 0;
-          if (seat !== 0 && 'createStereoPanner' in ctx) {
-            const pan = ctx.createStereoPanner();
-            pan.pan.value = seat;
-            gain.connect(pan).connect(out);
-          } else gain.connect(out);
-          buses.set(inst, gain);
-          bus = gain;
+          bus = seatBus(ctx, out, inst);
+          buses.set(inst, bus);
         }
         return bus;
       };
