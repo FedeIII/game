@@ -67,6 +67,8 @@ that I know how to play from the first step.
 - **AC-MNU-003.4:** Only for an admin, "Display" gives the CRT settings of the game's settings panel
   (`CrtControls`: the on/off switch, the sliders, the `?crt=` link, "Copy link", "Reset"). They are
   saved in this browser (`game.crt.v2`), and the game takes them when it starts.
+- **AC-MNU-003.5:** "Tips" (between "Language" and "Display") gives "Show tips" and "Show all tips
+  again" (`tipsControls()`; see [`tips.md`](tips.md), REQ-TIP-003).
 
 ---
 

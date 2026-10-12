@@ -164,7 +164,10 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   click, a dodge; over the world the system cursor hides (class `own-cursor`) and
   `render/cursor.ts` draws the game's).
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
-  `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
+  `hud.ts` (hint, debug panel, fatal error), `tips.ts` (the tips of the tutorial, the first time
+  of each thing, once in a browser, localStorage `game.tips.v1`: `TipStore`, `TipQueue`, `TipView`
+  `#tip`, `tipsControls()`; the hooks are `updateTips()` in `game.ts`;
+  `docs/features/game/tips.md`), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, for an admin only, saved in localStorage
   `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
@@ -378,7 +381,9 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
   `?login=failed` or `cancelled` once.
 - **Main screen**: "New game", "Continue" (off without characters), "Prologue" (only once this
-  browser saw it), "Settings" (the controls to read, the language, and for an admin the CRT settings),
+  browser saw it), "Settings" (the controls to read, the language, the switch of the tips (`ui/tips.ts`:
+  "Show tips", "Show all tips again"; the game's settings panel has it too), and for an admin the CRT
+  settings),
   and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
   sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). See
   `docs/features/game/main-menu.md`. "Delete account" asks first, then deletes the account,

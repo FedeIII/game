@@ -10,11 +10,35 @@ import { ES } from './strings-es.ts';
  * (WorldDefinition.examine, fixture content, WorldDefinition.texts).
  */
 const EN = {
-  hintKeyboard: 'WASD or arrow keys to move · E to act',
-  hintKeyboardFight: 'WASD or arrow keys to move · E to act · Click to attack · Shift to roll · C to sneak',
   attack: 'Attack',
   dodge: 'Roll',
-  hintTouch: 'Touch and drag anywhere to move',
+  /**
+   * The tips of the tutorial (ui/tips.ts): "[E]" draws a key plate. `keys` is for a keyboard and a
+   * mouse, `touch` for a touch screen.
+   */
+  tips: {
+    label: 'Tip',
+    heading: 'Tips',
+    show: 'Show tips',
+    again: 'Show all tips again',
+    againDone: 'The tips will show again.',
+    list: {
+      walk: { keys: '[W] [A] [S] [D] or the arrow keys walk.', touch: 'Touch and drag anywhere to walk.' },
+      act: { keys: '[E] acts on what is in front of you: talk, open, read, pick up.', touch: 'The action button, bottom right, acts on what is in front of you: talk, open, read, pick up.' },
+      rest: { keys: 'Your bed: [E] rests, and gives back all your health. After a fall, you wake here.', touch: 'Your bed: the action button rests, and gives back all your health. After a fall, you wake here.' },
+      journal: { keys: 'A new quest. [L] opens your journal.', touch: 'A new quest. The journal button, top right, opens your journal.' },
+      talk: { keys: '[W] [S] or the arrows choose an answer; [E] or [Enter] says it. [Esc] ends the talk.', touch: 'Tap an answer to say it.' },
+      deal: { keys: 'An answer with a price buys or sells. Your Charisma makes the prices better.', touch: 'An answer with a price buys or sells. Your Charisma makes the prices better.' },
+      map: { keys: '[M] opens the map of the land that you have seen.', touch: 'The map button, top right, shows the land that you have seen.' },
+      sneak: { keys: 'A foe has not seen you. [C] walks quietly, and foes see you later.', touch: 'A foe has not seen you. A small push of the stick walks quietly.' },
+      attack: { keys: 'A foe! [Space] strikes the nearest foe; a click strikes towards the pointer.', touch: 'A foe! The attack button strikes the nearest foe.' },
+      dodge: { keys: 'It winds up to strike: [Shift] or a right click rolls you out of the way.', touch: 'It winds up to strike: the dodge button rolls you out of the way.' },
+      hit: { keys: 'You are hurt. The red bar, top left, is your health: it does not come back by itself.', touch: 'You are hurt. The red bar, top left, is your health: it does not come back by itself.' },
+      drink: { keys: 'Your health is low: [1] drinks a healing draught.', touch: 'Your health is low: tap a draught on the belt, top left.' },
+      pickup: { keys: 'Something lies on the ground: walk to it and press [E] to pick it up.', touch: 'Something lies on the ground: walk to it and tap the action button.' },
+      defeat: { keys: 'You fell, and woke in safety: at home, or at the last refuge that you entered.', touch: 'You fell, and woke in safety: at home, or at the last refuge that you entered.' },
+    },
+  },
   /** A new build of the game is out (ui/new-build.ts): the page reloads itself. */
   newBuild: 'A new version of the game is out. Loading it…',
   doorBlocked: 'Step out of the doorway first.',

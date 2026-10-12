@@ -170,7 +170,8 @@ import { AttackButton } from './ui/attack-button.ts';
 import { DodgeButton } from './ui/dodge-button.ts';
 import { Hud, showFatal } from './ui/hud.ts';
 import { LinkCard } from './ui/link-card.ts';
-import { DrinkBelt } from './ui/belt.ts';
+import { DrinkBelt, countOf } from './ui/belt.ts';
+import { TipQueue, TipStore, TipView, tipsControls } from './ui/tips.ts';
 import { PackPanel } from './ui/pack-panel.ts';
 import { BuildWatch } from './ui/new-build.ts';
 import { Vitals } from './ui/vitals.ts';
@@ -893,8 +894,16 @@ async function run(options: GameOptions): Promise<void> {
   net?.onChange(() => {
     if (net.status !== 'online') buildWatch.soon();
   });
-  hud.showHint(mobRules ? STRINGS.hintKeyboardFight : STRINGS.hintKeyboard);
-  joystick.onTouchMode(() => hud.showHint(STRINGS.hintTouch));
+  // The tips of the tutorial (ui/tips.ts): the first time of each thing, once in this browser. Their
+  // switch is in the settings, under the language.
+  const tipStore = new TipStore();
+  const tips = new TipQueue(tipStore);
+  const tipView = new TipView();
+  const tipsHeading = document.createElement('p');
+  tipsHeading.className = 'settings-heading';
+  tipsHeading.textContent = STRINGS.tips.heading;
+  language.append(tipsHeading, tipsControls(tipStore));
+  tips.request('walk');
 
   // ---------------------------------------------------------------- actions
   //
@@ -1132,6 +1141,7 @@ async function run(options: GameOptions): Promise<void> {
       const kicker = change.kind === 'start' ? STRINGS.journal.started : change.kind === 'end' ? STRINGS.journal.ended : STRINGS.journal.moved;
       banner.show(kicker, tw(change.quest.title));
       journal?.notice();
+      if (change.kind === 'start') tips.request('journal');
       director.moment(change.kind === 'start' ? 'questStart' : change.kind === 'end' ? 'questEnd' : 'questStep');
     }
   };
@@ -1241,7 +1251,9 @@ async function run(options: GameOptions): Promise<void> {
     // The conversation panel has the keys while it is open (and the button is hidden).
     if (!target || conversation.open) return;
     const now = performance.now();
+    tips.done('act', now);
     if (target.pile) {
+      tips.done('pickup', now);
       // Items on the ground: the server gives them in a shared world, the page in its own world.
       const pile = target.pile;
       if (net) {
@@ -1290,6 +1302,7 @@ async function run(options: GameOptions): Promise<void> {
       if (net) {
         if (!net.use(target.tx, target.ty)) rest(player, traits);
       } else rest(player, traits);
+      tips.done('rest', now);
       say(STRINGS.rested, now);
       director.moment('rest');
       return;
@@ -1604,8 +1617,53 @@ async function run(options: GameOptions): Promise<void> {
   buildings.update(camera.view(), null, 0);
   fixtures.update(camera.view(), 0, { x: player.x, y: player.y, range: traits.seek });
 
-  let hintShown = true;
   let nextRetainAt = 0;
+  // ---------------------------------------------------------------- tips
+  //
+  // What the tips watch from one frame to the next: the health, the way walked, a fall, a talk.
+  const tipWatch = { hp: player.hp, walked: 0, x: player.x, y: player.y, fell: false, talking: false };
+  const updateTips = (now: number): void => {
+    const w = tipWatch;
+    const step = Math.hypot(player.x - w.x, player.y - w.y);
+    if (step < 4 * TILE_SIZE) w.walked += step;
+    w.x = player.x;
+    w.y = player.y;
+    if (w.walked > 3 * TILE_SIZE) tips.done('walk', now);
+    if (w.walked > 120 * TILE_SIZE) tips.request('map');
+    if (mapPanel.isOpen) tips.done('map', now);
+    if (journal?.isOpen) tips.done('journal', now);
+    // The thing in reach: the action, or the bed (rest).
+    if (target) tips.request(target.fixture && fixtureContent(target.fixture, questsNow(), packNow())?.rest && mayRest(target.fixture) ? 'rest' : 'act');
+    if (conversation.open) {
+      tips.request('talk');
+      if (conversation.current?.answers.some((answer) => answer.deal)) tips.request('deal');
+    } else if (w.talking) tips.done('talk', now);
+    w.talking = conversation.open;
+    // A fight: a foe that hunts the player, its wind-up, a hit, low health.
+    const hunters = huntersNow();
+    if (hunters.length > 0) tips.request('attack');
+    if (hunters.some((mob) => mob.state === 'windup')) tips.request('dodge');
+    if (player.attack > 0) tips.done('attack', now);
+    if (player.dodge > 0) tips.done('dodge', now);
+    const unseen = mobsNow().some((mob) => mob.state !== 'dying' && Math.hypot(mob.x - player.x, mob.y - player.y) < 10 * TILE_SIZE && !hunters.some((h) => h.id === mob.id));
+    if (sneakingShown()) tips.done('sneak', now);
+    else if (unseen && hunters.length === 0) tips.request('sneak');
+    if (player.down === 0 && player.hp < w.hp) tips.request('hit');
+    const healing = countOf(packNow(), 'draught') + countOf(packNow(), 'strong-draught');
+    if (player.down === 0 && player.hp > 0 && player.hp <= traits.maxHp * 0.4 && healing > 0) tips.request('drink');
+    w.hp = player.hp;
+    if (pilesNow().some((pile) => Math.hypot(pile.x - player.x, pile.y - player.y) < 5 * TILE_SIZE)) tips.request('pickup');
+    // A fall: the tip comes when the character wakes.
+    if (player.down > 0) w.fell = true;
+    else if (w.fell) {
+      w.fell = false;
+      tips.request('defeat');
+    }
+    // No tip over the prologue, a dream, the game menu, a panel, or the notice of a new build.
+    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'settings'].some((id) => document.getElementById(id)?.hidden === false);
+    tipView.show(tips.update(now, paused), joystick.isTouchMode);
+  };
+
   app.ticker.add((ticker) => {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
@@ -1673,6 +1731,7 @@ async function run(options: GameOptions): Promise<void> {
       closeDialog(now);
     }
     action.setTarget(target ? actionLabel(target) : null);
+    updateTips(now);
 
     const view = camera.view();
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
@@ -1771,10 +1830,6 @@ async function run(options: GameOptions): Promise<void> {
     crtText.setGrid(camera.zoom, scene.position.x * dpr, scene.position.y * dpr, dpr);
     terrain.update(view, 1);
 
-    if (hintShown && Math.hypot(player.x - spawn.x, player.y - spawn.y) > 3 * TILE_SIZE) {
-      hintShown = false;
-      hud.hideHint();
-    }
     hud.debug(now, () => [
       `fps     ${ticker.FPS.toFixed(0)}`,
       `world   ${definition.id}`,

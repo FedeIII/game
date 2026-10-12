@@ -3,6 +3,7 @@ import { LANG } from '../i18n.ts';
 import { languageChoice } from '../ui/language-choice.ts';
 import { prologueSeen } from '../ui/prologue.ts';
 import { CrtControls, crtStateFrom, loadSavedCrt } from '../ui/settings-panel.ts';
+import { tipsControls } from '../ui/tips.ts';
 import { characterLook } from '../skins/look.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 import { STRINGS } from '../ui/strings.ts';
@@ -312,8 +313,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     };
 
     /**
-     * The settings: the controls of the game (to read), the language, and for an admin the display
-     * settings (the CRT effect; the game reads them when it starts).
+     * The settings: the controls of the game (to read), the language, the tips (ui/tips.ts), and for
+     * an admin the display settings (the CRT effect; the game reads them when it starts).
      */
     const settingsScreen = () => {
       const back = el('button', { type: 'button', class: 'menu-button' }, T.back);
@@ -324,6 +325,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         controlList(),
         el('h3', { class: 'menu-subtitle' }, STRINGS.settings.language),
         languageChoice('lang-choice menu-settings-lang', () => location.reload()),
+        el('h3', { class: 'menu-subtitle' }, STRINGS.tips.heading),
+        tipsControls(),
       ];
       if (me?.user?.admin === true) {
         const display = new CrtControls(crtStateFrom(new URLSearchParams(location.search), loadSavedCrt()), () => {});
