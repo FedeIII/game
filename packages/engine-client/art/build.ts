@@ -14,6 +14,7 @@ import { Image, encodePng, upscale } from './png.ts';
 import { FONT, SMALL_FONT } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
+import { PROLOGUE_VIEW, prologueScenes } from './prologue.ts';
 
 /**
  * Each page of the atlas stays within MAX_ATLAS_SIZE on both sides: a GPU that samples with 16-bit
@@ -138,6 +139,47 @@ const iconFrame = art.frames.find((frame) => frame.name === 'player/down/stand')
 if (!iconFrame) throw new Error('no player/down/stand frame for the icon');
 writeFileSync(join(outDir, 'icon.png'), encodePng(upscale(iconFrame.image, 2)));
 console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/generated/${pageFile(i)} (${a.width}x${a.height})`).join(', ')}`);
+
+// The prologue (art/prologue.ts) has an atlas of its own: the page loads it only when the prologue
+// plays. Its layers go into one page, row by row; the JSON lists each scene's layers (their place in
+// the page and their depth) and its emitters.
+{
+  const scenes = prologueScenes();
+  const layers = scenes.flatMap((scene) => scene.layers.map((layer) => ({ scene, layer })));
+  const places: { x: number; y: number }[] = [];
+  let px = 0;
+  let py = 0;
+  let row = 0;
+  for (const { layer } of layers) {
+    if (px + layer.image.width > MAX_ATLAS_SIZE) {
+      px = 0;
+      py += row;
+      row = 0;
+    }
+    places.push({ x: px, y: py });
+    px += layer.image.width;
+    row = Math.max(row, layer.image.height);
+  }
+  const sheet = new Image(MAX_ATLAS_SIZE, py + row);
+  if (sheet.height > MAX_ATLAS_SIZE) throw new Error('the prologue is larger than a page');
+  layers.forEach(({ layer }, i) => sheet.draw(layer.image, places[i]!.x, places[i]!.y));
+  let k = 0;
+  const prologue = {
+    image: 'prologue.png',
+    view: PROLOGUE_VIEW,
+    scenes: scenes.map((scene) => ({
+      id: scene.id,
+      layers: scene.layers.map((layer) => {
+        const at = places[k++]!;
+        return { x: at.x, y: at.y, w: layer.image.width, h: layer.image.height, depth: layer.depth };
+      }),
+      emitters: scene.emitters,
+    })),
+  };
+  writeFileSync(join(outDir, 'prologue.png'), encodePng(sheet));
+  writeFileSync(join(outDir, 'prologue.json'), JSON.stringify(prologue, null, 1) + '\n');
+  console.log(`art: ${scenes.length} scenes of the prologue -> src/generated/prologue.png (${sheet.width}x${sheet.height})`);
+}
 
 const previewAt = process.argv.indexOf('--preview');
 if (previewAt !== -1) {

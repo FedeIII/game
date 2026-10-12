@@ -21,10 +21,11 @@ export interface MenuOptions {
   readonly skins: SkinStore;
 }
 
-/** The chosen character, and if the account is an admin. */
+/** The chosen character, if the account is an admin, and if the character was just made (its prologue plays). */
 export interface MenuChoice {
   readonly character: Character;
   readonly admin: boolean;
+  readonly fresh: boolean;
 }
 
 /** "3 days ago", "yesterday". */
@@ -132,7 +133,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       notice = waiting;
     };
 
-    const start = async (character: Character) => {
+    const start = async (character: Character, fresh = false) => {
       loading(T.starting);
       try {
         const played = await api.play(character.id);
@@ -140,9 +141,9 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         options.skins.get(characterLook(played), undefined, true);
         root.classList.add('leaving');
         setTimeout(() => root.remove(), 400);
-        resolve({ character: played, admin: me?.user?.admin === true });
+        resolve({ character: played, admin: me?.user?.admin === true, fresh });
       } catch (error) {
-        fail(error, () => void start(character));
+        fail(error, () => void start(character, fresh));
       }
     };
 
@@ -236,7 +237,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         create: (sheet: CharacterSheet) => {
           made.setBusy(T.creating);
           api.create(sheet).then(
-            (character) => void start(character),
+            (character) => void start(character, true),
             (error: unknown) => {
               made.setBusy(null);
               say(error instanceof ApiError && error.message === 'limit' ? T.limit(MAX_CHARACTERS) : error instanceof ApiError && error.status === 0 ? T.serverDown : T.failed);

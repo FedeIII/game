@@ -26,8 +26,9 @@ moment or change my game.
   pack, the settings, the worlds), no conversation and no dream is open, no stack of the pack is
   dragged, and the focus is not in a text field. Else Escape does what it did before (it closes that
   panel or conversation), and the game menu stays shut.
-- **AC-GMN-001.2:** The game menu shows the name of the world over three buttons: "Resume", "Load game"
-  and "New game" (Spanish: "Reanudar", "Cargar partida", "Partida nueva"). "Resume" has the focus.
+- **AC-GMN-001.2:** The game menu shows the name of the game ("World of Kandrax") over its buttons:
+  "Resume", "Load game", "New game" and "Prologue" (Spanish: "Reanudar", "Cargar partida", "Partida
+  nueva", "Prólogo"; the prologue: `docs/features/game/prologue.md`). "Resume" has the focus.
 - **AC-GMN-001.3:** Escape, "Resume", or a click on the dark round the panel closes it; the focus goes
   back to where it was.
 - **AC-GMN-001.4:** The arrow keys and Tab move between the buttons (Tab stays in the menu); Enter and

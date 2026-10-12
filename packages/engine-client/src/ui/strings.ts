@@ -408,12 +408,18 @@ const EN = {
     signOut: 'Sign out',
   },
   /** The menu before the game: sign-in, new game, continue, and the character builder. */
+  /** The prologue (ui/prologue.ts). */
+  prologue: {
+    label: 'Prologue',
+    skip: 'Skip',
+  },
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
   gameMenu: {
     label: 'Game menu',
     resume: 'Resume',
     load: 'Load game',
     newGame: 'New game',
+    prologue: 'Prologue',
   },
   menu: {
     newGame: 'New game',

@@ -2,6 +2,7 @@ import type { WorldDefinition } from '@game/engine';
 import { WildsSource } from './source.ts';
 import { QUESTS } from './quests.ts';
 import { TEXTS_ES } from './text-es.ts';
+import { PROLOGUE } from './prologue.ts';
 
 export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
@@ -17,6 +18,7 @@ export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wr
 export { SEEKER_CAMP, SEEKER_STAKE } from './seekers.ts';
 export { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
 export { DREAM_BED } from './dream.ts';
+export { PROLOGUE } from './prologue.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
@@ -112,6 +114,7 @@ export const wilds: WorldDefinition = {
   id: 'wilds',
   name: 'The Wilds',
   createSource: (seed) => new WildsSource(seed ?? DEFAULT_SEED),
+  prologue: PROLOGUE,
   examine: {
     tree: "It's a tree",
     rock: "It's a rock",

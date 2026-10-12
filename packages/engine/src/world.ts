@@ -437,4 +437,21 @@ export interface WorldDefinition {
     readonly speaker?: string;
     readonly welcome?: readonly string[];
   };
+  /**
+   * The prologue (the page's ui/prologue.ts): cards of text over the painted scenes of the world, played
+   * once for a new character and again from the game menu. Without it, there is no prologue.
+   */
+  readonly prologue?: readonly PrologueCard[];
+}
+
+/**
+ * A card of the prologue: a painted scene (its id in the prologue art, art/prologue.ts), an optional
+ * title and subtitle, and lines that show one after the other. In the texts, {name} stands for the
+ * character's name and {kind} for its race and class ("Dwarf cleric").
+ */
+export interface PrologueCard {
+  readonly scene: string;
+  readonly title?: string;
+  readonly subtitle?: string;
+  readonly lines: readonly string[];
 }

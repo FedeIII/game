@@ -133,6 +133,7 @@ import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { DreamVeil } from './ui/dream.ts';
 import { GameMenu, escapeAction } from './ui/game-menu.ts';
+import { playPrologue, prologuePlaying } from './ui/prologue.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { PileViews } from './render/piles.ts';
@@ -184,8 +185,13 @@ export interface GameOptions {
   readonly worlds: readonly WorldDefinition[];
   /** The world when the URL names none. Default: the first. */
   readonly defaultWorld?: string;
-  /** The page title: "<world name> · <title>". */
+  /** The site, under the name in the menu ("game.azyr.io"); without `name`, also the page title: "<world name> · <title>". */
   readonly title?: string;
+  /**
+   * The name of the game ("World of Kandrax", Fede's choice of 2026-10-12): the page title, and the
+   * title of the menu and of the game menu. Without it, the world's name.
+   */
+  readonly name?: string;
   /**
    * The application has accounts (its server answers /api/ and /auth/): the menu comes first
    * (sign-in, new game, continue), and the visitor plays a character of its account. Every visitor
@@ -281,7 +287,8 @@ async function run(options: GameOptions): Promise<void> {
   // The language of the page (i18n.ts): the world's texts in it, and the page says it.
   setWorldTexts(definition.texts?.[LANG]);
   document.documentElement.lang = LANG;
-  if (options.title) document.title = `${tw(definition.name)} · ${options.title}`;
+  if (options.name) document.title = options.name;
+  else if (options.title) document.title = `${tw(definition.name)} · ${options.title}`;
   const seed = Number.parseInt(params.get('seed') ?? '', 10);
 
   // Pixel art: no smoothing on any texture, and sprites on whole pixels.
@@ -296,9 +303,17 @@ async function run(options: GameOptions): Promise<void> {
   // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings; a guest never.
   let admin = false;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
+  let fresh = false;
   if (options.accounts && !guest) {
-    ({ character, admin } = await runMenu({ title: tw(definition.name), site: options.title ?? location.host, skins }));
+    ({ character, admin, fresh } = await runMenu({ title: options.name ?? tw(definition.name), site: options.title ?? location.host, skins }));
   }
+  // The prologue (ui/prologue.ts): once for a new character, before it enters the world (?prologue
+  // plays it for any visitor, for tests). The game menu plays it again.
+  const prologueFor = (): { name: string; kind: string } => {
+    const look = appearanceOf(character ? characterSkin(character) : skinSeed(params));
+    return { name: character?.name ?? skinName(skinSeed(params)), kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}` };
+  };
+  if ((fresh || params.has('prologue')) && definition.prologue) await playPrologue({ cards: definition.prologue, ...prologueFor() });
 
   // High precision in every fragment shader. Pixi asks for mediump, and many Android GPUs (Mali,
   // some Adreno) compute it with 16-bit floats: a texture coordinate near the bottom of the
@@ -1308,7 +1323,12 @@ async function run(options: GameOptions): Promise<void> {
     markMenuScreen(screen);
     void savePlace(true).finally(() => location.reload());
   };
-  const gameMenu = new GameMenu(tw(definition.name), character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null);
+  const gameMenu = new GameMenu(
+    options.name ?? tw(definition.name),
+    character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null,
+    // "Prologue" plays it again, over the game (the character stands still meanwhile).
+    definition.prologue ? () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) : null,
+  );
   // A touch screen has no Escape key: a faint button opens the menu there (as the stick, from the first touch).
   joystick.onTouchMode(() => gameMenu.showButton());
   /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
@@ -1318,6 +1338,8 @@ async function run(options: GameOptions): Promise<void> {
   window.addEventListener(
     'keydown',
     (event) => {
+      // The prologue has the keys while it plays.
+      if (prologuePlaying()) return;
       if (event.code === 'Escape' && !event.repeat) {
         const act = escapeAction({ menuOpen: gameMenu.shown, otherOpen: otherUiOpen(), inField: isFormField(event.target) });
         if (act === 'none') return;
@@ -1351,7 +1373,7 @@ async function run(options: GameOptions): Promise<void> {
     previous.x = player.x;
     previous.y = player.y;
     // In a conversation, and while the game menu is open, the player stands still and does not attack.
-    const still = conversation.open || gameMenu.shown;
+    const still = conversation.open || gameMenu.shown || prologuePlaying();
     if (still) attackAskedAt = -Infinity;
     let input: MoveInput = still ? NO_INPUT : readInput();
     if (still) dodgeAskedAt = -Infinity;
@@ -1437,7 +1459,7 @@ async function run(options: GameOptions): Promise<void> {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
     // A world that the page runs alone stands still while the game menu is open; a shared world goes on.
-    sim.advance(gameMenu.shown && !net ? 0 : seconds);
+    sim.advance((gameMenu.shown || prologuePlaying()) && !net ? 0 : seconds);
     followGear();
     if (now >= placeSaveAt) {
       placeSaveAt = now + PLACE_SAVE_MS;

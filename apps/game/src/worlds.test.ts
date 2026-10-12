@@ -25,3 +25,12 @@ describe('shareWorlds', () => {
     expect(solo.multiplayer).toBe(false);
   });
 });
+
+describe('the prologue of each world', () => {
+  it('names only scenes that the prologue art paints', async () => {
+    const art = (await import('../../../packages/engine-client/src/generated/prologue.json')).default as { scenes: { id: string }[] };
+    const painted = new Set(art.scenes.map((s) => s.id));
+    for (const world of WORLDS) for (const card of world.prologue ?? []) expect(painted.has(card.scene), `${world.id}: ${card.scene}`).toBe(true);
+    expect(WORLDS.find((world) => world.id === 'wilds')?.prologue?.length).toBe(8);
+  });
+});

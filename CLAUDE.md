@@ -370,6 +370,13 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   character").
 - In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
   the menu comes again) and "Sign out".
+- **The game is called World of Kandrax** (Fede, 2026-10-12): `GameOptions.name` (`apps/game/src/main.ts`)
+  is the page title and the title of the menu and of the game menu; "The Wilds" stays the name of the
+  world (the map). The name is the same in Spanish.
+- **The prologue** (2026-10-12, `ui/prologue.ts`, `docs/features/game/prologue.md`): eight painted
+  scenes of Kandrax (`art/prologue.ts`, `art/paint.ts`; their own atlas, `src/generated/prologue.png`,
+  loaded only when it plays) with Fede's texts (`worlds/wilds/src/prologue.ts`). It plays once after
+  "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the settings button opens it): "Resume", "Load game" (a reload

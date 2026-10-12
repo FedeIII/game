@@ -7,4 +7,5 @@ declare const __SHARED_WORLDS__: string;
 // game.azyr.io: the game. Only this site serves this page; azyr.io has the Town of Azyr, from
 // its own copy of the engine (the branch town).
 // It has accounts (the server's /api/ and /auth/): the menu comes first.
-startGame({ worlds: shareWorlds(WORLDS, __SHARED_WORLDS__), defaultWorld: DEFAULT_WORLD, title: 'game.azyr.io', accounts: true });
+// The game is called World of Kandrax (Fede, 2026-10-12): the page title and the title of its menus.
+startGame({ worlds: shareWorlds(WORLDS, __SHARED_WORLDS__), defaultWorld: DEFAULT_WORLD, name: 'World of Kandrax', title: 'game.azyr.io', accounts: true });

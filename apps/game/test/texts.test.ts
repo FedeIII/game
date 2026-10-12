@@ -8,7 +8,7 @@ const drawable = (c: string) => {
   const base = c.normalize('NFD')[0]!;
   return c === ' ' || c in GLYPHS || '«»‘’“”…'.includes(c) || base in GLYPHS || base.toLowerCase() in GLYPHS;
 };
-const undrawable = (texts: readonly string[]) => [...new Set(texts.flatMap((text) => [...text.replaceAll('{name}', '')].filter((c) => !drawable(c))))];
+const undrawable = (texts: readonly string[]) => [...new Set(texts.flatMap((text) => [...text.replaceAll('{name}', '').replaceAll('{kind}', '')].filter((c) => !drawable(c))))];
 
 describe('the Spanish texts and the pixel font', () => {
   it('draw every letter of the texts of the Wilds (speech, signs, names)', () => {

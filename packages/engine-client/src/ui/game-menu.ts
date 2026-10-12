@@ -37,8 +37,11 @@ export class GameMenu {
   /** What had the focus before the menu opened: it gets it back. */
   private before: Element | null = null;
 
-  /** `title`: the name of the world, over the choices. Without `actions`, only Resume. */
-  constructor(title: string, actions: GameMenuActions | null) {
+  /**
+   * `title`: the name of the world, over the choices. Without `actions`, no "Load game" and "New game".
+   * With `prologue`, a last choice plays the prologue again (ui/prologue.ts).
+   */
+  constructor(title: string, actions: GameMenuActions | null, prologue: (() => void) | null = null) {
     const T = STRINGS.gameMenu;
     this.root = document.createElement('div');
     this.root.id = 'game-menu';
@@ -76,6 +79,12 @@ export class GameMenu {
       };
       button(T.load, false, leave(actions.load));
       button(T.newGame, false, leave(actions.create));
+    }
+    if (prologue) {
+      button(T.prologue, false, () => {
+        this.close();
+        prologue();
+      });
     }
     panel.append(head, stack);
     this.root.append(panel);
