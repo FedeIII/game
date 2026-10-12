@@ -1,4 +1,7 @@
 import type { PrologueCard } from '@game/engine';
+import { audio } from '../audio/audio.ts';
+import { KANDRAX_THEME } from '../audio/music.ts';
+import { AMBIENCES, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
 import { tw } from '../i18n.ts';
 import { STRINGS } from './strings.ts';
@@ -10,6 +13,11 @@ import { STRINGS } from './strings.ts';
  * that twinkle, smoke, embers, fireflies, motes of light, birds, mist and a candle's flame. The lines
  * type themselves and go on by themselves; a click, a tap, Space, Enter or the right arrow finishes a
  * line or goes to the next one. "Skip" or Escape ends the prologue at once.
+ *
+ * Its sound (audio/): the theme of Kandrax from the first scene to the end, the ambience of each scene
+ * (the night, the wind, a candle, the forge, a hearth), a rush of air at each new card, a strike and
+ * bells for a title, the scratch of a quill as a line types, and a chord at the end. A speaker button
+ * by "Skip" turns all sound on and off (the setting of the whole game).
  */
 
 interface LayerData {
@@ -35,7 +43,21 @@ interface SceneData {
   readonly id: string;
   readonly layers: readonly LayerData[];
   readonly emitters: readonly EmitterData[];
+  /** The sound under the scene (audio/sounds.ts). */
+  readonly ambience?: string;
 }
+
+/** The ambience of a scene, if it names one that the engine has. */
+export function sceneAmbience(scene: Pick<SceneData, 'ambience'> | undefined): AmbienceId | null {
+  const id = scene?.ambience;
+  return id !== undefined && (AMBIENCES as readonly string[]).includes(id) ? (id as AmbienceId) : null;
+}
+
+/** A speaker, with waves (sound on) or a cross (sound off). */
+const speaker = (on: boolean) =>
+  `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/>${
+    on ? '<path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M17.8 7.2a6.8 6.8 0 0 1 0 9.6"/>' : '<path d="M16 9.5l5 5M21 9.5l-5 5"/>'
+  }</svg>`;
 
 const DATA = prologueData as unknown as { readonly view: { readonly w: number; readonly h: number }; readonly scenes: readonly SceneData[] };
 const SHEET_URL = Object.values(import.meta.glob('../generated/prologue.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)[0]!;
@@ -338,7 +360,23 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   skip.type = 'button';
   skip.className = 'prologue-skip';
   skip.textContent = T.skip;
-  root.append(stage, text, more, spoken, skip);
+  const sound = document.createElement('button');
+  sound.type = 'button';
+  sound.className = 'prologue-sound';
+  const showSound = () => {
+    const on = !audio.settings.muted;
+    sound.innerHTML = speaker(on);
+    // A toggle keeps its name ("Sound"); aria-pressed says the state, the tooltip says it in words.
+    sound.setAttribute('aria-label', STRINGS.sound.heading);
+    sound.setAttribute('aria-pressed', String(on));
+    sound.title = on ? T.soundOn : T.soundOff;
+  };
+  showSound();
+  sound.addEventListener('click', () => {
+    audio.resume();
+    audio.setSettings({ ...audio.settings, muted: !audio.settings.muted });
+  });
+  root.append(stage, text, more, spoken, sound, skip);
   document.body.append(root);
   playing = true;
   const before = document.activeElement;
@@ -369,6 +407,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
+  audio.playMusic(KANDRAX_THEME, 3);
+  const unfollow = audio.onSettings(showSound);
   const scenes = new Map(DATA.scenes.map((s) => [s.id, s]));
 
   let resolveDone: () => void = () => {};
@@ -386,6 +426,10 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   let lineStarts: number[] = [];
   let lineIndex = -1;
   let typedAt = 0;
+  /** How much of the line had its quill scratch, and when the last one played. */
+  let ticked = 0;
+  let tickAt = 0;
+  let skipped = false;
   let last = performance.now();
   let frame = 0;
 
@@ -410,6 +454,10 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     subtitle.textContent = texts.subtitle ?? '';
     titleBox.classList.toggle('shown', texts.title !== null);
     if (texts.title) spoken.textContent = [texts.title, texts.subtitle].filter(Boolean).join('. ');
+    audio.setAmbience(sceneAmbience(scene));
+    if (index > 0) audio.play('whoosh');
+    if (texts.title) audio.play('title', PROLOGUE_TIMING.fade / 1000 - 0.2);
+    ticked = 0;
   }
 
   /** Goes on: finishes the line that types, or goes to the next line (or card). */
@@ -451,6 +499,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     while (lineIndex + 1 < lineStarts.length && t >= lineStarts[lineIndex + 1]!) {
       lineIndex++;
       typedAt = now;
+      ticked = 0;
       spoken.textContent = texts.lines[lineIndex]!;
       titleBox.classList.remove('shown');
     }
@@ -459,6 +508,12 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       const shown = Math.min(line.length, Math.floor(((now - typedAt) / 1000) * PROLOGUE_TIMING.typing));
       if (text.textContent !== line.slice(0, shown)) text.textContent = line.slice(0, shown);
       more.classList.toggle('shown', shown >= line.length);
+      // The quill: a scratch for about every third letter, never too close together.
+      if (shown - ticked >= 3 && now - tickAt > 55) {
+        ticked = shown;
+        tickAt = now;
+        if (line[shown - 1] !== ' ') audio.play('tick');
+      }
     }
     // The scene: its layers, panned, with what moves on each.
     const pan = Math.min(1, t / cardLength) * PROLOGUE_TIMING.pan;
@@ -482,6 +537,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     if (event.code === 'Escape') {
       event.preventDefault();
       event.stopImmediatePropagation();
+      skipped = true;
       finish();
       return;
     }
@@ -498,20 +554,29 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   };
   window.addEventListener('keydown', onKey, { capture: true });
   root.addEventListener('pointerdown', (event) => {
-    if (event.target === skip) return;
+    if (event.target instanceof Node && (skip.contains(event.target) || sound.contains(event.target))) return;
     event.preventDefault();
     advance(performance.now());
   });
-  skip.addEventListener('click', () => finish());
+  skip.addEventListener('click', () => {
+    skipped = true;
+    finish();
+  });
 
   function finish(): void {
     if (ending) return;
     ending = true;
+    // The music and the sounds of the scene fade away; a prologue that ends by itself ends on a chord.
+    if (skipped) audio.play('click');
+    else audio.play('end');
+    audio.stopMusic(skipped ? 1.4 : 4);
+    audio.setAmbience(null, skipped ? 1 : 3);
     root.classList.add('leaving');
     setTimeout(finishNow, 450);
   }
 
   function finishNow(): void {
+    unfollow();
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', fit);
     window.removeEventListener('keydown', onKey, { capture: true });

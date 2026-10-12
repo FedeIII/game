@@ -174,6 +174,7 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
         return { x: at.x, y: at.y, w: layer.image.width, h: layer.image.height, depth: layer.depth };
       }),
       emitters: scene.emitters,
+      ...(scene.ambience ? { ambience: scene.ambience } : {}),
     })),
   };
   writeFileSync(join(outDir, 'prologue.png'), encodePng(sheet));

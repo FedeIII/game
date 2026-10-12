@@ -412,6 +412,15 @@ const EN = {
   prologue: {
     label: 'Prologue',
     skip: 'Skip',
+    soundOn: 'Sound on',
+    soundOff: 'Sound off',
+  },
+  /** The sound section of the settings (ui/sound-section.ts). */
+  sound: {
+    heading: 'Sound',
+    music: 'Music',
+    effects: 'Effects',
+    mute: 'Mute all',
   },
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
   gameMenu: {

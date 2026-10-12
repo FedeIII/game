@@ -177,6 +177,15 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `presence.ts` (shared worlds only, and for an admin only (Fede's decision, 2026-10-10): how many
   other visitors are here, or why the visitor is alone; a line under the heading of the "You"
   section, `#presence`; the others see no presence at all).
+- `audio/` (2026-10-12, `docs/features/game/sound.md`): music and sound effects, all made in the
+  page with Web Audio (no sound files). `audio.ts` (`audio`, one `AudioEngine`: the context starts on
+  the first click, touch or key; it sleeps while the page is hidden or the sound is muted; buses for
+  music, effects and ambience; a clock schedules 0.8 s ahead), `synth.ts` (the instruments), `music.ts`
+  (`KANDRAX_THEME`), `sounds.ts` (`EFFECTS`, `AMBIENCES`), `settings.ts` (localStorage
+  `game.audio.v1`). The "Sound" section of the settings: `ui/sound-section.ts`. Only the prologue uses
+  it now. This box cannot listen: check a change with `renderOffline()` in a headless page (levels,
+  a spectrogram), and keep the work light for phones (a 4.6 s hall reverb cost about 8 % of a core
+  more than 3.2 s).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 
@@ -377,6 +386,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   scenes of Kandrax (`art/prologue.ts`, `art/paint.ts`; their own atlas, `src/generated/prologue.png`,
   loaded only when it plays) with Fede's texts (`worlds/wilds/src/prologue.ts`). It plays once after
   "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
+  It has the theme of Kandrax, an ambience for each scene and small effects, and a speaker button that
+  mutes all sound (`audio/`, `docs/features/game/sound.md`).
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the settings button opens it): "Resume", "Load game" (a reload

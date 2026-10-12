@@ -72,6 +72,8 @@ holds me back.
   arrow at the bottom right shows when a line is whole.
 - **AC-PRO-003.3:** "Skip" (Spanish: "Saltar") at the top right, or Escape, ends the prologue at once.
 - **AC-PRO-003.4:** While it plays, no key reaches the game. A screen reader hears each title and line.
+- **AC-PRO-003.5:** The prologue has music, an ambience for each scene and small effects, and a button
+  that mutes them (see [`sound.md`](sound.md), REQ-SND-003).
 
 ---
 
@@ -89,7 +91,8 @@ holds me back.
 - **The player** (`packages/engine-client/src/ui/prologue.ts`): `playPrologue()` (a promise),
   `prologuePlaying()`, `PROLOGUE_TIMING`, `lineMs()`, `cardMs()`, `cardTexts()`; the emitters run in a
   2D canvas at 320 x 180 (`Emitter`). The look: `#prologue` and `.prologue-*` in `style.css`. The texts:
-  `STRINGS.prologue` (`label`, `skip`).
+  `STRINGS.prologue` (`label`, `skip`, `soundOn`, `soundOff`). The ambience of each scene: `AMBIENCE_OF`
+  in `art/prologue.ts`, carried in `prologue.json`.
 - **The start** (`game.ts`): `MenuChoice.fresh` (`menu/menu.ts`: true after "Create"); the game awaits
   the prologue before it makes its world; the game menu's third argument plays it again
   (`GameMenu`, `STRINGS.gameMenu.prologue`); the tick gives `NO_INPUT` while it plays.

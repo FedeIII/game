@@ -132,6 +132,8 @@ import { ScenePlayer } from './render/scene.ts';
 import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { DreamVeil } from './ui/dream.ts';
+import { audio } from './audio/audio.ts';
+import { soundSection } from './ui/sound-section.ts';
 import { GameMenu, escapeAction } from './ui/game-menu.ts';
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
 import { LootText } from './render/loot-text.ts';
@@ -282,6 +284,8 @@ function targetKey(target: InteractionTarget): string {
 
 async function run(options: GameOptions): Promise<void> {
   const params = new URLSearchParams(location.search);
+  // The sound (audio/audio.ts) starts with the first touch, click or key of the page: the menu's.
+  audio.listen();
   const definition = options.worlds.find((w) => w.id === params.get('world')) ?? options.worlds.find((w) => w.id === options.defaultWorld) ?? options.worlds[0];
   if (!definition) throw new Error('startGame: no worlds');
   // The language of the page (i18n.ts): the world's texts in it, and the page says it.
@@ -807,6 +811,7 @@ async function run(options: GameOptions): Promise<void> {
       void savePlace(true).finally(() => location.reload());
     }),
   );
+  settings.addSection(soundSection());
   settings.addSection(language);
   settings.addSection(you.element);
   // The worlds menu only when there is another world to go to.

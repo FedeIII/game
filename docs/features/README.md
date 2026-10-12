@@ -60,6 +60,9 @@ streaming-platform project):
 | Game: Combat at Level 3 | `CMB` | [`game/combat.md`](game/combat.md) |
 | Game: The Game Menu | `GMN` | [`game/game-menu.md`](game/game-menu.md) |
 | Game: The Prologue | `PRO` | [`game/prologue.md`](game/prologue.md) |
+| Game: Sound | `SND` | [`game/sound.md`](game/sound.md) |
+| Game: The Game Menu | `GMN` | [`game/game-menu.md`](game/game-menu.md) |
+| Game: The Prologue | `PRO` | [`game/prologue.md`](game/prologue.md) |
 | Game: The Towns of the Wilds | `TWN` | [`game/towns.md`](game/towns.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
@@ -98,3 +101,6 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [Language](game/language.md) | English and Spanish: the language of the page (`?lang=`, the kept choice, the browser), the choice in the menu and the settings, the engine's texts in both languages with the names of the Spanish books of 5e, the world's texts in Spanish with the names of Kandrax (Ferrozar, las Tierras Salvajes, la alguacil), lines without gender for the player, the limits and the letters of the pixel font, the English names (Ironhold, Elama Rothenel), and the privacy page in Spanish |
 | [Quests and the Journal](game/quests.md) | The quest book of each character (kept by the server), effects and conditions in conversations and on things, the journal, the banner, the map marks, the letter of Thrain Steelforge, and the merchant's broken cart |
 | [Combat at Level 3](game/combat.md) | The 5e numbers of a level-3 character and of the SRD mobs, attack rolls both ways against the Armour Class, rolled damage, critical hits, healing as at the table, and the numbers of a fight on the screen |
+| [The Game Menu](game/game-menu.md) | Escape (or a faint icon on a touch screen) opens a menu over the game: "Resume", "Load game", "New game" and "Prologue" |
+| [The Prologue](game/prologue.md) | Eight painted scenes of Kandrax with Fede's texts, for each new character and from the game menu: the world, the Dominions, the gods, Thrain's factory, and the character's identity and mission; its pace and how to skip it |
+| [Sound](game/sound.md) | Music and sound effects made in the page (no sound files): when the sound starts and sleeps, the "Sound" settings, the theme of Kandrax, the ambiences and the effects of the prologue, and its mute button |

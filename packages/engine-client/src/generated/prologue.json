@@ -65,7 +65,8 @@
      "rate": 8,
      "colour": "#d8f0a0"
     }
-   ]
+   ],
+   "ambience": "night"
   },
   {
    "id": "ruins",
@@ -120,7 +121,8 @@
      "rate": 0.25,
      "colour": "#2a1020"
     }
-   ]
+   ],
+   "ambience": "wind"
   },
   {
    "id": "map",
@@ -161,7 +163,8 @@
      "rate": 2,
      "colour": "#ffe0a0"
     }
-   ]
+   ],
+   "ambience": "candle"
   },
   {
    "id": "wild",
@@ -230,7 +233,8 @@
      "rate": 0.6,
      "colour": "#d4c8bc"
     }
-   ]
+   ],
+   "ambience": "gale"
   },
   {
    "id": "gods",
@@ -282,7 +286,8 @@
      "rate": 10,
      "colour": "#ffe2a0"
     }
-   ]
+   ],
+   "ambience": "wind"
   },
   {
    "id": "central",
@@ -340,7 +345,8 @@
      "rate": 10,
      "colour": "#e8ecff"
     }
-   ]
+   ],
+   "ambience": "wind"
   },
   {
    "id": "factory",
@@ -465,7 +471,8 @@
      "rate": 4,
      "colour": "#ffc060"
     }
-   ]
+   ],
+   "ambience": "forge"
   },
   {
    "id": "hut",
@@ -530,7 +537,8 @@
      "rate": 10,
      "colour": "#d8f0a0"
     }
-   ]
+   ],
+   "ambience": "hearth"
   }
  ]
 }

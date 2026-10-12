@@ -39,7 +39,12 @@ export interface PrologueScene {
   readonly id: string;
   readonly layers: readonly PrologueLayer[];
   readonly emitters: readonly PrologueEmitter[];
+  /** The sound under the scene (an ambience of src/audio/sounds.ts). */
+  readonly ambience?: string;
 }
+
+/** The sound under each scene (src/audio/sounds.ts, AMBIENCES). */
+const AMBIENCE_OF: Readonly<Record<string, string>> = { kandrax: 'night', ruins: 'wind', map: 'candle', wild: 'gale', gods: 'wind', central: 'wind', factory: 'forge', hut: 'hearth' };
 
 const H = PROLOGUE_VIEW.h;
 
@@ -992,7 +997,7 @@ function hut(): PrologueScene {
 
 /** Every scene of the prologue, in order. */
 export function prologueScenes(): PrologueScene[] {
-  return [kandrax(), ruins(), map(), wild(), gods(), central(), factory(), hut()];
+  return [kandrax(), ruins(), map(), wild(), gods(), central(), factory(), hut()].map((scene) => ({ ...scene, ambience: AMBIENCE_OF[scene.id] }));
 }
 
 /** A scene as one picture with every layer at rest (previews). */
