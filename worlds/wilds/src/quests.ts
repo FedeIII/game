@@ -60,8 +60,22 @@ export const ASHES: QuestDef = {
       id: 'relic',
       journal: 'The Ash Warden went in ash, and its Seekers fell. I keep the Tear of Tigris, and the orders of the Warden. The road was long: I need a bed and a night of sleep.',
     },
-    // The end of the story comes with its last step (the dream).
-    { id: 'found', journal: 'I know now who burns the homesteads of the Wilds.', end: true },
+    // The dream of Verath (story phase 10, dream.ts): the end of chapter 1, with the character's choice.
+    {
+      id: 'gave',
+      journal: 'In a dream of ash, Verath Shadowweave asked me for the Tear of Tigris, and I gave it. The Seekers will not hunt me, Verath says. The four gods, Verath says, are thieves on stolen thrones.',
+      end: true,
+    },
+    {
+      id: 'refused',
+      journal: 'In a dream of ash, Verath Shadowweave asked me for the Tear of Tigris, and I refused. The Seekers will come for it. The four gods, Verath says, are thieves on stolen thrones.',
+      end: true,
+    },
+    {
+      id: 'lied',
+      journal: 'In a dream of ash, Verath Shadowweave asked me for the Tear of Tigris. I promised to bring it north, and I lied. Verath believes me, for now. The four gods, Verath says, are thieves.',
+      end: true,
+    },
   ],
 };
 
@@ -209,6 +223,10 @@ export const TEAR_TAKEN: QuestEffect = {
 };
 /** The Ash Warden went in ash and its Seekers fell at the shrine: its orders are the character's. */
 export const ASHES_RELIC: QuestEffect = { id: 'ashes-relic', quest: 'ashes', to: 'relic', from: ['shrine'], give: { coins: 0, items: [{ kind: 'warden-orders', count: 1 }] } };
+/** The dream of Verath (story phase 10): the character gives the Tear (from its pack or its neck), refuses, or lies. */
+export const DREAM_GIVE: QuestEffect = { id: 'dream-give', quest: 'ashes', to: 'gave', from: ['relic'], take: [{ kind: 'tear-of-tigris', count: 1 }] };
+export const DREAM_REFUSE: QuestEffect = { id: 'dream-refuse', quest: 'ashes', to: 'refused', from: ['relic'] };
+export const DREAM_LIE: QuestEffect = { id: 'dream-lie', quest: 'ashes', to: 'lied', from: ['relic'] };
 /** Mira gives the stone after the fight to a character who has none (it fought the hounds before it warned her, or lost the stone). */
 export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'ashes', to: 'held', from: ['held'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 

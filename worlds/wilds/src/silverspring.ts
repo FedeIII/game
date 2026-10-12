@@ -2,6 +2,7 @@ import { Ground, type Fixture, type NpcDef } from '@game/engine';
 import { HOST, JEWELLER, KASMUT, LORE_GATE, MILITIA } from './dialogs.ts';
 import { SILVERSPRING_SITE } from './road.ts';
 import { LAMP, Town, type Plan } from './towns.ts';
+import { DREAM_BED } from './dream.ts';
 
 /**
  * Silverspring: the mithril village of the Mithril Enclave, at the end of the north road, about
@@ -115,7 +116,7 @@ const BUILDINGS: readonly Plan[] = [
       t: { kind: 'table', pages: ['A scrubbed table. Someone has carved a trout into its edge.'] },
       g: { kind: 'boardtable', pages: ['A game of stones. The panners play it for pinches of dust.'] },
       // The bed of the town's guest (story phase 4d: the title of the raid gives the refuge).
-      B: { kind: 'bed', pages: ['A clean bed under a quilt of blue wool. It is not mine.'], restFor: 'trout' },
+      B: { kind: 'bed', pages: ['A clean bed under a quilt of blue wool. It is not mine.'], restFor: 'trout', variant: DREAM_BED },
     },
     people: {
       K: {

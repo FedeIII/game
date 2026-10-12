@@ -16,6 +16,7 @@ export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspri
 export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 export { SEEKER_CAMP, SEEKER_STAKE } from './seekers.ts';
 export { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
+export { DREAM_BED } from './dream.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
@@ -37,6 +38,7 @@ export {
   REEVE,
   SELA,
   SMITH,
+  VERATH,
   SMITH_PRICES,
   SOLDIER,
   SURVIVOR_HALE,
@@ -47,6 +49,9 @@ export {
 } from './dialogs.ts';
 export {
   ASHES,
+  DREAM_GIVE,
+  DREAM_LIE,
+  DREAM_REFUSE,
   ASHES_RELIC,
   TEAR_TAKEN,
   CAMP_TAKEN,

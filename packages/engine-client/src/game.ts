@@ -71,6 +71,8 @@ import {
   dropPoint,
   hasItems,
   moveItem,
+  ownedPack,
+  unwearFor,
   removeFromSlot,
   tossPoint,
   meetsGate,
@@ -129,6 +131,7 @@ import { WelcomeSpeech } from './render/welcome.ts';
 import { ScenePlayer } from './render/scene.ts';
 import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
+import { DreamVeil } from './ui/dream.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { PileViews } from './render/piles.ts';
@@ -1018,7 +1021,10 @@ async function run(options: GameOptions): Promise<void> {
   let target: InteractionTarget | null = null;
   let dialogKey: string | null = null;
   /** A conversation that is about to open (the NPC says its first line), and the NPC of the conversation. */
-  let pendingTalk: { readonly at: number; readonly dialog: Dialog } | null = null;
+  /** A conversation that opens soon: its dialog, its face when it is not the thing's (Interaction.face), and whether it is a dream. */
+  let pendingTalk: { readonly at: number; readonly dialog: Dialog; readonly face?: string; readonly dream?: boolean } | null = null;
+  /** The veil of a dream (ui/dream.ts): over the world, under the panels. */
+  const dreamVeil = new DreamVeil(document.getElementById('game'));
   let talkWith: Fixture | null = null;
   let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
   // The journal (a panel of the quests), the banner when a quest changes, and the marks of the map.
@@ -1045,18 +1051,21 @@ async function run(options: GameOptions): Promise<void> {
    */
   const applyQuest = (effect: QuestEffect, from: { readonly npc: number } | { readonly at: readonly [number, number] } | { readonly scene: string } | { readonly guard: number }): boolean => {
     const book = questsNow();
-    if (!canApply(effect, book, packNow())) return false;
+    // What the character wears counts too (ownedPack, unwearFor): Verath takes the Tear from its neck.
+    if (!canApply(effect, book, ownedPack({ pack: packNow(), gear: gearNow() }))) return false;
     if (net) {
       if (!net.quest(from, effect.id)) return false;
-      const next = applyEffect(effect, book, packNow(), traits.slots);
+      const next = applyEffect(effect, book, unwearFor({ pack: packNow(), gear: gearNow() }, effect.take ?? []).pack, traits.slots);
       if (next) pendingQuests = { book: next.book, until: performance.now() + PENDING_QUEST_MS };
       return true;
     }
-    const next = applyEffect(effect, localQuests, pack, traits.slots);
+    const carried = unwearFor({ pack, gear }, effect.take ?? []);
+    const next = applyEffect(effect, localQuests, carried.pack, traits.slots);
     if (!next) return false;
     const before = localQuests;
     localQuests = next.book;
     pack = next.pack;
+    gear = carried.gear;
     const now = performance.now();
     lootText.add(dropLines(next.taken), now);
     if (next.left.items.length > 0) {
@@ -1068,7 +1077,10 @@ async function run(options: GameOptions): Promise<void> {
   };
   const conversation = new ConversationPanel({
     // Each line stays over the NPC's head as long as the panel shows it.
-    line: (say) => speech.show([say], talkAnchor, performance.now(), true),
+    line: (say) => {
+      // In a dream, nobody stands there: the lines are in the panel only.
+      if (!dreamVeil.shown) speech.show([say], talkAnchor, performance.now(), true);
+    },
     end: () => closeDialog(performance.now()),
     // A deal (an ale, a brew at the cauldron): the server makes it in a shared world; the page in its own world.
     deal: (deal) => {
@@ -1098,7 +1110,10 @@ async function run(options: GameOptions): Promise<void> {
     // The price of a deal, for this player: Charisma pays less, and gets more for a sale.
     const priceOf = (deal: Deal): string | null =>
       deal.goods === 'coins' ? STRINGS.conversation.pay(dealPay(deal, traits)) : deal.price > 0 ? STRINGS.conversation.price(dealPrice(deal, traits)) : null;
-    conversation.start(pendingTalk.dialog, talkWith.look ? art.tryFrame(`npc/${talkWith.look}`) : null, traits.scores, priceOf, { book: questsNow, pack: packNow });
+    const face = pendingTalk.face ?? talkWith.look;
+    if (pendingTalk.dream) dreamVeil.show();
+    // What the character wears counts for the answers too (ownedPack): Verath asks for the Tear on its neck.
+    conversation.start(pendingTalk.dialog, face ? art.tryFrame(`npc/${face}`) : null, traits.scores, priceOf, { book: questsNow, pack: () => ownedPack({ pack: packNow(), gear: gearNow() }) });
     pendingTalk = null;
   };
   /** Whether the NPC of the conversation is still close to the player. */
@@ -1112,6 +1127,7 @@ async function run(options: GameOptions): Promise<void> {
   };
 
   const closeDialog = (now: number) => {
+    dreamVeil.hide();
     speech.hide(now);
     linkCard.hide();
     dialogKey = null;
@@ -1162,7 +1178,8 @@ async function run(options: GameOptions): Promise<void> {
       return;
     }
     const key = targetKey(target);
-    if (target.fixture?.content?.rest && mayRest(target.fixture)) {
+    // A bed rests, unless its variant has something else for this character (the dream of Verath: dream.ts).
+    if (target.fixture && fixtureContent(target.fixture, questsNow(), packNow())?.rest && mayRest(target.fixture)) {
       // The player's own bed (or its room at the inn): a rest (all hit points and stamina back). The server rests it in a shared world.
       dialogKey = key;
       linkCard.hide();
@@ -1237,12 +1254,13 @@ async function run(options: GameOptions): Promise<void> {
             : () => Fixtures.headOf(fixture)
         : () => ({ x: shown.x, y: shown.y - playerView.headHeight });
     if (content.dialog && fixture) {
-      speech.show([content.dialog.nodes[startNode(content.dialog, questsNow(), packNow())]!.say], anchor, now, true);
+      // A dream opens at once, with no bubble over the bed.
+      if (!content.dream) speech.show([content.dialog.nodes[startNode(content.dialog, questsNow(), packNow())]!.say], anchor, now, true);
       speaking = false;
       linkCard.hide();
       talkWith = fixture;
       talkAnchor = anchor;
-      pendingTalk = { at: now + TALK_DELAY_MS, dialog: content.dialog };
+      pendingTalk = { at: content.dream ? now : now + TALK_DELAY_MS, dialog: content.dialog, ...(content.face ? { face: content.face } : {}), ...(content.dream ? { dream: true } : {}) };
       return;
     }
     speech.show(content.pages ?? [], anchor, now);

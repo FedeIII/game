@@ -30,7 +30,7 @@ export const FM = {
   glass: 15,
 } as const;
 
-export type Headwear = 'hood' | 'cowl' | 'bare' | 'brim' | 'witch' | 'helm' | 'beak';
+export type Headwear = 'hood' | 'cowl' | 'bare' | 'brim' | 'witch' | 'helm' | 'beak' | 'veil';
 export type HairCut = 'none' | 'short' | 'long' | 'tail';
 export type CloakCut = 'long' | 'short' | 'none';
 export type BodyCut = 'jerkin' | 'robe' | 'armour';
@@ -385,10 +385,10 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   // ---------------------------------------------------------------- head
   const head = upper([0, HEAD_Y * h, HEAD_Z]);
   const at = (d: Vec3): Vec3 => [head[0] + d[0] * k, head[1] + d[1] * k, head[2] + d[2] * k];
-  const shaded = spec.headwear === 'hood' || spec.headwear === 'cowl' || spec.headwear === 'brim' || spec.headwear === 'witch' || spec.headwear === 'beak';
+  const shaded = spec.headwear === 'hood' || spec.headwear === 'cowl' || spec.headwear === 'brim' || spec.headwear === 'witch' || spec.headwear === 'beak' || spec.headwear === 'veil';
   const skin = shaded ? FM.face : FM.faceLit;
   part(C(upper([0, 22 * h, 0]), upper([0, 24 * h, 0.1]), 0.85 * k, 0.8 * k), skin);
-  part(S(head, HEAD_RADIUS * k), spec.headwear === 'beak' ? FM.mask : skin);
+  part(S(head, HEAD_RADIUS * k), spec.headwear === 'beak' || spec.headwear === 'veil' ? FM.mask : skin);
   if (spec.beard && (spec.beardLength ?? 1) > 1) {
     // A long beard: from the chin down over the chest, narrower at its end.
     const l = spec.beardLength!;
@@ -457,6 +457,11 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
       if (spec.cloak === 'none') part(C(upper([0, 23 * h, -0.2]), upper([0, 21.6 * h, -0.2]), 1.7 * k, 2.6 * w), FM.metal);
       break;
     }
+    case 'veil':
+      // A deep cowl, and in it a face that is a mask (Verath Shadowweave, the dream of story phase 10).
+      part(hood(2.85, 0.75, 0.9), FM.cloak);
+      part(C(at([0, 1.6, -1.7]), at([0, 3.6, -3.6]), 1.05 * k, 0.3 * k), FM.cloak);
+      break;
     case 'beak':
       // A plague doctor: a hood under a wide brim, and a long beaked mask.
       part(hood(2.35, 0.4, 0.5), FM.cloak);

@@ -1,6 +1,6 @@
 import type { CharacterClass } from './character.ts';
-import { MAX_ATTUNED, WEARABLES, attunedCount, canUse, fitsSlot, gearSlotAt, wearableOf, type Gear, type GearSlot } from './gear.ts';
-import { ITEM_STACK, moveInPack, type ItemKind, type Pack, type PackSlot } from './items.ts';
+import { GEAR_SLOTS, MAX_ATTUNED, WEARABLES, attunedCount, canUse, fitsSlot, gearSlotAt, wearableOf, type Gear, type GearSlot } from './gear.ts';
+import { ITEM_STACK, moveInPack, type ItemKind, type ItemStack, type Pack, type PackSlot } from './items.ts';
 
 /**
  * The inventory: the slots of the pack (items.ts) and the worn slots (gear.ts) together. The player
@@ -162,5 +162,40 @@ export function takeOffSlotFor(pack: Pack, kind: ItemKind, slots: number): numbe
 /** The gear without the item of `slot` (a worn item that the player drops); null when the slot is empty or holds another kind. */
 export function dropWorn(gear: Gear, slot: GearSlot, kind: ItemKind): Gear | null {
   return gear[slot] === kind ? { ...gear, [slot]: null } : null;
+}
+
+/**
+ * What a character owns, as one pack: the pack, and each worn item as one more stack after its
+ * slots. The conditions and the takes of the quests count what a character wears too (the Tear of
+ * Tigris on its neck, story phase 10): quests.ts reads a pack.
+ */
+export function ownedPack(carried: Carried): Pack {
+  const worn: ItemStack[] = [];
+  for (const slot of GEAR_SLOTS) {
+    const kind = carried.gear[slot];
+    // A two-handed weapon fills both hands: it is one item.
+    if (kind !== null && !(slot === 'off' && carried.gear.main === kind && wearableOf(kind)?.weapon?.twoHanded)) worn.push({ kind, count: 1 });
+  }
+  return worn.length === 0 ? carried.pack : { coins: carried.pack.coins, items: [...carried.pack.items, ...worn] };
+}
+
+/**
+ * Takes off the worn items that `stacks` needs and the pack does not hold: each goes into the pack, as
+ * one more stack after its slots (a quest effect takes it from there at once: removeFromPack takes the
+ * last stacks of a kind first). Returns the same object when nothing comes off.
+ */
+export function unwearFor(carried: Carried, stacks: readonly ItemStack[]): Carried {
+  let { pack, gear } = carried;
+  for (const need of stacks) {
+    let missing = need.count - pack.items.reduce((n, s) => n + (s && s.kind === need.kind ? s.count : 0), 0);
+    for (const slot of GEAR_SLOTS) {
+      if (missing <= 0) break;
+      if (gear[slot] !== need.kind) continue;
+      gear = { ...gear, [slot]: null };
+      pack = { coins: pack.coins, items: [...pack.items, { kind: need.kind, count: 1 }] };
+      missing--;
+    }
+  }
+  return pack === carried.pack ? carried : { pack, gear };
 }
 

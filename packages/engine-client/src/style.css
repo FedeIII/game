@@ -1182,6 +1182,77 @@ body.pack-dragging * {
   cursor: pointer;
 }
 
+/* ---------------------------------------------------------------- dream */
+
+/*
+ * The veil of a dream (src/ui/dream.ts, story phase 10): the world goes dark round the middle of the
+ * screen, and ash falls; the panels stay over it, and clicks go through it.
+ */
+#dream {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 38%, rgba(26, 8, 4, 0.5), rgba(0, 0, 0, 0.95) 68%);
+  animation: dream-in 1.4s ease-out;
+}
+
+#dream[hidden] {
+  display: none;
+}
+
+.dream-ash {
+  position: absolute;
+  top: -4%;
+  width: 3px;
+  height: 3px;
+  background: #5e5752;
+  opacity: 0.7;
+  animation-name: dream-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Some of the ash still glows. */
+.dream-ash:nth-child(3n) {
+  width: 2px;
+  height: 2px;
+  background: #ff7a2a;
+  opacity: 0.85;
+}
+
+@keyframes dream-fall {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-48px, 112vh);
+  }
+}
+
+@keyframes dream-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body.dreaming #conversation {
+  border-color: #6a1e12;
+  box-shadow: 0 0 26px rgba(255, 90, 20, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dream {
+    animation: none;
+  }
+  .dream-ash {
+    display: none;
+  }
+}
+
 /* ---------------------------------------------------------------- conversation */
 
 /*

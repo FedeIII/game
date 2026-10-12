@@ -509,6 +509,28 @@ to face them for it, so that I hurt their plans and learn more about them.
 
 ---
 
+### REQ-QST-025: The dream of Verath (the end of chapter 1)
+
+**User Story:** As a player who holds the Tear of Tigris, I want the leader of the Seekers to reach me
+in a dream and make me choose, so that chapter 1 ends with a choice that has a cost.
+
+**Acceptance Criteria:**
+- **AC-QST-025.1:** At `relic`, the bed of the home, the room at the Crooked Lantern and the bed at the
+  Silver Trout do not rest the character: acting on one opens the dream at once, with no bubble. Before
+  and after, the beds rest as before.
+- **AC-QST-025.2:** While the dream is open, the world goes dark round the middle of the screen and ash
+  falls (none with reduced motion); the panel glows red, with the face of Verath (a deep cowl and a
+  mask of bone).
+- **AC-QST-025.3:** Verath tells a part of the truth: the four gods took thrones that were not theirs,
+  and each relic is a chain. INT 13 asks what Verath leaves out; WIS 13 sees that Verath believes it.
+- **AC-QST-025.4:** The choice ends the quest, at one of three steps: "Take it." gives the Tear (from the
+  pack, or from the neck: its gift goes with it) and ends at `gave`; "No. It stays with me." ends at
+  `refused`; with CHA 13, "I will bring it to you, in the north." ends at `lied`, and the character
+  keeps the Tear. "Say nothing, and wake." ends nothing: the dream comes back in the next bed.
+- **AC-QST-025.5:** The conditions and the takes of all quest effects count what the character wears.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -541,7 +563,7 @@ to face them for it, so that I hurt their plans and learn more about them.
   `ui/map-panel.ts` (`setMarks()`), `STRINGS.journal`. The debug panel (`?debug`) has a line
   `quests`.
 - **The Wilds** (`worlds/wilds/src/quests.ts`): `ASHES` (steps `letter`, `reeve`, `ruin1`, `ruin2`,
-  `ruins`, `symbol`, `found`; `found` ends it and comes with the later phases of the story), `CART` (`met`, `lever`, `done`),
+  `ruins`, `symbol`, and the later steps of phases 7 to 10, which end at `gave`, `refused` or `lied`), `CART` (`met`, `lever`, `done`),
   `QUESTS`, the effects `READ_LETTER`, `TELL_REEVE`, `CART_HELP`, `CART_LEVER`, `CART_LIFT` (flag
   `lifted`), `CART_MEND` (flag `lever`), `CART_REWARD` (10). The letter: `home.ts`. The dialogs:
   `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT` (`dialogs.ts`); `ATHLETICS_GATE` (STR
@@ -643,6 +665,12 @@ to face them for it, so that I hurt their plans and learn more about them.
   `SHRINE_RADIUS` 16, a march of `SHRINE_APPROACH` 14 tiles of the burned trail at `SHRINE_SPEED` 44).
   The items `tear-of-tigris` (`Wearable.swim`, `gearSwims()`, `PlayerTraits.swim`; `swimMap()` and
   `inWater()` in `player.ts`) and `warden-orders`.
+- **The dream** (`worlds/wilds/src/dream.ts`, story phase 10): `DREAM_BED` (the variant of the three beds;
+  `Thing.variant` in `towns.ts`), the dialog `VERATH`, the NPC look `verath` (the headwear `veil` of
+  `art/figure.ts`), `Interaction.face` and `Interaction.dream`; the page: `ui/dream.ts` (`DreamVeil`,
+  `#dream` and `.dream-ash` in `style.css`), the rest of a bed reads `fixtureContent()`; the steps
+  `gave`, `refused`, `lied` (the old step `found` is gone); the effects `DREAM_GIVE`, `DREAM_REFUSE`,
+  `DREAM_LIE`; `ownedPack()` and `unwearFor()` (`inventory.ts`) in `Room.quest()` and in the page.
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

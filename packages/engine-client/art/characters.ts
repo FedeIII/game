@@ -200,6 +200,13 @@ export const NPC_LOOKS: Record<string, Look> = {
     leather: ramp('#1c120a', '#2e1e10', '#422c18', '#583b21', '#6e4a2b'),
     spec: { hair: 'tail', cloak: 'short', pauldrons: false, pouch: true },
   },
+  /** Verath Shadowweave, as a dream shows it (story phase 10): a deep cowl of black, a face that is a mask of bone, a long robe. */
+  verath: {
+    cloak: ramp('#050405', '#0a0809', '#110e0f', '#1a1516', '#241d1e', '#2f2627'),
+    hood: false,
+    palette: { mask: ramp('#2e2a24', '#56503f', '#847b66', '#b0a78e', '#d2c9ae') },
+    spec: { height: 1.06, headwear: 'veil', body: 'robe', cloak: 'long', pauldrons: false },
+  },
   /** Sela, a Seeker who would not burn a family: the robe of ash of the Seekers, no mask, long black hair. */
   defector: {
     cloak: ramp('#0c0b0b', '#181615', '#252220', '#34302d', '#443f3b', '#554f4a'),

@@ -192,6 +192,13 @@ export interface Interaction {
    * the nearness and the effect again (Room.quest).
    */
   readonly effect?: QuestEffect;
+  /** The face of its conversation (an NPC look: `npc/<look>`), when it is not the thing's own (the dream of Verath on a bed). */
+  readonly face?: string;
+  /**
+   * A dream (story phase 10): while its conversation is open, the page darkens the world and lets ash
+   * fall, and no bubble rises over the thing.
+   */
+  readonly dream?: boolean;
 }
 
 /** Pages that only a character with a score reads (Interaction.lore). */

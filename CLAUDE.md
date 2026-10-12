@@ -624,7 +624,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 34.
+protocol: `docs/multiplayer.md`, protocol 35.
 
 ## Language
 
@@ -978,7 +978,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   character to the shrine of Tigris (`captive`). `?at=240,-96` starts next to the post. Phase 9: **the
   shrine of Tigris** (`shrine.ts`: standing stones and an altar, loose things on the bank of the pool);
   the wave stone in the altar gives **the Tear of Tigris** (worn: walks in deep water, `PlayerTraits.swim`),
-  and the Ash Warden marches for it (`relic`: its orders). `?at=196,-108` starts by the altar.
+  and the Ash Warden marches for it (`relic`: its orders). `?at=196,-108` starts by the altar. Phase 10:
+  **the dream of Verath** (`dream.ts`): at `relic` the beds open a dream (`Interaction.dream`, the veil
+  of `ui/dream.ts`); the choice ends chapter 1 at `gave`, `refused` or `lied` (CHA 13). Quest effects
+  count what a character wears (`ownedPack()`, `unwearFor()`).
 - **The atlas has pages** (2026-10-12): `art/build.ts` packs the frames into pages of at most 2048 x
   2048 (16-bit GPUs: `atlas.png`, `atlas-1.png`, ...; each frame has its `page` in `atlas.json`), and
   `loadArt()` (`src/assets.ts`) loads them all. `ATLAS_PAGE=1024 npm run art` builds small pages, to

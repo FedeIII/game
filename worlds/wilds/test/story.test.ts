@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   dice,
+  fixtureContent,
+  type Gear,
   AVERAGE_DICE,
   EMPTY_BOOK,
   PLAIN_GEAR,
@@ -87,6 +89,10 @@ import {
   SHRINE_FIXTURES,
   TEAR_TAKEN,
   SILVERVEIN,
+  VERATH,
+  DREAM_GIVE,
+  DREAM_LIE,
+  DREAM_REFUSE,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -140,6 +146,16 @@ describe('the quests of the Wilds', () => {
       'cart-lift',
       'cart-lift',
       'cart-mend',
+      // The dream of Verath, on the three beds where a character sleeps.
+      'dream-give',
+      'dream-give',
+      'dream-give',
+      'dream-lie',
+      'dream-lie',
+      'dream-lie',
+      'dream-refuse',
+      'dream-refuse',
+      'dream-refuse',
       'himo-free',
       'mira-stone',
       'mira-stone-after',
@@ -989,5 +1005,60 @@ describe('the shrine of Tigris', () => {
     room.tick(0);
     expect(room.quest(p.id, { at: [ax, ay] }, TEAR_TAKEN.id, 0)).toBe(false);
     expect(p.quests.ashes?.step).toBe('captive');
+  });
+});
+
+describe('the dream of Verath', () => {
+  const bed = source.home().fixtures.find((f) => f.kind === 'bed')!;
+  const RELIC = { ashes: { step: 'relic', flags: [], n: 14 } };
+  /** A character beside the bed of its home, at `relic`, with these scores and this gear. */
+  const sleeper = (room: Room, cha = 10, gear: Gear = PLAIN_GEAR, pack: Pack = { coins: 0, items: [] }) => {
+    const scores = { ...PLAIN_SCORES, cha } as Scores;
+    const p = room.join(0, 1, undefined, '', { x: bed.tx * TILE_SIZE + 24, y: bed.ty * TILE_SIZE + 8 }, { traits: traitsOf(scores, 'fighter', gear), traitsFor: (g) => traitsOf(scores, 'fighter', g), gear, pack, hp: 1 })!;
+    p.quests = RELIC;
+    return p;
+  };
+
+  it('waits in the beds where a character sleeps, for a character at `relic`: no rest, but Verath in the ash', () => {
+    const dream = fixtureContent(bed, RELIC, { coins: 0, items: [] })!;
+    expect(dream.dialog).toBe(VERATH);
+    expect([dream.dream, dream.face, dream.rest]).toEqual([true, 'verath', undefined]);
+    // Before and after, the bed rests.
+    expect(fixtureContent(bed, { ashes: { step: 'shrine', flags: [], n: 13 } }, { coins: 0, items: [] })?.rest).toBe(true);
+    expect(fixtureContent(bed, { ashes: { step: 'refused', flags: [], n: 15 } }, { coins: 0, items: [] })?.rest).toBe(true);
+    // The room at the Crooked Lantern and the bed at the Silver Trout too.
+    const world = new World(source);
+    const beds = [...world.fixturesIn(TOWN.x0, TOWN.y0, TOWN.x1, TOWN.y1), ...world.fixturesIn(SILVERSPRING.x0, SILVERSPRING.y0, SILVERSPRING.x1, SILVERSPRING.y1)].filter((f) => f.kind === 'bed' && f.content?.restFor);
+    expect(beds.map((b) => b.content!.restFor).sort()).toEqual(['inn', 'trout']);
+    for (const b of beds) expect(fixtureContent(b, RELIC, { coins: 0, items: [] })?.dialog).toBe(VERATH);
+  });
+
+  it('takes the Tear from the neck of a character who gives it, and its gift goes with it', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = sleeper(room, 10, { ...PLAIN_GEAR, neck: 'tear-of-tigris' });
+    expect(p.traits.swim).toBe(true);
+    room.tick(0);
+    expect(room.quest(p.id, { at: [bed.tx, bed.ty] }, DREAM_GIVE.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('gave');
+    expect(p.gear.neck).toBeNull();
+    expect(p.pack.items).toEqual([]);
+    expect(p.traits.swim).toBe(false);
+  });
+
+  it('lets a character refuse and keep the Tear, and lie only with CHA 13', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const tear: Pack = { coins: 0, items: [{ kind: 'tear-of-tigris', count: 1 }] };
+    const plain = sleeper(room, 10, PLAIN_GEAR, tear);
+    room.tick(0);
+    expect(room.quest(plain.id, { at: [bed.tx, bed.ty] }, DREAM_LIE.id, 0)).toBe(false);
+    expect(room.quest(plain.id, { at: [bed.tx, bed.ty] }, DREAM_REFUSE.id, 0)).toBe(true);
+    expect(plain.quests.ashes?.step).toBe('refused');
+    expect(plain.pack.items).toEqual(tear.items);
+    const room2 = new Room(new World(source), { dice: AVERAGE_DICE });
+    const liar = sleeper(room2, 13, PLAIN_GEAR, tear);
+    room2.tick(0);
+    expect(room2.quest(liar.id, { at: [bed.tx, bed.ty] }, DREAM_LIE.id, 0)).toBe(true);
+    expect(liar.quests.ashes?.step).toBe('lied');
+    expect(liar.pack.items).toEqual(tear.items);
   });
 });

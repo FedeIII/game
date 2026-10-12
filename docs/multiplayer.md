@@ -70,6 +70,14 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The dream of Verath (protocol 35, 2026-10-12)
+
+- No message changed. The beds where a character sleeps have a variant (the dream: a conversation),
+  and `Room.use()` rests a character only when the content of the bed for it rests
+  (`fixtureContent()`). A page of protocol 34 would rest a character that the server does not rest.
+- `Room.quest()` counts what a character wears for the conditions (`ownedPack()`), and takes a worn item
+  that an effect takes (`unwearFor()`): Verath takes the Tear from the neck.
+
 ## The shrine of Tigris (protocol 34, 2026-10-12)
 
 - The items `tear-of-tigris` and `warden-orders` (new codes of `ITEM_KINDS`), and the fixture types

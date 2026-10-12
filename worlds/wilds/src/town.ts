@@ -2,6 +2,7 @@ import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from 
 import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, KEEN_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
 import { CARAVAN_HEARD, RAID_HEARD } from './quests.ts';
 import { LAMP, Town, type Plan, type Tile } from './towns.ts';
+import { DREAM_BED } from './dream.ts';
 
 /**
  * Ironhold: the town nearest the home, west of it in the wilds. A road leads there from the
@@ -77,7 +78,7 @@ const BUILDINGS: readonly Plan[] = [
       c: { kind: 'candelabra' },
       t: { kind: 'table', pages: ['A sticky table. Someone has cut a crow into it.'] },
       g: { kind: 'boardtable', pages: ['A game of dice, left half played.'] },
-      B: { kind: 'bed', pages: ['A narrow bed by the east wall. It is not mine.'], restFor: 'inn' },
+      B: { kind: 'bed', pages: ['A narrow bed by the east wall. It is not mine.'], restFor: 'inn', variant: DREAM_BED },
     },
     people: {
       K: {

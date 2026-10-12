@@ -1,7 +1,7 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
 import { EMPTY_GEAR, gearSlotAt, sameShown, shownGear, type Gear } from '../gear.ts';
-import { dropWorn, moveItem } from '../inventory.ts';
+import { dropWorn, moveItem, ownedPack, unwearFor } from '../inventory.ts';
 import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSlot, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, tossPoint } from '../piles.ts';
@@ -716,9 +716,12 @@ export class Room {
       found = { effect: scene.effect, when: scene.when };
     }
     const effect = found?.effect;
-    if (!effect || (found!.gate && !meetsGate(player.traits.scores, found!.gate)) || !holds(found!.when, player.quests, player.pack)) return false;
-    const result = applyEffect(effect, player.quests, player.pack, player.traits.slots);
+    // What the character wears counts too (ownedPack): the Tear on its neck, which Verath takes in the dream.
+    if (!effect || (found!.gate && !meetsGate(player.traits.scores, found!.gate)) || !holds(found!.when, player.quests, ownedPack(player))) return false;
+    const carried = effect.take ? unwearFor(player, effect.take) : player;
+    const result = applyEffect(effect, player.quests, carried.pack, player.traits.slots);
     if (!result) return false;
+    if (carried.gear !== player.gear) this.dress(player, carried.gear);
     player.quests = result.book;
     player.questsChanged = true;
     player.pack = result.pack;
@@ -823,7 +826,8 @@ export class Room {
   /** Acts on a fixture for a player, if it can reach it: a bed rests it; a chest gives its loot (what fits goes into the pack, the rest stays). */
   private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
     const fixture = reachableFixture(this.world, player.state, tx, ty);
-    if (fixture?.content?.rest && (!fixture.content.restFor || player.refuges.includes(fixture.content.restFor))) {
+    // A bed rests, unless its variant has something else for this character (a dream).
+    if (fixture && fixtureContent(fixture, player.quests, player.pack)?.rest && (!fixture.content?.restFor || player.refuges.includes(fixture.content.restFor))) {
       rest(player.state, player.traits);
       return;
     }

@@ -1,6 +1,7 @@
 import { TILE_SIZE, type Building, type Fixture } from '@game/engine';
 import { BUILDING_CELL, CANDLE, DOOR_PATH } from './houses.ts';
 import { READ_LETTER } from './quests.ts';
+import { DREAM_BED } from './dream.ts';
 
 /**
  * The player's home: a small hut in the middle of the wilds, in the cell (0, 0). Every character
@@ -40,7 +41,8 @@ function hut(x0: number, y0: number): Building {
   // The column of the door and the row inside the south wall stay free (a test walks to each thing).
   const fixtures: Fixture[] = [
     // The bed rests the player: all its hit points and stamina back (Interaction.rest).
-    { kind: 'bed', tx: ix0, ty: iy0 + 1, content: { pages: [...TEXTS.bed], rest: true } },
+    // A character at `relic` dreams in it (dream.ts).
+    { kind: 'bed', tx: ix0, ty: iy0 + 1, content: { pages: [...TEXTS.bed], rest: true }, variant: DREAM_BED },
     { kind: 'chest', tx: ix0, ty: iy0 + 2, ...say('chest') },
     { kind: 'bookshelf', tx: ix0 + 4, ty: iy0, ...say('bookshelf') },
     { kind: 'table', tx: ix0 + 3, ty: iy0 + 1, light: CANDLE, content: { pages: [...TEXTS.table], effect: READ_LETTER } },

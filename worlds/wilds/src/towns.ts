@@ -47,6 +47,8 @@ export interface Thing {
   readonly restFor?: string;
   /** What reading it does to a quest (Interaction.effect: the phoenix of a burned homestead). */
   readonly effect?: QuestEffect;
+  /** Another face of it for the characters for whom conditions hold (Fixture.variant: the dream on a bed). */
+  readonly variant?: Fixture['variant'];
 }
 
 /**
@@ -280,7 +282,7 @@ export class Town {
           ...(thing.effect ? { effect: thing.effect } : {}),
         };
         const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
-        fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}) });
+        fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}), ...(thing.variant ? { variant: thing.variant } : {}) });
       }
     }
     if (doorX === null) throw new Error(`${where}: a building needs a door`);

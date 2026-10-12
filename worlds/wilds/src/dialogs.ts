@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -1250,6 +1250,79 @@ export const SELA: Dialog = {
     bye: {
       say: 'I have nowhere to go. North, maybe. If you ever go north... look for me.',
       answers: [{ text: 'Go safely.' }],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the dream of Verath (story phase 10)
+
+/**
+ * Verath Shadowweave, in a dream of ash (dream.ts: the beds of a character at `relic`): a part of the
+ * truth (the four gods took thrones that were not theirs), and the choice that ends chapter 1. Verath
+ * never lies, and never tells everything (Sela, phase 8): INT 13 hears what Verath leaves out, WIS 13
+ * sees that Verath believes it. CHA 13 can lie to Verath.
+ */
+export const VERATH: Dialog = {
+  name: 'Verath Shadowweave',
+  start: 'ash',
+  nodes: {
+    ash: {
+      say: 'Do not wake. Not yet. We have little time, you and I.',
+      answers: [{ text: 'Who are you?', next: 'name' }, { text: 'Where am I?', next: 'where' }],
+    },
+    where: {
+      say: 'Asleep, in a bed that you think is safe. I walk in the ash of every fire that my Seekers lit. Yours too, now.',
+      answers: [{ text: 'Who are you?', next: 'name' }],
+    },
+    name: {
+      say: 'Verath. My Seekers call me the Shadowweave. You took the Tear of Tigris from them. From me.',
+      answers: [{ text: 'Your Seekers burn families.', next: 'burn' }, { text: 'Why do you want it?', next: 'why' }],
+    },
+    burn: {
+      say: 'Some do. Fire spreads; I never said that it is clean. Ask instead why a farmer keeps a stone that is older than his gods.',
+      answers: [{ text: 'Why do you want the Tear?', next: 'why' }],
+    },
+    why: {
+      say: 'The four gods are not what your priests say. They took thrones that were not theirs. Each relic is a chain that holds the old ones down. The Tear is one link.',
+      answers: [
+        { text: 'Prove it.', next: 'proof' },
+        { text: 'What do you leave out?', next: 'unsaid', gate: LORE_GATE },
+        { text: 'You believe this.', next: 'believes', gate: INSIGHT_GATE },
+        { text: 'What do you want from me?', next: 'ask' },
+      ],
+    },
+    proof: {
+      say: 'Ask your priest why the oldest book of his chapel starts in the middle. Then ask yourself who tore out the first pages.',
+      answers: [{ text: 'What do you want from me?', next: 'ask' }],
+    },
+    unsaid: {
+      say: '...You listen well. I do not say what wakes when the last chain breaks. I do not know. Nobody does. That is the price of the truth.',
+      answers: [{ text: 'What do you want from me?', next: 'ask' }],
+    },
+    believes: {
+      say: 'With all that I am. Look at me, and see that I do not lie. I only do not tell you everything.',
+      answers: [{ text: 'What do you want from me?', next: 'ask' }],
+    },
+    ask: {
+      say: 'Give me the Tear, and my Seekers will not hunt you. Keep it, and they will take it. Choose. The ash grows thin.',
+      answers: [
+        { text: 'Take it.', next: 'gave', effect: DREAM_GIVE },
+        { text: 'No. It stays with me.', next: 'refused', effect: DREAM_REFUSE },
+        { text: 'I will bring it to you, in the north.', next: 'lied', effect: DREAM_LIE, gate: PERSUASION_GATE },
+        { text: 'Say nothing, and wake.' },
+      ],
+    },
+    gave: {
+      say: 'Wise. It is already in my hand. Look at your own. We will meet again, when the walls fall.',
+      answers: [{ text: 'Wake.' }],
+    },
+    refused: {
+      say: 'Then we are enemies, and I am sorry for it. Sleep well, while you can.',
+      answers: [{ text: 'Wake.' }],
+    },
+    lied: {
+      say: '...The north, then. I will wait for you there. Do not make me wait long.',
+      answers: [{ text: 'Wake.' }],
     },
   },
 };

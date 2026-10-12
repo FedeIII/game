@@ -1,7 +1,7 @@
 # The Arcane Raiders: the end of chapter 1 and chapter 2 (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** planned 2026-10-12; phases 7 to 9 built (2026-10-12: REQ-QST-022 to 024, REQ-CMB-008, protocols 33 and 34)
+> **Status:** planned 2026-10-12; phases 7 to 10 built (2026-10-12: REQ-QST-022 to 025, REQ-CMB-008, protocols 33 to 35): chapter 1 is complete
 
 This draft continues `docs/drafts/story-razed-villages.md` (phases 1 to 6, all built). It plans the
 rest of the quest `ashes` (the end of chapter 1) and chapter 2 of the game. The phases keep the
@@ -168,6 +168,10 @@ apothecary of Ironhold told what they know of the phoenix.
     village of the Raiders, Verath knows, and the Warden comes for the character with more Seekers.
 - **The end of chapter 1.** The journal closes the Razed Villages. The next morning, a letter from
   Thrain Steelforge waits at the home and at the beds of the refuges: chapter 2 starts.
+- **Built** (2026-10-12). What changed from the plan: the choice is three end steps of `ashes` (`gave`,
+  `refused`, `lied`), not a flag; "Say nothing, and wake." leaves the dream for the next bed; Verath
+  takes the Tear from the neck too (quest effects count what a character wears). The letter of Thrain
+  comes with chapter 2 (phase 11).
 
 ## Chapter 2: the Arcane Raiders (1.5.x "Aldea salvaje" and "Asalto")
 
