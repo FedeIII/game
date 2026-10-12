@@ -474,12 +474,14 @@ export interface WorldDefinition {
 
 /**
  * A card of the prologue: a painted scene (its id in the prologue art, art/prologue.ts), an optional
- * title and subtitle, and lines that show one after the other. In the texts, {name} stands for the
- * character's name and {kind} for its race and class ("Dwarf cleric").
+ * title and subtitle, an optional banner, and lines that show one after the other. In the texts,
+ * {name} stands for the character's name and {kind} for its race and class ("Dwarf cleric").
  */
 export interface PrologueCard {
   readonly scene: string;
   readonly title?: string;
   readonly subtitle?: string;
+  /** A name over the scene in the pixel font, on a dark band, as the name of a world on arrival. */
+  readonly banner?: string;
   readonly lines: readonly string[];
 }

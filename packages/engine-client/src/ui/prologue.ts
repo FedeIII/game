@@ -3,16 +3,23 @@ import { audio } from '../audio/audio.ts';
 import { KANDRAX_THEME, THEME_FIRST } from '../audio/themes/kandrax.ts';
 import { AMBIENCES, EFFECT_INSTRUMENTS, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
-import { tw } from '../i18n.ts';
+import { LANG, tw } from '../i18n.ts';
 import { STRINGS } from './strings.ts';
 
 /**
  * The prologue (Fede's request, 2026-10-12): the world's cards of text (WorldDefinition.prologue)
  * over painted scenes of Kandrax (art/prologue.ts, an atlas of its own that loads only now). Each
  * scene pans slowly, the near layers more than the far ones, and its emitters add what moves: stars
- * that twinkle, smoke, embers, fireflies, motes of light, birds, mist and a candle's flame. The lines
- * type themselves and go on by themselves; a click, a tap, Space, Enter or the right arrow finishes a
- * line or goes to the next one. "Skip" or Escape ends the prologue at once.
+ * that twinkle, smoke, embers, fireflies, motes of light, birds, mist and a candle's flame. A tall
+ * layer rises (the map: the view goes from its north to its south). A card can have a banner: a name
+ * over the scene in the game's pixel font, as the name of a world on arrival (render/intro.ts).
+ *
+ * The lines of a card type themselves from left to right, one under the other, and go on by
+ * themselves; a click, a tap, Space, Enter or the right arrow finishes a line or goes to the next
+ * one. The box of the text has the place of the longest card from the start, so nothing moves while
+ * a line types. The scene and the text share the screen: the text under the scene, or beside it on a
+ * wide, short screen (a phone on its side), whichever gives the larger scene with all the text in
+ * view. "Skip" or Escape ends the prologue at once.
  *
  * Its sound (audio/): the theme of Kandrax from the first scene to the end, the ambience of each scene
  * (the night, the wind, a candle, the forge, a hearth), a rush of air at each new card, a strike and
@@ -26,6 +33,10 @@ interface LayerData {
   readonly w: number;
   readonly h: number;
   readonly depth: number;
+  /** How far it rises over a card (pixels). */
+  readonly rise?: number;
+  /** The language that it is for (the labels of a map). */
+  readonly lang?: string;
 }
 
 interface EmitterData {
@@ -59,7 +70,19 @@ const speaker = (on: boolean) =>
     on ? '<path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M17.8 7.2a6.8 6.8 0 0 1 0 9.6"/>' : '<path d="M16 9.5l5 5M21 9.5l-5 5"/>'
   }</svg>`;
 
-const DATA = prologueData as unknown as { readonly view: { readonly w: number; readonly h: number }; readonly scenes: readonly SceneData[] };
+/** The pixel font in the sheet (art/font.ts): the place of each glyph, by its character code. */
+interface FontData {
+  readonly height: number;
+  readonly lineHeight: number;
+  readonly spacing: number;
+  readonly glyphs: Readonly<Record<string, readonly [number, number, number, number]>>;
+}
+
+const DATA = prologueData as unknown as {
+  readonly view: { readonly w: number; readonly h: number };
+  readonly font: FontData;
+  readonly scenes: readonly SceneData[];
+};
 const SHEET_URL = Object.values(import.meta.glob('../generated/prologue.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)[0]!;
 
 /** The pacing of the prologue (ms): fades, a title, typing, and the time to read a line. */
@@ -75,20 +98,137 @@ export const PROLOGUE_TIMING = {
   pan: 64,
 } as const;
 
+/**
+ * The banner of a card: the times, the size and the colours of the name of a world on arrival
+ * (render/intro.ts). It starts as the scene fades in; the first line starts as it fades out.
+ */
+export const PROLOGUE_BANNER = {
+  start: 500,
+  fadeIn: 650,
+  hold: 1450,
+  fadeOut: 800,
+  /** Pixels of the art for each pixel of the font. */
+  scale: 2,
+  /** The row of its middle (pixels of the art): over the sky, above the landmarks. */
+  row: 47,
+  /** The lines are this much longer than the name (pixels of the art). */
+  overhang: 28,
+  ink: '#d8ccb0',
+  shadow: '#07050a',
+  line: '#9a3a36',
+} as const;
+
 /** How long a line stays, typed and read (ms). */
 export function lineMs(line: string): number {
   return (line.length / PROLOGUE_TIMING.typing) * 1000 + PROLOGUE_TIMING.read + line.length * PROLOGUE_TIMING.readPerChar;
 }
 
-/** How long a card lasts with nobody hurrying it (ms): its fades, its title and its lines. */
-export function cardMs(card: Pick<PrologueCard, 'title' | 'lines'>): number {
-  return 2 * PROLOGUE_TIMING.fade + (card.title ? PROLOGUE_TIMING.title : 0) + card.lines.reduce((sum, line) => sum + lineMs(line), 0);
+/** The time before the first line of a card: its fade in, and its title or its banner. */
+function leadMs(card: Pick<PrologueCard, 'title' | 'banner'>): number {
+  return PROLOGUE_TIMING.fade + (card.title || card.banner ? PROLOGUE_TIMING.title : 0);
+}
+
+/** How long a card lasts with nobody hurrying it (ms): its fades, its title or banner, and its lines. */
+export function cardMs(card: Pick<PrologueCard, 'title' | 'banner' | 'lines'>): number {
+  return leadMs(card) + PROLOGUE_TIMING.fade + card.lines.reduce((sum, line) => sum + lineMs(line), 0);
 }
 
 /** A card's texts in the page's language, with {name} and {kind} filled in. */
-export function cardTexts(card: PrologueCard, name: string, kind: string): { title: string | null; subtitle: string | null; lines: string[] } {
+export function cardTexts(
+  card: PrologueCard,
+  name: string,
+  kind: string,
+): { title: string | null; subtitle: string | null; banner: string | null; lines: string[] } {
   const fill = (text: string) => tw(text).replaceAll('{name}', name).replaceAll('{kind}', kind);
-  return { title: card.title ? fill(card.title) : null, subtitle: card.subtitle ? fill(card.subtitle) : null, lines: card.lines.map(fill) };
+  const maybe = (text: string | undefined) => (text ? fill(text) : null);
+  return { title: maybe(card.title), subtitle: maybe(card.subtitle), banner: maybe(card.banner), lines: card.lines.map(fill) };
+}
+
+/** How far a layer moves, from the time of the card (0 to 1): across with its depth, and up with its rise. */
+export function layerOffset(layer: Pick<LayerData, 'depth' | 'rise'>, progress: number): { x: number; y: number } {
+  const t = Math.max(0, Math.min(1, progress));
+  return { x: Math.round(layer.depth * t * PROLOGUE_TIMING.pan), y: Math.round((layer.rise ?? 0) * t) };
+}
+
+/** Whether a layer shows in a language: a layer without a language shows in every one. */
+export function layerShows(layer: Pick<LayerData, 'lang'>, lang: string): boolean {
+  return layer.lang === undefined || layer.lang === lang;
+}
+
+// ---------------------------------------------------------------- the banner
+
+/** Typographic characters that the font draws as plain ones (as render/pixel-text.ts does). */
+const PLAIN: Readonly<Record<string, string>> = { '‘': "'", '’': "'", '“': '"', '”': '"', '…': '.', '«': '"', '»': '"' };
+
+/** The place of a character's glyph in the sheet: the glyph, else the plain character (no accent), else the fallback. */
+function glyphOf(ch: string): readonly [number, number, number, number] | undefined {
+  const glyphs = DATA.font.glyphs;
+  const plain = PLAIN[ch] ?? ch.normalize('NFD')[0] ?? ch;
+  return glyphs[String(ch.codePointAt(0))] ?? glyphs[String(plain.codePointAt(0))] ?? glyphs.fallback;
+}
+
+/** The width of a text in the pixel font (pixels of the font). */
+export function bannerWidth(text: string): number {
+  let width = 0;
+  for (const ch of text) width += (glyphOf(ch)?.[2] ?? 0) + DATA.font.spacing;
+  return Math.max(0, width - DATA.font.spacing);
+}
+
+/** A banner's name in the pixel font, with its shadow one pixel down and right, at the font's own size. */
+function bannerImage(sheet: CanvasImageSource, text: string): HTMLCanvasElement {
+  const width = bannerWidth(text) + 1;
+  const height = DATA.font.height + 1;
+  const tinted = (colour: string, dx: number, dy: number) => {
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    const g = c.getContext('2d')!;
+    let x = dx;
+    for (const ch of text) {
+      const glyph = glyphOf(ch);
+      if (!glyph) continue;
+      const [gx, gy, gw, gh] = glyph;
+      g.drawImage(sheet, gx, gy, gw, gh, x, dy, gw, gh);
+      x += gw + DATA.font.spacing;
+    }
+    // The glyphs are white: the colour takes their shape.
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = colour;
+    g.fillRect(0, 0, width, height);
+    g.globalCompositeOperation = 'source-over';
+    return c;
+  };
+  const image = tinted(PROLOGUE_BANNER.shadow, 1, 1);
+  image.getContext('2d')!.drawImage(tinted(PROLOGUE_BANNER.ink, 0, 0), 0, 0);
+  return image;
+}
+
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+/** Draws a banner at `t` ms from the start of its card: a dark band, two lines that grow from the centre, and the name, which rises a little as it fades in. */
+function drawBanner(ctx: CanvasRenderingContext2D, image: HTMLCanvasElement, t: number): void {
+  const B = PROLOGUE_BANNER;
+  const local = t - B.start;
+  if (local < 0 || local >= B.fadeIn + B.hold + B.fadeOut) return;
+  const appear = easeOut(Math.min(1, local / B.fadeIn));
+  const alpha = local < B.fadeIn + B.hold ? appear : 1 - (local - B.fadeIn - B.hold) / B.fadeOut;
+  const textW = (image.width - 1) * B.scale;
+  const textH = DATA.font.height * B.scale;
+  const cx = Math.round(DATA.view.w / 2);
+  const cy = B.row;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, alpha) * 0.55;
+  ctx.fillStyle = B.shadow;
+  const bandH = textH + 22;
+  ctx.fillRect(0, Math.round(cy - bandH / 2), DATA.view.w, bandH);
+  ctx.globalAlpha = Math.max(0, alpha);
+  ctx.fillStyle = B.line;
+  const lineW = 2 * Math.round(((textW + B.overhang) / 2) * easeOut(Math.min(1, local / (B.fadeIn * 1.4))));
+  ctx.fillRect(cx - lineW / 2, Math.round(cy - textH / 2 - 6), lineW, 1);
+  ctx.fillRect(cx - lineW / 2, Math.round(cy + textH / 2 + 5), lineW, 1);
+  const rise = Math.round((1 - appear) * 6);
+  ctx.drawImage(image, Math.round(cx - textW / 2), Math.round(cy - textH / 2) + rise, image.width * B.scale, image.height * B.scale);
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------- particles
@@ -214,17 +354,18 @@ class Emitter {
     }
   }
 
-  draw(ctx: CanvasRenderingContext2D, offset: number): void {
+  /** Draws the particles on the layer, which the pan moved `ox` to the left and `oy` up. */
+  draw(ctx: CanvasRenderingContext2D, ox: number, oy: number): void {
     const d = this.data;
     const [r, g, b] = this.rgb;
     const dot = (x: number, y: number, a: number, size = 1) => {
       if (a <= 0) return;
       ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(1, a)})`;
-      ctx.fillRect(Math.round(x - offset), Math.round(y), size, size);
+      ctx.fillRect(Math.round(x - ox), Math.round(y - oy), size, size);
     };
     if (d.kind === 'flame') {
-      const x = Math.round(d.x + d.w / 2 - offset);
-      const base = d.y + d.h;
+      const x = Math.round(d.x + d.w / 2 - ox);
+      const base = d.y + d.h - oy;
       const glow = ctx.createRadialGradient(x + 0.5, base - 3, 0, x + 0.5, base - 3, 18);
       glow.addColorStop(0, `rgba(${r},${g},${b},0.35)`);
       glow.addColorStop(1, `rgba(${r},${g},${b},0)`);
@@ -288,7 +429,7 @@ class Emitter {
         case 'mist': {
           ctx.fillStyle = `rgba(${r},${g},${b},${0.12 * Math.sin(Math.PI * t)})`;
           ctx.beginPath();
-          ctx.ellipse(p.x - offset, p.y, 28, 5, 0, 0, Math.PI * 2);
+          ctx.ellipse(p.x - ox, p.y - oy, 28, 5, 0, 0, Math.PI * 2);
           ctx.fill();
           break;
         }
@@ -297,6 +438,103 @@ class Emitter {
       }
     }
   }
+}
+
+// ---------------------------------------------------------------- the layout
+
+/**
+ * The room between the scene and the text, the room of the buttons at the top right (below the page's
+ * margin; a column beside the scene starts under them), the smallest scale of a good layout, and the
+ * widths of the text (px; a column beside the scene takes a share of the width).
+ */
+const LAYOUT = {
+  gap: 18,
+  controls: 38,
+  smallest: 0.5,
+  narrowest: 300,
+  widest: 820,
+  sideMin: 220,
+  sideMax: 460,
+  sideShares: [0.3, 0.34, 0.38, 0.42, 0.46, 0.5],
+} as const;
+
+export interface PrologueLayout {
+  /** The text beside the scene (true), or under it. */
+  readonly side: boolean;
+  /** Screen pixels for each pixel of the art. */
+  readonly scale: number;
+  readonly textWidth: number;
+  readonly textHeight: number;
+  /** Whether the longest card fits in the box of the text (else the box scrolls). */
+  readonly fits: boolean;
+}
+
+/**
+ * Where the scene and the text go in a space of `width` x `height` pixels. `need` gives the height
+ * of the longest card in a box of the text of a given width. The text goes under the scene, as
+ * wide as the scene (but not too narrow or too wide to read), or beside it in a column on a wide,
+ * short screen; the choice gives the larger scene with all the text in view. A scale of 2 or more
+ * is a whole number, so that the pixels of the art stay sharp.
+ */
+export function prologueLayout(width: number, height: number, need: (textWidth: number) => number): PrologueLayout {
+  const { w, h } = DATA.view;
+  const whole = (scale: number) => (scale >= 2 ? Math.floor(scale) : scale);
+  const underWidth = (sceneWidth: number) => Math.min(width, Math.max(LAYOUT.narrowest, Math.min(sceneWidth, LAYOUT.widest)));
+  let scale = whole(width / w);
+  let textWidth = underWidth(w * scale);
+  let textHeight = need(textWidth);
+  // The scene and the text take room from each other: a few rounds find the balance.
+  for (let round = 0; round < 4; round++) {
+    scale = whole(Math.max(0.1, Math.min(width / w, (height - LAYOUT.gap - textHeight) / h)));
+    textWidth = underWidth(w * scale);
+    textHeight = need(textWidth);
+  }
+  let best: PrologueLayout | null =
+    scale >= LAYOUT.smallest && h * scale + LAYOUT.gap + textHeight <= height + 0.5 ? { side: false, scale, textWidth, textHeight, fits: true } : null;
+  // Beside the scene: the scene and the column are under the buttons at the top right.
+  const sideRoom = height - LAYOUT.controls;
+  const sideScale = (sideWidth: number) => whole(Math.min((width - LAYOUT.gap - sideWidth) / w, sideRoom / h));
+  for (const share of LAYOUT.sideShares) {
+    const sideWidth = Math.round(Math.min(LAYOUT.sideMax, Math.max(LAYOUT.sideMin, width * share)));
+    const sideHeight = need(sideWidth);
+    const scaleBeside = sideScale(sideWidth);
+    if (sideHeight <= sideRoom && scaleBeside >= LAYOUT.smallest && (!best || scaleBeside > best.scale)) {
+      best = { side: true, scale: scaleBeside, textWidth: sideWidth, textHeight: sideHeight, fits: true };
+    }
+  }
+  if (best) return best;
+  // Nothing fits (a very small screen): the text scrolls, beside the scene on a wide screen, else under it.
+  if (width > height) {
+    const sideWidth = Math.round(width * 0.5);
+    return { side: true, scale: sideScale(sideWidth), textWidth: sideWidth, textHeight: Math.max(40, Math.floor(sideRoom)), fits: false };
+  }
+  const small = whole(Math.min(width / w, (height * 0.55) / h));
+  return { side: false, scale: small, textWidth: underWidth(w * small), textHeight: Math.max(40, Math.floor(height - LAYOUT.gap - h * small)), fits: false };
+}
+
+/** One line of a card in the box of the text: the typed part, the part still to type (hidden, but in its place), and the arrow. */
+interface Row {
+  readonly p: HTMLParagraphElement;
+  readonly typed: HTMLSpanElement;
+  readonly rest: HTMLSpanElement;
+  readonly more: HTMLSpanElement;
+}
+
+/** The rows of a card's lines, with nothing typed: each line has its final place from the start. */
+function rowsOf(lines: readonly string[]): Row[] {
+  return lines.map((line) => {
+    const p = document.createElement('p');
+    const typed = document.createElement('span');
+    const rest = document.createElement('span');
+    rest.className = 'prologue-rest';
+    rest.textContent = line;
+    const more = document.createElement('span');
+    more.className = 'prologue-more';
+    // A space that does not break: the arrow never goes to a row of its own.
+    more.textContent = '\u00a0▸';
+    p.append(typed, rest, more);
+    return { p, typed, rest, more };
+  });
 }
 
 // ---------------------------------------------------------------- the player
@@ -346,16 +584,15 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   const subtitle = document.createElement('p');
   titleBox.append(title, subtitle);
   stage.append(canvas, titleBox);
-  const text = document.createElement('p');
+  const text = document.createElement('div');
   text.className = 'prologue-text';
   text.setAttribute('aria-hidden', 'true');
+  const content = document.createElement('div');
+  content.className = 'prologue-content';
+  content.append(stage, text);
   const spoken = document.createElement('p');
   spoken.className = 'sr-only';
   spoken.setAttribute('aria-live', 'polite');
-  const more = document.createElement('span');
-  more.className = 'prologue-more';
-  more.setAttribute('aria-hidden', 'true');
-  more.textContent = '▸';
   const skip = document.createElement('button');
   skip.type = 'button';
   skip.className = 'prologue-skip';
@@ -376,20 +613,47 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     audio.resume();
     audio.setSettings({ ...audio.settings, muted: !audio.settings.muted });
   });
-  root.append(stage, text, more, spoken, sound, skip);
+  root.append(content, spoken, sound, skip);
   document.body.append(root);
   playing = true;
   const before = document.activeElement;
   skip.focus();
 
-  // The size: as big as fits over the text, in whole steps of pixels when it is large.
+  // The size: the largest scene that leaves room for the longest card (prologueLayout()). A hidden
+  // box with the look of the text measures the cards at each width.
+  const allTexts = options.cards.map((card) => cardTexts(card, options.name, options.kind));
+  const measurer = document.createElement('div');
+  measurer.className = 'prologue-text prologue-measure';
+  measurer.setAttribute('aria-hidden', 'true');
+  root.append(measurer);
   const fit = () => {
-    const room = Math.max(120, window.innerHeight - 150);
-    let scale = Math.min(window.innerWidth / DATA.view.w, room / DATA.view.h);
-    if (scale >= 2) scale = Math.floor(scale);
-    canvas.style.width = `${Math.round(DATA.view.w * scale)}px`;
-    canvas.style.height = `${Math.round(DATA.view.h * scale)}px`;
-    text.style.maxWidth = `${Math.max(280, Math.round(DATA.view.w * scale))}px`;
+    const style = getComputedStyle(root);
+    const width = root.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+    const height = root.clientHeight - Number.parseFloat(style.paddingTop) - Number.parseFloat(style.paddingBottom);
+    const heights = new Map<number, number>();
+    const need = (textWidth: number) => {
+      const key = Math.floor(textWidth);
+      let most = heights.get(key);
+      if (most === undefined) {
+        measurer.style.width = `${key}px`;
+        most = 0;
+        for (const texts of allTexts) {
+          measurer.replaceChildren(...rowsOf(texts.lines).map((row) => row.p));
+          most = Math.max(most, measurer.scrollHeight);
+        }
+        heights.set(key, most + 2);
+      }
+      return heights.get(key)!;
+    };
+    const layout = prologueLayout(width, height, need);
+    measurer.replaceChildren();
+    content.classList.toggle('side', layout.side);
+    const sceneWidth = Math.round(DATA.view.w * layout.scale);
+    canvas.style.width = `${sceneWidth}px`;
+    canvas.style.height = `${Math.round(DATA.view.h * layout.scale)}px`;
+    stage.style.setProperty('--stage-width', `${sceneWidth}px`);
+    text.style.width = `${Math.floor(layout.textWidth)}px`;
+    text.style.height = `${Math.floor(layout.textHeight)}px`;
   };
   fit();
   window.addEventListener('resize', fit);
@@ -423,9 +687,13 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   let cardLength = 0;
   let scene: SceneData | undefined;
   let emitters: Emitter[] = [];
-  let texts = { title: null as string | null, subtitle: null as string | null, lines: [] as string[] };
-  // The time line of the card: when its lines start (ms from the card's start), and its end.
+  let texts: ReturnType<typeof cardTexts> = { title: null, subtitle: null, banner: null, lines: [] };
+  let rows: Row[] = [];
+  let banner: HTMLCanvasElement | null = null;
+  // The time line of the card: when its lines start (ms from the card's start), and its end. The
+  // pan follows the card's own length, so a line that comes early does not make the scene jump.
   let lineStarts: number[] = [];
+  let panLength = 1;
   let lineIndex = -1;
   let typedAt = 0;
   /** How much of the line had its quill scratch, and when the last one played. */
@@ -443,22 +711,27 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     emitters = (scene?.emitters ?? []).map((e) => new Emitter(e));
     cardStart = now;
     cardLength = cardMs(card);
+    panLength = cardLength;
     lineStarts = [];
-    let at = PROLOGUE_TIMING.fade + (card.title ? PROLOGUE_TIMING.title : 0);
+    let at = leadMs(card);
     for (const line of texts.lines) {
       lineStarts.push(at);
       at += lineMs(line);
     }
     lineIndex = -1;
-    text.textContent = '';
-    more.classList.remove('shown');
+    rows = rowsOf(texts.lines);
+    text.replaceChildren(...rows.map((row) => row.p));
+    text.scrollTop = 0;
     title.textContent = texts.title ?? '';
     subtitle.textContent = texts.subtitle ?? '';
     titleBox.classList.toggle('shown', texts.title !== null);
-    if (texts.title) spoken.textContent = [texts.title, texts.subtitle].filter(Boolean).join('. ');
+    banner = texts.banner ? bannerImage(sheet, texts.banner) : null;
+    const heading = texts.title ? [texts.title, texts.subtitle] : [texts.banner];
+    if (heading[0]) spoken.textContent = heading.filter(Boolean).join('. ');
     audio.setAmbience(sceneAmbience(scene));
     if (index > 0) audio.play('whoosh');
     if (texts.title) audio.play('title', PROLOGUE_TIMING.fade / 1000 - 0.2);
+    else if (texts.banner) audio.play('title', PROLOGUE_BANNER.start / 1000);
     ticked = 0;
   }
 
@@ -497,8 +770,15 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       startCard(cardIndex + 1, now);
     }
     const t = now - cardStart;
-    // The lines: the one whose time has come types itself.
+    // The lines: the one whose time has come types itself under the ones before it, which stay.
     while (lineIndex + 1 < lineStarts.length && t >= lineStarts[lineIndex + 1]!) {
+      const before = rows[lineIndex];
+      if (before) {
+        before.typed.textContent = texts.lines[lineIndex]!;
+        before.rest.textContent = '';
+        before.more.classList.remove('shown');
+        before.p.classList.add('past');
+      }
       lineIndex++;
       typedAt = now;
       ticked = 0;
@@ -506,10 +786,17 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       titleBox.classList.remove('shown');
     }
     const line = texts.lines[lineIndex];
-    if (line !== undefined) {
+    const row = rows[lineIndex];
+    if (line !== undefined && row) {
       const shown = Math.min(line.length, Math.floor(((now - typedAt) / 1000) * PROLOGUE_TIMING.typing));
-      if (text.textContent !== line.slice(0, shown)) text.textContent = line.slice(0, shown);
-      more.classList.toggle('shown', shown >= line.length);
+      if (row.typed.textContent!.length !== shown) {
+        row.typed.textContent = line.slice(0, shown);
+        row.rest.textContent = line.slice(shown);
+        // A box too small for the card (a tiny screen) scrolls: the line that types stays in view.
+        const below = row.p.offsetTop + row.p.offsetHeight - text.clientHeight;
+        if (below > text.scrollTop) text.scrollTop = below;
+      }
+      row.more.classList.toggle('shown', shown >= line.length);
       // The quill: a scratch for about every third letter, never too close together.
       if (shown - ticked >= 3 && now - tickAt > 55) {
         ticked = shown;
@@ -517,16 +804,19 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
         if (line[shown - 1] !== ' ') audio.play('tick');
       }
     }
-    // The scene: its layers, panned, with what moves on each.
-    const pan = Math.min(1, t / cardLength) * PROLOGUE_TIMING.pan;
+    // The scene: its layers, panned (and risen), with what moves on each; the labels of the page's language only.
+    const progress = Math.min(1, t / panLength);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (const e of emitters) e.step(dt);
     scene?.layers.forEach((layer, i) => {
-      const offset = Math.round(layer.depth * pan);
-      ctx.drawImage(sheet, layer.x + offset, layer.y, DATA.view.w, layer.h, 0, 0, DATA.view.w, layer.h);
-      for (const e of emitters) if (e.data.layer === i) e.draw(ctx, offset);
+      if (!layerShows(layer, LANG)) return;
+      const off = layerOffset(layer, progress);
+      const height = Math.min(DATA.view.h, layer.h - off.y);
+      ctx.drawImage(sheet, layer.x + off.x, layer.y + off.y, DATA.view.w, height, 0, 0, DATA.view.w, height);
+      for (const e of emitters) if (e.data.layer === i) e.draw(ctx, off.x, off.y);
     });
+    if (banner) drawBanner(ctx, banner, t);
     // The fades at the start and the end of a card.
     const fade = Math.max(0, 1 - t / PROLOGUE_TIMING.fade, 1 - (cardLength - t) / PROLOGUE_TIMING.fade);
     if (fade > 0) {

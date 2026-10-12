@@ -11,7 +11,7 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Image, encodePng, upscale } from './png.ts';
-import { FONT, SMALL_FONT } from './font.ts';
+import { FONT, SMALL_FONT, fontFrames } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 import { PROLOGUE_VIEW, prologueScenes } from './prologue.ts';
@@ -142,7 +142,8 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
 
 // The prologue (art/prologue.ts) has an atlas of its own: the page loads it only when the prologue
 // plays. Its layers go into one page, row by row; the JSON lists each scene's layers (their place in
-// the page and their depth) and its emitters.
+// the page, their depth, how far they rise, their language) and its emitters. The glyphs of the pixel
+// font follow in a last row: the page draws the banners of the cards with them.
 {
   const scenes = prologueScenes();
   const layers = scenes.flatMap((scene) => scene.layers.map((layer) => ({ scene, layer })));
@@ -150,7 +151,8 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
   let px = 0;
   let py = 0;
   let row = 0;
-  for (const { layer } of layers) {
+  for (const { scene, layer } of layers) {
+    if (PROLOGUE_VIEW.h + (layer.rise ?? 0) > layer.image.height) throw new Error(`a layer of the prologue scene ${scene.id} is too short for its rise`);
     if (px + layer.image.width > MAX_ATLAS_SIZE) {
       px = 0;
       py += row;
@@ -160,18 +162,44 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
     px += layer.image.width;
     row = Math.max(row, layer.image.height);
   }
-  const sheet = new Image(MAX_ATLAS_SIZE, py + row);
+  // The glyphs: 'font/<char code>' and the fallback, each with a column of space after it.
+  const glyphs = fontFrames().filter((frame) => frame.name.startsWith('font/'));
+  const glyphPlaces: Record<string, [number, number, number, number]> = {};
+  py += row;
+  px = 0;
+  for (const frame of glyphs) {
+    if (px + frame.image.width > MAX_ATLAS_SIZE) {
+      px = 0;
+      py += FONT.height + 1;
+    }
+    glyphPlaces[frame.name.slice('font/'.length)] = [px, py, frame.image.width, frame.image.height];
+    px += frame.image.width + 1;
+  }
+  const sheet = new Image(MAX_ATLAS_SIZE, py + FONT.height);
   if (sheet.height > MAX_ATLAS_SIZE) throw new Error('the prologue is larger than a page');
   layers.forEach(({ layer }, i) => sheet.draw(layer.image, places[i]!.x, places[i]!.y));
+  for (const frame of glyphs) {
+    const [gx, gy] = glyphPlaces[frame.name.slice('font/'.length)]!;
+    sheet.draw(frame.image, gx, gy);
+  }
   let k = 0;
   const prologue = {
     image: 'prologue.png',
     view: PROLOGUE_VIEW,
+    font: { height: FONT.height, lineHeight: FONT.lineHeight, spacing: FONT.spacing, glyphs: glyphPlaces },
     scenes: scenes.map((scene) => ({
       id: scene.id,
       layers: scene.layers.map((layer) => {
         const at = places[k++]!;
-        return { x: at.x, y: at.y, w: layer.image.width, h: layer.image.height, depth: layer.depth };
+        return {
+          x: at.x,
+          y: at.y,
+          w: layer.image.width,
+          h: layer.image.height,
+          depth: layer.depth,
+          ...(layer.rise ? { rise: layer.rise } : {}),
+          ...(layer.lang ? { lang: layer.lang } : {}),
+        };
       }),
       emitters: scene.emitters,
       ...(scene.ambience ? { ambience: scene.ambience } : {}),

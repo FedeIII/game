@@ -399,9 +399,14 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
 - **The game is called World of Kandrax** (Fede, 2026-10-12): `GameOptions.name` (`apps/game/src/main.ts`)
   is the page title and the title of the menu and of the game menu; "The Wilds" stays the name of the
   world (the map). The name is the same in Spanish.
-- **The prologue** (2026-10-12, `ui/prologue.ts`, `docs/features/game/prologue.md`): eight painted
-  scenes of Kandrax (`art/prologue.ts`, `art/paint.ts`; their own atlas, `src/generated/prologue.png`,
-  loaded only when it plays) with Fede's texts (`worlds/wilds/src/prologue.ts`). It plays once after
+- **The prologue** (2026-10-12, `ui/prologue.ts`, `docs/features/game/prologue.md`): nine painted
+  scenes of Kandrax (`art/prologue.ts`, `art/prologue-map.ts`, `art/prologue-dominions.ts`,
+  `art/prologue-kit.ts`, `art/paint.ts`; their own atlas, `src/generated/prologue.png`, loaded only when
+  it plays) with Fede's texts (`worlds/wilds/src/prologue.ts`). The map is Fede's map of Thrain on the
+  Drive (`Images/maps/mapa_thrain.png`): a tall layer that rises (`PrologueLayer.rise`), its names in
+  one layer for each language (`lang`). A card can have a banner (`PrologueCard.banner`: the two
+  dominions), drawn with the pixel font as the name of a world on arrival. The lines type from left to
+  right, one under the other, under the scene or beside it (`prologueLayout()`). It plays once after
   "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
   It has the theme of Kandrax, an ambience for each scene and small effects, and a speaker button that
   mutes all sound (`audio/`, `docs/features/game/sound.md`).

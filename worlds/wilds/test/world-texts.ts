@@ -62,6 +62,7 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
   for (const card of definition.prologue ?? []) {
     add(card.title);
     add(card.subtitle);
+    add(card.banner);
     card.lines.forEach(add);
   }
   for (const quest of definition.quests ?? []) {

@@ -1288,7 +1288,8 @@ body.pack-dragging * {
 
 /*
  * The prologue (src/ui/prologue.ts): the painted scene in the middle of a black page, as pixel art
- * (no smoothing), its title over it, the line that types itself under it, and a quiet "Skip".
+ * (no smoothing), its title over it, the lines that type themselves under it (or beside it, on a
+ * wide and short screen), and a quiet "Skip". The script gives the sizes (prologueLayout()).
  */
 #prologue {
   position: fixed;
@@ -1296,10 +1297,8 @@ body.pack-dragging * {
   z-index: 40;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
   padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
     calc(12px + env(safe-area-inset-left));
   background: #000;
@@ -1317,8 +1316,26 @@ body.pack-dragging * {
   opacity: 0;
 }
 
+/* The scene and the text: the text under the scene, both from the same left edge, or beside it. */
+.prologue-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+/* Beside the scene, both stay under the buttons at the top right (prologueLayout(): LAYOUT.controls). */
+.prologue-content.side {
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+  padding-top: 38px;
+}
+
 .prologue-stage {
   position: relative;
+  flex: none;
   line-height: 0;
 }
 
@@ -1346,7 +1363,7 @@ body.pack-dragging * {
 
 .prologue-title h1 {
   margin: 0;
-  font: italic clamp(34px, 7vw, 72px) / 1.1 var(--ui-serif);
+  font: italic clamp(22px, calc(var(--stage-width, 640px) * 0.085), 72px) / 1.1 var(--ui-serif);
   letter-spacing: 0.12em;
   color: #f2e6c8;
   text-shadow: 0 0 18px rgb(0 0 0 / 0.9), 0 0 32px var(--ui-accent-glow);
@@ -1354,7 +1371,7 @@ body.pack-dragging * {
 
 .prologue-title p {
   margin: 8px 0 0;
-  font: italic clamp(15px, 2.4vw, 22px) / 1.3 var(--ui-serif);
+  font: italic clamp(13px, calc(var(--stage-width, 640px) * 0.03), 22px) / 1.3 var(--ui-serif);
   color: #d8ccb0;
   text-shadow: 0 0 10px rgb(0 0 0 / 0.95);
 }
@@ -1363,21 +1380,49 @@ body.pack-dragging * {
   display: none;
 }
 
+/* The lines of a card, one under the other, from left to right. The part of a line still to type
+   keeps its place, hidden, so that the words never move while they type. */
 .prologue-text {
+  position: relative;
   box-sizing: border-box;
-  min-height: 4.5em;
+  flex: none;
   margin: 0;
-  padding: 0 8px;
+  padding: 0 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
   font: italic clamp(16px, 2.2vw, 21px) / 1.5 var(--ui-serif);
   letter-spacing: 0.02em;
-  text-align: center;
+  text-align: left;
+  scrollbar-width: none;
+}
+
+.prologue-text::-webkit-scrollbar {
+  display: none;
+}
+
+.prologue-text p {
+  margin: 0 0 0.5em;
+  transition: opacity 0.6s;
+}
+
+.prologue-text p.past {
+  opacity: 0.72;
+}
+
+.prologue-rest {
+  visibility: hidden;
+}
+
+.prologue-measure {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  height: auto;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .prologue-more {
-  position: fixed;
-  right: calc(22px + env(safe-area-inset-right));
-  bottom: calc(18px + env(safe-area-inset-bottom));
-  font-size: 18px;
   opacity: 0;
   transition: opacity 0.4s;
 }
@@ -1385,6 +1430,20 @@ body.pack-dragging * {
 .prologue-more.shown {
   opacity: 0.55;
   animation: prologue-more 1.4s ease-in-out infinite;
+}
+
+/* A short screen (a phone on its side): smaller words, so that the scene keeps its room. */
+@media (max-height: 500px) {
+  .prologue-text {
+    font-size: 15px;
+    line-height: 1.42;
+  }
+}
+
+@media (max-height: 380px) {
+  .prologue-text {
+    font-size: 14px;
+  }
 }
 
 .prologue-skip {
@@ -1440,7 +1499,7 @@ body.pack-dragging * {
 
 @keyframes prologue-more {
   50% {
-    transform: translateX(3px);
+    opacity: 0.2;
   }
 }
 
