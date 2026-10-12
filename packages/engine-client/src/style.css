@@ -312,6 +312,12 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
   right: calc(12px + env(safe-area-inset-right));
   box-sizing: border-box;
   width: min(300px, calc(100vw - 24px));
+  /* It scrolls on a short screen (the page itself never scrolls): the "You" section is long, and
+     the display settings of an admin are at the bottom. */
+  max-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 10px 14px 12px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
