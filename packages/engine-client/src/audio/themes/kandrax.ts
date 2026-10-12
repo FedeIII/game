@@ -4,10 +4,16 @@
  * and again, and each round a little fuller:
  *   round 0  the low strings, a harp and the timpani: the night
  *   round 1  melody A on a French horn, an octave down (an oboe the next time round) over the strings
- *   round 2  melody B on the violins, the choir, the horn in the middle, the celli against them
+ *   round 2  melody B on the violins, the choir, the horn in the middle, the celli against them: the rise
  *   round 3  everyone: melody A an octave up on the violins and the flute, horns, trombones,
  *            trumpets on the last chord, drums and a cymbal
  * then rounds 1 to 3 again, with other colours.
+ *
+ * The prologue plays it in two tracks (Fede, 2026-10-13: the rise comes with the card of the gods,
+ * however long the player takes to reach it). The opening (KANDRAX_OPENING) plays rounds 0 and 1 and
+ * then goes round them while the player reads: round 1 with the horn, round 1 with the oboe, round 0,
+ * and again; each round ends on A, which leads back to D. The rise (KANDRAX_RISE) starts at round 2 when
+ * the card of the gods starts, on a beat of the opening (ui/prologue.ts), and goes on from there.
  */
 import { chord, hits, line, scoreTrack, type ScoreNote, type Section } from '../music.ts';
 
@@ -48,15 +54,22 @@ export function themeRound(round: number): 0 | 1 | 2 | 3 {
   return round === 0 ? 0 : ((1 + ((round - 1) % 3)) as 1 | 2 | 3);
 }
 
+/** The cycle of rounds 1 to 3 of a round: odd cycles have other colours. */
+function themeCycle(round: number): number {
+  return round === 0 ? 0 : Math.floor((round - 1) / 3);
+}
+
 /** The instruments of the theme: the first ones start it (round 0), the others load meanwhile. */
 export const THEME_FIRST = ['basses', 'celli', 'violas', 'harp', 'timpaniSoft', 'timpaniRoll'] as const;
 export const THEME_INSTRUMENTS = [...THEME_FIRST, 'violins', 'horn', 'oboe', 'flute', 'choir', 'oohs', 'glock', 'trombone', 'trumpetStac', 'trumpet', 'timpani', 'bassDrum', 'cymbal', 'cymbalSwell'] as const;
 
 /** The notes of a round. */
 export function themeNotes(round: number): ScoreNote[] {
-  const kind = themeRound(round);
-  /** The cycle of rounds 1 to 3: odd cycles have other colours. */
-  const cycle = round === 0 ? 0 : Math.floor((round - 1) / 3);
+  return roundNotes(themeRound(round), themeCycle(round));
+}
+
+/** The notes of a round of a kind (0 to 3), in the colours of a cycle. */
+function roundNotes(kind: 0 | 1 | 2 | 3, cycle: number): ScoreNote[] {
   const notes: ScoreNote[] = [];
   THEME_CHORDS.forEach((c, i) => {
     const at = i * CHORD_BEATS;
@@ -123,8 +136,32 @@ export function themeSection(round: number): Section {
   return { bpm: KANDRAX_BPM, beats: ROUND_BEATS, notes: themeNotes(round) };
 }
 
-/** The theme of Kandrax. */
+/** The theme of Kandrax, from its start, round after round. */
 export const KANDRAX_THEME = scoreTrack('kandrax', THEME_INSTRUMENTS, () => (index) => themeSection(index), { first: THEME_FIRST });
+
+/** The rounds of the opening, by their place: round 0, round 1, then round 1 (horn), round 1 (oboe), round 0, and again. */
+export function openingRound(index: number): { kind: 0 | 1; cycle: number } {
+  if (index === 0) return { kind: 0, cycle: 0 };
+  const step = (index - 1) % 3;
+  return step === 2 ? { kind: 0, cycle: 0 } : { kind: 1, cycle: step };
+}
+
+/** The opening of the prologue: the night and the horn, round and round until the rise. */
+export const KANDRAX_OPENING = scoreTrack(
+  'kandrax-opening',
+  THEME_INSTRUMENTS,
+  () => (index) => {
+    const { kind, cycle } = openingRound(index);
+    return { bpm: KANDRAX_BPM, beats: ROUND_BEATS, notes: roundNotes(kind, cycle) };
+  },
+  { first: THEME_FIRST },
+);
+
+/** The instruments of the rise (round 2): they must be ready when it starts, so the prologue loads them early. */
+export const RISE_FIRST = ['basses', 'celli', 'violas', 'harp', 'violins', 'choir', 'horn', 'glock', 'timpaniSoft', 'timpaniRoll', 'cymbalSwell'] as const;
+
+/** The rise of the prologue: round 2 (the choir and the violins), round 3 (everyone), then rounds 1 to 3 again. */
+export const KANDRAX_RISE = scoreTrack('kandrax-rise', THEME_INSTRUMENTS, () => (index) => themeSection(index + 2), { first: RISE_FIRST });
 
 /** The length of a round of the theme (s). */
 export const THEME_ROUND_SECONDS = (ROUND_BEATS * 60) / KANDRAX_BPM;

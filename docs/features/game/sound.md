@@ -83,6 +83,13 @@ world of Kandrax feels alive.
   timpani roll and a cymbal that swell into the next round; (3) the full orchestra: melody A an octave up
   on the violins and the flute, the horns a third under it, trombones, the choir, trumpets on the last
   chord, a cymbal, a bass drum and the timpani. Then rounds 1 to 3 go round.
+- **AC-SND-003.6:** The prologue plays the theme in two parts (Fede, 2026-10-13). The opening (rounds 0
+  and 1) goes round while the player reads, as long as it takes: round 1 with the horn, round 1 with the
+  oboe, round 0, and again (each round ends on A, which leads back to D). When the card of the gods
+  starts, the rise (round 2: the choir and the violins; then round 3 and the rounds after it) comes in:
+  on the next chord of the opening if it is within 2.5 s, else on its next beat, with a crossfade of
+  2 s; at once if no music plays yet. A player who goes fast hears the rise at that card all the same.
+  Its first instruments load with the prologue.
 - **AC-SND-003.2:** Each scene has an ambience, and the ambience crossfades (1.6 s) when the scene
   changes: the world at night: crickets and a soft wind; the ruins, the gods, the Central Dominions:
   wind; the wild lands: a strong wind; the map: a candle; the factory: a forge with anvils; the hut: a
@@ -233,7 +240,9 @@ eyes closed.
   (`LEVELS`) and a seat (`SEATING`: violins to the left, celli and basses to the right, the harp far
   left).
 - **The theme** (`themes/kandrax.ts`): `KANDRAX_THEME`, `THEME_CHORDS`, `MELODY_A`, `MELODY_B`,
-  `themeNotes(round)`, `themeRound()`, `THEME_FIRST`. The horn was recorded up to C4 and from D5: its
+  `themeNotes(round)`, `themeRound()`, `THEME_FIRST`; for the prologue `KANDRAX_OPENING`
+  (`openingRound()`), `KANDRAX_RISE` and `RISE_FIRST`. `AudioEngine.nextMusicBeat(bpm, beats, within)`
+  gives the next chord or beat of the music that plays; `playMusic(track, fade, at)` starts a track there. The horn was recorded up to C4 and from D5: its
   melodies are an octave down.
 - **The synthesized sounds** (`synth.ts`): `pluck`, `bell` (FM), `boom`, `anvil`, `noiseHit`, `whoosh`;
   `reverbBuffer()`, `noiseBuffer()`, `brownBuffer()`. `notes.ts`: `midi('D4')`, `hz('D4')`. The sounds

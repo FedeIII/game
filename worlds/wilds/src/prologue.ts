@@ -39,6 +39,8 @@ export const PROLOGUE: readonly PrologueCard[] = [
   },
   {
     scene: 'gods',
+    // The theme of Kandrax rises here, with its choir and violins (Fede, 2026-10-13).
+    crescendo: true,
     lines: ['People in Kandrax worship many gods, great and small.', 'The gods show themselves to their followers in mysterious ways, and guide Kandrax.'],
   },
   {

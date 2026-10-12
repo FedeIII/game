@@ -7,7 +7,7 @@ import { decoderDelay, INSTRUMENT_IDS, pickSample, type Instrument, type Sample 
 import { DEFAULT_SOUND, parseSound } from './settings.ts';
 import { AMBIENCES, EFFECTS, EFFECT_INSTRUMENTS } from './sounds.ts';
 import { pluckSamples } from './synth.ts';
-import { CHORD_BEATS, KANDRAX_THEME, MELODY_A, MELODY_B, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
+import { CHORD_BEATS, KANDRAX_BPM, KANDRAX_OPENING, KANDRAX_RISE, KANDRAX_THEME, MELODY_A, MELODY_B, RISE_FIRST, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
 
 const INSTRUMENTS = (manifest as unknown as { instruments: Record<string, { kind: string; rate: number; samples: { file: string; root: number | null; loop?: number[]; seconds: number }[] }> }).instruments;
 
@@ -154,6 +154,33 @@ describe('the theme of Kandrax', () => {
     expect(instruments(3).has('trumpetStac')).toBe(true);
     expect(themeRound(4)).toBe(1);
     expect(themeRound(6)).toBe(3);
+  });
+
+  it('plays in the prologue as an opening that goes round without the choir, and a rise that starts with it', () => {
+    const sections = (track: typeof KANDRAX_OPENING, n: number) => {
+      const next = track.compose();
+      return Array.from({ length: n }, (_, i) => next(i, Math.random));
+    };
+    const insts = (notes: readonly { inst: string }[]) => new Set(notes.map((n) => n.inst));
+    const opening = sections(KANDRAX_OPENING, 8);
+    for (const section of opening) {
+      expect([section.bpm, section.beats]).toEqual([KANDRAX_BPM, ROUND_BEATS]);
+      // The choir and the violins' melody wait for the rise (Fede, 2026-10-13).
+      expect(insts(section.notes).has('choir')).toBe(false);
+      expect(insts(section.notes).has('trumpetStac')).toBe(false);
+    }
+    // The night, the horn, the oboe, the night again, the horn...
+    expect([...insts(opening[0]!.notes)].every((i) => (THEME_FIRST as readonly string[]).includes(i))).toBe(true);
+    expect(insts(opening[1]!.notes).has('horn')).toBe(true);
+    expect(insts(opening[2]!.notes).has('oboe')).toBe(true);
+    expect([...insts(opening[3]!.notes)].every((i) => (THEME_FIRST as readonly string[]).includes(i))).toBe(true);
+    expect(insts(opening[4]!.notes).has('horn')).toBe(true);
+    const rise = sections(KANDRAX_RISE, 3);
+    expect(insts(rise[0]!.notes).has('choir')).toBe(true);
+    expect(insts(rise[0]!.notes).has('violins')).toBe(true);
+    // Its first instruments load early: the rise starts at once.
+    for (const inst of insts(rise[0]!.notes)) expect(RISE_FIRST as readonly string[], inst).toContain(inst);
+    expect(insts(rise[1]!.notes).has('trumpetStac')).toBe(true);
   });
 });
 

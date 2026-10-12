@@ -419,7 +419,11 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   right, one under the other, under the scene or beside it (`prologueLayout()`). It plays once after
   "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
   It has the theme of Kandrax, an ambience for each scene and small effects, and a speaker button that
-  mutes all sound (`audio/`, `docs/features/game/sound.md`).
+  mutes all sound (`audio/`, `docs/features/game/sound.md`). **Only the player leaves a card** (Fede,
+  2026-10-13): the lines of a card come by themselves, then the card waits. **The music** is the opening
+  of the theme (`KANDRAX_OPENING`, round and round) until the card with `crescendo` (the gods), where the
+  rise (`KANDRAX_RISE`: the choir and the violins) comes in on a chord or a beat
+  (`AudioEngine.nextMusicBeat()`), however long the player took.
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the settings button opens it): "Resume", "Load game" (a reload
@@ -485,6 +489,11 @@ an email as the name: it then signs in with that email, as Google would, so an a
 is an admin.
 
 ## Game design
+
+**The story is written in `docs/story/`** (Fede's rule, 2026-10-13): the world and the places as the game
+shows them, the people, the questlines (how each quest starts, its steps, what it unlocks or waits for)
+and the prologue. The code matches those documents at all points: a change of the story updates them in
+the same commit, and a mismatch gets a fix, or at least a plan in `docs/drafts/`.
 
 Fede's rules for the design of the game are in `docs/game-design.md`: read them before you design a
 quest, an encounter, a mob or an ability. In short: **no chains of quests in what the player sees**

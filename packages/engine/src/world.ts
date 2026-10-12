@@ -488,5 +488,7 @@ export interface PrologueCard {
    * it). A later line: when that line starts to type (the line that names the place).
    */
   readonly bannerLine?: number;
+  /** The music of the prologue rises with this card (its choir and violins), however long the player took to reach it. */
+  readonly crescendo?: boolean;
   readonly lines: readonly string[];
 }

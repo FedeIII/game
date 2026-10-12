@@ -93,12 +93,16 @@ holds me back.
   and stays 1.6 s and 34 ms more for each of its characters; then the next line comes by itself, under
   it. The lines of a card stay until the card ends (the earlier ones a little dimmer).
 - **AC-PRO-003.2:** A click or a tap on the prologue, Space, Enter or the right arrow finishes a line
-  that types, or goes to the next line (after the last line of a card, to the next card). A small
-  arrow at the end of a line shows when it is whole.
+  that types, or brings the next line now. A small arrow at the end of a line shows when it is whole.
+- **AC-PRO-003.7:** Only the player leaves a card (Fede, 2026-10-13): after the last line of a card is
+  read, the scene stops its pan and the card waits, with the arrow, for as long as the player reads; a
+  press then fades it out to the next card (after the last card, the prologue ends). The lines inside a
+  card still come by themselves.
 - **AC-PRO-003.3:** "Skip" (Spanish: "Saltar") at the top right, or Escape, ends the prologue at once.
 - **AC-PRO-003.4:** While it plays, no key reaches the game. A screen reader hears each title and line.
 - **AC-PRO-003.5:** The prologue has music, an ambience for each scene and small effects, and a button
-  that mutes them (see [`sound.md`](sound.md), REQ-SND-003).
+  that mutes them (see [`sound.md`](sound.md), REQ-SND-003). The music rises (its choir and violins)
+  with the card of the gods, however long the player took to reach it (AC-SND-003.6).
 - **AC-PRO-003.6:** All the texts can be seen on a desktop, on a phone held upright and on a phone on
   its side. The text goes under the scene, or beside it on a wide and short screen, whichever gives the
   larger scene with the longest card in view. The box of the text has the size of the longest card
@@ -111,7 +115,8 @@ holds me back.
 
 - **The cards** (`packages/engine/src/world.ts`): `WorldDefinition.prologue`, `PrologueCard` (`scene`,
   `title`, `subtitle`, `banner`, `bannerLine` (the line with which the banner shows; 0 or none: before
-  the first line), `lines`; `{name}` and `{kind}` in the texts). The Wilds: `PROLOGUE`
+  the first line), `crescendo` (the music rises with this card: the gods), `lines`; `{name}` and
+  `{kind}` in the texts). The Wilds: `PROLOGUE`
   (`worlds/wilds/src/prologue.ts`; sources: `Kandrax AI Context`, `Kandrax - Mundo`, `Kandrax - Dioses`,
   `0.0 - Guía del aventurero novato`, `Los Investigadores de Forjacero`, `Lugares/Dominios Centrales`);
   the Spanish in `text-es.ts`.

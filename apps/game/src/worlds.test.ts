@@ -34,6 +34,11 @@ describe('the prologue of each world', () => {
     expect(WORLDS.find((world) => world.id === 'wilds')?.prologue?.length).toBe(9);
   });
 
+  it('lets the music rise with one card: the gods (Fede, 2026-10-13)', () => {
+    const cards = WORLDS.find((world) => world.id === 'wilds')!.prologue!;
+    expect(cards.filter((card) => card.crescendo).map((card) => card.scene)).toEqual(['gods']);
+  });
+
   it('shows a banner with a line that the card has', () => {
     for (const world of WORLDS) {
       for (const card of world.prologue ?? []) {

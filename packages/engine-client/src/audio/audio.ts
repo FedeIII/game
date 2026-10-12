@@ -110,7 +110,8 @@ export class AudioEngine {
   private buses: Buses | null = null;
   private clock: number | null = null;
   private settingsNow: SoundSettings = loadSound();
-  private music: (Playing & { readonly id: string }) | null = null;
+  /** The track that plays, and when its first section started (the time of the context). */
+  private music: (Playing & { readonly id: string; readonly startedAt: number }) | null = null;
   private ambience: (Playing & { readonly id: AmbienceId; readonly loop: Ambience }) | null = null;
   /** What should play once the context runs (asked before the visitor did anything). */
   private wanted: { music: MusicTrack | null; ambience: AmbienceId | null } = { music: null, ambience: null };
@@ -259,9 +260,10 @@ export class AudioEngine {
 
   /**
    * Plays a track, fading it in over `fade` s, when its first instruments are ready; another track
-   * fades out. Before the visitor did anything, it waits.
+   * fades out. Before the visitor did anything, it waits. With `at` (a time of the context: a beat of
+   * the music that plays, nextMusicBeat), its first section starts there, not at once.
    */
-  playMusic(track: MusicTrack, fade = 2.5): void {
+  playMusic(track: MusicTrack, fade = 2.5, at?: number): void {
     if ((this.music && !this.music.stopping && this.music.id === track.id) || this.loadingMusic === track.id) return;
     const first = track.first ?? track.instruments;
     void this.bank.load(first).then(() => this.bank.load(track.instruments));
@@ -282,12 +284,12 @@ export class AudioEngine {
         this.wanted.music = track;
         return;
       }
-      const t = this.ctx.currentTime + 0.05;
+      const t = Math.max(this.ctx.currentTime + 0.05, at ?? 0);
       const gain = this.ctx.createGain();
       gain.gain.setValueAtTime(0, t);
       gain.gain.linearRampToValueAtTime(track.level ?? 1, t + fade);
       gain.connect(this.buses.duck);
-      this.music = { id: track.id, pattern: track.start(t, this.bank), gain, bus: this.buses.duck, stopping: false, instruments: track.instruments };
+      this.music = { id: track.id, pattern: track.start(t, this.bank), gain, bus: this.buses.duck, stopping: false, instruments: track.instruments, startedAt: t };
       this.tick();
     });
   }
@@ -328,6 +330,24 @@ export class AudioEngine {
     };
     if (this.bank.ready(stinger.instruments)) go();
     else void this.bank.load(stinger.instruments).then(() => performance.now() - asked < 1500 && go());
+  }
+
+  /**
+   * The time (of the context) of the next boundary of `beats` beats at `bpm` in the music that plays,
+   * counted from its start (`at`), and the seconds until it (`wait`; at least 0.35, the time to ask for a
+   * track that starts there); the next beat when that boundary is more than `within` s away. Null with
+   * no music (none yet, or muted): then a new track may start at once.
+   */
+  nextMusicBeat(bpm: number, beats: number, within: number): { at: number; wait: number } | null {
+    const ctx = this.ctx;
+    const music = this.music;
+    if (!ctx || ctx.state !== 'running' || !music || music.stopping) return null;
+    const from = ctx.currentTime + 0.35;
+    const after = (span: number) => music.startedAt + Math.max(0, Math.ceil((from - music.startedAt) / span)) * span;
+    const beat = 60 / bpm;
+    const bar = after(beats * beat);
+    const at = bar - from <= within ? bar : after(beat);
+    return { at, wait: at - ctx.currentTime };
   }
 
   /** The id of the track that plays (or waits for its instruments), or null. */

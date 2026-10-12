@@ -1,6 +1,6 @@
 import type { PrologueCard } from '@game/engine';
 import { audio } from '../audio/audio.ts';
-import { KANDRAX_THEME, THEME_FIRST } from '../audio/themes/kandrax.ts';
+import { CHORD_BEATS, KANDRAX_BPM, KANDRAX_OPENING, KANDRAX_RISE, RISE_FIRST, THEME_FIRST } from '../audio/themes/kandrax.ts';
 import { AMBIENCES, EFFECT_INSTRUMENTS, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
 import { LANG, tw } from '../i18n.ts';
@@ -685,6 +685,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   // The orchestra loads with the art: the first instruments of the theme, and those of the effects.
   audio.preload([...THEME_FIRST, ...EFFECT_INSTRUMENTS]);
+  // The instruments of the rise load meanwhile: it must start at once when its card comes.
+  audio.preload(RISE_FIRST);
   let sheet: HTMLImageElement;
   try {
     sheet = await loadSheet();
@@ -698,7 +700,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-  audio.playMusic(KANDRAX_THEME, 3);
+  // The opening of the theme, round and round until the card of the rise (themes/kandrax.ts).
+  audio.playMusic(KANDRAX_OPENING, 3);
   const unfollow = audio.onSettings(showSound);
   const scenes = new Map(DATA.scenes.map((s) => [s.id, s]));
 
@@ -709,7 +712,11 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   let ending = false;
   let cardIndex = -1;
   let cardStart = 0;
-  let cardLength = 0;
+  /** When the player asked to leave the card (ms from its start): its fade out runs from there. Null: the card waits. */
+  let leaveAt: number | null = null;
+  /** The rise of the music has started (or is about to). */
+  let risen = false;
+  let riseTimer = 0;
   let scene: SceneData | undefined;
   let emitters: Emitter[] = [];
   let texts: ReturnType<typeof cardTexts> = { title: null, subtitle: null, banner: null, lines: [] };
@@ -718,8 +725,9 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   /** The line with which the banner shows (-1: none), and when it started (ms from the card's start). */
   let bannerLine = -1;
   let bannerAt: number | null = null;
-  // The time line of the card: when its lines start (ms from the card's start), and its end. The
-  // pan follows the card's own length, so a line that comes early does not make the scene jump.
+  // The time line of the card: when its lines start (ms from the card's start). The pan follows the
+  // card's own length to the end of its last line, so a line that comes early does not make the scene
+  // jump; then the scene stands still and waits for the player (Fede, 2026-10-13).
   let lineStarts: number[] = [];
   let panLength = 1;
   let lineIndex = -1;
@@ -738,8 +746,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     scene = scenes.get(card.scene);
     emitters = (scene?.emitters ?? []).map((e) => new Emitter(e));
     cardStart = now;
-    cardLength = cardMs(card);
-    panLength = cardLength;
+    leaveAt = null;
+    panLength = cardMs(card) - PROLOGUE_TIMING.fade;
     lineStarts = [];
     let at = leadMs(card);
     for (const line of texts.lines) {
@@ -762,12 +770,33 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     if (index > 0) audio.play('whoosh');
     if (texts.title) audio.play('title', PROLOGUE_TIMING.fade / 1000 - 0.2);
     else if (bannerLine === 0) audio.play('title', PROLOGUE_BANNER.start / 1000);
+    if (card.crescendo) rise();
     ticked = 0;
   }
 
-  /** Goes on: finishes the line that types, or goes to the next line (or card). */
+  /**
+   * The rise of the theme (its choir and violins) with this card, however long the player took to reach
+   * it (Fede, 2026-10-13): on the next chord of the opening when it is near, else on its next beat, with
+   * a crossfade of 2 s. Without music yet (it loads, or the sound is off), the rise is what plays next.
+   */
+  function rise(): void {
+    if (risen) return;
+    risen = true;
+    const beat = audio.nextMusicBeat(KANDRAX_BPM, CHORD_BEATS, 2.5);
+    if (!beat) {
+      audio.playMusic(KANDRAX_RISE, 2);
+      return;
+    }
+    // Ask a moment before the beat: the notes of the opening that are already set reach it.
+    riseTimer = window.setTimeout(() => !ending && audio.playMusic(KANDRAX_RISE, 2, beat.at), Math.max(0, beat.wait - 0.3) * 1000);
+  }
+
+  /**
+   * Goes on: finishes the line that types, or brings the next line now, or (after the last line) leaves
+   * the card. Only this leaves a card: the lines of a card come by themselves, the next card does not.
+   */
   function advance(now: number): void {
-    if (ending || cardIndex < 0) return;
+    if (ending || cardIndex < 0 || leaveAt !== null) return;
     const t = now - cardStart;
     const line = texts.lines[lineIndex];
     if (line !== undefined && now - typedAt < (line.length / PROLOGUE_TIMING.typing) * 1000) {
@@ -780,11 +809,10 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       // Bring the next line forward to now: the rest of the time line moves with it.
       const shift = lineStarts[next]! - t;
       for (let i = next; i < lineStarts.length; i++) lineStarts[i] = lineStarts[i]! - shift;
-      cardLength -= shift;
       return;
     }
-    // The last line: end the card now (its fade out starts).
-    cardLength = Math.min(cardLength, t + PROLOGUE_TIMING.fade);
+    // The last line is whole: leave the card (its fade out starts).
+    leaveAt = t;
   }
 
   function draw(now: number): void {
@@ -792,7 +820,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (ending) return;
-    if (cardIndex < 0 || now - cardStart >= cardLength) {
+    if (cardIndex < 0 || (leaveAt !== null && now - cardStart >= leaveAt + PROLOGUE_TIMING.fade)) {
       if (cardIndex + 1 >= options.cards.length) {
         finish();
         return;
@@ -853,8 +881,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       for (const e of emitters) if (e.data.layer === i) e.draw(ctx, off.x, off.y);
     });
     if (banner && bannerAt !== null) drawBanner(ctx, banner, t - bannerAt);
-    // The fades at the start and the end of a card.
-    const fade = Math.max(0, 1 - t / PROLOGUE_TIMING.fade, 1 - (cardLength - t) / PROLOGUE_TIMING.fade);
+    // The fades at the start and the end of a card (the end only after the player asked for it).
+    const fade = Math.max(0, 1 - t / PROLOGUE_TIMING.fade, leaveAt === null ? 0 : (t - leaveAt) / PROLOGUE_TIMING.fade);
     if (fade > 0) {
       ctx.fillStyle = `rgba(0,0,0,${Math.min(1, fade)})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -905,6 +933,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   function finishNow(): void {
     markSeen();
+    window.clearTimeout(riseTimer);
     unfollow();
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', fit);
