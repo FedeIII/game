@@ -408,6 +408,13 @@ const EN = {
     signOut: 'Sign out',
   },
   /** The menu before the game: sign-in, new game, continue, and the character builder. */
+  /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
+  gameMenu: {
+    label: 'Game menu',
+    resume: 'Resume',
+    load: 'Load game',
+    newGame: 'New game',
+  },
   menu: {
     newGame: 'New game',
     continue: 'Continue',

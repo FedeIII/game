@@ -1182,6 +1182,62 @@ body.pack-dragging * {
   cursor: pointer;
 }
 
+/* ---------------------------------------------------------------- game menu */
+
+/*
+ * The game menu (src/ui/game-menu.ts): Escape opens it over the game. The world shows dimly behind
+ * it; the panel has the look of the menu before the game. The controls of the game hide meanwhile.
+ */
+#game-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
+  background: radial-gradient(ellipse at 50% 40%, rgba(8, 9, 11, 0.45), rgba(0, 0, 0, 0.82) 70%);
+  font: 15px/1.45 var(--ui-serif);
+  animation: game-menu-in 0.18s ease-out;
+}
+
+#game-menu[hidden] {
+  display: none;
+}
+
+.game-menu-panel {
+  width: min(360px, 100%);
+  box-shadow: 0 0 24px var(--ui-accent-glow);
+}
+
+.game-menu-panel .menu-stack {
+  margin-bottom: 4px;
+}
+
+body.game-menu-open #action,
+body.game-menu-open #attack,
+body.game-menu-open #dodge,
+body.game-menu-open #stick,
+body.game-menu-open #link-card {
+  visibility: hidden;
+}
+
+@keyframes game-menu-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #game-menu {
+    animation: none;
+  }
+}
+
 /* ---------------------------------------------------------------- dream */
 
 /*

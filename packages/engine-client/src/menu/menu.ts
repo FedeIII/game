@@ -8,7 +8,7 @@ import { ApiError, api, type Me } from './api.ts';
 import { CharacterBuilder } from './builder.ts';
 import { el } from './dom.ts';
 import { SkinPortrait } from './portrait.ts';
-import { takeResume } from './resume.ts';
+import { takeMenuScreen, takeResume } from './resume.ts';
 
 const T = STRINGS.menu;
 
@@ -306,7 +306,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
 
     /**
      * Asks the server who is signed in, and shows the sign-in or the main screen. After a reload
-     * for a new build (menu/resume.ts), it starts the same character again at once.
+     * for a new build (menu/resume.ts), it starts the same character again at once; after "Load
+     * game" or "New game" in the game menu, it shows the list of characters or the builder.
      */
     const home = async () => {
       loading();
@@ -317,6 +318,10 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         const resume = takeResume();
         const again = resume ? characters.find((c) => c.id === resume) : undefined;
         if (again) return void start(again);
+        // The game menu asked for a screen: "Load game" (the list) or "New game" (the builder).
+        const screen = takeMenuScreen();
+        if (screen === 'new') return create();
+        if (screen === 'load' && characters.length > 0) return pickCharacter();
         main();
       } catch (error) {
         fail(error, () => void home());

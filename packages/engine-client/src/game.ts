@@ -132,6 +132,7 @@ import { ScenePlayer } from './render/scene.ts';
 import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
 import { ArrowViews } from './render/arrows.ts';
 import { DreamVeil } from './ui/dream.ts';
+import { GameMenu, escapeAction } from './ui/game-menu.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { PileViews } from './render/piles.ts';
@@ -151,7 +152,7 @@ import { Terrain } from './render/terrain.ts';
 import { skinKey, skinName, type SkinLook } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
-import { markResume } from './menu/resume.ts';
+import { markMenuScreen, markResume, type MenuScreen } from './menu/resume.ts';
 import { languageChoice } from './ui/language-choice.ts';
 import { LANG, setWorldTexts, tw } from './i18n.ts';
 import { skinSeed } from './skins/seed.ts';
@@ -1297,6 +1298,41 @@ async function run(options: GameOptions): Promise<void> {
     return STRINGS.examine(STRINGS.names[t.kind]);
   };
 
+  // ---------------------------------------------------------------- the game menu
+
+  /**
+   * The game menu (ui/game-menu.ts): Escape opens it when nothing else is open. "Load game" and "New
+   * game" save the place, and the page reloads into the menu at that screen (menu/resume.ts).
+   */
+  const leaveFor = (screen: MenuScreen): void => {
+    markMenuScreen(screen);
+    void savePlace(true).finally(() => location.reload());
+  };
+  const gameMenu = new GameMenu(tw(definition.name), character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null);
+  /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
+  const otherUiOpen = (): boolean =>
+    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'settings'].some((id) => document.getElementById(id)?.hidden === false);
+  // Before the panels hear the key (the capture phase): while the menu is open, the game's keys stay out.
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.code === 'Escape' && !event.repeat) {
+        const act = escapeAction({ menuOpen: gameMenu.shown, otherOpen: otherUiOpen(), inField: isFormField(event.target) });
+        if (act === 'none') return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (act === 'open') gameMenu.open();
+        else gameMenu.close();
+        return;
+      }
+      if (!gameMenu.shown) return;
+      if (gameMenu.key(event)) event.preventDefault();
+      // Enter and Space press the focused choice (the button's own action); no other key reaches the game.
+      event.stopImmediatePropagation();
+    },
+    { capture: true },
+  );
+
   // ---------------------------------------------------------------- loop
 
   const camera = new Camera();
@@ -1312,10 +1348,11 @@ async function run(options: GameOptions): Promise<void> {
     followGear();
     previous.x = player.x;
     previous.y = player.y;
-    // In a conversation the player stands still and does not attack.
-    if (conversation.open) attackAskedAt = -Infinity;
-    let input: MoveInput = conversation.open ? NO_INPUT : readInput();
-    if (conversation.open) dodgeAskedAt = -Infinity;
+    // In a conversation, and while the game menu is open, the player stands still and does not attack.
+    const still = conversation.open || gameMenu.shown;
+    if (still) attackAskedAt = -Infinity;
+    let input: MoveInput = still ? NO_INPUT : readInput();
+    if (still) dodgeAskedAt = -Infinity;
     if (performance.now() - dodgeAskedAt < ATTACK_BUFFER_MS && canDodge(player)) {
       input = { ...input, dodge: true };
       dodgeAskedAt = -Infinity;
@@ -1397,7 +1434,8 @@ async function run(options: GameOptions): Promise<void> {
   app.ticker.add((ticker) => {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
-    sim.advance(seconds);
+    // A world that the page runs alone stands still while the game menu is open; a shared world goes on.
+    sim.advance(gameMenu.shown && !net ? 0 : seconds);
     followGear();
     if (now >= placeSaveAt) {
       placeSaveAt = now + PLACE_SAVE_MS;

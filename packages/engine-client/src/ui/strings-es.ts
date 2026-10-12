@@ -360,6 +360,12 @@ export const ES: Strings = {
     mainMenu: 'Menú principal',
     signOut: 'Cerrar sesión',
   },
+  gameMenu: {
+    label: 'Menú de la partida',
+    resume: 'Reanudar',
+    load: 'Cargar partida',
+    newGame: 'Partida nueva',
+  },
   menu: {
     newGame: 'Partida nueva',
     continue: 'Continuar',

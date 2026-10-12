@@ -131,7 +131,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `portrait.ts` (a skin in the menu, walking or still), `names.ts` (random names per race),
   `api.ts` (the accounts API), `dom.ts`, `resume.ts` (after a reload for a new build, the menu
   starts the same character at once: a note in sessionStorage `game.resume.v1`, good for one start
-  within 5 minutes).
+  within 5 minutes; the game menu notes a screen in the same way: `game.menu-screen.v1`).
 - `skins/`: the skin seed of a guest (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
   localStorage cache of rendered sheets; `cancel()` drops a look that the builder no longer
@@ -370,6 +370,10 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   character").
 - In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
   the menu comes again) and "Sign out".
+- **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
+  over the game when no other panel, conversation or dream is open: "Resume", "Load game" (a reload
+  into the list of characters) and "New game" (a reload into the builder). The character stands
+  still meanwhile; a world that the page runs stands still too, a shared world goes on.
 - **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page
   finds the new build (`ui/new-build.ts`) and reloads itself at a calm moment: no conversation, no
   defeat, no mob that hunts the player. It says "A new version of the game is out. Loading it…"

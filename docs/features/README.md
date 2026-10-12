@@ -58,6 +58,7 @@ streaming-platform project):
 | Game: Language | `LANG` | [`game/language.md`](game/language.md) |
 | Game: Quests and the Journal | `QST` | [`game/quests.md`](game/quests.md) |
 | Game: Combat at Level 3 | `CMB` | [`game/combat.md`](game/combat.md) |
+| Game: The Game Menu | `GMN` | [`game/game-menu.md`](game/game-menu.md) |
 | Game: The Towns of the Wilds | `TWN` | [`game/towns.md`](game/towns.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.

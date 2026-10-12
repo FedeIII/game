@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { markResume, takeResume } from './resume.ts';
+import { markMenuScreen, markResume, takeMenuScreen, takeResume } from './resume.ts';
 
 /** A sessionStorage in memory. */
 function memory() {
@@ -26,5 +26,25 @@ describe('the character to start again after a reload', () => {
     storage.setItem('game.resume.v1', '{not json');
     expect(takeResume(storage, 0)).toBeNull();
     expect(takeResume(null)).toBeNull();
+  });
+});
+
+describe('the screen that the game menu asks for', () => {
+  it('opens once: the list of characters ("Load game") or the builder ("New game")', () => {
+    const storage = memory();
+    markMenuScreen('load', storage, 1000);
+    expect(takeMenuScreen(storage, 2000)).toBe('load');
+    expect(takeMenuScreen(storage, 2000)).toBeNull();
+    markMenuScreen('new', storage, 1000);
+    expect(takeMenuScreen(storage, 2000)).toBe('new');
+  });
+
+  it('is not used when it is old, or not a screen', () => {
+    const storage = memory();
+    markMenuScreen('load', storage, 1000);
+    expect(takeMenuScreen(storage, 1000 + 6 * 60_000)).toBeNull();
+    storage.setItem('game.menu-screen.v1', JSON.stringify({ screen: 'sign-in', at: 1000 }));
+    expect(takeMenuScreen(storage, 2000)).toBeNull();
+    expect(takeMenuScreen(null)).toBeNull();
   });
 });
