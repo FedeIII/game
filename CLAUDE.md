@@ -966,6 +966,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   home's chest is the character's own: no loot. Every lake has a band of shallow water at its
   shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all
   shallow: a character with Strength 13 wades through it.
+- **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
+  Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
+  Wilds", which are far north and far south). The texts say so (the prologue, Thrain's letter); the
+  game still has Ironhold west of the home: the next work moves the hut and the road to Ironhold.
 - **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
   fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) west of
   the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.

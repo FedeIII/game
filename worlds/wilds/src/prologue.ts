@@ -75,8 +75,8 @@ export const PROLOGUE: readonly PrologueCard[] = [
     subtitle: '{kind}',
     lines: [
       'You are a consultant for Thrain Steelforge: you go where something strange happens, and you tell him what you find.',
-      'Now homesteads burn in the Northern Wilds, and nobody knows who burns them. Thrain has a mission for you.',
-      'His letter waits on the table of your hut.',
+      'Now homesteads burn in the wildlands north of the Iron Sovereignty, and nobody knows who burns them. Thrain has a mission for you.',
+      'His letter waits on the table of your hut, at the northern edge of the Sovereignty, south of Ironhold.',
     ],
   },
 ];

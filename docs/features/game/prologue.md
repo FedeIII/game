@@ -45,11 +45,12 @@ that the world feels real.
 - **AC-PRO-002.1:** Nine cards, in order: the world at night (title "World of Kandrax"); the ruins of
   the old civilizations; the map of the Dominions; the wild lands and the uncharted regions; the gods;
   the Iron Sovereignty; the Mithril Enclave; the factory of Thrain Steelforge in Thalesferro; the
-  character's hut in the Wilds.
+  character's hut.
 - **AC-PRO-002.2:** The last card has the character's name as its title and its race and class as its
   subtitle ("Human ranger"). Its lines: the character is a consultant for Thrain Steelforge; homesteads
-  burn in the Northern Wilds (las Tierras Salvajes del Norte) and Thrain has a mission for it; his
-  letter waits on the table of its hut.
+  burn in the wildlands north of the Iron Sovereignty and Thrain has a mission for it; his letter waits
+  on the table of its hut, at the northern edge of the Sovereignty, south of Ironhold (Fede,
+  2026-10-12).
 - **AC-PRO-002.3:** The texts tell only what a character of Kandrax knows (the secret of the gods is
   not told). They are in English and in Spanish (Fede's own Spanish); the title "World of Kandrax" is
   the same in both.

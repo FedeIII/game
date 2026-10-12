@@ -43,10 +43,14 @@ the thread that connects the quests.
 
 ## The frame
 
-- **The Wilds** are the wild frontier between the **Iron Sovereignty** and the **Mithril
-  Enclave**. Both powers compete for this land, and neither one plays fair.
+- **The wildlands** (las tierras salvajes; not "the Wilds", Fede 2026-10-12) are the unclaimed,
+  lawless frontier between the **Iron Sovereignty** and the **Mithril Enclave**. Both powers compete
+  for this land, and neither one plays fair.
+- **The hut** (the home) is south of Ironhold, near the northern edge of the Iron Sovereignty (Fede,
+  2026-10-12). The texts say so; the game still has Ironhold west of the home, and the next work moves
+  them (the hut and the road to Ironhold).
 - **Ironhold** (Thornwick until 2026-10-11; Ferrozar in Kandrax) is the frontier village of the Sovereignty,
-  west of the home. Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the
+  north of the home (in the game still west of it). Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the
   head of the village; the watchman at the gate is a soldier of the Sovereignty.
 - **Silverspring** is the mithril village of the Enclave, a new fixed town north-east of
   Ironhold, at the end of a new road.
@@ -65,8 +69,8 @@ The English forms translate them. **Fede confirmed the English names below (2026
 |---|---|---|
 | Kandrax | Kandrax | |
 | las Tierras Salvajes | the Wilds | the name of the world stays |
-| las Tierras Salvajes del Norte | the Northern Wilds | the prologue (Fede, 2026-10-12): the Wilds are north of the Human Dominions and south of the Elven Dominions; the land between the Sovereignty and the Enclave is unclaimed, lawless land, not the Wilds |
-| las tierras salvajes (a common noun) | the wildlands | the unclaimed, lawless lands between the Sovereignty and the Enclave, where the hut, Ironhold and Silverspring are: Thrain's letter says "the wildlands north of the Iron Sovereignty" (Fede, 2026-10-12) |
+| las Tierras Salvajes del Norte | the Northern Wilds | the far north, past the Human Dominions (Fede, 2026-10-12: las Tierras Salvajes are north of the Human Dominions and south of the Elven Dominions); no text of the start uses it now |
+| las tierras salvajes (a common noun) | the wildlands | the unclaimed, lawless lands between the Sovereignty and the Enclave, where Ironhold and Silverspring are: "the wildlands north of the Iron Sovereignty" (Fede, 2026-10-12). The hut is south of Ironhold, at the northern edge of the Sovereignty |
 | las Columnas de Plata | the Silver Pillars | a mountain range; the map of the prologue (Fede, 2026-10-12) |
 | el Bosque Céfiro | the Zephyr Wood | a forest; the map of the prologue (Fede, 2026-10-12) |
 | Puerto Eluviano | Port Eluvian | a port; the map of the prologue (Fede, 2026-10-12) |

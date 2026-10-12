@@ -97,7 +97,7 @@ const BOOKS: readonly Interaction[] = [
   },
   {
     pages: ['A book of the old roads of the valley.'],
-    lore: [{ gate: LORE_GATE, pages: ['"In the west, a chapel where the lost are found again. Sleep once under its roof, and it remembers you."'] }],
+    lore: [{ gate: LORE_GATE, pages: ['"In the north, a chapel where the lost are found again. Sleep once under its roof, and it remembers you."'] }],
   },
   {
     pages: ['The accounts of a household. Candles, salt, rope.'],

@@ -25,7 +25,7 @@ const TEXTS = {
   table: [
     'Your table. A letter lies by the candle, sealed with a hammer and an anvil.',
     'It is from Thrain Steelforge: "Homesteads burn in the wildlands north of the Iron Sovereignty, one after another, and nobody knows who burns them. Find out for me."',
-    '"Begin in Ironhold, west down the road. The reeve there, Elama Rothenel, wrote to me first. Thrain."',
+    '"Begin in Ironhold, north up the road. The reeve there, Elama Rothenel, wrote to me first. Thrain."',
   ],
   barrel: ['Water from the stream. Cold, and good.'],
 } as const;
