@@ -198,6 +198,11 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   the moods of `PLACE_MOODS`. A new piece: a composer in `audio/themes/`, a track in `MOOD_TRACKS`.
   The debug panel's `music` line shows the mood. A headless test of a fight: `?offline&mob=imp,brute`
   (in development the Wilds is a shared world, and `?mob` works only alone).
+  **The sounds of the game** (`audio/game-sounds.ts`, `audio/fx.ts`, `audio/creatures.ts`): effects for
+  the fights, the steps, the things and the GUI, the mobs' voices, the ambience of each place and the
+  sounds near the player (water, fires, fountains, forges). A new effect: a recipe in `FX`, and a call
+  from `game.ts`; a new mob kind needs a voice in `VOICE_OF` (the test checks it). Check the levels of a
+  change with an offline render in a headless page.
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 

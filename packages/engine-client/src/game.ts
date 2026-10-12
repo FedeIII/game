@@ -137,6 +137,7 @@ import { DreamVeil } from './ui/dream.ts';
 import { audio } from './audio/audio.ts';
 import { Discoveries, MusicDirector, PLACE_MOODS, type Mood } from './audio/director.ts';
 import { GameMusic } from './audio/game-music.ts';
+import { GameSounds } from './audio/game-sounds.ts';
 import { soundSection } from './ui/sound-section.ts';
 import { GameMenu, escapeAction } from './ui/game-menu.ts';
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
@@ -407,6 +408,9 @@ async function run(options: GameOptions): Promise<void> {
   const soundAreas: readonly SoundArea[] = world.source.soundAreas?.() ?? [];
   const director = new MusicDirector();
   const gameMusic = new GameMusic();
+  // The sounds of the game (audio/game-sounds.ts): effects, voices, steps, the places.
+  const gameSounds = new GameSounds();
+  gameSounds.start();
   const discoveries = new Discoveries(character ? String(character.id) : 'guest');
   /** The sound area where the player is, and the mood of its music ('wilds' outside every area). */
   const placeNow = (): { readonly mood: Mood; readonly area: SoundArea | null } => {
@@ -936,6 +940,7 @@ async function run(options: GameOptions): Promise<void> {
     blows++;
     const now = performance.now();
     fightSignAt = now;
+    gameSounds.blow(mob, damage, crit, player.x, player.y);
     const y = mob.y - mobHead(mob.kind) - 4;
     if (damage === 0) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, mob.x, y, now);
     else fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.crit : FIGHT_INK.blow, mob.x, y, now);
@@ -977,6 +982,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     const line = STRINGS.drank[kind];
     if (line) say(line, now);
+    gameSounds.fx.play(kind === 'herbs' ? 'chew' : 'drink');
+    if (DRINKS[kind]?.hp) gameSounds.fx.play('heal', { delay: 0.6 });
   };
   // Items on the ground: the server keeps them in a shared world; the page keeps its own in a world that it runs.
   const localPiles = new Piles(world);
@@ -1006,6 +1013,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     const at = toward ? tossPoint(world, player, toward.x, toward.y) : dropPoint(world, player);
     localPiles.put(at.x, at.y, [{ kind, count }], performance.now(), player);
+    gameSounds.fx.play('drop', { delay: toward ? 0.35 : 0 });
   };
   /** Moves an item from place `from` to place `to`: a stack in the pack, or an item that the character puts on or takes off. */
   const moveItems = (from: number, to: number): void => {
@@ -1017,6 +1025,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     const moved = moveItem({ pack, gear }, from, to, traits.slots, traits.class);
     if (!moved) return;
+    gameSounds.fx.play(moved.gear !== gear ? 'equip' : 'pack');
     pack = moved.pack;
     gear = moved.gear;
   };
@@ -1049,12 +1058,28 @@ async function run(options: GameOptions): Promise<void> {
     const look = ownLook();
     if (skinKey(look) !== lookKey) wearLook(look);
   };
+  /** The sound of what the player gets: coins, or an item. */
+  const lootSound = (taken: Loot, delay = 0): void => {
+    if (taken.coins > 0) gameSounds.fx.play('coins', { delay });
+    else if (taken.items.length > 0) gameSounds.fx.play('pickup', { delay });
+  };
+  /** The sound of opening a source of loot: herbs, a buried cache, a chest (its lock first, if it has one), then what is in it. */
+  const openSound = (fixture: Fixture | null, taken: Loot): void => {
+    if (fixture?.kind === 'herbpatch') gameSounds.fx.play('herbs');
+    else if (fixture?.kind === 'cache') gameSounds.fx.play('dig');
+    else {
+      if (fixture?.lock) gameSounds.fx.play('lockPick');
+      gameSounds.fx.play('chestOpen', { delay: fixture?.lock ? 0.55 : 0 });
+    }
+    lootSound(taken, fixture?.lock ? 0.9 : 0.35);
+  };
   /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). */
   const takeDrop = (drop: Loot, now: number, at: { readonly x: number; readonly y: number }) => {
     if (lootIsEmpty(drop)) return;
     const result = addToPack(pack, drop, traits.slots);
     pack = result.pack;
     lootText.add(dropLines(result.taken), now);
+    lootSound(result.taken, 0.2);
     if (result.left.items.length > 0) localPiles.put(at.x, at.y, result.left.items, now, at);
     if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
   };
@@ -1064,14 +1089,17 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     if (source === 'locked') {
       say(STRINGS.locked, now);
+      gameSounds.fx.play('chestLocked');
       return;
     }
     if (source === 'chest') {
       say(sourceLine(lastSource, loot, full), now);
+      openSound(lastSource, loot);
       return;
     }
     // A drop, or a pile that the player picked up: the lines rise over its head.
     lootText.add(dropLines(loot), now);
+    lootSound(loot);
     if (full) say(STRINGS.packFull, now);
   });
   const action = new ActionButton();
@@ -1149,6 +1177,7 @@ async function run(options: GameOptions): Promise<void> {
       const next = makeDeal(deal, pack, player, traits);
       if (!next) return false;
       pack = next;
+      gameSounds.fx.play('coins');
       // A room at the inn: the character gets the refuge (the server gives it in a shared world).
       if (deal.goods === 'refuge' && deal.refuge && !localRefuges.includes(deal.refuge)) {
         localRefuges.push(deal.refuge);
@@ -1157,6 +1186,8 @@ async function run(options: GameOptions): Promise<void> {
       }
       return true;
     },
+    // The player's hand: an answer, a selection.
+    sound: (what) => gameSounds.fx.play(what === 'choose' ? 'uiClick' : 'uiSelect', { gain: 0.7 }),
     // An effect on a quest (the server applies it in a shared world; the page in its own world).
     effect: (effect) => {
       if (!talkWith) return false;
@@ -1173,6 +1204,7 @@ async function run(options: GameOptions): Promise<void> {
     const face = pendingTalk.face ?? talkWith.look;
     if (pendingTalk.dream) dreamVeil.show();
     gameMusic.conversation();
+    gameSounds.fx.play('uiOpen', { gain: 0.7 });
     // What the character wears counts for the answers too (ownedPack): Verath asks for the Tear on its neck.
     conversation.start(pendingTalk.dialog, face ? art.tryFrame(`npc/${face}`) : null, traits.scores, priceOf, { book: questsNow, pack: () => ownedPack({ pack: packNow(), gear: gearNow() }) });
     pendingTalk = null;
@@ -1212,6 +1244,7 @@ async function run(options: GameOptions): Promise<void> {
       if (!taken) return;
       pack = taken.pack;
       lootText.add(dropLines(taken.taken), now);
+      lootSound(taken.taken);
       if (!lootIsEmpty(taken.left)) say(STRINGS.packFull, now);
       return;
     }
@@ -1219,6 +1252,8 @@ async function run(options: GameOptions): Promise<void> {
       // A door never closes on anyone: the other players, or an NPC in the doorway.
       const people = [...(net?.playersAt(now) ?? []), ...npcPoses(now)];
       const result = net ? net.door(target.tx, target.ty, people) : useDoor(world, player, target.tx, target.ty, people, traits);
+      const doorSound = ({ opened: 'doorOpen', closed: 'doorClose', locked: 'doorLocked', barred: 'doorBarred', forced: 'doorForced' } as const)[result as 'opened'] as Parameters<GameSounds['fx']['play']>[0] | undefined;
+      if (doorSound) gameSounds.fx.play(doorSound);
       const locked = result === 'locked' ? world.buildingAt(target.tx, target.ty)?.locked : undefined;
       if (result === 'barred' || result === 'forced') {
         // Boards across the door: they hold, or they break (and the view shakes a little).
@@ -1258,6 +1293,7 @@ async function run(options: GameOptions): Promise<void> {
       const lock = target.fixture.lock;
       if (lock && !meetsGate(traits.scores, lock)) {
         say(shortOf(lock, STRINGS.locked, STRINGS.lockedPlain), now);
+        gameSounds.fx.play('chestLocked');
         return;
       }
       if (net) {
@@ -1269,10 +1305,12 @@ async function run(options: GameOptions): Promise<void> {
       if (!opened) return;
       if (opened === 'locked') {
         say(STRINGS.locked, now);
+        gameSounds.fx.play('chestLocked');
         return;
       }
       pack = opened.pack;
       say(sourceLine(target.fixture, opened.taken, opened.full), now);
+      openSound(target.fixture, opened.taken);
       return;
     }
     const content = contentOf(target);
@@ -1416,19 +1454,33 @@ async function run(options: GameOptions): Promise<void> {
 
   /** While the prologue plays (from the game menu), it has the music; after it, the game's music comes back. */
   let musicWaits = false;
+  /** The dodge and the defeat that the sounds have heard. */
+  let dodgeHeard = false;
+  let downHeard = false;
   let lastPlace: string | null = startArea.area?.id ?? null;
   let nextNear = 0;
   /** The music follows the game (audio/director.ts): each frame, the mood and the moments. */
   const directMusic = (now: number, view: { x: number; y: number; width: number; height: number }): void => {
     if (prologuePlaying()) {
+      if (!musicWaits) gameSounds.silence();
       musicWaits = true;
       return;
     }
     if (musicWaits) {
       musicWaits = false;
       gameMusic.reset();
+      gameSounds.resume();
     }
     const { mood: place, area } = placeNow();
+    // The sounds of the place and of the things near the player; the mobs' voices; the player's steps.
+    const indoors = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE)) !== null;
+    gameSounds.place(world, place, indoors, player.x, player.y, now);
+    gameSounds.mobsNow(mobsNow(), player.x, player.y, now);
+    if (player.down === 0 && player.dodge === 0) gameSounds.steps(world, shown.x, shown.y, sneakingShown());
+    if (player.dodge > 0 && !dodgeHeard) gameSounds.dodge();
+    dodgeHeard = player.dodge > 0;
+    if (player.down > 0 && !downHeard) gameSounds.down();
+    downHeard = player.down > 0;
     // A place seen for the first time: the music of discovery.
     if ((area?.id ?? null) !== lastPlace) {
       lastPlace = area?.id ?? null;
@@ -1474,13 +1526,16 @@ async function run(options: GameOptions): Promise<void> {
     const waking = player.down === 1 && (!net || net.status !== 'online');
     if (net) {
       if (net.tick(input)) {
+        gameSounds.swing(traits.strike, traits.strike.twoHands);
         if (traits.ranged) ownArrows.push(newArrow(nextOwnArrow--, net.id ?? 0, player.x, player.y, player.aim, traits.range, traits));
         else touchMobs();
       }
       flyOwnArrows(TICK_SECONDS);
-    } else if (stepPlayer(player, input, world, traits) && horde) {
-      if (traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
-      else {
+    } else if (stepPlayer(player, input, world, traits)) {
+      // An attack starts: the sound of the weapon, and its blows on the horde.
+      gameSounds.swing(traits.strike, traits.strike.twoHands);
+      if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
+      else if (horde) {
         for (const result of horde.strike(player, player.aim, undefined, 0, traits)) {
           showBlow(result.mob.id, result.damage, result.crit);
           if (result.mob.state !== 'dying') continue;
@@ -1585,11 +1640,11 @@ async function run(options: GameOptions): Promise<void> {
     // A cinder adept's bolt is fire (its shooter: the mob of a negative owner).
     const kinds = new Map(mobsNow().map((m) => [m.id, m.kind]));
     const fiery = (kind: MobKind | undefined) => kind !== undefined && FIRE_SHOOTERS.has(kind);
-    arrowViews?.update([
-      ...(horde?.arrows ?? []).map((a) => ({ ...a, fire: fiery(a.from) })),
-      ...ownArrows,
-      ...(net?.arrowsAt(now) ?? []).map((a) => ({ ...a, fire: a.owner < 0 && fiery(kinds.get(-a.owner)) })),
-    ]);
+    const hordeArrows = (horde?.arrows ?? []).map((a) => ({ ...a, fire: fiery(a.from) }));
+    const netArrows = (net?.arrowsAt(now) ?? []).map((a) => ({ ...a, fire: a.owner < 0 && fiery(kinds.get(-a.owner)) }));
+    arrowViews?.update([...hordeArrows, ...ownArrows, ...netArrows]);
+    // The mobs' arrows and bolts: each one shot, and landing (the player's own: its swing and its blows).
+    gameSounds.arrowsNow([...hordeArrows, ...netArrows].filter((a) => a.owner < 0), player.x, player.y);
     // No attack from shallow water (stepPlayer).
     attackButton?.setReady(player.stun === 0 && !inShallows(world, player.x, player.y));
     dodgeButton?.setReady(canDodge(player) && !inShallows(world, player.x, player.y));
@@ -1642,10 +1697,16 @@ async function run(options: GameOptions): Promise<void> {
     // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; a draught, what it gave back.
     if (player.down === 0 && player.hp !== numbersHp) {
       const change = player.hp - numbersHp;
-      if (change < 0) fightSignAt = now;
+      if (change < 0) {
+        fightSignAt = now;
+        gameSounds.hurt();
+      }
       fightNumbers.show(change > 0 ? `+${change}` : String(-change), change > 0 ? FIGHT_INK.heal : FIGHT_INK.hurt, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
-    if (player.glance > numbersGlance) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+    if (player.glance > numbersGlance) {
+      fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+      gameSounds.glance();
+    }
     numbersHp = player.hp;
     numbersGlance = player.glance;
     fightNumbers.update(now);

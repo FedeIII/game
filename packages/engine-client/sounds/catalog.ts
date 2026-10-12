@@ -107,6 +107,18 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
   { id: 'logDrum', source: v('Percussion', /^LogDrum(Hi|Lo)_MedM_v2_rr1_Sum\.wav$/), kind: 'once', seconds: 0.7, rate: 22050, pitched: false },
   { id: 'bells', source: v('Miscellania Raw/Misc 2/NepaleseBells', /^fx1_short_r0[1-4]_main\.wav$/), kind: 'once', seconds: 3.0, rate: 32000, pitched: false },
   { id: 'anvil', source: v('Percussion', /^Anvil_Hit1_v\d_Sum\.wav$/), kind: 'once', seconds: 1.4, rate: 32000, pitched: false },
+  // ------------------------------------------------------------ the sounds of the game (audio/fx.ts)
+  { id: 'metalHit', source: v('Miscellania Raw/Misc 1', /^metal_hit[1-6]\.wav$/), kind: 'once', seconds: 1.1, rate: 32000, pitched: false },
+  { id: 'zap', source: v('Miscellania Raw/Misc 1', /^zap[1-3]\.wav$/), kind: 'once', seconds: 1.2, rate: 32000, pitched: false },
+  { id: 'bubbles', source: v('Miscellania Raw/Misc 1', /^bubbles2?\.wav$/), kind: 'once', seconds: 1.2, rate: 22050, pitched: false },
+  { id: 'scrape', source: v('Miscellania Raw/Misc 1', /^brick_scrape2?\.wav$/), kind: 'once', seconds: 1.0, rate: 22050, pitched: false },
+  { id: 'chain', source: v('Miscellania Raw/Misc 1', /^chain_grind\.wav$/), kind: 'once', seconds: 1.0, rate: 22050, pitched: false },
+  { id: 'slap', source: v('VSCO 1 Percussion/varWood', /^slapstick[12]\.wav$/), kind: 'once', seconds: 0.6, rate: 32000, pitched: false },
+  { id: 'woodClick', source: v('Percussion', /^Claves1_Hit_v1_rr[12]_Sum\.wav$/), kind: 'once', seconds: 0.3, rate: 32000, pitched: false },
+  { id: 'shaker', source: v('VSCO 1 Percussion/varMetal/various', /^cabasa_[1-3]\.wav$/), kind: 'once', seconds: 0.5, rate: 32000, pitched: false },
+  { id: 'ratchet', source: v('Percussion', /^Ratchet1-Crank_v1_rr1_Sum\.wav$/), kind: 'once', seconds: 0.8, rate: 32000, pitched: false },
+  { id: 'guiro', source: v('VSCO 1 Percussion/varWood', /^guiro_short2?\.wav$/), kind: 'once', seconds: 0.4, rate: 32000, pitched: false },
+  { id: 'rub', source: v('Percussion', /^bassdrum_rub1_v1\.wav$/), kind: 'once', seconds: 3.0, rate: 22050, pitched: false },
 ];
 
 /** The credits that the game shows for its sounds (the settings' "Sound" section). */

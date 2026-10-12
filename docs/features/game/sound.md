@@ -149,6 +149,56 @@ tense when I am hunted, fast in a fight, full of awe in a new place, so that the
 
 ---
 
+### REQ-SND-006: The sounds of the game
+
+**User Story:** As a player, I want to hear what I do and what I meet, so that the world feels real and
+a fight tells me what happens in it.
+
+**Acceptance Criteria:**
+- **AC-SND-006.1:** The player's attack sounds as its weapon: a swing (a heavier one with a weapon in
+  both hands, a light one with the fists), a bow, or a cantrip. A blow that lands sounds on flesh, or on
+  armour (a hobgoblin, the Shrine Warden, the Hobgoblin Devastator); a critical hit is louder, with a
+  crack; a miss makes no sound of a hit.
+- **AC-SND-006.2:** A hit on the player sounds as a dull blow, with a ringing in the ears; a blow that
+  glances off its armour rings on metal; a dodge is a rush of air and a landing; a defeat is a fall.
+- **AC-SND-006.3:** The mobs have voices: imps and goblins chitter, brutes, hobgoblins and bugbears
+  growl, worgs and hounds bark and snarl, watchers whisper, the Seekers shout, the Warden and the
+  Devastator roar. A mob calls when it spots the player (at most once in 8 s), gathers itself before a
+  blow, cries when it is hurt, and when it dies (and its body falls). It is heard up to 16 tiles away,
+  from its side, softer when it is further; at most once in 0.9 s, and at most three voices at once.
+  A mob's swing sounds too; its arrows twang and land; a cinder adept's fire bolt crackles.
+- **AC-SND-006.4:** The player's steps sound on the ground under it: grass, earth, sand, stone, wood,
+  a floor of packed earth, shallow water. A step every 20 pixels walked; softer when it sneaks.
+- **AC-SND-006.5:** Doors open with a creak, close with a thud, rattle when they are locked, hold or break
+  when they are barred. A chest opens with a creak (a lock is picked first, when it has one); a locked
+  one rattles a chain; herbs rustle; a buried cache is dug up. Coins clink; an item is picked up or
+  dropped; gear is put on with a clink of metal; a stack moves in the pack with a rustle. A draught is
+  drunk (bubbles, two gulps), herbs are chewed, and healing has a soft chime. A deal pays in coins.
+- **AC-SND-006.6:** The GUI: a panel opens with a rustle (the journal and the map with a page); a button
+  clicks; a conversation opens with a rustle, an answer clicks, and a selection moved with the keys ticks.
+- **AC-SND-006.7:** The effects follow the "Effects" slider and the mute.
+
+---
+
+### REQ-SND-007: The sound of the places
+
+**User Story:** As a player, I want each place to sound like itself, so that I know where I am with my
+eyes closed.
+
+**Acceptance Criteria:**
+- **AC-SND-007.1:** Each mood of a place has an ambience: the Wilds a night forest (a soft wind,
+  crickets, owls now and then, a far howl seldom, leaves in the gusts); a town a light wind and a far
+  forge; Silverspring a river and chimes in the wind; the home a hearth; the chapel a candle; the ruins
+  a strong wind and embers; the camps their fires; the shrine a low hum and a far bell. Inside any other
+  building, the hum of a room and a creaking board. It changes over 2.5 s.
+- **AC-SND-007.2:** Near the player, these sound from their side and louder as it comes near: water (a
+  lake, a river) within 9 tiles; a fire (a campfire, a brand, a cauldron) within 9 tiles; a fountain
+  within 11; a forge or an anvil within 13. Through a wall, at a third.
+- **AC-SND-007.3:** While the prologue plays from the game menu, the game's ambience and its nearby
+  sounds are silent; after it, they come back.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine-client/src/audio/audio.ts`): `audio` (one `AudioEngine` for the
@@ -218,6 +268,26 @@ tense when I am hunted, fast in a fight, full of awe in a new place, so that the
   instruments come more than 1.5 s late does not play. Every 30 s, the instruments that are not pinned,
   not in the track that plays and not used for 3 minutes go (`SampleBank.sweep`, `IDLE_MS`). The Wilds,
   the hunt and the fights together take about 49 MB of memory decoded; all the instruments, 77 MB.
+- **The effects** (`audio/fx.ts`): `FX` (each a recipe: `seconds`, `variants`, the recorded `samples`
+  it plays, `render`), `FxPlayer` (`play(id, { gain, pan, delay })`, `voice()`, `prepare()`): the
+  first play of an effect is its recipe, live; then 2 to 5 variants are rendered once (mono, 32 kHz,
+  an `OfflineAudioContext`) and each play is one of them at random, ±4 % in pitch. `spatial(dx, dy,
+  range)`: the gain and the pan of a sound at a point. The recorded sounds of the effects
+  (`FX_INSTRUMENTS`: metalHit, zap, bubbles, scrape, chain, slap, woodClick, shaker, guiro, from VSCO 2
+  CE) load when the game starts. The synthesized parts: `synth.ts` (`thud`, `voice`, `creak`, `splash`,
+  `clink`, `rustle`, `crunch`, `ring`, `gulp`, and the older `whoosh`, `noiseHit`, `boom`, `bell`).
+- **The voices** (`audio/creatures.ts`): `VOICE_OF` (the voice and the size of each kind of mob),
+  `syllables()`, `mobVoice()`.
+- **The game** (`audio/game-sounds.ts`): `GameSounds` (`swing`, `blow`, `hurt`, `glance`, `dodge`,
+  `down`, `mobsNow`, `arrowsNow`, `steps`, `place`, `silence`, `resume`; `fx` for the things),
+  `stepOf()`, `ambienceOf()`, `voiceOfChange()`, `STRIDE`. `game.ts` calls it from its handlers (the
+  attack, the blows, the doors, the sources of loot, the piles, the pack, the drinks, the deals, the
+  conversation) and in each frame (`directMusic`). The GUI: the event `game:panel-open`, and a press on
+  any button but `#attack`, `#dodge`, `#action` and the answers of a conversation (the panel's `sound`).
+- **The places** (`sounds.ts`): the ambiences `forest`, `town`, `haven`, `indoor`, `ruins`, `camp`,
+  `shrine` (and those of the prologue); the layers `LAYERS` (`water`, `fire`, `fountain`, `forge`),
+  `startLayer()`; `audio.setLayer(id, level, pan)`, scheduled by the engine's clock. `GameSounds.place()`
+  scans the ground (water) and `world.fixturesIn()` (fires, fountains, forges) every 300 ms.
 - **The debug panel** (F3): the line `music`: the mood, the track, the area, and how many instruments
   are loaded.
 - **The prologue**: each scene names its ambience (`AMBIENCE_OF` in `art/prologue.ts`, carried in
@@ -228,5 +298,7 @@ tense when I am hunted, fast in a fight, full of awe in a new place, so that the
 - **Tests**: `audio/audio.test.ts` (notes, the notation, the choice of a sample, the copies of a loop,
   the decoder's delay, the manifest, the bars of the theme, every note near a recorded note, the rounds,
   the settings); `audio/director.test.ts` (the moods and their timing, the stingers, every note of 40
-  sections of each piece and of each stinger near a recorded note of an instrument of its list). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to
+  sections of each piece and of each stinger near a recorded note of an instrument of its list);
+  `audio/game-sounds.test.ts` (the steps of each ground, the ambience of each mood, the voices of the
+  changes of a mob, the place of a sound, the voice of every kind of mob for every moment, the effects). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to
   measure the levels in a browser.

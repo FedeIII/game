@@ -15,7 +15,7 @@ import { seatBus, type MusicTrack, type Pattern } from './music.ts';
 import { playNote } from './sampler.ts';
 import type { Stinger } from './themes/stingers.ts';
 import { loadSound, saveSound, type SoundSettings } from './settings.ts';
-import { playEffect, startAmbience, type Ambience, type AmbienceId, type EffectId } from './sounds.ts';
+import { playEffect, startAmbience, startLayer, type Ambience, type AmbienceId, type EffectId, type LayerId } from './sounds.ts';
 import { SampleBank } from './samples.ts';
 import { reverbBuffer } from './synth.ts';
 
@@ -115,6 +115,8 @@ export class AudioEngine {
   /** What should play once the context runs (asked before the visitor did anything). */
   private wanted: { music: MusicTrack | null; ambience: AmbienceId | null } = { music: null, ambience: null };
   private readonly listeners = new Set<(settings: SoundSettings) => void>();
+  /** The sounds of things near the player (setLayer): each with its gain and its pan. */
+  private readonly layers = new Map<LayerId, { readonly loop: Ambience; readonly gain: GainNode; readonly pan: StereoPannerNode }>();
 
   /**
    * Starts the context on the first touch, click or key of the page (a browser asks for it). A hidden
@@ -161,6 +163,21 @@ export class AudioEngine {
     return () => this.listeners.delete(listener);
   }
 
+  /** The context, once the page has one (the effects play on it: audio/fx.ts). */
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
+  /** Where the effects go: the effects bus (its room reverb and its volume). */
+  get effectsInput(): AudioNode | null {
+    return this.buses?.effects ?? null;
+  }
+
+  /** Where a sound of a place goes (audio/ambience layers): the ambience bus. */
+  get ambienceInput(): AudioNode | null {
+    return this.buses?.ambience ?? null;
+  }
+
   /** Whether the context runs now. */
   get running(): boolean {
     return this.ctx?.state === 'running';
@@ -200,6 +217,39 @@ export class AudioEngine {
     if (!this.ctx) return;
     const until = this.ctx.currentTime + LOOKAHEAD;
     for (const playing of [this.music, this.ambience]) if (playing && !playing.stopping) playing.pattern.schedule(this.ctx, playing.gain, until);
+    for (const layer of this.layers.values()) layer.loop.schedule(this.ctx, layer.gain, until);
+  }
+
+  /**
+   * The sound of a thing near the player (water, a fire, a fountain, a forge): at `level` (0: it
+   * fades out and stops), panned to `pan`. The game sets it a few times a second as the player moves.
+   */
+  setLayer(id: LayerId, level: number, pan = 0): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || !this.buses) return;
+    const now = ctx.currentTime;
+    let layer = this.layers.get(id);
+    if (level <= 0.002) {
+      if (!layer) return;
+      const gone = layer;
+      this.layers.delete(id);
+      gone.gain.gain.setTargetAtTime(0, now, 0.2);
+      window.setTimeout(() => {
+        gone.loop.stop(ctx.currentTime + 0.02);
+        gone.gain.disconnect();
+      }, 1200);
+      return;
+    }
+    if (!layer) {
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const panner = ctx.createStereoPanner();
+      gain.connect(panner).connect(this.buses.ambience);
+      layer = { loop: startLayer(id, ctx, gain, now + 0.02), gain, pan: panner };
+      this.layers.set(id, layer);
+    }
+    layer.gain.gain.setTargetAtTime(level, now, 0.3);
+    layer.pan.pan.setTargetAtTime(Math.max(-0.9, Math.min(0.9, pan)), now, 0.3);
   }
 
   /** Fetches and decodes instruments now (a track that will play soon), with or without a context. */

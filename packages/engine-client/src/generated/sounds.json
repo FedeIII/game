@@ -2757,6 +2757,222 @@
      "seconds": 1.4
     }
    ]
+  },
+  "metalHit": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "metalHit-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.1
+    },
+    {
+     "file": "metalHit-2.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.1
+    },
+    {
+     "file": "metalHit-3.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.1
+    },
+    {
+     "file": "metalHit-4.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.1
+    },
+    {
+     "file": "metalHit-5.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.1
+    },
+    {
+     "file": "metalHit-6.mp3",
+     "root": null,
+     "onset": 0.0006,
+     "seconds": 1.1
+    }
+   ]
+  },
+  "zap": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "zap-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.2
+    },
+    {
+     "file": "zap-2.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.2
+    },
+    {
+     "file": "zap-3.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1.2
+    }
+   ]
+  },
+  "bubbles": {
+   "kind": "once",
+   "rate": 22050,
+   "samples": [
+    {
+     "file": "bubbles-1.mp3",
+     "root": null,
+     "onset": 0.0017,
+     "seconds": 1.2
+    },
+    {
+     "file": "bubbles-2.mp3",
+     "root": null,
+     "onset": 0.0018,
+     "seconds": 1.2
+    }
+   ]
+  },
+  "scrape": {
+   "kind": "once",
+   "rate": 22050,
+   "samples": [
+    {
+     "file": "scrape-1.mp3",
+     "root": null,
+     "onset": 0.0007,
+     "seconds": 1
+    },
+    {
+     "file": "scrape-2.mp3",
+     "root": null,
+     "onset": 0.001,
+     "seconds": 1
+    }
+   ]
+  },
+  "chain": {
+   "kind": "once",
+   "rate": 22050,
+   "samples": [
+    {
+     "file": "chain-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 1
+    }
+   ]
+  },
+  "slap": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "slap-1.mp3",
+     "root": null,
+     "onset": 0.002,
+     "seconds": 0.6
+    },
+    {
+     "file": "slap-2.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.6
+    }
+   ]
+  },
+  "woodClick": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "woodClick-1.mp3",
+     "root": null,
+     "onset": 0.0005,
+     "seconds": 0.3
+    },
+    {
+     "file": "woodClick-2.mp3",
+     "root": null,
+     "onset": 0.0006,
+     "seconds": 0.3
+    }
+   ]
+  },
+  "shaker": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "shaker-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.5
+    },
+    {
+     "file": "shaker-2.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.5
+    },
+    {
+     "file": "shaker-3.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.5
+    }
+   ]
+  },
+  "ratchet": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "ratchet-1.mp3",
+     "root": null,
+     "onset": 0.0041,
+     "seconds": 0.8
+    }
+   ]
+  },
+  "guiro": {
+   "kind": "once",
+   "rate": 32000,
+   "samples": [
+    {
+     "file": "guiro-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.4
+    },
+    {
+     "file": "guiro-2.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 0.4
+    }
+   ]
+  },
+  "rub": {
+   "kind": "once",
+   "rate": 22050,
+   "samples": [
+    {
+     "file": "rub-1.mp3",
+     "root": null,
+     "onset": 0.012,
+     "seconds": 3
+    }
+   ]
   }
  }
 }

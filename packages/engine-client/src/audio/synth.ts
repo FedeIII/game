@@ -274,3 +274,220 @@ export function whoosh(ctx: BaseAudioContext, out: AudioNode, t: number, duratio
   src.start(t, Math.random());
   src.stop(t + duration + 0.05);
 }
+
+// ---------------------------------------------------------------- the sounds of the game (audio/fx.ts)
+
+/** A dull blow: a low sine that drops in pitch, and a click of noise. */
+export function thud(ctx: BaseAudioContext, out: AudioNode, t: number, freq = 90, gain = 0.5, decay = 0.16): void {
+  const osc = ctx.createOscillator();
+  osc.frequency.setValueAtTime(freq * 1.6, t);
+  osc.frequency.exponentialRampToValueAtTime(freq, t + 0.04);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(gain, t + 0.004);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+  osc.connect(env).connect(out);
+  osc.start(t);
+  osc.stop(t + decay + 0.02);
+  noiseHit(ctx, out, t, Math.min(0.05, decay * 0.4), freq * 8, gain * 0.5, 'lowpass');
+}
+
+export interface VoiceShape {
+  /** The pitch of the throat (Hz) at the start and at the end. */
+  readonly from: number;
+  readonly to: number;
+  readonly seconds: number;
+  /** Three formants (Hz): the vowel and the size of the creature. */
+  readonly formants: readonly [number, number, number];
+  /** 0 a clean voice, 1 a breath without pitch. */
+  readonly rough: number;
+  /** A flutter of the voice (Hz), for a growl or a snarl; 0 none. */
+  readonly tremolo?: number;
+  readonly gain: number;
+}
+
+/** A creature's voice: a throat (a sawtooth that glides, and breath) through the formants of a vowel. */
+export function voice(ctx: BaseAudioContext, out: AudioNode, t: number, v: VoiceShape): void {
+  const end = t + v.seconds;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(v.gain, t + Math.min(0.04, v.seconds * 0.2));
+  env.gain.setValueAtTime(v.gain, Math.max(t + 0.04, end - v.seconds * 0.35));
+  env.gain.linearRampToValueAtTime(0, end);
+  if (v.tremolo) {
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = v.tremolo;
+    const depth = ctx.createGain();
+    depth.gain.value = v.gain * 0.45;
+    lfo.connect(depth).connect(env.gain);
+    lfo.start(t);
+    lfo.stop(end + 0.02);
+  }
+  const throat = ctx.createGain();
+  if (v.rough < 1) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(v.from, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, v.to), end);
+    const g = ctx.createGain();
+    g.gain.value = 1 - v.rough;
+    osc.connect(g).connect(throat);
+    osc.start(t);
+    osc.stop(end + 0.02);
+  }
+  if (v.rough > 0) {
+    const breath = ctx.createBufferSource();
+    breath.buffer = noiseBuffer(ctx);
+    breath.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = v.rough * 1.4;
+    breath.connect(g).connect(throat);
+    breath.start(t, Math.random());
+    breath.stop(end + 0.02);
+  }
+  v.formants.forEach((f, i) => {
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = f;
+    band.Q.value = 6 + i * 2;
+    const g = ctx.createGain();
+    g.gain.value = [2.2, 1.3, 0.6][i]!;
+    throat.connect(band).connect(g).connect(env);
+  });
+  env.connect(out);
+}
+
+/** A creak of wood or of a hinge: a slow, uneven rasp through the resonances of a board. */
+export function creak(ctx: BaseAudioContext, out: AudioNode, t: number, seconds = 0.5, pitch = 60, gain = 0.25): void {
+  const end = t + seconds;
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(pitch, t);
+  // The rasp catches and slips: a few random steps of its rate.
+  for (let k = 1; k < 6; k++) osc.frequency.linearRampToValueAtTime(pitch * (0.7 + Math.random() * 0.9), t + (seconds * k) / 6);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(gain, t + 0.04);
+  env.gain.setValueAtTime(gain, end - 0.08);
+  env.gain.linearRampToValueAtTime(0, end);
+  for (const [f, q, level] of [
+    [620, 9, 1],
+    [1150, 10, 0.7],
+    [2300, 12, 0.35],
+  ] as const) {
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = f * (0.9 + Math.random() * 0.2);
+    band.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.value = level * 3;
+    osc.connect(band).connect(g).connect(env);
+  }
+  env.connect(out);
+  osc.start(t);
+  osc.stop(end + 0.02);
+}
+
+/** A splash: noise through a band that falls, and a few bubbles. */
+export function splash(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.3, seconds = 0.22): void {
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer(ctx);
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.Q.value = 1.2;
+  band.frequency.setValueAtTime(2400, t);
+  band.frequency.exponentialRampToValueAtTime(500, t + seconds);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(gain, t);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+  src.connect(band).connect(env).connect(out);
+  src.start(t, Math.random());
+  src.stop(t + seconds + 0.02);
+  for (let k = 0; k < 3; k++) {
+    const at = t + 0.03 + Math.random() * seconds * 0.8;
+    const osc = ctx.createOscillator();
+    const f = 500 + Math.random() * 700;
+    osc.frequency.setValueAtTime(f, at);
+    osc.frequency.exponentialRampToValueAtTime(f * 1.8, at + 0.04);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain * 0.25, at);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.05);
+    osc.connect(g).connect(out);
+    osc.start(at);
+    osc.stop(at + 0.06);
+  }
+}
+
+/** A coin: two partials of struck metal that ring a moment. */
+export function clink(ctx: BaseAudioContext, out: AudioNode, t: number, freq = 2800, gain = 0.12): void {
+  for (const [mult, level, decay] of [
+    [1, 1, 0.22],
+    [2.73, 0.5, 0.12],
+    [4.15, 0.25, 0.07],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = freq * mult;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain * level, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + decay + 0.01);
+  }
+}
+
+/** A rustle of cloth, leaves or paper: a band of noise that flutters. */
+export function rustle(ctx: BaseAudioContext, out: AudioNode, t: number, seconds = 0.25, freq = 3000, gain = 0.12): void {
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer(ctx);
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = freq;
+  band.Q.value = 0.9;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  const steps = Math.max(3, Math.round(seconds / 0.035));
+  for (let k = 1; k <= steps; k++) env.gain.linearRampToValueAtTime(gain * (0.25 + Math.random() * 0.75) * (1 - k / (steps + 1)), t + (seconds * k) / steps);
+  env.gain.linearRampToValueAtTime(0, t + seconds + 0.02);
+  src.connect(band).connect(env).connect(out);
+  src.start(t, Math.random());
+  src.stop(t + seconds + 0.05);
+}
+
+/** A crunch: a few tiny bursts of noise close together (dry grass, herbs, a bite). */
+export function crunch(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.15, freq = 2200): void {
+  const n = 3 + Math.floor(Math.random() * 3);
+  for (let k = 0; k < n; k++) noiseHit(ctx, out, t + k * (0.012 + Math.random() * 0.02), 0.012 + Math.random() * 0.02, freq * (0.7 + Math.random() * 0.6), gain * (0.5 + Math.random() * 0.5), 'bandpass');
+}
+
+/** The ringing in the ears after a hard blow: two close high tones that beat, and fade. */
+export function ring(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.03, seconds = 0.9): void {
+  for (const f of [2860, 2930]) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + seconds + 0.02);
+  }
+}
+
+/** A gulp: a short low tone that falls, muffled. */
+export function gulp(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.25): void {
+  const osc = ctx.createOscillator();
+  osc.frequency.setValueAtTime(240, t);
+  osc.frequency.exponentialRampToValueAtTime(120, t + 0.1);
+  const low = ctx.createBiquadFilter();
+  low.type = 'lowpass';
+  low.frequency.value = 600;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+  osc.connect(low).connect(g).connect(out);
+  osc.start(t);
+  osc.stop(t + 0.15);
+}

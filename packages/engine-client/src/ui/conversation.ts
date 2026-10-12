@@ -183,6 +183,8 @@ export interface ConversationEvents {
   readonly deal?: (deal: Deal) => boolean;
   /** The player gives an answer with an effect on a quest: the game applies it (or sends it), and says whether it did. */
   readonly effect?: (effect: QuestEffect) => boolean;
+  /** A sound for the player's hand: an answer chosen, or a selection moved with the keys. */
+  readonly sound?: (what: 'choose' | 'select') => void;
 }
 
 /**
@@ -294,6 +296,7 @@ export class ConversationPanel {
     const talk = this.talk;
     if (!talk || index < 0 || index >= talk.answers.length || talk.dim(index)) return;
     const answer = talk.answers[index]!;
+    this.events.sound?.('choose');
     // An effect that the game could not apply (the server is not there): nothing changes.
     if (answer.effect && !(this.events.effect?.(answer.effect) ?? false)) return;
     const next = talk.give(answer, answer.deal ? (this.events.deal?.(answer.deal) ?? false) : false);
@@ -372,6 +375,7 @@ export class ConversationPanel {
     else if (event.code === 'ArrowUp' || event.code === 'KeyW' || event.code === 'ArrowDown' || event.code === 'KeyS') {
       talk.move(event.code === 'ArrowUp' || event.code === 'KeyW' ? -1 : 1);
       this.select(talk.selected);
+      this.events.sound?.('select');
     }
     else if (event.code === 'KeyE' || event.code === 'Enter' || event.code === 'Space') {
       if (!event.repeat) this.choose(talk.selected);

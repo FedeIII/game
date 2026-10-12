@@ -7,7 +7,7 @@ import type { Pattern } from './music.ts';
 import { midi } from './notes.ts';
 import { playNote } from './sampler.ts';
 import type { SampleBank } from './samples.ts';
-import { anvil, bell, boom, brownBuffer, noiseHit, whoosh } from './synth.ts';
+import { anvil, bell, boom, brownBuffer, creak, noiseBuffer, noiseHit, rustle, whoosh } from './synth.ts';
 import { hz } from './notes.ts';
 
 /** The recorded instruments that the effects use (a page loads them with the music that comes with them). */
@@ -17,9 +17,18 @@ export const EFFECT_INSTRUMENTS = ['gong', 'glock', 'timpaniSoft', 'harp'] as co
 export const EFFECTS = ['whoosh', 'title', 'tick', 'click', 'end'] as const;
 export type EffectId = (typeof EFFECTS)[number];
 
-/** The ambiences (loops). */
-export const AMBIENCES = ['night', 'wind', 'gale', 'candle', 'forge', 'hearth'] as const;
+/**
+ * The ambiences (loops): the prologue's scenes (night, wind, gale, candle, forge, hearth), and the
+ * places of the game: the night forest (wind, crickets, owls, a far howl now and then, leaves), a town
+ * (a far forge), a haven by a river (water, chimes), a room (its hum and a creak), the ruins (wind and
+ * embers), a camp (its fires), the shrine (a low hum, a bell now and then).
+ */
+export const AMBIENCES = ['night', 'wind', 'gale', 'candle', 'forge', 'hearth', 'forest', 'town', 'haven', 'indoor', 'ruins', 'camp', 'shrine'] as const;
 export type AmbienceId = (typeof AMBIENCES)[number];
+
+/** The sounds of things near the player (positional: the game sets their gain and pan): water, a fire, a fountain, a forge. */
+export const LAYERS = ['water', 'fire', 'fountain', 'forge'] as const;
+export type LayerId = (typeof LAYERS)[number];
 
 /** Plays an effect at time `t`, on the recorded instruments of `bank` where it has them, else synthesized. */
 export function playEffect(id: EffectId, ctx: BaseAudioContext, out: AudioNode, t: number, bank?: SampleBank): void {
@@ -188,6 +197,197 @@ const anvils = (t0: number) =>
     },
   );
 
+/** Owls far in the woods: a hoot of two notes, now and then, from one side or the other. */
+const owls = (t0: number) =>
+  events(
+    t0,
+    () => 9 + Math.random() * 14,
+    (ctx, out, t) => {
+      const pitch = 360 + Math.random() * 60;
+      const pan = (Math.random() - 0.5) * 1.6;
+      for (const [at, len, f] of [
+        [0, 0.22, pitch],
+        [0.38, 0.5, pitch * 0.95],
+      ] as const) {
+        const osc = ctx.createOscillator();
+        osc.frequency.setValueAtTime(f, t + at);
+        osc.frequency.linearRampToValueAtTime(f * 0.94, t + at + len);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t + at);
+        g.gain.linearRampToValueAtTime(0.018, t + at + 0.06);
+        g.gain.linearRampToValueAtTime(0, t + at + len);
+        const p = ctx.createStereoPanner();
+        p.pan.value = pan;
+        osc.connect(g).connect(p).connect(out);
+        osc.start(t + at);
+        osc.stop(t + at + len + 0.02);
+      }
+    },
+  );
+
+/** A wolf far away: a long howl that rises and falls, very soft, seldom. */
+const howls = (t0: number) =>
+  events(
+    t0 + 20,
+    () => 35 + Math.random() * 50,
+    (ctx, out, t) => {
+      const osc = ctx.createOscillator();
+      const base = 380 + Math.random() * 60;
+      osc.frequency.setValueAtTime(base, t);
+      osc.frequency.linearRampToValueAtTime(base * 1.55, t + 0.5);
+      osc.frequency.linearRampToValueAtTime(base * 1.45, t + 1.4);
+      osc.frequency.linearRampToValueAtTime(base * 1.1, t + 2);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 5;
+      const depth = ctx.createGain();
+      depth.gain.value = 6;
+      vib.connect(depth).connect(osc.frequency);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.01, t + 0.4);
+      g.gain.setValueAtTime(0.01, t + 1.5);
+      g.gain.linearRampToValueAtTime(0, t + 2);
+      const low = ctx.createBiquadFilter();
+      low.type = 'lowpass';
+      low.frequency.value = 1400;
+      const p = ctx.createStereoPanner();
+      p.pan.value = (Math.random() - 0.5) * 1.6;
+      osc.connect(low).connect(g).connect(p).connect(out);
+      for (const n of [osc, vib]) {
+        n.start(t);
+        n.stop(t + 2.05);
+      }
+    },
+  );
+
+/** Leaves stirred by a gust, here and there. */
+const leaves = (t0: number) => events(t0, () => 4 + Math.random() * 6, (ctx, out, t) => rustle(ctx, out, t, 0.6 + Math.random() * 0.6, 2400 + Math.random() * 1500, 0.012));
+
+/** A far forge: two strokes on an anvil, now and then. */
+const farAnvils = (t0: number) =>
+  events(
+    t0,
+    () => 6 + Math.random() * 5,
+    (ctx, out, t) => {
+      const pan = (Math.random() - 0.5) * 1.2;
+      anvil(ctx, out, t, 780 + Math.random() * 100, 0.008, pan);
+      anvil(ctx, out, t + 0.36, 790 + Math.random() * 100, 0.006, pan);
+    },
+  );
+
+/** Chimes in the wind: a soft high note now and then. */
+const chimes = (t0: number) => events(t0, () => 5 + Math.random() * 7, (ctx, out, t) => bell(ctx, out, t, 1760 * [1, 1.125, 1.25, 1.5][Math.floor(Math.random() * 4)]!, 0.006, 2.5, (Math.random() - 0.5) * 1.2));
+
+/** A board that creaks somewhere in the room. */
+const creaks = (t0: number) => events(t0, () => 8 + Math.random() * 12, (ctx, out, t) => creak(ctx, out, t, 0.25 + Math.random() * 0.3, 40 + Math.random() * 30, 0.03));
+
+/** A bell far off, seldom. */
+const farBell = (t0: number) => events(t0, () => 10 + Math.random() * 12, (ctx, out, t) => bell(ctx, out, t, 440 * [1, 1.5, 1.2][Math.floor(Math.random() * 3)]!, 0.012, 6, (Math.random() - 0.5) * 0.8));
+
+/** Water over stones: noise through three bands whose middles wander. */
+function babble(ctx: BaseAudioContext, out: AudioNode, t0: number, level: number): AudioScheduledSourceNode[] {
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer(ctx);
+  src.loop = true;
+  const sources: AudioScheduledSourceNode[] = [src];
+  for (const [f, q, rate] of [
+    [380, 2.5, 0.7],
+    [900, 3, 1.1],
+    [1900, 3.5, 1.7],
+  ] as const) {
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = f;
+    band.Q.value = q;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'triangle';
+    lfo.frequency.value = rate * (0.8 + Math.random() * 0.4);
+    const depth = ctx.createGain();
+    depth.gain.value = f * 0.35;
+    lfo.connect(depth).connect(band.frequency);
+    const g = ctx.createGain();
+    g.gain.value = level;
+    src.connect(band).connect(g).connect(out);
+    lfo.start(t0);
+    sources.push(lfo);
+  }
+  src.start(t0);
+  return sources;
+}
+
+/** A low hum of two notes a fifth apart, that breathes. */
+function hum(ctx: BaseAudioContext, out: AudioNode, t0: number, level: number): AudioScheduledSourceNode[] {
+  const g = ctx.createGain();
+  g.gain.value = level;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.08;
+  const depth = ctx.createGain();
+  depth.gain.value = level * 0.5;
+  lfo.connect(depth).connect(g.gain);
+  g.connect(out);
+  const sources: AudioScheduledSourceNode[] = [lfo];
+  for (const f of [55, 82.6, 110.3]) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = f;
+    osc.connect(g);
+    osc.start(t0);
+    sources.push(osc);
+  }
+  lfo.start(t0);
+  return sources;
+}
+
+/** Drops of a fountain: small bright bubbles. */
+const drops = (t0: number) =>
+  events(
+    t0,
+    () => 0.05 + Math.random() * 0.2,
+    (ctx, out, t) => {
+      const osc = ctx.createOscillator();
+      const f = 900 + Math.random() * 1400;
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(f * 1.6, t + 0.04);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.02, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      osc.connect(g).connect(out);
+      osc.start(t);
+      osc.stop(t + 0.06);
+    },
+  );
+
+/** Starts a sound of a thing near the player (the game sets its gain and pan). */
+export function startLayer(id: LayerId, ctx: BaseAudioContext, out: AudioNode, t0: number): Ambience {
+  const sources: AudioScheduledSourceNode[] = [];
+  const patterns: Pattern[] = [];
+  switch (id) {
+    case 'water':
+      sources.push(...babble(ctx, out, t0, 0.06));
+      break;
+    case 'fire':
+      sources.push(...roar(ctx, out, t0, 0.05, 320));
+      patterns.push(crackle(t0, 0.035));
+      break;
+    case 'fountain':
+      sources.push(...babble(ctx, out, t0, 0.025));
+      patterns.push(drops(t0));
+      break;
+    case 'forge':
+      sources.push(...roar(ctx, out, t0, 0.06, 360));
+      patterns.push(crackle(t0, 0.03), anvils(t0));
+      break;
+  }
+  return {
+    schedule(c, o, until) {
+      for (const p of patterns) p.schedule(c, o, until);
+    },
+    stop(t) {
+      for (const s of sources) s.stop(t);
+      patterns.length = 0;
+    },
+  };
+}
+
 /** Starts an ambience at `t0`. */
 export function startAmbience(id: AmbienceId, ctx: BaseAudioContext, out: AudioNode, t0: number): Ambience {
   const sources: AudioScheduledSourceNode[] = [];
@@ -214,6 +414,34 @@ export function startAmbience(id: AmbienceId, ctx: BaseAudioContext, out: AudioN
     case 'hearth':
       sources.push(...roar(ctx, out, t0, 0.025, 300));
       patterns.push(crackle(t0, 0.022), crickets(t0));
+      break;
+    case 'forest':
+      sources.push(...wind(ctx, out, t0, 0.04, 200, 480, 0.06));
+      patterns.push(crickets(t0), owls(t0), howls(t0), leaves(t0));
+      break;
+    case 'town':
+      sources.push(...wind(ctx, out, t0, 0.03, 240, 560, 0.08));
+      patterns.push(farAnvils(t0));
+      break;
+    case 'haven':
+      sources.push(...wind(ctx, out, t0, 0.03, 260, 600, 0.08), ...babble(ctx, out, t0, 0.025));
+      patterns.push(chimes(t0));
+      break;
+    case 'indoor':
+      sources.push(...roar(ctx, out, t0, 0.012, 180));
+      patterns.push(creaks(t0));
+      break;
+    case 'ruins':
+      sources.push(...wind(ctx, out, t0, 0.07, 260, 760, 0.1));
+      patterns.push(crackle(t0, 0.01));
+      break;
+    case 'camp':
+      sources.push(...wind(ctx, out, t0, 0.04, 220, 520, 0.07), ...roar(ctx, out, t0, 0.03, 300));
+      patterns.push(crackle(t0, 0.02));
+      break;
+    case 'shrine':
+      sources.push(...wind(ctx, out, t0, 0.05, 160, 420, 0.05), ...hum(ctx, out, t0, 0.006));
+      patterns.push(farBell(t0));
       break;
   }
   return {
