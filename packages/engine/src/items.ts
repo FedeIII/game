@@ -388,6 +388,8 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
     ],
   },
   warden: {},
+  // A goblin of the forest (the tutorial): a coin or two.
+  skirmisher: { coins: [0, 2] },
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */

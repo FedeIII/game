@@ -31,6 +31,7 @@ export const VOICE_OF: Readonly<Record<MobKind, { readonly kind: Kind; readonly 
   adept: { kind: 'shout', size: 0.9 },
   devastator: { kind: 'roar', size: 1 },
   warden: { kind: 'roar', size: 1.25 },
+  skirmisher: { kind: 'chitter', size: 1.15 },
 };
 
 const r = (a: number, b: number) => a + Math.random() * (b - a);
