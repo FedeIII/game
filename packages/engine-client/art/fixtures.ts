@@ -599,6 +599,34 @@ function standard(): Part[] {
   ];
 }
 
+/** A standing stone of the shrine of Tigris (story phase 9): tall, grey, with waves carved round it. */
+function menhir(): Part[] {
+  const waves = (x: number, y: number, z: number) => {
+    const around = Math.atan2(z + 7, x - 8) * 3;
+    return Math.abs((((y + Math.sin(around * 2) * 0.8) % 3.2) + 3.2) % 3.2 - 1.6) < 0.3;
+  };
+  return [
+    {
+      sdf: displace(roundCone([8, 0, -7], [8, 24, -7], 5.6, 3.6), 0.6, 0.35, 41),
+      material: (x, y, z) => (y > 4 && y < 19 && waves(x, y, z) ? M.blackStone : noise3(x * 0.4, y * 0.3, z * 0.4, 42) > 0.65 ? M.moss : M.stoneB),
+    },
+  ];
+}
+
+/**
+ * The altar of the shrine of Tigris (story phase 9): a long block of old stone, half sunk in the mud,
+ * with waves round its sides and a shallow hollow in its top.
+ */
+function altar(): Part[] {
+  const waves = (x: number, y: number) => Math.abs((((y + Math.sin(x * 0.8) * 0.7) % 2.6) + 2.6) % 2.6 - 1.3) < 0.28;
+  return [
+    {
+      sdf: subtract(box([3, 0, -12.5], [29, 9, -3.5], 0.8), ellipsoid([16, 9.4, -8], [5, 1.6, 2.4])),
+      material: (x, y, z, _nx, ny) => (ny < 0.6 && y > 1.5 && y < 7.5 && waves(x, y) ? M.blackStone : noise3(x * 0.4, y * 0.4, z * 0.4, 43) > 0.7 ? M.moss : M.stoneA),
+    },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -637,5 +665,7 @@ export function fixtureFrames(): Frame[] {
     fixture('campfire', campfire(), 24, 32),
     fixture('brand', brand(), 24, 32),
     fixture('standard', standard(), 24, 56),
+    fixture('menhir', menhir(), 24, 48),
+    fixture('altar', altar(), 40, 32),
   ];
 }

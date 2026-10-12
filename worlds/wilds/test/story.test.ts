@@ -83,6 +83,10 @@ import {
   SELA,
   SELA_FREE,
   STONE_BACK,
+  ALTAR_TILE,
+  SHRINE_FIXTURES,
+  TEAR_TAKEN,
+  SILVERVEIN,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -150,6 +154,7 @@ describe('the quests of the Wilds', () => {
       'sela-free',
       'sela-free',
       'stone-back',
+      'tear-taken',
       'tell-reeve',
       'tell-reeve',
       'tell-reeve',
@@ -927,5 +932,62 @@ describe('the camp of the Seekers', () => {
     expect(room.quest(p.id, { at: SEEKER_STAKE }, SELA_FREE.id, 0)).toBe(false);
     expect(SELA.nodes.doubt).toBeDefined();
     expect(Object.values(SELA.nodes).flatMap((n) => n.answers).find((a) => a.next === 'north')?.gate).toEqual({ ability: 'int', min: 13 });
+  });
+});
+
+describe('the shrine of Tigris', () => {
+  const at = (id: string) => ASHES.steps.find((s) => s.id === id)!.at;
+
+  it('stands round the pool of the Silvervein: standing stones on its bank, and an altar that the map marks at `captive`', () => {
+    const world = new World(source);
+    expect(at('captive')).toEqual([...ALTAR_TILE]);
+    expect(at('shrine')).toEqual([...ALTAR_TILE]);
+    const altar = world.fixtureAt(ALTAR_TILE[0], ALTAR_TILE[1])!;
+    expect(altar.kind).toBe('altar');
+    expect(world.fixtureAt(ALTAR_TILE[0] + 1, ALTAR_TILE[1])).toBe(altar);
+    const stones = SHRINE_FIXTURES.filter((f) => f.kind === 'menhir');
+    expect(stones.length).toBe(8);
+    for (const f of SHRINE_FIXTURES) {
+      expect(SILVERVEIN.band(f.tx, f.ty), `${f.tx},${f.ty}`).toBe('bank');
+      expect(world.fixtureAt(f.tx, f.ty)).toBe(f);
+      expect(world.ground(f.tx, f.ty)).not.toBe(Ground.Water);
+      expect(Math.hypot(f.tx + 0.5 - SILVERVEIN.pool[0], f.ty + 0.5 - SILVERVEIN.pool[1])).toBeLessThan(8);
+    }
+    expect(world.fixturesIn(185, -125, 205, -105).filter((f) => SHRINE_FIXTURES.includes(f))).toHaveLength(SHRINE_FIXTURES.length);
+  });
+
+  it('takes the wave stone from a character at `captive` and gives the Tear; then the Ash Warden comes, and goes in ash at half of its hit points', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [ax, ay] = ALTAR_TILE;
+    const p = join(room, { x: ax * TILE_SIZE + 16, y: (ay + 1) * TILE_SIZE + 6 }, 10, { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] });
+    p.quests = { ashes: { step: 'captive', flags: [], n: 11 } };
+    p.state.hp = 10_000;
+    room.tick(0);
+    // Without the step, or without the stone, the altar gives nothing.
+    expect(room.quest(p.id, { at: [ax, ay] }, TEAR_TAKEN.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('shrine');
+    expect(p.pack.items).toEqual([{ kind: 'tear-of-tigris', count: 1 }]);
+    room.tick(50);
+    room.tick(100);
+    const horde = room.horde!;
+    const warden = horde.mobs.find((m) => m.kind === 'warden')!;
+    expect(horde.mobs.filter((m) => m.story).map((m) => m.kind)).toEqual(['warden']);
+    const blow = { toHit: 20, damage: dice(0, 0, 31), push: 1, stagger: 1 };
+    horde.strike({ x: warden.x - 18, y: warden.y }, 0, undefined, p.id, blow);
+    expect(warden.state).toBe('dying');
+    let t = 150;
+    for (; t < 4000 && p.quests.ashes?.step === 'shrine'; t += 50) room.tick(t);
+    expect(p.quests.ashes?.step).toBe('relic');
+    expect(p.pack.items).toContainEqual({ kind: 'warden-orders', count: 1 });
+  });
+
+  it('gives no Tear without the wave stone', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const [ax, ay] = ALTAR_TILE;
+    const p = join(room, { x: ax * TILE_SIZE + 16, y: (ay + 1) * TILE_SIZE + 6 });
+    p.quests = { ashes: { step: 'captive', flags: [], n: 11 } };
+    room.tick(0);
+    expect(room.quest(p.id, { at: [ax, ay] }, TEAR_TAKEN.id, 0)).toBe(false);
+    expect(p.quests.ashes?.step).toBe('captive');
   });
 });

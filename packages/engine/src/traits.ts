@@ -10,6 +10,7 @@ import {
   armourClass,
   attackGear,
   gearLuck,
+  gearSwims,
   isNoisy,
   isQuiet,
   kitOf,
@@ -72,8 +73,10 @@ export interface PlayerTraits {
   readonly push: number;
   /** How long a mob reels from a blow, as a share of its hurtMs (STR, for every class). */
   readonly stagger: number;
-  /** Whether the character can walk in shallow water (WADE_GATE). */
+  /** Whether the character can walk in shallow water (WADE_GATE, or a worn item that lets it swim). */
   readonly wade: boolean;
+  /** Whether it also walks in deep water, as in shallows (a worn item: the Tear of Tigris, gearSwims). */
+  readonly swim: boolean;
   /** The slots of its pack (items.ts). */
   readonly slots: number;
   /** Ticks from the start of an attack to the start of the next (DEX). */
@@ -262,7 +265,8 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     sneakSight: isNoisy(gear) === isQuiet(gear) ? SNEAK_SIGHT : isNoisy(gear) ? NOISY_SIGHT : QUIET_SIGHT,
     push: 1 + PUSH_PER_MOD * str,
     stagger: 1 + STAGGER_PER_MOD * str,
-    wade: meetsGate(scores, WADE_GATE),
+    wade: meetsGate(scores, WADE_GATE) || gearSwims(gear),
+    swim: gearSwims(gear),
     slots: Math.max(1, PACK_SLOTS + SLOTS_PER_MOD * str),
     // Never shorter than the attack itself.
     cooldown: Math.max(ATTACK_TICKS + 1, ATTACK_COOLDOWN_TICKS - COOLDOWN_PER_MOD * dex - strike.quicker),

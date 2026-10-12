@@ -92,6 +92,8 @@ const EN = {
     mithril: { name: 'Mithril', a: 'a nugget of mithril', many: 'nuggets of mithril' },
     'mithril-permit': { name: 'Permit of Silverspring', a: 'the permit of Silverspring', many: 'permits of Silverspring' },
     'wave-stone': { name: 'Wave stone', a: 'the wave stone', many: 'wave stones' },
+    'tear-of-tigris': { name: 'Tear of Tigris', a: 'the Tear of Tigris', many: 'Tears of Tigris' },
+    'warden-orders': { name: "Warden's orders", a: "the Warden's orders", many: "orders of the Warden" },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
@@ -392,6 +394,8 @@ const EN = {
     campfire: 'campfire',
     brand: 'burned plank',
     standard: 'standard',
+    menhir: 'standing stone',
+    altar: 'altar',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

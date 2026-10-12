@@ -487,6 +487,28 @@ someone there who talks, so that the mystery opens a little.
 
 ---
 
+### REQ-QST-024: The shrine of Tigris and the Tear
+
+**User Story:** As a player who knows where the Seekers strike next, I want to take the relic first and
+to face them for it, so that I hurt their plans and learn more about them.
+
+**Acceptance Criteria:**
+- **AC-QST-024.1:** Eight standing stones stand on the bank of the pool of the Silvervein, and an altar of
+  the old kind on its south bank (195, -110). No tree, rock or herb grows round them. With INT 13, the
+  altar shows the name TIGRIS, and one stone says that Tigris gives and takes.
+- **AC-QST-024.2:** At `captive` with the wave stone, acting on the altar takes the stone and gives the
+  Tear of Tigris: the quest moves to `shrine`. Without the stone, the altar gives nothing.
+- **AC-QST-024.3:** At `shrine`, within 16 tiles of the altar, the Seekers march for the Tear: west on the
+  burned trail, then up the bank to the altar. Alone or with a friend, a character meets the Ash Warden
+  alone; three meet it with a blade; six meet it with three blades and an adept.
+- **AC-QST-024.4:** The Warden goes in ash at half of its hit points; when it and its Seekers fell, the
+  quest moves to `relic`, with the orders of the Warden (an item to read: cells, Verath in dreams, the
+  Tear at any cost, bigger towns next). The journal says that the character needs a night of sleep.
+- **AC-QST-024.5:** The Tear of Tigris is worn on the neck (attunement). Its wearer walks in deep water
+  as in shallows: at half speed, with no attack and no roll there, whatever its Strength.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -613,6 +635,14 @@ someone there who talks, so that the mystery opens a little.
   effects `CAMP_TAKEN` (the ambush `camp-guard`: `CAMP_GUARD_UNITS`, `CAMP_GUARD_MARGIN` 6), `SELA_FREE`
   (the dialog `SELA` on the post), `STONE_BACK` (on the chest; an effect without `to` keeps the step:
   `QuestEffect.to` is optional with `from`).
+- **The shrine of Tigris** (`worlds/wilds/src/shrine.ts`, story phase 9): `SHRINE_FIXTURES` (the `altar`,
+  code 35, at `ALTAR_TILE`; eight `menhir`, code 34), `SHRINE_RECT` (no tree, rock or herb); loose
+  things of the woods (`LOOSE_FIXTURES` in `source.ts`: dry ground under them, in `fixtureAt()` and
+  `fixturesIn()`). The steps `shrine` and `relic`; the effects `TEAR_TAKEN` (the variant of the altar:
+  `take` the wave stone, `give` the Tear) and `ASHES_RELIC` (the ambush `shrine`: `SHRINE_UNITS`,
+  `SHRINE_RADIUS` 16, a march of `SHRINE_APPROACH` 14 tiles of the burned trail at `SHRINE_SPEED` 44).
+  The items `tear-of-tigris` (`Wearable.swim`, `gearSwims()`, `PlayerTraits.swim`; `swimMap()` and
+  `inWater()` in `player.ts`) and `warden-orders`.
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

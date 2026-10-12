@@ -1,7 +1,7 @@
 # The Arcane Raiders: the end of chapter 1 and chapter 2 (draft)
 
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
-> **Status:** planned 2026-10-12; phases 7 and 8 built (2026-10-12: REQ-QST-022 and 023, REQ-CMB-008, protocol 33)
+> **Status:** planned 2026-10-12; phases 7 to 9 built (2026-10-12: REQ-QST-022 to 024, REQ-CMB-008, protocols 33 and 34)
 
 This draft continues `docs/drafts/story-razed-villages.md` (phases 1 to 6, all built). It plans the
 rest of the quest `ashes` (the end of chapter 1) and chapter 2 of the game. The phases keep the
@@ -143,6 +143,10 @@ apothecary of Ironhold told what they know of the phoenix.
   `relic`.
 - **The gift of the Tear.** The wearer of the Tear wades deep water as if it were shallow (the
   Silvervein and the rivers of chapter 2). An item to wear (the neck slot).
+- **Built** (2026-10-12). What changed from the plan: the shrine is eight standing stones on the bank
+  and an altar on the south bank (no building); the Seekers march for the Tear along the burned trail;
+  alone or with one friend, a character meets the Warden alone (its XP fills the budget); the orders are
+  an item to read; the Tear needs attunement, as the other amulets.
 
 ### Phase 10: the dream (`ashes.dream`, "The Veiled Encounter")
 

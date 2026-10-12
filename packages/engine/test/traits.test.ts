@@ -82,3 +82,12 @@ describe('the traits of a sheet', () => {
     expect(GUEST_TRAITS.slots).toBe(6);
   });
 });
+
+describe('the Tear of Tigris', () => {
+  it('lets its wearer wade and swim, whatever its Strength', () => {
+    const plain = traitsOf(scores({}), 'fighter', PLAIN_GEAR);
+    expect([plain.wade, plain.swim]).toEqual([false, false]);
+    const worn = traitsOf(scores({}), 'fighter', { ...PLAIN_GEAR, neck: 'tear-of-tigris' });
+    expect([worn.wade, worn.swim]).toEqual([true, true]);
+  });
+});

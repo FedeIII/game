@@ -115,6 +115,9 @@ export const FIXTURE_TYPES = [
   { id: 32, kind: 'brand', tiles: ONE_TILE([3, 2, 13, 10]), depth: 4 },
   // The standard of the Ashen Seekers: a pole with a grey cloth and a red phoenix (story phase 8).
   { id: 33, kind: 'standard', tiles: ONE_TILE([6, 10, 10, 14]), depth: 12 },
+  // The shrine of Tigris at the pool of the Silvervein (story phase 9): standing stones and an altar.
+  { id: 34, kind: 'menhir', tiles: ONE_TILE([4, 7, 12, 14]), depth: 12 },
+  { id: 35, kind: 'altar', tiles: TWO_WIDE(4, 13), depth: 8 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];

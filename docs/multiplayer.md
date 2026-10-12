@@ -70,6 +70,13 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The shrine of Tigris (protocol 34, 2026-10-12)
+
+- The items `tear-of-tigris` and `warden-orders` (new codes of `ITEM_KINDS`), and the fixture types
+  `menhir` (34) and `altar` (35). No message changed.
+- `PlayerTraits.swim` (a worn item: the Tear of Tigris): both sides compute it from the gear, as they
+  compute `wade`, so the prediction of the page and the server agree.
+
 ## The Ashen Seekers (protocol 33, 2026-10-12)
 
 - Five new kinds of mob (`MOB_KINDS`, codes 7 to 11): `hound`, `watcher`, `seeker`, `adept`, `warden`

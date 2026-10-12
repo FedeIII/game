@@ -122,6 +122,18 @@ describe('shallow water', () => {
     expect(player.vx).toBe(PLAYER_SPEED);
   });
 
+  it('lets a swimmer (the Tear of Tigris) into deep water too, at half speed', () => {
+    const player = createPlayer(TILE_SIZE / 2, TILE_SIZE + 8);
+    const swimmer = { wade: true, swim: true };
+    for (let i = 0; i < 10 * TICK_RATE && player.x < 3 * TILE_SIZE + 8; i++) stepPlayer(player, { x: 1, y: 0 }, world, swimmer);
+    // In the deep tile (x 3), which stops a wader.
+    expect(player.x).toBeGreaterThanOrEqual(3 * TILE_SIZE + 8);
+    stepPlayer(player, { x: 1, y: 0 }, world, swimmer);
+    expect(player.vx).toBe(PLAYER_SPEED * WADE_SPEED);
+    expect(player.wading).toBe(true);
+    expect(stepPlayer(player, { x: 0, y: 0, attack: 0 }, world, swimmer)).toBe(false);
+  });
+
   it('does not let a wader attack', () => {
     const player = createPlayer(TILE_SIZE / 2, TILE_SIZE + 8);
     expect(stepPlayer(player, { x: 0, y: 0, attack: 0 }, world, wader)).toBe(false);

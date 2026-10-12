@@ -33,7 +33,7 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
-import { ASHES_HELD, ASHES_LATE, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
@@ -41,6 +41,7 @@ import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
 import { SEEKER_CAMP } from './seekers.ts';
+import { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
 import { SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 
 /** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). No mob comes into them. */
@@ -246,6 +247,16 @@ const HOUND_UNITS: readonly (readonly AmbushMember[])[] = [
 const CAMP_GUARD_UNITS: readonly (readonly AmbushMember[])[] = [[{ kind: 'seeker' }], [{ kind: 'adept' }], [{ kind: 'seeker' }], [{ kind: 'seeker' }], [{ kind: 'adept' }], [{ kind: 'seeker' }]];
 /** The guards of the camp come for a character at the step this close to the camp (tiles). */
 const CAMP_GUARD_MARGIN = 6;
+/**
+ * The Seekers who come for the Tear at the shrine of Tigris (story phase 9): the Ash Warden, then blades
+ * and adepts. Alone or with a friend, a character meets the Warden alone; three meet it with a blade;
+ * six meet it with three blades and an adept.
+ */
+const SHRINE_UNITS: readonly (readonly AmbushMember[])[] = [[{ kind: 'warden' }], [{ kind: 'seeker' }], [{ kind: 'seeker' }], [{ kind: 'adept' }], [{ kind: 'seeker' }], [{ kind: 'adept' }]];
+/** They come for a character with the Tear within this many tiles of the altar; they march this many tiles of the burned trail from the east, at this pace (px/s). */
+const SHRINE_RADIUS = 16;
+const SHRINE_APPROACH = 14;
+const SHRINE_SPEED = 44;
 /** The race starts for a character at the step this close to the middle of the Wren homestead (tiles); the hounds march at this pace (px/s). */
 const RACE_RADIUS = 32;
 const RACE_SPEED = 32;
@@ -261,6 +272,12 @@ const GROVE_THRESHOLD = 0;
 export const CART_SAFE = 4;
 /** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
 const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
+
+/** The loose things of the woods (the shrine of Tigris, shrine.ts), by each tile of their footprint. */
+const LOOSE_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
+for (const fixture of SHRINE_FIXTURES) for (const [tx, ty, code] of fixtureTiles(fixture)) LOOSE_FIXTURES.set(`${tx},${ty}`, { fixture, code });
+/** Whether a tile is in or next to the rectangle of the shrine of Tigris: no tree, rock or herb grows there. */
+const nearShrine = (tx: number, ty: number) => tx >= SHRINE_RECT.x0 - 1 && tx <= SHRINE_RECT.x1 + 1 && ty >= SHRINE_RECT.y0 - 1 && ty <= SHRINE_RECT.y1 + 1;
 
 /** Every fixture of the fixed places, in their buildings and in their streets. */
 const TOWN_FIXTURE_LIST: readonly Fixture[] = [...PLACES.flatMap((t) => [...t.buildings.flatMap((b) => b.fixtures), ...t.streetFixtures]), TOWN_CACHE];
@@ -419,7 +436,7 @@ export class WildsSource implements WorldSource {
   /** Where no herbs grow: near a town, on or near a road, near the signpost, and on or near the ground of a house. */
   private noHerbsAt(tx: number, ty: number): boolean {
     if (nearPlace(tx, ty, TOWN_MARGIN + HERB_MARGIN)) return true;
-    if (SILVERVEIN.has(tx, ty)) return true;
+    if (SILVERVEIN.has(tx, ty) || nearShrine(tx, ty)) return true;
     if (this.roadClear(tx, ty)) return true;
     if (Math.abs(tx - this.sign.tx) <= HERB_MARGIN && Math.abs(ty - this.sign.ty) <= HERB_MARGIN) return true;
     const r = HERB_MARGIN + DOOR_PATH + 1;
@@ -461,6 +478,14 @@ export class WildsSource implements WorldSource {
           const natural = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = isWet(natural) ? Ground.Sand : natural;
           chunk.structure[index] = fixtureTiles(cart)[tx - cart.tx]![2];
+          continue;
+        }
+        const loose = LOOSE_FIXTURES.get(`${tx},${ty}`);
+        if (loose) {
+          // A thing of the shrine of Tigris, on the bank of the pool: dry ground under it.
+          const natural = naturalGround(this.seed, tx, ty);
+          chunk.ground[index] = isWet(natural) ? Ground.Grass : natural;
+          chunk.structure[index] = loose.code;
           continue;
         }
         const river = SILVERVEIN.band(tx, ty);
@@ -514,7 +539,7 @@ export class WildsSource implements WorldSource {
           // right next to the signpost; no tree or rock in the ring round the camp and the burned homesteads (a clearing).
           const decor = house ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
           const solid = decor === Decor.Tree || decor === Decor.Rock;
-          chunk.decor[index] = (decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1) || (solid && nearPlace(tx, ty, CAMP_CLEARING, CLEARINGS)) ? Decor.None : decor;
+          chunk.decor[index] = (decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1) || (solid && (nearPlace(tx, ty, CAMP_CLEARING, CLEARINGS) || nearShrine(tx, ty))) ? Decor.None : decor;
         }
       }
     }
@@ -590,6 +615,8 @@ export class WildsSource implements WorldSource {
 
   fixtureAt(tx: number, ty: number): Fixture | null {
     if (placeAt(tx, ty)) return TOWN_FIXTURES.get(`${tx},${ty}`)?.fixture ?? null;
+    const loose = LOOSE_FIXTURES.get(`${tx},${ty}`);
+    if (loose) return loose.fixture;
     if (tx === this.sign.tx && ty === this.sign.ty) return this.sign;
     const cart = this.cart;
     if (ty === cart.ty && (tx === cart.tx || tx === cart.tx + 1)) return cart;
@@ -604,6 +631,7 @@ export class WildsSource implements WorldSource {
     const within = (f: Fixture) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1;
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
     if (PLACES.some((t) => overlaps(t, x0, y0, x1, y1))) out.push(...TOWN_FIXTURE_LIST.filter(within));
+    out.push(...SHRINE_FIXTURES.filter(within));
     if (within(this.sign)) out.push(this.sign);
     if (within(this.cart)) out.push(this.cart);
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
@@ -737,7 +765,27 @@ export class WildsSource implements WorldSource {
         units: CAMP_GUARD_UNITS,
         effect: CAMP_TAKEN,
       };
-      this.ambushList = [scouts, band, raid, cinders, campGuard];
+      // The Seekers at the shrine of Tigris (story phase 9): they march for the Tear from the burned trail
+      // in the east to the front of the altar, and the Ash Warden goes in ash at half of its hit points
+      // (it counts as a fall).
+      const [ax, ay] = ALTAR_TILE;
+      // West on the burned trail (wren.ts), then up the bank to the front of the altar.
+      const along = [...SEEKER_TRAIL.points].reverse().filter(([x]) => x >= ax + 5.5 && x <= ax + 5.5 + SHRINE_APPROACH);
+      const turn = along[along.length - 1]!;
+      const front = [ax + 1.5, ay + 1.5] as const;
+      const steps = Math.ceil(Math.hypot(front[0] - turn[0], front[1] - turn[1]) * 4);
+      const up = Array.from({ length: steps }, (_, i) => [turn[0] + ((front[0] - turn[0]) * (i + 1)) / steps, turn[1] + ((front[1] - turn[1]) * (i + 1)) / steps] as const);
+      const approach = [...along, ...up];
+      const shrine: AmbushDef = {
+        id: 'shrine',
+        inArea: (tx, ty) => Math.hypot(tx - ax, ty - ay) <= SHRINE_RADIUS && !townAt(tx, ty),
+        when: { quest: 'ashes', at: ['shrine'] },
+        from: [],
+        units: SHRINE_UNITS,
+        effect: ASHES_RELIC,
+        march: { route: approach, speed: SHRINE_SPEED },
+      };
+      this.ambushList = [scouts, band, raid, cinders, campGuard, shrine];
     }
     return this.ambushList;
   }

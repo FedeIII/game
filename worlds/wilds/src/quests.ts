@@ -52,9 +52,15 @@ export const ASHES: QuestDef = {
     {
       id: 'captive',
       journal: 'Sela, a Seeker who would not burn a family, told me what the Seekers want next: the shrine of Tigris under the pool of the Silvervein. The wave stone opens it. I must get there first.',
-      at: [196, -109],
+      // The altar of the shrine (story phase 9, shrine.ts; a test checks the tile).
+      at: [195, -110],
     },
-    // The end of the story comes with its later steps (the relic, the dream).
+    { id: 'shrine', journal: 'The wave stone opened the altar of Tigris, and the Tear of Tigris is mine. The Seekers are here for it!', at: [195, -110] },
+    {
+      id: 'relic',
+      journal: 'The Ash Warden went in ash, and its Seekers fell. I keep the Tear of Tigris, and the orders of the Warden. The road was long: I need a bed and a night of sleep.',
+    },
+    // The end of the story comes with its last step (the dream).
     { id: 'found', journal: 'I know now who burns the homesteads of the Wilds.', end: true },
   ],
 };
@@ -192,6 +198,17 @@ export const CAMP_TAKEN: QuestEffect = { id: 'camp-taken', quest: 'ashes', to: '
 export const SELA_FREE: QuestEffect = { id: 'sela-free', quest: 'ashes', to: 'captive', from: ['camp'] };
 /** The chest of the camp gives the wave stone back to a character who has none (the quest stays at its step). */
 export const STONE_BACK: QuestEffect = { id: 'stone-back', quest: 'ashes', from: ['camp', 'captive'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
+/** The character puts the wave stone into the altar of the shrine of Tigris, and takes the Tear (story phase 9). */
+export const TEAR_TAKEN: QuestEffect = {
+  id: 'tear-taken',
+  quest: 'ashes',
+  to: 'shrine',
+  from: ['captive'],
+  take: [{ kind: 'wave-stone', count: 1 }],
+  give: { coins: 0, items: [{ kind: 'tear-of-tigris', count: 1 }] },
+};
+/** The Ash Warden went in ash and its Seekers fell at the shrine: its orders are the character's. */
+export const ASHES_RELIC: QuestEffect = { id: 'ashes-relic', quest: 'ashes', to: 'relic', from: ['shrine'], give: { coins: 0, items: [{ kind: 'warden-orders', count: 1 }] } };
 /** Mira gives the stone after the fight to a character who has none (it fought the hounds before it warned her, or lost the stone). */
 export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'ashes', to: 'held', from: ['held'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 

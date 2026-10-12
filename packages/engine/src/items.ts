@@ -66,6 +66,9 @@ export const ITEM_KINDS = [
   'mithril-permit',
   // The Ashen Seekers (story phase 7): the carved stone of the Wren homestead, the key of the shrine of Tigris.
   'wave-stone',
+  // The shrine of Tigris (story phase 9): the relic, and the orders that the Ash Warden dropped.
+  'tear-of-tigris',
+  'warden-orders',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -111,6 +114,8 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   mithril: 10,
   'mithril-permit': 1,
   'wave-stone': 1,
+  'tear-of-tigris': 1,
+  'warden-orders': 1,
 };
 
 /**

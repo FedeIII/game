@@ -509,6 +509,24 @@ function waveStone(): Part[] {
   return [{ sdf: displace(ellipsoid([0, 3, 0], [5, 3.4, 2.2]), 0.35, 0.8, 23), material: (x, y, z) => (z > 1.2 && groove(x, y) ? I.arcane : I.pewter) }];
 }
 
+/** The Tear of Tigris (story phase 9): a drop of clear blue crystal in a cage of silver, on a fine chain. */
+function tear(): Part[] {
+  return [
+    { sdf: subtract(torusZ([0, 8.6, 0], 3.4, 0.3), box([-5, 4.5, -2], [5, 6.8, 2])), material: I.silver },
+    { sdf: union(sphere([0, 3.4, 0.2], 1.9), roundCone([0, 3.4, 0.2], [0, 6.6, 0.2], 1.9, 0.25)), material: I.arcane },
+    { sdf: subtract(roundCone([0, 3.4, 0.2], [0, 6.6, 0.2], 2.15, 0.45), roundCone([0, 3.4, 0.2], [0, 6.6, 0.2], 1.9, 0.25)), material: (_x, y) => (Math.abs(((y * 1.4) % 1.4) - 0.7) < 0.25 ? I.silver : I.glass) },
+  ];
+}
+
+/** The orders of the Ash Warden (story phase 9): a folded letter with a seal of grey wax. */
+function orders(): Part[] {
+  return [
+    { sdf: box([-5, 0.6, -3.6], [5, 1.6, 3.6], 0.3), material: I.bone },
+    { sdf: box([-5, 1.6, -3.6], [1, 2.4, 3.6], 0.3), material: I.bone },
+    { sdf: cylinder([1.2, 2.6, 0], 'y', 1.4, 0.6), material: I.pewter },
+  ];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -562,6 +580,8 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['mithril', mithril],
   ['mithril-permit', permit],
   ['wave-stone', waveStone],
+  ['tear-of-tigris', tear],
+  ['warden-orders', orders],
 ];
 
 export function itemFrames(): Frame[] {

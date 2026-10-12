@@ -128,6 +128,8 @@ export interface Wearable {
   readonly adds?: Partial<Scores>;
   /** Quiet steps (boots of elvenkind): mobs see a sneaking character from QUIET_SIGHT. */
   readonly quiet?: boolean;
+  /** Its wearer walks in deep water as in shallows (the Tear of Tigris, story phase 9). */
+  readonly swim?: boolean;
 }
 
 /** A score that an item adds to goes at most this high (5e: 20). */
@@ -165,6 +167,8 @@ export const WEARABLES: Readonly<Partial<Record<ItemKind, Wearable>>> = {
   'amulet-of-health': { place: 'neck', attune: true, sets: { con: 19 } },
   'belt-of-dwarvenkind': { place: 'belt', attune: true, adds: { con: 2 } },
   'boots-of-elvenkind': { place: 'feet', quiet: true },
+  // The relic of the shrine of Tigris (story phase 9): its wearer walks in deep water as in shallows.
+  'tear-of-tigris': { place: 'neck', attune: true, swim: true },
 };
 
 /** The item as a wearable, or null. */
@@ -350,6 +354,11 @@ export function isNoisy(gear: Gear): boolean {
 /** Whether the character steps quietly (boots of elvenkind). */
 export function isQuiet(gear: Gear): boolean {
   return GEAR_SLOTS.some((slot) => wearableOf(gear[slot])?.quiet === true);
+}
+
+/** Whether a worn item lets the character walk in deep water (Wearable.swim). */
+export function gearSwims(gear: Gear): boolean {
+  return GEAR_SLOTS.some((slot) => wearableOf(gear[slot])?.swim === true);
 }
 
 /** The scores with what the worn items set and add (gauntlets of ogre power, a belt of dwarvenkind). */

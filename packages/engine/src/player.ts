@@ -132,7 +132,7 @@ export interface PlayerMap extends SolidMap {
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
  * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS.
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed'>>;
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed'>>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -140,7 +140,36 @@ export function inShallows(world: PlayerMap, x: number, y: number): boolean {
   return world.ground?.(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE)) === Ground.Shallows;
 }
 
+/** Whether the centre of a player's feet is in water, deep or shallow. */
+export function inWater(world: PlayerMap, x: number, y: number): boolean {
+  const ground = world.ground?.(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
+  return ground === Ground.Shallows || ground === Ground.Water;
+}
+
+/** Whether a player with these traits wades where it stands: in shallows (it can wade), or in deep water too (it can swim). */
+function wadingAt(world: PlayerMap, x: number, y: number, traits: StepTraits): boolean {
+  if (traits.swim) return inWater(world, x, y);
+  return traits.wade === true && inShallows(world, x, y);
+}
+
 const wadeMaps = new WeakMap<PlayerMap, SolidMap>();
+const swimMaps = new WeakMap<PlayerMap, SolidMap>();
+
+/** The map as a player who can swim sees it: all water is open (nothing else stands in it). */
+function swimMap(world: PlayerMap): SolidMap {
+  if (!world.ground) return world;
+  let map = swimMaps.get(world);
+  if (!map) {
+    map = {
+      solidBox: (tx, ty) => {
+        const ground = world.ground!(tx, ty);
+        return ground === Ground.Shallows || ground === Ground.Water ? null : world.solidBox(tx, ty);
+      },
+    };
+    swimMaps.set(world, map);
+  }
+  return map;
+}
 
 /** The map as a player who can wade sees it: shallow water is open (nothing else stands in it). */
 function wadeMap(world: PlayerMap): SolidMap {
@@ -405,7 +434,7 @@ export function resumePoint(
  * Advances one player by one tick. This is the authoritative rule: the client runs it for
  * prediction and the server runs it to decide the true state. A stunned player and a player
  * that strikes stand still. A player who can wade (`traits`) walks in shallow water, slowly, and
- * does not attack there. Returns true if an attack starts in this tick: the caller finds what it
+ * does not attack there; one who can swim (the Tear of Tigris) does the same in deep water. Returns true if an attack starts in this tick: the caller finds what it
  * hits (a client alone, or the server).
  */
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
@@ -431,7 +460,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     return false;
   }
   if (player.guard > 0) player.guard--;
-  const solid = traits.wade ? wadeMap(world) : world;
+  const solid = traits.swim ? swimMap(world) : traits.wade ? wadeMap(world) : world;
   if (player.dodge > 0) {
     roll(player, world, solid, dt);
     return false;
@@ -443,7 +472,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     return false;
   }
   const input0 = clampInput(input);
-  const wading = traits.wade === true && inShallows(world, player.x, player.y);
+  const wading = wadingAt(world, player.x, player.y, traits);
   // After an ale the walk sways: the direction turns to and fro, slowly.
   const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
   if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
@@ -478,7 +507,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.stamina = Math.max(0, player.stamina - SNEAK_STAMINA * dt);
     player.rest = 0;
   }
-  player.wading = traits.wade === true && inShallows(world, player.x, player.y);
+  player.wading = wadingAt(world, player.x, player.y, traits);
   return false;
 }
 

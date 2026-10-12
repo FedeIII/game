@@ -15,6 +15,7 @@ export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, 
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
 export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 export { SEEKER_CAMP, SEEKER_STAKE } from './seekers.ts';
+export { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
@@ -46,6 +47,8 @@ export {
 } from './dialogs.ts';
 export {
   ASHES,
+  ASHES_RELIC,
+  TEAR_TAKEN,
   CAMP_TAKEN,
   SELA_FREE,
   STONE_BACK,
@@ -122,6 +125,8 @@ export const wilds: WorldDefinition = {
     campfire: 'A fire in a ring of stones.',
     brand: 'A charred plank.',
     standard: 'A standard of grey cloth with a red phoenix.',
+    menhir: 'A standing stone, carved with waves.',
+    altar: 'An old altar of stone.',
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {
@@ -165,6 +170,8 @@ export const wilds: WorldDefinition = {
     mithril: 'A nugget of mithril from the Silvervein, the river of Silverspring, light as a feather. The smith of Ironhold buys it.',
     'mithril-permit': 'The permit of Silverspring, sealed by Kasmut Parnika: the jeweller of Silverspring sells mithril at cost to its holder.',
     'wave-stone': 'A flat stone from the pool of the Silvervein, carved with three waves. In the dark, the grooves hold a cold blue light.',
+    'tear-of-tigris': 'The relic of the shrine of Tigris: a drop of clear crystal in silver, always cool. Its wearer walks in deep water as in shallows.',
+    'warden-orders': 'Orders in a neat hand, sealed in grey: "Each cell keeps to itself. Verath speaks to each in dreams. Take the Tear back at any cost. The towns of the plain are next: bigger ones, older relics."',
   },
   // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
   quests: QUESTS,
