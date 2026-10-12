@@ -478,6 +478,14 @@ ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). The d
 an email as the name: it then signs in with that email, as Google would, so an admin email there
 is an admin.
 
+## Game design
+
+Fede's rules for the design of the game are in `docs/game-design.md`: read them before you design a
+quest, an encounter, a mob or an ability. In short: **no chains of quests in what the player sees**
+(events unlock quests; some events wait until another quest is finished), the first quest is to
+reach Ironhold (the tutorial), and **combat has few enemies but very strategic fights** (slow,
+well-timed moves, the right ability, positioning).
+
 ## Ability scores in the game
 
 The plan and Fede's decisions are in `docs/drafts/abilities.md`: an application of each score,
