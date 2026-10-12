@@ -2,8 +2,8 @@
 
 ## Overview
 
-The game menu (Fede's request, 2026-10-12) opens over the game when the player presses Escape: it
-gives three choices, "Resume", "Load game" and "New game". "Load game" and "New game" go back to the
+The game menu (Fede's request, 2026-10-12) opens over the game when the player presses Escape, or
+taps a faint icon on a touch screen: it gives three choices, "Resume", "Load game" and "New game". "Load game" and "New game" go back to the
 menu of the page (the menu before the game), at the list of characters or at the character builder.
 
 ## Terminology
@@ -32,6 +32,10 @@ moment or change my game.
   back to where it was.
 - **AC-GMN-001.4:** The arrow keys and Tab move between the buttons (Tab stays in the menu); Enter and
   Space press the button with the focus. No other key reaches the game while the menu is open.
+- **AC-GMN-001.5:** On a touch screen (from the first touch, or at once on a device whose pointer is
+  coarse, as the touch stick), a faint icon of three lines, with no frame, shows under the button of
+  the settings (32 x 32 px, 40% opacity). A tap on it opens the game menu. It hides while a panel, a
+  conversation, a dream or the game menu is open.
 
 ---
 
@@ -70,7 +74,8 @@ I do not have to go through the main screen.
 ## Feature Behavior & Rules
 
 - **The panel** (`packages/engine-client/src/ui/game-menu.ts`): `GameMenu` (`open()`, `close()`,
-  `shown`, `key()`), `GameMenuActions` (`load`, `create`), `escapeAction()` (`'open'`, `'close'` or
+  `shown`, `key()`, `showButton()`: the icon `#game-menu-button`, which `game.ts` shows with
+  `TouchJoystick.onTouchMode()`; it goes into the page right after `#game`, under every panel), `GameMenuActions` (`load`, `create`), `escapeAction()` (`'open'`, `'close'` or
   `'none'`, from what is open). The texts: `STRINGS.gameMenu` (`label`, `resume`, `load`, `newGame`).
   The look: `#game-menu` and `.game-menu-panel` in `style.css` (the classes of the menu of the page:
   `.menu-panel`, `.menu-name`, `.menu-stack`, `.menu-button`); `body.game-menu-open` hides the touch

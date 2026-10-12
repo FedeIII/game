@@ -1309,6 +1309,8 @@ async function run(options: GameOptions): Promise<void> {
     void savePlace(true).finally(() => location.reload());
   };
   const gameMenu = new GameMenu(tw(definition.name), character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null);
+  // A touch screen has no Escape key: a faint button opens the menu there (as the stick, from the first touch).
+  joystick.onTouchMode(() => gameMenu.showButton());
   /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
   const otherUiOpen = (): boolean =>
     conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'settings'].some((id) => document.getElementById(id)?.hidden === false);

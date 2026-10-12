@@ -1215,6 +1215,43 @@ body.pack-dragging * {
   margin-bottom: 4px;
 }
 
+/*
+ * The way to the game menu on a touch screen (there is no Escape key): a faint icon, with no frame,
+ * under the button of the settings. It hides while a panel, a conversation, a dream or the menu is open.
+ */
+#game-menu-button {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top));
+  right: calc(16px + env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ui-ink);
+  opacity: 0.4;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#game-menu-button[hidden] {
+  display: none;
+}
+
+#game-menu-button:active,
+#game-menu-button:focus-visible {
+  opacity: 0.85;
+}
+
+body.game-menu-open #game-menu-button,
+body.conversing #game-menu-button,
+body.dreaming #game-menu-button,
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden])) #game-menu-button {
+  visibility: hidden;
+}
+
 body.game-menu-open #action,
 body.game-menu-open #attack,
 body.game-menu-open #dodge,

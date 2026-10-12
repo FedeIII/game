@@ -371,7 +371,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
 - In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
   the menu comes again) and "Sign out".
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
-  over the game when no other panel, conversation or dream is open: "Resume", "Load game" (a reload
+  over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
+  under the settings button opens it): "Resume", "Load game" (a reload
   into the list of characters) and "New game" (a reload into the builder). The character stands
   still meanwhile; a world that the page runs stands still too, a shared world goes on.
 - **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page

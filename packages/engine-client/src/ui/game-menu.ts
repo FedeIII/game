@@ -6,7 +6,8 @@ import { STRINGS } from './strings.ts';
  * the dark round the panel closes it. While it is open the character stands still; a world that the
  * page runs alone also stands still, but a shared world goes on (game.ts). "Load game" and "New
  * game" save the place and reload the page into the menu, at the list of characters or at the
- * builder (menu/resume.ts, markMenuScreen); a visitor without a character has only Resume.
+ * builder (menu/resume.ts, markMenuScreen); a visitor without a character has only Resume. On a
+ * touch screen a faint button under the settings button opens it too (showButton).
  */
 
 /** What "Load game" and "New game" do. */
@@ -24,8 +25,14 @@ export function escapeAction(state: { readonly menuOpen: boolean; readonly other
   return state.otherOpen || state.inField ? 'none' : 'open';
 }
 
+/** Three thin lines: the icon of the button that opens the menu on a touch screen. */
+const MENU_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+<path d="M5 7h14M5 12h14M5 17h14"/></svg>`;
+
 export class GameMenu {
   private readonly root: HTMLDivElement;
+  /** On a touch screen (no Escape key): a faint button under the settings button opens the menu (showButton). */
+  private readonly button: HTMLButtonElement;
   private readonly buttons: HTMLButtonElement[] = [];
   /** What had the focus before the menu opened: it gets it back. */
   private before: Element | null = null;
@@ -78,6 +85,24 @@ export class GameMenu {
       if (event.target === this.root) this.close();
     });
     document.body.append(this.root);
+
+    this.button = document.createElement('button');
+    this.button.id = 'game-menu-button';
+    this.button.type = 'button';
+    this.button.hidden = true;
+    this.button.setAttribute('aria-label', T.label);
+    this.button.setAttribute('aria-haspopup', 'dialog');
+    this.button.innerHTML = MENU_ICON;
+    this.button.addEventListener('click', () => this.open());
+    // Under every panel of the page: right after the game's view (an open panel covers it).
+    const game = document.getElementById('game');
+    if (game) game.after(this.button);
+    else document.body.append(this.button);
+  }
+
+  /** Shows the faint button that opens the menu: on a touch screen, which has no Escape key. */
+  showButton(): void {
+    this.button.hidden = false;
   }
 
   get shown(): boolean {
