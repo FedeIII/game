@@ -477,6 +477,18 @@ function crowbar(): Part[] {
   ];
 }
 
+/** A sack of lentils (the farmer of Whitegrove's): a fat bag of coarse cloth, its neck tied with string, a few lentils spilled at its foot. */
+function lentils(): Part[] {
+  const bag = displace(ellipsoid([0, 4.4, 0], [5, 4.6, 4]), 0.35, 1.4, 83);
+  const neck = roundCone([0.3, 8.2, 0], [0.8, 10.8, 0], 1.9, 1.2);
+  const spill = union(sphere([4.6, 0.6, 1.4], 0.65), sphere([5.8, 0.5, 0.4], 0.6), sphere([4, 0.5, 2.6], 0.55));
+  return [
+    { sdf: union(bag, neck), material: I.leather },
+    { sdf: cylinder([0.5, 8.7, 0], 'y', 2.05, 0.9), material: I.string },
+    { sdf: spill, material: I.amber },
+  ];
+}
+
 /** A badger fur, rolled and tied: grey with the black and white stripes of the head at one end. */
 function badgerFur(): Part[] {
   const roll = roundCone([-5, 3.2, 0], [4.6, 3.2, 0], 3.1, 2.8);
@@ -582,6 +594,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['wave-stone', waveStone],
   ['tear-of-tigris', tear],
   ['warden-orders', orders],
+  ['lentils', lentils],
 ];
 
 export function itemFrames(): Frame[] {

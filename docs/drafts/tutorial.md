@@ -3,7 +3,7 @@
 > **Draft** · promotes to `docs/features/` when built · **Status:** Fede answered on 2026-10-13
 > (below). Built: level 1 (`docs/features/game/combat.md`), the tips (`docs/features/game/tips.md`),
 > the goblins (REQ-CMB-009), the geography and the hamlets (`docs/features/game/towns.md`,
-> REQ-TWN-006). Next: the quests (phase 4).
+> REQ-TWN-006), and the quests (`docs/features/game/quests.md`, REQ-QST-026 and 027).
 
 The first quest of the game takes a new character from its hut to Ironhold. On that road the game
 teaches its basics: the controls, combat, conversations, quests, and the hut as the place where the

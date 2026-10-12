@@ -69,6 +69,8 @@ export const ITEM_KINDS = [
   // The shrine of Tigris (story phase 9): the relic, and the orders that the Ash Warden dropped.
   'tear-of-tigris',
   'warden-orders',
+  // The road to Ironhold (the tutorial, 2026-10-13): the farmer of Whitegrove sends a sack of lentils to Bronzehold.
+  'lentils',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -116,6 +118,7 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'wave-stone': 1,
   'tear-of-tigris': 1,
   'warden-orders': 1,
+  lentils: 1,
 };
 
 /**

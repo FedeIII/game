@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, FARMER_LEVER, LENTILS_GIVE, LENTILS_TAKE, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, ROAD_DONE, START_ASHES, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -282,6 +282,8 @@ export const REEVE: Dialog = {
     { when: { quest: 'raid', at: ['home'] }, node: 'himo' },
     { when: { quest: 'raid', at: ['lost'] }, node: 'himo-lost' },
     { when: { quest: 'ashes', at: ['letter'] }, node: 'letter' },
+    // A character that came by the road from its hut (quests.ts, ROAD): its arrival lets her tell of the burned homesteads.
+    { when: [ROAD_DONE, { quest: 'ashes', not: true }], node: 'letter' },
   ],
   nodes: {
     fine: {
@@ -338,6 +340,7 @@ export const REEVE: Dialog = {
       say: 'I am the reeve of Ironhold. Of what is left of it. You look like somebody with business here.',
       answers: [
         { text: 'Thrain Steelforge sent me. Who burns the homesteads?', next: 'burned', effect: TELL_REEVE },
+        { text: 'Thrain Steelforge sent me. Who burns the homesteads?', next: 'burned', effect: START_ASHES, when: ROAD_DONE },
         { text: 'No business. What happened to the town?', next: 'happened' },
         BYE,
       ],
@@ -499,7 +502,7 @@ export const SMITH: Dialog = {
   refuse: REFUSE,
   // A character who helps the merchant on the road (quests.ts, cart), without a lever.
   starts: [
-    { when: [{ quest: 'cart', at: ['met', 'lever'] }, { has: 'crowbar', not: true }], node: 'cart' },
+    { when: [{ quest: 'cart', at: ['met', 'lever', 'lent'] }, { has: 'crowbar', not: true }], node: 'cart' },
     // Mithril of Silverspring in the pack (story phase 4d): Ironhold wants it.
     { when: { has: 'mithril' }, node: 'mithril' },
   ],
@@ -668,7 +671,7 @@ export const MERCHANT: Dialog = {
   start: 'cart',
   refuse: REFUSE,
   starts: [
-    { when: { quest: 'cart', at: ['met', 'lever'] }, node: 'again' },
+    { when: { quest: 'cart', at: ['met', 'lever', 'lent'] }, node: 'again' },
     { when: { quest: 'cart', at: ['done'] }, node: 'thanks' },
   ],
   nodes: {
@@ -682,17 +685,17 @@ export const MERCHANT: Dialog = {
       answers: [{ text: 'Can I help with the cart?', next: 'help', effect: CART_HELP }, BYE],
     },
     help: {
-      say: 'Somebody must lift the cart while I put the wheel on. Or bring me a lever: the smith of Ironhold has iron to spare.',
+      say: 'Somebody must lift the cart while I put the wheel on. Or bring me a lever: the farmer of Whitegrove has one, up the road.',
       answers: [
         { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
-        { text: 'I will ask the smith for a lever.' },
+        { text: 'I will find a lever.' },
         { text: 'Not now.' },
       ],
     },
     again: {
       say: 'Back again? The wheel is still in the mud.',
       answers: [
-        { text: 'Here: a lever from the smith.', next: 'levered', effect: CART_MEND },
+        { text: 'Here is a lever.', next: 'levered', effect: CART_MEND },
         { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
         { text: 'Where are you going?', next: 'where' },
         { text: 'Not yet.' },
@@ -1336,14 +1339,52 @@ export const VERATH: Dialog = {
 export const FARMER: Dialog = {
   name: 'The farmer of Whitegrove',
   start: 'wait',
+  starts: [
+    { when: { quest: 'lentils', at: ['carry'] }, node: 'carrying' },
+    { when: { quest: 'lentils', at: ['done'] }, node: 'thanks' },
+  ],
   nodes: {
     wait: {
       say: 'Have you seen a merchant on the road from the south? A cart with a bad wheel. He should be here by now.',
-      answers: [{ text: 'His cart is stuck, down the road.', next: 'stuck' }, { text: 'What is this place?', next: 'place' }, BYE],
+      answers: [
+        // He lends his lever to a character who met the merchant (quests.ts, FARMER_LEVER; Fede, 2026-10-13).
+        { text: 'The merchant needs a lever for his cart.', next: 'lever', effect: FARMER_LEVER, when: { has: 'crowbar', not: true } },
+        { text: 'His cart is stuck, down the road.', next: 'stuck', when: { quest: 'cart', not: true } },
+        { text: 'Can I help you?', next: 'help' },
+        BYE,
+      ],
     },
     stuck: {
       say: 'Again! That man and his wheel. My lentils wait for him, and Bronzehold waits for my lentils.',
-      answers: [{ text: 'What is this place?', next: 'place' }, BYE],
+      answers: [{ text: 'Can I help you?', next: 'help' }, BYE],
+    },
+    lever: {
+      say: 'A lever? Take mine: it lifts more than lentils. And tell that man that my lentils wait for him.',
+      answers: [{ text: 'Can I help you?', next: 'help' }, BYE],
+    },
+    help: {
+      say: 'You can. Take a sack of lentils to the sergeant at Bronzehold, up the road. He pays when it comes. I cannot leave the stall.',
+      answers: [{ text: 'I will take it.', next: 'given', effect: LENTILS_TAKE }, { text: 'What is this place?', next: 'place' }, { text: 'Not now.' }],
+    },
+    given: {
+      say: 'Mind the goblins in the woods, and keep the sack dry. Bronzehold is north, up the road.',
+      answers: [BYE],
+    },
+    carrying: {
+      say: 'The lentils? Bronzehold is up the road, north. The sergeant waits for them.',
+      answers: [
+        { text: 'The merchant needs a lever for his cart.', next: 'lever', effect: FARMER_LEVER, when: { has: 'crowbar', not: true } },
+        { text: 'What is this place?', next: 'place' },
+        BYE,
+      ],
+    },
+    thanks: {
+      say: 'Bronzehold has its lentils, and I have my peace. Thank you.',
+      answers: [
+        { text: 'The merchant needs a lever for his cart.', next: 'lever', effect: FARMER_LEVER, when: { has: 'crowbar', not: true } },
+        { text: 'What is this place?', next: 'place' },
+        BYE,
+      ],
     },
     place: {
       say: 'Whitegrove: birches, lentils, and a shrine for the road. Bronzehold is the last village of the Sovereignty. Past it, only Ironhold and the wildlands.',
@@ -1359,7 +1400,17 @@ export const SERGEANT: Dialog = {
   nodes: {
     halt: {
       say: 'Bronzehold, a post of the Iron Sovereignty. State your business, traveller.',
-      answers: [{ text: 'I go to Ironhold.', next: 'ironhold' }, { text: 'What do you guard here?', next: 'guard' }, BYE],
+      answers: [
+        // The farmer's lentils (quests.ts, LENTILS_GIVE): the sergeant pays, and tells the news of the road (chapter 1.5.1: DC 10 with the lentils).
+        { text: 'I bring lentils from Whitegrove.', next: 'lentils', effect: LENTILS_GIVE },
+        { text: 'I go to Ironhold.', next: 'ironhold' },
+        { text: 'What do you guard here?', next: 'guard' },
+        BYE,
+      ],
+    },
+    lentils: {
+      say: 'Lentils! At last. Here is your pay. You came up the road with them, so you may hear the news of the road too.',
+      answers: [{ text: 'What news?', next: 'trouble' }, BYE],
     },
     ironhold: {
       say: 'Up the road, north. Keep to it: the woods are full of goblins this year.',

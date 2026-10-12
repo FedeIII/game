@@ -724,9 +724,13 @@ world that the page runs, the page keeps its own book (not saved). The page: the
 moves on or ends (`render/quest-banner.ts`), and gold marks on the map. **When you add a quest:**
 its effects and conditions must name its steps (`worlds/wilds/test/story.test.ts` checks every
 effect and condition of the content), its texts need Spanish forms (title and journal lines too),
-and a test through the Room should play it. The Wilds (`worlds/wilds/src/quests.ts`): `ashes` (the
-letter of Thrain Steelforge on the home's table, then Elama Rothenel) and `cart` (the merchant by
-a broken cart on the road: lift it with STR 13, or bring the smith's lever; 10 coins), and `raid`
+and a test through the Room should play it. The Wilds (`worlds/wilds/src/quests.ts`): `road` (the
+first quest, 2026-10-13: the letter of Thrain Steelforge on the home's table sends the character to
+Ironhold; the scene `ARRIVAL` ends it when it comes into the town), `ashes` (Elama Rothenel starts it
+once the road is done, `ROAD_DONE`; a character from before has it from the letter, at `letter`),
+`cart` (the merchant by a broken cart on the road before Whitegrove: lift it with STR 13, or bring a
+lever: the farmer of Whitegrove lends his, `lent`, or the smith's; 10 coins), `lentils` (the farmer of
+Whitegrove sends a sack to the sergeant of Bronzehold: 5 coins), and `raid`
 (the scene `ARGUMENT` in the reeve's house, then the reeve asks the character to warn Silverspring).
 The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the
 town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character

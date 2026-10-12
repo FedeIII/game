@@ -94,6 +94,9 @@ import {
   DREAM_LIE,
   DREAM_REFUSE,
   WHITEGROVE,
+  ROAD,
+  LENTILS_REWARD,
+  TOWN_SOUTH,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -157,7 +160,13 @@ describe('the quests of the Wilds', () => {
       'dream-refuse',
       'dream-refuse',
       'dream-refuse',
+      // The farmer of Whitegrove lends his lever (three nodes), and sends lentils to Bronzehold.
+      'farmer-lever',
+      'farmer-lever',
+      'farmer-lever',
       'himo-free',
+      'lentils-give',
+      'lentils-take',
       'mira-stone',
       'mira-stone-after',
       'raid-asked',
@@ -170,6 +179,7 @@ describe('the quests of the Wilds', () => {
       'ruin-tanner',
       'sela-free',
       'sela-free',
+      'start-ashes',
       'stone-back',
       'tear-taken',
       'tell-reeve',
@@ -192,7 +202,9 @@ describe('the quests of the Wilds', () => {
     }
     // The scenes: the argument in the house of the reeve, and the plot in the Crooked Lantern.
     expect(checkScenes(source.scenes(), source.npcs().map((n) => n.id), QUESTS)).toEqual([]);
-    expect(source.scenes().map((s) => s.id)).toEqual(['argument', 'plot']);
+    expect(source.scenes().map((s) => s.id)).toEqual(['argument', 'plot', 'arrival']);
+    // The road to Ironhold marks the south edge of the town, where the road comes in.
+    expect(ROAD.steps[0]!.at).toEqual([TOWN_SOUTH.tx, TOWN_SOUTH.ty]);
     for (const effect of effects) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
     for (const when of conditions) expect(checkConditions(when, QUESTS)).toEqual([]);
     for (const dialog of dialogs) expect(checkDialog(dialog), dialog.name).toEqual([]);
@@ -250,24 +262,64 @@ describe('the cart on the road', () => {
 });
 
 describe('the story through the server', () => {
-  it('starts with the letter on the table of the home, and the reeve hears that Thrain sent the character', () => {
+  it('starts with the letter on the table of the home: the road to Ironhold; in the town the road ends, and then the reeve tells of the burned homesteads', () => {
     const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const table = source.home().fixtures.find((f) => f.kind === 'table')!;
     const near = join(room, { x: table.tx * TILE_SIZE + 8, y: (table.ty + 1) * TILE_SIZE + 8 });
     const far = join(room, besideNpc('reeve'));
     expect(room.quest(far.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(false);
-    // The reeve does not hear of the letter from a character who did not read it.
-    expect(room.quest(far.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(false);
     expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(true);
-    expect(near.quests.ashes?.step).toBe('letter');
+    // The letter starts the first quest of the game (Fede, 2026-10-13), not the story of the homesteads.
+    expect(near.quests.road?.step).toBe('go');
+    expect(near.quests.ashes).toBeUndefined();
     expect(far.quests).toEqual(EMPTY_BOOK);
     // A second reading changes nothing.
     expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'read-letter', 0)).toBe(false);
-    // An effect of another thing, or of nothing, does not apply.
-    expect(room.quest(near.id, { at: [table.tx, table.ty] }, 'tell-reeve', 0)).toBe(false);
+    // The reeve does not tell of the homesteads before the road ends.
     goTo(near, 'reeve');
-    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(true);
+    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(false);
+    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(false);
+    // In Ironhold the scene of the arrival ends the road; then the reeve starts the story.
+    expect(room.quest(near.id, { scene: 'arrival' }, 'road-arrived', 0)).toBe(true);
+    expect(near.quests.road?.step).toBe('arrived');
+    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(true);
     expect(near.quests.ashes?.step).toBe('reeve');
+    expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(false);
+    // A character from before the road, whose letter started the story, still tells the reeve.
+    far.quests = { ashes: { step: 'letter', flags: [], n: 1 } };
+    expect(room.quest(far.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(true);
+    expect(far.quests.ashes?.step).toBe('reeve');
+  });
+
+  it('lets the farmer of Whitegrove send lentils to Bronzehold, and lend his lever for the cart', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const farmer = { npc: npcIndex('whitegrove-farmer') };
+    const sergeant = { npc: npcIndex('bronzehold-sergeant') };
+    const merchant = { npc: npcIndex('merchant') };
+    const p = join(room, besideNpc('whitegrove-farmer'));
+    expect(room.quest(p.id, farmer, 'lentils-take', 0)).toBe(true);
+    expect(p.quests.lentils?.step).toBe('carry');
+    expect(p.pack.items.some((s) => s?.kind === 'lentils')).toBe(true);
+    expect(room.quest(p.id, farmer, 'lentils-take', 0)).toBe(false);
+    // The sergeant is far: no delivery from here.
+    expect(room.quest(p.id, sergeant, 'lentils-give', 0)).toBe(false);
+    goTo(p, 'bronzehold-sergeant');
+    expect(room.quest(p.id, sergeant, 'lentils-give', 0)).toBe(true);
+    expect(p.quests.lentils?.step).toBe('done');
+    expect(p.pack.coins).toBe(LENTILS_REWARD);
+    expect(p.pack.items.some((s) => s?.kind === 'lentils')).toBe(false);
+    // The lever: only for a character who met the merchant.
+    goTo(p, 'whitegrove-farmer');
+    expect(room.quest(p.id, farmer, 'farmer-lever', 0)).toBe(false);
+    goTo(p, 'merchant');
+    expect(room.quest(p.id, merchant, 'cart-help', 0)).toBe(true);
+    goTo(p, 'whitegrove-farmer');
+    expect(room.quest(p.id, farmer, 'farmer-lever', 0)).toBe(true);
+    expect(p.quests.cart?.step).toBe('lent');
+    expect(p.pack.items.some((s) => s?.kind === 'crowbar')).toBe(true);
+    goTo(p, 'merchant');
+    expect(room.quest(p.id, merchant, 'cart-mend', 0)).toBe(true);
+    expect(p.quests.cart).toMatchObject({ step: 'done', flags: ['lever'] });
   });
 
   it('lets a strong character lift the cart, and the merchant pays', () => {

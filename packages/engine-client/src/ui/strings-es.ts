@@ -97,6 +97,7 @@ export const ES: Strings = {
     'boots-of-elvenkind': { name: 'Botas élficas', a: 'unas botas élficas', many: 'pares de botas élficas' },
     glaive: { name: 'Guja', a: 'una guja', many: 'gujas' },
     crowbar: { name: 'Palanca', a: 'una palanca', many: 'palancas' },
+    lentils: { name: 'Saco de lentejas', a: 'un saco de lentejas', many: 'sacos de lentejas' },
     'badger-fur': { name: 'Piel de tejón', a: 'una piel de tejón', many: 'pieles de tejón' },
     mithril: { name: 'Mithril', a: 'una pepita de mithril', many: 'pepitas de mithril' },
     'mithril-permit': { name: 'Permiso de Silverspring', a: 'el permiso de Silverspring', many: 'permisos de Silverspring' },

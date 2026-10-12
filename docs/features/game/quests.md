@@ -130,14 +130,50 @@ that a conversation follows the story.
 
 **Acceptance Criteria:**
 - **AC-QST-007.1:** The table of the home has a letter: "Your table. A letter lies by the candle,
-  sealed with a hammer and an anvil.", then the letter of Thrain Steelforge in two pages: the
-  homesteads of the Wilds burn, find out who; begin in Ironhold with the reeve, Elama Rothenel.
-- **AC-QST-007.2:** To read it starts "The Razed Villages" at the step `letter`, and the map marks the
-  reeve.
-- **AC-QST-007.3:** At that step, the reeve starts with another line, and the answer "Thrain
-  Steelforge sent me. Who burns the homesteads?" moves the quest to `reeve`. She tells that three
+  sealed with a hammer and an anvil.", then the letter of Thrain Steelforge in two pages: homesteads
+  burn in the wildlands north of the Iron Sovereignty, find out who; begin in Ironhold, north up the
+  road, with the reeve, Elama Rothenel.
+- **AC-QST-007.2:** Since 2026-10-13 to read it starts the first quest, "The Road to Ironhold"
+  (REQ-QST-026), not "The Razed Villages". A character whose letter started "The Razed Villages"
+  before (the step `letter`) keeps it.
+- **AC-QST-007.3:** The reeve starts with another line for a character at `letter`, or for one that
+  finished the road and has not started "The Razed Villages". Her answer "Thrain Steelforge sent me.
+  Who burns the homesteads?" moves the quest to `reeve`, or starts it there. She tells that three
   homesteads burned since the spring, that nobody saw who burned them, and (on a question) that each
   house was searched before the fire. With WIS 13, the player sees that she fears more than bandits.
+
+---
+
+### REQ-QST-026: The road to Ironhold (the first quest)
+
+**User Story:** As a new player, I want my first quest to take me from my hut to Ironhold, so that the
+road teaches me the game before the story starts (Fede, 2026-10-13: the tutorial,
+`docs/drafts/tutorial.md`).
+
+**Acceptance Criteria:**
+- **AC-QST-026.1:** To read the letter on the table of the hut starts "The Road to Ironhold" (Spanish:
+  "El camino a Ferrozar") at the step `go`, with a banner; its journal line names Whitegrove and
+  Bronzehold, and the map marks the south edge of Ironhold, where the road comes in.
+- **AC-QST-026.2:** When the character comes into Ironhold, the child in the lane says two lines (a
+  stranger, up the south road; the reeve's house is on the lane), and the quest ends (`arrived`).
+- **AC-QST-026.3:** No chain shows (docs/game-design.md): the end of the road only lets the reeve
+  give "The Razed Villages" (AC-QST-007.3); nothing in the journal or the banner names a next quest.
+
+---
+
+### REQ-QST-027: Lentils for Bronzehold
+
+**User Story:** As a new player, I want a small delivery on the road, so that I learn to carry an
+item and to be paid for it (chapter 1.5.1, [A.2]: the farmer of Arboleda Blanca and his lentils).
+
+**Acceptance Criteria:**
+- **AC-QST-027.1:** The farmer of Whitegrove asks for help; "I will take it." gives a sack of lentils
+  (an item, one slot) and starts "Lentils for Bronzehold" at `carry`, with the sergeant of Bronzehold
+  marked.
+- **AC-QST-027.2:** The sergeant takes the sack ("I bring lentils from Whitegrove."), pays 5 coins, and
+  tells without a gate where the Sovereignty pushes (towards Silverspring), which else needs WIS 13.
+- **AC-QST-027.3:** The farmer lends his lever to a character who met the merchant of the broken cart
+  and has no lever (the step `lent` of "The Broken Cart"); the merchant mends the cart with it.
 
 ---
 

@@ -9,6 +9,37 @@ import type { QuestDef, QuestEffect } from '@game/engine';
 
 /** The coins that the merchant pays for the help with the cart. */
 export const CART_REWARD = 10;
+/** The coins that the sergeant of Bronzehold pays for the farmer's lentils (chapter 1.5.1: bought at 1 gp 2 sp, sold at 1 gp 5 sp). */
+export const LENTILS_REWARD = 5;
+
+/**
+ * The first quest of the game (Fede, 2026-10-13: the tutorial, docs/drafts/tutorial.md): the letter of
+ * Thrain Steelforge sends the character from its hut to Ironhold, by Whitegrove and Bronzehold. It ends
+ * when the character comes into Ironhold (town.ts, the scene ARRIVAL). No chain shows (docs/game-design.md):
+ * the end of this quest lets the reeve give the quest of the burned homesteads (ashes).
+ */
+export const ROAD: QuestDef = {
+  id: 'road',
+  title: 'The Road to Ironhold',
+  steps: [
+    {
+      id: 'go',
+      journal: "Thrain Steelforge's letter sends me to Ironhold, north up the road, through Whitegrove and Bronzehold. The reeve, Elama Rothenel, wrote to him first.",
+      at: [-32, 15],
+    },
+    { id: 'arrived', journal: 'I came to Ironhold, at the end of the road from my hut.', end: true },
+  ],
+};
+
+/** The farmer of Whitegrove sends a sack of lentils to the sergeant of Bronzehold (chapter 1.5.1, [A.2]). A quest of its own. */
+export const LENTILS: QuestDef = {
+  id: 'lentils',
+  title: 'Lentils for Bronzehold',
+  steps: [
+    { id: 'carry', journal: 'The farmer of Whitegrove gave me a sack of lentils for the sergeant of Bronzehold, up the road.', npc: 'bronzehold-sergeant' },
+    { id: 'done', journal: 'I brought the lentils to Bronzehold. The sergeant paid me, and told me where the Sovereignty pushes.', end: true },
+  ],
+};
 /** The coins that the family of Himo pays when the character brings him home (the chapter: 20 gold). */
 export const HIMO_REWARD = 20;
 
@@ -85,10 +116,11 @@ export const CART: QuestDef = {
   steps: [
     {
       id: 'met',
-      journal: "A merchant's cart broke down on the road to Ironhold. Somebody must lift it while the merchant puts the wheel on, or bring a lever from the smith of Ironhold.",
+      journal: "A merchant's cart broke down on the road to Ironhold. Somebody must lift it while the merchant puts the wheel on, or bring a lever: the farmer of Whitegrove has one, up the road.",
       npc: 'merchant',
     },
     { id: 'lever', journal: "The smith of Ironhold gave me a lever for the merchant's cart on the road.", npc: 'merchant' },
+    { id: 'lent', journal: "The farmer of Whitegrove lent me a lever for the merchant's cart, down the road.", npc: 'merchant' },
     { id: 'done', journal: 'I helped the merchant to put the wheel back on the cart. The merchant paid me, and goes on to Ironhold.', end: true },
   ],
 };
@@ -157,7 +189,7 @@ export const CARAVAN: QuestDef = {
 };
 
 /** The quests of the Wilds, in the order of the journal. */
-export const QUESTS: readonly QuestDef[] = [ASHES, CART, RAID, CARAVAN];
+export const QUESTS: readonly QuestDef[] = [ROAD, ASHES, CART, LENTILS, RAID, CARAVAN];
 
 /** The end of the scene in the Crooked Lantern (town.ts, PLOT): the character heard of the plot. */
 export const CARAVAN_HEARD: QuestEffect = { id: 'caravan-heard', quest: 'caravan', to: 'heard' };
@@ -184,10 +216,27 @@ export const CARAVAN_ROBBED: QuestEffect = {
 /** The robber pays its fine. */
 export const CARAVAN_FINE: QuestEffect = { id: 'caravan-fine', quest: 'caravan', to: 'pardoned', from: ['robbing', 'robbed'], cost: CARAVAN_FINE_COINS };
 
-/** The letter on the table of the home: to read it starts the story. */
-export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'ashes', to: 'letter' };
-/** The reeve hears that Thrain sent the character. */
+/** The letter on the table of the home: to read it starts the first quest, the road to Ironhold (ROAD). */
+export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'road', to: 'go' };
+/** The character comes into Ironhold (town.ts, the scene ARRIVAL): the road ends. */
+export const ROAD_ARRIVED: QuestEffect = { id: 'road-arrived', quest: 'road', to: 'arrived', from: ['go'] };
+/** The reeve hears that Thrain sent the character (a character from before the road, whose letter started `ashes`). */
 export const TELL_REEVE: QuestEffect = { id: 'tell-reeve', quest: 'ashes', to: 'reeve', from: ['letter'] };
+/** The reeve tells of the burned homesteads, to a character that came by the road: it starts `ashes`. */
+export const START_ASHES: QuestEffect = { id: 'start-ashes', quest: 'ashes', to: 'reeve' };
+/** The answer of the reeve that starts `ashes` waits for the end of the road (docs/game-design.md: an event after a finished quest). */
+export const ROAD_DONE = { quest: 'road', at: ['arrived'] } as const;
+
+/** The farmer of Whitegrove gives the sack of lentils; the sergeant of Bronzehold takes it, and pays. */
+export const LENTILS_TAKE: QuestEffect = { id: 'lentils-take', quest: 'lentils', to: 'carry', give: { coins: 0, items: [{ kind: 'lentils', count: 1 }] } };
+export const LENTILS_GIVE: QuestEffect = {
+  id: 'lentils-give',
+  quest: 'lentils',
+  to: 'done',
+  from: ['carry'],
+  take: [{ kind: 'lentils', count: 1 }],
+  give: { coins: LENTILS_REWARD, items: [] },
+};
 
 /** The phoenix of each burned homestead (ruins.ts), in the order of the reeve's word and of the tracks. */
 export const RUIN_HALE: QuestEffect = { id: 'ruin-hale', quest: 'ashes', to: 'ruin1', from: ['reeve'] };
@@ -233,15 +282,17 @@ export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'a
 /** The character offers the merchant its help. */
 export const CART_HELP: QuestEffect = { id: 'cart-help', quest: 'cart', to: 'met' };
 /** The smith gives a lever for the cart (again, if the character lost the first one). */
-export const CART_LEVER: QuestEffect = { id: 'cart-lever', quest: 'cart', to: 'lever', from: ['met', 'lever'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
+export const CART_LEVER: QuestEffect = { id: 'cart-lever', quest: 'cart', to: 'lever', from: ['met', 'lever', 'lent'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
+/** The farmer of Whitegrove lends his lever (Fede, 2026-10-13: the cart comes before Ironhold, so the lever is near). */
+export const FARMER_LEVER: QuestEffect = { id: 'farmer-lever', quest: 'cart', to: 'lent', from: ['met', 'lever', 'lent'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
 /** A strong character lifts the cart (Strength 13), and the merchant pays. */
-export const CART_LIFT: QuestEffect = { id: 'cart-lift', quest: 'cart', to: 'done', from: ['met', 'lever'], flag: 'lifted', give: { coins: CART_REWARD, items: [] } };
+export const CART_LIFT: QuestEffect = { id: 'cart-lift', quest: 'cart', to: 'done', from: ['met', 'lever', 'lent'], flag: 'lifted', give: { coins: CART_REWARD, items: [] } };
 /** The character brings a lever: the merchant keeps it, and pays. */
 export const CART_MEND: QuestEffect = {
   id: 'cart-mend',
   quest: 'cart',
   to: 'done',
-  from: ['met', 'lever'],
+  from: ['met', 'lever', 'lent'],
   flag: 'lever',
   take: [{ kind: 'crowbar', count: 1 }],
   give: { coins: CART_REWARD, items: [] },

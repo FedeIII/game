@@ -1,6 +1,6 @@
 import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
 import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, KEEN_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
-import { CARAVAN_HEARD, RAID_HEARD } from './quests.ts';
+import { CARAVAN_HEARD, RAID_HEARD, ROAD_ARRIVED } from './quests.ts';
 import { LAMP, Town, type Plan, type Tile } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
 
@@ -496,4 +496,20 @@ export const PLOT: SceneDef = {
 };
 
 /** The scenes of the town. */
-export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT, PLOT];
+/**
+ * The arrival in Ironhold (Fede, 2026-10-13: the first quest, ROAD, ends when the character reaches the
+ * town): a character on the road comes into the town, and the child in the lane, by the south edge where
+ * the road comes in, sees it first.
+ */
+export const ARRIVAL: SceneDef = {
+  id: 'arrival',
+  area: { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRONHOLD.y1 },
+  when: { quest: 'road', at: ['go'] },
+  lines: [
+    { npc: 'child', text: 'Mother! A stranger, up the south road!' },
+    { npc: 'child', text: 'Are you here for the reeve? Her house is on the lane, by the granary.' },
+  ],
+  effect: ROAD_ARRIVED,
+};
+
+export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT, PLOT, ARRIVAL];
