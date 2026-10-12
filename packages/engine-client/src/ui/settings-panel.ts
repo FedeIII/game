@@ -26,7 +26,11 @@ export interface CrtState {
   values: CrtSettings;
 }
 
-const STORAGE_KEY = 'game.crt.v1';
+/**
+ * Where this browser keeps the settings. v2 since the new defaults of 2026-10-12: a browser that saved
+ * the old ones gets the new ones once.
+ */
+const STORAGE_KEY = 'game.crt.v2';
 
 function clamp(value: number, slider: Slider): number {
   return Math.min(slider.max, Math.max(slider.min, value));
@@ -73,7 +77,7 @@ function saveCrt(state: CrtState): void {
   }
 }
 
-/** The settings as the ?crt= value, for example "0.6,1,1,0". */
+/** The settings as the ?crt= value, for example "0.25,1,1,0.1". */
 export function crtQuery(values: CrtSettings): string {
   return SLIDERS.map((slider) => String(Number(values[slider.key].toFixed(2)))).join(',');
 }

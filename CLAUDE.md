@@ -167,7 +167,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `hud.ts` (hint, debug panel, fatal error), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, for an admin only, saved in localStorage
-  `game.crt.v1`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
+  `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
   `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the settings and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
@@ -1122,8 +1122,8 @@ decisions, 2026-10-11; not built yet). The names and the plan of the first story
 - **Do not mirror lit sprites.** The light in all art comes from the top left.
 - **Ground edges**: a tile draws the edges of each neighbour with a higher `BLEND_ORDER`
   (`render/terrain.ts`). A new ground type needs a blend order, variants and edge pieces.
-- **The CRT defaults are Fede's choice** (`0.6,1,1,0`; text `CRT_TEXT` = `0.3,0.5,0.5,0.3`, set
-  2026-10-07): do not change them without a request. The stage has two layers, `worldLayer`
+- **The CRT defaults are Fede's choice** (`0.25,1,1,0.1`, set 2026-10-12; before, `0.6,1,1,0`;
+  text `CRT_TEXT` = `0.3,0.5,0.5,0.3`, set 2026-10-07): do not change them without a request. The stage has two layers, `worldLayer`
   (full-screen filter) and `textLayer` (filter on the text's bounds plus 8 px of padding), and
   the camera moves `scene` and `textScene` together. The scanlines stay on the game-pixel grid:
   `CrtFilter.setGrid()` every frame; a filter that does not cover the whole screen starts lower

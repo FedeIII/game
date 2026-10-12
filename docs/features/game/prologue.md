@@ -88,6 +88,14 @@ holds me back.
   `PrologueScene`, `PrologueLayer` with its `depth`, `PrologueEmitter`). `art/build.ts` packs the layers
   into `src/generated/prologue.png` (one page, 2048 wide) and `prologue.json` (the place and depth of
   each layer, and the emitters); the game's atlas does not carry them.
+- **The look of the Central Dominions and of the factory** (Fede, 2026-10-12). The age is medieval.
+  The Iron Sovereignty is European: a castle, a church with a spire, houses of stone and timber with
+  steep roofs, cogs in the bay. The Mithril Enclave is of the Arabic middle ages, with a magical tone:
+  white stone and cedar, onion domes, minarets, horseshoe arches, blue arcane light. There are no
+  towers of a modern city. Only the factory of Thrain has a pinch of steampunk (its stacks, pipes and
+  cog). The factory follows Fede's pictures on the Drive (`Images/regions/central_dominions/
+  fabrica_forjacero`): towers of brick and copper plates with steep roofs, round towers with a gallery
+  and a cone, stacks with iron rings, a long hall with dormers, bridges on arches, a yard of cobbles.
 - **The player** (`packages/engine-client/src/ui/prologue.ts`): `playPrologue()` (a promise),
   `prologuePlaying()`, `PROLOGUE_TIMING`, `lineMs()`, `cardMs()`, `cardTexts()`; the emitters run in a
   2D canvas at 320 x 180 (`Emitter`). The look: `#prologue` and `.prologue-*` in `style.css`. The texts:

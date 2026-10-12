@@ -698,6 +698,13 @@ function gods(): PrologueScene {
 
 // ---------------------------------------------------------------- 6. The Central Dominions: the Sovereignty and the Enclave
 
+/**
+ * The Central Dominions at dusk (Fede, 2026-10-12: medieval, not modern). To the west, the Iron
+ * Sovereignty: a European town of stone and timber by the sea, under a castle. In the middle, the
+ * Wilds. To the east, the Mithril Enclave: a town of the Arabic middle ages on a hill, with domes,
+ * minarets and the blue light of the arcane. The sun sets between them, so the Sovereignty takes its
+ * light on the east faces and the Enclave on the west faces.
+ */
 function central(): PrologueScene {
   const sky = new Canvas(PROLOGUE_VIEW.w, H);
   sky.vgrad(0, 0, sky.w - 1, H - 1, hexes('#161830', '#24223e', '#3a2c4c', '#5a3852', '#86484e', '#b0604a', '#d8844c', '#eaa458'), (t) => t ** 0.8);
@@ -705,67 +712,377 @@ function central(): PrologueScene {
   streakClouds(sky, 162, 40, 100, hex('#3a2a46'), hex('#f0a060'), 160, 150, 0.64);
 
   const far = new Canvas(WIDE, H);
-  const fdark = hex('#1c1426');
-  // The Iron Sovereignty: a city of forges by the sea, with chimneys and cranes, red and bronze.
-  far.rect(0, 128, 150, H - 1, Canvas.rampAt(hexes('#3a2c40'), 0, 0, 0));
-  for (let y = 128; y < H; y++) for (let x = 0; x < 150; x++) far.set(x, y, Canvas.rampAt(hexes('#2a2038', '#3c2c42', '#5a3a42'), 0.3 + noise1(x * 0.5 + y * 7, 163) * 0.4 - (y - 128) / 90, x, y));
-  for (let x = 0; x < 150; x++) if (noise1(x * 0.8, 164) > 0.7) far.set(x, 129 + Math.floor(noise1(x, 165) * 30), hex('#e89a58'));
-  const city = rng(166);
-  for (let x = 20; x < 150; ) {
-    const w = 8 + Math.floor(city() * 12);
-    const h = 14 + Math.floor(city() * 26);
-    far.rect(x, 126 - h, x + w, 126, fdark);
-    for (let wy = 126 - h + 3; wy < 124; wy += 4) for (let wx = x + 2; wx < x + w - 1; wx += 3) if (city() < 0.45) far.set(wx, wy, city() < 0.5 ? hex('#f0a050') : hex('#c06030'));
-    if (city() < 0.45) {
-      far.rect(x + 2, 126 - h - 20, x + 4, 126 - h, fdark);
-      far.set(x + 3, 126 - h - 21, hex('#ff8a40'));
+  const lamp = hexes('#c06030', '#f0a050', '#ffd080');
+  /** The lit windows of the Sovereignty: the bay mirrors them. */
+  const windows: [number, number][] = [];
+  const litWindow = (x: number, y: number, w = 1, h = 2) => {
+    far.rect(x, y, x + w - 1, y + h - 1, lamp[(x * 3 + y) % 3 === 0 ? 2 : 1]!);
+    windows.push([x, y]);
+  };
+
+  // ---- The Iron Sovereignty, to the west.
+  const shore = 128;
+  const stone = hexes('#160f1a', '#211726', '#2e2030', '#3e2c38', '#584044', '#7c5a50');
+  const slate = hexes('#110e1a', '#1a1626', '#262034', '#383046', '#524460');
+  const tile = hexes('#24141a', '#341a1e', '#4a2622', '#64342a', '#844a34');
+  const timber = hex('#1a1014');
+  /** Masonry: courses of stone, the face to the sun (east) lighter. */
+  const masonry = (x0: number, y0: number, x1: number, y1: number, light = 0.3) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const joint = y % 3 === 0 || (x + (Math.floor(y / 3) % 2) * 2) % 5 === 0;
+        far.set(x, y, Canvas.rampAt(stone, light + ((x - x0) / Math.max(1, x1 - x0)) * 0.18 - (joint ? 0.14 : 0), x, y));
+      }
+      far.set(x1, y, stone[4]!);
     }
-    if (city() < 0.3) {
-      far.rect(x + w - 3, 126 - h - 9, x + w - 3, 126 - h, hex('#8a6a40'));
-      far.rect(x + w - 2, 126 - h - 9, x + w + 1, 126 - h - 6, hex('#a83228'));
+  };
+  /** Square merlons on the top of a wall, from x0 to x1, standing on the row y. */
+  const battlements = (x0: number, x1: number, y: number) => {
+    for (let x = x0; x <= x1; x++) if ((x - x0) % 4 < 2) far.rect(x, y - 2, x, y - 1, Canvas.rampAt(stone, 0.35 + (x - x0) / (x1 - x0 + 1) * 0.2, x, y));
+  };
+  /** A round tower with a cone of slate. */
+  const roundTower = (cx: number, top: number, bottom: number, r: number, cone: number) => {
+    for (let y = top; y <= bottom; y++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        const joint = y % 3 === 0;
+        far.set(x, y, Canvas.rampAt(stone, 0.15 + ((x - cx + r) / (2 * r)) * 0.5 - (joint ? 0.12 : 0), x, y));
+      }
     }
-    x += w + 1 + Math.floor(city() * 3);
+    far.poly(
+      [
+        [cx - r - 1.5, top + 1],
+        [cx + 0.5, top - cone],
+        [cx + r + 2.5, top + 1],
+      ],
+      (x, y) => Canvas.rampAt(slate, 0.2 + (x > cx ? 0.45 : 0) + ((y - top + cone) / cone) * 0.15, x, y),
+    );
+    far.set(cx, top - cone - 1, slate[3]!);
+    litWindow(cx, top + 4);
+  };
+
+  // The bay: dark water, with streaks of the sky and the windows in it.
+  const water = hexes('#4a3444', '#38283c', '#2a1e32', '#201828', '#181220');
+  for (let y = shore; y < H; y++) {
+    for (let x = 0; x < 152; x++) {
+      far.set(x, y, Canvas.rampAt(water, (y - shore) / 34 + (noise1(x * 0.2 + y * 3.7, 163) - 0.5) * 0.25, x, y));
+      const streak = noise1(x * 0.18 + y * 11.3, 164);
+      if (y % 2 === 1 && streak > 0.8 - (x / 152) * 0.12) far.set(x, y, hex(y < shore + 10 ? '#c47450' : '#7a4848'));
+    }
   }
-  for (const mx of [12, 30, 44]) {
-    far.line(mx, 128, mx, 104, fdark);
-    far.line(mx - 5, 112, mx + 5, 112, fdark);
-    far.rect(mx - 6, 126, mx + 7, 129, fdark);
+  // The crag of the castle, and the castle: curtain walls, two round towers and a square keep.
+  far.poly(
+    [
+      [-1, shore],
+      [-1, 98],
+      [8, 95],
+      [18, 97],
+      [26, 92],
+      [54, 92],
+      [62, 98],
+      [70, 110],
+      [78, 120],
+      [82, shore],
+    ],
+    (x, y) => Canvas.rampAt(stone, 0.12 + (x / 82) * 0.25 - (y - 92) / 90 + (fbm2(x / 4, y / 3, 190, 2) > 0.58 ? 0.16 : 0) + (fbm2(x / 3, y / 2, 191, 2) > 0.66 && x > 30 ? 0.22 : 0), x, y),
+  );
+  for (let y = 98; y < shore; y++) {
+    const edge = 62 + ((y - 98) / (shore - 98)) * 20;
+    far.set(Math.round(edge), y, stone[4]!);
   }
-  // The Wilds between them: a dark forest, and a road through it.
+  masonry(14, 84, 64, 92, 0.25);
+  battlements(14, 64, 84);
+  roundTower(14, 76, 92, 4, 12);
+  roundTower(62, 78, 92, 4, 11);
+  masonry(30, 60, 46, 92, 0.3);
+  battlements(29, 47, 60);
+  for (const tx of [28, 45]) {
+    masonry(tx, 54, tx + 3, 60, 0.35);
+    battlements(tx, tx + 3, 54);
+  }
+  litWindow(34, 66);
+  litWindow(41, 66);
+  litWindow(37, 74);
+  litWindow(24, 87, 1, 1);
+  litWindow(52, 87, 1, 1);
+  // A banner of the Sovereignty, wine red, on the keep.
+  far.rect(38, 40, 38, 51, timber);
+  far.rect(39, 41, 44, 42, hex('#a8443c'));
+  far.rect(39, 43, 43, 44, hex('#7c302e'));
+  far.set(45, 42, hex('#7c302e'));
+
+  // The town by the shore: houses of stone and timber with steep roofs, a church, and forges.
+  const town = rng(166);
+  /** A house: a timber frame filled with plaster, and a steep roof of tiles (a gable, or hipped). */
+  const house = (x: number, base: number, w: number, wallH: number) => {
+    const top = base - wallH;
+    const plaster = hexes('#3a2a2e', '#4c3838', '#604842', '#78584c');
+    for (let y = top; y <= base; y++) for (let k = x; k <= x + w; k++) far.set(k, y, Canvas.rampAt(plaster, 0.4 + ((k - x) / w) * 0.45, k, y));
+    // The frame: corner posts, a beam between the floors, and a brace.
+    for (let y = top; y <= base; y++) {
+      far.set(x, y, timber);
+      far.set(x + w, y, timber);
+    }
+    const floor = top + Math.round(wallH / 2);
+    for (let k = x; k <= x + w; k++) far.set(k, floor, timber);
+    if (town() < 0.5) far.line(x + 1, floor - 1, x + 3, top + 1, timber);
+    for (let wy = top + 2; wy < base - 1; wy += 4) for (let wx = x + 2; wx < x + w - 1; wx += 3) if (town() < 0.3) litWindow(wx, wy);
+    const roofH = Math.round(w * (0.8 + town() * 0.4));
+    if (town() < 0.6) {
+      far.poly(
+        [
+          [x - 1.5, top + 0.5],
+          [x + w / 2 + 0.5, top - roofH],
+          [x + w + 2.5, top + 0.5],
+        ],
+        (px, py) => Canvas.rampAt(tile, 0.2 + (px > x + w / 2 ? 0.45 : 0.05) + (py % 2 === 0 ? 0.1 : 0), px, py),
+      );
+    } else {
+      const inset = Math.round(roofH * 0.55);
+      far.poly(
+        [
+          [x - 1.5, top + 0.5],
+          [x + inset, top - roofH],
+          [x + w + 1 - inset, top - roofH],
+          [x + w + 2.5, top + 0.5],
+        ],
+        (px, py) => Canvas.rampAt(tile, 0.2 + (px > x + w - inset ? 0.45 : 0.05) + (py % 2 === 0 ? 0.1 : 0), px, py),
+      );
+    }
+  };
+  const chimneys: [number, number][] = [];
+  const forges: [number, number][] = [];
+  // The smithies of the iron: squat stacks of stone, with fire in their throats.
+  for (const fx of [80, 134]) {
+    masonry(fx, 100, fx + 4, 120, 0.3);
+    far.rect(fx - 1, 99, fx + 5, 100, stone[3]!);
+    far.rect(fx, 98, fx + 4, 98, lamp[0]!);
+    far.glow(fx + 2.5, 97, 7, hex('#ff8a40'), 0.45);
+    forges.push([fx + 1, 93]);
+  }
+  // Two rows: the back row higher up the shore and darker, the front row behind the town wall.
+  for (const [row, base] of [
+    [0, 118],
+    [1, 123],
+  ] as const) {
+    for (let x = row === 0 ? 70 : 66; x < 146; ) {
+      const w = 6 + Math.floor(town() * 6);
+      const wallH = (row === 0 ? 9 : 6) + Math.floor(town() * 5);
+      house(x, base, w, wallH);
+      if (town() < 0.35) {
+        const cx = x + w - 2;
+        const cy = base - wallH - 4;
+        far.rect(cx, cy, cx + 1, base - wallH, stone[2]!);
+        chimneys.push([cx, cy]);
+      }
+      x += w + 1 + Math.floor(town() * 2);
+    }
+  }
+  // The church: a nave, and a bell tower with a tall spire of slate.
+  masonry(108, 100, 124, 118, 0.3);
+  far.poly(
+    [
+      [106.5, 100.5],
+      [116.5, 90],
+      [126.5, 100.5],
+    ],
+    (x, y) => Canvas.rampAt(slate, 0.25 + (x > 116 ? 0.4 : 0) + (y % 2 === 0 ? 0.08 : 0), x, y),
+  );
+  masonry(98, 76, 106, 118, 0.35);
+  battlements(98, 106, 76);
+  far.poly(
+    [
+      [97.5, 75.5],
+      [102.5, 52],
+      [107.5, 75.5],
+    ],
+    (x) => Canvas.rampAt(slate, x > 102 ? 0.7 : 0.25, x, 60),
+  );
+  far.set(102, 51, stone[5]!);
+  litWindow(102, 82, 1, 3);
+  far.rect(114, 104, 116, 106, lamp[0]!);
+  far.set(115, 105, lamp[2]!);
+  // The town wall along the shore, with a gate tower.
+  masonry(64, 124, 150, shore, 0.3);
+  battlements(64, 150, 124);
+  masonry(88, 108, 96, shore, 0.35);
+  battlements(88, 96, 108);
+  far.poly(
+    [
+      [90, shore],
+      [90, 122],
+      [92, 120],
+      [94, 122],
+      [94, shore],
+    ],
+    lamp[0]!,
+  );
+  litWindow(92, 112, 1, 2);
+  // A pier of stone, and two cogs at anchor with their sails furled.
+  masonry(48, shore, 70, shore + 2, 0.3);
+  const hull = hexes('#140c0c', '#22140f', '#341e16', '#52301e');
+  const cog = (x: number, y: number, w: number) => {
+    far.poly(
+      [
+        [x, y - 3],
+        [x + w, y - 3],
+        [x + w - 3, y + 2],
+        [x + 3, y + 2],
+      ],
+      (px, py) => Canvas.rampAt(hull, py === y - 3 ? 1 : 0.3 + (px - x) / w * 0.3, px, py),
+    );
+    far.rect(x + 1, y - 6, x + 5, y - 4, hull[1]!);
+    far.rect(x + 1, y - 7, x + 5, y - 7, hull[3]!);
+    const mast = x + Math.round(w * 0.55);
+    far.rect(mast, y - 26, mast, y - 4, hull[1]!);
+    far.rect(mast - 6, y - 22, mast + 6, y - 21, hex('#5a4a48'));
+    far.rect(mast - 5, y - 20, mast + 5, y - 20, hex('#3a2e34'));
+    far.line(mast, y - 26, x + w, y - 4, hull[1]!);
+    far.set(x + 2, y - 8, lamp[2]!);
+    windows.push([x + 2, y - 8]);
+  };
+  cog(14, 142, 20);
+  cog(108, 138, 16);
+  // The bay mirrors the windows: short broken streaks under each light.
+  const shimmer = rng(165);
+  for (const [wx] of windows) {
+    if (wx > 150 || shimmer() < 0.4) continue;
+    for (let y = shore + 3; y < shore + 20; y += 3) if (shimmer() < 0.3) far.rect(wx - 1 + Math.floor(shimmer() * 2), y, wx + Math.floor(shimmer() * 2), y, lamp[0]!);
+  }
+
+  // ---- The Wilds between them: a dark forest.
   const wood = (x: number) => 134 - fbm1(x / 22, 167, 4) * 14 - Math.max(0, 1 - Math.abs(x - 190) / 50) * 8;
-  for (let x = 140; x < 250; x++) {
+  for (let x = 146; x < 250; x++) {
     const t = Math.round(wood(x));
     for (let y = t; y < H; y++) far.set(x, y, Canvas.rampAt(hexes('#1a1a28', '#14141f', '#0e0e17'), (y - t) / 20, x, y));
     if (x % 3 === 0) far.pine(x, t + 2, 5 + noise1(x * 0.3, 168) * 8, hex('#1a1a28'));
   }
-  // The Mithril Enclave: white spires and domes, and the blue light of the arcane.
+
+  // ---- The Mithril Enclave, to the east: white stone and carved wood, domes and minarets, and magic.
   const hillE = (x: number) => 132 - Math.max(0, 1 - Math.abs(x - 300) / 70) * 20;
   far.ridge((x) => (x < 236 ? 300 : hillE(x)), (x, y) => Canvas.rampAt(hexes('#2a2440', '#201c34', '#18152a'), (y - hillE(x)) / 20, x, y));
-  const white = hexes('#6a6888', '#8e8cae', '#b8b8d8', '#dcdcf0');
-  const spire = (x: number, base: number, h: number, w: number) => {
-    far.rect(x, base - h, x + w, base, Canvas.rampAt(white, 0.5, x, base));
-    for (let y = base - h; y <= base; y++) {
-      far.set(x, y, white[3]!);
-      far.set(x + w, y, white[0]!);
-      for (let k = x + 1; k < x + w; k++) far.set(k, y, Canvas.rampAt(white, 0.35 + (x + w - k) / (w * 3), k, y));
+  const ivory = hexes('#2a2236', '#3e3448', '#5c5064', '#837080', '#ab9290', '#d2b8a0');
+  const gold = hexes('#3a2618', '#664020', '#94642c', '#c08e40', '#e8c06c', '#fff0b0');
+  const cedar = hexes('#1e1214', '#30201c', '#4a3024');
+  const arcane = hexes('#3a68a8', '#7cc8ff', '#d8f0ff');
+  const sparks: [number, number][] = [];
+  /** A block of white stone, its west face (to the sun) lit. */
+  const ashlar = (x0: number, y0: number, x1: number, y1: number, light = 0.45) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) far.set(x, y, Canvas.rampAt(ivory, light - ((x - x0) / Math.max(1, x1 - x0)) * 0.35 + (y === y0 ? 0.2 : 0) - (x === x1 ? 0.15 : 0), x, y));
+      if (y < y0 + (y1 - y0) / 2) far.set(x0, y, ivory[4]!);
     }
-    far.poly(
-      [
-        [x - 1, base - h],
-        [x + w / 2, base - h - w * 2.4],
-        [x + w + 1, base - h],
-      ],
-      (px) => (px < x + w / 2 ? white[3]! : white[1]!),
-    );
-    for (let y = base - h + 4; y < base - 2; y += 5) far.set(x + Math.floor(w / 2), y, hex('#7cc8ff'));
   };
-  spire(266, Math.round(hillE(266)), 30, 5);
-  spire(284, Math.round(hillE(284)), 48, 7);
-  spire(304, Math.round(hillE(304)), 38, 6);
-  spire(322, Math.round(hillE(322)), 22, 5);
-  far.disc(297, Math.round(hillE(297)) - 6, 9, (x, y) => (y > Math.round(hillE(297)) - 6 ? null : Canvas.rampAt(white, 0.4 + (297 - x) / 30, x, y)));
-  far.glow(287, Math.round(hillE(284)) - 72, 18, hex('#7cc8ff'), 0.6);
-  far.disc(287, Math.round(hillE(284)) - 72, 2.5, hex('#d8f0ff'));
+  /** A horseshoe arch, 3 pixels wide, lit from within (blue for the arcane, or a lamp). */
+  const arch = (x: number, y: number, h: number, colour: number) => {
+    far.rect(x, y + 1, x + 2, y + h - 1, colour);
+    far.set(x + 1, y, colour);
+    far.set(x, y + h - 1, ivory[2]!);
+    far.set(x + 2, y + h - 1, ivory[2]!);
+  };
+  /** An onion dome: a pointed top, the widest part low down, and a narrower foot on the drum. */
+  const onion = (cx: number, base: number, r: number, h: number, ramp: readonly number[]) => {
+    for (let y = base - h; y <= base; y++) {
+      const t = (y - (base - h)) / h;
+      const half = t < 0.62 ? r * Math.sin((t / 0.62) * (Math.PI / 2)) ** 1.6 : r * (1 - ((t - 0.62) / 0.38) ** 2 * 0.3);
+      for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) {
+        const across = (x + 0.5 - cx) / Math.max(0.5, half);
+        far.set(x, y, Canvas.rampAt(ramp, 0.75 - across * 0.4 - t * 0.25 + (y % 3 === 0 && t > 0.3 ? -0.08 : 0), x, y));
+      }
+    }
+    far.rect(cx, base - h - 3, cx, base - h - 1, ramp[3]!);
+    far.set(cx, base - h - 4, ramp[5]!);
+  };
+  /** A minaret: a slender shaft, a gallery of carved wood, a lantern lit blue, and a small dome. */
+  const minaret = (cx: number, base: number, h: number) => {
+    const top = base - h;
+    ashlar(cx - 2, top + 8, cx + 2, base, 0.55);
+    for (const y of [top + 14, top + 30]) arch(cx - 1, y, 4, arcane[0]!);
+    // The gallery: a ring of cedar on brackets, and a rail.
+    far.rect(cx - 4, top + 7, cx + 4, top + 8, cedar[2]!);
+    far.set(cx - 3, top + 9, cedar[1]!);
+    far.set(cx + 3, top + 9, cedar[1]!);
+    for (let x = cx - 4; x <= cx + 4; x += 2) far.set(x, top + 6, cedar[1]!);
+    far.rect(cx - 4, top + 5, cx + 4, top + 5, cedar[2]!);
+    ashlar(cx - 1, top + 1, cx + 1, top + 5, 0.6);
+    far.rect(cx, top + 2, cx, top + 4, arcane[1]!);
+    onion(cx, top + 1, 2.2, 5, gold);
+    sparks.push([cx, top + 3]);
+  };
+  /** A slender cypress. */
+  const cypress = (x: number, foot: number, h: number) => {
+    for (let y = foot - h; y <= foot; y++) {
+      const t = (y - foot + h) / h;
+      const half = Math.max(0.5, Math.sin(Math.min(1, t * 1.3) * Math.PI * 0.62) * 2.2);
+      for (let k = Math.round(x - half); k <= Math.round(x + half); k++) far.set(k, y, k < x ? hex('#22283a') : hex('#121624'));
+    }
+  };
+  // The town wall at the foot of the hill, with pointed merlons and a horseshoe gate.
+  const wallTop = 124;
+  for (let x = 244; x < WIDE; x++) {
+    for (let y = wallTop; y < 138; y++) far.set(x, y, Canvas.rampAt(ivory, 0.32 - (y - wallTop) / 40 + (y % 4 === 0 ? -0.08 : 0), x, y));
+    const m = (x - 244) % 5;
+    if (m < 3) far.set(x, wallTop - 1, ivory[2]!);
+    if (m === 1) far.set(x, wallTop - 2, ivory[3]!);
+  }
+  far.poly(
+    [
+      [258, 138],
+      [258, 130],
+      [259, 127],
+      [262, 126],
+      [265, 127],
+      [266, 130],
+      [266, 138],
+    ],
+    (x, y) => Canvas.rampAt(arcane, 0.9 - (y - 126) / 14 - Math.abs(x - 262) / 10, x, y),
+  );
+  far.glow(262, 132, 12, arcane[1]!, 0.35);
+  // Houses climbing the hill: white cubes with flat roofs, small arched windows and screens of cedar.
+  const houses = rng(171);
+  for (let tier = 3; tier >= 0; tier--) {
+    const base = 123 - tier * 7;
+    const reach = 60 - tier * 13;
+    for (let x = 300 - reach; x < 300 + reach; ) {
+      const w = 5 + Math.floor(houses() * 5);
+      const h = 6 + Math.floor(houses() * 4);
+      ashlar(x, base - h, x + w, base, 0.4 + tier * 0.04);
+      far.rect(x, base - h - 1, x + w, base - h - 1, ivory[3]!);
+      for (let wx = x + 2; wx < x + w - 1; wx += 3) if (houses() < 0.4) far.rect(wx, base - h + 2, wx, base - h + 3, houses() < 0.45 ? arcane[1]! : lamp[1]!);
+      if (houses() < 0.3) {
+        far.rect(x + 1, base - h + 3, x + 3, base - h + 5, cedar[1]!);
+        far.set(x + 2, base - h + 4, cedar[2]!);
+      }
+      x += w + 1 + Math.floor(houses() * 2);
+    }
+  }
+  // The great hall of the Enclave at the top: an arcade of horseshoe arches, a drum and a gold dome.
+  ashlar(280, 98, 320, 114, 0.5);
+  for (let k = 0; k < 7; k++) arch(283 + k * 5, 104, 7, k % 3 === 1 ? lamp[1]! : arcane[1]!);
+  for (let x = 280; x <= 320; x++) far.set(x, 101, (x - 280) % 4 === 0 ? ivory[2]! : ivory[4]!);
+  for (let x = 280; x <= 320; x += 4) {
+    far.rect(x, 96, x + 2, 97, ivory[4]!);
+    far.set(x + 1, 95, ivory[5]!);
+  }
+  ashlar(289, 84, 311, 97, 0.55);
+  for (let x = 293; x < 308; x += 6) arch(x, 88, 5, arcane[1]!);
+  onion(300, 84, 12, 26, gold);
+  onion(282, 96, 5, 11, ivory);
+  onion(318, 96, 5, 11, ivory);
+  minaret(266, 122, 66);
+  minaret(336, 120, 54);
+  minaret(356, 126, 38);
+  for (const [x, h] of [
+    [250, 14],
+    [254, 18],
+    [328, 16],
+    [346, 13],
+    [370, 17],
+  ] as const) cypress(x, Math.round(hillE(x)) + 2, h);
+  // The arcane light that hangs over the dome.
+  far.glow(300, 44, 20, arcane[1]!, 0.55);
+  far.glow(300, 44, 7, arcane[2]!, 0.5);
+  far.disc(300, 44, 2.5, arcane[2]!);
+  for (const [x, y] of sparks) far.glow(x, y, 6, arcane[1]!, 0.35);
 
   const near = new Canvas(WIDE, H);
   near.ridge((x) => 170 - fbm1(x / 20, 169, 4) * 7, (x, y) => Canvas.rampAt(hexes('#120e18', '#0a080e'), (y - 160) / 20, x, y));
@@ -779,8 +1096,9 @@ function central(): PrologueScene {
       { image: near.image, depth: 1 },
     ],
     emitters: [
-      { kind: 'smoke', layer: 1, x: 20, y: 70, w: 130, h: 30, rate: 3, colour: '#4a3a44' },
-      { kind: 'sparkles', layer: 1, x: 256, y: 40, w: 80, h: 90, rate: 6, colour: '#9cd8ff' },
+      ...[...chimneys, ...forges].map(([x, y]): PrologueEmitter => ({ kind: 'smoke', layer: 1, x: x - 1, y: y - 4, w: 4, h: 4, rate: 0.8, colour: '#4a3a44' })),
+      ...forges.map(([x, y]): PrologueEmitter => ({ kind: 'embers', layer: 1, x, y: y + 2, w: 4, h: 3, rate: 1.5, colour: '#ffa040' })),
+      { kind: 'sparkles', layer: 1, x: 256, y: 30, w: 110, h: 90, rate: 7, colour: '#9cd8ff' },
       { kind: 'twinkle', layer: 0, x: 0, y: 0, w: 320, h: 50, rate: 10, colour: '#e8ecff' },
     ],
   };
@@ -788,117 +1106,330 @@ function central(): PrologueScene {
 
 // ---------------------------------------------------------------- 7. The factory of Thrain Steelforge, in Thalesferro
 
+/**
+ * The factory of Thrain Steelforge at dusk, after Fede's pictures of it on the Drive
+ * (`Images/regions/central_dominions/fabrica_forjacero`): towers of brick and copper plates with
+ * steep roofs and pinnacles, round towers with a gallery and a cone, tall stacks with iron rings,
+ * a long hall with dormers and rows of arched windows, bridges on arches, and a yard of cobbles with
+ * barrels. It is medieval, with a pinch of steampunk (the stacks, the pipes, the cog): the only
+ * place in the prologue with it. The sun sets to the west (left), as the light of the game comes.
+ */
 function factory(): PrologueScene {
   const sky = new Canvas(PROLOGUE_VIEW.w, H);
-  sky.vgrad(0, 0, sky.w - 1, H - 1, hexes('#080608', '#0e0a0c', '#160e10', '#201412', '#2e1a14', '#442418', '#5c301a'), (t) => t ** 1.4);
-  stars(sky, 171, 120, 60);
-  const far = new Canvas(WIDE, H);
-  far.ridge(heights(118, 26, 56, 172), (x, y) => Canvas.rampAt(hexes('#1a1012', '#140c0e', '#100a0a'), (y - 100) / 40, x, y), (_x, slope) => (slope > 0.3 ? hex('#3a2018') : null));
+  sky.vgrad(0, 0, sky.w - 1, H - 1, hexes('#0c1020', '#121a2e', '#1c2640', '#2c3450', '#46405a', '#6a4c5c', '#965e56', '#c47a50', '#e09c58'), (t) => t ** 0.9);
+  stars(sky, 171, 40, 40);
+  sky.glow(40, 150, 120, hex('#ffb060'), 0.3);
+  streakClouds(sky, 172, 24, 112, hex('#2a2a40'), hex('#f4b868'), 40, 150, 0.62);
 
-  const mid = new Canvas(WIDE, H);
-  const stone = hexes('#1a1412', '#241c18', '#30261f', '#3e3128');
-  const bronze = hexes('#4a2c16', '#7a4a22', '#a8692e', '#d08a3a');
-  const fire = hexes('#c04a18', '#f07a28', '#ffb048', '#ffe0a0');
-  const groundY = 152;
-  mid.rect(0, groundY, mid.w - 1, H - 1, hex('#120c0a'));
-  // The hall: a stepped block of dark stone, with wings, in the dwarven way.
-  const block = (x0: number, y0: number, x1: number, y1: number) => {
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) mid.set(x, y, Canvas.rampAt(stone, 0.6 - (y - y0) / (y1 - y0 + 1) * 0.5 + ((x * 7 + y * 3) % 11 === 0 ? -0.2 : 0), x, y));
-    for (let x = x0; x <= x1; x++) mid.set(x, y0, stone[3]!);
-    for (let y = y0; y <= y1; y += 6) for (let x = x0; x <= x1; x++) if ((x + Math.floor(y / 6) * 5) % 12 === 0) mid.set(x, y, stone[0]!);
-  };
-  block(150, 96, 290, groundY);
-  block(120, 112, 152, groundY);
-  block(288, 112, 322, groundY);
-  block(170, 80, 270, 98);
-  // Furnace windows in rows, glowing.
-  for (let row = 0; row < 3; row++) {
-    for (let k = 0; k < 9; k++) {
-      const wx = 158 + k * 14;
-      const wy = 104 + row * 13;
-      if (wx > 196 && wx < 236 && row > 0) continue;
-      mid.rect(wx, wy, wx + 5, wy + 6, hex('#0c0806'));
-      mid.rect(wx + 1, wy + 1, wx + 4, wy + 6, Canvas.rampAt(fire, 0.4 + noise1(k * 3 + row, 173) * 0.5, wx, wy));
-      mid.glow(wx + 2.5, wy + 3.5, 9, hex('#ff8a30'), 0.25);
+  // ---- Far: Thalesferro behind the walls of the factory, in the haze of the dusk.
+  const far = new Canvas(WIDE, H);
+  const haze = hexes('#2c2a40', '#3a3248', '#4a3a4e', '#5c4450');
+  far.ridge(heights(132, 22, 60, 172), (x, y) => Canvas.rampAt(haze, 0.7 - (y - 110) / 50, x, y));
+  const roofs = rng(173);
+  for (let x = 0; x < WIDE; ) {
+    const w = 6 + Math.floor(roofs() * 8);
+    const h = 6 + Math.floor(roofs() * 8);
+    const base = 146;
+    far.rect(x, base - h, x + w, base + 10, haze[0]!);
+    far.poly(
+      [
+        [x - 1, base - h + 0.5],
+        [x + w / 2 + 0.5, base - h - w * 0.7],
+        [x + w + 2, base - h + 0.5],
+      ],
+      haze[1]!,
+    );
+    if (roofs() < 0.4) far.set(x + 2 + Math.floor(roofs() * (w - 3)), base - h + 3, hex('#c88a50'));
+    if (roofs() < 0.12) {
+      // A distant tower with a cone, or a stack of a workshop.
+      const tx = x + Math.floor(w / 2);
+      if (roofs() < 0.5) {
+        far.rect(tx - 2, base - h - 22, tx + 2, base - h, haze[0]!);
+        far.poly(
+          [
+            [tx - 3, base - h - 21.5],
+            [tx + 0.5, base - h - 32],
+            [tx + 4, base - h - 21.5],
+          ],
+          haze[1]!,
+        );
+      } else far.rect(tx - 1, base - h - 26, tx + 1, base - h, haze[0]!);
     }
+    x += w + 2;
   }
-  for (const wx of [126, 134, 142, 296, 304, 312]) {
-    mid.rect(wx, 122, wx + 3, 128, hex('#0c0806'));
-    mid.rect(wx + 1, 123, wx + 2, 128, fire[1]!);
-  }
-  // The great gate, open, with the light of the forges spilling out on the road.
+
+  // ---- Mid: the factory.
+  const mid = new Canvas(WIDE, H);
+  const groundY = 150;
+  const brick = hexes('#1c0f0c', '#2c1810', '#3e2214', '#56301a', '#744222', '#94582c', '#b8743a');
+  const copper = hexes('#1e1412', '#33201a', '#4e2e20', '#6c3e26', '#8e5430', '#b4703c');
+  const slate = hexes('#12121c', '#1c1c2a', '#28283a', '#3a3a50', '#525068');
+  const iron = hexes('#14100e', '#241c18', '#3a2e26', '#5a4836');
+  const fire = hexes('#c04a18', '#f07a28', '#ffb048', '#ffe0a0');
+  /** Brick: courses in a running bond, lighter to the west (the sun), darker low down. */
+  const bricks = (x0: number, y0: number, x1: number, y1: number, light = 0.4) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const joint = y % 2 === 0 || (x + (Math.floor(y / 2) % 2) * 2) % 4 === 0;
+        mid.set(x, y, Canvas.rampAt(brick, light - ((x - x0) / Math.max(1, x1 - x0)) * 0.25 - ((y - y0) / 200) - (joint ? 0.1 : 0), x, y));
+      }
+      mid.set(x0, y, brick[5]!);
+    }
+  };
+  /** Copper plates in lozenges on a square tower (as on the tall towers of the pictures). */
+  const plates = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const seam = (x - x0 + y) % 8 === 0 || (x - x0 - y + 400) % 8 === 0;
+        mid.set(x, y, Canvas.rampAt(copper, 0.5 - ((x - x0) / Math.max(1, x1 - x0)) * 0.35 - (seam ? 0.15 : 0), x, y));
+      }
+      mid.set(x0, y, copper[5]!);
+      mid.set(x1, y, copper[1]!);
+    }
+    for (let y = y0 + 12; y < y1; y += 14) for (let x = x0; x <= x1; x++) mid.set(x, y, iron[2]!);
+  };
+  /** An arched window or door: dark, or lit from within. */
+  const archway = (x: number, y: number, w: number, h: number, lit: number | null) => {
+    const r = w / 2;
+    for (let py = y; py < y + h; py++) {
+      for (let px = x; px < x + w; px++) {
+        const dy = py + 0.5 - (y + r);
+        if (dy < 0 && Math.hypot(px + 0.5 - (x + r), dy) > r) continue;
+        mid.set(px, py, lit === null ? hex('#0c0806') : Canvas.rampAt(fire, 0.25 + (lit - (py - y) / h) * 0.6, px, py));
+      }
+    }
+  };
+  const glows: [number, number, number][] = [];
+  const litArch = (x: number, y: number, w: number, h: number, heat = 0.7) => {
+    archway(x, y, w, h, heat);
+    glows.push([x + w / 2, y + h / 2, Math.max(6, w * 1.6)]);
+  };
+  /** A cone or a steep pyramid of a roof, lit on its west half. */
+  const cone = (cx: number, base: number, half: number, h: number, ramp: readonly number[]) => {
+    mid.poly(
+      [
+        [cx - half, base + 0.5],
+        [cx + 0.5, base - h],
+        [cx + half + 1, base + 0.5],
+      ],
+      (x, y) => Canvas.rampAt(ramp, (x <= cx ? 0.7 : 0.25) - ((y - base + h) / h) * 0.1 + (y % 3 === 0 ? -0.08 : 0), x, y),
+    );
+    mid.rect(cx, base - h - 3, cx, base - h - 1, iron[2]!);
+  };
+  /** A rail of iron along a walk: a bar, and posts. */
+  const rail = (x0: number, x1: number, y: number) => {
+    for (let x = x0; x <= x1; x++) {
+      mid.set(x, y, iron[3]!);
+      if ((x - x0) % 3 === 0) mid.set(x, y + 1, iron[2]!);
+      mid.set(x, y + 2, iron[1]!);
+    }
+  };
+
+  // The long hall: walls of brick, a steep roof of copper with dormers, and rows of arched windows.
+  bricks(64, 96, 300, groundY, 0.45);
   mid.poly(
     [
-      [204, groundY],
-      [204, 132],
-      [212, 124],
-      [228, 124],
-      [236, 132],
-      [236, groundY],
+      [62, 96.5],
+      [76, 74],
+      [290, 74],
+      [302, 96.5],
     ],
-    (x, y) => Canvas.rampAt(fire, 0.9 - (y - 124) / 60 - Math.abs(x - 220) / 40, x, y),
+    (x, y) => Canvas.rampAt(copper, 0.55 - (y - 74) / 60 + ((x + y) % 6 === 0 ? -0.15 : 0) + (x < 76 ? 0.2 : 0), x, y),
   );
-  for (let y = 124; y <= groundY; y++) {
-    mid.set(203, y, bronze[2]!);
-    mid.set(237, y, bronze[1]!);
+  for (let x = 62; x <= 302; x++) mid.set(x, 96, copper[0]!);
+  for (let x = 76; x <= 290; x++) mid.set(x, 74, copper[5]!);
+  for (let dx = 90; dx < 290; dx += 22) {
+    if (dx > 120 && dx < 160) continue;
+    bricks(dx, 82, dx + 6, 92, 0.5);
+    cone(dx + 3, 82, 4, 5, copper);
+    archway(dx + 2, 85, 3, 6, 0.6);
   }
-  mid.glow(220, 146, 50, hex('#ff9a40'), 0.45);
-  for (let y = groundY; y < H; y++) {
-    const spread = 16 + (y - groundY) * 1.2;
-    for (let x = Math.floor(220 - spread); x <= 220 + spread; x++) mid.mix(x, y, hex('#ffb050'), 0.35 * (1 - (y - groundY) / 30) * (1 - Math.abs(x - 220) / spread));
+  for (let x = 72; x < 296; x += 9) {
+    if (x > 124 && x < 156) continue;
+    archway(x, 101, 5, 10, ((x - 72) / 9) % 3 === 1 ? null : 0.4);
   }
-  // A great cog of bronze over the gate.
-  const gx = 220;
-  const gy = 108;
-  mid.disc(gx, gy, 13, (x, y, d) => {
-    const angle = Math.atan2(y + 0.5 - gy, x + 0.5 - gx);
-    const tooth = Math.cos(angle * 10) > 0.3;
-    if (d > 0.82 && !tooth) return null;
-    if (d < 0.32) return bronze[0]!;
-    return Canvas.rampAt(bronze, 0.75 - (y - gy) / 30 + (x < gx ? 0.1 : -0.1), x, y);
-  });
-  mid.disc(gx, gy, 3, bronze[3]!);
-  // Chimneys, and pipes between them.
-  const chimneys = [168, 196, 244, 272];
-  for (const cx of chimneys) {
-    mid.rect(cx, 30, cx + 7, 96, Canvas.rampAt(stone, 0.4, cx, 30));
-    for (let y = 30; y < 96; y++) {
-      mid.set(cx, y, stone[3]!);
-      mid.set(cx + 7, y, stone[0]!);
-    }
-    mid.rect(cx - 1, 28, cx + 8, 31, bronze[1]!);
-    mid.glow(cx + 3.5, 27, 8, hex('#ff7a28'), 0.5);
+  // The walk along the hall, on brackets of iron, and its rail.
+  for (let x = 64; x <= 300; x++) {
+    mid.set(x, 117, iron[2]!);
+    mid.set(x, 118, iron[1]!);
   }
-  for (let x = 175; x < 244; x++) {
-    mid.set(x, 72 + Math.round(Math.sin(x / 9) * 1), bronze[1]!);
-    mid.set(x, 73 + Math.round(Math.sin(x / 9) * 1), bronze[0]!);
+  for (let x = 68; x <= 300; x += 12) mid.line(x, 119, x + 3, 122, iron[1]!);
+  rail(64, 300, 113);
+  // A pipe of copper along the wall, and the arches of the forges at the foot of the hall.
+  for (let x = 64; x <= 300; x++) {
+    mid.set(x, 124, copper[4]!);
+    mid.set(x, 125, copper[2]!);
   }
-  // Rails in front, and a cart of ore.
-  for (let x = 0; x < mid.w; x++) {
-    mid.set(x, 160, bronze[0]!);
-    mid.set(x, 163, bronze[0]!);
+  for (let x = 70; x < 296; x += 14) {
+    if (x > 122 && x < 158) continue;
+    if ((x / 14) % 2 === 1) litArch(x, 130, 9, 20, 0.85);
+    else archway(x, 130, 9, 20, null);
+    mid.set(x + 11, 131, fire[3]!);
+    glows.push([x + 11, 131, 5]);
   }
-  mid.rect(96, 152, 112, 159, hex('#2a1e16'));
-  mid.rect(98, 149, 110, 152, hex('#3a2a20'));
-  mid.disc(100, 160, 2, bronze[1]!);
-  mid.disc(108, 160, 2, bronze[1]!);
 
-  const near = new Canvas(WIDE, H);
-  near.rect(0, 170, near.w - 1, H - 1, hex('#080606'));
-  for (const [x, w, h] of [
-    [20, 14, 12],
-    [36, 10, 8],
-    [330, 16, 14],
-    [348, 12, 9],
-  ] as const) {
-    near.rect(x, 170 - h, x + w, 170, hex('#0c0808'));
-    near.line(x, 170 - h, x + w, 170, hex('#1a1210'));
-    near.line(x + w, 170 - h, x, 170, hex('#1a1210'));
+  // The stacks: tall cylinders of brick with rings of iron.
+  const stacks: [number, number, number][] = [
+    [96, 22, 96],
+    [168, 12, 96],
+    [246, 26, 96],
+    [322, 34, 104],
+  ];
+  const stack = (cx: number, top: number, foot: number) => {
+    for (let y = top; y < foot; y++) {
+      for (let x = cx - 3; x <= cx + 3; x++) {
+        const joint = y % 2 === 0;
+        mid.set(x, y, Canvas.rampAt(brick, 0.65 - ((x - cx + 3) / 6) * 0.5 - (joint ? 0.08 : 0), x, y));
+      }
+    }
+    for (let y = top + 6; y < foot - 4; y += 11) mid.rect(cx - 4, y, cx + 4, y + 1, Canvas.rampAt(iron, 0.7, cx, y));
+    mid.rect(cx - 4, top - 2, cx + 4, top, iron[3]!);
+    mid.glow(cx, top - 3, 6, hex('#ff8a3a'), 0.5);
+  };
+  for (const [cx, top, foot] of stacks) stack(cx, top, foot);
+
+  // The two tall towers of copper plates, with steep roofs and pinnacles on their corners.
+  const tallTower = (x0: number, x1: number, top: number, roof: number, windowsTo: number) => {
+    plates(x0, top, x1, groundY);
+    // The cornice, and the roof with its pinnacles.
+    mid.rect(x0 - 1, top - 2, x1 + 1, top, iron[2]!);
+    mid.rect(x0 - 1, top - 2, x1 + 1, top - 2, iron[3]!);
+    cone((x0 + x1) / 2, top - 2, (x1 - x0) / 2 + 1, roof, slate);
+    for (const px of [x0, x1]) {
+      mid.rect(px - 1, top - 6, px + 1, top - 3, copper[3]!);
+      cone(px, top - 6, 1.5, 6, slate);
+    }
+    // Small arched windows, and a round one under the roof.
+    for (let y = top + 18; y + 6 < windowsTo; y += 16) for (let x = x0 + 4; x < x1 - 3; x += 7) archway(x, y, 3, 6, (x + y) % 3 === 0 ? null : 0.55);
+    mid.disc((x0 + x1) / 2 + 0.5, top + 8, 3, hex('#0c0806'));
+    mid.disc((x0 + x1) / 2 + 0.5, top + 8, 2, fire[2]!);
+  };
+  tallTower(118, 140, 44, 30, 126);
+  tallTower(160, 188, 34, 34, 98);
+  // The great gate under the great tower, open on the fire of the forges.
+  litArch(166, 122, 17, 28, 1);
+  for (let y = 122; y <= groundY; y++) {
+    mid.set(165, y, copper[5]!);
+    mid.set(183, y, copper[1]!);
   }
-  near.rect(300, 120, 301, 170, hex('#0c0808'));
-  near.rect(297, 116, 304, 120, hex('#0c0808'));
-  near.glow(300.5, 122, 14, hex('#ffb050'), 0.6);
-  near.rect(299, 120, 302, 123, hex('#ffd080'));
+  // A great cog of bronze over the gate: the sign of the house of Steelforge.
+  const gx = 174.5;
+  const gy = 108;
+  mid.disc(gx, gy, 9, (x, y, d) => {
+    const angle = Math.atan2(y + 0.5 - gy, x + 0.5 - gx);
+    if (d > 0.78 && Math.cos(angle * 8) < 0.2) return null;
+    if (d < 0.3) return copper[1]!;
+    return Canvas.rampAt(copper, 0.85 - (y - gy) / 24 - (x - gx) / 24, x, y);
+  });
+  mid.disc(gx, gy, 2, copper[5]!);
+
+  // The round towers: a body of brick, a gallery with a rail, and a cone of copper.
+  const roundTower = (cx: number, r: number, top: number, roof: number) => {
+    for (let y = top; y <= groundY; y++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        const joint = y % 2 === 0 || (x + (Math.floor(y / 2) % 2) * 2) % 4 === 0;
+        mid.set(x, y, Canvas.rampAt(brick, 0.7 - ((x - cx + r) / (2 * r)) * 0.6 - (joint ? 0.08 : 0), x, y));
+      }
+    }
+    for (let y = top + 16; y < groundY - 10; y += 14) archway(cx - 1, y, 3, 6, (y / 14) % 2 < 1 ? 0.5 : null);
+    // The gallery: wider than the body, on brackets.
+    for (let x = cx - r - 2; x <= cx + r + 2; x++) {
+      mid.set(x, top, iron[2]!);
+      mid.set(x, top + 1, iron[1]!);
+    }
+    for (let k = -r; k <= r; k += 3) mid.line(cx + k, top + 2, cx + k + (k < 0 ? 1 : -1), top + 4, iron[1]!);
+    rail(cx - r - 2, cx + r + 2, top - 3);
+    bricks(cx - r + 1, top - 10, cx + r - 1, top - 1, 0.55);
+    for (let x = cx - r + 3; x < cx + r - 2; x += 4) archway(x, top - 8, 2, 5, 0.6);
+    cone(cx, top - 10, r + 1, roof, copper);
+  };
+  roundTower(46, 9, 56, 28);
+  roundTower(228, 8, 62, 26);
+
+  // Bridges on arches: one from the round tower to the left edge, one to the right. Their arches are
+  // open, and Thalesferro shows through them.
+  const bridge = (x0: number, x1: number, deck: number) => {
+    bricks(x0, deck, x1, groundY, 0.35);
+    rail(x0, x1, deck - 4);
+    for (let x = x0; x <= x1; x++) mid.set(x, deck, brick[5]!);
+    const span = x1 - x0;
+    const cx = (x0 + x1) / 2;
+    const r = span / 2 - 5;
+    for (let y = deck + 6; y <= groundY; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const d = Math.hypot((x + 0.5 - cx) / r, Math.max(0, deck + 6 + r * 0.8 - y - 0.5) / (r * 0.8));
+        if (d <= 1 && Math.abs(x + 0.5 - cx) < r) mid.set(x, y, 0);
+        else if (d <= 1.12 && Math.abs(x + 0.5 - cx) < r + 2) mid.set(x, y, brick[1]!);
+      }
+    }
+  };
+  bridge(-4, 36, 98);
+  bridge(238, 300, 104);
+  bridge(300, 386, 104);
+  // Brackets of lamps on the walls.
+  for (const [lx, ly] of [
+    [112, 132],
+    [146, 132],
+    [196, 132],
+    [212, 132],
+  ] as const) {
+    mid.rect(lx, ly, lx + 1, ly + 2, fire[3]!);
+    glows.push([lx + 1, ly + 1, 8]);
+  }
+
+  // The yard: cobbles, warm where the fire of the gate and the arches falls on them.
+  const cobble = hexes('#16100e', '#201814', '#2c201a', '#3a2c22', '#4a382a');
+  for (let y = groundY + 1; y < H; y++) {
+    const row = y - groundY;
+    const stride = 3 + Math.floor(row / 8);
+    for (let x = 0; x < mid.w; x++) {
+      const k = (x + (Math.floor(row / 2) % 2) * Math.floor(stride / 2)) % stride;
+      const t = (row % 2 === 0 || k === 0 ? 0.1 : 0.45) + noise1(x * 0.7 + y * 3, 174) * 0.2 - row / 80;
+      mid.set(x, y, Canvas.rampAt(cobble, t, x, y));
+    }
+  }
+  for (let y = groundY + 1; y < H; y++) {
+    const spread = 12 + (y - groundY) * 1.4;
+    for (let x = Math.floor(gx - spread); x <= gx + spread; x++) mid.mix(x, y, hex('#ffb050'), 0.4 * (1 - (y - groundY) / 30) * (1 - Math.abs(x - gx) / spread));
+  }
+  for (const [x, y, r] of glows) mid.glow(x, y, r, hex('#ff9a40'), 0.3);
+  mid.glow(gx, 140, 40, hex('#ff9a40'), 0.35);
+
+  // ---- Near: barrels and crates in the yard, and a lamp on a post.
+  const near = new Canvas(WIDE, H);
+  const oak = hexes('#140c08', '#22140c', '#341e10', '#4a2c16', '#6a4020');
+  const barrel = (x: number, foot: number, w: number, h: number) => {
+    for (let y = foot - h; y <= foot; y++) {
+      const t = (y - foot + h) / h;
+      const bulge = Math.sin(t * Math.PI) * 1.5;
+      for (let px = Math.round(x - bulge); px <= Math.round(x + w + bulge); px++) {
+        const across = (px - x + bulge) / (w + 2 * bulge);
+        const hoop = Math.abs(t - 0.2) < 0.05 || Math.abs(t - 0.8) < 0.05;
+        near.set(px, y, hoop ? Canvas.rampAt(iron, 0.9 - across * 0.8, px, y) : Canvas.rampAt(oak, 0.85 - across * 0.85 + ((px - x) % 3 === 0 ? -0.12 : 0), px, y));
+      }
+    }
+    for (let px = x; px <= x + w; px++) near.set(px, foot - h, oak[2]!);
+  };
+  const crate = (x: number, foot: number, s: number) => {
+    near.rect(x, foot - s, x + s, foot, oak[2]!);
+    near.rect(x, foot - s, x + s, foot - s, oak[4]!);
+    near.rect(x, foot - s, x, foot, oak[3]!);
+    near.line(x + 1, foot - 1, x + s - 1, foot - s + 1, oak[1]!);
+    near.rect(x + s, foot - s, x + s, foot, oak[0]!);
+  };
+  near.rect(0, 172, near.w - 1, H - 1, hex('#0a0706'));
+  barrel(6, 176, 14, 22);
+  barrel(26, 177, 12, 18);
+  barrel(14, 154, 11, 14);
+  crate(44, 176, 12);
+  crate(330, 177, 14);
+  crate(346, 177, 10);
+  barrel(358, 178, 13, 20);
+  near.rect(300, 116, 301, 172, iron[1]!);
+  near.rect(297, 112, 304, 116, iron[1]!);
+  near.rect(298, 116, 303, 116, iron[2]!);
+  near.glow(300.5, 118, 16, hex('#ffb050'), 0.55);
+  near.rect(299, 116, 302, 119, hex('#ffd080'));
 
   return {
     id: 'factory',
@@ -909,9 +1440,10 @@ function factory(): PrologueScene {
       { image: near.image, depth: 1 },
     ],
     emitters: [
-      ...chimneys.map((cx): PrologueEmitter => ({ kind: 'smoke', layer: 2, x: cx + 1, y: 22, w: 6, h: 4, rate: 2.5, colour: '#3a2a26' })),
-      ...chimneys.map((cx): PrologueEmitter => ({ kind: 'embers', layer: 2, x: cx + 1, y: 26, w: 6, h: 3, rate: 3, colour: '#ffa040' })),
-      { kind: 'embers', layer: 2, x: 206, y: 130, w: 28, h: 20, rate: 4, colour: '#ffc060' },
+      ...stacks.map(([cx, top]): PrologueEmitter => ({ kind: 'smoke', layer: 2, x: cx - 3, y: top - 8, w: 6, h: 4, rate: 2.5, colour: '#5a4038' })),
+      ...stacks.map(([cx, top]): PrologueEmitter => ({ kind: 'embers', layer: 2, x: cx - 3, y: top - 4, w: 6, h: 3, rate: 3, colour: '#ffa040' })),
+      { kind: 'embers', layer: 2, x: 168, y: 126, w: 14, h: 20, rate: 4, colour: '#ffc060' },
+      { kind: 'twinkle', layer: 0, x: 0, y: 0, w: 320, h: 36, rate: 6, colour: '#e8ecff' },
     ],
   };
 }

@@ -32,7 +32,7 @@ npm run server     # the game server (accounts, dev sign-in, shared worlds), por
 Debug panel: press F3, or open `/?debug`. Other switches: `/?seed=42` (the
 wilds), `/?at=11,10` (start on a tile), `/?nolight` (no darkness). Display settings: the button
 in the top-right corner (your look and name, CRT on/off and sliders; saved in the browser). The same from the URL:
-`/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults `0.6,1,1,0`).
+`/?nocrt`, or `/?crt=spread,mix,glow,scanline` (defaults `0.25,1,1,0.1`).
 
 - `packages/engine`: the simulation (no browser). `packages/engine-client`: the browser
   runtime and the art. `worlds/*`: the worlds. `apps/game`: game.azyr.io.

@@ -817,7 +817,7 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "And there Thrain looks into strange arcane events.": "Y allí Thrain investiga sucesos arcanos extraños.",
   "{name}": "{name}",
   "{kind}": "{kind}",
-  "You are a consultant for Thrain Steelforge: you go where something strange happens, and you tell him what you find.": "Trabajas en la consultoría de Thrain Forjacero: vas allí donde ocurre algo extraño, y le cuentas lo que encuentras.",
+  "You are a consultant for Thrain Steelforge: you go where something strange happens, and you tell him what you find.": "Trabajas de consultor para Thrain Forjacero: vas allí donde ocurre algo extraño, y le cuentas lo que encuentras.",
   "Now homesteads burn in the Wilds, and nobody knows who burns them. Thrain has a mission for you.": "Ahora arden granjas en las Tierras Salvajes, y nadie sabe quién las quema. Thrain tiene una misión para ti.",
   "His letter waits on the table of your hut.": "Su carta te espera en la mesa de tu cabaña.",
 };
