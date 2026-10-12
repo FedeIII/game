@@ -2,6 +2,7 @@ import { Container, Sprite, Texture } from 'pixi.js';
 import { MOB_STATS, type Facing, type MobKind, type MobState } from '@game/engine';
 import atlasData from '../generated/atlas.json';
 import type { Art } from '../assets.ts';
+import type { PixelFont } from './pixel-text.ts';
 
 /** What the view needs of a mob: a Mob of a local horde, or one from the server. */
 export interface MobLook {
@@ -27,7 +28,7 @@ const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
 /** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
 const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
-const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29, hound: 17, watcher: 28, seeker: 28, adept: 27, warden: 33 };
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29, hound: 17, watcher: 28, seeker: 28, adept: 27, warden: 33, skirmisher: 22 };
 
 /** From the feet to the top of the head of a mob of this kind (world pixels): numbers and bars go over it. */
 export function mobHead(kind: MobKind): number {
@@ -35,7 +36,7 @@ export function mobHead(kind: MobKind): number {
 }
 
 /** World pixels of travel for each walk frame. */
-const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4, hound: 6, watcher: 4, seeker: 4, adept: 4, warden: 4 };
+const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4, hound: 6, watcher: 4, seeker: 4, adept: 4, warden: 4, skirmisher: 3 };
 /** The glow of the eyes, above the darkness. */
 const EYE_GLOW: Readonly<Record<MobKind, number>> = {
   imp: 0xffa040,
@@ -50,6 +51,7 @@ const EYE_GLOW: Readonly<Record<MobKind, number>> = {
   seeker: 0xff8a30,
   adept: 0xffb050,
   warden: 0xff5a20,
+  skirmisher: 0xffd040,
 };
 /** The ash of a death: how tall and wide the body is (world pixels), and how many motes rise from it. */
 const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly width: number; readonly count: number }>> = {
@@ -65,6 +67,7 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
   seeker: { height: 26, width: 12, count: 28 },
   adept: { height: 26, width: 12, count: 28 },
   warden: { height: 30, width: 14, count: 60 },
+  skirmisher: { height: 16, width: 8, count: 14 },
 };
 /** The kinds that go in ash (Horde.vanish): no fall, the body thins into ash over this share of its death. */
 const VANISH: ReadonlySet<MobKind> = new Set(['watcher', 'warden']);
@@ -98,6 +101,11 @@ const FADE_FROM = 0.55;
 const FLASH_MS = 110;
 /** Ash and embers that rise from a dead mob: for this long (ms). */
 const ASH = { ms: 1100 } as const;
+/**
+ * The "!" over a startled patrol (state 'startled'): in the pixel font, gold on a 1-pixel shadow, this
+ * far over the head (world pixels); it pops up over its first `popMs`.
+ */
+const ALERT = { ink: 0xffc040, shadow: 0x07050a, gap: 4, pop: 3, popMs: 120 } as const;
 
 const eyesOf = (atlasData.meta as unknown as { mobEyes: Record<string, number[]> }).mobEyes;
 
@@ -130,6 +138,8 @@ interface MobView {
   readonly glint: Sprite;
   /** The circle of a rite (a caster only), above the darkness. */
   ring: Container | null;
+  /** The "!" of a startle (a patrol), in the text layer; made when it is first needed. */
+  alert: Container | null;
 }
 
 /**
@@ -151,6 +161,8 @@ export class MobViews {
   /** What the player reads of a mob (Intelligence): its health (INT 13), and its wind-up (INT 15). */
   private readHealth = false;
   private readOpening = false;
+  /** The font and the layer of the "!" of a startle (the text layer, above the darkness); none: no "!". */
+  private readonly alerts: { readonly font: PixelFont; readonly layer: Container } | null;
 
   /** Sets what the player reads of the mobs: a health bar over each one, and a glint on a wind-up. */
   setReading(health: boolean, opening: boolean): void {
@@ -158,10 +170,11 @@ export class MobViews {
     this.readOpening = opening;
   }
 
-  constructor(art: Art, entityLayer: Container, glowLayer: Container) {
+  constructor(art: Art, entityLayer: Container, glowLayer: Container, alerts: { readonly font: PixelFont; readonly layer: Container } | null = null) {
     this.art = art;
     this.layer = entityLayer;
     this.glowLayer = glowLayer;
+    this.alerts = alerts;
   }
 
   /** The number of mobs that are drawn. */
@@ -185,6 +198,7 @@ export class MobViews {
       view.bar.destroy({ children: true });
       view.glint.destroy();
       view.ring?.destroy({ children: true });
+      view.alert?.destroy({ children: true });
       this.views.delete(id);
     }
     this.updateMotes(now, seconds);
@@ -217,7 +231,7 @@ export class MobViews {
     const glint = new Sprite(this.art.frame('fx/star'));
     glint.visible = false;
     this.glowLayer.addChild(bar, glint);
-    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint, ring: null };
+    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint, ring: null, alert: null };
     this.views.set(mob.id, view);
     return view;
   }
@@ -320,9 +334,32 @@ export class MobViews {
     }
     view.glint.visible = this.readOpening && mob.state === 'windup' && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
     if (view.glint.visible) view.glint.position.set(x + 6, top + 3);
+    this.placeAlert(view, mob, x, top);
     this.placeRing(view, mob, x, Math.round(mob.y), now);
     // A burning weapon throws embers up from the upper body.
     if (mob.burning && mob.state !== 'dying' && Math.random() < BURN_EMBERS * seconds) this.ember(mob.x + (Math.random() - 0.5) * 10, mob.y - HEAD[mob.kind] * (0.35 + Math.random() * 0.4));
+  }
+
+  /** The "!" over a startled patrol: it pops up over the head, and goes when the startle ends. */
+  private placeAlert(view: MobView, mob: MobLook, x: number, top: number): void {
+    const show = this.alerts !== null && mob.state === 'startled';
+    if (!show) {
+      if (view.alert) view.alert.visible = false;
+      return;
+    }
+    if (!view.alert) {
+      const { font, layer } = this.alerts!;
+      const box = new Container();
+      const shadow = font.layout(['!'], ALERT.shadow);
+      shadow.position.set(1, 1);
+      box.addChild(shadow, font.layout(['!'], ALERT.ink));
+      layer.addChild(box);
+      view.alert = box;
+    }
+    const width = this.alerts!.font.measure('!');
+    const pop = Math.round(ALERT.pop * (1 - Math.min(1, mob.stateMs / ALERT.popMs)));
+    view.alert.visible = true;
+    view.alert.position.set(x - Math.floor(width / 2), top - ALERT.gap - this.alerts!.font.height + pop);
   }
 
   /** The circle of a rite round a caster: its dots light up as the rite goes on; its runes go dark when blows break them. */

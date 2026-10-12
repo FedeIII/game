@@ -516,7 +516,7 @@ describe('the blow of a player (traits.ts)', () => {
 
 describe('the hobgoblin band (story phase 3)', () => {
   it('keeps the codes of the old kinds on the wire, has stats and loot for each kind, and none of it roams the Wilds', () => {
-    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden']);
+    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher']);
     for (const kind of MOB_KINDS) {
       expect(MOB_STATS[kind].health, kind).toBeGreaterThan(0);
       expect(MOB_LOOT[kind], kind).toBeDefined();

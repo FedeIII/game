@@ -163,6 +163,39 @@ feel different from the hobgoblins, so that the new enemy is a mystery and a thr
 
 ---
 
+### REQ-CMB-009: The goblins of the forest
+
+**User Story:** As a new player on the road to Ironhold, I want goblins that I can surprise, chase and
+beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial.md`; Fede,
+2026-10-13).
+
+**Acceptance Criteria:**
+- **AC-CMB-009.1:** The skirmisher is the goblin of the SRD with a scimitar: 7 hit points, AC 15, +4,
+  1d6+2, 50 XP. It fights in melee only, with a slow, clear wind-up in which it stands (0.7 s), and
+  after a hit it slips away for a moment (Nimble Escape). The art: a goblin with a scimitar and a small
+  round shield.
+- **AC-CMB-009.2:** Skirmishers patrol in groups of 2 or 3: the group walks a loop round the place where
+  it came, the members a step apart.
+- **AC-CMB-009.3:** When one of them sees a character, the group (the members within 8 tiles) stops
+  short and looks at the character for 0.6 s, with a "!" over each head (the pixel font, gold, above the
+  darkness) and a yelp.
+- **AC-CMB-009.4:** Then some flee and the others fight: in a group, at least one flees and at least
+  one fights, the others as the dice of the horde fall; a goblin alone flees or fights with one chance
+  in two.
+- **AC-CMB-009.5:** A goblin flees at 64 px/s, slower than a character (80 px/s). A character that
+  runs after it catches it: within its reach and 8 pixels, or cornered (stuck), it turns and fights. A
+  blow that hits it makes it fight too.
+- **AC-CMB-009.6:** A goblin that gets away (out of sight for 1.5 s, or 230 pixels from the
+  character) hides where it is for 10 s, and then walks back to its loop. A patrol far from every
+  character (36 tiles) goes away.
+- **AC-CMB-009.7:** A world chooses where the goblins live and that no other mob lives there:
+  `MobRules.populationAt()` gives the mobs round a character on a tile (in place of `population`), and
+  `MobRules.roam()` knows the kind of the mob. A short population of skirmishers comes as one group.
+- **AC-CMB-009.8:** `?mob=skirmisher,skirmisher,skirmisher` puts one group of three, 8 tiles east of
+  the character, on its loop (a world that the page runs).
+
+---
+
 ## Feature Behavior & Rules
 
 - **Dice** (`packages/engine/src/dice.ts`): `Dice`, `dice()`, `plusDice()`, `formatDice()`,
@@ -204,3 +237,11 @@ feel different from the hobgoblins, so that the new enemy is a mystery and a thr
   an antidote now and then). The art: `art/mobs.ts` (`worg(pose, embers)`, the face `mask`, the weapon
   `none`, the builds `SEEKER`, `WATCHER`, `ADEPT`, `WARDEN`); the page: `VANISH` in `render/mobs.ts`, the
   fire bolts in `render/arrows.ts` (`ArrowLook.fire`, `FIRE_SHOOTERS` in `game.ts`). Protocol 33.
+- **The goblins of the forest** (`packages/engine/src/mobs.ts`, the tutorial): the kind `skirmisher`
+  (code 12), `MobStats.patrol` (`group` [2, 3], `fleeSpeed` 64), the states `startled` (code 10) and
+  `flee` (code 11), `STARTLE_MS` 600, `HIDE_MS` 10000, `Horde.spawnPatrol(kind, x, y, size)` (a loop of 6
+  open points 3 to 6 tiles round the place; without room, they wander), `MobRules.populationAt?(tx,
+  ty)`, `MobRules.roam(tx, ty, kind?)`; `MOB_LOOT` (0 to 2 coins). The art: `art/mobs.ts` (the build
+  `SKIRMISHER`, the weapon `scimitar`, `Build.shieldSize`); the page: the "!" in `render/mobs.ts`
+  (`placeAlert()`, `ALERT`; `MobViews` takes the font and the text layer), the yelp
+  (`voiceOfChange()`, `VOICE_OF`). Tests: `packages/engine/test/patrols.test.ts`. Protocol 36.

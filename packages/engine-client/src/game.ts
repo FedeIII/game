@@ -633,16 +633,26 @@ async function run(options: GameOptions): Promise<void> {
   // ?nomobs: none (for tests that walk about, and for a quiet look).
   const mobRules = params.has('nomobs') ? null : (world.source.mobs?.() ?? null);
   const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
-  const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer) : null;
+  const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer, { font, layer: tagLayer }) : null;
   const arrowViews = mobRules ? new ArrowViews(art, entityLayer, glowLayer) : null;
   // ?mob=imp,brute puts those mobs (any kinds of MOB_KINDS) near the player at the start, one tile
-  // apart, 5 tiles to the east (for tests and for a look at them). Single-player worlds only.
+  // apart, 5 tiles to the east (for tests and for a look at them). Single-player worlds only. The
+  // kinds that patrol (MobStats.patrol: ?mob=skirmisher,skirmisher) come as one group, 8 tiles east,
+  // walking its loop.
+  const patrolling = new Map<MobKind, number>();
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
-    if (horde && (MOB_KINDS as readonly string[]).includes(kind)) {
-      const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 5, Math.floor(player.y / TILE_SIZE) + i * 2 - 1, 0);
-      horde.spawn(kind as MobKind, spot.x, spot.y);
+    if (!horde || !(MOB_KINDS as readonly string[]).includes(kind)) return;
+    if (MOB_STATS[kind as MobKind].patrol) {
+      patrolling.set(kind as MobKind, (patrolling.get(kind as MobKind) ?? 0) + 1);
+      return;
     }
+    const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 5, Math.floor(player.y / TILE_SIZE) + i * 2 - 1, 0);
+    horde.spawn(kind as MobKind, spot.x, spot.y);
   });
+  for (const [kind, count] of patrolling) {
+    const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 8, Math.floor(player.y / TILE_SIZE), 0);
+    horde!.spawnPatrol(kind, spot.x, spot.y, count);
+  }
   // The companions (NPCs that follow a player) of a world that the page runs; a shared world gets
   // the server's. ?companion=<look> puts one of that NPC look next to the player at the start,
   // following it (for tests). Single-player worlds only, as ?mob.

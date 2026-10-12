@@ -7,7 +7,9 @@
  * a hobgoblin in a hooded robe, with a staff and an ember at its top). The Ashen Seekers (story phases
  * 7 to 9): the cinder hound (a grey dog with embers in its back), and the Seekers in robes of ash with
  * masks of bone and the red phoenix on the brow: the watcher (no weapon), the blade (a sword), the
- * cinder adept (a staff with an ember) and the Ash Warden (taller, with a crest of bone). All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
+ * cinder adept (a staff with an ember) and the Ash Warden (taller, with a crest of bone). The goblin of
+ * the forest on the road to Ironhold (the tutorial): the skirmisher, a goblin with a curved scimitar and
+ * a small round shield. All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
  * blow and a death. Their eyes glow: the build lists the eye pixels of each frame
  * (meta.mobEyes), and the game draws them above the darkness.
  *
@@ -20,8 +22,8 @@ import { ellipsoid, roundCone, sphere, type Material, type Part, type Sdf, type 
 import { renderModel, type RenderInfo } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden';
-const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher';
+const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher'];
 
 /** Material slots of a mob. */
 const MM = { hide: 0, belly: 1, horn: 2, claw: 3, eye: 4, mouth: 5, cloth: 6, wood: 7, metal: 8, wing: 9 } as const;
@@ -55,6 +57,7 @@ export const MOB_FRAMES: Readonly<Record<MobKind, { width: number; height: numbe
   seeker: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
   adept: { width: 56, height: 68, pivotX: 28, pivotY: 52 },
   warden: { width: 64, height: 72, pivotX: 32, pivotY: 56 },
+  skirmisher: { width: 40, height: 40, pivotX: 20, pivotY: 32 },
 };
 
 /** Frames of each animation. */
@@ -74,6 +77,7 @@ export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = {
   seeker: 0xff8a30,
   adept: 0xffb050,
   warden: 0xff5a20,
+  skirmisher: 0xffd040,
 };
 
 const PALETTES: Readonly<Record<MobKind, Material[]>> = {
@@ -112,6 +116,20 @@ const PALETTES: Readonly<Record<MobKind, Material[]>> = {
     cloth: ramp('#0d0907', '#1a120c', '#291c12', '#382719', '#47321f'),
     wood: ramp('#0c0806', '#1a110b', '#291b11', '#392618', '#4a311f'),
     metal: ramp('#101217', '#1f232a', '#333943', '#4b535f', '#6b7581'),
+    wing: ramp('#2a2620', '#4a443a', '#6e6656', '#958b75'),
+  }),
+  // A goblin of the forest: the same grey-green hide, a jerkin of dark red leather, a scimitar of
+  // dull iron with a grip of wood, and a small round shield of wood.
+  skirmisher: materials({
+    hide: ramp('#0b0f0a', '#141b12', '#1f281b', '#2b3725', '#384630', '#46553b'),
+    belly: ramp('#10140d', '#1b2116', '#272f20', '#343e2b', '#424d36'),
+    horn: ramp('#1c1a14', '#3a352a', '#5a5242', '#7e745e'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#ffb81a', '#ffd84a', '#fff09a'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#100707', '#1e0d0b', '#2e1510', '#3f1e16', '#50281c'),
+    wood: ramp('#0c0806', '#1a110b', '#291b11', '#392618', '#4a311f'),
+    metal: ramp('#0f1114', '#1d2026', '#2f343c', '#454c56', '#606a76', '#808a96'),
     wing: ramp('#2a2620', '#4a443a', '#6e6656', '#958b75'),
   }),
   // A black wolf with a grey muzzle and belly.
@@ -511,8 +529,10 @@ interface Build {
   readonly arms: number;
   /** A hunch: the chest forward of the hips (model pixels). */
   readonly hunch: number;
-  readonly weapon: 'bow' | 'sword' | 'mace' | 'staff' | 'none';
+  readonly weapon: 'bow' | 'sword' | 'mace' | 'staff' | 'scimitar' | 'none';
   readonly shield?: boolean;
+  /** The size of the shield, as a share of the round shield of the hobgoblin (1: that size). */
+  readonly shieldSize?: number;
   /** A helm and a coat of scale (the hobgoblin). */
   readonly armour?: boolean;
   /** Tufts of fur on the shoulders, the back and the arms (the bugbear). */
@@ -531,6 +551,8 @@ const SEEKER: Build = { hip: 10.0, chest: 15.8, shoulders: 3.3, limb: 1.05, head
 const WATCHER: Build = { hip: 9.8, chest: 15.4, shoulders: 3.0, limb: 0.95, head: 2.2, face: 'mask', arms: 0.95, hunch: 0.1, weapon: 'none', robe: true };
 const ADEPT: Build = { ...SEEKER, hunch: 0.5, weapon: 'staff' };
 const WARDEN: Build = { hip: 10.6, chest: 17.0, shoulders: 3.7, limb: 1.15, head: 2.4, face: 'mask', arms: 1.0, hunch: 0.2, weapon: 'sword', robe: true, crest: true };
+/** The goblin of the forest: the goblin's body, a scimitar in the right hand and a small round shield on the left arm. */
+const SKIRMISHER: Build = { ...GOBLIN, hunch: 0.9, weapon: 'scimitar', shield: true, shieldSize: 0.55 };
 
 /**
  * A humanoid of the hobgoblin band. The legs walk as the imp's do; the arms rest, wind up and
@@ -710,6 +732,15 @@ function humanoid(pose: MobPose, b: Build): Part[] {
       m.cone(at(-1.2), at(0.6), 0.45, 0.45, MM.wood);
       m.cone(at(0.6), at(0.9), 1.3, 1.3, MM.metal);
       m.cone(at(0.9), at(8.6), 0.6, 0.15, MM.metal);
+    } else if (b.weapon === 'scimitar') {
+      // A short curved blade: wide near its tip, and bent back from the edge (a goblin's scimitar).
+      // The bend: across the blade, level (the blade's direction crossed with up).
+      const across = Math.hypot(dir[2], dir[0]) || 1;
+      const bend: Vec3 = [-dir[2] / across, 0, dir[0] / across];
+      const curve = (k: number, off: number): Vec3 => add(at(k), [bend[0] * off, bend[1] * off, bend[2] * off]);
+      m.cone(at(-1.0), at(0.5), 0.4, 0.4, MM.wood);
+      m.cone(at(0.5), at(0.75), 1.0, 1.0, MM.metal);
+      m.chain([at(0.75), curve(3.4, 0.35), curve(5.6, 0.9), curve(7.0, 1.6)], [0.45, 0.6, 0.55, 0.12], MM.metal);
     } else if (staff) {
       // A staff of dark wood, taller than its bearer, with an ember in an iron claw at its top.
       m.cone(at(-7.5), at(13.4), 0.6, 0.5, MM.wood);
@@ -725,10 +756,11 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   }
   if (b.shield) {
     // A round shield of wood with an iron rim and boss, on the left forearm.
-    const centre = add(off, [-0.4, 0.4, 1.0]);
-    m.ellipsoid(centre, [3.4, 3.6, 0.5], MM.wood);
-    m.ellipsoid(add(centre, [0, 0, 0.35]), [1.0, 1.0, 0.45], MM.metal);
-    m.cone(add(centre, [-3.2, 0, 0]), add(centre, [3.2, 0, 0]), 0.3, 0.3, MM.metal);
+    const k = b.shieldSize ?? 1;
+    const centre = add(off, [-0.4 * k, 0.4 * k, 1.0 * k]);
+    m.ellipsoid(centre, [3.4 * k, 3.6 * k, 0.5], MM.wood);
+    m.ellipsoid(add(centre, [0, 0, 0.35]), [1.0 * k, 1.0 * k, 0.45], MM.metal);
+    m.cone(add(centre, [-3.2 * k, 0, 0]), add(centre, [3.2 * k, 0, 0]), 0.3, 0.3, MM.metal);
   }
   return m.parts;
 }
@@ -811,20 +843,22 @@ const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = {
   seeker: (pose) => scaled(humanoid(pose, SEEKER), 1.1),
   adept: (pose) => scaled(humanoid(pose, ADEPT), 1.1),
   warden: (pose) => scaled(humanoid(pose, WARDEN), 1.18),
+  skirmisher: (pose) => scaled(humanoid(pose, SKIRMISHER), 1.3),
 };
 
 /** The model of a kind in a pose, with the death's fall. */
 export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   const parts = MODELS[kind](pose);
   const d = pose.death;
-  if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, kind === 'imp' || kind === 'goblin' ? -1.5 : -2);
+  const small = kind === 'imp' || kind === 'goblin' || kind === 'skirmisher';
+  if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, small ? -1.5 : -2);
   if (d <= 0) return parts;
   if (kind === 'worg' || kind === 'hound') {
     // Down on its legs (in the model), then over on its side.
     const fall = Math.max(0, (d - 0.3) / 0.7);
     return tilt(parts, 0, 1.4 * fall * fall, 2.2 * Math.max(0, (d - 0.7) / 0.3), 0);
   }
-  if (kind === 'imp' || kind === 'goblin') {
+  if (small) {
     // Thrown back, then over on its back, then it sinks into a heap.
     const fall = Math.min(1, d / 0.7);
     return tilt(parts, -0.25 - 1.3 * fall * fall, 0.25 * fall, 2.2 * Math.max(0, (d - 0.55) / 0.45), -1.5);
@@ -859,6 +893,7 @@ const SHADOWS: Readonly<Record<MobKind, readonly [number, number]>> = {
   seeker: [20, 7],
   adept: [20, 7],
   warden: [22, 8],
+  skirmisher: [14, 6],
 };
 
 /**

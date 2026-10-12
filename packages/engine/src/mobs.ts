@@ -35,10 +35,13 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * Seekers (story phases 7 to 9, docs/drafts/story-arcane-raiders.md): the cinder hound (a dog of
  * ash that charges), the watcher (a Seeker that never fights: MobStats.watch), the blade (a
  * soldier), the cinder adept (it casts fire bolts as an archer shoots) and the Ash Warden (a
- * caster that goes in ash at half of its hit points: MobStats.vanishAt).
+ * caster that goes in ash at half of its hit points: MobStats.vanishAt). The goblins of the forest
+ * on the road to Ironhold (the tutorial, docs/drafts/tutorial.md; protocol 36): the skirmisher, a
+ * goblin with a scimitar that patrols with its group, startles when it sees a player, and flees or
+ * fights (MobStats.patrol).
  */
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden';
-export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher';
+export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher'];
 
 /**
  * The rite of the Hobgoblin Devastator (chapter 1.5.1: "Arma Elemental de Área", a spell of 4 turns
@@ -131,6 +134,14 @@ export interface MobStats {
   readonly watch?: number;
   /** A blow that takes its hit points to this share of MobStats.health or under makes it go in ash, not reel (the Ash Warden). */
   readonly vanishAt?: number;
+  /**
+   * A patrol (the goblins of a forest, Horde.spawnPatrol): it walks a loop with its group, from
+   * `group[0]` to `group[1]` mobs. The first one that sees a player startles the group (state
+   * 'startled', STARTLE_MS); then some flee (state 'flee', at `fleeSpeed`: slower than a player, so a
+   * player catches them) and the others fight. A caught or cornered one turns and fights; one that
+   * gets away hides for HIDE_MS and then goes back to its loop.
+   */
+  readonly patrol?: { readonly group: readonly [number, number]; readonly fleeSpeed: number };
 }
 
 /** A watcher on a march stands this many points of its route before the end (Road: 4 points for each tile). */
@@ -507,16 +518,50 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     rite: { ms: 6000, radius: 128, runes: 3, allies: ['seeker'], burnMs: 30_000, cooldownMs: 15_000 },
     vanishAt: 0.5,
   },
+  // A goblin of the forest (the tutorial; the SRD goblin with its scimitar): it patrols with its group,
+  // and when it sees a player it startles, then flees or fights. Its wind-up is slow and clear, and it
+  // stands in it, so that a new player sees it and dodges. After a hit it slips away (Nimble Escape).
+  skirmisher: {
+    wanderSpeed: 28,
+    chaseSpeed: 72,
+    retreatSpeed: 74,
+    sight: 120,
+    forget: 230,
+    reach: 15,
+    hitRange: 22,
+    windupMs: 700,
+    strikeMs: 280,
+    windupSpeed: 0,
+    lunge: 5,
+    stunTicks: 45,
+    retreatMs: [800, 1300],
+    harass: [40, 54],
+    radius: 6,
+    halfWidth: 3,
+    halfHeight: 2,
+    deathMs: 750,
+    health: 7,
+    ac: 15,
+    toHit: 4,
+    damage: dice(1, 6, 2),
+    xp: 50,
+    knockback: 12,
+    hurtMs: 260,
+    poisonTicks: 0,
+    // 0.8 of the speed of a player (80 px/s): a player that runs after one catches it.
+    patrol: { group: [2, 3], fleeSpeed: 64 },
+  },
 };
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
  * strikes, runs away after a hit (retreat), dies, reels from a blow that did not kill it (hurt),
- * rides another mob (ride: a goblin on a worg, protocol 27), or casts a rite (rite: the Devastator,
- * protocol 29). The order is the code on the wire.
+ * rides another mob (ride: a goblin on a worg, protocol 27), casts a rite (rite: the Devastator,
+ * protocol 29), stops short when it sees a player (startled: a patrol, protocol 36), or flees from
+ * the player (flee: a patrol, protocol 36). The order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite' | 'startled' | 'flee';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite', 'startled', 'flee'];
 
 export interface Mob {
   readonly id: number;
@@ -597,8 +642,11 @@ export function averageBlow(blow: Pick<Blow, 'damage'>): number {
 
 /** Where the mobs of a world may be, and how many there are. */
 export interface MobRules {
-  /** Whether a mob may live and wander on a tile: it spawns there and walks round there. */
-  roam(tx: number, ty: number): boolean;
+  /**
+   * Whether a mob may live and wander on a tile: it spawns there and walks round there. `kind`: the
+   * kind of the mob (a world keeps the goblins of a forest there, and the other kinds out of it).
+   */
+  roam(tx: number, ty: number, kind?: MobKind): boolean;
   /** Whether a mob may step on a tile while it chases a player or runs away (roam, or a little more). */
   hunt(tx: number, ty: number): boolean;
   /**
@@ -608,6 +656,11 @@ export interface MobRules {
   raid?(tx: number, ty: number): boolean;
   /** How many mobs of each kind live round each player (a kind without a number: none). */
   readonly population: Readonly<Partial<Record<MobKind, number>>>;
+  /**
+   * The population round a player that stands on this tile, in place of `population` (an area with
+   * mobs of its own: the goblins of the forest on the road to Ironhold, and no other kind there).
+   */
+  populationAt?(tx: number, ty: number): Readonly<Partial<Record<MobKind, number>>>;
 }
 
 /** A player as the horde sees it: an id, and its state (a hit changes the state: a stun). */
@@ -734,6 +787,19 @@ const OVERLAP_STEP = 0.2;
 const OVERLAP_MAX = 0.75;
 const PACK_RADIUS = 8 * TILE_SIZE;
 const TICK_MS = TICK_SECONDS * 1000;
+/** A patrol that sees a player stops short for this long (ms; a "!" over the heads), then flees or fights. */
+export const STARTLE_MS = 600;
+/** The members of a patrol within this distance of the one that saw the player startle with it (world pixels). */
+const GROUP_RANGE = 8 * TILE_SIZE;
+/** A fleeing mob this close to its player (world pixels, beyond its reach) is caught: it turns and fights. */
+const CATCH_MARGIN = 8;
+/** A fleeing mob that got away hides for this long (ms), and then goes back to its loop. */
+export const HIDE_MS = 10_000;
+/** The loop of a patrol: this many points round the place where its group comes, this far from it (tiles). */
+const PATROL_POINTS = 6;
+const PATROL_RADIUS = [3, 6] as const;
+/** The members of a patrol walk this far apart (world pixels). */
+const PATROL_GAP = 7;
 
 interface Brain {
   home: { readonly x: number; readonly y: number };
@@ -781,6 +847,15 @@ interface Brain {
   routeSpeed: number;
   /** The time until it may begin another rite (ms). */
   riteMs: number;
+  /** A patrol: its route is a loop (it starts again at its end), its group (0: none), and its place in the group (world pixels from the route). */
+  loop: boolean;
+  group: number;
+  slotX: number;
+  slotY: number;
+  /** A patrol that saw a player: it flees (true) or fights, after its startle. */
+  flee: boolean;
+  /** A patrol that got away: it hides this long more (ms), and stands still. */
+  hideMs: number;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -851,6 +926,7 @@ export class Horde {
   private readonly ground: SolidMap;
   private readonly raidGround: SolidMap;
   private nextId = 1;
+  private nextGroup = 1;
   private spawnMs = SPAWN_GAP_MS;
   /** The time of the horde (ms): the sum of its steps. */
   private clockMs = 0;
@@ -957,8 +1033,57 @@ export class Horde {
       routeIndex: 0,
       routeSpeed: 0,
       riteMs: 0,
+      loop: false,
+      group: 0,
+      slotX: 0,
+      slotY: 0,
+      flee: false,
+      hideMs: 0,
     });
     return mob;
+  }
+
+  /**
+   * Puts a patrol of `size` mobs of `kind` at (x, y): a group that walks a loop round that place
+   * (MobStats.patrol), each member a step from the others. Without room for a loop (too little open
+   * ground), they wander round the place as other mobs do.
+   */
+  spawnPatrol(kind: MobKind, x: number, y: number, size: number): Mob[] {
+    const loop = this.patrolLoop(kind, x, y);
+    const group = this.nextGroup++;
+    const members: Mob[] = [];
+    for (let i = 0; i < size; i++) {
+      const mob = this.spawn(kind, x, y);
+      const brain = this.brains.get(mob.id)!;
+      brain.group = group;
+      // The first one walks on the loop; the others a step to its sides and behind it.
+      const angle = i * 2.3;
+      brain.slotX = i === 0 ? 0 : Math.cos(angle) * PATROL_GAP;
+      brain.slotY = i === 0 ? 0 : Math.sin(angle) * PATROL_GAP * 0.7;
+      if (loop) {
+        brain.route = loop;
+        brain.loop = true;
+        brain.routeIndex = nearestPoint(loop, mob);
+        brain.routeSpeed = MOB_STATS[kind].wanderSpeed;
+      }
+      members.push(mob);
+    }
+    return members;
+  }
+
+  /** The loop of a patrol round (x, y): PATROL_POINTS open tiles round it, in order; null with fewer than 3. */
+  private patrolLoop(kind: MobKind, x: number, y: number): { x: number; y: number }[] | null {
+    const turn = this.random() * 2 * Math.PI;
+    const radius = this.between(PATROL_RADIUS[0], PATROL_RADIUS[1]) * TILE_SIZE;
+    const points: { x: number; y: number }[] = [];
+    for (let k = 0; k < PATROL_POINTS; k++) {
+      const angle = turn + (k / PATROL_POINTS) * 2 * Math.PI;
+      const r = radius * this.between(0.7, 1.15);
+      const tx = tileOf(x + Math.cos(angle) * r);
+      const ty = tileOf(y + Math.sin(angle) * r);
+      if (this.open(tx, ty, kind)) points.push({ x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 });
+    }
+    return points.length >= 3 ? points : null;
   }
 
   /**
@@ -1015,8 +1140,14 @@ export class Horde {
       switch (mob.state) {
         case 'idle':
         case 'walk':
-          if (!brain.route && this.despawn(mob, players)) break;
+          if ((!brain.route || brain.loop) && this.despawn(mob, players)) break;
           if (MOB_STATS[mob.kind].watch !== undefined && this.watched(mob, players)) break;
+          if (brain.hideMs > 0) {
+            // A patrol that got away hides: it stands still, and looks for nobody.
+            brain.hideMs -= dt;
+            if (mob.state !== 'idle') this.enter(mob, 'idle');
+            break;
+          }
           if (brain.restMs > 0) brain.restMs -= dt;
           else if (this.notice(mob, brain, players)) break;
           if (brain.route) this.marchOn(mob, brain, dt);
@@ -1074,6 +1205,12 @@ export class Horde {
           break;
         case 'rite':
           this.chant(mob, brain, byId, dt);
+          break;
+        case 'startled':
+          this.startled(mob, brain, byId, dt);
+          break;
+        case 'flee':
+          this.flee(mob, brain, byId, dt);
           break;
       }
     }
@@ -1191,7 +1328,8 @@ export class Horde {
     }
     // A rite whose last rune broke fails: the next one waits.
     if (mob.state === 'rite') brain.riteMs = MOB_STATS[mob.kind].rite?.cooldownMs ?? 0;
-    // It reels, its wind-up or blow broken, and turns on the one who hit it.
+    // It reels, its wind-up or blow broken, and turns on the one who hit it (a patrol that fled too).
+    brain.flee = false;
     if (attackerId !== undefined) brain.target = attackerId;
     brain.lostMs = 0;
     mob.facing = facingTo(-dx, -dy, mob.facing);
@@ -1338,6 +1476,10 @@ export class Horde {
       }
     }
     if (!best) return false;
+    if (MOB_STATS[mob.kind].patrol) {
+      this.startle(mob, best);
+      return true;
+    }
     brain.target = best.id;
     brain.seenX = best.state.x;
     brain.seenY = best.state.y;
@@ -1348,13 +1490,106 @@ export class Horde {
     return true;
   }
 
+  /**
+   * A patrol saw `player`: the mob and the members of its group near it (that walk or stand, and do
+   * not hide) stop short and look at the player (state 'startled'). Each one already knows what it
+   * does next: in a group at least one flees and at least one fights, the others as the dice fall; a
+   * mob alone flees or fights with one chance in two.
+   */
+  private startle(first: Mob, player: HordePlayer): void {
+    const group = this.brains.get(first.id)!.group;
+    const members = this.mobs.filter((m) => {
+      if (m === first) return true;
+      const b = this.brains.get(m.id)!;
+      return group !== 0 && b.group === group && (m.state === 'idle' || m.state === 'walk') && b.hideMs <= 0 && Math.hypot(m.x - first.x, m.y - first.y) <= GROUP_RANGE;
+    });
+    // A shuffle of the members, with the horde's numbers: the first `fleeing` of them flee.
+    for (let i = members.length - 1; i > 0; i--) {
+      const j = Math.floor(this.random() * (i + 1));
+      [members[i], members[j]] = [members[j]!, members[i]!];
+    }
+    const fleeing = members.length === 1 ? (this.random() < 0.5 ? 1 : 0) : 1 + Math.floor(this.random() * (members.length - 1));
+    members.forEach((m, i) => {
+      const b = this.brains.get(m.id)!;
+      b.flee = i < fleeing;
+      b.target = player.id;
+      b.seenX = player.state.x;
+      b.seenY = player.state.y;
+      b.lostMs = 0;
+      b.curve = this.newCurve();
+      b.queuedMs = this.clockMs + i;
+      b.timerMs = STARTLE_MS;
+      this.enter(m, 'startled');
+      m.facing = facingTo(player.state.x - m.x, player.state.y - m.y, m.facing);
+    });
+  }
+
+  /** The startle: it stands and looks at the player; then it flees or fights, as startle() chose. */
+  private startled(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    const target = brain.target === null ? undefined : players.get(brain.target);
+    if (!target) {
+      this.giveUp(mob, brain);
+      return;
+    }
+    mob.facing = facingTo(target.x - mob.x, target.y - mob.y, mob.facing);
+    brain.timerMs -= dt;
+    if (brain.timerMs > 0) return;
+    brain.curve = this.newCurve();
+    if (brain.flee) {
+      this.enter(mob, 'flee');
+      return;
+    }
+    brain.queuedMs = this.clockMs;
+    this.enter(mob, 'chase');
+  }
+
+  /**
+   * Flees from the player, slower than a player runs (MobStats.patrol). Caught (the player close) or
+   * cornered (stuck), it turns and fights; when it gets away (far, or out of sight for a moment), it
+   * hides for HIDE_MS, then goes back to its loop.
+   */
+  private flee(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    const stats = MOB_STATS[mob.kind];
+    const target = brain.target === null ? undefined : players.get(brain.target);
+    if (!target) {
+      this.hide(mob, brain);
+      return;
+    }
+    const d = Math.hypot(target.x - mob.x, target.y - mob.y);
+    if (this.sees(mob, target, stats.forget)) brain.lostMs = 0;
+    else brain.lostMs += dt;
+    if (d <= stats.reach + CATCH_MARGIN || brain.stuckMs > STUCK_MS) {
+      brain.flee = false;
+      brain.queuedMs = this.clockMs;
+      this.enter(mob, 'chase');
+      return;
+    }
+    if (d > stats.forget || brain.lostMs > MEMORY_MS) {
+      this.hide(mob, brain);
+      return;
+    }
+    const away = Math.atan2(mob.y - target.y, mob.x - target.x);
+    this.steer(mob, brain, away + brain.curve * 0.5, stats.patrol?.fleeSpeed ?? stats.retreatSpeed, dt);
+  }
+
+  /** A patrol that got away hides (HIDE_MS): it stands, looks for nobody, and then walks back to its loop. */
+  private hide(mob: Mob, brain: Brain): void {
+    brain.target = null;
+    brain.flee = false;
+    brain.hideMs = HIDE_MS;
+    brain.restMs = HIDE_MS;
+    brain.goal = null;
+    if (brain.route) brain.routeIndex = nearestPoint(brain.route, mob);
+    this.enter(mob, 'idle');
+  }
+
   private wander(mob: Mob, brain: Brain, dt: number, players: readonly HordePlayer[]): void {
     const stats = MOB_STATS[mob.kind];
     if (mob.state === 'idle') {
       brain.timerMs -= dt;
       if (brain.timerMs > 0) return;
-      if (this.random() < PROWL_CHANCE) this.prowl(brain, players);
-      brain.goal = this.wanderGoal(brain);
+      if (this.random() < PROWL_CHANCE) this.prowl(brain, players, mob.kind);
+      brain.goal = this.wanderGoal(brain, mob.kind);
       if (!brain.goal) {
         brain.timerMs = this.between(800, 2000);
         return;
@@ -1535,14 +1770,31 @@ export class Horde {
     brain.restMs = REST_MS;
     brain.goal = { x: brain.home.x, y: brain.home.y };
     brain.stuckMs = 0;
-    // A marching mob goes back to its route, from the point nearest to it.
-    if (brain.route) brain.routeIndex = Math.min(brain.routeIndex, nearestPoint(brain.route, mob));
+    // A marching mob goes back to its route, from the point nearest to it; a patrol to its loop.
+    if (brain.route) brain.routeIndex = brain.loop ? nearestPoint(brain.route, mob) : Math.min(brain.routeIndex, nearestPoint(brain.route, mob));
     this.enter(mob, 'walk');
   }
 
-  /** Walks the route on (Horde.march); at its end, it stands. */
+  /** Walks the route on (Horde.march); at its end, it stands. A patrol walks its loop round and round, in its place in the group. */
   private marchOn(mob: Mob, brain: Brain, dt: number): void {
     const route = brain.route!;
+    if (brain.loop) {
+      const point = (i: number) => ({ x: route[i]!.x + brain.slotX, y: route[i]!.y + brain.slotY });
+      // Something on the way (a tree): on to the next point.
+      if (brain.stuckMs > STUCK_MS) {
+        brain.routeIndex++;
+        brain.stuckMs = 0;
+        brain.anchorX = mob.x;
+        brain.anchorY = mob.y;
+      }
+      if (brain.routeIndex >= route.length) brain.routeIndex = 0;
+      if (Math.hypot(point(brain.routeIndex).x - mob.x, point(brain.routeIndex).y - mob.y) < ROUTE_REACH) brain.routeIndex = (brain.routeIndex + 1) % route.length;
+      brain.home = { x: mob.x, y: mob.y };
+      if (mob.state !== 'walk') this.enter(mob, 'walk');
+      const p = point(brain.routeIndex);
+      this.steer(mob, brain, Math.atan2(p.y - mob.y, p.x - mob.x), brain.routeSpeed, dt);
+      return;
+    }
     while (brain.routeIndex < route.length && Math.hypot(route[brain.routeIndex]!.x - mob.x, route[brain.routeIndex]!.y - mob.y) < ROUTE_REACH) brain.routeIndex++;
     brain.home = { x: mob.x, y: mob.y };
     // A watcher stands back from the end of the route, and watches.
@@ -1608,7 +1860,7 @@ export class Horde {
   private overlap(playerId: number, player: PlayerState): number {
     let pack = 0;
     for (const mob of this.mobs) {
-      if (mob.state === 'idle' || mob.state === 'walk' || mob.state === 'dying' || this.brains.get(mob.id)!.target !== playerId) continue;
+      if (mob.state === 'idle' || mob.state === 'walk' || mob.state === 'dying' || mob.state === 'flee' || this.brains.get(mob.id)!.target !== playerId) continue;
       if (Math.hypot(mob.x - player.x, mob.y - player.y) <= PACK_RADIUS) pack++;
     }
     if (pack < 2) return 0;
@@ -1647,7 +1899,8 @@ export class Horde {
    * to come back, or reel from its blow (Wisdom: the page marks those out of its view).
    */
   huntersOf(playerId: number): Mob[] {
-    return this.mobs.filter((mob) => this.hunts(mob, playerId));
+    // A patrol that flees does not hunt: no mark for it.
+    return this.mobs.filter((mob) => mob.state !== 'flee' && this.hunts(mob, playerId));
   }
 
   /** Whether the mob hunts the player `playerId` now (not when it wanders, or dies). */
@@ -1795,7 +2048,7 @@ export class Horde {
    * PROWL_NEAREST from the player. It searches at most PROWL_SEARCH tiles; without a way, it
    * takes a straight step if that one is open.
    */
-  private prowl(brain: Brain, players: readonly HordePlayer[]): void {
+  private prowl(brain: Brain, players: readonly HordePlayer[], kind: MobKind): void {
     let nearest: PlayerState | null = null;
     let best = POPULATION_RADIUS * TILE_SIZE;
     for (const p of players) {
@@ -1821,7 +2074,7 @@ export class Horde {
       }
       for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
         const k = key(nx, ny);
-        if (from.has(k) || !this.open(nx, ny)) continue;
+        if (from.has(k) || !this.open(nx, ny, kind)) continue;
         from.set(k, key(x, y));
         queue.push([nx, ny]);
       }
@@ -1836,27 +2089,30 @@ export class Horde {
     const step = Math.min(PROWL_STEP, best - PROWL_NEAREST);
     const x = brain.home.x + ((near.x - brain.home.x) / best) * step;
     const y = brain.home.y + ((near.y - brain.home.y) / best) * step;
-    if (this.open(tileOf(x), tileOf(y))) brain.home = { x, y };
+    if (this.open(tileOf(x), tileOf(y), kind)) brain.home = { x, y };
   }
 
   /** A place to walk to near home: an open tile where it may roam. */
-  private wanderGoal(brain: Brain): { x: number; y: number } | null {
+  private wanderGoal(brain: Brain, kind: MobKind): { x: number; y: number } | null {
     for (let tries = 0; tries < 8; tries++) {
       const angle = this.random() * 2 * Math.PI;
       const r = this.random() * WANDER_RADIUS;
       const x = brain.home.x + Math.cos(angle) * r;
       const y = brain.home.y + Math.sin(angle) * r;
-      if (this.open(tileOf(x), tileOf(y))) return { x: tileOf(x) * TILE_SIZE + TILE_SIZE / 2, y: tileOf(y) * TILE_SIZE + 12 };
+      if (this.open(tileOf(x), tileOf(y), kind)) return { x: tileOf(x) * TILE_SIZE + TILE_SIZE / 2, y: tileOf(y) * TILE_SIZE + 12 };
     }
     return null;
   }
 
-  /** A tile where a mob may stand still: roam ground, nothing solid on it. */
-  private open(tx: number, ty: number): boolean {
-    return this.rules.roam(tx, ty) && this.passable(tx, ty) && this.world.solidBox(tx, ty) === null;
+  /** A tile where a mob (of `kind`) may stand still: roam ground, nothing solid on it. */
+  private open(tx: number, ty: number, kind?: MobKind): boolean {
+    return this.rules.roam(tx, ty, kind) && this.passable(tx, ty) && this.world.solidBox(tx, ty) === null;
   }
 
-  /** Brings new mobs where players have fewer than the world wants, one at a time, out of their sight. */
+  /**
+   * Brings new mobs where players have fewer than the world wants (MobRules.populationAt where the
+   * player stands, else MobRules.population), one at a time (a patrol: one group), out of their sight.
+   */
   private populate(dt: number, players: readonly HordePlayer[]): void {
     this.spawnMs -= dt;
     if (this.spawnMs > 0 || players.length === 0) return;
@@ -1864,8 +2120,9 @@ export class Horde {
     if (this.living >= MAX_MOBS) return;
     let best: { player: PlayerState; kind: MobKind; short: number } | null = null;
     for (const p of players) {
+      const population = this.rules.populationAt?.(tileOf(p.state.x), tileOf(p.state.y)) ?? this.rules.population;
       for (const kind of MOB_KINDS) {
-        const want = this.rules.population[kind];
+        const want = population[kind];
         if (!want) continue;
         let have = 0;
         for (const mob of this.mobs) {
@@ -1880,11 +2137,13 @@ export class Horde {
       const r = this.between(SPAWN_DISTANCE[0], SPAWN_DISTANCE[1]) * TILE_SIZE;
       const tx = tileOf(best.player.x + Math.cos(angle) * r);
       const ty = tileOf(best.player.y + Math.sin(angle) * r);
-      if (!this.open(tx, ty)) continue;
+      if (!this.open(tx, ty, best.kind)) continue;
       const x = tx * TILE_SIZE + TILE_SIZE / 2;
       const y = ty * TILE_SIZE + 12;
       if (players.some((p) => Math.hypot(p.state.x - x, p.state.y - y) < SPAWN_DISTANCE[0] * TILE_SIZE)) continue;
-      this.spawn(best.kind, x, y);
+      const patrol = MOB_STATS[best.kind].patrol;
+      if (patrol) this.spawnPatrol(best.kind, x, y, Math.max(patrol.group[0], Math.min(patrol.group[1], best.short)));
+      else this.spawn(best.kind, x, y);
       return;
     }
   }

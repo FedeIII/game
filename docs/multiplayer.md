@@ -70,6 +70,13 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The goblins of the forest (protocol 36, 2026-10-13)
+
+- A new kind of mob, `skirmisher` (code 12 of `MOB_KINDS`), and two new states of a mob, `startled`
+  (code 10 of `MOB_STATES`) and `flee` (code 11): the goblins of the tutorial patrol, stop short when
+  they see a player, and flee or fight (`docs/features/game/combat.md`, REQ-CMB-009). `WireMob` does
+  not change; a page of protocol 35 would not know the codes.
+
 ## The dream of Verath (protocol 35, 2026-10-12)
 
 - No message changed. The beds where a character sleeps have a variant (the dream: a conversation),
