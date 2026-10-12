@@ -139,6 +139,29 @@ able to break it, so that the fight has a target.
 
 ---
 
+### REQ-CMB-008: The Ashen Seekers
+
+**User Story:** As a player who hunts the Ashen Seekers, I want their servants and their fighters to
+feel different from the hobgoblins, so that the new enemy is a mystery and a threat.
+
+**Acceptance Criteria:**
+- **AC-CMB-008.1:** The cinder hound (a wolf of the SRD: 13 hit points, AC 13, a bite +4, 2d4+2, 50 XP)
+  charges straight, as a worg does. Embers glow in its back.
+- **AC-CMB-008.2:** The watcher (a Seeker in a mask of bone) never hunts and never strikes. It goes in
+  ash when a character comes within 4 tiles of it, when a blow or an arrow reaches it, or when the
+  fighters of its ambush fell. It drops nothing, and it does not count for the size of an encounter
+  (0 XP). On a march, it stands 10 tiles before the end of the route.
+- **AC-CMB-008.3:** The blade (22 hit points, AC 13, +4, 1d6+2, 100 XP) fights as a soldier. The cinder
+  adept (13 hit points, AC 12, 100 XP) keeps away and casts a fire bolt (+4, 1d10) as a goblin shoots;
+  its bolts glow orange above the darkness.
+- **AC-CMB-008.4:** The Ash Warden (60 hit points, AC 15, +5, 1d8+3, 450 XP) casts the rite of the
+  Devastator for its blades. A blow that takes it to half of its hit points or under makes it go in
+  ash: it is gone, and nobody killed it.
+- **AC-CMB-008.5:** A mob that goes in ash does not fall: the page shows the figure where it stands,
+  thinning into rising ash.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Dice** (`packages/engine/src/dice.ts`): `Dice`, `dice()`, `plusDice()`, `formatDice()`,
@@ -172,3 +195,10 @@ able to break it, so that the fight has a target.
   `RUNE`, `BURN_EMBERS`); the art: `art/mobs.ts` (`DEVASTATOR`: a robe and a hood, a staff with an
   ember).
 - **Not yet**: class features of levels 1 to 3 (second wind, rage, smite, spells).
+- **The Ashen Seekers** (`packages/engine/src/mobs.ts`, story phases 7 to 9): the kinds `hound` (code
+  7), `watcher` (8), `seeker` (9), `adept` (10), `warden` (11); `MobStats.watch` (4 tiles),
+  `WATCH_BACK` (40 points of a route), `MobStats.vanishAt` (0.5), `Horde.vanish()`; `adjustedXp()`
+  counts only the mobs with XP (`encounters.ts`); `MOB_LOOT` (blades and adepts: coins and a draught or
+  an antidote now and then). The art: `art/mobs.ts` (`worg(pose, embers)`, the face `mask`, the weapon
+  `none`, the builds `SEEKER`, `WATCHER`, `ADEPT`, `WARDEN`); the page: `VANISH` in `render/mobs.ts`, the
+  fire bolts in `render/arrows.ts` (`ArrowLook.fire`, `FIRE_SHOOTERS` in `game.ts`). Protocol 33.

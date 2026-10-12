@@ -196,6 +196,8 @@ const GUEST_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1']);
 
 /** An attack (or a dodge) asked for this recently (ms) still starts when the player becomes able to. */
 const ATTACK_BUFFER_MS = 150;
+/** The mobs whose arrows are fire bolts (render/arrows.ts): the cinder adepts of the Ashen Seekers. */
+const FIRE_SHOOTERS: ReadonlySet<MobKind> = new Set(['adept']);
 /** While the player sneaks on purpose (a slow walk, or the sneak walk of C), its torch has this radius (LIGHTING.radii). */
 const SNEAK_TORCH = 96;
 /** The attack turns to a mob this much beyond the reach of the attack (world pixels). */
@@ -563,7 +565,7 @@ async function run(options: GameOptions): Promise<void> {
   const mobRules = params.has('nomobs') ? null : (world.source.mobs?.() ?? null);
   const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
   const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer) : null;
-  const arrowViews = mobRules ? new ArrowViews(art, entityLayer) : null;
+  const arrowViews = mobRules ? new ArrowViews(art, entityLayer, glowLayer) : null;
   // ?mob=imp,brute puts those mobs (any kinds of MOB_KINDS) near the player at the start, one tile
   // apart, 5 tiles to the east (for tests and for a look at them). Single-player worlds only.
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
@@ -1412,7 +1414,14 @@ async function run(options: GameOptions): Promise<void> {
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
     mobViews?.setReading(meetsGate(traits.scores, READ_FOE_GATE), meetsGate(traits.scores, READ_OPENING_GATE));
     mobViews?.update(mobsNow(), now, seconds);
-    arrowViews?.update([...(horde?.arrows ?? []), ...ownArrows, ...(net?.arrowsAt(now) ?? [])]);
+    // A cinder adept's bolt is fire (its shooter: the mob of a negative owner).
+    const kinds = new Map(mobsNow().map((m) => [m.id, m.kind]));
+    const fiery = (kind: MobKind | undefined) => kind !== undefined && FIRE_SHOOTERS.has(kind);
+    arrowViews?.update([
+      ...(horde?.arrows ?? []).map((a) => ({ ...a, fire: fiery(a.from) })),
+      ...ownArrows,
+      ...(net?.arrowsAt(now) ?? []).map((a) => ({ ...a, fire: a.owner < 0 && fiery(kinds.get(-a.owner)) })),
+    ]);
     // No attack from shallow water (stepPlayer).
     attackButton?.setReady(player.stun === 0 && !inShallows(world, player.x, player.y));
     dodgeButton?.setReady(canDodge(player) && !inShallows(world, player.x, player.y));

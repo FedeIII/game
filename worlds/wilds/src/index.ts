@@ -13,6 +13,7 @@ export { CARAVAN_MEET, CART_SAFE, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource } from 
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NPCS } from './silverspring.ts';
+export { SEEKER_CAMP_SITE, SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
@@ -25,6 +26,7 @@ export {
   KEEN_GATE,
   MERCHANT,
   MILITIA,
+  MIRA,
   MITHRIL_COST,
   MITHRIL_PRICE,
   PEDDLER,
@@ -42,6 +44,9 @@ export {
 } from './dialogs.ts';
 export {
   ASHES,
+  ASHES_HELD,
+  ASHES_LATE,
+  ASHES_NEXT,
   ASHES_SYMBOL,
   CARAVAN,
   CARAVAN_FINE,
@@ -62,6 +67,8 @@ export {
   HIMO_HOME,
   HIMO_LOST,
   HIMO_REWARD,
+  MIRA_STONE,
+  MIRA_STONE_AFTER,
   QUESTS,
   RAID,
   RAID_ARRIVED,
@@ -77,6 +84,7 @@ export {
   RUIN_MARROW,
   RUIN_TANNER,
   TELL_REEVE,
+  WREN_REWARD,
 } from './quests.ts';
 
 /** The seed of the wilds when the URL gives none. */
@@ -150,6 +158,7 @@ export const wilds: WorldDefinition = {
     'badger-fur': 'A thick grey fur from the packs of the hobgoblin scouts. Corwin, the peddler of Ironhold, buys it.',
     mithril: 'A nugget of mithril from the Silvervein, the river of Silverspring, light as a feather. The smith of Ironhold buys it.',
     'mithril-permit': 'The permit of Silverspring, sealed by Kasmut Parnika: the jeweller of Silverspring sells mithril at cost to its holder.',
+    'wave-stone': 'A flat stone from the pool of the Silvervein, carved with three waves. In the dark, the grooves hold a cold blue light.',
   },
   // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
   quests: QUESTS,

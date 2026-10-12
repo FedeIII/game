@@ -503,6 +503,12 @@ function permit(): Part[] {
   ];
 }
 
+/** The wave stone of the Wren homestead (story phase 7): a flat grey stone, carved with waves that hold a cold blue light. */
+function waveStone(): Part[] {
+  const groove = (x: number, y: number) => Math.abs((((y + Math.sin(x * 0.9) * 0.7) % 1.7) + 1.7) % 1.7 - 0.85) < 0.24;
+  return [{ sdf: displace(ellipsoid([0, 3, 0], [5, 3.4, 2.2]), 0.35, 0.8, 23), material: (x, y, z) => (z > 1.2 && groove(x, y) ? I.arcane : I.pewter) }];
+}
+
 /** The model of each kind of item (ITEM_KINDS). */
 const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['imp-horn', impHorn],
@@ -555,6 +561,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['badger-fur', badgerFur],
   ['mithril', mithril],
   ['mithril-permit', permit],
+  ['wave-stone', waveStone],
 ];
 
 export function itemFrames(): Frame[] {

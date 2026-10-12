@@ -69,6 +69,15 @@ import {
   WildsSource,
   inTown,
   wilds,
+  MIRA,
+  MIRA_STONE,
+  MIRA_STONE_AFTER,
+  ASHES_NEXT,
+  SEEKER_CAMP_SITE,
+  SEEKER_TRAIL,
+  WREN,
+  WREN_GATE,
+  WREN_REWARD,
 } from '../src/index.ts';
 
 const source = new WildsSource(DEFAULT_SEED);
@@ -111,6 +120,7 @@ describe('the quests of the Wilds', () => {
     expect(checkQuestDefs(QUESTS)).toEqual([]);
     const { effects, conditions, dialogs } = contentOfTheWilds();
     expect(effects.map((e) => e.id).sort()).toEqual([
+      'ashes-next',
       'ashes-symbol',
       'ashes-symbol',
       'caravan-fine',
@@ -122,6 +132,8 @@ describe('the quests of the Wilds', () => {
       'cart-lift',
       'cart-mend',
       'himo-free',
+      'mira-stone',
+      'mira-stone-after',
       'raid-asked',
       'raid-asked',
       'raid-title',
@@ -747,5 +759,107 @@ describe('the caravan of Silverspring', () => {
     goTo(p, 'innkeeper');
     room.deal(p.id, { npc: npcIndex('innkeeper') }, 'ale');
     expect(p.pack.coins).toBeLessThan(100 - CARAVAN_FINE_COINS);
+  });
+});
+
+describe('the Wren homestead', () => {
+  const middle = [(WREN.x0 + WREN.x1 + 1) / 2, (WREN.y0 + WREN.y1 + 1) / 2] as const;
+  const at = (id: string) => ASHES.steps.find((s) => s.id === id)!.at;
+
+  it('stands whole by the pool of the Silvervein, with Mira Wren, and a burned trail leads east to the camp of the Seekers', () => {
+    const world = new World(source);
+    // The map marks the homestead for `next` and `stone`, and the camp of the Seekers for `held` and `late`.
+    expect(at('next')).toEqual([Math.floor(middle[0]), Math.floor(middle[1])]);
+    expect(at('stone')).toEqual(at('next'));
+    expect(at('held')).toEqual([SEEKER_CAMP_SITE.tx, SEEKER_CAMP_SITE.ty]);
+    expect(at('late')).toEqual(at('held'));
+    const [house] = WREN.buildings;
+    expect(house!.locked).toBeUndefined();
+    expect(house!.style?.roof).not.toBe('none');
+    for (let ty = WREN.y0; ty <= WREN.y1; ty++) for (let tx = WREN.x0; tx <= WREN.x1; tx++) expect(world.ground(tx, ty), `${tx},${ty}`).not.toBe(Ground.Water);
+    const mira = source.npcs()[npcIndex('mira')]!;
+    expect(WREN.has(mira.home[0], mira.home[1])).toBe(true);
+    expect(mira.content.dialog).toBe(MIRA);
+    // The trail: from the yard to the west edge of the camp, open all the way.
+    expect(SEEKER_TRAIL.on(WREN_GATE[0] + 1, WREN_GATE[1])).toBe(true);
+    expect(SEEKER_TRAIL.on(SEEKER_CAMP_SITE.tx - 8, SEEKER_CAMP_SITE.ty)).toBe(true);
+    for (const [x, y] of SEEKER_TRAIL.points) expect(world.solidBox(Math.floor(x), Math.floor(y)), `${x},${y}`).toBeNull();
+  });
+
+  it('is next after the priest connects the clues', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('priest'));
+    p.quests = { ashes: { step: 'symbol', flags: [], n: 6 } };
+    const priest = source.npcs()[npcIndex('priest')]!.content.dialog!;
+    expect(startNode(priest, p.quests, p.pack)).toBe('pattern');
+    room.tick(0);
+    goTo(p, 'priest');
+    expect(room.quest(p.id, { npc: npcIndex('priest') }, ASHES_NEXT.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('next');
+  });
+
+  it('races a character at `next`: Mira gives the stone, the hounds come, and when they fall the watcher goes in ash and Mira pays', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('mira'));
+    p.quests = { ashes: { step: 'next', flags: [], n: 7 } };
+    p.state.hp = 10_000;
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    // Alone: two hounds and the watcher, at the camp end of the trail, far from the house.
+    const band = horde.mobs.filter((m) => m.story);
+    expect(band.map((m) => m.kind).sort()).toEqual(['hound', 'hound', 'watcher']);
+    for (const mob of band) expect(Math.hypot(mob.x / TILE_SIZE - middle[0], mob.y / TILE_SIZE - middle[1])).toBeGreaterThan(30);
+    goTo(p, 'mira');
+    expect(startNode(MIRA, p.quests, p.pack)).toBe('warn');
+    expect(room.quest(p.id, { npc: npcIndex('mira') }, MIRA_STONE.id, 0)).toBe(true);
+    expect(p.quests.ashes?.step).toBe('stone');
+    expect(p.pack.items).toEqual([{ kind: 'wave-stone', count: 1 }]);
+    // The hounds come on; the watcher stops short of the house.
+    let t = 100;
+    for (; t < 40_000; t += 50) room.tick(t);
+    const watcher = horde.mobs.find((m) => m.kind === 'watcher')!;
+    expect(Math.hypot(watcher.x / TILE_SIZE - middle[0], watcher.y / TILE_SIZE - middle[1])).toBeGreaterThan(8);
+    expect(p.quests.ashes?.step).toBe('stone');
+    for (const mob of horde.mobs.filter((m) => m.kind === 'hound')) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, p.id);
+    }
+    for (let end = t + 4000; t < end && p.quests.ashes?.step === 'stone'; t += 50) room.tick(t);
+    expect(p.quests.ashes?.step).toBe('held');
+    expect(horde.mobs.some((m) => m.story)).toBe(false);
+    expect(p.pack.coins).toBe(WREN_REWARD);
+    expect(startNode(MIRA, p.quests, p.pack)).toBe('thanks');
+  }, 60_000);
+
+  it('comes too late for a character that does not hurry: the hounds reach the door, the Seekers take the stone, and they go', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, { x: (WREN.x0 - 20) * TILE_SIZE, y: middle[1] * TILE_SIZE });
+    p.quests = { ashes: { step: 'next', flags: [], n: 7 } };
+    room.tick(0);
+    room.tick(50);
+    const horde = room.horde!;
+    expect(horde.mobs.filter((m) => m.story).length).toBe(3);
+    // The character goes far to the west, out of the race.
+    Object.assign(p.state, { x: (WREN.x0 - 60) * TILE_SIZE, y: middle[1] * TILE_SIZE });
+    let t = 100;
+    for (; t < 60_000 && p.quests.ashes?.step === 'next'; t += 50) room.tick(t);
+    expect(p.quests.ashes?.step).toBe('late');
+    room.tick(t + 50);
+    expect(horde.mobs.some((m) => m.story)).toBe(false);
+    expect(startNode(MIRA, p.quests, p.pack)).toBe('taken');
+  }, 60_000);
+
+  it('gives the stone after the fight to a character who fought the hounds before it warned Mira', () => {
+    const room = new Room(new World(source), { dice: AVERAGE_DICE });
+    const p = join(room, besideNpc('mira'));
+    p.quests = { ashes: { step: 'held', flags: [], n: 9 } };
+    room.tick(0);
+    goTo(p, 'mira');
+    const thanks = MIRA.nodes.thanks!.answers.find((a) => a.next === 'after')!;
+    expect(thanks.when).toEqual({ has: 'wave-stone', not: true });
+    expect(room.quest(p.id, { npc: npcIndex('mira') }, MIRA_STONE_AFTER.id, 0)).toBe(true);
+    expect(p.pack.items).toEqual([{ kind: 'wave-stone', count: 1 }]);
+    expect(p.quests.ashes?.step).toBe('held');
   });
 });

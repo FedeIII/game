@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_SYMBOL, CARAVAN_FINE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
+import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, MIRA_STONE, MIRA_STONE_AFTER, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -1018,7 +1018,10 @@ export const JEWELLER: Dialog = {
 export const PRIEST: Dialog = {
   name: 'The priest',
   start: 'peace',
-  starts: [{ when: { quest: 'ashes', at: ['ruins'] }, node: 'troubled' }],
+  starts: [
+    { when: { quest: 'ashes', at: ['ruins'] }, node: 'troubled' },
+    { when: { quest: 'ashes', at: ['symbol'] }, node: 'pattern' },
+  ],
   nodes: {
     peace: {
       say: 'Peace to you, traveller. The candles of this chapel have burned for a hundred years.',
@@ -1043,6 +1046,79 @@ export const PRIEST: Dialog = {
     seekers: {
       say: 'In a margin, a later hand wrote: "those who seek in the ashes". Heretics, the book says. It does not say what they seek.',
       answers: [{ text: 'Thank you, Father.' }],
+    },
+    // The race to the Wren homestead (story phase 7): the priest connects the clues.
+    pattern: {
+      say: 'You came back. The phoenix still troubles you?',
+      answers: [{ text: 'The Seekers take old things from each house before they burn it.', next: 'river', effect: ASHES_NEXT }, { text: 'Not now, Father.' }],
+    },
+    river: {
+      say: "Old things... Old Hale's father found his black stone in the ruins by the Silvervein. One family lives by that water now: the Wrens, at its pool. Their children bring me carved stones.",
+      answers: [{ text: 'What do the carvings mean?', next: 'waves', gate: LORE_GATE }, { text: 'Then the Wrens are next. I must go.' }],
+    },
+    waves: {
+      say: 'Waves. The old books draw them so for Tigris, the goddess of the rivers, from before this chapel had a name. Go quickly, traveller.',
+      answers: [{ text: 'I will.' }],
+    },
+  },
+};
+
+// ---------------------------------------------------------------- the Wren homestead (story phase 7)
+
+/**
+ * Mira Wren, of the homestead by the pool of the Silvervein (wren.ts). A character who warns her
+ * gets the wave stone (MIRA_STONE); after the fight with the cinder hounds she thanks it, and gives
+ * the stone to one who has none.
+ */
+export const MIRA: Dialog = {
+  name: 'Mira Wren',
+  start: 'hello',
+  starts: [
+    { when: { quest: 'ashes', at: ['next'] }, node: 'warn' },
+    { when: { quest: 'ashes', at: ['stone'] }, node: 'go' },
+    { when: { quest: 'ashes', at: ['held'] }, node: 'thanks' },
+    { when: { quest: 'ashes', at: ['late'] }, node: 'taken' },
+  ],
+  nodes: {
+    hello: {
+      say: 'A traveller, so far from the road? Mind the pool. It is deeper than it looks.',
+      answers: [{ text: 'Who lives here?', next: 'family' }, { text: 'What are the old stones round the pool?', next: 'stones' }, BYE],
+    },
+    family: {
+      say: 'Mira Wren, and my two children. My man died two winters ago. We fish, we keep goats, and nobody bothers us.',
+      answers: [{ text: 'What are the old stones round the pool?', next: 'stones' }, BYE],
+    },
+    stones: {
+      say: 'Older than Silverspring, older than anybody knows. The children dig carved stones out of the mud there. Silverspring says that they are worth nothing.',
+      answers: [BYE],
+    },
+    warn: {
+      say: 'A traveller, so far from the road? You are out of breath. What is it?',
+      answers: [{ text: 'The Ashen Seekers come for your old stones. They burn houses.', next: 'stone' }, BYE],
+    },
+    stone: {
+      say: 'The carved stone? Then let them have it! ...No. They burn the houses that they search. Take it. Take it far away from my children.',
+      answers: [{ text: 'I will take it. Hide with your children.', next: 'hide', effect: MIRA_STONE }, { text: 'Keep it hidden, then.' }],
+    },
+    hide: {
+      say: 'The cellar. We hide in the cellar. Go!',
+      answers: [{ text: 'Go.' }],
+    },
+    go: {
+      say: 'Why are you still here? Something howls in the woods to the east!',
+      answers: [{ text: 'I will deal with it.' }],
+    },
+    thanks: {
+      say: 'The beasts are ash, and my house stands. And the woman in the mask... she looked at me. As if she knew me.',
+      answers: [{ text: 'Do you still have the carved stone?', next: 'after', when: { has: 'wave-stone', not: true } }, BYE],
+    },
+    after: {
+      say: 'Here. Take it far away from us. I never want to see it again.',
+      answers: [{ text: 'Thank you.', effect: MIRA_STONE_AFTER }, { text: 'Keep it, then.' }],
+    },
+    taken: {
+      say: 'They came like smoke: dogs of ash, and a woman in a mask of bone. I hid with the children in the cellar. They took the carved stone, only the stone, and went east on the burned trail.',
+      answers: [{ text: 'I will get it back.' }],
     },
   },
 };

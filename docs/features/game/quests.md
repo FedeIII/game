@@ -435,6 +435,33 @@ that my choice has a price.
 
 ---
 
+### REQ-QST-022: The race to the Wren homestead
+
+**User Story:** As a player who knows the sign of the phoenix, I want to find where the Seekers strike
+next and to get there first, so that I can stop one fire.
+
+**Acceptance Criteria:**
+- **AC-QST-022.1:** At `symbol`, the map marks the priest of Ironhold, and he starts at `pattern`. "The
+  Seekers take old things from each house before they burn it." moves the quest to `next`: the Wrens,
+  by the pool of the Silvervein, keep carved stones. With INT 13, the character learns that the
+  carvings are the waves of Tigris.
+- **AC-QST-022.2:** At `next` or `stone`, a character within 32 tiles of the middle of the Wren
+  homestead starts the race: cinder hounds and a watcher of the Seekers march from the east end of the
+  burned trail (about 47 tiles from the door) at 32 px/s, along the trail and the yard path to the door.
+  Alone, a character meets two hounds; two characters meet six (encounters.ts; the watcher does not
+  count). While the race runs, Mira Wren takes shelter in her house.
+- **AC-QST-022.3:** Mira gives the wave stone to a character at `next` who warns her (`stone`).
+- **AC-QST-022.4:** When a hound comes to the door and a character of the party is still at `next`, the
+  Seekers take the stone: that character goes to `late`, and the hounds and the watcher go. If nobody of
+  the party is at `next`, the hounds stay and fight.
+- **AC-QST-022.5:** When the hounds fall, the watcher goes in ash, and the characters of the party at
+  `next` or `stone` go to `held` (12 coins and a draught). Mira gives the stone to a character at
+  `held` who has none.
+- **AC-QST-022.6:** At `held` and `late`, the map marks the camp of the Seekers at the east end of the
+  trail (236, -100).
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
@@ -544,6 +571,16 @@ that my choice has a price.
   `CARAVAN_WAGON`, `CLAN_UNITS`, `NOT_AT_THE_CARAVAN`); `WAGON_DRIVER`; the refusals (`Dialog.refuse`,
   `REFUSE`, `wanted()` in `dialogs.ts`) and the starts `fine` of `REEVE` and `KASMUT`. The guards:
   `docs/features/npcs/guards.md`.
+- **The Wren homestead** (`worlds/wilds/src/wren.ts`, story phase 7): `WREN` (13 x 11 tiles at (176,
+  -108), in `CLEARINGS`), the house `wren-house` (planks and thatch), Mira Wren (`WREN_NPCS`, look
+  `survivor`, the dialog `MIRA`; the last NPC of the list), `WREN_GATE`, `SEEKER_TRAIL` (a `Road` to
+  `SEEKER_CAMP_SITE`, one of the roads of `WildsSource`), the steps `next`, `stone`, `held`, `late`, the
+  effects `ASHES_NEXT` (the node `pattern` of `PRIEST`), `MIRA_STONE`, `ASHES_HELD` (`WREN_REWARD` 12),
+  `ASHES_LATE`, `MIRA_STONE_AFTER`; the item `wave-stone`; the ambush `cinders` of
+  `WildsSource.ambushes()` (`HOUND_UNITS`, `RACE_RADIUS` 32, `RACE_SPEED` 32). The engine:
+  `AmbushDef.shelter` (NPCs that take shelter, with no raid), a march whose `arrive` applies to nobody
+  stays, and the watchers of an ambush go in ash when its fighters fell (`Horde.vanish()`); the mobs:
+  `docs/features/game/combat.md`, REQ-CMB-008.
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
   `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and

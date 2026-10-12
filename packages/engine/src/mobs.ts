@@ -31,10 +31,14 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * The kinds of mobs. The order is the code on the wire: add a kind at the end. The hobgoblin band
  * (story phase 3, chapter 1.5.1 of Kandrax): the goblin (an archer), the worg (a wolf that
  * charges), the hobgoblin (a soldier) and the bugbear (the brute of the band); and the leader of
- * its war band, the Hobgoblin Devastator, a caster (story phase 4b: its rite, Rite).
+ * its war band, the Hobgoblin Devastator, a caster (story phase 4b: its rite, Rite). The Ashen
+ * Seekers (story phases 7 to 9, docs/drafts/story-arcane-raiders.md): the cinder hound (a dog of
+ * ash that charges), the watcher (a Seeker that never fights: MobStats.watch), the blade (a
+ * soldier), the cinder adept (it casts fire bolts as an archer shoots) and the Ash Warden (a
+ * caster that goes in ash at half of its hit points: MobStats.vanishAt).
  */
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator';
-export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden';
+export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden'];
 
 /**
  * The rite of the Hobgoblin Devastator (chapter 1.5.1: "Arma Elemental de Área", a spell of 4 turns
@@ -119,7 +123,18 @@ export interface MobStats {
   readonly straight?: boolean;
   /** A caster's rite (the Hobgoblin Devastator). */
   readonly rite?: Rite;
+  /**
+   * A watcher (the Seekers that watch from the trees): it never hunts and never strikes. A player this
+   * close to it (world pixels), or a blow that reaches it, and it goes in ash (Horde.vanish). On a
+   * march it stays WATCH_BACK points of the route behind the end.
+   */
+  readonly watch?: number;
+  /** A blow that takes its hit points to this share of MobStats.health or under makes it go in ash, not reel (the Ash Warden). */
+  readonly vanishAt?: number;
 }
+
+/** A watcher on a march stands this many points of its route before the end (Road: 4 points for each tile). */
+export const WATCH_BACK = 40;
 
 /**
  * The small, quick imp and the big, slow brute, and the hobgoblin band. The player walks at 80
@@ -336,6 +351,161 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     poisonTicks: 0,
     // 15 m in the chapter (10 tiles); 8 tiles in the game, so that the circle fits the screen.
     rite: { ms: 6000, radius: 128, runes: 3, allies: ['hobgoblin', 'bugbear'], burnMs: 30_000, cooldownMs: 15_000 },
+  },
+  // A dog of the Ashen Seekers, grey as ash, with embers in its cracks: a wolf of the SRD (AC 13,
+  // 11 hit points, a bite +4, 2d4+2), a little tougher. It charges straight, as the worg does.
+  hound: {
+    wanderSpeed: 32,
+    chaseSpeed: 108,
+    retreatSpeed: 90,
+    sight: 140,
+    forget: 230,
+    reach: 26,
+    hitRange: 32,
+    windupMs: 360,
+    strikeMs: 300,
+    windupSpeed: 0,
+    lunge: 16,
+    stunTicks: 60,
+    retreatMs: [900, 1500],
+    harass: [42, 56],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 850,
+    health: 13,
+    ac: 13,
+    toHit: 4,
+    damage: dice(2, 4, 2),
+    xp: 50,
+    knockback: 12,
+    hurtMs: 260,
+    poisonTicks: 0,
+    straight: true,
+  },
+  // A Seeker that watches from the trees (a woman in a mask of bone, Mira Wren says). It does not fight.
+  watcher: {
+    wanderSpeed: 24,
+    chaseSpeed: 0,
+    retreatSpeed: 0,
+    sight: 0,
+    forget: 0,
+    reach: 0,
+    hitRange: 0,
+    windupMs: 0,
+    strikeMs: 0,
+    windupSpeed: 0,
+    lunge: 0,
+    stunTicks: 0,
+    retreatMs: [0, 0],
+    harass: [0, 0],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 900,
+    health: 9,
+    ac: 12,
+    toHit: 0,
+    damage: dice(0, 0),
+    xp: 0,
+    knockback: 0,
+    hurtMs: 0,
+    poisonTicks: 0,
+    watch: 4 * TILE_SIZE,
+  },
+  // A blade of the Ashen Seekers: a fighter in a robe of ash and a mask of bone, with a scimitar. Between
+  // a thug and a bandit captain of the SRD (AC 13, 22 hit points, +4, 1d6+2).
+  seeker: {
+    wanderSpeed: 24,
+    chaseSpeed: 66,
+    retreatSpeed: 54,
+    sight: 125,
+    forget: 210,
+    reach: 17,
+    hitRange: 24,
+    windupMs: 420,
+    strikeMs: 280,
+    windupSpeed: 34,
+    lunge: 6,
+    stunTicks: 80,
+    retreatMs: [1000, 1600],
+    harass: [40, 54],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 1000,
+    health: 22,
+    ac: 13,
+    toHit: 4,
+    damage: dice(1, 6, 2),
+    xp: 100,
+    knockback: 12,
+    hurtMs: 260,
+    poisonTicks: 0,
+  },
+  // A cinder adept: a caster of the Seekers. It keeps away and casts a fire bolt (5e: +4, 1d10), as a
+  // goblin shoots an arrow. An acolyte of the SRD (AC 12, 13 hit points) with the cantrip.
+  adept: {
+    wanderSpeed: 22,
+    chaseSpeed: 62,
+    retreatSpeed: 72,
+    sight: 150,
+    forget: 230,
+    reach: 110,
+    hitRange: 0,
+    windupMs: 900,
+    strikeMs: 280,
+    windupSpeed: 0,
+    lunge: 0,
+    stunTicks: 40,
+    retreatMs: [1000, 1700],
+    harass: [110, 130],
+    radius: 7,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 1000,
+    health: 13,
+    ac: 12,
+    toHit: 4,
+    damage: dice(1, 10),
+    xp: 100,
+    knockback: 12,
+    hurtMs: 260,
+    poisonTicks: 0,
+    arrowRange: 160,
+  },
+  // The Ash Warden, a lieutenant of Verath: a tall Seeker with a crest of bone and a long blade. It
+  // casts the rite of the Devastator for its blades, and at half of its hit points it goes in ash. As
+  // a CR 2 of the SRD (AC 15, 60 hit points, +5, 1d8+3).
+  warden: {
+    wanderSpeed: 24,
+    chaseSpeed: 60,
+    retreatSpeed: 50,
+    sight: 140,
+    forget: 230,
+    reach: 20,
+    hitRange: 27,
+    windupMs: 500,
+    strikeMs: 320,
+    windupSpeed: 26,
+    lunge: 7,
+    stunTicks: 100,
+    retreatMs: [1100, 1700],
+    harass: [50, 66],
+    radius: 9,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 1100,
+    health: 60,
+    ac: 15,
+    toHit: 5,
+    damage: dice(1, 8, 3),
+    xp: 450,
+    knockback: 8,
+    hurtMs: 200,
+    poisonTicks: 0,
+    rite: { ms: 6000, radius: 128, runes: 3, allies: ['seeker'], burnMs: 30_000, cooldownMs: 15_000 },
+    vanishAt: 0.5,
   },
 };
 
@@ -846,6 +1016,7 @@ export class Horde {
         case 'idle':
         case 'walk':
           if (!brain.route && this.despawn(mob, players)) break;
+          if (MOB_STATS[mob.kind].watch !== undefined && this.watched(mob, players)) break;
           if (brain.restMs > 0) brain.restMs -= dt;
           else if (this.notice(mob, brain, players)) break;
           if (brain.route) this.marchOn(mob, brain, dt);
@@ -978,6 +1149,13 @@ export class Horde {
       brain.home = { x: mob.x, y: mob.y };
       this.enter(mob, 'idle');
     }
+    // A watcher does not stay for a blow: it goes in ash.
+    if (MOB_STATS[mob.kind].watch !== undefined) {
+      const damage = mob.health;
+      mob.health = 0;
+      this.vanish(mob.id);
+      return { mob, damage, crit: false };
+    }
     const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
     const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
     if (damage === 0) {
@@ -999,6 +1177,11 @@ export class Horde {
     if (mob.health <= 0) {
       this.enter(mob, 'dying');
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
+      return { mob, damage, crit };
+    }
+    // The Ash Warden: hurt to half, it goes in ash (its health stays: it is not dead).
+    if (stats.vanishAt !== undefined && mob.health <= stats.health * stats.vanishAt) {
+      this.vanish(mob.id);
       return { mob, damage, crit };
     }
     // In a rite, a hit breaks one rune: the rite goes on while runes are left, else it fails.
@@ -1121,8 +1304,29 @@ export class Horde {
     }
   }
 
+  /** A watcher that a player came close to goes in ash. Returns whether it went. */
+  private watched(mob: Mob, players: readonly HordePlayer[]): boolean {
+    const near = MOB_STATS[mob.kind].watch!;
+    if (!players.some((p) => !p.quarry && p.state.down === 0 && Math.hypot(p.state.x - mob.x, p.state.y - mob.y) <= near)) return false;
+    this.vanish(mob.id);
+    return true;
+  }
+
+  /**
+   * A mob goes in ash (a watcher, the Ash Warden at half of its hit points, a watcher whose band fell):
+   * it is `dying` at once, with no drop and nobody's kill, and then it is gone.
+   */
+  vanish(id: number): void {
+    const mob = this.mobs.find((m) => m.id === id);
+    if (!mob || mob.state === 'dying') return;
+    this.enter(mob, 'dying');
+    const brain = this.brains.get(id);
+    if (brain) brain.push = 0;
+  }
+
   /** Looks for a player to hunt: the nearest one that it sees. Returns whether it found one. */
   private notice(mob: Mob, brain: Brain, players: readonly HordePlayer[]): boolean {
+    if (MOB_STATS[mob.kind].watch !== undefined) return false;
     let best: HordePlayer | null = null;
     let bestD = Infinity;
     for (const p of players) {
@@ -1341,7 +1545,9 @@ export class Horde {
     const route = brain.route!;
     while (brain.routeIndex < route.length && Math.hypot(route[brain.routeIndex]!.x - mob.x, route[brain.routeIndex]!.y - mob.y) < ROUTE_REACH) brain.routeIndex++;
     brain.home = { x: mob.x, y: mob.y };
-    if (brain.routeIndex >= route.length) {
+    // A watcher stands back from the end of the route, and watches.
+    const end = MOB_STATS[mob.kind].watch !== undefined ? Math.max(0, route.length - WATCH_BACK) : route.length;
+    if (brain.routeIndex >= end) {
       if (mob.state !== 'idle') this.enter(mob, 'idle');
       brain.timerMs = 1000;
       return;

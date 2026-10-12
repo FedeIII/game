@@ -1,6 +1,6 @@
 import { TILE_SIZE } from './constants.ts';
 import { sizeEncounter } from './encounters.ts';
-import type { Horde, Mob, MobKind, MobState } from './mobs.ts';
+import { MOB_STATS, type Horde, type Mob, type MobKind, type MobState } from './mobs.ts';
 import { canApply, holds, type Conditions, type QuestBook, type QuestEffect } from './quests.ts';
 import type { Pack } from './items.ts';
 import type { PlayerState } from './player.ts';
@@ -17,6 +17,10 @@ import type { World } from './world.ts';
  * A band that marches (`march`, the war band of story phase 4b) starts at the beginning of a route
  * and walks it (Horde.march); its mobs never go away. If one of them comes to the end of the route,
  * the band is in: the march ends with `arrive` for the characters of the party, and the band goes.
+ * If `arrive` applies to none of them (they moved on), the band stays and fights.
+ *
+ * A watcher of a band (MobStats.watch: the Seekers that watch from the trees) never fights: when the
+ * other mobs of its ambush fell, it goes in ash, and that counts as its fall.
  */
 
 /** A mob of an ambush; it rides the mob at index `rides` of the whole list (its mount), in seat `seat` (0 in front), until the pair hunts. */
@@ -50,6 +54,8 @@ export interface AmbushDef {
    * MobRules.raid), and the NPCs with these ids take shelter while it runs (NpcCrowd.setAlarm).
    */
   readonly raid?: { readonly shelter: readonly string[] };
+  /** The NPCs with these ids take shelter while it runs (NpcCrowd.setAlarm), as in a raid, but its mobs stay out of the towns (Mira Wren). */
+  readonly shelter?: readonly string[];
 }
 
 /** How the mobs of a marching band stand in their column: this many points of the route apart (Road: 4 points for each tile). */
@@ -93,7 +99,7 @@ export class Ambushes {
 
   /** The ids of the NPCs that take shelter now: those of the raids that run. */
   get sheltered(): Set<string> {
-    return new Set(this.running.flatMap((r) => r.def.raid?.shelter ?? []));
+    return new Set(this.running.flatMap((r) => [...(r.def.raid?.shelter ?? []), ...(r.def.shelter ?? [])]));
   }
 
   /**
@@ -105,24 +111,32 @@ export class Ambushes {
     // An ambush that ends now does not start again in this step: its effects are not applied yet.
     const ended = new Set<AmbushDef>();
     for (const run of [...this.running]) {
-      // A band that came to the end of its route: it goes, and the party gets `arrive`.
+      // A band that came to the end of its route: it goes, and the party gets `arrive`. When `arrive`
+      // applies to nobody of the party (they moved on: the race of the Wren homestead), it stays and fights.
       const arrive = run.def.march?.arrive;
       if (arrive && run.mobs.some((id) => horde.arrived(id) && horde.mobs.some((m) => m.id === id && m.state !== 'dying'))) {
-        this.running.splice(this.running.indexOf(run), 1);
-        ended.add(run.def);
-        horde.dismiss(run.mobs);
-        for (const p of players) if (run.players.has(p.id) && holds(run.def.when, p.quests, p.pack) && canApply(arrive, p.quests, p.pack)) out.push({ player: p.id, effect: arrive });
-        continue;
+        const late = players.filter((p) => run.players.has(p.id) && holds(run.def.when, p.quests, p.pack) && canApply(arrive, p.quests, p.pack));
+        if (late.length > 0) {
+          this.running.splice(this.running.indexOf(run), 1);
+          ended.add(run.def);
+          horde.dismiss(run.mobs);
+          for (const p of late) out.push({ player: p.id, effect: arrive });
+          continue;
+        }
       }
       let alive = 0;
+      let fighters = 0;
       let fled = false;
       for (const id of run.mobs) {
         const mob = horde.mobs.find((m) => m.id === id);
         if (mob) {
           run.last.set(id, mob.state);
           alive++;
+          if (mob.state !== 'dying' && MOB_STATS[mob.kind].watch === undefined) fighters++;
         } else if (run.last.get(id) !== 'dying') fled = true;
       }
+      // The fighters fell: the watchers of the band go in ash (their going counts as a fall).
+      if (fighters === 0) for (const id of run.mobs) if (horde.mobs.some((m) => m.id === id && m.state !== 'dying')) horde.vanish(id);
       if (alive > 0) continue;
       this.running.splice(this.running.indexOf(run), 1);
       ended.add(run.def);

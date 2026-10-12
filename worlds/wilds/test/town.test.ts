@@ -157,7 +157,7 @@ describe('Ironhold', () => {
   it('comes first in the list of NPCs: then the merchant on the road, the people of Silverspring and the survivors of the burned homesteads', () => {
     // The order is the code of each NPC on the wire.
     expect(source.npcs().slice(0, TOWN_NPCS.length)).toEqual(TOWN_NPCS);
-    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id), 'hale-survivor', 'tanner-survivor']);
+    expect(source.npcs().slice(TOWN_NPCS.length).map((n) => n.id)).toEqual(['merchant', ...SILVERSPRING_NPCS.map((n) => n.id), 'hale-survivor', 'tanner-survivor', 'mira']);
   });
 });
 

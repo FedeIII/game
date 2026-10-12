@@ -4,7 +4,10 @@
  * band (2026-10-11): the goblin (a small archer with a short bow), the worg (a big black wolf), the
  * hobgoblin (a soldier in a helm and scale, with a sword and a shield) and the bugbear (big and
  * hairy, with a spiked mace); the leader of the war band, the Hobgoblin Devastator (story phase 4b:
- * a hobgoblin in a hooded robe, with a staff and an ember at its top). All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
+ * a hobgoblin in a hooded robe, with a staff and an ember at its top). The Ashen Seekers (story phases
+ * 7 to 9): the cinder hound (a grey dog with embers in its back), and the Seekers in robes of ash with
+ * masks of bone and the red phoenix on the brow: the watcher (no weapon), the blade (a sword), the
+ * cinder adept (a staff with an ember) and the Ash Warden (taller, with a crest of bone). All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
  * blow and a death. Their eyes glow: the build lists the eye pixels of each frame
  * (meta.mobEyes), and the game draws them above the darkness.
  *
@@ -17,8 +20,8 @@ import { ellipsoid, roundCone, sphere, type Material, type Part, type Sdf, type 
 import { renderModel, type RenderInfo } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator';
-const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden';
+const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden'];
 
 /** Material slots of a mob. */
 const MM = { hide: 0, belly: 1, horn: 2, claw: 3, eye: 4, mouth: 5, cloth: 6, wood: 7, metal: 8, wing: 9 } as const;
@@ -47,13 +50,31 @@ export const MOB_FRAMES: Readonly<Record<MobKind, { width: number; height: numbe
   hobgoblin: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
   bugbear: { width: 68, height: 76, pivotX: 34, pivotY: 62 },
   devastator: { width: 56, height: 68, pivotX: 28, pivotY: 52 },
+  hound: { width: 52, height: 44, pivotX: 26, pivotY: 34 },
+  watcher: { width: 48, height: 60, pivotX: 24, pivotY: 48 },
+  seeker: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
+  adept: { width: 56, height: 68, pivotX: 28, pivotY: 52 },
+  warden: { width: 64, height: 72, pivotX: 32, pivotY: 56 },
 };
 
 /** Frames of each animation. */
 export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6 } as const;
 
 /** The colour of the glow of the eyes, for the game. */
-export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30, devastator: 0xff7a2a };
+export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = {
+  imp: 0xffa040,
+  brute: 0xff4a2a,
+  goblin: 0xffd040,
+  worg: 0xffe27a,
+  hobgoblin: 0xff6a20,
+  bugbear: 0xff8a30,
+  devastator: 0xff7a2a,
+  hound: 0xff7a2a,
+  watcher: 0xff9a40,
+  seeker: 0xff8a30,
+  adept: 0xffb050,
+  warden: 0xff5a20,
+};
 
 const PALETTES: Readonly<Record<MobKind, Material[]>> = {
   imp: materials({
@@ -145,6 +166,71 @@ const PALETTES: Readonly<Record<MobKind, Material[]>> = {
     wood: ramp('#1a120a', '#2e2012', '#44301b', '#5c4226', '#765632', '#8e6a3e'),
     metal: ramp('#0e1013', '#1b1e24', '#2c3139', '#424955', '#5d6674', '#7e8896'),
     wing: ramp('#2a0a0e', '#4a1218', '#6a1c22', '#86262c'),
+  }),
+  // The cinder hound: grey as cold ash, darker on the belly, with embers (the eye material) in its back.
+  hound: materials({
+    hide: ramp('#0e0d0d', '#1a1817', '#262321', '#34302d', '#433e3a', '#544e49'),
+    belly: ramp('#0a0909', '#141211', '#1e1b19', '#2a2623'),
+    horn: ramp('#2a261e', '#4a4436', '#6e6652'),
+    claw: ramp('#16130f', '#332d24', '#554c3d'),
+    eye: ramp('#ff5a14', '#ff8a30', '#ffc070'),
+    mouth: ramp('#070203', '#1c0605', '#3a0e08'),
+    cloth: ramp('#0b0806', '#170f0a', '#24180f'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12'),
+    metal: ramp('#0f1115', '#1d2027', '#30353e'),
+    wing: ramp('#0a0405', '#160809', '#240d0e'),
+  }),
+  // A watcher of the Seekers: a robe of charcoal, a sash of dark red, a mask of bone.
+  watcher: materials({
+    hide: ramp('#140c08', '#24160e', '#382316', '#4c301f', '#603e28'),
+    belly: ramp('#1a100b', '#2a1a12', '#3e281b'),
+    horn: ramp('#2e2a24', '#56503f', '#847b66', '#b0a78e', '#d2c9ae'),
+    claw: ramp('#16130f', '#332d24', '#554c3d'),
+    eye: ramp('#ff6a1a', '#ffa03a', '#ffd27a'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#070707', '#0f0e0e', '#191717', '#242120', '#302c2a', '#3c3734'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12'),
+    metal: ramp('#0e1013', '#1b1e24', '#2c3139', '#424955'),
+    wing: ramp('#1e0608', '#360c0e', '#521416', '#6c1c1c'),
+  }),
+  // A blade of the Seekers: a robe of ash grey, a sash of rust red, a mask of bone, a bright blade.
+  seeker: materials({
+    hide: ramp('#140c08', '#24160e', '#382316', '#4c301f', '#603e28'),
+    belly: ramp('#1a100b', '#2a1a12', '#3e281b'),
+    horn: ramp('#2e2a24', '#56503f', '#847b66', '#b0a78e', '#d2c9ae'),
+    claw: ramp('#16130f', '#332d24', '#554c3d'),
+    eye: ramp('#ff6a1a', '#ffa03a', '#ffd27a'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#0c0b0b', '#181615', '#252220', '#34302d', '#443f3b', '#554f4a'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12', '#3a2819'),
+    metal: ramp('#0e1013', '#1b1e24', '#2c3139', '#424955', '#5d6674', '#8a94a2'),
+    wing: ramp('#240a06', '#40120a', '#5e1c0e', '#7a2812'),
+  }),
+  // A cinder adept: the robe of a blade, a staff of black wood, and an ember at its top.
+  adept: materials({
+    hide: ramp('#140c08', '#24160e', '#382316', '#4c301f', '#603e28'),
+    belly: ramp('#1a100b', '#2a1a12', '#3e281b'),
+    horn: ramp('#2e2a24', '#56503f', '#847b66', '#b0a78e', '#d2c9ae'),
+    claw: ramp('#16130f', '#332d24', '#554c3d'),
+    eye: ramp('#ff7a1a', '#ffb03a', '#ffe08a'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#0e0c0b', '#1b1816', '#2a2522', '#3a3430', '#4b443f'),
+    wood: ramp('#070605', '#100d0b', '#1a1512', '#251e19'),
+    metal: ramp('#0e1013', '#1b1e24', '#2c3139', '#424955'),
+    wing: ramp('#2e0c04', '#521a08', '#76280c', '#9a3a12'),
+  }),
+  // The Ash Warden: a robe of black, a mantle of crimson, a mask and a crest of bone.
+  warden: materials({
+    hide: ramp('#140c08', '#24160e', '#382316', '#4c301f', '#603e28'),
+    belly: ramp('#1a100b', '#2a1a12', '#3e281b'),
+    horn: ramp('#2e2a24', '#56503f', '#847b66', '#b0a78e', '#d2c9ae', '#e8e0c8'),
+    claw: ramp('#16130f', '#332d24', '#554c3d'),
+    eye: ramp('#ff3a10', '#ff6a20', '#ffa060'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#050505', '#0b0a0a', '#131111', '#1c1919', '#262222'),
+    wood: ramp('#0e0906', '#1b120c', '#2a1c12'),
+    metal: ramp('#0c0d10', '#181a1f', '#272b32', '#3b414b', '#565e6a', '#7c8592'),
+    wing: ramp('#1c0204', '#380608', '#580c0e', '#781414', '#962020'),
   }),
 };
 
@@ -420,12 +506,12 @@ interface Build {
   readonly limb: number;
   /** The radius of the head, and its kind: big ears (goblin), a heavy jaw (hobgoblin), a bear's snout (bugbear). */
   readonly head: number;
-  readonly face: 'goblin' | 'hobgoblin' | 'bugbear';
+  readonly face: 'goblin' | 'hobgoblin' | 'bugbear' | 'mask';
   /** The length of the arms, as a share of the length of the legs. */
   readonly arms: number;
   /** A hunch: the chest forward of the hips (model pixels). */
   readonly hunch: number;
-  readonly weapon: 'bow' | 'sword' | 'mace' | 'staff';
+  readonly weapon: 'bow' | 'sword' | 'mace' | 'staff' | 'none';
   readonly shield?: boolean;
   /** A helm and a coat of scale (the hobgoblin). */
   readonly armour?: boolean;
@@ -433,12 +519,18 @@ interface Build {
   readonly fur?: boolean;
   /** A long robe to the feet, and a hood in place of the helm (the Devastator). */
   readonly robe?: boolean;
+  /** A crest of bone on the mask, swept back as the wings of a phoenix (the Ash Warden). */
+  readonly crest?: boolean;
 }
 
 const GOBLIN: Build = { hip: 6.6, chest: 10.4, shoulders: 2.1, limb: 0.75, head: 2.3, face: 'goblin', arms: 1.0, hunch: 1.0, weapon: 'bow' };
 const HOBGOBLIN: Build = { hip: 10.2, chest: 16.4, shoulders: 3.6, limb: 1.15, head: 2.4, face: 'hobgoblin', arms: 0.95, hunch: 0.2, weapon: 'sword', shield: true, armour: true };
 const BUGBEAR: Build = { hip: 12.0, chest: 19.6, shoulders: 4.9, limb: 1.7, head: 3.0, face: 'bugbear', arms: 1.15, hunch: 1.4, weapon: 'mace', fur: true };
 const DEVASTATOR: Build = { hip: 10.0, chest: 16.0, shoulders: 3.4, limb: 1.1, head: 2.4, face: 'hobgoblin', arms: 0.95, hunch: 0.6, weapon: 'staff', robe: true };
+const SEEKER: Build = { hip: 10.0, chest: 15.8, shoulders: 3.3, limb: 1.05, head: 2.3, face: 'mask', arms: 0.95, hunch: 0.3, weapon: 'sword', robe: true };
+const WATCHER: Build = { hip: 9.8, chest: 15.4, shoulders: 3.0, limb: 0.95, head: 2.2, face: 'mask', arms: 0.95, hunch: 0.1, weapon: 'none', robe: true };
+const ADEPT: Build = { ...SEEKER, hunch: 0.5, weapon: 'staff' };
+const WARDEN: Build = { hip: 10.6, chest: 17.0, shoulders: 3.7, limb: 1.15, head: 2.4, face: 'mask', arms: 1.0, hunch: 0.2, weapon: 'sword', robe: true, crest: true };
 
 /**
  * A humanoid of the hobgoblin band. The legs walk as the imp's do; the arms rest, wind up and
@@ -476,7 +568,7 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike);
   const pelvis = up([0, b.hip + 0.6 + bob, 0]);
   const chest = up([0, b.chest + bob - 0.2 * strike, lean]);
-  const torso = b.armour ? MM.metal : b.weapon === 'bow' ? MM.cloth : MM.hide;
+  const torso = b.armour ? MM.metal : b.weapon === 'bow' || b.face === 'mask' ? MM.cloth : MM.hide;
   m.cone(pelvis, chest, b.shoulders * 0.75, b.shoulders * 0.95, torso);
   m.ellipsoid(add(mix(pelvis, chest, 0.25), [0, 0, 0.2]), [b.shoulders * 0.85, b.limb * 1.2, b.shoulders * 0.6], b.armour ? MM.cloth : MM.cloth);
   if (b.armour) {
@@ -520,6 +612,17 @@ function humanoid(pose: MobPose, b: Build): Part[] {
       m.ellipsoid(add(head, [0, b.head * 0.35, -0.1]), [b.head * 1.08, b.head * 0.75, b.head * 1.08], MM.metal);
       m.ellipsoid(add(head, [0, b.head * 1.05, -0.3]), [0.35, b.head * 0.45, b.head * 0.95], MM.cloth);
       for (const side of [-1, 1]) m.ellipsoid(add(head, [side * b.head * 0.85, -b.head * 0.25, 0.3]), [0.3, b.head * 0.6, b.head * 0.55], MM.metal);
+    }
+  } else if (b.face === 'mask') {
+    // A deep hood, and in it a mask of bone with ember eyes and the red phoenix on its brow.
+    m.ellipsoid(add(head, [0, b.head * 0.3, -0.5]), [b.head * 1.2, b.head * 1.1, b.head * 1.05], MM.cloth);
+    m.cone(add(head, [0, b.head * 0.9, -0.9]), add(head, [0, b.head * 1.5, -2.2]), b.head * 0.5, 0.2, MM.cloth);
+    m.ellipsoid(add(head, [0, -b.head * 0.1, b.head * 0.72]), [b.head * 0.78, b.head * 0.95, b.head * 0.42], MM.horn);
+    for (const side of [-1, 1]) m.sphere(add(head, [side * 0.75, 0.15, b.head * 1.02]), 0.36, eye);
+    for (const side of [-1, 1]) m.cone(add(head, [0, b.head * 0.42, b.head * 1.1]), add(head, [side * 0.9, b.head * 0.8, b.head * 1.0]), 0.22, 0.08, MM.wing);
+    if (b.crest) {
+      // The crest: three blades of bone from the brow, up and back, as wings that rise.
+      for (const side of [-1, 0, 1]) m.cone(add(head, [side * 0.7, b.head * 0.7, b.head * 0.6]), add(head, [side * 2.2, b.head * 2.1, -b.head * 0.6]), 0.45, 0.08, MM.horn);
     }
   } else {
     // A bear's head: a broad snout with a dark nose, small round ears, shaggy cheeks.
@@ -578,7 +681,9 @@ function humanoid(pose: MobPose, b: Build): Part[] {
 
   const grip = hands[1]!;
   const off = hands[-1]!;
-  if (b.weapon === 'bow') {
+  if (b.weapon === 'none') {
+    // No weapon: the hands rest in the sleeves.
+  } else if (b.weapon === 'bow') {
     // A short bow, upright in the left hand, its string to the right hand while it draws.
     const top = add(off, [0, 5.2, -0.9]);
     const bottom = add(off, [0, -5.2, -0.9]);
@@ -635,7 +740,7 @@ function humanoid(pose: MobPose, b: Build): Part[] {
  * walk in a trot; in the wind-up it crouches with its head low; in the blow it leaps with its jaws
  * open and its front legs out.
  */
-function worg(pose: MobPose): Part[] {
+function worg(pose: MobPose, embers = false): Part[] {
   const m = new Model();
   const { phase, walk, windup, strike } = pose;
   const kneel = Math.min(1, pose.death / 0.35);
@@ -676,6 +781,14 @@ function worg(pose: MobPose): Part[] {
     m.sphere(add(head, [side * 0.85, 0.55, 1.45]), 0.4, pose.death > 0.2 ? MM.mouth : MM.eye);
     m.cone(add(head, [side * 1.0, 1.4, -0.2]), add(head, [side * 1.3, 3.1 - 0.8 * crouch, -0.8 - 0.8 * crouch]), 0.65, 0.1, MM.hide);
   }
+  if (embers) {
+    // The cinder hound: embers in the cracks of its back and its flanks (they glow as eyes do).
+    // On the surface of the body (a cone of radius 2.6 at the back to 3.4 at the front).
+    for (const [t, a] of [[0.12, 0], [0.35, 0.5], [0.55, -0.45], [0.8, 0.1], [0.45, 1.35], [0.25, -1.4]] as const) {
+      const r = 2.6 + 0.8 * t;
+      m.sphere(add(mix(back, front, t), [Math.sin(a) * r, Math.cos(a) * r, 0]), 0.5, MM.eye);
+    }
+  }
   // The tail: out behind, down in the crouch, up in the leap.
   const tail0 = add(back, [0, 0.6, -2.2]);
   const sway = 0.8 * walk * Math.sin(phase * 2);
@@ -693,6 +806,11 @@ const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = {
   hobgoblin: (pose) => scaled(humanoid(pose, HOBGOBLIN), 1.1),
   bugbear: (pose) => scaled(humanoid(pose, BUGBEAR), 1.15),
   devastator: (pose) => scaled(humanoid(pose, DEVASTATOR), 1.12),
+  hound: (pose) => scaled(worg(pose, true), 1.05),
+  watcher: (pose) => scaled(humanoid(pose, WATCHER), 1.1),
+  seeker: (pose) => scaled(humanoid(pose, SEEKER), 1.1),
+  adept: (pose) => scaled(humanoid(pose, ADEPT), 1.1),
+  warden: (pose) => scaled(humanoid(pose, WARDEN), 1.18),
 };
 
 /** The model of a kind in a pose, with the death's fall. */
@@ -701,7 +819,7 @@ export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   const d = pose.death;
   if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, kind === 'imp' || kind === 'goblin' ? -1.5 : -2);
   if (d <= 0) return parts;
-  if (kind === 'worg') {
+  if (kind === 'worg' || kind === 'hound') {
     // Down on its legs (in the model), then over on its side.
     const fall = Math.max(0, (d - 0.3) / 0.7);
     return tilt(parts, 0, 1.4 * fall * fall, 2.2 * Math.max(0, (d - 0.7) / 0.3), 0);
@@ -728,7 +846,20 @@ export function mobPoses(): { name: string; pose: MobPose }[] {
 }
 
 /** The size of the shadow of each kind (pixels). */
-const SHADOWS: Readonly<Record<MobKind, readonly [number, number]>> = { imp: [14, 6], brute: [28, 9], goblin: [14, 6], worg: [30, 9], hobgoblin: [20, 7], bugbear: [28, 9], devastator: [20, 7] };
+const SHADOWS: Readonly<Record<MobKind, readonly [number, number]>> = {
+  imp: [14, 6],
+  brute: [28, 9],
+  goblin: [14, 6],
+  worg: [30, 9],
+  hobgoblin: [20, 7],
+  bugbear: [28, 9],
+  devastator: [20, 7],
+  hound: [24, 8],
+  watcher: [18, 7],
+  seeker: [20, 7],
+  adept: [20, 7],
+  warden: [22, 8],
+};
 
 /**
  * The frames of the mobs, `mob/<kind>/<view>/<pose>` (stand, walk/i, windup/i, strike/i, hurt,

@@ -33,18 +33,22 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
-import { CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { ASHES_HELD, ASHES_LATE, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, homeRoad, northRoad, signpost } from './road.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
+import { SEEKER_TRAIL, WREN, WREN_GATE, WREN_NPCS } from './wren.ts';
 
 /** The fixed towns of the Wilds: Ironhold (town.ts) and Silverspring (silverspring.ts). No mob comes into them. */
 const TOWNS: readonly Town[] = [IRONHOLD, SILVERSPRING];
-/** The places in a clearing of the woods, where mobs go as in the woods: the camp of the war band (camp.ts) and the burned homesteads (ruins.ts). */
-const CLEARINGS: readonly Town[] = [CAMP, ...RUINS];
+/**
+ * The places in a clearing of the woods, where mobs go as in the woods: the camp of the war band
+ * (camp.ts), the burned homesteads (ruins.ts) and the Wren homestead (wren.ts).
+ */
+const CLEARINGS: readonly Town[] = [CAMP, ...RUINS, WREN];
 /** Every fixed place of the Wilds. */
 const PLACES: readonly Town[] = [...TOWNS, ...CLEARINGS];
 
@@ -220,6 +224,22 @@ const CAMP_CLEARING = 2;
 /** The raid on Silverspring starts for a character at the step this close to the town (tiles); the band marches this many tiles up the main street. */
 const RAID_MARGIN = 6;
 const RAID_STREET = 20;
+/**
+ * The race to the Wren homestead (story phase 7): the cinder hounds of the Ashen Seekers, in pairs, and
+ * a watcher behind them that never fights. Alone, a character meets two hounds; two characters meet
+ * six; more meet more (encounters.ts).
+ */
+const HOUND_UNITS: readonly (readonly AmbushMember[])[] = [
+  [{ kind: 'hound' }, { kind: 'hound' }, { kind: 'watcher' }],
+  [{ kind: 'hound' }, { kind: 'hound' }],
+  [{ kind: 'hound' }, { kind: 'hound' }],
+  [{ kind: 'hound' }, { kind: 'hound' }],
+  [{ kind: 'hound' }, { kind: 'hound' }],
+  [{ kind: 'hound' }, { kind: 'hound' }],
+];
+/** The race starts for a character at the step this close to the middle of the Wren homestead (tiles); the hounds march at this pace (px/s). */
+const RACE_RADIUS = 32;
+const RACE_SPEED = 32;
 /** Himo, the scout of Ironhold (5e: a scout, 16 hit points, AC 13): he dies if he falls. */
 const HIMO = { id: 'himo', name: 'Himo', look: 'scout', hp: 16, ac: 13, fallen: 'gone' } as const;
 
@@ -291,9 +311,9 @@ export class WildsSource implements WorldSource {
     return this.trailOf;
   }
 
-  /** The roads: to Ironhold, to Silverspring, and the trail to the camp. */
+  /** The roads: to Ironhold, to Silverspring, the trail to the camp, and the burned trail of the Seekers (wren.ts). */
   private get roads(): readonly Road[] {
-    return [this.road, this.north, this.trail];
+    return [this.road, this.north, this.trail, SEEKER_TRAIL];
   }
 
   /** The grove on the north road, where the scouts of the hobgoblins wait (road.ts). */
@@ -452,7 +472,7 @@ export class WildsSource implements WorldSource {
           continue;
         }
         const house = houses.find((h) => nearHouse(h, tx, ty));
-        const onRoad = road.on(tx, ty) || north.on(tx, ty) || trail.on(tx, ty);
+        const onRoad = road.on(tx, ty) || north.on(tx, ty) || trail.on(tx, ty) || SEEKER_TRAIL.on(tx, ty);
         if (!house && !onRoad && grove.has(tx, ty)) {
           // The grove: trees close on both sides of the north road, right to its edge.
           const natural = naturalGround(this.seed, tx, ty);
@@ -462,7 +482,7 @@ export class WildsSource implements WorldSource {
           chunk.decor[index] = naturalDecor(this.seed, tx, ty, ground, GROVE_THRESHOLD);
           continue;
         }
-        if (!house && (road.clear(tx, ty) || north.clear(tx, ty) || trail.clear(tx, ty))) {
+        if (!house && (road.clear(tx, ty) || north.clear(tx, ty) || trail.clear(tx, ty) || SEEKER_TRAIL.clear(tx, ty))) {
           // A road: mud (over water too), and nothing grows on it or close to it.
           const natural = naturalGround(this.seed, tx, ty);
           const ground = onRoad ? Ground.Dirt : isWet(natural) ? Ground.Sand : natural;
@@ -640,7 +660,7 @@ export class WildsSource implements WorldSource {
         content: { speaker: 'fixture', dialog: MERCHANT },
         barks: ['A long road, and a bad one.', 'Ironhold, then Silverspring. Then home.', 'Who walks there? A friend, I hope.'],
       };
-      this.npcList = [...TOWN_NPCS, merchant, ...SILVERSPRING_NPCS, ...RUIN_NPCS];
+      this.npcList = [...TOWN_NPCS, merchant, ...SILVERSPRING_NPCS, ...RUIN_NPCS, ...WREN_NPCS];
     }
     return this.npcList;
   }
@@ -682,7 +702,23 @@ export class WildsSource implements WorldSource {
         march: { route: Array.from({ length: (RAID_STREET + 3) * 4 + 1 }, (_, i) => [s.x0 - 3 + i / 4 + 0.5, s.y0 + 10.5] as const), speed: BAND_SPEED },
         raid: { shelter: SILVERSPRING_NPCS.map((n) => n.id) },
       };
-      this.ambushList = [scouts, band, raid];
+      // The race to the Wren homestead (story phase 7): the cinder hounds march from the camp of the
+      // Seekers, west on their burned trail and up the yard path to the door of the house.
+      const [wx, wy] = WREN_GATE;
+      const door = WREN.at(5, 7);
+      const yard = Array.from({ length: (wx - door[0]) * 4 + 1 }, (_, i) => [wx + 0.5 - i / 4, wy + 0.5] as const);
+      const [cx, cy] = [(WREN.x0 + WREN.x1 + 1) / 2, (WREN.y0 + WREN.y1 + 1) / 2];
+      const cinders: AmbushDef = {
+        id: 'cinders',
+        inArea: (tx, ty) => Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) <= RACE_RADIUS && !townAt(tx, ty),
+        when: { quest: 'ashes', at: ['next', 'stone'] },
+        from: [],
+        units: HOUND_UNITS,
+        effect: ASHES_HELD,
+        march: { route: [...[...SEEKER_TRAIL.points].reverse(), ...yard], speed: RACE_SPEED, arrive: ASHES_LATE },
+        shelter: WREN_NPCS.map((n) => n.id),
+      };
+      this.ambushList = [scouts, band, raid, cinders];
     }
     return this.ambushList;
   }

@@ -967,6 +967,13 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **The Silvervein** (`worlds/wilds/src/river.ts`, 2026-10-12): the river of Silverspring (el río Vena de
   Plata), from a spring 34 tiles north of the town, across the town (its map's channel), to a pool 50
   tiles south. Water, shallows, and a bank with no tree, house or herb.
+- **The Arcane Raiders** (story phases 7 to 13, `docs/drafts/story-arcane-raiders.md`, 2026-10-12): the
+  end of chapter 1 (the rest of `ashes`) and chapter 2. Phase 7: **the Wren homestead** (`wren.ts`, by
+  the pool of the Silvervein; Mira Wren); the priest sends a character at `symbol` there (`next`), and
+  the cinder hounds of the Ashen Seekers race it from the east on the burned trail (`SEEKER_TRAIL`; the
+  ambush `cinders`). New mob kinds: `hound`, `watcher` (never fights, goes in ash), `seeker`, `adept`
+  (fire bolts), `warden` (goes in ash at half health). `?at=182,-101` starts in the yard of the
+  homestead.
 - **The atlas has pages** (2026-10-12): `art/build.ts` packs the frames into pages of at most 2048 x
   2048 (16-bit GPUs: `atlas.png`, `atlas-1.png`, ...; each frame has its `page` in `atlas.json`), and
   `loadArt()` (`src/assets.ts`) loads them all. `ATLAS_PAGE=1024 npm run art` builds small pages, to

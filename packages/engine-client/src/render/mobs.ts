@@ -27,7 +27,7 @@ const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
 /** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
 const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
-const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29 };
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29, hound: 17, watcher: 28, seeker: 28, adept: 27, warden: 33 };
 
 /** From the feet to the top of the head of a mob of this kind (world pixels): numbers and bars go over it. */
 export function mobHead(kind: MobKind): number {
@@ -35,9 +35,22 @@ export function mobHead(kind: MobKind): number {
 }
 
 /** World pixels of travel for each walk frame. */
-const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4 };
+const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4, hound: 6, watcher: 4, seeker: 4, adept: 4, warden: 4 };
 /** The glow of the eyes, above the darkness. */
-const EYE_GLOW: Readonly<Record<MobKind, number>> = { imp: 0xffa040, brute: 0xff4a2a, goblin: 0xffd040, worg: 0xffe27a, hobgoblin: 0xff6a20, bugbear: 0xff8a30, devastator: 0xff7a2a };
+const EYE_GLOW: Readonly<Record<MobKind, number>> = {
+  imp: 0xffa040,
+  brute: 0xff4a2a,
+  goblin: 0xffd040,
+  worg: 0xffe27a,
+  hobgoblin: 0xff6a20,
+  bugbear: 0xff8a30,
+  devastator: 0xff7a2a,
+  hound: 0xff7a2a,
+  watcher: 0xff9a40,
+  seeker: 0xff8a30,
+  adept: 0xffb050,
+  warden: 0xff5a20,
+};
 /** The ash of a death: how tall and wide the body is (world pixels), and how many motes rise from it. */
 const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly width: number; readonly count: number }>> = {
   imp: { height: 14, width: 8, count: 14 },
@@ -47,7 +60,15 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
   hobgoblin: { height: 24, width: 12, count: 20 },
   bugbear: { height: 32, width: 16, count: 28 },
   devastator: { height: 26, width: 12, count: 24 },
+  hound: { height: 12, width: 18, count: 22 },
+  watcher: { height: 26, width: 10, count: 44 },
+  seeker: { height: 26, width: 12, count: 28 },
+  adept: { height: 26, width: 12, count: 28 },
+  warden: { height: 30, width: 14, count: 60 },
 };
+/** The kinds that go in ash (Horde.vanish): no fall, the body thins into ash over this share of its death. */
+const VANISH: ReadonlySet<MobKind> = new Set(['watcher', 'warden']);
+const VANISH_SHARE = 0.7;
 /**
  * The circle of a rite on the ground (Rite): RING_DOTS points that light up round it as the rite
  * goes on, and its runes, lit while they are whole and dark when a blow broke them.
@@ -244,9 +265,15 @@ export class MobViews {
         break;
       case 'dying': {
         const t = mob.stateMs / stats.deathMs;
-        name = 'die';
-        index = Math.floor((t / DIE_FRAMES_SHARE) * 6);
-        alpha = t < FADE_FROM ? 1 : Math.max(0, 1 - (t - FADE_FROM) / (1 - FADE_FROM));
+        if (VANISH.has(mob.kind)) {
+          // It goes in ash where it stands: no fall, only the ash.
+          name = 'stand';
+          alpha = Math.max(0, 1 - t / VANISH_SHARE);
+        } else {
+          name = 'die';
+          index = Math.floor((t / DIE_FRAMES_SHARE) * 6);
+          alpha = t < FADE_FROM ? 1 : Math.max(0, 1 - (t - FADE_FROM) / (1 - FADE_FROM));
+        }
         if (view.diedAt === null) {
           view.diedAt = now - mob.stateMs;
           this.ash(mob);

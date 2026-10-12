@@ -64,6 +64,8 @@ export const ITEM_KINDS = [
   // Silverspring (story phase 4d): a nugget of mithril, and the permit that lets a character buy it at cost.
   'mithril',
   'mithril-permit',
+  // The Ashen Seekers (story phase 7): the carved stone of the Wren homestead, the key of the shrine of Tigris.
+  'wave-stone',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -108,6 +110,7 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'badger-fur': 5,
   mithril: 10,
   'mithril-permit': 1,
+  'wave-stone': 1,
 };
 
 /**
@@ -362,6 +365,24 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
       { chance: 1, pick: [['splint-armour', 1]] },
     ],
   },
+  // The Ashen Seekers (story phases 7 to 9): the hounds and the watchers carry nothing; the Ash Warden
+  // never dies (it goes in ash at half of its hit points).
+  hound: {},
+  watcher: {},
+  seeker: { coins: [3, 8], items: [{ chance: 0.2, pick: [['draught', 1]] }] },
+  adept: {
+    coins: [2, 7],
+    items: [
+      {
+        chance: 0.25,
+        pick: [
+          ['draught', 1],
+          ['antidote', 1],
+        ],
+      },
+    ],
+  },
+  warden: {},
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */

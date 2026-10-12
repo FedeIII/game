@@ -22,9 +22,13 @@ export function xpMultiplier(monsters: number): number {
   return 4;
 }
 
-/** The adjusted XP of a group of monsters (5e): the sum of their XP times the multiplier for their number. */
+/**
+ * The adjusted XP of a group of monsters (5e): the sum of their XP times the multiplier for their
+ * number. A monster without XP (a watcher of the Seekers, which never fights) does not count.
+ */
 export function adjustedXp(kinds: readonly MobKind[]): number {
-  return kinds.reduce((sum, kind) => sum + MOB_STATS[kind].xp, 0) * xpMultiplier(kinds.length);
+  const fighters = kinds.filter((kind) => MOB_STATS[kind].xp > 0);
+  return fighters.reduce((sum, kind) => sum + MOB_STATS[kind].xp, 0) * xpMultiplier(fighters.length);
 }
 
 /** A unit of an encounter: monsters that come together (a worg and its goblin). */

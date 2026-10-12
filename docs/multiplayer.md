@@ -70,6 +70,14 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The Ashen Seekers (protocol 33, 2026-10-12)
+
+- Five new kinds of mob (`MOB_KINDS`, codes 7 to 11): `hound`, `watcher`, `seeker`, `adept`, `warden`
+  (`docs/features/game/combat.md`, REQ-CMB-008). A mob that goes in ash is `dying` with its health
+  left.
+- The item `wave-stone` (a new code of `ITEM_KINDS`).
+- The Wilds have the Wren homestead and Mira Wren, so the list of NPCs changed (Mira is the last one).
+
 ## The swing of a guard (protocol 32, 2026-10-12)
 
 A companion or a guard on the wire (`WireCompanion`) has one more number at its end: the ticks left

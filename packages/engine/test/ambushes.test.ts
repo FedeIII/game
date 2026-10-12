@@ -255,3 +255,62 @@ describe('a band that marches', () => {
     expect(hob.x).toBeGreaterThan(at(12, 5).x);
   });
 });
+
+/** The race of the Wren homestead (story phase 7): hounds and a watcher march along row 5; a character at `stone` moved on. */
+const RACE: AmbushDef = {
+  id: 'cinders',
+  inArea: (tx, ty) => tx >= 5 && tx <= 60 && Math.abs(ty - 5) <= 3,
+  when: { quest: 'ashes', at: ['next', 'stone'] },
+  from: [],
+  units: [[{ kind: 'hound' }, { kind: 'hound' }, { kind: 'watcher' }], [{ kind: 'hound' }, { kind: 'hound' }]],
+  effect: { id: 'ashes-held', quest: 'ashes', to: 'held', from: ['next', 'stone'] },
+  march: { route: ROUTE, speed: 40, arrive: { id: 'ashes-late', quest: 'ashes', to: 'late', from: ['next'] } },
+  shelter: ['mira'],
+};
+
+describe('a band with a watcher', () => {
+  function race(step: string) {
+    const world = new World(textSource([]));
+    const horde = new Horde(world, everywhere, 3, AVERAGE_DICE);
+    const ambushes = new Ambushes(world, [RACE]);
+    const list: (AmbushPlayer & { sight: number })[] = [{ id: 1, state: createPlayer(at(6, 5).x, at(6, 5).y), quests: { ashes: { step, flags: [], n: 7 } }, pack: EMPTY_PACK, sight: 0 }];
+    return { horde, ambushes, list };
+  }
+
+  it('does not count the watcher for its size, and its NPCs take shelter while it runs', () => {
+    const { horde, ambushes, list } = race('next');
+    ambushes.step(horde, list);
+    expect(horde.mobs.map((m) => m.kind)).toEqual(['hound', 'hound', 'watcher']);
+    expect(ambushes.sheltered).toEqual(new Set(['mira']));
+    expect(horde.mobs.some((m) => m.raider)).toBe(false);
+  });
+
+  it('stays and fights at the end of its route when its arrival applies to nobody of the party', () => {
+    const { horde, ambushes, list } = race('stone');
+    ambushes.step(horde, list);
+    let effects: ReturnType<Ambushes['step']> = [];
+    for (let t = 0; t < 40_000; t += TICK_MS) {
+      horde.step(TICK_MS, list);
+      effects = [...effects, ...ambushes.step(horde, list)];
+    }
+    expect(effects).toEqual([]);
+    expect(horde.mobs).toHaveLength(3);
+    expect(horde.arrived(horde.mobs[0]!.id)).toBe(true);
+  });
+
+  it('ends when its fighters fall: the watcher goes in ash, and the party gets the end', () => {
+    const { horde, ambushes, list } = race('stone');
+    ambushes.step(horde, list);
+    for (const mob of horde.mobs.filter((m) => m.kind === 'hound')) {
+      mob.health = 1;
+      horde.strike({ x: mob.x - 18, y: mob.y }, 0, undefined, 1);
+    }
+    let effects: ReturnType<Ambushes['step']> = [];
+    for (let t = 0; t < 4000 && effects.length === 0; t += TICK_MS) {
+      horde.step(TICK_MS, list);
+      effects = ambushes.step(horde, list);
+    }
+    expect(effects).toEqual([{ player: 1, effect: RACE.effect }]);
+    expect(horde.mobs).toHaveLength(0);
+  });
+});

@@ -516,14 +516,14 @@ describe('the blow of a player (traits.ts)', () => {
 
 describe('the hobgoblin band (story phase 3)', () => {
   it('keeps the codes of the old kinds on the wire, has stats and loot for each kind, and none of it roams the Wilds', () => {
-    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator']);
+    expect(MOB_KINDS).toEqual(['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden']);
     for (const kind of MOB_KINDS) {
       expect(MOB_STATS[kind].health, kind).toBeGreaterThan(0);
       expect(MOB_LOOT[kind], kind).toBeDefined();
     }
-    // Only the goblin shoots, and only the worg charges straight.
-    expect(MOB_KINDS.filter((k) => MOB_STATS[k].arrowRange)).toEqual(['goblin']);
-    expect(MOB_KINDS.filter((k) => MOB_STATS[k].straight)).toEqual(['worg']);
+    // The goblin shoots (and the cinder adept casts its bolt); the worg (and the cinder hound) charges straight.
+    expect(MOB_KINDS.filter((k) => MOB_STATS[k].arrowRange)).toEqual(['goblin', 'adept']);
+    expect(MOB_KINDS.filter((k) => MOB_STATS[k].straight)).toEqual(['worg', 'hound']);
     // The numbers of the SRD (level-3.md): the goblin and the hobgoblin are few hit points behind good
     // armour; the worg and the bugbear take many blows.
     expect([MOB_STATS.goblin.health, MOB_STATS.goblin.ac, MOB_STATS.goblin.xp]).toEqual([7, 15, 50]);
@@ -650,5 +650,50 @@ describe('the Hobgoblin Devastator (story phase 4b)', () => {
     const hits = run(horde, [player], 4000).filter(([, , damage]) => damage > 0);
     // 1d8+1 and 1d4 (averages: 5 and 2; no ally next to the player).
     expect(hits[0]![2]).toBe(7);
+  });
+});
+
+describe('the Ashen Seekers (story phases 7 to 9)', () => {
+  it('have the cinder hound charge straight, as a wolf of the SRD', () => {
+    expect([MOB_STATS.hound.health, MOB_STATS.hound.ac, MOB_STATS.hound.toHit, MOB_STATS.hound.xp]).toEqual([13, 13, 4, 50]);
+    expect(MOB_STATS.hound.damage).toEqual(dice(2, 4, 2));
+    expect(MOB_STATS.hound.straight).toBe(true);
+    expect(MOB_STATS.adept.arrowRange).toBeGreaterThan(MOB_STATS.adept.reach);
+  });
+
+  it('have a watcher that never hunts, and goes in ash when a player comes close', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3, AVERAGE_DICE);
+    const home = at(0, 0);
+    const watcher = horde.spawn('watcher', home.x, home.y);
+    const player: HordePlayer = { id: 7, state: tough(home.x + 6 * TILE_SIZE, home.y) };
+    run(horde, [player], 3000);
+    expect(watcher.state === 'idle' || watcher.state === 'walk').toBe(true);
+    player.state.x = home.x + 3 * TILE_SIZE;
+    run(horde, [player], 100);
+    expect(watcher.state).toBe('dying');
+    // Nobody killed it: its health stays, and it drops nothing.
+    expect(watcher.health).toBe(MOB_STATS.watcher.health);
+    expect(MOB_LOOT.watcher).toEqual({});
+    run(horde, [player], MOB_STATS.watcher.deathMs + 100);
+    expect(horde.mobs).toHaveLength(0);
+  });
+
+  it('have a watcher that goes in ash when a blow reaches it', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3, AVERAGE_DICE);
+    const watcher = horde.spawn('watcher', at(0, 0).x, at(0, 0).y);
+    const [result] = horde.strike({ x: watcher.x - 18, y: watcher.y }, 0, undefined, 7);
+    expect(result!.mob.state).toBe('dying');
+  });
+
+  it('have the Ash Warden go in ash, not die, at half of its hit points', () => {
+    const horde = new Horde(new World(textSource([])), everywhere(), 3, AVERAGE_DICE);
+    const warden = horde.spawn('warden', at(0, 0).x, at(0, 0).y);
+    expect(MOB_STATS.warden.vanishAt).toBe(0.5);
+    const blow = { toHit: 20, damage: dice(0, 0, 20), push: 1, stagger: 1 };
+    horde.strike({ x: warden.x - 18, y: warden.y }, 0, undefined, 7, blow);
+    expect(warden.state).toBe('hurt');
+    horde.strike({ x: warden.x - 18, y: warden.y }, 0, undefined, 7, blow);
+    expect(warden.state).toBe('dying');
+    expect(warden.health).toBe(MOB_STATS.warden.health - 40);
   });
 });

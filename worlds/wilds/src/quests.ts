@@ -32,9 +32,21 @@ export const ASHES: QuestDef = {
     { id: 'ruins', journal: 'Three burned homesteads, three phoenixes. The priest or the apothecary of Ironhold may know the sign.', npc: 'priest' },
     {
       id: 'symbol',
-      journal: 'The priest of Ironhold calls the phoenix the sign of a god older than the gods. The apothecary says that raiders call themselves the Ashen Seekers. The stories do not agree.',
+      journal: 'The priest of Ironhold calls the phoenix the sign of a god older than the gods. The apothecary says that raiders call themselves the Ashen Seekers. The stories do not agree. The priest may see more in it.',
+      npc: 'priest',
     },
-    // The end of the story comes with its later steps (the next homestead, the captive, the relic, the dream).
+    // The race to the Wren homestead (story phase 7, wren.ts; a test checks the tiles): the cinder hounds
+    // of the Seekers march on it from the east (source.ts, the ambush CINDERS).
+    {
+      id: 'next',
+      journal: 'The Seekers take old things from the houses that they burn. The priest says that the Wrens, by the pool of the Silvervein, keep carved stones from the old ruins there. I must reach them before the Seekers do.',
+      at: [182, -103],
+    },
+    { id: 'stone', journal: 'Mira Wren gave me the carved stone of her family, to take it far from her children. Something comes through the woods from the east.', at: [182, -103] },
+    // Both ends point to the burned trail and the camp of the Seekers at its east end (story phase 8).
+    { id: 'held', journal: 'The cinder hounds of the Seekers fell at the Wren homestead. A masked figure watched from the trees, and it was gone in a puff of ash. A burned trail leads east, into the hills.', at: [236, -100] },
+    { id: 'late', journal: 'The Seekers came to the Wren homestead before me. Mira hid with her children; the Seekers took only the carved stone. A burned trail leads east, into the hills.', at: [236, -100] },
+    // The end of the story comes with its later steps (the captive, the relic, the dream).
     { id: 'found', journal: 'I know now who burns the homesteads of the Wilds.', end: true },
   ],
 };
@@ -155,6 +167,19 @@ export const RUIN_MARROW: QuestEffect = { id: 'ruin-marrow', quest: 'ashes', to:
 export const RUIN_TANNER: QuestEffect = { id: 'ruin-tanner', quest: 'ashes', to: 'ruins', from: ['ruin2'] };
 /** The priest or the apothecary of Ironhold tells what it knows of the phoenix. */
 export const ASHES_SYMBOL: QuestEffect = { id: 'ashes-symbol', quest: 'ashes', to: 'symbol', from: ['ruins'] };
+
+/** The coins that Mira Wren pays when the cinder hounds fall at her homestead (and a draught). */
+export const WREN_REWARD = 12;
+/** The priest connects the clues: the Wrens by the pool of the Silvervein are next (story phase 7). */
+export const ASHES_NEXT: QuestEffect = { id: 'ashes-next', quest: 'ashes', to: 'next', from: ['symbol'] };
+/** Mira Wren gives the wave stone to the character who warns her. */
+export const MIRA_STONE: QuestEffect = { id: 'mira-stone', quest: 'ashes', to: 'stone', from: ['next'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
+/** The cinder hounds fell at the Wren homestead: Mira pays. */
+export const ASHES_HELD: QuestEffect = { id: 'ashes-held', quest: 'ashes', to: 'held', from: ['next', 'stone'], give: { coins: WREN_REWARD, items: [{ kind: 'draught', count: 1 }] } };
+/** The hounds came to the homestead first: the Seekers took the stone. */
+export const ASHES_LATE: QuestEffect = { id: 'ashes-late', quest: 'ashes', to: 'late', from: ['next'] };
+/** Mira gives the stone after the fight to a character who has none (it fought the hounds before it warned her, or lost the stone). */
+export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'ashes', to: 'held', from: ['held'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 
 /** The character offers the merchant its help. */
 export const CART_HELP: QuestEffect = { id: 'cart-help', quest: 'cart', to: 'met' };

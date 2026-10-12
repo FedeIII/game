@@ -80,6 +80,7 @@ export const ES: Strings = {
     'badger-fur': { name: 'Piel de tejón', a: 'una piel de tejón', many: 'pieles de tejón' },
     mithril: { name: 'Mithril', a: 'una pepita de mithril', many: 'pepitas de mithril' },
     'mithril-permit': { name: 'Permiso de Silverspring', a: 'el permiso de Silverspring', many: 'permisos de Silverspring' },
+    'wave-stone': { name: 'Piedra de la ola', a: 'la piedra de la ola', many: 'piedras de la ola' },
   },
   pickUp: (what: string): string => `Recoger ${what}`,
   pileOffline: 'Ahora no puedo recogerlo. No hay conexión.',

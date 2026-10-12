@@ -91,6 +91,7 @@ const EN = {
     'badger-fur': { name: 'Badger fur', a: 'a badger fur', many: 'badger furs' },
     mithril: { name: 'Mithril', a: 'a nugget of mithril', many: 'nuggets of mithril' },
     'mithril-permit': { name: 'Permit of Silverspring', a: 'the permit of Silverspring', many: 'permits of Silverspring' },
+    'wave-stone': { name: 'Wave stone', a: 'the wave stone', many: 'wave stones' },
   } satisfies Record<ItemKind, { name: string; a: string; many: string }>,
   /** Items on the ground (piles.ts): the label of the action button, and the line while a shared world has no connection. */
   pickUp: (what: string): string => `Pick up ${what}`,
