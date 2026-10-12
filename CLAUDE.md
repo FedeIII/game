@@ -968,7 +968,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   Plata), from a spring 34 tiles north of the town, across the town (its map's channel), to a pool 50
   tiles south. Water, shallows, and a bank with no tree, house or herb.
 - **The Arcane Raiders** (story phases 7 to 13, `docs/drafts/story-arcane-raiders.md`, 2026-10-12): the
-  end of chapter 1 (the rest of `ashes`) and chapter 2. Phase 7: **the Wren homestead** (`wren.ts`, by
+  end of chapter 1 (the rest of `ashes`) and chapter 2. **Chapter 2 (phases 11 to 13) is on hold: Fede
+  said "stop developing here" on 2026-10-12. Build it only when Fede asks.** Phase 7: **the Wren homestead** (`wren.ts`, by
   the pool of the Silvervein; Mira Wren); the priest sends a character at `symbol` there (`next`), and
   the cinder hounds of the Ashen Seekers race it from the east on the burned trail (`SEEKER_TRAIL`; the
   ambush `cinders`). New mob kinds: `hound`, `watcher` (never fights, goes in ash), `seeker`, `adept`

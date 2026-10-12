@@ -46,6 +46,9 @@ made for the game; Fede can change them.
 |---|---|---|
 | Tigris | Tigris | the goddess of rivers, an avatar of the god of matter (Kandrax) |
 | la Hermandad Errante | the Wandering Brotherhood | the rival party of chapter 2 (Kandrax) |
+| las Tierras Salvajes del Norte | the Northern Wilds | the far north of the Wilds (Kandrax; approved 2026-10-12) |
+| Silverhaven | Silverhaven | the village whose settlers founded Grimhollow (Kandrax; approved 2026-10-12) |
+| Illyndra Umber | Illyndra Umber | a drow wizard of the Brotherhood (Kandrax; approved 2026-10-12) |
 | Elira Nadira | Elira Nadira | a druid of Simtu and Tigris, the head of the Brotherhood (Kandrax) |
 | Kaldor Rompehuesos | Kaldor Bonebreaker | a barbarian of Zid, who follows Elira (Kandrax) |
 | Grimhollow | Grimhollow | a settlement that fell to the Raiders (Kandrax) |
@@ -60,8 +63,8 @@ made for the game; Fede can change them.
 | Buscador de Ceniza, adepto de las brasas | Ashen Seeker, cinder adept | new mobs |
 | el Celador de Ceniza | the Ash Warden | new: the masked lieutenant of Verath |
 
-**Not approved yet:** "las Tierras Salvajes del Norte" (the Northern Wilds) and "Silverhaven". The
-texts say "the far north" until Fede approves them.
+**Approved on 2026-10-12 too:** las Tierras Salvajes del Norte (the Northern Wilds), Silverhaven, and
+Illyndra Umber (the drow wizard, the third member of the Wandering Brotherhood).
 
 ## The end of chapter 1: the rest of Q4 `ashes`
 
@@ -175,6 +178,10 @@ apothecary of Ironhold told what they know of the phoenix.
 
 ## Chapter 2: the Arcane Raiders (1.5.x "Aldea salvaje" and "Asalto")
 
+**On hold (Fede, 2026-10-12): "stop developing here".** Chapter 1 ends with the dream (phase 10). The
+look of the far north, Hondurria and Verath awake are "not needed for now" / "not now". Do not build
+phases 11 to 13 until Fede asks for them.
+
 Two quests. Their phases need more decisions from Fede; this part is a plan, not a design.
 
 ### Q5 `wild`: the Wild Village (phases 11 and 12)
@@ -242,10 +249,10 @@ the next one.
 12. The Wild Village (Q5).
 13. Hondurria and the assault (Q6).
 
-## Open (for Fede, before phase 11)
+## Open (for Fede, when chapter 2 starts again)
 
-- The names "the Northern Wilds" (las Tierras Salvajes del Norte) and Silverhaven.
+- The look of the far north (snow and pines, the same woods in a colder light, or a wasteland of ash).
 - Does the character ever meet Verath awake in chapter 2, or only in dreams?
-- Hondurria: where its road starts (Ironhold, Silverspring or the far north), and how large the city
-  is.
-- The Brotherhood: Illyndra Umber (a drow wizard) is the third member in Kandrax. Use her too?
+- Hondurria: where its road starts (east of the home, Silverspring or the far north), and how large the
+  city is.
+- The moral choice at the Wild Village: what happens to its people.
