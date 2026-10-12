@@ -71,8 +71,10 @@ that the world feels real.
   rivers, mountains, forests, towns and names, dotted roads between the towns, a ship drawn in ink and a
   compass rose. It is taller than the view: over its card the view goes from its north to its south. Its
   names are in the page's language.
-- **AC-PRO-002.8:** A banner fades in as its scene fades in (0.65 s, rising a few pixels), stays 1.45 s,
-  and fades out (0.8 s) as the first line starts. A screen reader hears it.
+- **AC-PRO-002.8:** A banner fades in (0.65 s, rising a few pixels), stays 1.45 s, and fades out (0.8 s).
+  It comes with the line that names the place: the banner of the Iron Sovereignty with the second line
+  (Fede, 2026-10-12: the scene shows first, with the line about the Central Dominions), the banner of
+  the Mithril Enclave as its scene fades in, before its first line. A screen reader hears it.
 
 ---
 
@@ -82,10 +84,10 @@ that the world feels real.
 holds me back.
 
 **Acceptance Criteria:**
-- **AC-PRO-003.1:** Each card fades in and out (0.7 s). A title or a banner shows for 2.6 s. Each line
-  types itself (45 characters a second), left-aligned, from left to right, and stays 1.6 s and 34 ms
-  more for each of its characters; then the next line comes by itself, under it. The lines of a card
-  stay until the card ends (the earlier ones a little dimmer).
+- **AC-PRO-003.1:** Each card fades in and out (0.7 s). A title, or a banner before the first line,
+  shows for 2.6 s. Each line types itself (45 characters a second), left-aligned, from left to right,
+  and stays 1.6 s and 34 ms more for each of its characters; then the next line comes by itself, under
+  it. The lines of a card stay until the card ends (the earlier ones a little dimmer).
 - **AC-PRO-003.2:** A click or a tap on the prologue, Space, Enter or the right arrow finishes a line
   that types, or goes to the next line (after the last line of a card, to the next card). A small
   arrow at the end of a line shows when it is whole.
@@ -104,7 +106,8 @@ holds me back.
 ## Feature Behavior & Rules
 
 - **The cards** (`packages/engine/src/world.ts`): `WorldDefinition.prologue`, `PrologueCard` (`scene`,
-  `title`, `subtitle`, `banner`, `lines`; `{name}` and `{kind}` in the texts). The Wilds: `PROLOGUE`
+  `title`, `subtitle`, `banner`, `bannerLine` (the line with which the banner shows; 0 or none: before
+  the first line), `lines`; `{name}` and `{kind}` in the texts). The Wilds: `PROLOGUE`
   (`worlds/wilds/src/prologue.ts`; sources: `Kandrax AI Context`, `Kandrax - Mundo`, `Kandrax - Dioses`,
   `0.0 - Guía del aventurero novato`, `Los Investigadores de Forjacero`, `Lugares/Dominios Centrales`);
   the Spanish in `text-es.ts`.

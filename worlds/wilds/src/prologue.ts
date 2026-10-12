@@ -44,6 +44,8 @@ export const PROLOGUE: readonly PrologueCard[] = [
   {
     scene: 'iron',
     banner: 'Iron Sovereignty',
+    // The banner comes with the line that names the Sovereignty (Fede, 2026-10-12): the scene shows first.
+    bannerLine: 1,
     lines: [
       'The Central Dominions are the youngest: a few hundred years of history, and every people of the world in them.',
       'The Iron Sovereignty is one of them: the dominion of the south-west, on the shore of the Great Sea Ápeiron. Its capital is Iron Bay, a busy port and a republic of guilds.',

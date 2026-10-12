@@ -405,7 +405,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   it plays) with Fede's texts (`worlds/wilds/src/prologue.ts`). The map is Fede's map of Thrain on the
   Drive (`Images/maps/mapa_thrain.png`): a tall layer that rises (`PrologueLayer.rise`), its names in
   one layer for each language (`lang`). A card can have a banner (`PrologueCard.banner`: the two
-  dominions), drawn with the pixel font as the name of a world on arrival. The lines type from left to
+  dominions), drawn with the pixel font as the name of a world on arrival; `bannerLine` makes it wait
+  for the line that names the place (the Iron Sovereignty: its second line). The lines type from left to
   right, one under the other, under the scene or beside it (`prologueLayout()`). It plays once after
   "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
   It has the theme of Kandrax, an ambience for each scene and small effects, and a speaker button that

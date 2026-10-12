@@ -33,4 +33,14 @@ describe('the prologue of each world', () => {
     for (const world of WORLDS) for (const card of world.prologue ?? []) expect(painted.has(card.scene), `${world.id}: ${card.scene}`).toBe(true);
     expect(WORLDS.find((world) => world.id === 'wilds')?.prologue?.length).toBe(9);
   });
+
+  it('shows a banner with a line that the card has', () => {
+    for (const world of WORLDS) {
+      for (const card of world.prologue ?? []) {
+        if (card.bannerLine === undefined) continue;
+        expect(card.banner, `${world.id}: ${card.scene}`).toBeTruthy();
+        expect(card.bannerLine, `${world.id}: ${card.scene}`).toBeLessThan(card.lines.length);
+      }
+    }
+  });
 });

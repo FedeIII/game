@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROLOGUE_TIMING, bannerWidth, cardMs, cardTexts, layerOffset, layerShows, lineMs, prologueLayout } from './prologue.ts';
+import { PROLOGUE_TIMING, bannerLineOf, bannerWidth, cardMs, cardTexts, layerOffset, layerShows, lineMs, prologueLayout } from './prologue.ts';
 
 describe('the prologue', () => {
   it('gives a line the time to type it and to read it', () => {
@@ -12,8 +12,12 @@ describe('the prologue', () => {
     const lines = ['One line.', 'And another one.'];
     expect(cardMs({ lines })).toBeCloseTo(2 * PROLOGUE_TIMING.fade + lineMs(lines[0]!) + lineMs(lines[1]!), 6);
     expect(cardMs({ title: 'Kandrax', lines })).toBeCloseTo(cardMs({ lines }) + PROLOGUE_TIMING.title, 6);
-    // A banner takes the time of a title.
+    // A banner takes the time of a title; a banner that comes with a later line takes none.
     expect(cardMs({ banner: 'Iron Sovereignty', lines })).toBeCloseTo(cardMs({ title: 'Kandrax', lines }), 6);
+    expect(cardMs({ banner: 'Iron Sovereignty', bannerLine: 1, lines })).toBeCloseTo(cardMs({ lines }), 6);
+    expect(bannerLineOf({ banner: 'Iron Sovereignty' })).toBe(0);
+    expect(bannerLineOf({ banner: 'Iron Sovereignty', bannerLine: 1 })).toBe(1);
+    expect(bannerLineOf({})).toBeNull();
   });
 
   it('fills in the name and the kind of the character', () => {

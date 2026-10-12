@@ -483,5 +483,10 @@ export interface PrologueCard {
   readonly subtitle?: string;
   /** A name over the scene in the pixel font, on a dark band, as the name of a world on arrival. */
   readonly banner?: string;
+  /**
+   * The line with which the banner shows. None or 0: before the first line (the first line waits for
+   * it). A later line: when that line starts to type (the line that names the place).
+   */
+  readonly bannerLine?: number;
   readonly lines: readonly string[];
 }

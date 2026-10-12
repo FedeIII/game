@@ -100,7 +100,8 @@ export const PROLOGUE_TIMING = {
 
 /**
  * The banner of a card: the times, the size and the colours of the name of a world on arrival
- * (render/intro.ts). It starts as the scene fades in; the first line starts as it fades out.
+ * (render/intro.ts). Before the first line, it starts as the scene fades in (`start`), and the first
+ * line starts as it fades out; with a later line (`PrologueCard.bannerLine`), it starts with that line.
  */
 export const PROLOGUE_BANNER = {
   start: 500,
@@ -123,13 +124,18 @@ export function lineMs(line: string): number {
   return (line.length / PROLOGUE_TIMING.typing) * 1000 + PROLOGUE_TIMING.read + line.length * PROLOGUE_TIMING.readPerChar;
 }
 
-/** The time before the first line of a card: its fade in, and its title or its banner. */
-function leadMs(card: Pick<PrologueCard, 'title' | 'banner'>): number {
-  return PROLOGUE_TIMING.fade + (card.title || card.banner ? PROLOGUE_TIMING.title : 0);
+/** The line with which a card's banner shows (0: before the first line), or null without a banner. */
+export function bannerLineOf(card: Pick<PrologueCard, 'banner' | 'bannerLine'>): number | null {
+  return card.banner ? (card.bannerLine ?? 0) : null;
+}
+
+/** The time before the first line of a card: its fade in, and its title or a banner that comes first. */
+function leadMs(card: Pick<PrologueCard, 'title' | 'banner' | 'bannerLine'>): number {
+  return PROLOGUE_TIMING.fade + (card.title || bannerLineOf(card) === 0 ? PROLOGUE_TIMING.title : 0);
 }
 
 /** How long a card lasts with nobody hurrying it (ms): its fades, its title or banner, and its lines. */
-export function cardMs(card: Pick<PrologueCard, 'title' | 'banner' | 'lines'>): number {
+export function cardMs(card: Pick<PrologueCard, 'title' | 'banner' | 'bannerLine' | 'lines'>): number {
   return leadMs(card) + PROLOGUE_TIMING.fade + card.lines.reduce((sum, line) => sum + lineMs(line), 0);
 }
 
@@ -205,10 +211,9 @@ function bannerImage(sheet: CanvasImageSource, text: string): HTMLCanvasElement 
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
-/** Draws a banner at `t` ms from the start of its card: a dark band, two lines that grow from the centre, and the name, which rises a little as it fades in. */
-function drawBanner(ctx: CanvasRenderingContext2D, image: HTMLCanvasElement, t: number): void {
+/** Draws a banner `local` ms after it starts: a dark band, two lines that grow from the centre, and the name, which rises a little as it fades in. */
+function drawBanner(ctx: CanvasRenderingContext2D, image: HTMLCanvasElement, local: number): void {
   const B = PROLOGUE_BANNER;
-  const local = t - B.start;
   if (local < 0 || local >= B.fadeIn + B.hold + B.fadeOut) return;
   const appear = easeOut(Math.min(1, local / B.fadeIn));
   const alpha = local < B.fadeIn + B.hold ? appear : 1 - (local - B.fadeIn - B.hold) / B.fadeOut;
@@ -690,6 +695,9 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   let texts: ReturnType<typeof cardTexts> = { title: null, subtitle: null, banner: null, lines: [] };
   let rows: Row[] = [];
   let banner: HTMLCanvasElement | null = null;
+  /** The line with which the banner shows (-1: none), and when it started (ms from the card's start). */
+  let bannerLine = -1;
+  let bannerAt: number | null = null;
   // The time line of the card: when its lines start (ms from the card's start), and its end. The
   // pan follows the card's own length, so a line that comes early does not make the scene jump.
   let lineStarts: number[] = [];
@@ -726,12 +734,14 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     subtitle.textContent = texts.subtitle ?? '';
     titleBox.classList.toggle('shown', texts.title !== null);
     banner = texts.banner ? bannerImage(sheet, texts.banner) : null;
-    const heading = texts.title ? [texts.title, texts.subtitle] : [texts.banner];
+    bannerLine = bannerLineOf(card) ?? -1;
+    bannerAt = bannerLine === 0 ? PROLOGUE_BANNER.start : null;
+    const heading = texts.title ? [texts.title, texts.subtitle] : bannerLine === 0 ? [texts.banner] : [];
     if (heading[0]) spoken.textContent = heading.filter(Boolean).join('. ');
     audio.setAmbience(sceneAmbience(scene));
     if (index > 0) audio.play('whoosh');
     if (texts.title) audio.play('title', PROLOGUE_TIMING.fade / 1000 - 0.2);
-    else if (texts.banner) audio.play('title', PROLOGUE_BANNER.start / 1000);
+    else if (bannerLine === 0) audio.play('title', PROLOGUE_BANNER.start / 1000);
     ticked = 0;
   }
 
@@ -784,6 +794,12 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       ticked = 0;
       spoken.textContent = texts.lines[lineIndex]!;
       titleBox.classList.remove('shown');
+      // A banner that waits for this line (the line that names the place) shows now.
+      if (lineIndex === bannerLine && bannerLine > 0) {
+        bannerAt = t;
+        audio.play('title');
+        spoken.textContent = `${texts.banner}. ${texts.lines[lineIndex]}`;
+      }
     }
     const line = texts.lines[lineIndex];
     const row = rows[lineIndex];
@@ -816,7 +832,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       ctx.drawImage(sheet, layer.x + off.x, layer.y + off.y, DATA.view.w, height, 0, 0, DATA.view.w, height);
       for (const e of emitters) if (e.data.layer === i) e.draw(ctx, off.x, off.y);
     });
-    if (banner) drawBanner(ctx, banner, t);
+    if (banner && bannerAt !== null) drawBanner(ctx, banner, t - bannerAt);
     // The fades at the start and the end of a card.
     const fade = Math.max(0, 1 - t / PROLOGUE_TIMING.fade, 1 - (cardLength - t) / PROLOGUE_TIMING.fade);
     if (fade > 0) {
