@@ -5,7 +5,7 @@ Since 2026-10-07 the engine has multiplayer. A world with `multiplayer: true` in
 the shared world of game.azyr.io until 2026-10-09; it is now on azyr.io, from the branch `town`
 (its own server, `town-server`). Since 2026-10-10 the Wilds are shared (`multiplayer: true` in
 their definition): every visitor of game.azyr.io is in the same Wilds, and a new character
-starts in the home, the house of the cell (0, 0) (`Room.join` puts a player without a place on
+starts in the home, the house of the cell `HOME_CELL` (`Room.join` puts a player without a place on
 the world's spawn, indoors too).
 
 ## The model

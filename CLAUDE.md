@@ -1009,7 +1009,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
-  `FOREST_EDGE_Y` 24: south of that row): only goblin patrols live there (`MobRules.populationAt`,
+  `FOREST_EDGE_Y` 15, the row of Ironhold's south entry: south of it): only goblin patrols live there (`MobRules.populationAt`,
   `roam(tx, ty, kind)`; the skirmisher), round the hut and the two hamlets; imps and brutes keep the
   wildlands north of it. Plan: `docs/drafts/tutorial.md`.
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below

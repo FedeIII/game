@@ -117,8 +117,9 @@ export const DEFAULT_SEED = 20261007;
 
 /**
  * The wilds: an endless dark forest with lakes, paths and lonely stone houses, the town of
- * Ironhold (Ferrozar in Spanish) to the west of the home, and Silverspring at the end of the north road. Shared since 2026-10-10 (Fede's decision): every visitor is
- * in the same Wilds, and a new character starts in the home, the house of the cell (0, 0).
+ * Ironhold (Ferrozar in Spanish) north of the home, and Silverspring at the end of the north road
+ * (docs/story/world.md). Shared since 2026-10-10 (Fede's decision): every visitor is in the same
+ * Wilds, and a new character starts in the home, the house of the cell HOME_CELL.
  */
 export const wilds: WorldDefinition = {
   id: 'wilds',
@@ -192,7 +193,7 @@ export const wilds: WorldDefinition = {
     'tear-of-tigris': 'The relic of the shrine of Tigris: a drop of clear crystal in silver, always cool. Its wearer walks in deep water as in shallows.',
     'warden-orders': 'Orders in a neat hand, sealed in grey: "Each cell keeps to itself. Verath speaks to each in dreams. Take the Tear back at any cost. The towns of the plain are next: bigger ones, older relics."',
   },
-  // The story (quests.ts): the letter of Thrain Steelforge, the merchant's cart.
+  // The story (quests.ts; docs/story/questlines.md).
   quests: QUESTS,
   // The texts in Spanish, with the Spanish names of Kandrax (Fede's decision, 2026-10-11).
   texts: { es: TEXTS_ES },

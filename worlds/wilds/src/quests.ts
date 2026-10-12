@@ -2,9 +2,10 @@ import type { QuestDef, QuestEffect } from '@game/engine';
 
 /**
  * The quests of the Wilds (the engine's quests.ts). The story is chapter 1.5.1 of Kandrax, "The
- * Razed Villages" (docs/drafts/story-razed-villages.md): a letter from Thrain Steelforge starts it,
- * and a merchant with a broken cart on the road to Ironhold is the first errand. The effects are
- * here; the dialogs (dialogs.ts) and the letter (home.ts) carry them.
+ * Razed Villages"; docs/story/questlines.md tells each quest, and the code must match it. A letter
+ * from Thrain Steelforge starts the first quest, the road to Ironhold; the broken cart and the lentils
+ * are quests of their own on that road. The effects are here; the dialogs (dialogs.ts), the scenes
+ * (town.ts) and the letter (home.ts) carry them.
  */
 
 /** The coins that the merchant pays for the help with the cart. */
@@ -37,7 +38,7 @@ export const LENTILS: QuestDef = {
   title: 'Lentils for Bronzehold',
   steps: [
     { id: 'carry', journal: 'The farmer of Whitegrove gave me a sack of lentils for the sergeant of Bronzehold, up the road.', npc: 'bronzehold-sergeant' },
-    { id: 'done', journal: 'I brought the lentils to Bronzehold. The sergeant paid me, and told me where the Sovereignty pushes.', end: true },
+    { id: 'done', journal: 'I brought the lentils to Bronzehold, and the sergeant paid me.', end: true },
   ],
 };
 /** The coins that the family of Himo pays when the character brings him home (the chapter: 20 gold). */

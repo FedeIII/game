@@ -23,7 +23,7 @@ const TEXTS = {
   bed: ['Your bed. The straw is fresh.'],
   chest: ['Your chest. Nothing in it yet.'],
   bookshelf: ['Your few books. You know them by heart.'],
-  // The letter of Thrain Steelforge: to read it starts the story (quests.ts, READ_LETTER).
+  // The letter of Thrain Steelforge: to read it starts the first quest, the road to Ironhold (quests.ts, READ_LETTER).
   table: [
     'Your table. A letter lies by the candle, sealed with a hammer and an anvil.',
     'It is from Thrain Steelforge: "Homesteads burn in the wildlands north of the Iron Sovereignty, one after another, and nobody knows who burns them. Find out for me."',

@@ -5,12 +5,13 @@ import { LAMP, Town, type Plan, type Tile } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
 
 /**
- * Ironhold: the town nearest the home, west of it in the wilds. A road leads there from the
- * home (road.ts), and a signpost by the home points the way.
+ * Ironhold: the town north of the hut, past Whitegrove and Bronzehold (docs/story/world.md). The road
+ * from the hut (road.ts) comes in at its south edge (TOWN_SOUTH), and a signpost by the hut points
+ * the way.
  *
  * The plan of the town, one character per tile, north at the top (towns.ts); its north-west tile
- * is (TOWN.x0, TOWN.y0). The main street runs from east to west, and the road from the home comes
- * in at its east end. Four buildings face the street from the north, with a small square and a
+ * is (TOWN.x0, TOWN.y0). The main street runs from east to west; at its east end is the gate
+ * (TOWN_GATE), where a road goes north along the town to the north road. Four buildings face the street from the north, with a small square and a
  * fountain between them; five more stand back to back with the street and face the lane in the
  * south, by the lake. Alleys between them join the street and the lane. Five buildings open (the
  * inn, the smithy, the chapel, the apothecary and the reeve's house) and four are shut for good.
@@ -359,7 +360,7 @@ export const IRONHOLD = new Town({ name: TOWN_NAME, x0: -52, y0: -8, map: MAP, b
 /** The rectangle of the town, in tiles (inclusive). */
 export const TOWN = { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRONHOLD.y1 } as const;
 
-/** Where the road comes in: the tile just east of the town, in the middle of the main street. */
+/** The east gate: the tile just east of the town, in the middle of the main street. The north road starts from it (road.ts). */
 export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
 /**
  * Where the road from the hut comes in (Fede, 2026-10-12 and 2026-10-13: the hut is south of
@@ -447,8 +448,8 @@ const REEVE_HOUSE = TOWN_BUILDINGS.find((b) => b.id === 'reeve')!;
 
 /**
  * The argument in the house of the reeve (chapter 1.5.1 of Kandrax, "Incursión Hobgoblin"): a
- * character who read the letter of Thrain (quests.ts, ashes) and comes to the house hears the reeve,
- * a villager and a soldier of the Sovereignty argue. Hobgoblins go through the hills to Silverspring;
+ * character who started the quest of the burned homesteads (quests.ts, ashes) and comes to the house
+ * hears the reeve, a villager and a soldier of the Sovereignty argue. Hobgoblins go through the hills to Silverspring;
  * they took the scout Himo, and the scout Brys escaped. With Wisdom 13, the character also hears what
  * the soldier says low. At its end, the quest of the raid starts (scenes.ts).
  */
@@ -495,7 +496,6 @@ export const PLOT: SceneDef = {
   effect: CARAVAN_HEARD,
 };
 
-/** The scenes of the town. */
 /**
  * The arrival in Ironhold (Fede, 2026-10-13: the first quest, ROAD, ends when the character reaches the
  * town): a character on the road comes into the town, and the child in the lane, by the south edge where
@@ -512,4 +512,5 @@ export const ARRIVAL: SceneDef = {
   effect: ROAD_ARRIVED,
 };
 
+/** The scenes of the town. */
 export const TOWN_SCENES: readonly SceneDef[] = [ARGUMENT, PLOT, ARRIVAL];

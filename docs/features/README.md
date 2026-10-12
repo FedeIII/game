@@ -4,7 +4,8 @@ The feature documents of the game engine and of its world, the Wilds (https://ga
 document describes one feature that is built: what it is, its terms, its requirements with their
 acceptance criteria, and the rules of its behavior, with pointers to the code. A plan for a
 feature that is not built is a draft in [`../drafts/`](../drafts/); when the feature is built, it
-gets a document here.
+gets a document here. The story itself (the places, the people, the questlines, the prologue) is in
+[`../story/`](../story/), and the code must match it.
 
 ### The format
 

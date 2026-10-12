@@ -6,6 +6,13 @@
 > (`docs/features/game/towns.md`, REQ-QST-013 to 016, REQ-CMB-007); phase 6 built (REQ-QST-017 and
 > 018); phase 5 built (REQ-QST-019 to 021, `docs/features/npcs/guards.md`)
 
+> **Superseded in parts (2026-10-13).** The story as the game has it now is in `docs/story/`; where
+> this draft does not agree with it, `docs/story/` and the code are the truth. The parts that changed:
+> the frame (the hut is south of Ironhold, and the road goes through Whitegrove and Bronzehold), Q0
+> (the letter starts "The Road to Ironhold", not `ashes`), Q1 (the cart stands before Whitegrove, and
+> the farmer of Whitegrove lends a lever too), and Q2 (the argument waits for `ashes`, not for
+> `ashes.letter`). The open questions of the story are in `docs/drafts/story-fixes.md`.
+
 This draft plans the first story of the game and the systems that it needs. The story comes
 from **Kandrax**, the D&D world of Fede: chapter 1.5.1, "Pueblos Arrasados", route [A]. It also
 uses the Arcane Raiders of the saga plan and the Ashen Seekers of the `RPG` notes. The systems
@@ -47,14 +54,15 @@ the thread that connects the quests.
   lawless frontier between the **Iron Sovereignty** and the **Mithril Enclave**. Both powers compete
   for this land, and neither one plays fair.
 - **The hut** (the home) is south of Ironhold, near the northern edge of the Iron Sovereignty (Fede,
-  2026-10-12). The texts say so; the game still has Ironhold west of the home, and the next work moves
-  them (the hut and the road to Ironhold).
-- **Ironhold** (Thornwick until 2026-10-11; Ferrozar in Kandrax) is the frontier village of the Sovereignty,
-  north of the home (in the game still west of it). Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the
-  head of the village; the watchman at the gate is a soldier of the Sovereignty.
+  2026-10-12). Built on 2026-10-13: see `docs/story/world.md`.
+- **Ironhold** (Thornwick until 2026-10-11; Ferrozar in Kandrax) is the frontier village, north of the
+  home. Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the head of the village.
+  *Superseded:* in the game, Ironhold is not a village of the Sovereignty (Bronzehold is its last
+  village), soldiers of the Sovereignty stay in it, and Brann, the watchman, is of the town watch, not a
+  soldier. See `docs/story/world.md` and `docs/drafts/story-fixes.md`.
 - **Silverspring** is the mithril village of the Enclave, a new fixed town north-east of
   Ironhold, at the end of a new road.
-- **The razed villages:** the Ashen Seekers burn homesteads of the Wilds. They look for relics of
+- **The razed villages:** the Ashen Seekers burn homesteads of the wildlands, north of Ironhold. They look for relics of
   the old civilizations. Some houses of the Wilds are ruins with their mark, a phoenix.
 - **The hook:** a letter from Thrain Steelforge (Forjacero) on the table of the home. Thrain asks
   the character to find out who burns the homesteads. In the saga plan, Thrain is the NPC of
@@ -112,7 +120,8 @@ the chapter: Fede tunes them.
 ### Q0 `letter`: the letter (the hook)
 
 - The letter is on the table of the home. To read it starts the quest `ashes` (Q4), step
-  `ashes.letter`.
+  `ashes.letter`. *Superseded (2026-10-13):* it starts "The Road to Ironhold" (`road`); at the end of
+  the road the reeve starts `ashes` at `reeve`. Only books from before keep `ashes.letter`.
 - The letter points to the reeve of Ironhold. Thus the first trip of every character goes to the
   town.
 
@@ -121,7 +130,8 @@ the chapter: Fede tunes them.
 - A merchant stands by a broken cart on the road from the home to Ironhold. The merchant goes to
   Ironhold to trade between Ironhold and Silverspring.
 - Two ways to help: lift the cart (gate Strength 13), or bring a tool from the smith of Ironhold
-  (any character). Thus a weak character also has a way.
+  (any character). Thus a weak character also has a way. *Superseded (2026-10-13):* the cart stands on
+  the road before Whitegrove, and the farmer of Whitegrove lends a lever too (`docs/story/questlines.md`).
 - Reward: coins. With the cart fixed, the merchant tells more (Intelligence 13 or Charisma 13
   give more lines): the Sovereignty and the Enclave fight for the Wilds; Silverspring needs the
   tools of Ironhold; Ironhold wants the mithril of Silverspring.
@@ -130,7 +140,7 @@ the chapter: Fede tunes them.
 ### Q2 `raid`: the Hobgoblin Raid (the main quest)
 
 1. `raid.heard`: the first time that the character comes near the house of the reeve (after
-   `ashes.letter`), the scene "the argument" plays: the reeve, a villager and a guard argue.
+   `ashes.letter`; *now:* after `ashes` starts, at any step), the scene "the argument" plays: the reeve, a villager and a guard argue.
    Hobgoblins go through the hills to Silverspring. They took the scout Himo; the scout Brys
    escaped. The villagers want to warn Silverspring; the soldiers refuse. A higher Wisdom hears
    more of it (gates, see "Scenes").

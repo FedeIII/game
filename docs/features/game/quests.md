@@ -7,10 +7,12 @@ step that it is at in each quest that it started. Answers in conversations and t
 character reads move the quests on, and they can take items and give a reward. The server keeps
 the book with the character and checks every change. The journal shows the quests, a banner shows
 each change, and the map marks where to go. A character can also overhear a scene: NPCs who talk
-among themselves. The first story of the Wilds starts with a letter from Thrain Steelforge on the
-table of the home; its first errand is a merchant's broken cart on the road to Ironhold, and in the
-reeve's house the character overhears that hobgoblins go to Silverspring (chapter 1.5.1 of Kandrax;
-plan: `docs/drafts/story-razed-villages.md`, phases 2 to 4). On the road to Silverspring, the scouts of
+among themselves. In the Wilds, a letter from Thrain Steelforge on the table of the hut starts the
+first quest, the road to Ironhold; on that road a merchant's broken cart and the farmer's lentils are
+quests of their own. In Ironhold the reeve tells of the burned homesteads, and in her house the
+character overhears that hobgoblins go to Silverspring (chapter 1.5.1 of Kandrax; plan:
+`docs/drafts/story-razed-villages.md`, phases 2 to 4). What each quest of the story does is in
+`docs/story/questlines.md`. On the road to Silverspring, the scouts of
 the hobgoblins wait in a grove; their number follows the characters there (`docs/features/game/combat.md`).
 Then their war band marches on Silverspring. If the character stops it on the road, it frees the
 scout Himo in the band's camp and takes him home; if the band comes to the town first, it raids the
@@ -183,21 +185,22 @@ item and to be paid for it (chapter 1.5.1, [A.2]: the farmer of Arboleda Blanca 
 conversations, gates, errands and rewards.
 
 **Acceptance Criteria:**
-- **AC-QST-008.1:** Beside the road from the home to Ironhold, a few tiles before the town, a cart
-  stands with its wheel in the mud. The merchant walks on the road in front of it.
+- **AC-QST-008.1:** Beside the road from the hut, on its first leg before Whitegrove, a cart stands
+  with its wheel in the mud. The merchant walks on the road in front of it.
 - **AC-QST-008.2:** "Can I help?" starts "The Broken Cart" at `met`. The merchant needs somebody to
-  lift the cart, or a lever from the smith of Ironhold. The map marks the merchant.
+  lift the cart, or a lever: the farmer of Whitegrove has one (AC-QST-027.3), and the smith of
+  Ironhold gives one. The map marks the merchant.
 - **AC-QST-008.3:** A character with STR 13 can answer "Stand back. I will lift it." (a dim clue
   with STR 11 or 12): the quest ends, and the merchant pays 10 coins.
-- **AC-QST-008.4:** Any character can ask the smith: at `met` or `lever`, without a lever in the pack,
+- **AC-QST-008.4:** Any character can ask the smith: at `met`, `lever` or `lent`, without a lever in the pack,
   the smith starts with another line, and "A merchant on the road needs a lever for a broken cart."
   gives a lever (the step `lever`). A character that lost it can ask again.
-- **AC-QST-008.5:** "Here: a lever from the smith." gives the lever to the merchant: the quest ends,
+- **AC-QST-008.5:** "Here is a lever." gives the lever (of the farmer or of the smith) to the merchant: the quest ends,
   and the merchant pays 10 coins.
 - **AC-QST-008.6:** After the help, the merchant tells the news of the trade: Silverspring digs
   mithril and needs tools; Ironhold has a forge and wants the mithril. With INT 13 or CHA 13, the
-  player hears that the Iron Sovereignty and the Mithril Enclave both want the Wilds and do not
-  play fair.
+  player hears that the Iron Sovereignty and the Mithril Enclave both want the unclaimed wildlands
+  and do not play fair.
 - **AC-QST-008.7:** A character who helped sees the cart mended, with its wheel on. Others see it
   broken.
 - **AC-QST-008.8:** The cart has a lantern: no mob comes within 4 tiles of the middle of the cart,
@@ -380,9 +383,9 @@ that my deed has a reward.
 sign that their burners left, so that I can follow the trail of who burns them.
 
 **Acceptance Criteria:**
-- **AC-QST-017.1:** Three burned homesteads stand in clearings of the Wilds, the same for every
-  seed: the Hale homestead north of the home, the Marrow homestead east of it, the Tanner homestead
-  south-west of it. Each is a house of charred planks with no roof and an open door.
+- **AC-QST-017.1:** Three burned homesteads stand in clearings of the wildlands north of Ironhold,
+  the same for every seed: the Hale homestead north of the town, the Marrow homestead east of the Hale
+  homestead, the Tanner homestead north-west of the town. Each is a house of charred planks with no roof and an open door.
 - **AC-QST-017.2:** In each one, a charred plank shows a burned phoenix: "A plank, charred black.
   Burned into it, deeper than the rest: a phoenix that rises from ashes." With INT 13, the character
   also reads that magic made the mark.
@@ -599,13 +602,15 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `ui/map-panel.ts` (`setMarks()`), `STRINGS.journal`. The debug panel (`?debug`) has a line
   `quests`.
 - **The Wilds** (`worlds/wilds/src/quests.ts`): `ASHES` (steps `letter`, `reeve`, `ruin1`, `ruin2`,
-  `ruins`, `symbol`, and the later steps of phases 7 to 10, which end at `gave`, `refused` or `lied`), `CART` (`met`, `lever`, `done`),
-  `QUESTS`, the effects `READ_LETTER`, `TELL_REEVE`, `CART_HELP`, `CART_LEVER`, `CART_LIFT` (flag
-  `lifted`), `CART_MEND` (flag `lever`), `CART_REWARD` (10). The letter: `home.ts`. The dialogs:
-  `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT` (`dialogs.ts`); `ATHLETICS_GATE` (STR
-  13). The cart: `cartSpot()` (`road.ts`: north of the road, from three fifths of the way to the
-  town), `WildsSource.cart` (with `CART_LANTERN`, and the variant `fixture/cart-mended`), the
-  merchant (the last NPC of `WildsSource.npcs()`, look `merchant`), `CART_SAFE` (4 tiles: `roam` and
+  `ruins`, `symbol`, and the later steps of phases 7 to 10, which end at `gave`, `refused` or `lied`), `CART` (`met`, `lever`, `lent`, `done`),
+  `ROAD`, `LENTILS`, `QUESTS`, the effects `READ_LETTER`, `ROAD_ARRIVED`, `START_ASHES`, `TELL_REEVE`,
+  `CART_HELP`, `CART_LEVER`, `FARMER_LEVER`, `CART_LIFT` (flag `lifted`), `CART_MEND` (flag `lever`),
+  `CART_REWARD` (10), `LENTILS_TAKE`, `LENTILS_GIVE`. The letter: `home.ts`. The dialogs:
+  `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT`, `FARMER`, `SERGEANT` (`dialogs.ts`);
+  `ATHLETICS_GATE` (STR 13). The cart: `cartSpot()` (`road.ts`: beside the first leg of the road, from
+  three fifths of the way from the hut to Whitegrove), `WildsSource.cart` (with `CART_LANTERN`, and the
+  variant `fixture/cart-mended`), the merchant (after the NPCs of Ironhold in `WildsSource.npcs()`, look
+  `merchant`), `CART_SAFE` (4 tiles: `roam` and
   `hunt` of `WildsSource.mobs()`).
 - **Scenes** (`packages/engine/src/scenes.ts`): `SceneDef` (`id`, `area`, `when`, `lines`, `effect`),
   `SceneLine` (`npc`, `text`, `gate`), `inScene()`, `SCENE_MARGIN` (2), `SCENE_LINE_MAX` (160),

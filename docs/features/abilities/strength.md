@@ -198,6 +198,6 @@ STR opens places that weaker characters cannot open.
   keeps its own for a world that it runs. A restart of the game server bars every forced door
   again. A reload of the page does the same for a world that the page runs.
 - **The Wilds** (`worlds/wilds/src/houses.ts`): `BARRED_CHANCE` (0.25), only for a house with a
-  chest, never for the cell (1, 0) east of the home. The home has its own plan (`home.ts`) without
+  chest, never for the cell east of the home (`HOME_CELL` + (1, 0)). The home has its own plan (`home.ts`) without
   boards. The loot is `BARRED_CHEST_LOOT` (`worlds/wilds/src/source.ts`).
 - **The plan:** S1 to S6 in `docs/drafts/abilities.md`. S5 has no fallen tree (dropped).

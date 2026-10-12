@@ -256,7 +256,7 @@ const WALKERS: readonly NpcDef[] = [
     area: WHITEGROVE.streetArea(8, 13, 10, 21),
     content: {
       speaker: 'fixture',
-      pages: ['The shrine is open day and night. Sleep there once, and the road remembers you, they say.', 'Mind the goblins in the woods. They run, mostly.'],
+      pages: ['The shrine is open day and night. Step inside once, and the road remembers you, they say.', 'Mind the goblins in the woods. They run, mostly.'],
     },
     barks: ['Another one for the road.', 'Birches and lentils. That is Whitegrove.', 'Who walks so late?'],
   },

@@ -38,7 +38,7 @@ export const ATHLETICS_GATE: Gate = { ability: 'str', min: 13 };
 /** The gate of persuasion: Charisma 13 (answers that win a person over). */
 export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };
 
-/** Brann, the watchman at the gate: the first person a traveller from the hut meets. */
+/** Brann, the watchman at the east gate of Ironhold (town.ts, TOWN_GATE), where the north road starts. */
 export const WATCHMAN: Dialog = {
   name: 'Brann, the watchman',
   start: 'halt',
@@ -273,7 +273,8 @@ export const REEVE: Dialog = {
   name: 'Elama Rothenel, the reeve',
   start: 'reeve',
   // A character who heard the argument in her house (town.ts, ARGUMENT; quests.ts, raid), or who
-  // goes to warn Silverspring; else a character with the letter of Thrain Steelforge (ashes).
+  // goes to warn Silverspring; else a character that came by the road (quests.ts, ROAD), or one whose
+  // letter of Thrain Steelforge started `ashes` before 2026-10-13 (the step `letter`).
   starts: [
     // A character who robbed the caravan pays its fine here (quests.ts, CARAVAN_FINE).
     { when: WANTED, node: 'fine' },
@@ -661,10 +662,11 @@ export const PEDDLER: Dialog = {
 };
 
 /**
- * The merchant by a broken cart on the road to Ironhold (chapter 1.5.1 of Kandrax: on the way to
- * see if a trade between Ironhold and Silverspring can work). The first errand of the story
- * (quests.ts, cart): a strong character lifts the cart, any other brings a lever from the smith.
- * After the help, the merchant tells what a trader hears (more with Intelligence or Charisma).
+ * The merchant by a broken cart on the road from the hut, before Whitegrove (chapter 1.5.1 of Kandrax:
+ * on the way to see if a trade between Ironhold and Silverspring can work). A quest of its own
+ * (quests.ts, cart): a strong character lifts the cart, any other brings a lever (the farmer of
+ * Whitegrove lends one, the smith of Ironhold gives one). After the help, the merchant tells what a
+ * trader hears (more with Intelligence or Charisma).
  */
 export const MERCHANT: Dialog = {
   name: 'The merchant',
@@ -716,7 +718,7 @@ export const MERCHANT: Dialog = {
     news: {
       say: 'Silverspring digs mithril, but it needs tools and blades. Ironhold has a forge, and it looks at that mithril with hungry eyes.',
       answers: [
-        { text: 'The Sovereignty and the Enclave both claim these woods.', next: 'claim', gate: LORE_GATE },
+        { text: 'The Sovereignty and the Enclave both claim the wildlands.', next: 'claim', gate: LORE_GATE },
         { text: 'A trader hears more than that. Tell me the rest.', next: 'rest', gate: PERSUASION_GATE },
         BYE,
       ],
@@ -726,7 +728,7 @@ export const MERCHANT: Dialog = {
       answers: [BYE],
     },
     rest: {
-      say: 'Between us: the Sovereignty and the Enclave fight for these woods with dirty tricks. Be careful who pays you.',
+      say: 'Between us: the Sovereignty and the Enclave fight for the wildlands with dirty tricks. Be careful who pays you.',
       answers: [BYE],
     },
   },

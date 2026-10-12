@@ -165,10 +165,12 @@ const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
 /**
  * The forest at the northern edge of the Iron Sovereignty, from this row south (tiles): the woods of
- * the tutorial, round the hut, Whitegrove and Bronzehold (Fede, 2026-10-13). Only goblin patrols live
- * there (the skirmisher: mobs.ts); imps and brutes keep the wildlands north of it, round Ironhold.
+ * the tutorial, round the hut, Whitegrove and Bronzehold, to the south edge of Ironhold, where the road
+ * comes in (Fede, 2026-10-13: the only enemies on the way from the hut to Ironhold are goblins). Only
+ * goblin patrols live there (the skirmisher: mobs.ts); imps and brutes keep the land round Ironhold
+ * and the wildlands north of it (docs/drafts/story-fixes.md, 3: the land round the town is Fede's call).
  */
-export const FOREST_EDGE_Y = 24;
+export const FOREST_EDGE_Y = IRONHOLD.y1 + 1;
 /** The goblins round a player in the forest of the tutorial: one patrol of 2 or 3. */
 const FOREST_POPULATION = { skirmisher: 3 } as const;
 /** Whether a tile is in the forest of the tutorial. */
@@ -315,9 +317,10 @@ const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: num
 
 /**
  * The wilds: endless natural terrain from a seed, with a house in about a third of the cells, the
- * player's home in the middle (home.ts), where every character starts, the town of Ironhold to the
- * west (town.ts), at the end of a road from the home (road.ts), and Silverspring at the end of the
- * north road from Ironhold (silverspring.ts).
+ * player's home in the cell HOME_CELL (home.ts), where every character starts, the hamlets Whitegrove
+ * and Bronzehold on the road north (hamlets.ts), the town of Ironhold at its end (town.ts), and
+ * Silverspring at the end of the north road from Ironhold (silverspring.ts). docs/story/world.md
+ * tells the places, and the code must match it.
  */
 export class WildsSource implements WorldSource {
   readonly seed: number;
@@ -914,7 +917,7 @@ export class WildsSource implements WorldSource {
     return [{ companion: HIMO, when: { quest: 'raid', at: ['escort'] }, home: (tx, ty) => IRONHOLD.has(tx, ty), arrive: HIMO_HOME, fall: HIMO_LOST }];
   }
 
-  /** The talks that a character overhears: the argument in the house of the reeve (town.ts). */
+  /** The talks that a character overhears (town.ts): the argument in the house of the reeve, the plot in the inn, the arrival. */
   scenes(): readonly SceneDef[] {
     return TOWN_SCENES;
   }

@@ -3,6 +3,10 @@
 > **Draft** · promotes to `docs/features/` (one document for each system) when built ·
 > **Status:** planned 2026-10-12; phases 7 to 10 built (2026-10-12: REQ-QST-022 to 025, REQ-CMB-008, protocols 33 to 35): chapter 1 is complete
 
+> **Note (2026-10-13).** The story as the game has it now is in `docs/story/`. Since 2026-10-13 the hut
+> is south of Ironhold, at the northern edge of the Iron Sovereignty; where this draft names the home as
+> a place (the road of Hondurria, under "Open"), read `docs/story/world.md` first.
+
 This draft continues `docs/drafts/story-razed-villages.md` (phases 1 to 6, all built). It plans the
 rest of the quest `ashes` (the end of chapter 1) and chapter 2 of the game. The phases keep the
 numbers of that draft: they start at 7.

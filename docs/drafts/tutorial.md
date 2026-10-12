@@ -14,8 +14,8 @@ character rests and wakes. The road follows the journey of chapter 1.5.1 of the 
 - **The first quest is to reach Ironhold** (2026-10-13). It is the tutorial: from the hut to the town.
 - **No chains of quests in what the player sees** (2026-10-13; `docs/game-design.md`): events unlock
   quests, and some events happen only after another quest is finished.
-- **The hut is south of Ironhold, near the northern edge of the Iron Sovereignty** (2026-10-12). The
-  texts say so; the game still has Ironhold west of the hut.
+- **The hut is south of Ironhold, near the northern edge of the Iron Sovereignty** (2026-10-12). Built
+  (phase 1); the story as built is in `docs/story/`.
 - **The only enemies of the tutorial are goblins in the forest** (2026-10-13): no imps, no brutes.
   The goblins patrol, and the player startles them: some flee, some attack. The player can follow a
   goblin that flees, and runs faster than it. They are weak: an easy match.
