@@ -40,7 +40,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
 | client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11), piles that it picks up `g: [seq, pile id]` (protocol 17) |
 | client to server | `ping` | the client's clock, for the round trip |
-| client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog |
+| client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog: the deal of an answer, or a ware of a shop (one item) |
 | client to server | `drink` | the code of a drink in the pack (protocol 14) |
 | client to server | `put` | a slot of the pack, the item code of its stack, a count, and an optional point `at`: items from the pack to the ground (protocol 17; the slot and `at`: protocol 18; a worn slot, protocol 19) |
 | client to server | `quest` | an effect on a quest (protocol 23): an answer to an NPC (`npc`: its index), a thing that the player reads (`at`: a tile of it, the letter), or the end of a scene that it overheard (`scene`: its id; protocol 24), and the id of the effect there |
@@ -69,6 +69,16 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Ironhold, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Shops (still protocol 37, 2026-10-13)
+
+- The traders have a shop (`DialogAnswer.shop`, `Shop`, `Ware`: `docs/features/items/pack-and-loot.md`,
+  REQ-PK-017). Each trade of the shop panel is one `deal`, with the id of the ware: no message
+  changed, and the ids of the deals stayed the same (`buy-draught`, `friend-draught`, `buy-<kind>`,
+  `sell-<kind>`, `sell-ring`, `buy-mithril`, `sell-mithril`).
+- `Room.deal()` finds the deal with `findDeal()`: the deal of an answer, or a ware of the shop of an
+  answer (`wareDeal()`). It checks the gates and the conditions of that answer and of the ware
+  (`DealOffer`): the friend's price of Isolde needs CHA 13, the mithril of Ilsa the permit.
 
 ## Wet lentils (protocol 37, 2026-10-13)
 
@@ -310,7 +320,7 @@ server refuses it, and the visitor reloads the page.
 
 - `deal` has `npc` (the index of an NPC) or `at` (the tile of a fixture with a dialog: the
   cauldron), never both. The Room checks the nearness (`DEAL_RANGE`, 48 px), the gate of the
-  answer with that deal (`findDealAnswer()`, the player's scores), the coins and the items
+  answer with that deal (`findDeal()`, the player's scores), the coins and the items
   (`Deal.items`), and puts the goods in the pack. The pack goes in the next snapshot (`pk`).
 - A new client message, `drink` (`kind`: an item code): the Room makes the drink do its work
   (`drinkFrom()`: hit points back, or the end of a poison) and takes it from the pack.

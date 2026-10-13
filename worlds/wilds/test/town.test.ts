@@ -465,7 +465,7 @@ describe('Constitution in the Wilds', () => {
     const bed = source.home().fixtures.find((f) => f.kind === 'bed')!;
     expect(bed.content?.rest).toBe(true);
     const innkeeper = source.npcs().find((n) => n.id === 'innkeeper')!;
-    expect(findDeal(innkeeper.content.dialog!, 'ale')).toEqual({ id: 'ale', goods: 'ale', price: 2, poor: 'poor' });
+    expect(findDeal(innkeeper.content.dialog!, 'ale')?.deal).toEqual({ id: 'ale', goods: 'ale', price: 2, poor: 'poor' });
   });
 });
 

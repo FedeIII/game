@@ -16,7 +16,13 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
     add(d.name);
     for (const node of Object.values(d.nodes)) {
       add(node.say);
-      for (const answer of node.answers) add(answer.text);
+      for (const answer of node.answers) {
+        add(answer.text);
+        // What a trader says after a trade in its shop.
+        add(answer.shop?.bought);
+        add(answer.shop?.sold);
+        for (const ware of [...(answer.shop?.buy ?? []), ...(answer.shop?.sell ?? [])]) add(ware.says);
+      }
     }
   };
   const content = (c: Interaction | undefined) => {

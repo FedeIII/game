@@ -136,7 +136,7 @@ body {
 }
 
 /* An open panel covers the hint, and the two texts would mix: hide the hint. */
-body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden])) #hint {
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]), #shop:not([hidden])) #hint {
   opacity: 0;
 }
 
@@ -399,7 +399,8 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
 #worlds,
 #pack,
 #map,
-#journal {
+#journal,
+#shop {
   position: fixed;
   z-index: 2;
   top: calc(60px + env(safe-area-inset-top));
@@ -417,7 +418,7 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
   font: 15px/1.4 var(--ui-serif);
 }
 
-:is(#settings, #worlds, #pack, #map, #journal)[hidden] {
+:is(#settings, #worlds, #pack, #map, #journal, #shop)[hidden] {
   display: none;
 }
 
@@ -426,18 +427,19 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
   #worlds,
   #pack,
   #map,
-  #journal {
+  #journal,
+  #shop {
     padding: 16px 24px 18px;
   }
 }
 
 /* The controls at the bottom and the drink belt are under an open panel: they hide. */
-body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]))
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]), #shop:not([hidden]))
   :is(#action, #attack, #dodge, #stick, #link-card) {
   visibility: hidden;
 }
 
-body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden])) #belt {
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]), #shop:not([hidden])) #belt {
   display: none;
 }
 
@@ -1659,7 +1661,7 @@ body.pack-dragging * {
 body.game-menu-open #game-menu-button,
 body.conversing #game-menu-button,
 body.dreaming #game-menu-button,
-body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden])) #game-menu-button {
+body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]), #shop:not([hidden])) #game-menu-button {
   visibility: hidden;
 }
 
@@ -1923,6 +1925,217 @@ body.conversing #link-card {
   .conversation-text {
     font-size: 15px;
   }
+}
+
+/* ---------------------------------------------------------------- shop (ui/shop-panel.ts) */
+
+/*
+ * The shop of a trader: in the place of the top-right panels, over the conversation that opened it.
+ * The trader at the top; the sides and the coins; the wares, and beside them on a wide screen the
+ * detail of the chosen ware and the pack.
+ */
+#shop {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 18px var(--ui-accent-glow);
+}
+
+.shop-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding-right: 22px;
+}
+
+/* The close-up: 14 x 14 pixels of the art at 5x, sharp. */
+.shop-portrait {
+  flex: none;
+  width: 70px;
+  height: 70px;
+}
+
+.shop-words {
+  min-width: 0;
+}
+
+.shop-say {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
+.shop-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 8px;
+}
+
+.shop-bar .pack-coins {
+  flex: 1;
+  margin: 0;
+}
+
+.shop-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.shop-tabs[hidden] {
+  display: none;
+}
+
+.shop-tab {
+  min-width: 84px;
+  min-height: 34px;
+  padding: 5px 14px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: inherit;
+  font: 15px var(--ui-serif);
+  cursor: pointer;
+}
+
+.shop-tab:hover,
+.shop-tab:focus-visible {
+  border-color: var(--ui-accent);
+}
+
+.shop-tab[aria-selected='true'] {
+  border-color: var(--ui-accent);
+  background: rgb(154 58 54 / 0.18);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+/*
+ * The wares, the detail of the chosen ware and the pack: one under the other on a narrow screen, where
+ * the detail (with the trade) stays at the bottom of the panel while the wares scroll; side by side on
+ * a wide screen, where the detail and the pack stay at the top of their column.
+ */
+@media (max-width: 719px) {
+  .shop-side {
+    display: contents;
+  }
+
+  .shop-detail {
+    position: sticky;
+    bottom: -14px;
+    z-index: 1;
+    padding-bottom: 10px;
+    background: var(--ui-panel-solid);
+  }
+}
+
+@media (min-width: 720px) {
+  .shop-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+
+  .shop-side {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.shop-wares {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A ware: its icon, its name, how many the player has, and its price for the player. */
+.shop-ware {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius);
+  background: none;
+  color: var(--ui-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shop-ware canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+@media (hover: hover) {
+  .shop-ware:hover {
+    border-color: var(--ui-ink-faint);
+  }
+}
+
+.shop-ware:focus {
+  outline: none;
+}
+
+/* The chosen ware: lit as "active". */
+.shop-ware.chosen {
+  border-color: var(--ui-accent);
+  background: rgb(154 58 54 / 0.18);
+  box-shadow: 0 0 10px var(--ui-accent-glow);
+}
+
+.shop-ware-have {
+  font: 12px var(--ui-mono);
+  opacity: 0.65;
+}
+
+.shop-ware-price {
+  font: 13px var(--ui-mono);
+  text-align: right;
+}
+
+/* A trade that cannot go now: the price is faint. A ware behind a gate that the player is 1 or 2 short of: all of it. */
+.shop-ware.short .shop-ware-price {
+  opacity: 0.45;
+}
+
+.shop-ware.absent {
+  opacity: 0.6;
+}
+
+.shop-ware.dim {
+  opacity: 0.38;
+}
+
+.shop-detail {
+  margin-top: 10px;
+}
+
+.shop-detail[hidden] {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .shop-detail {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+.shop-problem {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.shop-pack-head {
+  margin-top: 12px;
 }
 
 /* ---------------------------------------------------------------- vitals (ui/vitals.ts) */

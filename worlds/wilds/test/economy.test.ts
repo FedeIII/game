@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MOB_LOOT, type Dialog, type ItemKind, type LootTable, type MobKind, type QuestEffect } from '@game/engine';
+import { MOB_LOOT, dialogDeals, type Dialog, type ItemKind, type LootTable, type MobKind, type QuestEffect } from '@game/engine';
 import {
   ASHES_HELD,
   CARAVAN_SAVED,
@@ -22,17 +22,14 @@ import {
  * pays for it (the peddler, the smith); an item that nobody buys counts as nothing.
  */
 
-/** What the traders pay for one item of each kind, at Charisma 10. */
+/** What the traders pay for one item of each kind, at Charisma 10 (the sales of their shops). */
 function salePrices(dialogs: readonly Dialog[]): Map<ItemKind, number> {
   const out = new Map<ItemKind, number>();
   for (const dialog of dialogs) {
-    for (const node of Object.values(dialog.nodes)) {
-      for (const answer of node.answers) {
-        const deal = answer.deal;
-        if (deal?.goods !== 'coins' || deal.items?.length !== 1) continue;
-        const kind = deal.items[0]!.kind;
-        out.set(kind, Math.max(out.get(kind) ?? 0, deal.pay ?? 0));
-      }
+    for (const { deal } of dialogDeals(dialog)) {
+      if (deal.goods !== 'coins' || deal.items?.length !== 1) continue;
+      const kind = deal.items[0]!.kind;
+      out.set(kind, Math.max(out.get(kind) ?? 0, deal.pay ?? 0));
     }
   }
   return out;
@@ -89,6 +86,11 @@ const killValue = (kills: Partial<Record<MobKind, number>>) =>
   Object.entries(kills).reduce((sum, [kind, n]) => sum + meanValue(MOB_LOOT[kind as MobKind]) * n, 0);
 
 describe('the economy of the Wilds', () => {
+  it('reads what the traders pay from the sales of their shops', () => {
+    // An empty table would count every item as nothing, and the model would pass for a wrong reason.
+    expect([sale('ring'), sale('brute-tusk'), sale('plate-armour'), sale('mithril')]).toEqual([5, 4, 75, 10]);
+  });
+
   it('quests give more than half of the coins of a game of chapter 1 (the model)', () => {
     const chests = chestTables();
     const cache = new WildsSource(DEFAULT_SEED).loot(TOWN_CACHE)!;

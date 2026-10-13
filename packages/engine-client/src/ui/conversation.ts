@@ -16,6 +16,8 @@ import {
   type QuestBook,
   type QuestEffect,
   type Scores,
+  type Shop,
+  type ShopSide,
 } from '@game/engine';
 import { STRINGS } from './strings.ts';
 import { tw } from '../i18n.ts';
@@ -97,6 +99,8 @@ export class Conversation {
    * Gives the answer `index`. Returns the next node (the NPC says its line), or null if the
    * answer ends the conversation (or there is no such answer: then nothing changes). An answer
    * with a deal goes on to its `next` node if the player `paid`, else to the deal's `poor` node.
+   * An answer with a shop goes on to its `next` node: the conversation is there while the shop is
+   * open, and after it.
    */
   choose(index: number, paid = false): DialogNode | null {
     const answer = this.answers[index];
@@ -113,7 +117,7 @@ export class Conversation {
       this.answered = answer.text;
       return null;
     }
-    this.nodeId = answer.deal && !paid ? answer.deal.poor : answer.next;
+    this.nodeId = answer.deal && !paid ? (answer.deal.poor ?? answer.next) : answer.next;
     this.answered = answer.text;
     this.selected = this.firstOpen();
     return this.node;
@@ -183,6 +187,11 @@ export interface ConversationEvents {
   readonly deal?: (deal: Deal) => boolean;
   /** The player gives an answer with an effect on a quest: the game applies it (or sends it), and says whether it did. */
   readonly effect?: (effect: QuestEffect) => boolean;
+  /**
+   * The player gives an answer with a shop: the game opens the shop at the side `tab`, where the
+   * NPC says `say` (the line of the next node), and the panel waits (suspend) until it closes.
+   */
+  readonly shop?: (shop: Shop, tab: ShopSide | undefined, say: string) => void;
   /** A sound for the player's hand: an answer chosen, or a selection moved with the keys. */
   readonly sound?: (what: 'choose' | 'select') => void;
 }
@@ -203,6 +212,8 @@ export class ConversationPanel {
   private readonly list: HTMLOListElement;
   private readonly events: ConversationEvents;
   private talk: Conversation | null = null;
+  /** The panel waits while a shop of the conversation is open: hidden, and without the keys. */
+  private suspended = false;
   private priceOf: (deal: Deal) => string | null = () => null;
 
   constructor(events: ConversationEvents) {
@@ -272,6 +283,7 @@ export class ConversationPanel {
    */
   start(dialog: Dialog, face: Texture | null, scores: Scores = PLAIN_SCORES, priceOf: (deal: Deal) => string | null = () => null, facts: ConversationFacts = NO_FACTS): void {
     this.talk = new Conversation(dialog, scores, facts);
+    this.suspended = false;
     this.priceOf = priceOf;
     this.name.textContent = tw(dialog.name);
     if (face) drawCloseup(this.portrait, face);
@@ -285,6 +297,7 @@ export class ConversationPanel {
   close(): void {
     if (!this.talk) return;
     this.talk = null;
+    this.suspended = false;
     this.panel.hidden = true;
     document.body.classList.remove('conversing');
     // Give the focus back to the page, or the keys of the game stop working.
@@ -306,6 +319,27 @@ export class ConversationPanel {
     }
     this.render();
     this.events.line(next.say);
+    if (answer.shop) this.events.shop?.(answer.shop, answer.tab, next.say);
+  }
+
+  /** A shop of the conversation opens: the panel hides, and leaves the keys to the shop. */
+  suspend(): void {
+    if (!this.talk) return;
+    this.suspended = true;
+    this.panel.hidden = true;
+  }
+
+  /** The shop closed: the panel shows the conversation again, where it is. */
+  resume(): void {
+    if (!this.talk || !this.suspended) return;
+    this.suspended = false;
+    this.panel.hidden = false;
+    this.refresh();
+  }
+
+  /** Whether a shop of the conversation is open now. */
+  get waiting(): boolean {
+    return this.suspended;
   }
 
   private end(): void {
@@ -368,7 +402,7 @@ export class ConversationPanel {
 
   private key(event: KeyboardEvent): void {
     const talk = this.talk;
-    if (!talk || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!talk || this.suspended || event.ctrlKey || event.metaKey || event.altKey) return;
     const digit = /^Digit([1-9])$/.exec(event.code) ?? /^Numpad([1-9])$/.exec(event.code);
     let handled = true;
     if (digit) this.choose(Number(digit[1]) - 1);

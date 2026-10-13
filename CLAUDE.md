@@ -181,7 +181,10 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the settings and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
+  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
+  trader, in the place of the top-right panels, opened by an answer of a conversation: the trader's
+  close-up and line, "Buy" and "Sell", the coins, the wares with the prices for the character, the
+  detail of the chosen ware with its trade, one item at a time, and the pack; `wareRows()`), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the settings and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
   `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
   the one that the published page names: every 60 s while it is visible, when it shows again, and
   every 3 s for 2 minutes after a lost connection; nothing in development),
@@ -653,7 +656,7 @@ builder and the "You" section still name every gate.
 - **Deals** (`dialog.ts`, `DialogAnswer.deal`): an answer can buy goods for coins (the ale of the
   Crooked Lantern, 2 coins: `drunk` for 60 s x `resist`, the walk sways); with too few coins the
   conversation goes to `deal.poor`. In a shared world the page sends `deal` and the server
-  checks the NPC's nearness (`DEAL_RANGE`) and the coins.
+  checks the NPC's nearness (`DEAL_RANGE`) and the coins. The traders have shops (below).
 - **Intelligence**: the wizard's attack bonus and damage, and for every class the opening
   (`opening`: + max(0, mod) damage on a mob in its wind-up, after the dice, `rollBlow()`; arrows
   too). Gates in the page (`ui/gates.ts`): read a mob (INT 13 a health bar over it, INT 15 a glint on its wind-up;
@@ -670,7 +673,7 @@ builder and the "You" section still name every gate.
   with `speaker: 'fixture'`): three recipes (draught INT 10, antidote 13, strong draught 15), each
   a deal that takes items (`Deal.items`, `goods` an item kind). The page sends `deal` with `at`
   (a fixture's tile) or `npc`; `Room.deal()` checks nearness (48 px), the answer's gate
-  (`findDealAnswer()`) and the items.
+  (`findDeal()`) and the items.
 - **The map** (`ui/map-panel.ts`, M or the map button): it fills its panel, 256 tiles on its short
   side and more on its long side (the canvas takes the shape of its frame), round the player, only
   the seen chunks (the 3 x 3 chunks round the player, `seenChunks()`), drawn from the world's own
@@ -701,13 +704,22 @@ builder and the "You" section still name every gate.
   with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price; Brann and
   Elama words) and reputation (`REPUTATION_GATE` in `ui/gates.ts`: each NPC says its
   `NpcDef.greeting` once, with the character's name, within 2 tiles).
-- **Shops**: a deal can take items and give coins (`goods: 'coins'`, `pay`: the peddler Corwin buys
-  rings 5, cups 3, candles 1, imp horns 2, brute tusks 4) or give a refuge (`goods: 'refuge'`).
-  Isolde sells the three draughts (6, 8, 15 coins; her friend's price 4, 6, 11, each answer behind
-  CHA 13 so that the server checks it). The smith (`SMITH`, `SMITH_PRICES` in
-  `worlds/wilds/src/dialogs.ts`, since 2026-10-11) sells the armour, the shield and the weapons
-  (leather 5 to plate 150, a mace 3 to a longbow 12, a glaive 8; not the staffs) and buys all of them back for
-  half (`smithPays()`), from the pack only: a worn piece must come off first.
+- **Shops** (since 2026-10-13, Fede's request; `docs/features/items/pack-and-loot.md`, REQ-PK-017): a
+  trader's answer opens its shop (`DialogAnswer.shop`, a `Shop` with `buy` and `sell` wares, `tab` the
+  side to open; `dialog.ts`), and the page shows the shop panel (`ui/shop-panel.ts`) over the
+  conversation, which waits (`ConversationPanel.suspend()`/`resume()`) and goes on at the answer's
+  `next` node. One item for each trade: each is a deal (`wareDeal()`; a sale `goods: 'coins'`,
+  `pay`), with the same message `deal` and the id of the ware; `Room.deal()` finds it with
+  `findDeal()` and checks the gates and the conditions of the answer and of the ware. A deal of an
+  answer can still give a refuge (`goods: 'refuge'`) or an ale: the inns keep them in the
+  conversation (Fede's decision, 2026-10-13). The shops of the Wilds (`worlds/wilds/src/dialogs.ts`):
+  Corwin buys rings 5, cups 3, candles 1, imp horns 2, brute tusks 4, badger furs 4 (`PEDDLER_SHOP`);
+  Isolde sells the three draughts (6, 8, 15 coins, `REMEDIES`; her friend's price 4, 6, 11,
+  `FRIEND_REMEDIES`, behind the CHA 13 answer that opens it); the smith (`SMITH_SHOP`, `SMITH_PRICES`,
+  `FORGED`, since 2026-10-11) sells the armour, the shield and the weapons (leather 5 to plate 150, a
+  mace 3 to a longbow 12, a glaive 8; not the staffs) and buys all of them back for half
+  (`smithPays()`), from the pack only: a worn piece must come off first; Ilsa sells mithril
+  (`MITHRIL_SHOP`, with the permit).
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place; on 2026-10-11 a migration gave every character all
   its HP on the new scale). The vitals (`ui/vitals.ts`): a red bar for HP with the numbers ("17 /
@@ -965,7 +977,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   thing with neither is not a target.
 - **Conversations** (since 2026-10-10): a `Dialog` (`packages/engine/src/dialog.ts`) is a tree:
   a `name` (over the picture), a `start` node, and `nodes`, each with what the NPC says (`say`)
-  and 1 to 4 `answers` (`text`, and `next`: the next node, or none to end). `checkDialog()` gives
+  and 1 to 4 `answers` (`text`, and `next`: the next node, or none to end; an answer can also open a
+  shop, `shop`: see "Shops"). `checkDialog()` gives
   its problems (a node that no answer reaches, a node with no way out, a missing node, texts too
   long for the panel); a world tests its dialogs with it. The engine keeps no state of a
   conversation, so the server knows nothing of it. In the client: a press on such an NPC makes it
@@ -1301,7 +1314,10 @@ runs), `pack`, `gear` (the worn items, AC, the attack with its bonus and its dic
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
 for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with
 `data-slot` 32 to 43), `.gear-stats`, `.pack-pick` in each used one (drag it with the mouse, or with touch events: a
-`.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
+`.pack-ghost` follows the pointer), `.pack-detail`, `.pack-action`), `#shop` (a shop:
+`.shop-tab[data-side=buy|sell]`, `.shop-ware[data-ware=<id>]`, `.shop-trade`, `.shop-say`; in a shared
+world the server takes the place of a character from the store, so `?at=` works only within 64 tiles
+of it), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
 `#map` (the map panel), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?lang=en|es` (the language, not kept), `?mob=imp,brute` (mobs next to the player), `?companion=<look>` (a companion of that NPC look

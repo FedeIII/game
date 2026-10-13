@@ -28,7 +28,7 @@ const EN = {
       rest: { keys: 'Your bed: [E] rests, and gives back all your health. After a fall, you wake here.', touch: 'Your bed: the action button rests, and gives back all your health. After a fall, you wake here.' },
       journal: { keys: 'A new quest. [L] opens your journal.', touch: 'A new quest. The journal button, top right, opens your journal.' },
       talk: { keys: '[W] [S] or the arrows choose an answer; [E] or [Enter] says it. [Esc] ends the talk.', touch: 'Tap an answer to say it.' },
-      deal: { keys: 'An answer with a price buys or sells. Your Charisma makes the prices better.', touch: 'An answer with a price buys or sells. Your Charisma makes the prices better.' },
+      deal: { keys: 'Some answers buy or sell, and some open a shop. Your Charisma makes the prices better.', touch: 'Some answers buy or sell, and some open a shop. Your Charisma makes the prices better.' },
       map: { keys: '[M] opens the map of the land that you have seen.', touch: 'The map button, top right, shows the land that you have seen.' },
       sneak: { keys: 'A foe has not seen you. [C] walks quietly, and foes see you later.', touch: 'A foe has not seen you. A small push of the stick walks quietly.' },
       attack: { keys: 'A foe! [Space] strikes the nearest foe; a click strikes towards the pointer.', touch: 'A foe! The attack button strikes the nearest foe.' },
@@ -380,6 +380,29 @@ const EN = {
     /** After an answer with a deal: what the player pays, or gets for a sale (Charisma changes both). */
     price: (coins: number): string => (coins === 1 ? '(1 coin)' : `(${coins} coins)`),
     pay: (coins: number): string => (coins === 1 ? '(+1 coin)' : `(+${coins} coins)`),
+  },
+  /** The shop of a trader (ui/shop-panel.ts): a side to buy, a side to sell, one item at a time. */
+  shop: {
+    buy: 'Buy',
+    sell: 'Sell',
+    sides: 'Buy or sell',
+    back: 'Back to the conversation',
+    keys: '↑ ↓ to choose · ← → to buy or sell · E to trade · Esc to go back',
+    /** The price of a ware for the player (Charisma changes it), and what a sale gives. */
+    price: (coins: number): string => (coins === 1 ? '1 coin' : `${coins} coins`),
+    pay: (coins: number): string => (coins === 1 ? '+1 coin' : `+${coins} coins`),
+    /** The button of a trade, for a screen reader and as a tooltip: "Buy a healing draught for 6 coins". */
+    buyWhat: (what: string, price: string): string => `Buy ${what} for ${price}`,
+    sellWhat: (what: string, pay: string): string => `Sell ${what} for ${pay}`,
+    have: (n: number): string => `You have ${n}.`,
+    /** Why a trade cannot go. */
+    coins: 'You do not have enough coins.',
+    room: 'Your pack has no room for it.',
+    none: 'It is not in your pack.',
+    worn: 'You wear it. Take it off in the pack first.',
+    gate: (tag: string): string => `${tag} Not for you yet.`,
+    nothing: 'Nothing to trade here.',
+    pack: 'Your pack',
   },
   /** The names of things in action labels ("Examine the map table"). */
   names: {

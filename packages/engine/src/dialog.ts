@@ -40,6 +40,13 @@ export interface DialogAnswer {
    * effect again, and applies it (Room.quest).
    */
   readonly effect?: QuestEffect;
+  /**
+   * A shop: the answer opens its panel, at the side `tab` (else the first side that it has). The
+   * conversation goes on to `next`, and it shows again when the panel closes. The gate and the
+   * conditions of the answer count for every ware of the shop (findDeal).
+   */
+  readonly shop?: Shop;
+  readonly tab?: ShopSide;
 }
 
 /**
@@ -60,8 +67,60 @@ export interface Deal {
   readonly pay?: number;
   /** For goods 'refuge': the id of the refuge that the character gets (WorldSource.refuges). */
   readonly refuge?: string;
-  /** The node when the player has fewer coins or items than the deal asks, or no room for the goods. */
-  readonly poor: string;
+  /**
+   * The deal of an answer: the node when the player has fewer coins or items than the deal asks, or
+   * no room for the goods. A ware of a shop has none: its panel shows why a trade cannot go.
+   */
+  readonly poor?: string;
+}
+
+/** A side of a shop, as the player sees it: what it buys from the trader, or what it sells to the trader. */
+export type ShopSide = 'buy' | 'sell';
+
+/** The sides of a shop, in the order of the panel. */
+export const SHOP_SIDES: readonly ShopSide[] = ['buy', 'sell'];
+
+/** A thing of a shop: one item that the player buys from the trader, or sells to it, for coins. */
+export interface Ware {
+  /** The server finds the trade by it, as a deal (Room.deal): another deal or ware of the dialog with this id must be the same. */
+  readonly id: string;
+  readonly kind: ItemKind;
+  /** The coins for one, before Charisma: what the player pays (Shop.buy), or what it gets (Shop.sell). */
+  readonly price: number;
+  /** Only a character that passes the gate makes the trade (a friend's price); one 1 or 2 under it sees it dim (gateView). */
+  readonly gate?: Gate;
+  /** Only a character for whom the conditions hold sees the ware and makes the trade (quests.ts). */
+  readonly when?: Conditions;
+  /** What the trader says after this trade, in place of Shop.bought or Shop.sold. */
+  readonly says?: string;
+}
+
+/**
+ * A shop (Fede's request, 2026-10-13): what a trader sells, and what it buys, one item for each
+ * trade. An answer opens it (DialogAnswer.shop), and the page shows it in a panel with a side to
+ * buy and a side to sell. Each trade is a deal (wareDeal): in a shared world the server checks it
+ * as it checks the deal of an answer (Room.deal).
+ */
+export interface Shop {
+  /** What the trader sells: the player buys it. */
+  readonly buy?: readonly Ware[];
+  /** What the trader buys: the player sells it, from its pack (not what it wears). */
+  readonly sell?: readonly Ware[];
+  /** What the trader says after a purchase, and after a sale. */
+  readonly bought?: string;
+  readonly sold?: string;
+}
+
+/** The deal of a trade of a ware: an item for coins (a purchase), or coins for an item (a sale). */
+export function wareDeal(ware: Ware, side: ShopSide): Deal {
+  return side === 'buy'
+    ? { id: ware.id, goods: ware.kind, price: ware.price }
+    : { id: ware.id, goods: 'coins', price: 0, pay: ware.price, items: [{ kind: ware.kind, count: 1 }] };
+}
+
+/** The wares of one side of a shop. */
+export function shopWares(shop: Shop, side: ShopSide): readonly Ware[] {
+  return (side === 'buy' ? shop.buy : shop.sell) ?? [];
 }
 
 /** The coins that a player with `traits` pays for a deal: its price times its buyShare (Charisma), at least 1 if it has a price. */
@@ -107,15 +166,38 @@ export function canMakeDeal(deal: Deal, pack: Pack, traits: Pick<PlayerTraits, '
   return lootIsEmpty(addToPack(after, { coins: 0, items: [{ kind: deal.goods, count: 1 }] }, traits.slots).left);
 }
 
-/** The deal of the dialog with this id, or null. */
-export function findDeal(dialog: Dialog, id: string): Deal | null {
-  return findDealAnswer(dialog, id)?.deal ?? null;
+/**
+ * A deal that a character can ask for, and what it must pass for it: the gates and the conditions
+ * of its answer, and for a ware of a shop also those of the ware.
+ */
+export interface DealOffer {
+  readonly deal: Deal;
+  readonly gates: readonly Gate[];
+  readonly when: readonly Conditions[];
 }
 
-/** The answer of the dialog with the deal of this id (its gate counts too), or null. */
-export function findDealAnswer(dialog: Dialog, id: string): DialogAnswer | null {
-  for (const node of Object.values(dialog.nodes)) for (const answer of node.answers) if (answer.deal?.id === id) return answer;
-  return null;
+/** Every deal of a dialog: the deal of each answer, and each ware of the shop of each answer (wareDeal). */
+export function dialogDeals(dialog: Dialog): DealOffer[] {
+  const offers: DealOffer[] = [];
+  for (const node of Object.values(dialog.nodes)) {
+    for (const answer of node.answers) {
+      const gates = answer.gate ? [answer.gate] : [];
+      const when = answer.when ? [answer.when] : [];
+      if (answer.deal) offers.push({ deal: answer.deal, gates, when });
+      if (!answer.shop) continue;
+      for (const side of SHOP_SIDES) {
+        for (const ware of shopWares(answer.shop, side)) {
+          offers.push({ deal: wareDeal(ware, side), gates: ware.gate ? [...gates, ware.gate] : gates, when: ware.when ? [...when, ware.when] : when });
+        }
+      }
+    }
+  }
+  return offers;
+}
+
+/** The deal of the dialog with this id (of an answer, or a ware of a shop), with its gates and conditions, or null. */
+export function findDeal(dialog: Dialog, id: string): DealOffer | null {
+  return dialogDeals(dialog).find((offer) => offer.deal.id === id) ?? null;
 }
 
 export interface DialogNode {
@@ -162,6 +244,32 @@ export function findEffectAnswer(dialog: Dialog, id: string): DialogAnswer | nul
 export const DIALOG_LIMITS = { answers: 4, say: 200, answer: 70, name: 32 } as const;
 
 /**
+ * The problems of the shop of an answer (in node `id`): an answer that opens a shop has no deal or
+ * effect and goes on to a node; the shop has wares, each at a price, and the side of `tab`; the
+ * lines fit the panel; a side has an item only once.
+ */
+function checkShop(answer: DialogAnswer, id: string): string[] {
+  const shop = answer.shop!;
+  const problems: string[] = [];
+  const where = `${id}: the shop of "${answer.text}"`;
+  if (answer.deal || answer.effect) problems.push(`${where} is in an answer with a deal or an effect`);
+  if (answer.next === undefined) problems.push(`${where} ends the conversation`);
+  if (SHOP_SIDES.every((side) => shopWares(shop, side).length === 0)) problems.push(`${where} has no wares`);
+  if (answer.tab && shopWares(shop, answer.tab).length === 0) problems.push(`${where} has nothing on its side "${answer.tab}"`);
+  for (const line of [shop.bought, shop.sold]) if (line !== undefined && (!line || line.length > DIALOG_LIMITS.say)) problems.push(`${where}: the line "${line}" is empty or too long`);
+  for (const side of SHOP_SIDES) {
+    const kinds = new Set<ItemKind>();
+    for (const ware of shopWares(shop, side)) {
+      if (!(ware.price > 0)) problems.push(`${where}: the ware "${ware.id}" has no price`);
+      if (kinds.has(ware.kind) && !ware.gate && !ware.when) problems.push(`${where}: the ${ware.kind} is twice on its side "${side}"`);
+      kinds.add(ware.kind);
+      if (ware.says !== undefined && (!ware.says || ware.says.length > DIALOG_LIMITS.say)) problems.push(`${where}: the line of "${ware.id}" is empty or too long`);
+    }
+  }
+  return problems;
+}
+
+/**
  * The problems of a dialog, as sentences; none for a good one. A good dialog starts at a node that
  * it has, every answer leads to a node that it has, every node can be reached from the start,
  * every node has 1 to DIALOG_LIMITS.answers answers (one of them for every character: no gate, no
@@ -183,11 +291,12 @@ export function checkDialog(dialog: Dialog): string[] {
     for (const answer of node.answers) {
       if (!answer.text || answer.text.length > DIALOG_LIMITS.answer) problems.push(`${id}: the answer "${answer.text}" is empty or too long`);
       if (answer.next !== undefined && !dialog.nodes[answer.next]) problems.push(`${id}: the answer "${answer.text}" leads to no node "${answer.next}"`);
-      if (answer.deal && !dialog.nodes[answer.deal.poor]) problems.push(`${id}: the deal "${answer.deal.id}" leads to no node "${answer.deal.poor}"`);
+      if (answer.deal && !(answer.deal.poor !== undefined && dialog.nodes[answer.deal.poor])) problems.push(`${id}: the deal "${answer.deal.id}" leads to no node "${answer.deal.poor}"`);
       if (answer.deal && answer.next === undefined) problems.push(`${id}: the deal "${answer.deal.id}" ends the conversation`);
       if (answer.deal?.goods === 'coins' && !(answer.deal.pay! > 0)) problems.push(`${id}: the sale "${answer.deal.id}" pays nothing`);
       if (answer.deal?.goods === 'refuge' && !answer.deal.refuge) problems.push(`${id}: the deal "${answer.deal.id}" gives no refuge`);
       if (answer.deal && answer.effect) problems.push(`${id}: the answer "${answer.text}" has a deal and an effect`);
+      if (answer.shop) problems.push(...checkShop(answer, id));
     }
   }
   // One effect can be in several answers, but two different effects must not share an id.
@@ -201,19 +310,17 @@ export function checkDialog(dialog: Dialog): string[] {
       effects.set(effect.id, shape);
     }
   }
-  // One deal can be in several answers, but two different deals must not share an id.
+  // One deal can be in several answers and shops, but two different deals must not share an id: the
+  // server finds a deal by its id (findDeal).
   const deals = new Map<string, string>();
-  for (const id of ids) {
-    for (const { deal } of dialog.nodes[id]!.answers) {
-      if (!deal) continue;
-      const same = deals.get(deal.id);
-      const shape = JSON.stringify([deal.goods, deal.price, deal.poor, deal.items ?? [], deal.pay ?? 0, deal.refuge ?? '']);
-      if (same !== undefined && same !== shape) problems.push(`two deals have the id "${deal.id}"`);
-      deals.set(deal.id, shape);
-    }
+  for (const { deal, gates, when } of dialogDeals(dialog)) {
+    const same = deals.get(deal.id);
+    const shape = JSON.stringify([deal.goods, deal.price, deal.poor ?? '', deal.items ?? [], deal.pay ?? 0, deal.refuge ?? '', gates, when]);
+    if (same !== undefined && same !== shape) problems.push(`two deals have the id "${deal.id}"`);
+    deals.set(deal.id, shape);
   }
   /** The nodes that an answer leads to: its next, and the node for too few coins. */
-  const leads = (a: DialogAnswer): string[] => [...(a.next !== undefined ? [a.next] : []), ...(a.deal ? [a.deal.poor] : [])];
+  const leads = (a: DialogAnswer): string[] => [...(a.next !== undefined ? [a.next] : []), ...(a.deal?.poor !== undefined ? [a.deal.poor] : [])];
   // Every node from the start.
   const reached = new Set<string>();
   const queue = [dialog.start, ...(dialog.starts ?? []).map((s) => s.node), ...(dialog.refuse ? [dialog.refuse.node] : [])].filter((n) => dialog.nodes[n]);

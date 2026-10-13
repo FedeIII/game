@@ -14,7 +14,7 @@ again.
 - **Seen**: a tip that showed to its end, or whose thing the player did. A seen tip never shows again
   in that browser.
 - **Paused**: a moment with no tip: the prologue, a dream, the game menu, a panel over the screen (the
-  journal, the map, the pack, the settings, the worlds), or the notice of a new build.
+  journal, the map, the pack, the settings, the worlds, a shop), or the notice of a new build.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ game without a manual.
   | `rest` | a bed of the character in reach | a rest |
   | `journal` | the first quest that starts | the journal opens |
   | `talk` | the first conversation | the conversation ends |
-  | `deal` | an answer with a price | (its time) |
+  | `deal` | an answer with a price, or one that opens a shop | (its time) |
   | `map` | 120 tiles walked | the map opens |
   | `sneak` | a mob within 10 tiles that does not hunt the player | the player sneaks on purpose |
   | `attack` | the first mob that hunts the player | an attack |

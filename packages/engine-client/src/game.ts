@@ -1,5 +1,5 @@
 import './style.css';
-import { Application, Container, GlProgram, TextureSource } from 'pixi.js';
+import { Application, Container, GlProgram, TextureSource, type Texture } from 'pixi.js';
 import {
   ATTACK_TICKS,
   EMPTY_PACK,
@@ -174,6 +174,7 @@ import { LinkCard } from './ui/link-card.ts';
 import { DrinkBelt, countOf } from './ui/belt.ts';
 import { TipQueue, TipStore, TipView, tipsControls } from './ui/tips.ts';
 import { PackPanel } from './ui/pack-panel.ts';
+import { ShopPanel } from './ui/shop-panel.ts';
 import { BuildWatch } from './ui/new-build.ts';
 import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
@@ -1153,6 +1154,8 @@ async function run(options: GameOptions): Promise<void> {
   /** The veil of a dream (ui/dream.ts): over the world, under the panels. */
   const dreamVeil = new DreamVeil(document.getElementById('game'));
   let talkWith: Fixture | null = null;
+  /** The close-up of the NPC of the conversation (its shop shows it too). */
+  let talkFace: Texture | null = null;
   let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
   // The journal (a panel of the quests), the banner when a quest changes, and the marks of the map.
   const journal = quests.length > 0 ? new JournalPanel(quests, net && character ? null : STRINGS.journal.alone) : null;
@@ -1204,6 +1207,41 @@ async function run(options: GameOptions): Promise<void> {
     questsChanged(before, localQuests);
     return true;
   };
+  /**
+   * A deal with the NPC or the thing of the conversation (an ale, a brew at the cauldron, a trade
+   * of a shop): the server makes it in a shared world; the page in its own world. Returns whether it went.
+   */
+  const makeTrade = (deal: Deal): boolean => {
+    if (!talkWith || !canMakeDeal(deal, packNow(), traits)) return false;
+    const index = npcIndex.get(talkWith);
+    if (net) {
+      if (!net.deal(index !== undefined ? { npc: index } : { at: [talkWith.tx, talkWith.ty] }, deal.id)) return false;
+      gameSounds.fx.play('coins');
+      return true;
+    }
+    const next = makeDeal(deal, pack, player, traits);
+    if (!next) return false;
+    pack = next;
+    gameSounds.fx.play('coins');
+    // A room at the inn: the character gets the refuge (the server gives it in a shared world).
+    if (deal.goods === 'refuge' && deal.refuge && !localRefuges.includes(deal.refuge)) {
+      localRefuges.push(deal.refuge);
+      say(STRINGS.refuge, performance.now());
+      director.moment('refuge');
+    }
+    return true;
+  };
+  // The shop of a trader (ui/shop-panel.ts): an answer opens it, and the conversation shows again when it closes.
+  const shopPanel = new ShopPanel(
+    art,
+    {
+      trade: (row) => makeTrade(row.deal),
+      close: () => conversation.resume(),
+      line: (line) => speech.show([line], talkAnchor, performance.now(), true),
+      sound: (what) => gameSounds.fx.play(what === 'choose' ? 'uiClick' : 'uiSelect', { gain: 0.7 }),
+    },
+    definition.items,
+  );
   const conversation = new ConversationPanel({
     // Each line stays over the NPC's head as long as the panel shows it.
     line: (say) => {
@@ -1211,22 +1249,14 @@ async function run(options: GameOptions): Promise<void> {
       if (!dreamVeil.shown) speech.show([say], talkAnchor, performance.now(), true);
     },
     end: () => closeDialog(performance.now()),
-    // A deal (an ale, a brew at the cauldron): the server makes it in a shared world; the page in its own world.
-    deal: (deal) => {
-      if (!talkWith || !canMakeDeal(deal, packNow(), traits)) return false;
-      const index = npcIndex.get(talkWith);
-      if (net) return net.deal(index !== undefined ? { npc: index } : { at: [talkWith.tx, talkWith.ty] }, deal.id);
-      const next = makeDeal(deal, pack, player, traits);
-      if (!next) return false;
-      pack = next;
-      gameSounds.fx.play('coins');
-      // A room at the inn: the character gets the refuge (the server gives it in a shared world).
-      if (deal.goods === 'refuge' && deal.refuge && !localRefuges.includes(deal.refuge)) {
-        localRefuges.push(deal.refuge);
-        say(STRINGS.refuge, performance.now());
-        director.moment('refuge');
-      }
-      return true;
+    // A deal of an answer (an ale, a brew at the cauldron).
+    deal: makeTrade,
+    // An answer that opens a shop: the conversation waits under it.
+    shop: (shop, tab, line) => {
+      const talk = conversation.current;
+      if (!talk) return;
+      conversation.suspend();
+      shopPanel.show(shop, tab, { name: talk.dialog.name, face: talkFace, say: line }, () => ({ pack: packNow(), gear: gearNow(), book: questsNow(), traits }));
     },
     // The player's hand: an answer, a selection.
     sound: (what) => gameSounds.fx.play(what === 'choose' ? 'uiClick' : 'uiSelect', { gain: 0.7 }),
@@ -1247,8 +1277,9 @@ async function run(options: GameOptions): Promise<void> {
     if (pendingTalk.dream) dreamVeil.show();
     gameMusic.conversation();
     gameSounds.fx.play('uiOpen', { gain: 0.7 });
+    talkFace = face ? art.tryFrame(`npc/${face}`) : null;
     // What the character wears counts for the answers too (ownedPack): Verath asks for the Tear on its neck.
-    conversation.start(pendingTalk.dialog, face ? art.tryFrame(`npc/${face}`) : null, traits.scores, priceOf, { book: questsNow, pack: () => ownedPack({ pack: packNow(), gear: gearNow() }) });
+    conversation.start(pendingTalk.dialog, talkFace, traits.scores, priceOf, { book: questsNow, pack: () => ownedPack({ pack: packNow(), gear: gearNow() }) });
     pendingTalk = null;
   };
   /** Whether the NPC of the conversation is still close to the player. */
@@ -1268,6 +1299,7 @@ async function run(options: GameOptions): Promise<void> {
     dialogKey = null;
     pendingTalk = null;
     talkWith = null;
+    shopPanel.close();
     conversation.close();
   };
 
@@ -1462,7 +1494,7 @@ async function run(options: GameOptions): Promise<void> {
   joystick.onTouchMode(() => gameMenu.showButton());
   /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
   const otherUiOpen = (): boolean =>
-    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'settings'].some((id) => document.getElementById(id)?.hidden === false);
+    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'settings', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
   // Before the panels hear the key (the capture phase): while the menu is open, the game's keys stay out.
   window.addEventListener(
     'keydown',
@@ -1662,7 +1694,7 @@ async function run(options: GameOptions): Promise<void> {
     if (target) tips.request(target.fixture && fixtureContent(target.fixture, questsNow(), packNow())?.rest && mayRest(target.fixture) ? 'rest' : 'act');
     if (conversation.open) {
       tips.request('talk');
-      if (conversation.current?.answers.some((answer) => answer.deal)) tips.request('deal');
+      if (conversation.current?.answers.some((answer) => answer.deal || answer.shop)) tips.request('deal');
     } else if (w.talking) tips.done('talk', now);
     w.talking = conversation.open;
     // A fight: a foe that hunts the player, its wind-up, a hit, low health.
@@ -1686,7 +1718,7 @@ async function run(options: GameOptions): Promise<void> {
       tips.request('defeat');
     }
     // No tip over the prologue, a dream, the game menu, a panel, or the notice of a new build.
-    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'settings'].some((id) => document.getElementById(id)?.hidden === false);
+    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'settings', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
     tipView.show(tips.update(now, paused), joystick.isTouchMode);
   };
 
@@ -1816,6 +1848,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
     packPanel.show(packNow(), gearNow(), traits);
+    shopPanel.update();
     belt.show(packNow());
     // A new build: reload when it is calm (no conversation, no defeat, no mob that hunts the player).
     if (newBuild && !reloading && !conversation.open && player.down === 0 && huntersNow().length === 0) {
@@ -1916,7 +1949,7 @@ async function run(options: GameOptions): Promise<void> {
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),
       ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),
-      ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}` : pendingTalk ? 'starting' : '-'}`] : []),
+      ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}${shopPanel.state ? `, shop ${shopPanel.state.side} ${shopPanel.state.chosen ?? '-'}` : ''}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `music   ${director.mood ?? '-'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,

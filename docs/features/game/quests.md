@@ -378,10 +378,12 @@ that my deed has a reward.
 - **AC-QST-016.3:** At `band` or `escort`, Kasmut sends the character to find Himo first.
 - **AC-QST-016.4:** At `title`, Tova gives the bed under the blue quilt: the Silver Trout is the
   character's refuge (it wakes there after a defeat, if it is the nearest).
-- **AC-QST-016.5:** With the permit, Ilsa the jeweller sells a nugget of mithril for 5 coins (with the
-  price of Charisma). Without it, she sells nothing; the server checks it.
+- **AC-QST-016.5:** With the permit, "Here is the permit of Silverspring." opens the shop of Ilsa the
+  jeweller: a nugget of mithril for 5 coins (with the price of Charisma). Without it, she sells
+  nothing; the server checks it.
 - **AC-QST-016.6:** The smith of Ironhold buys a nugget of mithril for 10 coins (with the price of
-  Charisma). He asks for it first, when the character carries one.
+  Charisma). He asks for it first, when the character carries one ("Then let us trade." opens his
+  shop at the side "Sell"), and his shop shows the mithril only then.
 
 ---
 
@@ -591,7 +593,7 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `Dialog.starts`, `startNode()`, `answerHolds()`, `findEffectAnswer()`. `checkDialog()`: the start
   nodes exist and count as starts; each node has an answer without a gate, a condition or an
   effect; such answers do not count as a way out; two effects with one id must be the same; an
-  answer has a deal or an effect, not both.
+  answer has a deal, an effect or a shop, only one of them.
 - **Things** (`packages/engine/src/fixtures.ts`): `Interaction.effect` (applied when the character
   reads the first page), `Fixture.variant` (`when`, `frame`: the page draws the frame when the
   conditions hold; `render/fixtures.ts`, `Fixtures.setHolds()`). The fixture type `cart` (two
@@ -674,9 +676,10 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   (`HIMO_REWARD` 20), `HIMO_LOST`.
 - **The end** (`worlds/wilds/src`): `RAID_DEFENDED`, `RAID_TITLE_PERMIT`, `RAID_TITLE`; `KASMUT`
   starts `guard`, `early`, `held`, `himo`, `road`; `HOST` (`TROUT_ROOM`, the refuge `trout`);
-  `JEWELLER` (`MITHRIL_COST` 5); `SMITH` (start `mithril`, `MITHRIL_PRICE` 10); `REEVE` (starts `himo`,
-  `himo-lost`). The items `mithril` (stacks of 10) and `mithril-permit`. The server checks the
-  condition (`when`) of an answer with a deal (`Room.deal()`).
+  `JEWELLER` (`MITHRIL_SHOP`, `MITHRIL_COST` 5); `SMITH` (start `mithril`, the ware `sell-mithril` of
+  `SMITH_SHOP`, `MITHRIL_PRICE` 10); `REEVE` (starts `himo`, `himo-lost`). The items `mithril` (stacks
+  of 10) and `mithril-permit`. The server checks the condition (`when`) of an answer with a deal, or of
+  the answer that opens a shop and of its ware (`Room.deal()`, `findDeal()`).
 - **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6): `HALE` (9, -35), `MARROW`
   (51, -5), `TANNER` (-21, 25) (each a `Town` of 11 x 11 tiles; `RUINS`, `brandTile()`), the style
   `{ walls: 'charred', roof: 'none' }` (the page draws no roof: `ROOFLESS` in `render/buildings.ts`;

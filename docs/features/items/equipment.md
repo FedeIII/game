@@ -361,20 +361,21 @@ on the figures of the others, so that the gear shows in the world.
 do not use, so that the gear grows with my character.
 
 **Acceptance Criteria:**
-- **AC-EQ-019.1:** The smith of Ironhold has a conversation: "Show me armour.", "Show me
-  weapons.", "I have gear to sell." and "Goodbye.".
+- **AC-EQ-019.1:** The smith of Ironhold has a conversation: "Show me your iron." opens his shop
+  at the side "Buy", "I have gear to sell." at the side "Sell" ([Pack and Loot](pack-and-loot.md),
+  REQ-PK-017), and "Goodbye." ends it.
 - **AC-EQ-019.2:** He sells, before Charisma: leather armour 5 coins, studded leather 10, scale
   mail 12, chain mail 18, splint armour 45, plate armour 150, a shield 4, a longsword 6, a
   shortsword 4, a rapier 8, a greataxe 10, a glaive 8, a mace 3, a longbow 12. He does not sell
   the staffs.
 - **AC-EQ-019.3:** He buys each of them, and the two staffs, for half of his price, rounded down,
   at least 1 coin: plate armour 75, chain mail 9, a mace 1, a staff 2.
-- **AC-EQ-019.4:** He buys only from the pack. For a worn item, or one that the player does not
-  have, he says "I see none in your pack. If you wear it, take it off first."
-- **AC-EQ-019.5:** Without the coins, or without room in the pack, he says "Coin first, and room in
-  your pack for it." and nothing changes.
+- **AC-EQ-019.4:** He buys only from the pack. For a worn item the shop says "You wear it. Take it
+  off in the pack first.", and for one that the player does not have "It is not in your pack.".
+- **AC-EQ-019.5:** Without the coins the shop says "You do not have enough coins.", without room in
+  the pack "Your pack has no room for it.", and nothing changes.
 - **AC-EQ-019.6:** Charisma changes his prices and his pay, as every deal (Pack and Loot,
-  REQ-PK-010). The panel shows the price after each answer.
+  REQ-PK-010). The shop shows the price for the player beside each ware.
 - **AC-EQ-019.7:** In a shared world the server makes the deal (the nearness of the smith, the
   coins, the items).
 
@@ -508,11 +509,11 @@ mob before it comes close.
   `characterLook()` (`src/skins/look.ts`) for the menu; `ownLook()` and `wearLook()` in `game.ts`
   (`followGear()` wears a new look); `OtherPlayers` wears `lookOf(player)`. The debug panel shows
   `look` on the `skin` line, and `holds` for each other player.
-- **The smith** (phase 3): `SMITH`, `SMITH_PRICES` and `smithPays()` in
-  `worlds/wilds/src/dialogs.ts` (the deals `buy-<kind>` and `sell-<kind>`; the nodes `forge`,
-  `armour`, `heavy`, `shield`, `weapons`, `heavier`, `sell`, `sell-armour`, `sell-heavy`,
-  `sell-shield`, `sell-weapon`, `sell-weapon-2`, `sell-wood`, `bow`, `forged`, `short`, `scrapped`,
-  `none`); the smith of `town.ts` has it. Tests: `worlds/wilds/test/smith.test.ts`. The icons
+- **The smith** (phase 3; a shop since 2026-10-13): `SMITH`, `SMITH_PRICES`, `smithPays()`,
+  `FORGED` (what he sells, in the order of the shop) and `SMITH_SHOP` in
+  `worlds/wilds/src/dialogs.ts` (the wares `buy-<kind>` and `sell-<kind>`, and `sell-mithril` for a
+  character with mithril; the nodes `mithril`, `cart`, `lever`, `forge`, `wares` and `sell`); the
+  smith of `town.ts` has it. Tests: `worlds/wilds/test/smith.test.ts`. The icons
   of the two armours of phase 3: `studs()` on the leather cuirass, and the plate of `cuirass()`.
 - **Magic items** (phase 4b): in `WEARABLES`, the fields `bonus`, `base` (the plain item: for
   `canUse()` and `dressSkin()`), `unarmoured`, `sets`, `adds` (`MAX_RAISED` 20) and `quiet`

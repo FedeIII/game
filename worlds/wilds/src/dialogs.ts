@@ -1,4 +1,4 @@
-import type { Dialog, Gate, ItemKind } from '@game/engine';
+import type { Dialog, Gate, ItemKind, Shop } from '@game/engine';
 import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, FARMER_LEVER, LENTILS_GIVE, LENTILS_PLEAD, LENTILS_SPOILED, LENTILS_TAKE, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, ROAD_DONE, START_ASHES, TELL_REEVE } from './quests.ts';
 
 /**
@@ -169,9 +169,26 @@ export const INNKEEPER: Dialog = {
   },
 };
 
-/** A draught that Isolde sells, for coins (less with Charisma); a friend's price is behind persuasion. */
-const remedy = (id: string, text: string, goods: 'draught' | 'antidote' | 'strong-draught', price: number, gate?: Gate) =>
-  ({ text, next: 'bought', ...(gate ? { gate } : {}), deal: { id, goods, price, poor: 'broke' } }) as const;
+/** What Isolde says when she sells a draught. */
+const REMEDY_BOUGHT = 'Drink it before you need it, not after.';
+/** Isolde's shop: the three draughts, for coins (less with Charisma). */
+const REMEDIES: Shop = {
+  buy: [
+    { id: 'buy-draught', kind: 'draught', price: 6 },
+    { id: 'buy-antidote', kind: 'antidote', price: 8 },
+    { id: 'buy-strong', kind: 'strong-draught', price: 15 },
+  ],
+  bought: REMEDY_BOUGHT,
+};
+/** Her friend's price: the answer that opens it is behind persuasion, so the server checks the gate for each draught (findDeal). */
+const FRIEND_REMEDIES: Shop = {
+  buy: [
+    { id: 'friend-draught', kind: 'draught', price: 4 },
+    { id: 'friend-antidote', kind: 'antidote', price: 6 },
+    { id: 'friend-strong', kind: 'strong-draught', price: 11 },
+  ],
+  bought: REMEDY_BOUGHT,
+};
 
 /** Isolde, the apothecary. */
 export const APOTHECARY: Dialog = {
@@ -198,7 +215,7 @@ export const APOTHECARY: Dialog = {
       say: 'Careful with that shelf. Half of it heals and half of it kills.',
       answers: [
         { text: 'Which half is which?', next: 'halves' },
-        { text: 'Do you sell remedies?', next: 'shop' },
+        { text: 'Do you sell remedies?', next: 'shop', shop: REMEDIES },
         { text: 'Do you have something for wounds?', next: 'wounds' },
         { text: 'I will not touch anything.' },
       ],
@@ -207,30 +224,17 @@ export const APOTHECARY: Dialog = {
       say: 'The labels say. Unless they fell off. Some of them fell off.',
       answers: [
         { text: 'What do you know of the imps?', next: 'imps' },
-        { text: "Then I need a friend who knows the labels. A friend's price, perhaps?", next: 'friend', gate: PERSUASION_GATE },
+        { text: "Then I need a friend who knows the labels. A friend's price, perhaps?", next: 'friend', gate: PERSUASION_GATE, shop: FRIEND_REMEDIES },
         BYE,
       ],
     },
     shop: {
       say: 'Draughts for wounds, for poison, and for worse. Coin first.',
-      answers: [remedy('buy-draught', 'A healing draught.', 'draught', 6), remedy('buy-antidote', 'An antidote.', 'antidote', 8), remedy('buy-strong', 'A strong draught.', 'strong-draught', 15), { text: 'Not now.' }],
+      answers: [{ text: 'Something else.', next: 'careful' }, { text: 'Thank you.' }],
     },
     friend: {
       say: "Ha. You talk like a peddler. For you, a friend's price.",
-      answers: [
-        remedy('friend-draught', 'A healing draught.', 'draught', 4, PERSUASION_GATE),
-        remedy('friend-antidote', 'An antidote.', 'antidote', 6, PERSUASION_GATE),
-        remedy('friend-strong', 'A strong draught.', 'strong-draught', 11, PERSUASION_GATE),
-        { text: 'Not now.' },
-      ],
-    },
-    bought: {
-      say: 'Drink it before you need it, not after.',
       answers: [{ text: 'Something else.', next: 'careful' }, { text: 'Thank you.' }],
-    },
-    broke: {
-      say: 'Coin first, and room in your pack for the bottle.',
-      answers: [{ text: 'Something else.', next: 'careful' }, BYE],
     },
     wounds: {
       say: 'Ashroot, for cuts. Salt, for a scratch from an imp. Wash it, and then wash it again.',
@@ -488,15 +492,26 @@ export function smithPays(kind: SmithWare): number {
   return Math.max(1, Math.floor(SMITH_PRICES[kind] / 2));
 }
 
-const forge = (kind: SmithWare, text: string) => ({ text, next: 'forged', deal: { id: `buy-${kind}`, goods: kind, price: SMITH_PRICES[kind], poor: 'short' } }) as const;
-const scrap = (kind: SmithWare, text: string) =>
-  ({ text, next: 'scrapped', deal: { id: `sell-${kind}`, goods: 'coins', price: 0, pay: smithPays(kind), items: [{ kind, count: 1 }], poor: 'none' } }) as const;
+/** What the smith sells, in the order of his shop: the armour from light to heavy, the shield, the weapons. Not the staffs: wood is not his trade. */
+const FORGED: readonly SmithWare[] = ['leather-armour', 'studded-leather', 'scale-mail', 'chain-mail', 'splint-armour', 'plate-armour', 'shield', 'longsword', 'shortsword', 'rapier', 'greataxe', 'glaive', 'mace', 'longbow'];
 
 /**
- * The smith of Ironhold: armour, a shield and weapons for sale (not the staffs: wood is not his
- * trade), and he buys them all back for half of the price. He buys only what is in the pack: a
- * worn item must come off first.
+ * The smith's shop: the armour, the shield and the weapons, and he buys all of them back for half
+ * of the price, the staffs too. He buys only what is in the pack: a worn item must come off first.
+ * He also buys the mithril of Silverspring (story phase 4d), and he speaks of it only to a
+ * character who has some.
  */
+const SMITH_SHOP: Shop = {
+  buy: FORGED.map((kind) => ({ id: `buy-${kind}`, kind, price: SMITH_PRICES[kind] })),
+  sell: [
+    ...(Object.keys(SMITH_PRICES) as SmithWare[]).map((kind) => ({ id: `sell-${kind}`, kind, price: smithPays(kind) })),
+    { id: 'sell-mithril', kind: 'mithril', price: MITHRIL_PRICE, when: { has: 'mithril' }, says: 'Light as a feather, and harder than my anvil. Bring me more.' },
+  ],
+  bought: 'Wear it well. Come back when it breaks.',
+  sold: 'Iron is iron. Here is your coin.',
+};
+
+/** The smith of Ironhold: he sells and buys iron (SMITH_SHOP). */
 export const SMITH: Dialog = {
   name: 'The smith',
   start: 'forge',
@@ -511,18 +526,7 @@ export const SMITH: Dialog = {
     wanted: wanted('No iron for a thief. Pay the reeve your fine.'),
     mithril: {
       say: 'Is that mithril in your pack? From Silverspring? I pay you ten coins a nugget, and I ask no questions.',
-      answers: [
-        { text: 'One nugget, then.', next: 'mithril-sold', deal: { id: 'sell-mithril', goods: 'coins', price: 0, pay: MITHRIL_PRICE, items: [{ kind: 'mithril', count: 1 }], poor: 'none' } },
-        { text: 'Something else.', next: 'forge' },
-        BYE,
-      ],
-    },
-    'mithril-sold': {
-      say: 'Light as a feather, and harder than my anvil. Bring me more.',
-      answers: [
-        { text: 'Another one.', next: 'mithril-sold', deal: { id: 'sell-mithril', goods: 'coins', price: 0, pay: MITHRIL_PRICE, items: [{ kind: 'mithril', count: 1 }], poor: 'none' } },
-        { text: 'That is all.' },
-      ],
+      answers: [{ text: 'Then let us trade.', next: 'sell', shop: SMITH_SHOP, tab: 'sell' }, { text: 'Something else.', next: 'forge' }, BYE],
     },
     cart: {
       say: 'Mind the forge. It bites. You look like somebody who needs iron.',
@@ -538,91 +542,36 @@ export const SMITH: Dialog = {
     },
     forge: {
       say: 'Mind the forge. It bites. I sell iron, and I buy it back when you do not need it.',
-      answers: [
-        { text: 'Show me armour.', next: 'armour' },
-        { text: 'Show me weapons.', next: 'weapons' },
-        { text: 'I have gear to sell.', next: 'sell' },
-        BYE,
-      ],
+      answers: [{ text: 'Show me your iron.', next: 'wares', shop: SMITH_SHOP, tab: 'buy' }, { text: 'I have gear to sell.', next: 'sell', shop: SMITH_SHOP, tab: 'sell' }, BYE],
     },
-    armour: {
-      say: 'Leather for the quick, steel for the stubborn.',
-      answers: [forge('leather-armour', 'Leather armour.'), forge('studded-leather', 'Studded leather.'), forge('scale-mail', 'Scale mail.'), { text: 'Something heavier.', next: 'heavy' }],
-    },
-    heavy: {
-      say: 'Heavy iron. It stops a tusk, and it slows the feet that carry it.',
-      answers: [forge('chain-mail', 'Chain mail.'), forge('splint-armour', 'Splint armour.'), forge('plate-armour', 'Plate armour.'), { text: 'And a shield?', next: 'shield' }],
-    },
-    shield: {
-      say: 'Oak, and a rim of iron. It turns more blows than you think.',
-      answers: [forge('shield', 'A shield.'), { text: 'Something else.', next: 'forge' }, BYE],
-    },
-    weapons: {
+    wares: {
       say: 'Every blade in Ironhold has been through my hands twice. These are new.',
-      answers: [forge('longsword', 'A longsword.'), forge('shortsword', 'A shortsword.'), forge('rapier', 'A rapier.'), { text: 'Something heavier.', next: 'heavier' }],
-    },
-    heavier: {
-      say: 'An axe for the strong, a glaive to keep the claws away, a mace for the plain.',
-      answers: [forge('greataxe', 'A greataxe.'), forge('glaive', 'A glaive.'), forge('mace', 'A mace.'), { text: 'And a bow?', next: 'bow' }],
-    },
-    bow: {
-      say: 'A traveller left a longbow for its price. Yew, and a good string.',
-      answers: [forge('longbow', 'The longbow.'), { text: 'Something else.', next: 'forge' }, BYE],
+      answers: [{ text: 'Something else.', next: 'forge' }, { text: 'Thank you.' }],
     },
     sell: {
       say: 'I pay half of what I ask. Iron is iron. What is it?',
-      answers: [{ text: 'Armour or a shield.', next: 'sell-armour' }, { text: 'A weapon or a staff.', next: 'sell-weapon' }, { text: 'Something else.', next: 'forge' }, BYE],
-    },
-    'sell-armour': {
-      say: 'Put it on the bench. Light or heavy?',
-      answers: [scrap('leather-armour', 'Leather armour.'), scrap('studded-leather', 'Studded leather.'), scrap('scale-mail', 'Scale mail.'), { text: 'Something heavier.', next: 'sell-heavy' }],
-    },
-    'sell-heavy': {
-      say: 'Heavy, then. Let me see the rings and the rivets.',
-      answers: [scrap('chain-mail', 'Chain mail.'), scrap('splint-armour', 'Splint armour.'), scrap('plate-armour', 'Plate armour.'), { text: 'A shield.', next: 'sell-shield' }],
-    },
-    'sell-shield': {
-      say: 'A shield. Dented, I suppose.',
-      answers: [scrap('shield', 'A shield.'), { text: 'Something else.', next: 'sell' }, { text: 'Nothing now.' }],
-    },
-    'sell-weapon': {
-      say: 'A blade? Let me see the edge.',
-      answers: [scrap('longsword', 'A longsword.'), scrap('shortsword', 'A shortsword.'), scrap('rapier', 'A rapier.'), { text: 'Something else.', next: 'sell-weapon-2' }],
-    },
-    'sell-weapon-2': {
-      say: 'Heavier work. Let me feel the weight.',
-      answers: [scrap('greataxe', 'A greataxe.'), scrap('glaive', 'A glaive.'), scrap('mace', 'A mace.'), { text: 'A bow or a staff.', next: 'sell-wood' }],
-    },
-    'sell-wood': {
-      say: 'Wood. I burn it in the forge, but I pay for it.',
-      answers: [scrap('longbow', 'A longbow.'), scrap('arcane-staff', 'An arcane staff.'), scrap('druid-staff', 'A druid staff.'), { text: 'Nothing now.' }],
-    },
-    forged: {
-      say: 'Wear it well. Come back when it breaks.',
-      answers: [{ text: 'Something else.', next: 'forge' }, { text: 'Thank you.' }],
-    },
-    short: {
-      say: 'Coin first, and room in your pack for it.',
-      answers: [{ text: 'Something else.', next: 'forge' }, BYE],
-    },
-    scrapped: {
-      say: 'Iron is iron. Here is your coin.',
-      answers: [{ text: 'Something else.', next: 'sell' }, { text: 'That is all.' }],
-    },
-    none: {
-      say: 'I see none in your pack. If you wear it, take it off first.',
-      answers: [{ text: 'Something else.', next: 'sell' }, BYE],
+      answers: [{ text: 'Something else.', next: 'forge' }, { text: 'That is all.' }],
     },
   },
 };
 
-const sell = (id: string, text: string, kind: 'ring' | 'cup' | 'candle' | 'imp-horn' | 'brute-tusk' | 'badger-fur', pay: number) =>
-  ({ text, next: 'sold', deal: { id, goods: 'coins', price: 0, pay, items: [{ kind, count: 1 }], poor: 'none' } }) as const;
-
 /**
- * Corwin, the peddler of the main street: he buys the trinkets of the houses and the trophies of
- * the woods (Fede's prices, 2026-10-10). Charisma gets more for them (PlayerTraits.sellShare).
+ * What Corwin buys: the trinkets of the houses and the trophies of the woods (Fede's prices,
+ * 2026-10-10). Charisma gets more for them (PlayerTraits.sellShare).
  */
+const PEDDLER_SHOP: Shop = {
+  sell: [
+    { id: 'sell-ring', kind: 'ring', price: 5 },
+    { id: 'sell-cup', kind: 'cup', price: 3 },
+    { id: 'sell-candle', kind: 'candle', price: 1 },
+    { id: 'sell-horn', kind: 'imp-horn', price: 2 },
+    { id: 'sell-tusk', kind: 'brute-tusk', price: 4 },
+    { id: 'sell-fur', kind: 'badger-fur', price: 4 },
+  ],
+  sold: 'A fair price. Fairer than most. What else?',
+};
+
+/** Corwin, the peddler of the main street: he buys what the woods give (PEDDLER_SHOP). */
 export const PEDDLER: Dialog = {
   name: 'Corwin, the peddler',
   start: 'wares',
@@ -632,30 +581,22 @@ export const PEDDLER: Dialog = {
     wares: {
       say: 'Pots! Pins! Candles! Well... I had candles. I buy what the woods give you.',
       answers: [
-        { text: 'What do you buy?', next: 'trinkets' },
-        { text: 'Do you buy trophies?', next: 'trophies' },
+        { text: 'What do you buy?', next: 'trinkets', shop: PEDDLER_SHOP },
+        { text: 'Do you buy trophies?', next: 'trophies', shop: PEDDLER_SHOP },
         { text: 'Why do you not sell candles?', next: 'candles' },
         BYE,
       ],
     },
     trinkets: {
       say: 'Rings, cups, candle stubs. Things that people leave behind when they go south.',
-      answers: [sell('sell-ring', 'A silver ring.', 'ring', 5), sell('sell-cup', 'A pewter cup.', 'cup', 3), sell('sell-candle', 'A candle stub.', 'candle', 1), { text: 'Nothing now.' }],
+      answers: [{ text: 'Something else.', next: 'wares' }, { text: 'That is all.' }],
     },
     trophies: {
       say: 'Horns, tusks and furs. The apothecary pays me for the horns and the tusks; the furs go south. Everybody wins.',
-      answers: [sell('sell-horn', 'An imp horn.', 'imp-horn', 2), sell('sell-tusk', 'A brute tusk.', 'brute-tusk', 4), sell('sell-fur', 'A badger fur.', 'badger-fur', 4), { text: 'Something else.', next: 'wares' }],
+      answers: [{ text: 'Something else.', next: 'wares' }, { text: 'That is all.' }],
     },
     candles: {
       say: 'The chandler shut his shop when the roads went bad. Now I sell what I can find, and I find nothing.',
-      answers: [{ text: 'Something else.', next: 'wares' }, BYE],
-    },
-    sold: {
-      say: 'A fair price. Fairer than most. What else?',
-      answers: [{ text: 'Something else.', next: 'wares' }, { text: 'That is all.' }],
-    },
-    none: {
-      say: 'You do not have one. I do not buy promises.',
       answers: [{ text: 'Something else.', next: 'wares' }, BYE],
     },
   },
@@ -975,9 +916,15 @@ export const MILITIA: Dialog = {
   },
 };
 
-/** A nugget of mithril, for a character with the permit of Silverspring (story phase 4d). The server checks the condition of each answer with a deal. */
-const MITHRIL = { id: 'buy-mithril', goods: 'mithril', price: MITHRIL_COST, poor: 'poor' } as const;
 const PERMIT = { has: 'mithril-permit' } as const;
+/**
+ * A nugget of mithril, for a character with the permit of Silverspring (story phase 4d). The answer
+ * that opens the shop has the condition, and the server checks it for the nugget (findDeal).
+ */
+const MITHRIL_SHOP: Shop = {
+  buy: [{ id: 'buy-mithril', kind: 'mithril', price: MITHRIL_COST }],
+  bought: 'Here. When you sell it, tell them where it comes from.',
+};
 
 /** Ilsa, the jeweller of Silverspring: she sells mithril at cost to a friend of the town (the permit). */
 export const JEWELLER: Dialog = {
@@ -996,19 +943,11 @@ export const JEWELLER: Dialog = {
     },
     sell: {
       say: 'I sell only to the Enclave, or to a friend of the town. Kasmut decides who that is.',
-      answers: [{ text: 'Here is the permit of Silverspring.', next: 'nugget', when: PERMIT }, BYE],
+      answers: [{ text: 'Here is the permit of Silverspring.', next: 'nugget', when: PERMIT, shop: MITHRIL_SHOP }, BYE],
     },
     nugget: {
       say: 'The permit of Kasmut! Then you pay what the Enclave pays: five coins a nugget.',
-      answers: [{ text: 'One nugget, then.', next: 'bought', deal: MITHRIL, when: PERMIT }, BYE],
-    },
-    bought: {
-      say: 'Here. When you sell it, tell them where it comes from.',
-      answers: [{ text: 'Another one.', next: 'bought', deal: MITHRIL, when: PERMIT }, { text: 'That is all.' }],
-    },
-    poor: {
-      say: 'Five coins, friend, and room in your pack. Mithril is not given away.',
-      answers: [BYE],
+      answers: [{ text: 'That is all.' }],
     },
   },
 };

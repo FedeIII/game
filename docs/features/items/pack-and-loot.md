@@ -8,6 +8,7 @@ herbs in the woods and the buried cache of Ironhold also give loot. Each source 
 for every player of a world, and it fills again after a time. Herbs and trophies go into brews,
 the brews are drinks, and a character with Medicine chews herbs. The pack panel shows what each
 thing is and what it is for, and the player puts each stack in the slot that it wants with a drag.
+The traders of the towns have a shop: a panel where the player buys and sells, one item at a time.
 A player drinks from a belt under its hit points, and it can put items on the ground (also with a
 drag out of the panel), where any player can pick them up again. What does not fit in the pack
 after a kill falls on the ground. The items fall to the ground on the screen, and an item on the
@@ -31,6 +32,9 @@ ground shines a little now and then.
 - **Toss**: items go from the hands of a player (or out of a mob that died) onto a pile. A toss
   towards a point: the player drags a stack out of the pack panel onto the world.
 - **Drink belt**: the row of drink buttons under the hit points.
+- **Shop**: what a trader sells and what it buys. An answer of the conversation with the trader opens
+  the shop panel. **Ware**: one item of a shop, with its price. **Trade**: one purchase or one sale
+  in a shop, of one item.
 - **Source of loot**: a chest, a patch of herbs or a buried cache.
 - **Refill**: a source fills again with new loot.
 - **A world that the page runs**: a world without the multiplayer server: a world that is not
@@ -258,8 +262,9 @@ that I find have a use.
   candle stub for 1, an imp horn for 2 and a brute tusk for 4 (REQ-CHA-005). The smith sells
   armour, a shield and weapons, and buys them back for half ([Equipment](equipment.md),
   REQ-EQ-019).
-- **AC-PK-010.4:** Charisma changes every price and every sale (REQ-CHA-003). The conversation
-  panel shows the price for the player after the answer: "(2 coins)", "(+7 coins)".
+- **AC-PK-010.4:** Charisma changes every price and every sale (REQ-CHA-003). The shop panel shows
+  the price for the player: "6 coins", "+5 coins" (REQ-PK-017). The conversation panel shows it
+  after an answer with a deal: "The ale, then. (2 coins)".
 - **AC-PK-010.5:** A player with fewer coins than the price, without the item to sell, or without
   room for what it buys, makes no deal and keeps what it has.
 - **AC-PK-010.6:** In a shared world the server makes the deal, and the pack in the next snapshot
@@ -436,6 +441,53 @@ of the 5 for the lentils must be a big save (Fede, 2026-10-13; `docs/game-design
 
 ---
 
+### REQ-PK-017: The shop of a trader
+
+**User Story:** As a player with coins and trinkets, I want a shop with what a trader sells and what
+it buys, with my prices, so that I trade without a long conversation for each item (Fede's request,
+2026-10-13).
+
+**Acceptance Criteria:**
+- **AC-PK-017.1:** Four traders have a shop: Isolde, the apothecary ("Do you sell remedies?"; her
+  friend's price behind CHA 13: REQ-CHA-004), Corwin, the peddler ("What do you buy?", "Do you buy
+  trophies?": REQ-CHA-005), the smith ("Show me your iron.", "I have gear to sell.", and "Then let us
+  trade." to a character with mithril: REQ-EQ-019), and Ilsa, the jeweller of Silverspring ("Here is
+  the permit of Silverspring.": [Quests](../game/quests.md), REQ-QST-016). The inns keep the ale and
+  the room as answers of the conversation (Fede's decision, 2026-10-13).
+- **AC-PK-017.2:** The answer opens the shop panel in the place of the top-right panels, and the
+  conversation panel hides. The panel shows the close-up of the trader, its name and its line, the
+  coins, a side "Buy" and a side "Sell" (only the sides that the shop has), the wares of the side,
+  the detail of the chosen ware, and the slots of the pack ("4 of 6 slots").
+- **AC-PK-017.3:** Each ware shows its icon, its name, how many the player has ("× 2"), and its price
+  for the player: "6 coins" to buy, "+5 coins" to sell (Charisma, REQ-CHA-003).
+- **AC-PK-017.4:** The detail of the chosen ware says what it is and what it does (the lines of the
+  pack panel, REQ-PK-008, and the world's line about it), and has one button: "Buy · 6 coins" or
+  "Sell · +5 coins". Each press trades one item.
+- **AC-PK-017.5:** When a trade cannot go, its button is off and the detail says why: "You do not
+  have enough coins.", "Your pack has no room for it.", "It is not in your pack." or "You wear it.
+  Take it off in the pack first.".
+- **AC-PK-017.6:** On the side "Sell", the items that the player has come first; the others show
+  faint.
+- **AC-PK-017.7:** After a trade, the trader says its line in the panel and over its head: Isolde
+  "Drink it before you need it, not after.", Corwin "A fair price. Fairer than most. What else?",
+  the smith "Wear it well. Come back when it breaks." (a purchase), "Iron is iron. Here is your
+  coin." (a sale) and "Light as a feather, and harder than my anvil. Bring me more." (mithril), Ilsa
+  "Here. When you sell it, tell them where it comes from.".
+- **AC-PK-017.8:** The close button, Esc, or another top-right panel closes the shop, and the
+  conversation shows again at the node of the answer. The conversation ends as before (REQ-PK-010,
+  and an NPC more than 40 px away, a stun or a defeat): then the shop closes too.
+- **AC-PK-017.9:** On a keyboard: W S or ↑ ↓ choose a ware, A D or ← → choose the side, E, Enter or
+  Space trade, Esc closes. The player stands still while the shop is open.
+- **AC-PK-017.10:** On a narrow screen the detail of the chosen ware stays at the bottom of the
+  panel while the wares scroll; on a wide screen (720 px and more) it stays at the top of its column,
+  beside the wares.
+- **AC-PK-017.11:** In a shared world the server makes each trade as a deal (REQ-PK-010): the
+  nearness of the trader, the gate and the conditions of the answer that opens the shop and of the
+  ware, a robber that the trader refuses, the coins and the items. The message `deal` does not
+  change.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Drinks:** `DRINKS` (`Drink`: `hp` (a `Dice`: `draught` 2d4+2, `strong-draught` 4d4+4, `herbs`
@@ -453,10 +505,28 @@ of the 5 for the lentils must be a big save (Fede, 2026-10-13; `docs/game-design
   or as a key repeat. The conversation panel takes the digits first (capture phase).
 
 - **Deals** (`packages/engine/src/dialog.ts`): `Deal` (`goods`: `ale`, an item kind, `coins` for
-  a sale, `refuge`; `price`, `items`, `pay`, `refuge`), `dealPrice()` and `dealPay()` (Charisma:
-  `PlayerTraits.buyShare` and `sellShare`), `makeDeal()` and `canMakeDeal()`; `Room.deal()` makes
-  them in a shared world. The Wilds: `ALE`, `ROOM`, `remedy()` and `sell()` in
-  `worlds/wilds/src/dialogs.ts`.
+  a sale, `refuge`; `price`, `items`, `pay`, `refuge`, and `poor` for the deal of an answer),
+  `dealPrice()` and `dealPay()` (Charisma: `PlayerTraits.buyShare` and `sellShare`), `makeDeal()`
+  and `canMakeDeal()`; `Room.deal()` makes them in a shared world. It finds a deal by its id with
+  `findDeal()`: the deal of an answer, or a ware of a shop, with the gates and the conditions of the
+  answer and of the ware (`DealOffer`; `dialogDeals()` lists them all). The Wilds: `ALE`, `ROOM`,
+  `TROUT_ALE`, `TROUT_ROOM` and the recipes of `CAULDRON` in `worlds/wilds/src/dialogs.ts`.
+- **Shops** (`dialog.ts`): `Shop` (`buy`, `sell`: the wares, from the player's side; `bought`,
+  `sold`: the lines after a trade), `Ware` (`id`, `kind`, `price`, `gate`, `when`, `says`),
+  `ShopSide`, `wareDeal()` (a purchase: the item for `price`; a sale: `pay` for the item) and
+  `shopWares()`. An answer opens one with `DialogAnswer.shop` and `tab` (the side to open), and goes
+  on to its `next` node. `checkDialog()` wants a `next`, no deal or effect on the same answer, wares
+  with a price, the side of `tab`, and one id for one trade in the whole dialog. The Wilds:
+  `REMEDIES`, `FRIEND_REMEDIES`, `SMITH_SHOP`, `PEDDLER_SHOP` and `MITHRIL_SHOP` in
+  `worlds/wilds/src/dialogs.ts`, with the ids of the deals before them (`buy-draught`,
+  `friend-draught`, `buy-<kind>`, `sell-<kind>`, `sell-ring`, `buy-mithril`, `sell-mithril`).
+- **The shop panel** (`packages/engine-client/src/ui/shop-panel.ts`, `ShopPanel`, `#shop`):
+  `wareRows()` gives the rows of a side for a character (`WareRow`: the deal, the price after
+  Charisma, how many it has, the problem: `gate`, `coins`, `room`, `none` or `worn`). The
+  conversation panel calls `ConversationEvents.shop` and waits (`ConversationPanel.suspend()`,
+  `resume()`); `game.ts` opens the shop and makes each trade with `makeTrade()` (the coin sound).
+  Selectors: `.shop-tab[data-side]`, `.shop-ware[data-ware=<id>]` (`.chosen`, `.short`, `.absent`,
+  `.dim`), `.shop-trade`, `.shop-say`. The debug line `talk` adds `shop <side> <ware>`.
 
 - **The pack** (`packages/engine/src/items.ts`): `ITEM_KINDS` (the order is the code on the wire:
   add a new kind at the end), `ITEM_STACK`, `MAX_COINS` (99,999), `MAX_SLOTS` (16: the most slots

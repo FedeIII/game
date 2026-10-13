@@ -52,7 +52,7 @@ words.
   all hit points and stamina back). Without it, the bed says "A narrow bed by the east wall. It is
   not mine."
 - **AC-CHA-002.4:** Isolde, the apothecary: "[CHA 13] Then I need a friend who knows the labels. A
-  friend's price, perhaps?" opens her friend's price (REQ-CHA-004).
+  friend's price, perhaps?" opens her shop at her friend's price (REQ-CHA-004).
 - **AC-CHA-002.5:** Brann, the watchman: "[CHA 13] You look like a man who needs a drink. The next
   one is on me." He tells that the brutes are slow. Elama Rothenel, the reeve: "[CHA 13] You can
   tell me. I keep secrets." She tells of the last reeve and the granary.
@@ -71,8 +71,10 @@ further.
   110% at CHA 8 or 9, 100% at 10 or 11, 70% at 16 or 17.
 - **AC-CHA-003.2:** A player gets for a sale the price × (1 + 0.1 × CHA modifier), rounded, at
   least 1 coin: 90% at CHA 8 or 9, 130% at 16 or 17.
-- **AC-CHA-003.3:** The conversation panel shows the price for the player after the answer: "The
-  ale, then. (2 coins)", "A silver ring. (+7 coins)".
+- **AC-CHA-003.3:** The shop panel shows the price for the player beside each ware and on its
+  button: "Buy · 6 coins", "Sell · +7 coins" ([Pack and Loot](../items/pack-and-loot.md),
+  REQ-PK-017). The conversation panel shows it after an answer with a deal: "The ale, then. (2
+  coins)".
 - **AC-CHA-003.4:** In a shared world the server takes and gives the coins with the same rule.
 
 ---
@@ -83,12 +85,14 @@ further.
 cauldron.
 
 **Acceptance Criteria:**
-- **AC-CHA-004.1:** "Do you sell remedies?" leads to Isolde's shop: a healing draught for 6 coins,
-  an antidote for 8, a strong draught for 15, before Charisma.
-- **AC-CHA-004.2:** Her friend's price (REQ-CHA-002) is 4, 6 and 11 coins, before Charisma. Each of
-  those answers is behind CHA 13 too.
+- **AC-CHA-004.1:** "Do you sell remedies?" opens Isolde's shop ([Pack and Loot](../items/pack-and-loot.md),
+  REQ-PK-017): a healing draught for 6 coins, an antidote for 8, a strong draught for 15, before
+  Charisma.
+- **AC-CHA-004.2:** Her friend's price (REQ-CHA-002) is a shop of its own: 4, 6 and 11 coins, before
+  Charisma. The server sells at that price only to a character with CHA 13: the gate of the answer
+  that opens the shop counts for each draught.
 - **AC-CHA-004.3:** With the coins and room in the pack, the draught goes into the pack: "Drink it
-  before you need it, not after." Else: "Coin first, and room in your pack for the bottle."
+  before you need it, not after." Else the panel says why, and nothing changes.
 
 ---
 
@@ -98,11 +102,12 @@ cauldron.
 coins.
 
 **Acceptance Criteria:**
-- **AC-CHA-005.1:** Corwin, the peddler of the main street, has a conversation. He buys a silver
-  ring for 5 coins, a pewter cup for 3, a candle stub for 1, an imp horn for 2 and a brute tusk
-  for 4, before Charisma.
+- **AC-CHA-005.1:** Corwin, the peddler of the main street, has a conversation, and "What do you
+  buy?" or "Do you buy trophies?" opens his shop: only a side to sell. He buys a silver ring for 5
+  coins, a pewter cup for 3, a candle stub for 1, an imp horn for 2, a brute tusk for 4 and a badger
+  fur for 4, before Charisma.
 - **AC-CHA-005.2:** A sale takes one item from the pack: "A fair price. Fairer than most. What
-  else?" Without the item: "You do not have one. I do not buy promises."
+  else?" Without the item, the panel says "It is not in your pack." and the button is off.
 
 ---
 
@@ -167,9 +172,12 @@ can choose my scores.
   (`packages/engine/src/traits.ts`: `PRICE_PER_MOD`, `PRESENCE_PER_MOD`, `DAUNT_PER_MOD`,
   `INSPIRE_PER_MOD`, `INSPIRE_RANGE`).
 - **Prices:** `dealPrice()` and `dealPay()` in `packages/engine/src/dialog.ts`; a sale is a deal
-  with `goods: 'coins'` and `pay`, a room a deal with `goods: 'refuge'` and `refuge`. The page shows
-  the price with `ConversationPanel.start(..., priceOf)` (`packages/engine-client/src/ui/conversation.ts`;
-  `STRINGS.conversation.price` and `pay`); the answer texts of a world have no price in them.
+  with `goods: 'coins'` and `pay`, a room a deal with `goods: 'refuge'` and `refuge`, and a ware of a
+  shop becomes a deal with `wareDeal()`. The shop panel shows the price with `wareRows()`
+  (`packages/engine-client/src/ui/shop-panel.ts`; `STRINGS.shop.price` and `pay`), the
+  conversation panel with `ConversationPanel.start(..., priceOf)` (`STRINGS.conversation.price` and
+  `pay`); the answer texts of a world have no price in them. The shops: `REMEDIES`,
+  `FRIEND_REMEDIES` and `PEDDLER_SHOP` in `worlds/wilds/src/dialogs.ts`.
 - **The room:** `ROOM` in `worlds/wilds/src/dialogs.ts`; the refuge `inn` (`Refuge.given`: only a
   deal gives it, `refugeAt()` skips it) in `worlds/wilds/src/source.ts`; the bed `B` of the inn
   (`Interaction.restFor: 'inn'`) in `worlds/wilds/src/town.ts`. `Room.deal()` adds the refuge, and

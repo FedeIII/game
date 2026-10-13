@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, WEARABLES, World, checkDialog, gearAddress, kitOf, traitsOf, type DialogAnswer, type ItemKind, type Pack } from '@game/engine';
+import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, WEARABLES, World, checkDialog, dialogDeals, gearAddress, kitOf, traitsOf, type DialogAnswer, type ItemKind, type Pack } from '@game/engine';
 import { DEFAULT_SEED, MAGIC_CHANCE, MAGIC_ITEMS, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
 import { MITHRIL_PRICE } from '../src/index.ts';
 
 const answers = (): DialogAnswer[] => Object.values(SMITH.nodes).flatMap((n) => n.answers);
-const deals = (prefix: 'buy-' | 'sell-') => answers().flatMap((a) => (a.deal?.id.startsWith(prefix) ? [a.deal] : []));
+const deals = (prefix: 'buy-' | 'sell-') => dialogDeals(SMITH).flatMap(({ deal }) => (deal.id.startsWith(prefix) ? [deal] : []));
 const smith = TOWN_NPCS.findIndex((n) => n.id === 'smith');
 const besideSmith = () => {
   const [tx, ty] = TOWN_NPCS[smith]!.home;

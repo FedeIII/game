@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVERAGE_DICE, PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
+import { AVERAGE_DICE, PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, dialogDeals, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
 import { APOTHECARY, DEFAULT_SEED, INNKEEPER, PEDDLER, PERSUASION_GATE, REEVE, TOWN_BUILDINGS, TOWN_NPCS, WATCHMAN, WildsSource } from '../src/index.ts';
 
 const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
@@ -16,13 +16,18 @@ describe('persuasion in the conversations of Ironhold', () => {
     expect(PERSUASION_GATE).toEqual({ ability: 'cha', min: 13 });
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE, PEDDLER]) expect(checkDialog(dialog), dialog.name).toEqual([]);
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE]) {
-      const doors = answers(dialog).filter((a) => a.gate === PERSUASION_GATE && !a.deal?.id.startsWith('friend'));
+      const doors = answers(dialog).filter((a) => a.gate === PERSUASION_GATE);
       expect(doors, dialog.name).toHaveLength(1);
     }
-    // Isolde's friend's price is behind the gate too: the server checks the gate of the answer with the deal.
-    const friend = answers(APOTHECARY).filter((a) => a.deal?.id.startsWith('friend'));
-    expect(friend).toHaveLength(3);
-    for (const a of friend) expect(a.gate).toBe(PERSUASION_GATE);
+    // Isolde's friend's price is a shop behind the gate: the server checks the gate of the answer that opens it for each draught.
+    const friend = dialogDeals(APOTHECARY).filter((offer) => offer.deal.id.startsWith('friend'));
+    expect(friend.map((offer) => [offer.deal.goods, offer.deal.price])).toEqual([
+      ['draught', 4],
+      ['antidote', 6],
+      ['strong-draught', 11],
+    ]);
+    for (const offer of friend) expect(offer.gates).toEqual([PERSUASION_GATE]);
+    for (const offer of dialogDeals(APOTHECARY).filter((o) => o.deal.id.startsWith('buy-'))) expect(offer.gates).toEqual([]);
   });
 
   it('shows no price in the text of an answer: the panel adds the price for the player', () => {

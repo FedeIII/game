@@ -6,7 +6,7 @@ import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSl
 import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, tossPoint } from '../piles.ts';
 import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
-import { DEAL_RANGE, findDealAnswer, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
+import { DEAL_RANGE, findDeal, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
@@ -648,8 +648,9 @@ export class Room {
   }
 
   /**
-   * A purchase from an NPC: the player must be near it, and have the coins; then the coins go, and
-   * the goods come (an ale: a drink).
+   * A deal with an NPC or a thing: the deal of an answer, or a trade of a ware of a shop (findDeal).
+   * The player must be near it, pass the gates and the conditions of the answer (and of the ware),
+   * and have the coins or the items; then they go, and the goods come (an ale: a drink).
    */
   deal(id: number, from: { readonly npc?: number; readonly at?: readonly [number, number] }, dealId: string): void {
     const player = this.players.get(id);
@@ -665,16 +666,16 @@ export class Room {
       if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return;
       dialog = fixture.content?.dialog;
     }
-    const answer = dialog ? findDealAnswer(dialog, dealId) : null;
-    if (!answer?.deal || (answer.gate && !meetsGate(player.traits.scores, answer.gate)) || !holds(answer.when, player.quests, player.pack)) return;
+    const offer = dialog ? findDeal(dialog, dealId) : null;
+    if (!offer || offer.gates.some((gate) => !meetsGate(player.traits.scores, gate)) || offer.when.some((when) => !holds(when, player.quests, player.pack))) return;
     // A person who does not deal with this character (a wanted robber).
     if (dialog?.refuse && holds(dialog.refuse.when, player.quests, player.pack)) return;
-    const pack = makeDeal(answer.deal, player.pack, player.state, player.traits);
+    const pack = makeDeal(offer.deal, player.pack, player.state, player.traits);
     if (!pack) return;
     player.pack = pack;
     player.packChanged = true;
     // A room at the inn: the character gets the refuge (it wakes there, and the bed rests it).
-    const refuge = answer.deal.goods === 'refuge' ? answer.deal.refuge : undefined;
+    const refuge = offer.deal.goods === 'refuge' ? offer.deal.refuge : undefined;
     if (refuge && !player.refuges.includes(refuge) && this.world.source.refuges?.().some((r) => r.id === refuge)) {
       player.refuges.push(refuge);
       player.refugesChanged = true;
