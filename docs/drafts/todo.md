@@ -6,13 +6,6 @@
 
 ## Open
 
-- **Goblin patrols: any number flees** (2026-10-13). Now a startled group always keeps at least one
-  goblin that flees and at least one that fights (a group of 3: 1 or 2 flee). Make it random over all
-  the numbers: all flee, 2 flee, 1 flees, or none flees and all fight. Code: `Horde.startle()` in
-  `packages/engine/src/mobs.ts` (the line `const fleeing = ...`), and its comment; the tests of the
-  patrol in `packages/engine/test/` (they can count on "at least one flees"); `docs/drafts/tutorial.md`
-  and `docs/features/game/combat.md` (REQ-CMB-009) say how a patrol chooses.
-
 - **A chalice over the door of a shrine, not the word** (2026-10-13). A shrine shows no "Shrine"
   sign over its door; it shows a chalice symbol there instead. Now the shrine of Whitegrove has
   `sign: 'Shrine'` (`worlds/wilds/src/hamlets.ts`, the plan of the shrine; Spanish "Santuario" in
@@ -158,3 +151,7 @@
   of wet lentils (`WorldSource.wadeEffects()`: the server sees the wade) and moves the quest to `wet`;
   the sergeant then pays 2 coins to a character with CHA 13, or nothing. Done 2026-10-13, commit
   `4e6cf98`.
+
+- **Goblin patrols: any number flees** (2026-10-13). A startled patrol chooses at random how many of
+  its goblins flee, from none (all fight) to all, each number with the same chance (`Horde.startle()`).
+  Done 2026-10-13, commit `91f18c7`.
