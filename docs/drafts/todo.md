@@ -6,26 +6,6 @@
 
 ## Open
 
-- **Buy and sell menus for the shops** (2026-10-13). Now a character buys and sells through the
-  answers of a conversation, one item for each answer ("The ale, then.", "Sell a ring."). Give the
-  shops a menu of their own: a panel with "Buy" and "Sell", the goods with their prices (after
-  Charisma), the pack and the coins, in the GUI style. Today's shops (`worlds/wilds/src/dialogs.ts`,
-  each `deal:` of an answer):
-  - Marta of the Crooked Lantern: the ale (`ALE`) and the room (`ROOM`, CHA 13);
-  - Isolde, the apothecary: the three draughts, and a friend's price behind CHA 13;
-  - the smith: the gear (`forge()`, `SMITH_PRICES`), buys it back for half (`smithPays()`, from the
-    pack only) and buys mithril;
-  - Corwin, the peddler: buys rings, cups, candle stubs, horns, tusks and furs;
-  - in Silverspring, Tova of the Silver Trout (`TROUT_ALE`, `TROUT_ROOM`) and Ilsa, the jeweller
-    (`MITHRIL`, with the permit).
-  The cauldron of the apothecary (`CAULDRON`, recipes) is not a shop. The engine: `Deal`,
-  `dealPrice()`, `dealPay()` and `findDealAnswer()` in `packages/engine/src/dialog.ts`; the server
-  checks each deal in `Room.deal()` (`packages/engine/src/net/room.ts`: the nearness, the gate, the
-  conditions, the coins and the items); the page sends `deal` (`game.ts`) from the conversation
-  panel (`packages/engine-client/src/ui/conversation.ts`, which adds the price to the answer). To
-  keep: the gates (a friend's price), the conditions (the permit), a robber that traders refuse
-  (`Dialog.refuse`), and an answer in the conversation that opens the menu. A new protocol version.
-
 - **The name of another player stays on the screen** (2026-10-13, a bug). After two players meet or
   pass near each other, the name of the other one stays on the screen for good. It must go when they
   have parted far enough, or for long enough. The cause: each snapshot carries every player of the
@@ -144,3 +124,9 @@
 - **An empty box at the top centre of the screen** (2026-10-13, a bug). The control hint `#hint` now
   starts with the class `gone` in `apps/game/index.html`, so its empty box does not show; only
   `Hud.showHint()` shows it (the new-build line). Done 2026-10-13, commit `945453c`.
+
+- **Buy and sell menus for the shops** (2026-10-13). An answer of a conversation opens the shop of a
+  trader (`DialogAnswer.shop`, `ui/shop-panel.ts`): "Buy" and "Sell", the prices after Charisma, the
+  coins and the pack, one item for each trade, for Isolde, Corwin, the smith and Ilsa; the inns keep the
+  ale and the room in the conversation, and the protocol did not change. Done 2026-10-13, commit
+  `408a22c`.
