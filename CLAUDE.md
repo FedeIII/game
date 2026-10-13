@@ -157,8 +157,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
-  `place-titles.ts` (`PlaceArrivals`: when the name of a place shows over the screen; see "Arrival in
-  a world"),
+  `place-titles.ts` (`PlaceArrivals` and `LandCrossings`: when the name of a place or a land shows over
+  the screen; see "Arrival in a world"),
   `speech-bubble.ts` (pages of text over a head, above the darkness; a short text wraps at 104 world
   pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
   `wrapBubble()` in `text-layout.ts`; a bubble stays inside the screen, and its tail then moves along
@@ -857,6 +857,15 @@ a name sign; every settlement has a name sign in the style of its dominion. `Pla
 (`render/place-titles.ts`) shows it once for each visit (a visit ends 12 tiles out of the place), never
 for the place where the page starts, and not over the world's title; `.sr-only[data-speech=place]`
 repeats it, and `?nointro` turns it off. The debug panel's line `place` gives the visit.
+
+**The crossing into a land** (since 2026-10-13, Fede's request; REQ-TWN-009): the name of a land shows
+in the same way when a player crosses into it, at each crossing and in both directions
+(`WorldSource.lands()`, `Land`, `landAt()`: rectangles with sides that can be infinite, the first one
+wins). The Wilds (`LANDS` in `source.ts`): the Mithril Enclave (Silverspring and `ENCLAVE_REACH` 12
+tiles round it), the Iron Sovereignty (from `FOREST_EDGE_Y` south) and the Wildlands (the rest).
+`LandCrossings` (`render/place-titles.ts`) shows it 2 tiles into the land (`LAND_DEPTH`), never for the
+land where the page starts. Two titles never overlap: one waits for the other (`titlesWaiting` in
+`game.ts`). A title too wide for the screen at 2x (on a narrow phone) shows at 1x (`IntroTitle`).
 
 ## Mobs and fights
 

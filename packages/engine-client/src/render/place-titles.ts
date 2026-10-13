@@ -1,4 +1,4 @@
-import type { PlaceTitle } from '@game/engine';
+import { landAt, type Land, type PlaceTitle } from '@game/engine';
 
 /** How far out of a place (tiles) a player goes before its visit ends: a new arrival then shows the title again. */
 export const TITLE_AWAY = 12;
@@ -37,5 +37,49 @@ export class PlaceArrivals {
     if (!place || place === this.visit) return null;
     this.visit = place;
     return first ? null : place;
+  }
+}
+
+/** How far into a new land (tiles) a player goes before its title shows: a walk along the border does not show it again and again. */
+export const LAND_DEPTH = 2;
+
+/**
+ * Decides when the name of a land shows over the screen (WorldSource.lands; Fede's request, 2026-10-13):
+ * at each crossing, in both directions, when the player is LAND_DEPTH tiles into the new land (every
+ * tile within LAND_DEPTH of it is in that land). The land where the page starts gets no title. A jump
+ * into another land (a wake at a refuge) is a crossing.
+ */
+export class LandCrossings {
+  private readonly lands: readonly Land[];
+  /** The land of the player, or null. */
+  private land: Land | null = null;
+  private started = false;
+
+  constructor(lands: readonly Land[]) {
+    this.lands = lands;
+  }
+
+  /** The land of the player, or null (for the debug panel). */
+  get current(): Land | null {
+    return this.land;
+  }
+
+  /** Follows the player's tile on each frame: gives the land that the player crossed into now (show its title), or null. */
+  update(tx: number, ty: number): Land | null {
+    const here = landAt(this.lands, tx, ty);
+    if (!this.started) {
+      this.started = true;
+      this.land = here;
+      return null;
+    }
+    if (!here || here === this.land || !this.deepIn(here, tx, ty)) return null;
+    this.land = here;
+    return here;
+  }
+
+  private deepIn(land: Land, tx: number, ty: number): boolean {
+    for (let dy = -LAND_DEPTH; dy <= LAND_DEPTH; dy++)
+      for (let dx = -LAND_DEPTH; dx <= LAND_DEPTH; dx++) if (landAt(this.lands, tx + dx, ty + dy) !== land) return false;
+    return true;
   }
 }

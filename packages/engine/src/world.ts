@@ -128,6 +128,29 @@ export interface WorldSource {
   soundAreas?(): readonly SoundArea[];
   /** The places whose name shows over the screen when a player comes in (the page). Without it, none. */
   placeTitles?(): readonly PlaceTitle[];
+  /** The lands of the world, whose name shows over the screen when a player crosses into one (the page). Without it, none. */
+  lands?(): readonly Land[];
+}
+
+/**
+ * A land of a world (a dominion, or the land between dominions) whose name shows over the screen when a
+ * player crosses into it, as the name of a world on arrival (Fede's request, 2026-10-13). The first land
+ * of the list that holds a tile wins, so a small land comes before the big land round it.
+ */
+export interface Land {
+  readonly id: string;
+  /** The name, in the world's English: the page translates it. */
+  readonly title: string;
+  /** Tiles, inclusive. A side can be infinite (-Infinity or Infinity): a land without an end there. */
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
+/** The land that holds a tile: the first of the list, or null. */
+export function landAt(lands: readonly Land[], tx: number, ty: number): Land | null {
+  return lands.find((land) => tx >= land.x0 && tx <= land.x1 && ty >= land.y0 && ty <= land.y1) ?? null;
 }
 
 /**

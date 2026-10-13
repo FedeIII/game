@@ -7,7 +7,8 @@ the Mithril Enclave at the end of the north road (story phase 4a, 2026-10-11; pl
 `docs/drafts/story-razed-villages.md`). Since 2026-10-13 two hamlets of the Iron Sovereignty stand on
 the road from the home to Ironhold: Whitegrove and Bronzehold (the tutorial: `docs/drafts/tutorial.md`). Since
 2026-10-13 Ironhold is a planned town of wood behind a palisade, with its town hall in the middle of a
-square (REQ-TWN-008). Each town is a fixed plan of characters, one for each tile,
+square (REQ-TWN-008). Since 2026-10-13 the name of a land (the Iron Sovereignty, the Mithril Enclave,
+the Wildlands) shows when a player crosses into it (REQ-TWN-009). Each town is a fixed plan of characters, one for each tile,
 the same for every seed. One builder makes both: the buildings with their things and people, the
 streets with their lamps and props, and the people who walk the streets. No mob lives near a town
 or steps into it.
@@ -217,6 +218,32 @@ town hall in the middle of a small square), so that the game matches the world.
 
 ---
 
+### REQ-TWN-009: The name of each land
+
+**User Story:** As a player, I want to know when I cross into another land, so that I know if I am in a
+dominion or in the wildlands that nobody rules (Fede's request, 2026-10-13).
+
+**Acceptance Criteria:**
+- **AC-TWN-009.1:** The Wilds have three lands: the **Iron Sovereignty** (Soberanía del Hierro) from the
+  north edge of Ironhold south (the hut, the hamlets, Ironhold); the **Mithril Enclave** (Enclave del
+  Mithril) round Silverspring only: the town and 12 tiles round it (Fede's choice); and **the
+  Wildlands** (Tierras salvajes) everywhere else.
+- **AC-TWN-009.2:** When a player crosses into another land, its name shows over the screen as the title
+  of a town (AC-TWN-007.1), at each crossing and in both directions (Fede's choice): north out of
+  Ironhold, "The Wildlands"; back south, "Iron Sovereignty"; into the Enclave, "Mithril Enclave"; out of
+  it, "The Wildlands". Screen readers hear the name.
+- **AC-TWN-009.3:** The title shows when the player is 2 tiles into the new land, so a walk along the
+  border does not show it again and again.
+- **AC-TWN-009.4:** The page shows no title for the land where it starts. A wake in another land after a
+  defeat is a crossing. `?nointro` turns the titles off.
+- **AC-TWN-009.5:** Two titles never show at the same time: a title waits until the title on the screen
+  ends (the land first, then the town: "Mithril Enclave", then "Silverspring"), and it shows only if
+  the player is still in its land or its town.
+- **AC-TWN-009.6:** A title that is too wide for the screen at twice the size of the text (a long name on
+  a narrow phone: "Soberanía del Hierro") shows at the size of the text.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The builder** (`worlds/wilds/src/towns.ts`): `TownPlan` (name, north-west tile, map, building
@@ -290,3 +317,11 @@ town hall in the middle of a small square), so that the game matches the world.
   tiles) chooses the moment, and `IntroTitle` (`render/intro.ts`) draws it, in the text layer; the live
   region `.sr-only[data-speech=place]` repeats it. The debug panel's line `place` gives the visit and the
   phase of the title.
+- **The lands** (REQ-TWN-009): `WorldSource.lands()` gives the lands (`Land` in
+  `packages/engine/src/world.ts`: a rectangle of tiles with sides that can be infinite; the first land of
+  the list that holds a tile wins, `landAt()`). The Wilds: `LANDS` in `worlds/wilds/src/source.ts` (the
+  Enclave `ENCLAVE_REACH` 12 tiles round `SILVERSPRING`, the Sovereignty from `FOREST_EDGE_Y` south,
+  the wildlands); the test `worlds/wilds/test/lands.test.ts`. The page: `LandCrossings`
+  (`render/place-titles.ts`, `LAND_DEPTH` 2 tiles) chooses the moment; `game.ts` keeps the titles that
+  wait (`titlesWaiting`); `IntroTitle` drops to the size of the text when the title and 8 pixels on each
+  side do not fit the screen. The debug panel's line `place` gives the land too.

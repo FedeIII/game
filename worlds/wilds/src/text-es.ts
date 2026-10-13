@@ -8,6 +8,8 @@
  */
 export const TEXTS_ES: Readonly<Record<string, string>> = {
   "The Wilds": "Las Tierras Salvajes",
+  // The title of a land (LANDS in source.ts): the lands that nobody claims, between the two dominions.
+  "The Wildlands": "Tierras salvajes",
   "It's a tree": "Es un árbol",
   "It's a rock": "Es una roca",
   "Old books. The ink has faded.": "Libros viejos. La tinta se ha borrado.",

@@ -36,7 +36,18 @@ this much: the secret of the gods stays a secret.
 ## The places of the Wilds
 
 The Wilds are an endless forest from a seed, with lakes and lonely houses. The places of the story
-are fixed: the same for every seed. From the south to the north:
+are fixed: the same for every seed.
+
+**The lands** (Fede, 2026-10-13): the name of a land shows over the screen when a character crosses
+into it, in both directions.
+
+| Land | Where |
+|---|---|
+| **The Iron Sovereignty** (Soberanía del Hierro) | from row -8 (the north edge of Ironhold) south: the hut, the road, the hamlets, Ironhold |
+| **The Mithril Enclave** (Enclave del Mithril) | round Silverspring only: the town and 12 tiles round it (`160..225, -201..-154`) |
+| **The Wildlands** (Tierras salvajes) | everywhere else: north of Ironhold, the north road, the homesteads, the camps, the shrine of Tigris, and the land north of Silverspring |
+
+From the south to the north:
 
 ### The northern edge of the Iron Sovereignty: the forest of the road
 

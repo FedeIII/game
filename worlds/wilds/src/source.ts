@@ -27,6 +27,7 @@ import {
   type EscortDef,
   type GuardDef,
   type SceneDef,
+  type Land,
   type PlaceTitle,
   type QuestEffect,
   type SoundArea,
@@ -184,6 +185,31 @@ const FOREST_POPULATION = { skirmisher: 3 } as const;
 export function inTutorialForest(_tx: number, ty: number): boolean {
   return ty >= FOREST_EDGE_Y;
 }
+
+/**
+ * The Mithril Enclave reaches this far round Silverspring (tiles): a small land round its last village
+ * (Fede, 2026-10-13). The land north of it is the wildlands again.
+ */
+export const ENCLAVE_REACH = 12;
+
+/**
+ * The lands of the Wilds, whose names show over the screen at each crossing (Fede, 2026-10-13): the
+ * Mithril Enclave round Silverspring, the Iron Sovereignty from the north edge of Ironhold south (the
+ * forest of the tutorial), and the wildlands, which nobody claims, everywhere else. The first one that
+ * holds a tile wins (landAt()).
+ */
+export const LANDS: readonly Land[] = [
+  {
+    id: 'mithril-enclave',
+    title: 'Mithril Enclave',
+    x0: SILVERSPRING.x0 - ENCLAVE_REACH,
+    y0: SILVERSPRING.y0 - ENCLAVE_REACH,
+    x1: SILVERSPRING.x1 + ENCLAVE_REACH,
+    y1: SILVERSPRING.y1 + ENCLAVE_REACH,
+  },
+  { id: 'iron-sovereignty', title: 'Iron Sovereignty', x0: -Infinity, y0: FOREST_EDGE_Y, x1: Infinity, y1: Infinity },
+  { id: 'wildlands', title: 'The Wildlands', x0: -Infinity, y0: -Infinity, x1: Infinity, y1: Infinity },
+];
 
 /** No house of the wilds stands this close to a town (tiles), and mobs do not live this close to it. */
 const TOWN_MARGIN = 2;
@@ -754,6 +780,11 @@ export class WildsSource implements WorldSource {
    */
   placeTitles(): readonly PlaceTitle[] {
     return TOWNS.filter((t) => t.title).map((t) => ({ id: t.name.toLowerCase(), title: t.name, x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 }));
+  }
+
+  /** The lands whose names show over the screen at each crossing: LANDS. */
+  lands(): readonly Land[] {
+    return LANDS;
   }
 
   /** The named places for the map: the home, Ironhold and its chapel, Silverspring, and the two hamlets with the shrine of Whitegrove. */

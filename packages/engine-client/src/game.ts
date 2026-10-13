@@ -132,7 +132,7 @@ import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
-import { PlaceArrivals } from './render/place-titles.ts';
+import { LandCrossings, PlaceArrivals } from './render/place-titles.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { ScenePlayer } from './render/scene.ts';
 import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
@@ -836,10 +836,14 @@ async function run(options: GameOptions): Promise<void> {
   if (introTitle) textScene.addChild(introTitle.root);
   const hostIndex = intro?.speaker ? npcDefs.findIndex((def) => def.id === intro.speaker) : -1;
   // The name of a place over the screen when the player comes in (a city, or a big or important town:
-  // WorldSource.placeTitles), once for each visit, as the name of the world on arrival. Screen readers
-  // hear it. ?nointro skips it too.
+  // WorldSource.placeTitles), once for each visit, as the name of the world on arrival; and the name of
+  // a land when the player crosses into it (WorldSource.lands). Screen readers hear them. ?nointro skips
+  // them too.
   const placeArrivals = new PlaceArrivals(params.has('nointro') ? [] : (world.source.placeTitles?.() ?? []));
+  const landCrossings = new LandCrossings(params.has('nointro') ? [] : (world.source.lands?.() ?? []));
   let placeTitle: IntroTitle | null = null;
+  /** The titles that wait for the one on the screen (a town just after its land), oldest first. */
+  let titlesWaiting: { readonly title: string }[] = [];
   const placeSpoken = document.createElement('div');
   placeSpoken.className = 'sr-only';
   placeSpoken.setAttribute('role', 'status');
@@ -1927,19 +1931,26 @@ async function run(options: GameOptions): Promise<void> {
     }
     const introNow = introClock(now);
     introTitle?.update(introNow, view);
-    // A place with a title: not over the name of the world.
-    const cameTo = placeArrivals.update(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
-    if (cameTo && !arriving(now)) {
-      placeTitle?.root.destroy({ children: true });
-      placeTitle = new IntroTitle(font, cameTo.title);
-      textScene.addChild(placeTitle.root);
-      placeTitle.start(now);
-      placeSpoken.textContent = tw(cameTo.title);
-    }
+    // A land or a place with a title: not over the name of the world, and one after the other (the
+    // land first). A title that waits shows only while the player is still in its land or place.
+    const playerTx = Math.floor(player.x / TILE_SIZE);
+    const playerTy = Math.floor(player.y / TILE_SIZE);
+    const crossedTo = landCrossings.update(playerTx, playerTy);
+    const cameTo = placeArrivals.update(playerTx, playerTy);
+    if (!arriving(now)) titlesWaiting = [...titlesWaiting, ...[crossedTo, cameTo].filter((t) => t !== null)].slice(-2);
     placeTitle?.update(now, view);
     if (placeTitle?.phase(now) === 'done') {
       placeTitle.root.destroy({ children: true });
       placeTitle = null;
+    }
+    titlesWaiting = titlesWaiting.filter((t) => t === landCrossings.current || t === placeArrivals.current);
+    const nextTitle = placeTitle ? undefined : titlesWaiting.shift();
+    if (nextTitle) {
+      placeTitle = new IntroTitle(font, nextTitle.title);
+      textScene.addChild(placeTitle.root);
+      placeTitle.start(now);
+      placeTitle.update(now, view);
+      placeSpoken.textContent = tw(nextTitle.title);
     }
     banner.update(now, view);
     if (welcome && intro?.welcome && !welcomed && introNow - arrivedAt >= WELCOME_AT) {
@@ -1989,7 +2000,7 @@ async function run(options: GameOptions): Promise<void> {
           ]
         : []),
       `inside  ${inside?.id ?? '-'}`,
-      `place   ${placeArrivals.current?.id ?? '-'}${placeTitle ? ` (title ${placeTitle.phase(now)})` : ''}`,
+      `place   ${placeArrivals.current?.id ?? '-'}, land ${landCrossings.current?.id ?? '-'}${placeTitle ? ` (title ${placeTitle.phase(now)})` : ''}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,
