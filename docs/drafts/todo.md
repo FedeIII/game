@@ -95,6 +95,16 @@
   think about sending only the players near each player (as the mobs: "the mobs near this player
   only"); that saves bytes and work on a world with many players.
 
+- **Redesign Ironhold: wooden walls, and closer to the Drive** (2026-10-13). Give Ironhold wooden
+  walls, and make the town match the documents of Kandrax on the Drive better. Code: the plan `MAP`
+  and `BUILDINGS` (each with `style: { walls, roof }`; now stone, gothic, brick, rubble, timber and
+  planks) in `worlds/wilds/src/town.ts`; the builder `worlds/wilds/src/towns.ts`; the wall styles
+  (`WALL_STYLES`: `timber`, `planks`) in `packages/engine-client/art/buildings.ts`; the town in
+  `docs/story/world.md` ("Ironhold"); the tests in `worlds/wilds/test/town.test.ts`. The Drive (read it
+  live): Ferrozar is in the chapters `1.5.1 - Pueblos Arrasados` and `1.4.1 - La Caza del Lobo`
+  (`Sagas/Dioses Olvidados/Capítulos/`), and the picture `Images/regions/central_dominions/ferrozar.png`.
+  Ask Fede: "wooden walls" means the walls of the buildings, a wooden palisade round the town, or both?
+
 - **Calmer music for the last card of the prologue** (2026-10-13). The last card of the prologue (Fede
   says "the intro": the card with the hut, the character's name and Thrain's letter) gets calmer music.
   Now the music of that card is the rise of the theme (`KANDRAX_RISE`: the choir and the violins), which
