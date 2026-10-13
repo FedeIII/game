@@ -6,6 +6,7 @@ import type { LightSource } from './lighting.ts';
 import { shadowedText } from './name-tag.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { tw } from '../i18n.ts';
+import { dayFrames, litAlpha } from './unlit.ts';
 
 /** Look further than the screen for fixtures, so a light appears before its fixture does. */
 const MARGIN_TILES = 12;
@@ -35,6 +36,8 @@ export interface Seeker {
 interface FixtureView {
   readonly fixture: Fixture;
   readonly sprite: Sprite;
+  /** The lit frame over the unlit one (a lamp: unlit.ts), which fades with the hour; null for a thing that does not change. */
+  lit: Sprite | null;
   /** The additive glow of a portal, tinted with the colour of its light. */
   readonly glow: Sprite | null;
   /** The plate with the name of a name sign (Fixture.label), in the text layer. */
@@ -97,11 +100,38 @@ export class Fixtures {
   }
 
   /**
+   * Shows `frame` on a thing: its unlit frame under, if the atlas has one (unlit.ts), and the lit frame
+   * over it. The frames have their own crops: each sprite takes the anchor of its frame.
+   */
+  private setFrame(built: FixtureView, frame: string): void {
+    const { base, lit } = dayFrames(this.art, frame);
+    if (built.sprite.texture !== base) {
+      built.sprite.texture = base;
+      built.sprite.anchor.copyFrom(base.defaultAnchor ?? { x: 0, y: 1 });
+    }
+    if (!lit) {
+      built.lit?.destroy();
+      built.lit = null;
+      return;
+    }
+    if (!built.lit) {
+      built.lit = new Sprite(lit);
+      built.lit.position.copyFrom(built.sprite.position);
+      built.lit.zIndex = built.sprite.zIndex + 0.005;
+      this.layer.addChild(built.lit);
+    } else if (built.lit.texture !== lit) {
+      built.lit.texture = lit;
+    }
+    built.lit.anchor.copyFrom(lit.defaultAnchor ?? { x: 0, y: 1 });
+  }
+
+  /**
    * Shows the fixtures in and near `view`. A hidden one shows only within the range of `seeker` (none:
    * never). With a `viewer` on a storey above the ground, the things of that storey of its building
-   * show there, in the place of the things of the ground storey.
+   * show there, in the place of the things of the ground storey. `lights` are the lights of the sky
+   * (Sky.lights): a lamp shows lit at night (1) and unlit by day (0), and both between.
    */
-  update(view: Rect, seconds: number, seeker: Seeker | null = null, viewer: Viewer = { building: null, storey: 0 }): void {
+  update(view: Rect, seconds: number, seeker: Seeker | null = null, viewer: Viewer = { building: null, storey: 0 }, lights = 1): void {
     const x0 = Math.floor(view.x / TILE_SIZE) - MARGIN_TILES;
     const y0 = Math.floor(view.y / TILE_SIZE) - MARGIN_TILES;
     const x1 = Math.ceil((view.x + view.width) / TILE_SIZE) + MARGIN_TILES;
@@ -117,6 +147,7 @@ export class Fixtures {
       const far = tx < x0 - MARGIN_TILES || tx > x1 + MARGIN_TILES || ty < y0 - MARGIN_TILES || ty > y1 + MARGIN_TILES;
       if (!near.has(k) && far) {
         built.sprite.destroy();
+        built.lit?.destroy();
         built.glow?.destroy();
         built.plate?.destroy({ children: true });
         this.views.delete(k);
@@ -135,13 +166,11 @@ export class Fixtures {
       if (built.glow) built.glow.alpha = 0.5 + 0.12 * Math.sin(seconds * 1.7 + built.fixture.tx * 0.7);
       if (built.fixture.hidden) built.sprite.alpha = seen(built.fixture, seeker);
       const variant = built.fixture.variant;
-      if (variant) {
-        const texture = this.art.frame(this.holds(variant.when) ? variant.frame : frameOf(built.fixture));
-        if (built.sprite.texture !== texture) {
-          built.sprite.texture = texture;
-          // The two frames have their own crops: each has its anchor.
-          built.sprite.anchor.copyFrom(texture.defaultAnchor ?? { x: 0, y: 1 });
-        }
+      if (variant) this.setFrame(built, this.holds(variant.when) ? variant.frame : frameOf(built.fixture));
+      // A lamp: the lit frame over the unlit one, as much as the hour lights it.
+      if (built.lit) {
+        built.lit.visible = built.sprite.visible;
+        built.lit.alpha = built.sprite.alpha * litAlpha(lights);
       }
     }
   }
@@ -152,6 +181,7 @@ export class Fixtures {
     if (key === this.storeyKey) return;
     for (const built of this.storeyViews) {
       built.sprite.destroy();
+      built.lit?.destroy();
       built.glow?.destroy();
       built.plate?.destroy({ children: true });
     }
@@ -191,6 +221,9 @@ export class Fixtures {
     else sprite.position.set(fixture.tx * TILE_SIZE, (fixture.ty + 1) * TILE_SIZE);
     sprite.zIndex = fixture.ty * TILE_SIZE + type.depth;
     this.layer.addChild(sprite);
+    const built: FixtureView = { fixture, sprite, lit: null, glow: null, plate: null };
+    // A lamp has an unlit frame for the day (unlit.ts): it shows under the lit one.
+    if (!isNpc) this.setFrame(built, frameOf(fixture));
     let glow: Sprite | null = null;
     if (fixture.kind === 'portal') {
       glow = new Sprite(this.art.frame('fixture/portal-glow'));
@@ -200,7 +233,7 @@ export class Fixtures {
       glow.tint = fixture.light?.colour ?? 0xffffff;
       this.layer.addChild(glow);
     }
-    return { fixture, sprite, glow, plate: fixture.label ? this.plate(fixture, fixture.label) : null };
+    return { ...built, glow, plate: fixture.label ? this.plate(fixture, fixture.label) : null };
   }
 
   /**

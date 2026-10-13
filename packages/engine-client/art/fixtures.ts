@@ -9,7 +9,7 @@
 import { Image } from './png.ts';
 import { boundFigure, PLAYER_FRAME } from './characters.ts';
 import { cropToContent, rgb } from './raster.ts';
-import { MATERIALS, M, hash } from './materials.ts';
+import { MATERIALS, M, hash, unlit } from './materials.ts';
 import { HEIGHT_SCALE, box, cylinder, displace, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 import { PALISADE_SIDES } from '@game/engine';
@@ -247,11 +247,12 @@ function noticeboard(): Part[] {
   ];
 }
 
-/** An iron street lamp with a lantern that is lit. */
-function lamppost(): Part[] {
+/** An iron street lamp with a lantern that is lit; not `lit`, its glass is dark (by day). */
+function lamppost(lit = true): Part[] {
   // Iron bars on the edges of each face; lit glass between them.
+  const glass = lit ? M.lanternGlass : unlit(M.lanternGlass);
   const lanternFrame = (x: number, y: number) =>
-    Math.abs(x - 5.6) < 0.7 || Math.abs(x - 10.4) < 0.7 || Math.abs(y - 33.4) < 0.6 || Math.abs(y - 38.6) < 0.6 ? M.iron : M.lanternGlass;
+    Math.abs(x - 5.6) < 0.7 || Math.abs(x - 10.4) < 0.7 || Math.abs(y - 33.4) < 0.6 || Math.abs(y - 38.6) < 0.6 ? M.iron : glass;
   return [
     { sdf: cylinder([8, 0.75, -8], 'y', 2.2, 1.5), material: M.iron },
     { sdf: cylinder([8, 17, -8], 'y', 0.75, 32), material: M.iron },
@@ -496,7 +497,7 @@ function cache(): Part[] {
  * the south wheel lies flat in the mud and a stone props the axle; mended (`cart-mended`, the frame
  * of a character who mended it), the wheel is on.
  */
-function cart(mended: boolean): Part[] {
+function cart(mended: boolean, lit = true): Part[] {
   const wheel = (z: number): Part[] => {
     const rim = subtract(cylinder([13, 5, z], 'z', 5, 1.2), cylinder([13, 5, z], 'z', 4, 2));
     const spokes = union(box([12.5, 0.6, z - 0.4], [13.5, 9.4, z + 0.4]), box([8.6, 4.5, z - 0.4], [17.4, 5.5, z + 0.4]));
@@ -514,8 +515,10 @@ function cart(mended: boolean): Part[] {
     { sdf: displace(box([10.6, 0, -4.6], [15.4, 4.4, -1.6], 0.6), 0.8, 0.9, 17), material: M.stoneB },
   ];
   const plank = (x: number) => (Math.abs(((x + 32) % 4) - 2) < 0.25 ? M.woodDark : M.wood);
-  // A lantern on a pole at the west end: it keeps the mobs away, as the lamps of the town do.
-  const lanternFrame = (x: number, y: number) => (Math.abs(x - 2.6) < 0.5 || Math.abs(x - 5.4) < 0.5 || Math.abs(y - 15.4) < 0.5 || Math.abs(y - 18.6) < 0.5 ? M.iron : M.lanternGlass);
+  // A lantern on a pole at the west end: it keeps the mobs away, as the lamps of the town do. Not
+  // `lit`, its glass is dark (by day).
+  const glass = lit ? M.lanternGlass : unlit(M.lanternGlass);
+  const lanternFrame = (x: number, y: number) => (Math.abs(x - 2.6) < 0.5 || Math.abs(x - 5.4) < 0.5 || Math.abs(y - 15.4) < 0.5 || Math.abs(y - 18.6) < 0.5 ? M.iron : glass);
   return [
     { sdf: cylinder([4, 10, -4.8], 'y', 0.5, 20), material: M.woodDark },
     { sdf: box([2.4, 15, -6.4], [5.6, 19, -3.2]), material: lanternFrame },
@@ -817,6 +820,8 @@ export function fixtureFrames(): Frame[] {
     fixture('coinchest', coinchest(), 24, 40),
     fixture('noticeboard', noticeboard(), 40, 48),
     fixture('lamppost', lamppost(), 24, 64),
+    // By day (render/fixtures.ts shows it under the lit frame, which fades with the hour).
+    { ...fixture('lamppost', lamppost(false), 24, 64), name: 'fixture/lamppost/unlit' },
     fixture('fountain', fountain(), 56, 88),
     ...portalFrames(),
     fixture('rug', rug(), 40, 48),
@@ -832,6 +837,8 @@ export function fixtureFrames(): Frame[] {
     fixture('cache', cache(), 24, 24),
     fixture('cart', cart(false), 48, 40),
     { ...fixture('cart', cart(true), 48, 40), name: 'fixture/cart-mended' },
+    { ...fixture('cart', cart(false, false), 48, 40), name: 'fixture/cart/unlit' },
+    { ...fixture('cart', cart(true, false), 48, 40), name: 'fixture/cart-mended/unlit' },
     fixture('stake', stake(), 24, 48),
     stakeBound(),
     stakeBound('defector', 'fixture/stake-bound-sela'),

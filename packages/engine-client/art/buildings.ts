@@ -8,6 +8,7 @@
  * Frame names:
  *   wall/<walls>/<mask>/<variant>   mask bit 1 = wall to the north, 2 = east, 4 = west
  *   wall/<walls>/door/open|closed   wall/<walls>/window
+ *   wall/<walls>/window/unlit   the window by day: the same frame, with dark glass (no light behind it)
  *   roof/<roof>/<row>/<column>/<variant>, roof/shadow
  *   roof/<prop> for the things on a roof (ROOF_PROPS): chimney, vane, spire, moon, flag-wine...
  *     The pivot of a roof prop is its foot, which the client puts on the ridge.
@@ -19,7 +20,7 @@
  */
 import { Image } from './png.ts';
 import { TILE, cropToContent, ramp, rgb, tileNoise } from './raster.ts';
-import { MATERIALS, M, hash } from './materials.ts';
+import { MATERIALS, M, hash, unlit } from './materials.ts';
 import { HEIGHT_SCALE, box, cylinder, intersect, noise3, renderModel, sphere, subtract, union, type Part, type Sdf } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
@@ -422,21 +423,22 @@ function styleFrames(name: string, style: WallStyle): Frame[] {
   const nails: Part[] = boards.flatMap(({ y, angle }) => [-5, 5].map((dx) => ({ sdf: sphere([8 + dx, y + dx * Math.sin(angle), 1], 0.55), material: M.metal })));
   frames.push(wallFrame(`wall/${name}/door/boarded`, style, [wall, leaf, ring, ...planks, ...nails], sides));
 
-  // The window: a recess with lit glass, a cross of mullions and a sill that stands out.
+  // The window: a recess with lit glass, a cross of mullions and a sill that stands out. By day
+  // (`/unlit`) the same window has dark glass: the client shows one or the other by the hour.
   const recess = opening(style.arch, 4.5, 11.5, 12, style.arch === 'pointed' ? 20 : 22, -3, 2);
   const glassShape = intersect(box([4.5, 12, -2.8], [11.5, 30, -2.2]), recess);
-  frames.push(
+  const window = (frame: string, glass: (x: number, y: number) => number) =>
     wallFrame(
-      `wall/${name}/window`,
+      frame,
       style,
       [
         { sdf: subtract(wallBlock(style, 0, 0, 1 % style.variants), recess), material: styleMaterial(style, 1 % style.variants) },
-        { sdf: glassShape, material: (x, y) => (Math.abs(x - 8) < 0.5 || Math.abs(y - 18.5) < 0.5 ? style.frame : style.glass(x, y)) },
+        { sdf: glassShape, material: (x, y) => (Math.abs(x - 8) < 0.5 || Math.abs(y - 18.5) < 0.5 ? style.frame : glass(x, y)) },
         { sdf: box([4, 11, -1.2], [12, 12.2, 1]), material: style.frame },
       ],
       sides,
-    ),
-  );
+    );
+  frames.push(window(`wall/${name}/window`, style.glass), window(`wall/${name}/window/unlit`, (x, y) => unlit(style.glass(x, y))));
   return frames;
 }
 

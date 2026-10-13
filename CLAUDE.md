@@ -148,6 +148,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   storeys shows from the player's storey up, with the floor of that storey in `floorLayer`),
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures; the plate with
   the name of a name sign, in the sign layer: `Fixtures.plate()`),
+  `unlit.ts` (the lamps and the lit windows by day: the unlit frame `<frame>/unlit` under the lit one,
+  which shows with the alpha `litAlpha()` of the sky's lights; `dayFrames()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, the crouch and
   the sneak walk of a player that sneaks (`PlayerView.crouched`), and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
@@ -294,7 +296,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   brick, rubble, gothic, canvas, painted) has walls (`wall/<walls>/<mask>/<variant>`, mask bit
   1 = wall to the north, 2 = east, 4 = west), a door (`wall/<walls>/door/open|closed`, and
   `boarded`: closed, with two planks nailed across it, for a building that is shut) and a lit
-  window (`wall/<walls>/window`). Each roof style of `ROOF_STYLES` (slate, shingle, thatch,
+  window (`wall/<walls>/window`), with the same window by day (`wall/<walls>/window/unlit`: the glass
+  dark, `unlit()` in `materials.ts`). Each roof style of `ROOF_STYLES` (slate, shingle, thatch,
   canvas, indigo, battlement, clay, copper) has roof pieces (`roof/<roof>/<row>/<column>/<variant>`);
   all share `roof/shadow`. Roof props (`ROOF_PROPS`: `roof/chimney`, `roof/vane`, `roof/spire`,
   `roof/moon`, `roof/flag-wine`, `roof/flag-green`) have their pivot at their foot. Floors:
@@ -304,7 +307,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
   client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
   `signpost` points west only (do not mirror it); its post is on the east side of its tile.
-  `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom). A thing with a `look`
+  `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom). A lit thing that goes out
+  by day has an unlit frame, `<frame>/unlit` (its glass dark): the street lamp
+  (`fixture/lamppost/unlit`) and the lantern of the merchant's cart (`fixture/cart/unlit`,
+  `fixture/cart-mended/unlit`); fires, forges, candles and braziers stay lit. A thing with a `look`
   has the frame `fixture/<kind>/<look>`: the name sign of a settlement, `fixture/namesign/iron` (the
   Iron Sovereignty: two posts of dark oak with iron caps) and `fixture/namesign/mithril` (the Mithril
   Enclave: two pillars of pale stone, `M.paleStone`, with small gold domes); the page hangs the plate
@@ -1113,7 +1119,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   The roof sits on the wall tops, 32 px up for each storey: the north eave (`top`), the back slope, the
   `ridge`, the front slope, the `eave`. Roof props stand on the ridge line, in the middle of
   their column. Each lit window gives a small warm light (radius 48) on the street in front of
-  it (`Buildings.lights()`). The sign is a board in the text layer, over the door.
+  it (`Buildings.lights()`). By day a window shows unlit: the page draws the lit frame over the
+  unlit one, with the alpha of the sky's lights (`render/unlit.ts`; 1 at night, 0 by day, half at
+  6:00 and 20:00); a street lamp and the cart's lantern do the same (`render/fixtures.ts`). The sign
+  is a board in the text layer, over the door.
   While the player is inside (interior or doorway), the roof and the sign fade out and the front
   wall fades to 35% (or it would hide the two floor rows behind it); the storeys of the front wall
   above the player's storey go. On an upper storey, the building shows from that storey up, its

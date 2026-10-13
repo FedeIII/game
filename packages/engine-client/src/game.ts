@@ -1754,8 +1754,8 @@ async function run(options: GameOptions): Promise<void> {
   // Make all the chunks on the screen before the first frame, so the world never appears in pieces.
   camera.follow(scene, player.x, player.y);
   terrain.update(camera.view(), Infinity);
-  buildings.update(camera.view(), null, 0);
-  fixtures.update(camera.view(), 0, { x: player.x, y: player.y, range: traits.seek });
+  buildings.update(camera.view(), null, 0, 0, skyNow().lights);
+  fixtures.update(camera.view(), 0, { x: player.x, y: player.y, range: traits.seek }, undefined, skyNow().lights);
 
   let nextRetainAt = 0;
   // ---------------------------------------------------------------- tips
@@ -1884,7 +1884,9 @@ async function run(options: GameOptions): Promise<void> {
 
     const view = camera.view();
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
-    buildings.update(view, inside, seconds, player.storey);
+    // The hour: the lamps and the lit windows go out by day, and the darkness lifts.
+    const sky = skyNow();
+    buildings.update(view, inside, seconds, player.storey, sky.lights);
     // The spark of a pile shows only where the player can see it: outside, or in its own house.
     pileViews.toss(net ? net.takeTosses(now) : localPiles.takeTosses(), now);
     pileViews.update(
@@ -1893,7 +1895,7 @@ async function run(options: GameOptions): Promise<void> {
       (pile) => world.insideOf(...tileOf(pile)) === inside,
     );
     // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
-    fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek }, { building: inside, storey: player.storey });
+    fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek }, { building: inside, storey: player.storey }, sky.lights);
     others?.update(
       net!.playersAt(now).filter((p) => seenBy(p, p.storey)),
       seconds,
@@ -1914,7 +1916,7 @@ async function run(options: GameOptions): Promise<void> {
     // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
-    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000, skyNow());
+    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000, sky);
     edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());

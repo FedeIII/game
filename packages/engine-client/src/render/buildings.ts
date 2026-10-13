@@ -7,6 +7,7 @@ import { shadowedText } from './name-tag.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { tw } from '../i18n.ts';
 import { GROUND_NAME } from './terrain.ts';
+import { dayFrames, litAlpha } from './unlit.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
 const FRONT_WALL_INSIDE_ALPHA = 0.35;
@@ -33,9 +34,10 @@ interface BuildingView {
   readonly sprites: Sprite[];
   /**
    * The walls, a stack of sprites on each tile of them: one for each storey, from the ground up (the
-   * door is the ground storey of its tile). `front`: the tile is in the south wall.
+   * door is the ground storey of its tile). `front`: the tile is in the south wall. `lits`: for each
+   * storey, the lit window over the unlit one (unlit.ts), or null for a wall without a window.
    */
-  readonly stacks: { readonly ty: number; readonly front: boolean; readonly sprites: Sprite[] }[];
+  readonly stacks: { readonly ty: number; readonly front: boolean; readonly sprites: Sprite[]; readonly lits: (Sprite | null)[] }[];
   /** The floor of the storey above the ground where the player is (Building.storeys), and its storey: the storey that stands on the ground. */
   floor: Container | null;
   floorStorey: number;
@@ -84,9 +86,10 @@ export class Buildings {
 
   /**
    * Makes the buildings near the view, removes far ones, and fades roofs and fronts. `inside` is the
-   * building that the player is in, and `storey` its storey (PlayerState.storey).
+   * building that the player is in, and `storey` its storey (PlayerState.storey). `lights` are the
+   * lights of the sky (Sky.lights): a window shows lit at night (1) and unlit by day (0), and both between.
    */
-  update(view: Rect, inside: Building | null, seconds: number, storey = 0): void {
+  update(view: Rect, inside: Building | null, seconds: number, storey = 0, lights = 1): void {
     const x0 = Math.floor(view.x / TILE_SIZE) - MARGIN_TILES;
     const y0 = Math.floor(view.y / TILE_SIZE) - MARGIN_TILES;
     const x1 = Math.ceil((view.x + view.width) / TILE_SIZE) + MARGIN_TILES;
@@ -110,6 +113,7 @@ export class Buildings {
     }
 
     const step = Math.min(1, seconds * FADE_RATE);
+    const lit = litAlpha(lights);
     for (const built of this.views.values()) {
       // A door can change without this client: another visitor, an NPC, the server.
       if (this.doorState(built.building, built.building.doorX, built.building.y1) !== built.doorState) this.refreshDoor(built.building.doorX, built.building.y1);
@@ -127,6 +131,13 @@ export class Buildings {
           sprite.y = (stack.ty + 1) * TILE_SIZE - (level - base) * WALL_HEIGHT;
           // The front wall: its storey on the ground fades, and the storeys over it go.
           if (stack.front) sprite.alpha = level === base ? front : built.alpha;
+          // A window: the lit frame over the unlit one, as much as the hour lights it.
+          const glass = stack.lits[level];
+          if (glass) {
+            glass.visible = sprite.visible;
+            glass.y = sprite.y;
+            glass.alpha = sprite.alpha * lit;
+          }
         });
       }
       this.showFloor(built, base);
@@ -206,10 +217,19 @@ export class Buildings {
     return upperStorey(building, storey)?.walls ?? (building.style ?? DEFAULT_STYLE).walls;
   }
 
-  /** The wall of a storey of the building on a tile of its walls: a window, or a wall that joins its neighbours. */
-  private wallTexture(building: Building, tx: number, ty: number, storey = 0): Texture {
+  /**
+   * The wall of a storey of the building on a tile of its walls: a window, or a wall that joins its
+   * neighbours. A window has its unlit frame under (`base`) and its lit frame over it (`lit`: unlit.ts).
+   */
+  private wallFrames(building: Building, tx: number, ty: number, storey = 0): { readonly base: Texture; readonly lit: Texture | null } {
     const walls = this.wallsOf(building, storey);
-    if (ty === building.y1 && tx !== building.x0 && tx !== building.x1 && storeyWindows(building, storey).includes(tx)) return this.art.frame(`wall/${walls}/window`);
+    if (ty === building.y1 && tx !== building.x0 && tx !== building.x1 && storeyWindows(building, storey).includes(tx)) return dayFrames(this.art, `wall/${walls}/window`);
+    return { base: this.wallTexture(building, tx, ty, storey), lit: null };
+  }
+
+  /** The wall of a storey of the building on a tile of its walls that is not a window: it joins its neighbours. */
+  private wallTexture(building: Building, tx: number, ty: number, storey: number): Texture {
+    const walls = this.wallsOf(building, storey);
     const solid = (x: number, y: number) => {
       const s = this.world.structure(x, y);
       return s === Structure.Wall || s === Structure.Door || s === Structure.Window;
@@ -289,14 +309,18 @@ export class Buildings {
       for (let tx = x0; tx <= x1; tx++) {
         if (tx !== x0 && tx !== x1 && ty !== y0 && ty !== y1) continue;
         const isDoor = tx === doorX && ty === y1;
-        const sprite = place(new Sprite(isDoor ? this.doorTexture(building, this.doorState(building, tx, ty)) : this.wallTexture(building, tx, ty)), tx, ty, 8);
-        if (isDoor) door = sprite;
-        const stack = { ty, front: ty === y1, sprites: [sprite] };
-        // The storeys above: the same wall, one storey higher each time, over the top of the one under it.
-        for (let storey = 1; storey < storeys; storey++) {
-          const above = place(new Sprite(this.wallTexture(building, tx, ty, storey)), tx, ty, 8 + storey * 0.01);
-          above.y -= storey * WALL_HEIGHT;
-          stack.sprites.push(above);
+        const stack: BuildingView['stacks'][number] = { ty, front: ty === y1, sprites: [], lits: [] };
+        // The storeys: the ground one (or the door), and above it the same wall, one storey higher each
+        // time, over the top of the one under it. A window has its lit frame just over it.
+        for (let storey = 0; storey < storeys; storey++) {
+          const frames = isDoor && storey === 0 ? { base: this.doorTexture(building, this.doorState(building, tx, ty)), lit: null } : this.wallFrames(building, tx, ty, storey);
+          const sprite = place(new Sprite(frames.base), tx, ty, 8 + storey * 0.01);
+          sprite.y -= storey * WALL_HEIGHT;
+          if (isDoor && storey === 0) door = sprite;
+          stack.sprites.push(sprite);
+          const lit = frames.lit ? place(new Sprite(frames.lit), tx, ty, 8 + storey * 0.01 + 0.005) : null;
+          if (lit) lit.y = sprite.y;
+          stack.lits.push(lit);
         }
         stacks.push(stack);
       }

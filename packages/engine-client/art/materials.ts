@@ -65,7 +65,30 @@ export const M = {
   herbFlower: 47,
   soil: 48,
   paleStone: 49,
+  darkGlass: 50,
+  darkRedGlass: 51,
+  dimStainedBlue: 52,
+  dimStainedRed: 53,
 } as const;
+
+/**
+ * The glass of a lamp or a window by day (the frames `.../unlit`): the glass that glows at night, with
+ * no light behind it. A material that does not glow stays as it is.
+ */
+export function unlit(material: number): number {
+  switch (material) {
+    case M.lanternGlass:
+      return M.darkGlass;
+    case M.redGlass:
+      return M.darkRedGlass;
+    case M.stainedBlue:
+      return M.dimStainedBlue;
+    case M.stainedRed:
+      return M.dimStainedRed;
+    default:
+      return material;
+  }
+}
 
 export const MATERIALS: Material[] = [
   { ramp: ramp('#121110', '#1b1917', '#252220', '#302c29', '#3c3833', '#4a453f'), dither: true },
@@ -118,4 +141,8 @@ export const MATERIALS: Material[] = [
   { ramp: ramp('#3a3628', '#55503a', '#706a4e', '#8a8262') }, // pale buds of herbs
   { ramp: ramp('#120d09', '#1d150f', '#2a1f16', '#38291d', '#473425', '#56402e'), dither: true }, // dug earth
   { ramp: ramp('#25272b', '#363940', '#4b4f56', '#62666e', '#7b8088', '#959aa2') }, // pale stone of the Mithril Enclave
+  { ramp: ramp('#07090c', '#0d1116', '#141a21', '#1d252e', '#29333e'), bias: -0.1 }, // glass by day: no light behind it
+  { ramp: ramp('#110506', '#1b080a', '#270c0f', '#341114', '#43181a'), bias: -0.1 }, // red glass by day
+  { ramp: ramp('#0a0f1c', '#10182b', '#17233d', '#21304f'), bias: -0.05 }, // stained glass by day, blue
+  { ramp: ramp('#180909', '#250e0c', '#341511', '#451e17'), bias: -0.05 }, // stained glass by day, red
 ];
