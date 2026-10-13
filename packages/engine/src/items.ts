@@ -345,11 +345,13 @@ export function checkPack(raw: unknown): Pack | null {
 // ---------------------------------------------------------------- loot tables
 
 /**
- * What a source of loot gives: coins from `coins[0]` to `coins[1]`, then each roll of `items`
- * (with its chance) gives one item, picked by weight.
+ * What a source of loot gives: coins from `coins[0]` to `coins[1]` (only in `coinChance` of the
+ * rolls), then each roll of `items` (with its chance) gives one item, picked by weight.
  */
 export interface LootTable {
   readonly coins?: readonly [number, number];
+  /** The chance that the coins come (0 to 1); without it, always. Coins are scarce (docs/game-design.md, "Coins"). */
+  readonly coinChance?: number;
   readonly items?: readonly LootRoll[];
   /** The source fills again this long after a player emptied it (ms); without it, REFILL_MS (loot.ts). */
   readonly refillMs?: number;
@@ -360,17 +362,21 @@ export interface LootRoll {
   readonly pick: readonly (readonly [ItemKind, number])[];
 }
 
-/** What a kill drops into the killer's pack (Fede's choice, 2026-10-10). */
+/**
+ * What a kill drops into the killer's pack (Fede's choice, 2026-10-10). Coins are scarce (Fede,
+ * 2026-10-13: docs/game-design.md, "Coins"): most kills give none, and a kill that gives some gives
+ * a coin or two, so that the rewards of the quests are the most of a character's income.
+ */
 export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
   imp: { items: [{ chance: 1 / 3, pick: [['imp-horn', 1]] }] },
-  brute: { coins: [2, 6], items: [{ chance: 1 / 2, pick: [['brute-tusk', 1]] }] },
-  goblin: { coins: [0, 3] },
+  brute: { coins: [1, 2], coinChance: 1 / 3, items: [{ chance: 1 / 2, pick: [['brute-tusk', 1]] }] },
+  goblin: { coins: [1, 1], coinChance: 1 / 4 },
   worg: {},
-  hobgoblin: { coins: [2, 6] },
-  bugbear: { coins: [3, 8] },
+  hobgoblin: { coins: [1, 2], coinChance: 1 / 3 },
+  bugbear: { coins: [1, 3], coinChance: 1 / 2 },
   // The chapter's loot of the war band: a splint armour and the hobgoblin luck amulet.
   devastator: {
-    coins: [5, 12],
+    coins: [2, 5],
     items: [
       { chance: 1, pick: [['luck-amulet', 1]] },
       { chance: 1, pick: [['splint-armour', 1]] },
@@ -380,9 +386,10 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
   // never dies (it goes in ash at half of its hit points).
   hound: {},
   watcher: {},
-  seeker: { coins: [3, 8], items: [{ chance: 0.2, pick: [['draught', 1]] }] },
+  seeker: { coins: [1, 2], coinChance: 1 / 3, items: [{ chance: 0.2, pick: [['draught', 1]] }] },
   adept: {
-    coins: [2, 7],
+    coins: [1, 2],
+    coinChance: 1 / 3,
     items: [
       {
         chance: 0.25,
@@ -394,14 +401,15 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
     ],
   },
   warden: {},
-  // A goblin of the forest (the tutorial): a coin or two.
-  skirmisher: { coins: [0, 2] },
+  // A goblin of the forest (the tutorial): a coin in one kill of four.
+  skirmisher: { coins: [1, 1], coinChance: 1 / 4 },
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */
 export function rollLoot(table: LootTable, random: () => number): Loot {
   const [min, max] = table.coins ?? [0, 0];
-  const coins = min + Math.floor(random() * (max - min + 1));
+  let coins = min + Math.floor(random() * (max - min + 1));
+  if (table.coinChance !== undefined && random() >= table.coinChance) coins = 0;
   const items: ItemStack[] = [];
   for (const roll of table.items ?? []) {
     if (random() >= roll.chance) continue;

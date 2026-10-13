@@ -115,8 +115,9 @@ example the Crooked Lantern: el Farol Torcido).
 ## The quests
 
 A quest has an id and steps. A step has an id, a text for the journal, and what moves it on.
-The rewards follow the economy of the game (a chest gives 1 to 15 coins), not the gold pieces of
-the chapter: Fede tunes them.
+The rewards follow the economy of the game, not the gold pieces of the chapter: Fede tunes them.
+Coins are scarce (Fede, 2026-10-13; `docs/game-design.md`, "Coins"): a chest gives 0 to 4 coins,
+a kill seldom gives one, and the quests give more than half of the coins.
 
 ### Q0 `letter`: the letter (the hook)
 

@@ -206,7 +206,8 @@ describe('piles in a shared world', () => {
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10), pack: full })!;
     const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
     let seq = 1;
-    for (let kill = 0; kill < 20 && room.piles.size === 0; kill++) {
+    // Until a tusk falls on the ground and a drop gives coins (a brute drops them in one kill of three).
+    for (let kill = 0; kill < 40 && (room.piles.size === 0 || p.pack.coins === 0); kill++) {
       const brute = room.horde!.spawn('brute', p.state.x + 20, p.state.y);
       // One hit point: the first blow kills it (the average dice: every attack hits).
       brute.health = 1;
@@ -218,13 +219,14 @@ describe('piles in a shared world', () => {
       room.tick(2000 + kill * 2000);
     }
     const [pile] = room.piles.list;
-    expect(pile).toMatchObject({ kind: 'brute-tusk', count: 1 });
+    expect(pile).toMatchObject({ kind: 'brute-tusk' });
     expect(Math.abs(pile!.x - (p.state.x + 20))).toBeLessThanOrEqual(20);
     // It falls out of the mob.
     const [toss] = snapshotOf(room, p.id).ts ?? [];
     expect(toss?.[0]).toBe(pile!.id);
     expect(Math.hypot(toss![1] - pile!.x, toss![2] - pile!.y)).toBeLessThanOrEqual(2 * 8);
     expect(p.pack.items).toEqual(full.items);
+    // The coins always fit.
     expect(p.pack.coins).toBeGreaterThan(0);
   });
 

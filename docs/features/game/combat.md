@@ -241,7 +241,7 @@ beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial
   (code 12), `MobStats.patrol` (`group` [2, 3], `fleeSpeed` 64), the states `startled` (code 10) and
   `flee` (code 11), `STARTLE_MS` 600, `HIDE_MS` 10000, `Horde.spawnPatrol(kind, x, y, size)` (a loop of 6
   open points 3 to 6 tiles round the place; without room, they wander), `MobRules.populationAt?(tx,
-  ty)`, `MobRules.roam(tx, ty, kind?)`; `MOB_LOOT` (0 to 2 coins). The art: `art/mobs.ts` (the build
+  ty)`, `MobRules.roam(tx, ty, kind?)`; `MOB_LOOT` (1 coin in one kill of four). The art: `art/mobs.ts` (the build
   `SKIRMISHER`, the weapon `scimitar`, `Build.shieldSize`); the page: the "!" in `render/mobs.ts`
   (`placeAlert()`, `ALERT`; `MobViews` takes the font and the text layer), the yelp
   (`voiceOfChange()`, `VOICE_OF`). Tests: `packages/engine/test/patrols.test.ts`. Protocol 36.

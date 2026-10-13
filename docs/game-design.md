@@ -24,3 +24,15 @@ design a quest, an encounter, a mob or an ability. The decisions of one feature 
   punish, a position to take or to deny. Tune encounters by their tactics, not by their numbers.
 - The tutorial is the exception in difficulty only: its goblins are an easy match, so that a new
   player learns the controls without fear (`docs/drafts/tutorial.md`).
+
+## Coins
+
+- **Coins are scarce** (Fede, 2026-10-13). A reward of 5 coins is a good one: 2 coins of the 5 for
+  the lentils must be a big save. A healing draught costs 6.
+- **Quests give more than half of a character's coins.** Kills and chests give little: most kills
+  give no coins, a kill that gives some gives a coin or two, and a chest gives no coins at times
+  (`MOB_LOOT` in `packages/engine/src/items.ts`, `LootTable.coinChance`; the chests in
+  `worlds/wilds/src/source.ts`). What the mobs of a quest's fights drop counts with the quests.
+- A test keeps the rule with a model of a game of chapter 1 (`worlds/wilds/test/economy.test.ts`;
+  `docs/features/items/pack-and-loot.md`, REQ-PK-016). When you add a reward, a loot table, a mob or
+  a price, keep it green.

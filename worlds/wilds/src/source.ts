@@ -88,14 +88,17 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
   return ring || onApproach(house, tx, ty);
 }
 
-/** What a chest in a house of the wilds holds: some coins and one small thing (Fede's choice, 2026-10-10). */
+/**
+ * What a chest in a house of the wilds holds: one small thing (Fede's choice, 2026-10-10), and a coin
+ * or two in one chest of three (coins are scarce, Fede, 2026-10-13: docs/game-design.md, "Coins").
+ */
 const TRINKETS = [
   ['candle', 3],
   ['ring', 1],
   ['cup', 2],
   ['herbs', 3],
 ] as const;
-const CHEST_LOOT: LootTable = { coins: [1, 6], items: [{ chance: 1, pick: TRINKETS }] };
+const CHEST_LOOT: LootTable = { coins: [1, 2], coinChance: 1 / 3, items: [{ chance: 1, pick: TRINKETS }] };
 /**
  * The magic items of the SRD (gear.ts), by weight: rare loot in a locked chest (1 in 16), a barred
  * house (1 in 8) and the buried cache of Ironhold (1 in 6). The common ones come more often.
@@ -112,18 +115,20 @@ export const MAGIC_ITEMS = [
   ['amulet-of-health', 1],
 ] as const;
 export const MAGIC_CHANCE = { locked: 1 / 16, barred: 1 / 8, cache: 1 / 6 } as const;
-/** A locked chest keeps more: more coins, and a second thing in about one of three. */
+/** A locked chest keeps more: 1 to 3 coins in one of two, and a second thing in about one of three. */
 const LOCKED_CHEST_LOOT: LootTable = {
-  coins: [3, 10],
+  coins: [1, 3],
+  coinChance: 1 / 2,
   items: [
     { chance: 1, pick: TRINKETS },
     { chance: 0.35, pick: TRINKETS },
     { chance: MAGIC_CHANCE.locked, pick: MAGIC_ITEMS },
   ],
 };
-/** A barred house was shut with its things inside: more coins, and a second thing in one of two. */
+/** A barred house was shut with its things inside: 1 to 4 coins in two of three, and a second thing in one of two. */
 const BARRED_CHEST_LOOT: LootTable = {
-  coins: [5, 15],
+  coins: [1, 4],
+  coinChance: 2 / 3,
   items: [
     { chance: 1, pick: TRINKETS },
     { chance: 0.5, pick: TRINKETS },
@@ -133,9 +138,9 @@ const BARRED_CHEST_LOOT: LootTable = {
 
 /** A patch of herbs gives a bundle, and grows again 20 minutes after it was picked (Fede's choice, 2026-10-10). */
 const HERB_LOOT: LootTable = { items: [{ chance: 1, pick: [['herbs', 1]] }], refillMs: 20 * 60_000 };
-/** The savings that the old couple of Ironhold buried (the reeve tells of it, to a character with Wisdom 13). */
+/** The savings that the old couple of Ironhold buried (the reeve tells of it, to a character with Wisdom 13): a few coins and a ring. */
 const CACHE_LOOT: LootTable = {
-  coins: [8, 20],
+  coins: [2, 5],
   items: [
     { chance: 1, pick: [['ring', 1]] },
     { chance: 0.5, pick: TRINKETS },

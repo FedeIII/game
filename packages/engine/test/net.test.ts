@@ -687,15 +687,24 @@ describe('Strength in a shared world', () => {
   it("gives the coins of a brute to the client that killed it", () => {
     const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
     const p = room.join(0, 1, [5, 10], '', undefined, { traits: strength(10) })!;
-    room.horde!.spawn('brute', p.state.x + 20, p.state.y).health = 1;
     const quiet = Array.from({ length: 29 }, () => [0, 0] as const);
-    room.input(p.id, { t: 'in', s: 1, i: [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] }, 100);
-    expect(room.kills).toBe(1);
-    const snap = snapshotOf(room, p.id);
-    expect(snap.l).toHaveLength(1);
-    expect(snap.l![0]![0]).toBe(1);
-    expect(p.pack.coins).toBeGreaterThanOrEqual(2);
-    expect(p.pack.coins).toBeLessThanOrEqual(6);
-    expect(snap.pk![0]).toBe(p.pack.coins);
+    const inputs = [[0, 0, 4], ...quiet, [0, 0, 4], ...quiet, [0, 0, 4]] as const;
+    // Coins are scarce (a brute drops them in one kill of three): kill brutes until a drop has some.
+    let snap: SnapshotMessage | null = null;
+    let seq = 1;
+    for (let kill = 0; kill < 30 && p.pack.coins === 0; kill++) {
+      room.horde!.spawn('brute', p.state.x + 20, p.state.y).health = 1;
+      room.input(p.id, { t: 'in', s: seq, i: inputs as never }, 100 + kill * 2000);
+      seq += inputs.length;
+      expect(room.kills).toBe(kill + 1);
+      room.tick(1000 + kill * 2000);
+      snap = snapshotOf(room, p.id, 2000 + kill * 2000);
+    }
+    expect(snap!.l).toHaveLength(1);
+    expect(snap!.l![0]![0]).toBe(1);
+    expect(snap!.l![0]![1]).toBe(p.pack.coins);
+    expect(p.pack.coins).toBeGreaterThanOrEqual(1);
+    expect(p.pack.coins).toBeLessThanOrEqual(2);
+    expect(snap!.pk![0]).toBe(p.pack.coins);
   });
 });

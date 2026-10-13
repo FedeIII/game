@@ -57,7 +57,7 @@ describe('buildings', () => {
       const chest = b.fixtures.find((f) => f.kind === 'chest');
       const table = chest ? world.source.loot!(chest) : null;
       if (b.id === HOME_ID) expect(table).toBeNull();
-      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 15 : chest.lock ? 10 : 6);
+      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 4 : chest.lock ? 3 : 2);
     }
   });
 
@@ -72,7 +72,7 @@ describe('buildings', () => {
         expect(f.kind).toBe('chest');
         expect(f.lock).toEqual({ ability: 'dex', min: 13 });
         expect(b.barred).toBeUndefined();
-        expect(world.source.loot!(f)!.coins).toEqual([3, 10]);
+        expect(world.source.loot!(f)!.coins).toEqual([1, 3]);
       }
     }
   });

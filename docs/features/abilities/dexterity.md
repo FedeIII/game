@@ -181,8 +181,9 @@ loot in them.
   locked."
 - **AC-DEX-007.5:** Each time that a character opens the chest, it needs DEX 13. The lock keeps no
   state: after one character picks it, the chest stays locked for a character with less DEX.
-- **AC-DEX-007.6:** A locked chest gives 3 to 10 coins and one thing, and a second thing in about
-  one of three (35%).
+- **AC-DEX-007.6:** A locked chest gives one thing, and a second thing in about one of three (35%).
+  It also gives 1 to 3 coins in one chest of two (coins are scarce: [Pack and
+  Loot](../items/pack-and-loot.md), REQ-PK-016).
 - **AC-DEX-007.7:** In a shared world the server checks the gate again with the scores of the
   stored character.
 

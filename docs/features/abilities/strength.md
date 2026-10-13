@@ -142,8 +142,9 @@ STR opens places that weaker characters cannot open.
 - **AC-STR-007.1:** About one house with a chest in four is barred. A house without a chest is
   never barred.
 - **AC-STR-007.2:** The home and the house east of the home are never barred.
-- **AC-STR-007.3:** The chest of a barred house gives 5 to 15 coins and one thing, and a second
-  thing in one of two.
+- **AC-STR-007.3:** The chest of a barred house gives one thing, and a second thing in one of two.
+  It also gives 1 to 4 coins in two chests of three (coins are scarce: [Pack and
+  Loot](../items/pack-and-loot.md), REQ-PK-016).
 - **AC-STR-007.4:** The chest of a barred house has no lock.
 - **AC-STR-007.5:** The barred houses come from the seed of the world, so every visitor of a world
   sees the same houses barred.

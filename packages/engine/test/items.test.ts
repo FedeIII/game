@@ -89,17 +89,42 @@ describe('loot', () => {
     expect(rollLoot(table, random(5))).toEqual(rollLoot(table, random(5)));
   });
 
-  it('of a brute: 2 to 6 coins always, a tusk in about one kill of two', () => {
+  it('of a brute: 1 or 2 coins in about one kill of three, a tusk in about one kill of two', () => {
     const rand = random(11);
     let tusks = 0;
+    let paid = 0;
     for (let i = 0; i < 2000; i++) {
       const drop = rollLoot(MOB_LOOT.brute, rand);
-      expect(drop.coins).toBeGreaterThanOrEqual(2);
-      expect(drop.coins).toBeLessThanOrEqual(6);
+      expect(drop.coins).toBeGreaterThanOrEqual(0);
+      expect(drop.coins).toBeLessThanOrEqual(2);
+      if (drop.coins > 0) paid++;
       tusks += drop.items.filter((s) => s.kind === 'brute-tusk').length;
     }
+    expect(paid / 2000).toBeGreaterThan(0.29);
+    expect(paid / 2000).toBeLessThan(0.38);
     expect(tusks / 2000).toBeGreaterThan(0.45);
     expect(tusks / 2000).toBeLessThan(0.55);
+  });
+
+  it('gives the coins only in their chance, and always without one', () => {
+    const rand = random(13);
+    let paid = 0;
+    for (let i = 0; i < 4000; i++) {
+      const drop = rollLoot({ coins: [3, 3], coinChance: 0.25 }, rand);
+      expect([0, 3]).toContain(drop.coins);
+      if (drop.coins > 0) paid++;
+    }
+    expect(paid / 4000).toBeGreaterThan(0.22);
+    expect(paid / 4000).toBeLessThan(0.28);
+    for (let i = 0; i < 100; i++) expect(rollLoot({ coins: [3, 3] }, rand).coins).toBe(3);
+  });
+
+  it('of a goblin of the forest: a coin in about one kill of four', () => {
+    const rand = random(14);
+    let coins = 0;
+    for (let i = 0; i < 4000; i++) coins += rollLoot(MOB_LOOT.skirmisher, rand).coins;
+    expect(coins / 4000).toBeGreaterThan(0.22);
+    expect(coins / 4000).toBeLessThan(0.28);
   });
 
   it('of an imp: no coins, a horn in about one kill of three', () => {

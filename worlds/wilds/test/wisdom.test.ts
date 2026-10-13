@@ -86,7 +86,7 @@ describe('the buried cache of Ironhold', () => {
     // Not in front of any door.
     for (const b of TOWN_BUILDINGS) expect(Math.abs(TOWN_CACHE.tx - b.doorX) <= 2 && TOWN_CACHE.ty > b.y1 && TOWN_CACHE.ty <= b.y1 + 3, b.id).toBe(false);
     const loot = source.loot(TOWN_CACHE)!;
-    expect(loot.coins).toEqual([8, 20]);
+    expect(loot.coins).toEqual([2, 5]);
     expect(loot.items![0]).toEqual({ chance: 1, pick: [['ring', 1]] });
   });
 

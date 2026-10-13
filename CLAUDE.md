@@ -518,7 +518,9 @@ Fede's rules for the design of the game are in `docs/game-design.md`: read them 
 quest, an encounter, a mob or an ability. In short: **no chains of quests in what the player sees**
 (events unlock quests; some events wait until another quest is finished), the first quest is to
 reach Ironhold (the tutorial), and **combat has few enemies but very strategic fights** (slow,
-well-timed moves, the right ability, positioning).
+well-timed moves, the right ability, positioning). **Coins are scarce** (Fede, 2026-10-13): the quests
+give more than half of a character's coins, most kills give none, and a chest gives none at times
+(`LootTable.coinChance`); `worlds/wilds/test/economy.test.ts` keeps the rule with a model of chapter 1.
 
 ## Ability scores in the game
 
@@ -555,8 +557,8 @@ builder and the "You" section still name every gate.
   which it fills; the message `move`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
   of herbs, and three drinks (healing draught, antidote, strong draught: `DRINKS`, `drinkFrom()`;
   the drink belt, its keys 1 to 4, or "Drink" in the pack panel; the server through `drink`). A kill drops loot into the killer's pack (`MOB_LOOT`,
-  `Horde.drop()`: an imp a horn in one kill of three; a brute 2 to 6 coins, and a tusk in one of
-  two); what does not fit falls on the ground at the mob, and the player says "My pack is full." In a shared world the
+  `Horde.drop()`: an imp a horn in one kill of three; a brute 1 or 2 coins in one kill of three, and a
+  tusk in one of two; **coins are scarce**, see "Game design"); what does not fit falls on the ground at the mob, and the player says "My pack is full." In a shared world the
   server owns the pack, and the store keeps it (`Character.pack`, the column `pack`, saved with
   the place); in a world that the page runs, the page has its own, which it does not save.
 - **Equipment** (`gear.ts`, `inventory.ts`; since 2026-10-11, Fede's decisions in
@@ -630,8 +632,8 @@ builder and the "You" section still name every gate.
   snapshot, `render/arrows.ts`).
 - **Locked chests**: one chest in three of the Wilds houses that are not barred has a lock (DEX
   13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
-  open."), never for one without ("It is locked. I cannot pick it."); it gives more (3 to 10
-  coins, a second thing in about one of three).
+  open."), never for one without ("It is locked. I cannot pick it."); it gives more (1 to 3
+  coins in one of two, a second thing in about one of three).
 - **Constitution**: hit points (`maxHp` = `levelHp(class, mod)`: level 1 of 5e (`LEVEL`), the hit die
   `HIT_DIE` at its most and the mod; a fighter with CON 10 has 10, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
@@ -1032,8 +1034,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   them). Tests check 150+ houses for a wall ring, one door and reachable furniture. A cell has no
   house where the house's ground would touch the town, the road or the signpost. About one house
   with a chest in four is barred (Strength 13; never the house east of the home); the chest of a
-  house gives 1 to 6 coins and a candle stub, a silver ring, a pewter cup or a bundle of herbs,
-  and the chest of a barred house more (5 to 15 coins, and a second thing in one of two; a magic
+  house gives a candle stub, a silver ring, a pewter cup or a bundle of herbs, and 1 or 2 coins in
+  one of three, and the chest of a barred house more (1 to 4 coins in two of three, and a second
+  thing in one of two; a magic
   item in one of 8, a locked chest one in 16, the buried cache one in 6). The
   home's chest is the character's own: no loot. Every lake has a band of shallow water at its
   shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all

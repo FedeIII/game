@@ -70,7 +70,13 @@ reward.
 
 **Acceptance Criteria:**
 - **AC-PK-002.1:** An imp drops an imp horn in one kill of three, and no coins.
-- **AC-PK-002.2:** A brute drops 2 to 6 coins, and a brute tusk in one kill of two.
+- **AC-PK-002.2:** A brute drops 1 or 2 coins in one kill of three, and a brute tusk in one kill
+  of two.
+- **AC-PK-002.7:** Coins are scarce (REQ-PK-016): a goblin of the forest drops 1 coin in one kill of
+  four; a goblin archer 1 coin in one kill of four; a hobgoblin, a blade of the Seekers and an adept
+  1 or 2 coins in one kill of three; a bugbear 1 to 3 coins in one kill of two; the Hobgoblin
+  Devastator 2 to 5 coins (with its armour and its amulet). Worgs, cinder hounds and watchers drop
+  nothing.
 - **AC-PK-002.3:** The drop goes into the pack of the player who killed the mob, with a blow or with
   an arrow.
 - **AC-PK-002.4:** Each part of the drop rises over the head of the player as a short gold line in
@@ -94,16 +100,16 @@ visit to a house has a reward.
 - **AC-PK-003.3:** At a chest with loot, the action label is "Open the chest". At a locked chest,
   it is "Pick the lock" for a character with DEX 13 or more ([Dexterity](../abilities/dexterity.md),
   REQ-DEX-007).
-- **AC-PK-003.4:** An ordinary chest gives 1 to 6 coins and one thing: a candle stub, a silver
-  ring, a pewter cup or a bundle of herbs.
-- **AC-PK-003.5:** A locked chest gives 3 to 10 coins and one thing, and a second thing in about
-  one of three. The chest of a barred house gives 5 to 15 coins and one thing, and a second thing
-  in one of two. A locked chest also gives a magic item in one of 16, the chest of a barred house
+- **AC-PK-003.4:** An ordinary chest gives one thing: a candle stub, a silver ring, a pewter cup or
+  a bundle of herbs. It also gives 1 or 2 coins in one chest of three (REQ-PK-016).
+- **AC-PK-003.5:** A locked chest gives one thing, and a second thing in about one of three; it
+  also gives 1 to 3 coins in one chest of two. The chest of a barred house gives one thing, and a
+  second thing in one of two; it also gives 1 to 4 coins in two chests of three. A locked chest also gives a magic item in one of 16, the chest of a barred house
   in one of 8 ([Equipment](equipment.md), REQ-EQ-020).
 - **AC-PK-003.6:** Of the four things, a candle stub and a bundle of herbs come most often (3 in 9
   each). A pewter cup comes 2 in 9, and a silver ring 1 in 9.
 - **AC-PK-003.7:** The player says what it found in one line, for example "I find 4 coins and a
-  silver ring." Two things of one kind show as a number: "I find 7 coins and 2 candle stubs."
+  silver ring." Two things of one kind show as a number: "I find 2 coins and 2 candle stubs."
 - **AC-PK-003.8:** At an empty chest, the player says "It is empty."
 
 ---
@@ -298,9 +304,9 @@ woods and the town have more to give.
 - **AC-PK-012.2:** A patch gives one bundle for every player of the world. After that, a press says
   "Somebody picked them. They will grow again." The patch grows again 20 minutes after it was
   picked.
-- **AC-PK-012.3:** The buried cache of Ironhold ("Dig here") gives 8 to 20 coins, a silver ring,
+- **AC-PK-012.3:** The buried cache of Ironhold ("Dig here") gives 2 to 5 coins, a silver ring,
   and a second thing (a candle stub, a silver ring, a pewter cup or a bundle of herbs) in one of
-  two: "I dig up a small box. I find 19 coins and a silver ring." After that it says "Somebody
+  two: "I dig up a small box. I find 4 coins and a silver ring." After that it says "Somebody
   dug it up before me.", until it fills again 30 minutes later. In one of six it also gives a
   magic item ([Equipment](equipment.md), REQ-EQ-020).
 - **AC-PK-012.4:** Patches and the cache are hidden: a character sees them only close by
@@ -408,6 +414,28 @@ thing out of the pack with one move, so that the pack is in my order and I can m
   they are until the drag ends. A drop takes all the items that the slot holds then, and nothing
   happens when the slot does not hold that kind any more.
 
+### REQ-PK-016: Coins are scarce
+
+**User Story:** As Fede, I want coins to be scarce, so that the rewards of the quests matter: 2 coins
+of the 5 for the lentils must be a big save (Fede, 2026-10-13; `docs/game-design.md`, "Coins").
+
+**Acceptance Criteria:**
+- **AC-PK-016.1:** Most kills give no coins. On average, a kill of a mob that roams the Wilds, and
+  the coins of an ordinary chest, give at most 1 coin: half of the pay for wet lentils.
+- **AC-PK-016.2:** A chest of a house gives no coins at times (AC-PK-003.4, AC-PK-003.5).
+- **AC-PK-016.3:** In a model of a game of chapter 1, alone, the quests give more than half of the
+  coins. The model: 9 goblins of the forest, 12 imps and 4 brutes killed; 12 ordinary chests, 2
+  locked chests, 2 barred chests and the buried cache opened; the cart, the lentils, the raid (the
+  scouts and Himo home), the caravan saved and the Wren homestead finished. An item counts at what
+  a trader pays for it. What the mobs of the fights of the quests drop (the ambushes: the
+  Devastator's armour, for example) counts with the quests: only a quest brings them. With the
+  numbers of 2026-10-13, the quests give about 97 coins and the rest about 68 (59%); before, the
+  rest gave about 163 (42%).
+- **AC-PK-016.4:** A test checks AC-PK-016.1 to AC-PK-016.3 (`worlds/wilds/test/economy.test.ts`).
+  A change of a loot table, a price or a reward must keep it green.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Drinks:** `DRINKS` (`Drink`: `hp` (a `Dice`: `draught` 2d4+2, `strong-draught` 4d4+4, `herbs`
@@ -436,7 +464,8 @@ thing out of the pack with one move, so that the pack is in my order and I can m
   slots)` gives the new pack, what went in (`taken`) and what did not fit (`left`). `checkPack()`
   checks a stored pack.
 - **Loot tables** (`items.ts`): `LootTable`, `LootRoll`, `rollLoot()` and `MOB_LOOT`. Two rolls
-  of one kind in one loot make a stack of 2. `Horde.drop(mob)` rolls `MOB_LOOT` with the random
+  of one kind in one loot make a stack of 2. `LootTable.coinChance` is the chance that the coins
+  come at all (without it, always). `Horde.drop(mob)` rolls `MOB_LOOT` with the random
   source of the horde.
 - **Who gets a drop:** in the Room, `give()` puts the drop of a blow into the pack of the attacker
   (`Room.input()`). It puts the drop of an arrow into the pack of the shooter (`takeShotKills()` in
