@@ -6,15 +6,6 @@
 
 ## Open
 
-- **An empty box at the top centre of the screen** (2026-10-13, a bug). Sometimes a panel with no text
-  stays at the top centre. The cause: the control hint `#hint` (`apps/game/index.html`, a `<div>` with
-  no class `gone`; the style `#hint` in `packages/engine-client/src/style.css` gives it a border and a
-  background). Before 2026-10-13 the game put the controls in it and hid it after 3 tiles of walk. The
-  tips (commit e3a4242) took that text away, but the empty box still shows: under a tip it is hidden,
-  and while a panel is open (`body:has(...) #hint`), so it shows "sometimes". The fix: start it with
-  the class `gone` in `index.html` (it shows only with `Hud.showHint()`, the new-build line), or hide
-  `#hint:empty` in the style. Check a screenshot of the game after it.
-
 - **Buy and sell menus for the shops** (2026-10-13). Now a character buys and sells through the
   answers of a conversation, one item for each answer ("The ale, then.", "Sell a ring."). Give the
   shops a menu of their own: a panel with "Buy" and "Sell", the goods with their prices (after
@@ -149,3 +140,7 @@
 - **A chalice over the door of a shrine, not the word** (2026-10-13). The shrine of Whitegrove and the
   chapel of Ironhold show a chalice in pale gold on the wooden sign board over the door, and no word
   (`Building.emblem`, the frame `ui/emblem/chalice`). Done 2026-10-13, commit `08dca1f`.
+
+- **An empty box at the top centre of the screen** (2026-10-13, a bug). The control hint `#hint` now
+  starts with the class `gone` in `apps/game/index.html`, so its empty box does not show; only
+  `Hud.showHint()` shows it (the new-build line). Done 2026-10-13, commit `945453c`.
