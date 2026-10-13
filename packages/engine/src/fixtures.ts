@@ -36,6 +36,14 @@ const TWO_WIDE = (y0: number, y1: number): FixtureTile[] => [
   { dx: 1, dy: 0, box: [0, y0, 15, y1] },
 ];
 
+/** A footprint of two by two tiles, solid but for a pixel at the west and the east edge. */
+const TWO_BY_TWO: FixtureTile[] = [
+  { dx: 0, dy: 0, box: [1, 0, 16, 16] },
+  { dx: 1, dy: 0, box: [0, 0, 15, 16] },
+  { dx: 0, dy: -1, box: [1, 0, 16, 16] },
+  { dx: 1, dy: -1, box: [0, 0, 15, 16] },
+];
+
 /**
  * Every fixture type. The boxes match the footprints of the art (art/fixtures.ts). Things that
  * stand against a north wall (bookshelf, apothecary, portal) fill the north part of the tile.
@@ -131,9 +139,29 @@ export const FIXTURE_TYPES = [
     ],
     depth: 12,
   },
+  // Stairs between two storeys of a building (Building.storeys; 2026-10-13): a flight that goes up to
+  // the north, two tiles wide and two tiles long. On the storey above, the stairwell stands on the same
+  // tiles: the opening with a railing round it. Both are solid; the action button on either takes the
+  // player to the other storey, south of the middle of them (interact.ts, stairsLanding()).
+  { id: 37, kind: 'stairs', tiles: TWO_BY_TWO, depth: 14 },
+  { id: 38, kind: 'stairwell', tiles: TWO_BY_TWO, depth: 14 },
+  // A palisade round a town (Ironhold, 2026-10-13): sharpened logs on one tile. Its look gives the
+  // sides where the palisade goes on (palisadeLook()), so the logs join their neighbours.
+  { id: 39, kind: 'palisade', tiles: ONE_TILE([0, 0, 16, 16]), depth: 8 },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
+
+/** The sides of a tile of palisade that join a neighbour, as bits of its look (palisadeLook). */
+export const PALISADE_SIDES = { north: 1, east: 2, south: 4, west: 8 } as const;
+
+/**
+ * The look of a tile of palisade (Fixture.look; the art: fixture/palisade/<look>): the sides where the
+ * palisade goes on to a neighbour, as the sum of their bits (PALISADE_SIDES).
+ */
+export function palisadeLook(sides: { readonly north: boolean; readonly east: boolean; readonly south: boolean; readonly west: boolean }): string {
+  return String((sides.north ? PALISADE_SIDES.north : 0) | (sides.east ? PALISADE_SIDES.east : 0) | (sides.south ? PALISADE_SIDES.south : 0) | (sides.west ? PALISADE_SIDES.west : 0));
+}
 
 const BY_KIND = new Map<string, FixtureType>(FIXTURE_TYPES.map((t) => [t.kind, t]));
 

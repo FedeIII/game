@@ -1,11 +1,12 @@
 import { Structure } from '../buildings.ts';
-import { useDoor, type DoorResult, type Feet } from '../interact.ts';
+import { useDoor, useStairs, type DoorResult, type Feet, type StairsResult } from '../interact.ts';
 import { stepPlayer, type MoveInput, type PlayerState } from '../player.ts';
 import { GUEST_TRAITS, type PlayerTraits } from '../traits.ts';
 import type { World } from '../world.ts';
 import {
   INPUT_BATCH_TICKS,
   MAX_PICKS_PER_MESSAGE,
+  MAX_STAIRS_PER_MESSAGE,
   MAX_USES_PER_MESSAGE,
   aimFromCode,
   facingFromCode,
@@ -18,6 +19,7 @@ import {
   type WireDoor,
   type WireInput,
   type WirePick,
+  type WireStairs,
   type WireUse,
 } from './protocol.ts';
 
@@ -26,6 +28,8 @@ interface PendingInput {
   readonly input: WireInput;
   /** Door wishes that happened just before this input: [tx, ty, open]. */
   readonly doors: (readonly [number, number, boolean])[];
+  /** Stairs that the player used just before this input: [tx, ty]. */
+  readonly stairs: (readonly [number, number])[];
 }
 
 /** Applies a door wish to the world, as the room does: only a change, never onto someone. */
@@ -58,6 +62,9 @@ export class Prediction {
   private batchUses: WireUse[] = [];
   private nextPicks: number[] = [];
   private batchPicks: WirePick[] = [];
+  /** Stairs used since the last tick: they go with the next input. */
+  private nextStairs: (readonly [number, number])[] = [];
+  private batchStairs: WireStairs[] = [];
   /** The open and the forced doors in the server's last word. */
   private serverDoors: readonly (readonly [number, number])[] = [];
   private serverForced: readonly (readonly [number, number])[] = [];
@@ -79,6 +86,8 @@ export class Prediction {
     this.batchUses = [];
     this.nextPicks = [];
     this.batchPicks = [];
+    this.nextStairs = [];
+    this.batchStairs = [];
     this.batchFirst = 1;
     this.serverDoors = welcome.doors;
     this.serverForced = welcome.fd;
@@ -86,6 +95,7 @@ export class Prediction {
     world.setForcedDoors(welcome.fd);
     player.x = welcome.x;
     player.y = welcome.y;
+    player.storey = welcome.st ?? 0;
     player.vx = 0;
     player.vy = 0;
     // A new player on the server: no fight in progress.
@@ -110,16 +120,18 @@ export class Prediction {
   step(player: PlayerState, world: World, input: MoveInput, viewMs = 0): boolean {
     const wire = toWireInput(input);
     this.seq++;
-    this.pending.push({ seq: this.seq, input: wire, doors: this.nextDoors });
+    this.pending.push({ seq: this.seq, input: wire, doors: this.nextDoors, stairs: this.nextStairs });
     for (const [tx, ty, open] of this.nextDoors) this.batchDoors.push([this.seq, tx, ty, open ? 1 : 0]);
     this.nextDoors = [];
+    for (const [tx, ty] of this.nextStairs) this.batchStairs.push([this.seq, tx, ty]);
+    this.nextStairs = [];
     for (const [tx, ty] of this.nextUses) this.batchUses.push([this.seq, tx, ty]);
     this.nextUses = [];
     for (const id of this.nextPicks) this.batchPicks.push([this.seq, id]);
     this.nextPicks = [];
     if (this.batch.length === 0) this.batchFirst = this.seq;
     this.batch.push(wire);
-    const struck = stepPlayer(player, fromWireInput(wire), world, this.traits);
+    const struck = stepPlayer(player, fromWireInput(wire), world.level(player.storey), this.traits);
     if (struck) this.batchAttacks.push([this.seq, Math.round(viewMs)]);
     return struck;
   }
@@ -128,6 +140,13 @@ export class Prediction {
   door(player: PlayerState, world: World, tx: number, ty: number, others: readonly Feet[]): DoorResult {
     const result = useDoor(world, player, tx, ty, others, this.traits);
     if (result === 'opened' || result === 'closed' || result === 'forced') this.nextDoors.push([tx, ty, result !== 'closed']);
+    return result;
+  }
+
+  /** Uses stairs (a tile of them) at once, as the server will, and keeps the wish to send it with the next input. */
+  stairs(player: PlayerState, world: World, tx: number, ty: number): StairsResult | null {
+    const result = useStairs(world, player, tx, ty);
+    if (result) this.nextStairs.push([tx, ty]);
     return result;
   }
 
@@ -152,12 +171,14 @@ export class Prediction {
       ...(this.batchAttacks.length > 0 ? { k: this.batchAttacks } : {}),
       ...(this.batchUses.length > 0 ? { u: this.batchUses.slice(0, MAX_USES_PER_MESSAGE) } : {}),
       ...(this.batchPicks.length > 0 ? { g: this.batchPicks.slice(0, MAX_PICKS_PER_MESSAGE) } : {}),
+      ...(this.batchStairs.length > 0 ? { c: this.batchStairs.slice(0, MAX_STAIRS_PER_MESSAGE) } : {}),
     };
     this.batch = [];
     this.batchDoors = [];
     this.batchAttacks = [];
     this.batchUses = [];
     this.batchPicks = [];
+    this.batchStairs = [];
     return message;
   }
 
@@ -172,10 +193,11 @@ export class Prediction {
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
     world.setForcedDoors(this.serverForced);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance] =
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance, storey] =
       snapshot.you;
     player.x = x;
     player.y = y;
+    player.storey = storey;
     player.vx = vx;
     player.vy = vy;
     player.facing = facingFromCode(facing);
@@ -200,9 +222,11 @@ export class Prediction {
     player.glance = glance;
     for (const p of this.pending) {
       for (const [tx, ty, open] of p.doors) wishDoor(world, player, tx, ty, open, others, this.traits);
-      stepPlayer(player, fromWireInput(p.input), world, this.traits);
+      for (const [tx, ty] of p.stairs) useStairs(world, player, tx, ty);
+      stepPlayer(player, fromWireInput(p.input), world.level(player.storey), this.traits);
     }
     for (const [tx, ty, open] of this.nextDoors) wishDoor(world, player, tx, ty, open, others, this.traits);
+    for (const [tx, ty] of this.nextStairs) useStairs(world, player, tx, ty);
     return { dx: player.x - before.x, dy: player.y - before.y };
   }
 }

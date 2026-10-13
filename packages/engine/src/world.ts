@@ -1,6 +1,6 @@
-import { Structure, inRect, isInside, type Building } from './buildings.ts';
+import { Structure, inRect, isInside, structureOnStorey, upperStorey, type Building } from './buildings.ts';
 import { CHUNK_SIZE, TILE_SIZE } from './constants.ts';
-import { decodeFixture, type Fixture } from './fixtures.ts';
+import { decodeFixture, fixtureTiles, type Fixture } from './fixtures.ts';
 import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
 import type { Gate } from './traits.ts';
@@ -270,6 +270,8 @@ export class World implements TileMap {
   private readonly openDoors = new Set<string>();
   /** The barred doors that a player forced (Building.barred): they are ordinary doors until the world bars them again. */
   private readonly forcedDoors = new Set<string>();
+  /** The maps of the storeys above the ground storey (level()). */
+  private readonly levels = new Map<number, StoreyMap>();
 
   constructor(source: WorldSource) {
     this.source = source;
@@ -395,6 +397,20 @@ export class World implements TileMap {
     return this.source.fixturesIn(x0, y0, x1, y1);
   }
 
+  /**
+   * The map of a storey: the world itself for the ground storey (0); for a storey above it, the
+   * storeys of the buildings that have it (StoreyMap). Movement and actions on a storey go through it.
+   */
+  level(storey: number): TileMap & SpawnFinder {
+    if (storey <= 0) return this;
+    let map = this.levels.get(storey);
+    if (!map) {
+      map = new StoreyMap(this, storey);
+      this.levels.set(storey, map);
+    }
+    return map;
+  }
+
   spawn(): { x: number; y: number } {
     return this.source.spawn(this);
   }
@@ -440,6 +456,82 @@ export class World implements TileMap {
       }
     }
     throw new Error(`no open tile near ${nearTx},${nearTy}`);
+  }
+}
+
+/** A map that can find an open tile near a tile (World.findSpawn): the place of a start. */
+export interface SpawnFinder {
+  findSpawn(nearTx?: number, nearTy?: number, clearance?: number): { x: number; y: number };
+}
+
+/**
+ * A storey above the ground storey (1 and up) as a map (Building.storeys): inside a building with
+ * that storey, its walls (without a door), its windows, its things and its floor; everywhere else
+ * a wall. Nothing grows there, no door opens there, and there is no water.
+ */
+export class StoreyMap implements TileMap, SpawnFinder {
+  readonly storey: number;
+  private readonly world: World;
+
+  constructor(world: World, storey: number) {
+    this.world = world;
+    this.storey = storey;
+  }
+
+  /** The building whose rectangle holds the tile, if it has this storey. */
+  private building(tx: number, ty: number): Building | null {
+    const building = this.world.buildingAt(tx, ty);
+    return building && upperStorey(building, this.storey) ? building : null;
+  }
+
+  ground(tx: number, ty: number): Ground {
+    const building = this.building(tx, ty);
+    return (building && upperStorey(building, this.storey)!.floor) ?? Ground.Floor;
+  }
+
+  decor(): Decor {
+    return Decor.None;
+  }
+
+  structure(tx: number, ty: number): number {
+    const building = this.building(tx, ty);
+    return building ? structureOnStorey(building, this.storey, tx, ty) : Structure.Wall;
+  }
+
+  solidBox(tx: number, ty: number): Box | null {
+    return solidBox(Ground.Floor, Decor.None, this.structure(tx, ty));
+  }
+
+  isDoorOpen(): boolean {
+    return false;
+  }
+
+  isDoorLocked(): boolean {
+    return false;
+  }
+
+  fixtureAt(tx: number, ty: number): Fixture | null {
+    const building = this.building(tx, ty);
+    if (!building) return null;
+    return upperStorey(building, this.storey)!.fixtures.find((f) => fixtureTiles(f).some(([x, y]) => x === tx && y === ty)) ?? null;
+  }
+
+  /**
+   * The centre of the open tile of this storey nearest to (nearTx, nearTy), within 32 tiles. The
+   * clearance is not used: a storey is indoors. Throws if there is none.
+   */
+  findSpawn(nearTx = 0, nearTy = 0): { x: number; y: number } {
+    for (let r = 0; r < 32; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = nearTx + dx;
+          const ty = nearTy + dy;
+          if (!this.solidBox(tx, ty)) return { x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + TILE_SIZE / 2 };
+        }
+      }
+    }
+    throw new Error(`no open tile of storey ${this.storey} near ${nearTx},${nearTy}`);
   }
 }
 

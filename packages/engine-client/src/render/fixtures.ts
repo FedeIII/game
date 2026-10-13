@@ -1,5 +1,5 @@
 import { Container, NineSliceSprite, Sprite } from 'pixi.js';
-import { TILE_SIZE, fixtureType, type Conditions, type Fixture, type World } from '@game/engine';
+import { TILE_SIZE, fixtureType, inRect, storeyFixtures, type Building, type Conditions, type Fixture, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
@@ -15,6 +15,15 @@ const SEEK_FADE = 8;
 const PLATE_BOTTOM = 20;
 /** The shield over a plate goes this many pixels down over its top edge. */
 const CREST_OVERLAP = 4;
+
+/**
+ * Where the player is: the building that it is in (or null) and its storey (PlayerState.storey). On a
+ * storey above the ground, the things of that storey show in the building, and those under it do not.
+ */
+export interface Viewer {
+  readonly building: Building | null;
+  readonly storey: number;
+}
 
 /** Who looks for hidden things (Fixture.hidden): where its feet are, and how far it sees them (PlayerTraits.seek). */
 export interface Seeker {
@@ -64,6 +73,9 @@ export class Fixtures {
   private readonly textLayer: Container;
   private readonly font: PixelFont;
   private readonly views = new Map<string, FixtureView>();
+  /** The things of the storey above the ground where the player is (Building.storeys), and which storey of which building. */
+  private storeyViews: FixtureView[] = [];
+  private storeyKey = '';
   /** Whether conditions hold for the player (its quests and pack): a fixture with a variant shows it then (Fixture.variant). */
   private holds: (when: Conditions) => boolean = () => false;
 
@@ -84,8 +96,12 @@ export class Fixtures {
     this.holds = holds;
   }
 
-  /** Shows the fixtures in and near `view`. A hidden one shows only within the range of `seeker` (none: never). */
-  update(view: Rect, seconds: number, seeker: Seeker | null = null): void {
+  /**
+   * Shows the fixtures in and near `view`. A hidden one shows only within the range of `seeker` (none:
+   * never). With a `viewer` on a storey above the ground, the things of that storey of its building
+   * show there, in the place of the things of the ground storey.
+   */
+  update(view: Rect, seconds: number, seeker: Seeker | null = null, viewer: Viewer = { building: null, storey: 0 }): void {
     const x0 = Math.floor(view.x / TILE_SIZE) - MARGIN_TILES;
     const y0 = Math.floor(view.y / TILE_SIZE) - MARGIN_TILES;
     const x1 = Math.ceil((view.x + view.width) / TILE_SIZE) + MARGIN_TILES;
@@ -106,8 +122,16 @@ export class Fixtures {
         this.views.delete(k);
       }
     }
-    // Portals breathe: the glow brightens and dims slowly, each one at its own pace.
+    this.showStorey(viewer);
+    const upstairs = viewer.storey > 0 ? viewer.building : null;
     for (const built of this.views.values()) {
+      const shown = !upstairs || !inRect(upstairs, built.fixture.tx, built.fixture.ty);
+      built.sprite.visible = shown;
+      if (built.glow) built.glow.visible = shown;
+      if (built.plate) built.plate.visible = shown;
+    }
+    // Portals breathe: the glow brightens and dims slowly, each one at its own pace.
+    for (const built of [...this.views.values(), ...this.storeyViews]) {
       if (built.glow) built.glow.alpha = 0.5 + 0.12 * Math.sin(seconds * 1.7 + built.fixture.tx * 0.7);
       if (built.fixture.hidden) built.sprite.alpha = seen(built.fixture, seeker);
       const variant = built.fixture.variant;
@@ -122,12 +146,25 @@ export class Fixtures {
     }
   }
 
+  /** The things of the storey where the viewer is (none on the ground): made when the viewer comes to it. */
+  private showStorey(viewer: Viewer): void {
+    const key = viewer.storey > 0 && viewer.building ? `${viewer.building.id}@${viewer.storey}` : '';
+    if (key === this.storeyKey) return;
+    for (const built of this.storeyViews) {
+      built.sprite.destroy();
+      built.glow?.destroy();
+      built.plate?.destroy({ children: true });
+    }
+    this.storeyKey = key;
+    this.storeyViews = viewer.building && key ? storeyFixtures(viewer.building, viewer.storey).map((fixture) => this.make(fixture)) : [];
+  }
+
   /** The lights of the fixtures that are shown, in world pixels. */
   lights(): LightSource[] {
     const out: LightSource[] = [];
-    for (const { fixture } of this.views.values()) {
+    for (const { fixture, sprite } of [...this.views.values(), ...this.storeyViews]) {
       const light = fixture.light;
-      if (!light) continue;
+      if (!light || !sprite.visible) continue;
       out.push({
         x: fixture.tx * TILE_SIZE + light.x,
         y: (fixture.ty + 1) * TILE_SIZE + light.y,

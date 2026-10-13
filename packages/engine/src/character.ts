@@ -190,11 +190,12 @@ export interface CharacterSheet {
   readonly bonus: readonly Ability[];
 }
 
-/** Where a character was last: a world, and the centre of its feet there, in world pixels. */
+/** Where a character was last: a world, the centre of its feet there, in world pixels, and its storey (Building.storeys; none: the ground). */
 export interface CharacterPlace {
   readonly world: string;
   readonly x: number;
   readonly y: number;
+  readonly storey?: number;
 }
 
 /** A stored character. */
@@ -224,6 +225,8 @@ export interface Character extends CharacterSheet {
 const WORLD_ID = /^[a-z0-9-]{1,32}$/;
 /** A place is at most this far from the origin, on each axis (world pixels): a million tiles. */
 export const PLACE_LIMIT = 16_000_000;
+/** The highest storey that a place can name (Building.storeys). */
+export const MAX_STOREY = 15;
 
 /** Checks a place from outside (a request, a stored row): a world id and two finite numbers in range. Null if it is not one. */
 export function checkPlace(raw: unknown): CharacterPlace | null {
@@ -231,7 +234,8 @@ export function checkPlace(raw: unknown): CharacterPlace | null {
   const m = raw as Record<string, unknown>;
   const inRange = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= PLACE_LIMIT;
   if (typeof m.world !== 'string' || !WORLD_ID.test(m.world) || !inRange(m.x) || !inRange(m.y)) return null;
-  return { world: m.world, x: m.x, y: m.y };
+  const storey = Number.isInteger(m.storey) && (m.storey as number) > 0 && (m.storey as number) <= MAX_STOREY ? (m.storey as number) : 0;
+  return storey > 0 ? { world: m.world, x: m.x, y: m.y, storey } : { world: m.world, x: m.x, y: m.y };
 }
 
 /** The skin seed of a character. */

@@ -15,7 +15,7 @@ reads, an answer, or a scene that it overhears. Some events wait for another que
 | The Broken Cart (El carro roto) | `cart` | "Can I help?" to the merchant by the cart (`CART_HELP`). | Nothing. |
 | Lentils for Bronzehold (Lentejas para Bronzal) | `lentils` | "I will take it." to the farmer of Whitegrove (`LENTILS_TAKE`). | Nothing. |
 | The Razed Villages (Pueblos Arrasados) | `ashes` | "Thrain Steelforge sent me. Who burns the homesteads?" to the reeve (`START_ASHES`). | The end of the road (`ROAD_DONE`). |
-| The Hobgoblin Raid (Incursión Hobgoblin) | `raid` | The scene "the argument" in the reeve's house (`ARGUMENT`, `RAID_HEARD`). | "The Razed Villages" started (any step). |
+| The Hobgoblin Raid (Incursión Hobgoblin) | `raid` | The scene "the argument" in the town hall (`ARGUMENT`, `RAID_HEARD`). | "The Razed Villages" started (any step). |
 | The Caravan Ambush (Asalto a la Caravana) | `caravan` | The scene "the plot" in the Crooked Lantern (`PLOT`, `CARAVAN_HEARD`). | "The Hobgoblin Raid" at `asked` or later. |
 
 ```
@@ -33,7 +33,7 @@ patrols.
 | Step | The journal says | The map marks | What moves the quest there |
 |---|---|---|---|
 | `go` | The letter sends me to Ironhold, through Whitegrove and Bronzehold; the reeve wrote to Thrain first. | the south edge of Ironhold (`-32, 15`) | To read the letter (`READ_LETTER`). |
-| `arrived` (end) | I came to Ironhold. | | The scene "the arrival": the character comes into Ironhold, and the child calls out and points to the reeve's house (`ARRIVAL`, `ROAD_ARRIVED`). |
+| `arrived` (end) | I came to Ironhold. | | The scene "the arrival": the character comes into Ironhold, and the child calls out and sends it to the town hall, on the square (`ARRIVAL`, `ROAD_ARRIVED`). |
 
 ## The Broken Cart (`cart`)
 

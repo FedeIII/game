@@ -948,7 +948,7 @@ export class WildsSource implements WorldSource {
     return WADE_EFFECTS;
   }
 
-  /** The talks that a character overhears (town.ts): the argument in the house of the reeve, the plot in the inn, the arrival. */
+  /** The talks that a character overhears (town.ts): the argument in the town hall, the plot in the inn, the arrival. */
   scenes(): readonly SceneDef[] {
     return TOWN_SCENES;
   }

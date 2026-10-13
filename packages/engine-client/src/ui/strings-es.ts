@@ -324,6 +324,8 @@ export const ES: Strings = {
   next: 'Siguiente',
   close: 'Cerrar',
   lookIntoPortal: 'Mirar en el portal',
+  goUp: 'Subir la escalera',
+  goDown: 'Bajar la escalera',
   conversation: {
     end: 'Terminar la conversación',
     answer: 'Responder',
@@ -392,6 +394,9 @@ export const ES: Strings = {
     menhir: 'el menhir',
     altar: 'el altar',
     namesign: 'el letrero',
+    stairs: 'la escalera',
+    stairwell: 'la escalera',
+    palisade: 'la empalizada',
     pile: 'las cosas del suelo',
   },
   linkClose: 'Cerrar',

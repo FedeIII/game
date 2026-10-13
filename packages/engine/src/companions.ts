@@ -211,7 +211,8 @@ export class Companions {
       }
       return;
     }
-    const input = leader ? this.follow(companion, brain, leader, events) : NO_MOVE;
+    // A companion stays on the ground storey: while its leader is up the stairs (Building.storeys), it waits.
+    const input = leader && leader.storey === 0 ? this.follow(companion, brain, leader, events) : NO_MOVE;
     // Stuck on a corner while it walks: a new way at once (it may go to the centre of its tile first).
     if (input !== NO_MOVE && ++brain.stuckTicks >= STUCK_TICKS) {
       if (Math.hypot(state.x - brain.lastX, state.y - brain.lastY) < 2) {

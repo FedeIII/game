@@ -37,6 +37,8 @@ export interface RemotePlayer {
   readonly guard: number;
   readonly dodge: number;
   readonly down: number;
+  /** The storey of a building that it is on (PlayerState.storey). */
+  readonly storey: number;
 }
 
 /** A companion from the server (companions.ts), where the client draws it now. */
@@ -107,6 +109,8 @@ interface Sample {
   /** A player's dodge and defeat (ticks); a mob's runes left in a rite, and whether its weapon burns. */
   readonly e?: number;
   readonly f?: number;
+  /** A player's storey. */
+  readonly g?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -193,7 +197,7 @@ export class Remotes {
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     this.everyone = snapshot.o;
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -203,7 +207,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // The companions near the player; one that is not in the snapshot went (or is far).
@@ -392,6 +396,7 @@ export class Remotes {
         guard: ticksAt(since.c, since, t),
         dodge: ticksAt(since.e, since, t),
         down: ticksAt(since.f, since, t),
+        storey: since.g ?? 0,
       });
     }
     return out;

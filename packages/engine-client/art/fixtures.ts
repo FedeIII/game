@@ -10,8 +10,9 @@ import { Image } from './png.ts';
 import { boundFigure, PLAYER_FRAME } from './characters.ts';
 import { cropToContent, rgb } from './raster.ts';
 import { MATERIALS, M, hash } from './materials.ts';
-import { box, cylinder, displace, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
+import { HEIGHT_SCALE, box, cylinder, displace, ellipsoid, intersect, noise3, renderModel, roundCone, sphere, subtract, union, type Part, type Sdf, type Vec3 } from './sdf.ts';
 import type { Frame } from './sprites.ts';
+import { PALISADE_SIDES } from '@game/engine';
 
 const PIVOT_X = 4;
 const MARGIN_BELOW = 6;
@@ -659,6 +660,117 @@ function altar(): Part[] {
   ];
 }
 
+// ---------------------------------------------------------------- storeys and towns (2026-10-13)
+
+/** One storey (32 pixels on the screen) in units of height. */
+const STOREY = 32 / HEIGHT_SCALE;
+/** The steps of a flight of stairs between two storeys. */
+const STEPS = 8;
+
+/**
+ * Stairs to the storey above (Building.storeys): a flight of eight wooden steps, two tiles wide, that
+ * goes up to the north over two tiles, between two stringers, with a handrail on each side. The treads
+ * catch the light; the risers are dark.
+ */
+function stairs(): Part[] {
+  const depth = 32 / STEPS;
+  const rise = STOREY / STEPS;
+  const parts: Part[] = [];
+  for (let i = 0; i < STEPS; i++) {
+    const z0 = -i * depth;
+    // Each step is a block from its tread down to the floor, so nothing shows under it.
+    parts.push({
+      sdf: box([3, 0, -32], [29, (i + 1) * rise, z0 - 0.2], 0.25),
+      material: (_x, _y, _z, _nx, ny) => (ny > 0.6 ? M.greyWood : M.woodDark),
+    });
+  }
+  // The stringers: a plank on each side that follows the slope.
+  const stringer = (x0: number, x1: number): Sdf => {
+    const slab = box([x0, 0, -32], [x1, STOREY + 2, 0]);
+    const n = Math.hypot(STOREY / 32, 1);
+    return (x, y, z) => Math.max(slab(x, y, z), (y - (-z * STOREY) / 32 - 2.6) / n, (-(-z * STOREY) / 32 + 1.2 - y) / n);
+  };
+  parts.push({ sdf: stringer(1.2, 3), material: M.woodDark }, { sdf: stringer(29, 30.8), material: M.woodDark });
+  // The handrails: posts and a rail along the slope, on each side.
+  const railAt = (z: number): number => (-z * STOREY) / 32 + 12;
+  for (const x of [2.1, 29.9]) {
+    for (const z of [-1.5, -16, -30.5]) parts.push({ sdf: box([x - 0.7, 0, z - 0.7], [x + 0.7, railAt(z), z + 0.7]), material: M.beam });
+    parts.push({ sdf: roundCone([x, railAt(-1), -1], [x, railAt(-31), -31], 0.75, 0.75), material: M.wood });
+  }
+  return parts;
+}
+
+/**
+ * The stairwell on the storey above the stairs (the same four tiles): the opening in the floor, the top
+ * steps that go down into the dark, and a railing of posts on the west, the east and the north. The
+ * south side is open: the way down.
+ */
+function stairwell(): Part[] {
+  const steps = (_x: number, _y: number, z: number) => {
+    const k = Math.floor(-z / 4);
+    if (k >= 6) return M.beam;
+    return k % 2 === 0 ? (k < 3 ? M.wood : M.woodDark) : M.beam;
+  };
+  const parts: Part[] = [
+    // The rim of the floor round the opening, and the steps in it, darker as they go down.
+    { sdf: subtract(box([0, 0, -32], [32, 0.6, 0]), box([2.5, -1, -30], [29.5, 1, -0.5])), material: M.wood },
+    { sdf: box([2.5, 0, -30], [29.5, 0.3, -0.5]), material: steps },
+  ];
+  const height = 12;
+  const posts: [number, number][] = [
+    [1.4, -1.4],
+    [1.4, -16],
+    [1.4, -30.6],
+    [30.6, -1.4],
+    [30.6, -16],
+    [30.6, -30.6],
+    [12, -30.6],
+    [20, -30.6],
+  ];
+  for (const [x, z] of posts) parts.push({ sdf: box([x - 0.8, 0, z - 0.8], [x + 0.8, height, z + 0.8]), material: M.beam });
+  parts.push(
+    { sdf: box([0.4, height - 0.2, -31.6], [2.4, height + 1, -0.4], 0.25), material: M.wood },
+    { sdf: box([29.6, height - 0.2, -31.6], [31.6, height + 1, -0.4], 0.25), material: M.wood },
+    { sdf: box([0.4, height - 0.2, -31.6], [31.6, height + 1, -29.6], 0.25), material: M.wood },
+  );
+  return parts;
+}
+
+/**
+ * A tile of palisade (Ironhold, 2026-10-13): two staggered rows of sharpened logs of dark wood, a little
+ * uneven, from the middle of the tile to each side where it joins a neighbour (`mask`: PALISADE_SIDES),
+ * with two bands of rope round them. The logs stand on a grid of 4 units that goes on across the tiles,
+ * so the runs join without a seam.
+ */
+function palisade(mask: number): Part[] {
+  const [north, east, south, west] = [PALISADE_SIDES.north, PALISADE_SIDES.east, PALISADE_SIDES.south, PALISADE_SIDES.west].map((side) => (mask & side) !== 0);
+  const spots = new Map<string, [number, number]>();
+  const add = (x: number, z: number) => spots.set(`${x},${z}`, [x, z]);
+  // A run east to west: a front row and a back row; a run north to south: three columns.
+  if (east || west || !(north || south)) {
+    for (const x of [1, 5, 9, 13]) if (x >= (west ? 0 : 4) && x <= (east ? 16 : 12)) add(x, -5);
+    for (const x of [3, 7, 11, 15]) if (x >= (west ? 0 : 4) && x <= (east ? 16 : 12)) add(x, -11);
+  }
+  if (north || south || !(east || west)) {
+    // From the south, only the tips of such a run show: three close columns make one strip of them.
+    for (const d of [1, 5, 9, 13]) if (d >= (south ? 0 : 4) && d <= (north ? 16 : 12)) add(4.5, -d), add(11.5, -d);
+    for (const d of [3, 7, 11, 15]) if (d >= (south ? 0 : 4) && d <= (north ? 16 : 12)) add(8, -d);
+  }
+  return [...spots.values()].flatMap(([x, z]): Part[] => {
+    const tall = 26 + 4 * hash(x, z, 71);
+    const lean = (hash(x, z, 72) - 0.5) * 0.5;
+    const bark = (bx: number, by: number, bz: number) => {
+      if (Math.abs(by - 8) < 0.7 || Math.abs(by - tall + 6) < 0.7) return M.beam;
+      if (by < 2 + 2 * noise3(bx * 0.5, 0, bz * 0.5, 73)) return M.moss;
+      return noise3(bx * 0.6, by * 0.15, bz * 0.6, 74) > 0.62 ? M.woodDark : M.wood;
+    };
+    return [
+      { sdf: cylinder([x + lean, tall / 2, z], 'y', 2.1, tall), material: bark },
+      { sdf: roundCone([x + lean, tall, z], [x + lean * 1.4, tall + 5, z], 2.1, 0.3), material: M.greyWood },
+    ];
+  });
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -701,5 +813,8 @@ export function fixtureFrames(): Frame[] {
     fixture('altar', altar(), 40, 32),
     { ...fixture('namesign', namesignIron(), 56, 48), name: 'fixture/namesign/iron' },
     { ...fixture('namesign', namesignMithril(), 56, 48), name: 'fixture/namesign/mithril' },
+    fixture('stairs', stairs(), 40, 88),
+    fixture('stairwell', stairwell(), 40, 64),
+    ...Array.from({ length: 16 }, (_, mask) => ({ ...fixture('palisade', palisade(mask), 24, 64), name: `fixture/palisade/${mask}` })),
   ];
 }

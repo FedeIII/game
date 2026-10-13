@@ -25,6 +25,8 @@ export interface SceneDef {
   readonly id: string;
   /** The tiles where the character must stand for the scene to play: a rectangle. */
   readonly area: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number };
+  /** The storey of the area (Building.storeys): the character must be on it. Default: the ground (0). */
+  readonly storey?: number;
   /** The conditions that start it: a quest at a step. */
   readonly when: Conditions;
   readonly lines: readonly SceneLine[];

@@ -59,10 +59,17 @@ row -11 north, in the wildlands.
 ### Ironhold
 
 **Ironhold** (Ferrozar): `-52..-8, -8..14`, north of Bronzehold, at the end of the road from the hut.
-An inn (the Crooked Lantern; el Farol Torcido), a smithy, a chapel (a refuge), the apothecary, the
-reeve's house, and four houses that are shut for good (the chandler, a cottage, the granary, a house).
-The road from the hut comes in at the south edge (`TOWN_SOUTH`), where the watchman Brann stands on
-the lane. From the east gate (`TOWN_GATE`, `-7, 3`) a road goes north along the town to the north road.
+As chapter 1.5.1 of Kandrax tells it (since 2026-10-13): buildings more solid than a village of its
+size has, with wooden finishes (timber frames and planks), and cobbled streets planned as in a city. A
+palisade of logs goes round the town, with two gates. The main street runs from the west palisade to
+the east gate. North of it is a small square with the fountain and the notice board, and in its middle
+the **town hall** (el ayuntamiento), where the reeve is: two storeys, the hall below (stone) and the
+reeve's archive above it (timber), up the stairs. West of the square stands the inn (the Crooked
+Lantern; el Farol Torcido), east of it the chapel (stone; a refuge). South of the main street, the
+apothecary, the smithy, and four houses that are shut for good (a cottage, the chandler, the granary, a
+house) face the lane by the south palisade. The road from the hut comes in at the south gate
+(`TOWN_SOUTH`), where the watchman Brann stands on the lane. From the east gate (`TOWN_GATE`, `-7, 3`) a
+road goes north along the palisade to the north road.
 Its name sign (`-37..-35, 16`) stands west of the road from the hut, two rows south of the town: two
 posts and an iron plate with the name (IRONHOLD; FERROZAR) under the anvil of the Iron Sovereignty. It is
 the big town of the tutorial: its name shows over the screen when a character comes in (a title, once

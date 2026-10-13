@@ -20,6 +20,13 @@ export interface Pile {
   readonly y: number;
   readonly kind: ItemKind;
   readonly count: number;
+  /** The storey where it lies (Building.storeys); none: the ground. */
+  readonly storey?: number;
+}
+
+/** The storey of a pile (Pile.storey). */
+export function pileStorey(pile: Pick<Pile, 'storey'>): number {
+  return pile.storey ?? 0;
 }
 
 /** A pile goes this long after it came, or after a player last put more on it (ms). */
@@ -149,14 +156,14 @@ export interface Taken {
 
 /** The piles of a world. */
 export class Piles {
-  private readonly world: TileMap;
+  private readonly world: TileMap & { level(storey: number): TileMap };
   private lying: Lying[] = [];
   private tosses: Toss[] = [];
   private nextId = 1;
   /** Goes up each time a pile comes, changes or goes. */
   version = 0;
 
-  constructor(world: TileMap) {
+  constructor(world: TileMap & { level(storey: number): TileMap }) {
     this.world = world;
   }
 
@@ -183,9 +190,10 @@ export class Piles {
   /**
    * Puts stacks on the ground round (x, y): each one first onto a pile of its kind close by that
    * has room, then as a new pile on a free spot of open ground near the point. Returns the piles
-   * that came or changed. With `from` (where the items come from), each of them is a toss too.
+   * that came or changed. With `from` (where the items come from), each of them is a toss too. On a
+   * storey above the ground (`storey`), they lie on that storey.
    */
-  put(x: number, y: number, stacks: readonly ItemStack[], nowMs: number, from?: { readonly x: number; readonly y: number }): Pile[] {
+  put(x: number, y: number, stacks: readonly ItemStack[], nowMs: number, from?: { readonly x: number; readonly y: number }, storey = 0): Pile[] {
     const changed: Pile[] = [];
     const px = Math.round(x);
     const py = Math.round(y);
@@ -194,7 +202,7 @@ export class Piles {
       for (const lying of this.lying) {
         if (count === 0) break;
         const { pile } = lying;
-        if (pile.kind !== stack.kind || Math.hypot(pile.x - px, pile.y - py) > PILE_GAP) continue;
+        if (pile.kind !== stack.kind || pileStorey(pile) !== storey || Math.hypot(pile.x - px, pile.y - py) > PILE_GAP) continue;
         const n = Math.min(ITEM_STACK[pile.kind] - pile.count, count);
         if (n <= 0) continue;
         lying.pile = { ...pile, count: pile.count + n };
@@ -204,8 +212,8 @@ export class Piles {
       }
       while (count > 0) {
         const n = Math.min(ITEM_STACK[stack.kind], count);
-        const [sx, sy] = this.spot(px, py);
-        const pile: Pile = { id: this.nextId++, x: sx, y: sy, kind: stack.kind, count: n };
+        const [sx, sy] = this.spot(px, py, storey);
+        const pile: Pile = { id: this.nextId++, x: sx, y: sy, kind: stack.kind, count: n, ...(storey > 0 ? { storey } : {}) };
         this.lying.push({ pile, until: nowMs + PILE_MS });
         if (this.lying.length > MAX_PILES) this.lying.shift();
         count -= n;
@@ -231,12 +239,13 @@ export class Piles {
    * A free spot of open ground near (x, y), with nothing solid between it and the point (so never
    * on the other side of a wall), or the point itself when every spot is taken.
    */
-  private spot(x: number, y: number): readonly [number, number] {
+  private spot(x: number, y: number, storey: number): readonly [number, number] {
+    const level = this.world.level(storey);
     for (const [dx, dy] of SPOTS) {
       const sx = x + dx;
       const sy = y + dy;
-      if (!openPoint(this.world, sx, sy) || !clearLine(this.world, x, y, sx, sy)) continue;
-      if (this.lying.some(({ pile }) => Math.hypot(pile.x - sx, pile.y - sy) < PILE_GAP)) continue;
+      if (!openPoint(level, sx, sy) || !clearLine(level, x, y, sx, sy)) continue;
+      if (this.lying.some(({ pile }) => pileStorey(pile) === storey && Math.hypot(pile.x - sx, pile.y - sy) < PILE_GAP)) continue;
       return [sx, sy];
     }
     return [x, y];

@@ -5,7 +5,9 @@
 The Wilds have two fixed towns: Ironhold, north of the home, and Silverspring, the mithril village of
 the Mithril Enclave at the end of the north road (story phase 4a, 2026-10-11; plan:
 `docs/drafts/story-razed-villages.md`). Since 2026-10-13 two hamlets of the Iron Sovereignty stand on
-the road from the home to Ironhold: Whitegrove and Bronzehold (the tutorial: `docs/drafts/tutorial.md`). Each town is a fixed plan of characters, one for each tile,
+the road from the home to Ironhold: Whitegrove and Bronzehold (the tutorial: `docs/drafts/tutorial.md`). Since
+2026-10-13 Ironhold is a planned town of wood behind a palisade, with its town hall in the middle of a
+square (REQ-TWN-008). Each town is a fixed plan of characters, one for each tile,
 the same for every seed. One builder makes both: the buildings with their things and people, the
 streets with their lamps and props, and the people who walk the streets. No mob lives near a town
 or steps into it.
@@ -16,6 +18,7 @@ or steps into it.
 - **Gate**: the tile just outside a town where its road ends.
 - **Doorstep**: the 5 x 3 tiles in front of the door of a building. Nothing stands there.
 - **Resident**: an NPC who lives in a building of a town. **Walker**: an NPC who walks the streets.
+- **Palisade**: a wall of sharpened logs round a town, one tile thick, with openings for its gates.
 
 ## Requirements
 
@@ -183,6 +186,36 @@ places that matter stand out and every place has its name (Fede's rule, 2026-10-
 
 ---
 
+### REQ-TWN-008: Ironhold, a planned town of wood
+
+**User Story:** As a player who knows Kandrax, I want Ironhold to look as Ferrozar does in chapter 1.5.1
+and in its picture (solid buildings with wooden finishes, cobbled streets planned as in a city, the
+town hall in the middle of a small square), so that the game matches the world.
+
+**Acceptance Criteria:**
+- **AC-TWN-008.1:** A palisade of logs stands on every tile of the edge of the town (45 x 23 tiles),
+  but for two gates: the south gate, three tiles over the road from the hut, and the east gate, three
+  tiles over the main street. Each tile of the palisade is solid, and it joins the tiles of palisade
+  next to it.
+- **AC-TWN-008.2:** The main street runs from the west palisade to the east gate, three tiles wide. North
+  of it is a square of cobblestones (21 x 9 tiles) with the fountain, the notice board and four lamps;
+  the town hall stands in its middle, with cobblestones on each of its four sides.
+- **AC-TWN-008.3:** The town hall (sign "Town Hall"; "Ayuntamiento") has two storeys
+  (`docs/features/game/storeys.md`): the hall on the ground storey, of stone, with the reeve, the
+  villager and the soldier of the Sovereignty (the scene of the argument), the map table, the desk and
+  the stairs; and the archive above it, of timber, with four bookshelves of ledgers, the strongbox and a
+  candelabra. From the door, a player reaches the stairs, goes up, and reaches every thing of the
+  archive.
+- **AC-TWN-008.4:** The other buildings are of wood (timber frames or planks), but the chapel, which is
+  of stone. The inn, the chandler and the house have two storeys outside (look-only storeys).
+- **AC-TWN-008.5:** West of the square stands the inn; east of it, the chapel. South of the main street,
+  back to back with it, stand the apothecary, the cottage, the smithy, the chandler, the granary and the
+  house, with alleys between them; they face the lane by the south palisade.
+- **AC-TWN-008.6:** The child in the lane says "Are you here for the reeve? She is in the town hall, on
+  the square." when a character on the first quest comes in.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The builder** (`worlds/wilds/src/towns.ts`): `TownPlan` (name, north-west tile, map, building
@@ -190,10 +223,19 @@ places that matter stand out and every place has its name (Fede's rule, 2026-10-
   `buildings`, `residents`, `streetFixtures`), `Plan`, `Thing`, `Person`, `Plot` (`Garden`, `Tree`,
   `Street`, `Lane`, `Water`, `Bridge`), `LAMP`. Map characters: `.` garden, `T` tree, `=`
   cobblestones, `:` lane, `~` water, `h` bridge, `1`-`9` buildings; every other character must be a
-  thing of the streets, or the build throws.
+  thing of the streets, or the build throws. A thing of kind `palisade` stands on grass (`Plot.Garden`),
+  and its look joins the tiles of the same character next to it (`palisadeLook()`, `PALISADE_SIDES` in
+  `packages/engine/src/fixtures.ts`; the art `fixture/palisade/<0-15>` in `art/fixtures.ts`). A plan
+  can have storeys (`Plan.storeys`, `StoreyPlan`: `docs/features/game/storeys.md`).
 - **Ironhold** (`worlds/wilds/src/town.ts`): `IRONHOLD`, and the names that it had before the
   builder (`TOWN`, `TOWN_GATE`, `TOWN_BUILDINGS`, `TOWN_STREET_FIXTURES`, `TOWN_NPCS`, `inTown()`,
-  `townFloor()`). Its plan did not change.
+  `townFloor()`). Its plan of 2026-10-13 (REQ-TWN-008): the map character `P` is the palisade; the
+  buildings in the order of their digits are `inn` (timber, two storeys), `town-hall` (stone and
+  timber, clay roof, the wine-red flag; the stairs `s` and the stairwell `w`), `chapel` (gothic),
+  `apothecary`, `cottage` and `granary` (planks), `smithy` (timber), `chandler` and `house` (timber, two
+  storeys). The rectangle (x -52 to -8, y -8 to 14), `TOWN_GATE` and `TOWN_SOUTH` did not move.
+  `TOWN_CACHE` is in the garden by the south palisade (`TOWN.x0 + 9`, `TOWN.y0 + 21`). The scene
+  `ARGUMENT` takes the rectangle of the town hall and the two rows south of it.
 - **Silverspring** (`worlds/wilds/src/silverspring.ts`): `SILVERSPRING`, `SILVERSPRING_NAME`,
   `SILVERSPRING_NPCS`. Its north-west tile is one tile east of `SILVERSPRING_SITE` (`road.ts`) and 10
   rows north of it. Buildings: `militia-hall` (stone, battlement roof, the silver flag of the

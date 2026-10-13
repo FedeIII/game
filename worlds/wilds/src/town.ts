@@ -5,46 +5,52 @@ import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
 
 /**
- * Ironhold: the town north of the hut, past Whitegrove and Bronzehold (docs/story/world.md). The road
- * from the hut (road.ts) comes in at its south edge (TOWN_SOUTH), and a signpost by the hut points
- * the way.
+ * Ironhold (Ferrozar): the town north of the hut, past Whitegrove and Bronzehold (docs/story/world.md).
+ * The road from the hut (road.ts) comes in at its south gate (TOWN_SOUTH), and a signpost by the hut
+ * points the way.
  *
- * The plan of the town, one character per tile, north at the top (towns.ts); its north-west tile
- * is (TOWN.x0, TOWN.y0). The main street runs from east to west; at its east end is the gate
- * (TOWN_GATE), where a road goes north along the town to the north road. Four buildings face the street from the north, with a small square and a
- * fountain between them; five more stand back to back with the street and face the lane in the
- * south, by the lake. Alleys between them join the street and the lane. Five buildings open (the
- * inn, the smithy, the chapel, the apothecary and the reeve's house) and four are shut for good.
- * In front of each door the ground stays clear: no lamp, prop or tree in the 5 x 3 tiles below it
- * (a test checks it).
+ * Since 2026-10-13 (Fede's request: wooden walls, and closer to chapter 1.5.1 of Kandrax and the picture
+ * of Ferrozar on the Drive), the town is a planned one, as a city is: a palisade of logs round it, with
+ * the south gate and the east gate; a main street from the west palisade to the east gate; north of it a
+ * square, with the town hall in its middle (two storeys: the hall, and the reeve's archive upstairs);
+ * the inn west of the square and the chapel east of it. South of the street, back to back with it, six
+ * buildings face the lane by the south palisade, with alleys between them. The buildings are of wood
+ * (timber frames, planks), more solid than a village of its size has; the town hall stands on a
+ * storey of stone. Five buildings open (the inn, the town hall, the chapel, the apothecary and the
+ * smithy) and four are shut for good. In front of each door the ground stays clear: no lamp, prop or
+ * tree in the 5 x 3 tiles below it (a test checks it).
  *
- *   .  garden    T  a tree    =  cobblestones    :  the dirt lane    1-9  BUILDINGS[n - 1]
+ * The plan of the town, one character per tile, north at the top (towns.ts); its north-west tile is
+ * (TOWN.x0, TOWN.y0). At the east end of the main street is the east gate (TOWN_GATE), where a road goes
+ * north along the palisade to the north road.
+ *
+ *   .  garden    T  a tree    =  cobblestones    :  the dirt lane    1-9  BUILDINGS[n - 1]    P  palisade
  *   F  the fountain (3 x 3)    N  the notice board (2 x 1)    L  a lamp post    b  a barrel    x  a crate
  */
 const MAP = [
-  '.T.......T.......T...................T.....T.',
-  '.............................................',
-  '..1111111111...............3333333...........',
-  '..1111111111...........T...3333333...........',
-  '..1111111111.2222222.......3333333.444444..T.',
-  '..1111111111.2222222=======3333333.444444....',
-  '..1111111111.2222222NNFFF==3333333.444444....',
-  '..1111111111.2222222==FFF==3333333.444444.T..',
-  '..1111111111.2222222==FFF==3333333.444444....',
-  '..1111111111.2222222=======3333333.444444....',
-  'xL========L========bL=====L======L======xL===',
-  '=============================================',
-  '=============================================',
-  'b====L=================L=========L=======L===',
-  '==5555555==========777777777==8888888========',
-  '==5555555==666666==777777777==8888888==99999=',
-  '==5555555==666666==777777777==8888888==99999=',
-  '==5555555==666666==777777777==8888888==99999=',
-  '==5555555==666666==777777777==8888888==99999=',
-  '==5555555==666666==777777777==8888888==99999=',
-  ':::::::::::::::::::::::::::::::::::::::::::::',
-  'b::::::::L::::::::L:::::::::L::::::::L::::::x',
-  'T........T..................T...............T',
+  'PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP',
+  'P..T.....T...L===================L...T....T.P',
+  'P.1111111111.=====22222222222=====.3333333..P',
+  'P.1111111111.=====22222222222=====T3333333..P',
+  'P.1111111111T=FFF=22222222222=====.3333333..P',
+  'PT1111111111.=FFF=22222222222=NN==.3333333.TP',
+  'P.1111111111.=FFF=22222222222=====.3333333..P',
+  'P.1111111111.=====22222222222=====.3333333..P',
+  'P.1111111111.=====22222222222=====T3333333..P',
+  'P.1111111111.L=================b=L.3333333..P',
+  'PL==========L====L===========L====L=======L==',
+  'P============================================',
+  'Px=L=======L====L======L=======L==========L==',
+  'P4444444========6666666=777777=8888888======P',
+  'P4444444=555555=6666666=777777=8888888=99999P',
+  'P4444444=555555=6666666=777777=8888888=99999P',
+  'P4444444=555555=6666666=777777=8888888=99999P',
+  'P4444444=555555=6666666=777777=8888888=99999P',
+  'P4444444=555555=6666666=777777=8888888=99999P',
+  'Pb::::::::::::::::::::::::::::::::::::::::::P',
+  'P:::::::::::::::::::::::::::::::::::::::::::P',
+  'P.......L.......L..:::.L......L......L......P',
+  'PPPPPPPPPPPPPPPPPPP:::PPPPPPPPPPPPPPPPPPPPPPP',
 ];
 
 export const TOWN_NAME = 'Ironhold';
@@ -57,6 +63,8 @@ const BUILDINGS: readonly Plan[] = [
     id: 'inn',
     sign: 'The Crooked Lantern',
     style: { walls: 'timber', roof: 'shingle' },
+    // The rooms upstairs are a look: no stairs go up to them.
+    storeys: [{ windows: [2, 5, 8] }],
     floor: Ground.Floor,
     roofProps: [
       { name: 'chimney', column: 2 },
@@ -119,36 +127,86 @@ const BUILDINGS: readonly Plan[] = [
     },
   },
   {
-    id: 'smithy',
-    sign: 'Smithy',
-    style: { walls: 'stone', roof: 'slate' },
+    // The town hall (el ayuntamiento of chapter 1.5.1): the big building in the middle of the square,
+    // where the reeve, a villager and a soldier argue (ARGUMENT). A storey of stone, and a storey of timber
+    // over it: the archive of the reeve, up the stairs (Building.storeys; Fede's request, 2026-10-13).
+    id: 'town-hall',
+    sign: 'Town Hall',
+    style: { walls: 'stone', roof: 'clay' },
     floor: Ground.FloorStone,
-    roofProps: [{ name: 'chimney', column: 1 }],
+    roofProps: [
+      { name: 'flag-wine', column: 5 },
+      { name: 'chimney', column: 2 },
+    ],
     plan: [
-      '#######',
-      '#ff.ab#',
-      '#.....#',
-      '#..K.x#',
-      '#.....#',
-      '#+#D#+#',
+      '###########',
+      '#c.mm...ss#',
+      '#.......ss#',
+      '#..K..F...#',
+      '#.dd...S..#',
+      '#.........#',
+      '#+#+#D#+#+#',
     ],
     things: {
-      f: { kind: 'forge', pages: ['The forge is hot. The coals breathe.'] },
-      a: { kind: 'anvil', pages: ['Dents on dents. The smith hits hard.'] },
-      b: { kind: 'barrel', pages: ['Water for the hot iron.'] },
-      x: { kind: 'crate', pages: ['Nails, horseshoes and broken blades.'] },
+      c: { kind: 'candelabra' },
+      m: {
+        kind: 'maptable',
+        pages: ['A map of the valley. The woods round the town are inked black.'],
+        lore: [{ gate: LORE_GATE, pages: ['Small marks in the black: an X by each house in the woods that its family boarded up.'] }],
+      },
+      d: { kind: 'desk', pages: ['Letters to the families who left. None of them is sent.'] },
+      s: { kind: 'stairs' },
     },
     people: {
       K: {
-        id: 'smith',
-        look: 'smith',
-        doorstep: true,
-        // He sells armour, a shield and weapons, and buys them back (dialogs.ts).
-        dialog: SMITH,
-        barks: ['Hot iron waits for nobody.', 'More blades. Always more blades.', 'Where are my tongs?'],
-        greeting: '{name}. Good to see you whole.',
+        id: 'reeve',
+        look: 'treasurer',
+        dialog: REEVE,
+        barks: ['Taxes, taxes...', 'Another letter with no answer.', 'The gate, the lamps. Always the lamps.'],
+        greeting: 'Good evening, {name}.',
+      },
+      // A villager who came for news of the hills, and a soldier of the Sovereignty (the scene ARGUMENT).
+      F: {
+        id: 'farmer',
+        look: 'farmer',
+        pages: ['My brother farms by the hills. I have not heard from him for a week.', 'The reeve says to wait. I am tired of waiting.'],
+        barks: ['Hobgoblins. In our hills.', 'Somebody must do something.', 'Wait, wait, always wait.'],
+        greeting: '{name}! Any news from the hills?',
+      },
+      S: {
+        id: 'soldier',
+        look: 'soldier',
+        dialog: SOLDIER,
+        barks: ['Move along.', 'The Sovereignty keeps this town safe.', 'Hills, hills. Always the hills.'],
+        greeting: '{name}. Keep out of trouble.',
       },
     },
+    storeys: [
+      {
+        // The archive: the ledgers of the town, its strongbox, and the reeve's letters.
+        walls: 'timber',
+        floor: Ground.Floor,
+        plan: [
+          '###########',
+          '#bb.bb..ww#',
+          '#.......ww#',
+          '#k........#',
+          '#.........#',
+          '#.......c.#',
+          '#+#+#+#+#+#',
+        ],
+        things: {
+          b: {
+            kind: 'bookshelf',
+            pages: ['Ledgers of taxes, of births and of deaths. More deaths, lately.'],
+            lore: [{ gate: LORE_GATE, pages: ['The numbers do not add up. The granary took in grain all summer, and no cart took any out.'] }],
+          },
+          k: { kind: 'coinchest', pages: ["The town's strongbox. Locked, and nearly empty."] },
+          c: { kind: 'candelabra' },
+          w: { kind: 'stairwell' },
+        },
+      },
+    ],
   },
   {
     id: 'chapel',
@@ -188,22 +246,6 @@ const BUILDINGS: readonly Plan[] = [
     },
   },
   {
-    id: 'chandler',
-    sign: 'Chandler',
-    style: { walls: 'planks', roof: 'shingle' },
-    floor: Ground.Floor,
-    plan: [
-      '######',
-      '#xx..#',
-      '#....#',
-      '#....#',
-      '#....#',
-      '##D###',
-    ],
-    things: { x: { kind: 'crate' } },
-    locked: 'Boarded up. A note on the door says: CLOSED. GONE SOUTH.',
-  },
-  {
     id: 'apothecary',
     sign: 'Apothecary',
     style: { walls: 'planks', roof: 'thatch' },
@@ -240,7 +282,7 @@ const BUILDINGS: readonly Plan[] = [
   },
   {
     id: 'cottage',
-    style: { walls: 'rubble', roof: 'thatch' },
+    style: { walls: 'planks', roof: 'thatch' },
     floor: Ground.FloorEarth,
     plan: [
       '######',
@@ -252,62 +294,58 @@ const BUILDINGS: readonly Plan[] = [
     locked: 'Locked. Nobody answers.',
   },
   {
-    id: 'reeve',
-    sign: 'Reeve',
-    style: { walls: 'brick', roof: 'clay' },
-    floor: Ground.Floor,
-    roofProps: [{ name: 'flag-wine', column: 4 }],
+    id: 'smithy',
+    sign: 'Smithy',
+    style: { walls: 'timber', roof: 'slate' },
+    floor: Ground.FloorStone,
+    roofProps: [{ name: 'chimney', column: 1 }],
     plan: [
-      '#########',
-      '#bb.mm.k#',
-      '#.....F.#',
-      '#.dd..K.#',
-      '#.S.....#',
-      '#+#+D+#+#',
+      '#######',
+      '#ff.ab#',
+      '#.....#',
+      '#..K.x#',
+      '#.....#',
+      '#+#D#+#',
     ],
     things: {
-      b: {
-        kind: 'bookshelf',
-        pages: ['Ledgers of taxes, of births and of deaths. More deaths, lately.'],
-        lore: [{ gate: LORE_GATE, pages: ['The numbers do not add up. The granary took in grain all summer, and no cart took any out.'] }],
-      },
-      m: {
-        kind: 'maptable',
-        pages: ['A map of the valley. The woods round the town are inked black.'],
-        lore: [{ gate: LORE_GATE, pages: ['Small marks in the black: an X by each house in the woods that its family boarded up.'] }],
-      },
-      k: { kind: 'coinchest', pages: ["The town's strongbox. Locked, and nearly empty."] },
-      d: { kind: 'desk', pages: ['Letters to the families who left. None of them is sent.'] },
+      f: { kind: 'forge', pages: ['The forge is hot. The coals breathe.'] },
+      a: { kind: 'anvil', pages: ['Dents on dents. The smith hits hard.'] },
+      b: { kind: 'barrel', pages: ['Water for the hot iron.'] },
+      x: { kind: 'crate', pages: ['Nails, horseshoes and broken blades.'] },
     },
     people: {
       K: {
-        id: 'reeve',
-        look: 'treasurer',
-        dialog: REEVE,
-        barks: ['Taxes, taxes...', 'Another letter with no answer.', 'The gate, the lamps. Always the lamps.'],
-        greeting: 'Good evening, {name}.',
-      },
-      // A villager who came for news of the hills, and a soldier of the Sovereignty (the scene ARGUMENT).
-      F: {
-        id: 'farmer',
-        look: 'farmer',
-        pages: ['My brother farms by the hills. I have not heard from him for a week.', 'The reeve says to wait. I am tired of waiting.'],
-        barks: ['Hobgoblins. In our hills.', 'Somebody must do something.', 'Wait, wait, always wait.'],
-        greeting: '{name}! Any news from the hills?',
-      },
-      S: {
-        id: 'soldier',
-        look: 'soldier',
-        dialog: SOLDIER,
-        barks: ['Move along.', 'The Sovereignty keeps this town safe.', 'Hills, hills. Always the hills.'],
-        greeting: '{name}. Keep out of trouble.',
+        id: 'smith',
+        look: 'smith',
+        doorstep: true,
+        // He sells armour, a shield and weapons, and buys them back (dialogs.ts).
+        dialog: SMITH,
+        barks: ['Hot iron waits for nobody.', 'More blades. Always more blades.', 'Where are my tongs?'],
+        greeting: '{name}. Good to see you whole.',
       },
     },
   },
   {
+    id: 'chandler',
+    sign: 'Chandler',
+    style: { walls: 'timber', roof: 'shingle' },
+    storeys: [{ windows: [2] }],
+    floor: Ground.Floor,
+    plan: [
+      '######',
+      '#xx..#',
+      '#....#',
+      '#....#',
+      '#....#',
+      '##D###',
+    ],
+    things: { x: { kind: 'crate' } },
+    locked: 'Boarded up. A note on the door says: CLOSED. GONE SOUTH.',
+  },
+  {
     id: 'granary',
     sign: 'Granary',
-    style: { walls: 'timber', roof: 'thatch' },
+    style: { walls: 'planks', roof: 'thatch' },
     floor: Ground.FloorEarth,
     plan: [
       '#######',
@@ -321,7 +359,8 @@ const BUILDINGS: readonly Plan[] = [
   },
   {
     id: 'house',
-    style: { walls: 'stone', roof: 'slate' },
+    style: { walls: 'timber', roof: 'shingle' },
+    storeys: [{ windows: [2] }],
     floor: Ground.Floor,
     roofProps: [{ name: 'chimney', column: 1 }],
     plan: [
@@ -351,6 +390,8 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },
   b: { kind: 'barrel', tx: 0, ty: 0 },
   x: { kind: 'crate', tx: 0, ty: 0 },
+  // The palisade round the town: the builder gives each tile its look (the sides that it joins).
+  P: { kind: 'palisade', tx: 0, ty: 0 },
 };
 
 
@@ -364,15 +405,15 @@ export const TOWN = { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRO
 export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
 /**
  * Where the road from the hut comes in (Fede, 2026-10-12 and 2026-10-13: the hut is south of
- * Ironhold): the tile just south of the town, below an open garden tile of its south edge, and the
- * lane behind the houses of the south side above that.
+ * Ironhold): the tile just south of the town, below the south gate (an opening of three tiles in the
+ * palisade), and the lane behind the houses of the south side above that.
  */
 export const TOWN_SOUTH = { tx: TOWN.x0 + 20, ty: TOWN.y1 + 1 } as const;
 
 /**
  * The name sign of Ironhold (nameSign(), towns.ts), in the style of the Iron Sovereignty: by the road
  * from the hut, west of it, as the signs of the hamlets, but two rows south of the town (not one), so
- * that its plate does not hang over the lane, where Brann walks.
+ * that its plate does not hang over the south gate.
  */
 export const TOWN_NAME_SIGN: Fixture = nameSign(IRONHOLD, 'iron', TOWN_SOUTH.tx - 5, TOWN_SOUTH.ty + 1, [
   'It reads: IRONHOLD. Over the name, the anvil of the Iron Sovereignty.',
@@ -395,10 +436,10 @@ export function inTown(tx: number, ty: number): boolean {
 
 /**
  * The savings of the old couple of the cottage, buried in the garden across the lane from their
- * door, a few steps to the west (the reeve tells of it, with Wisdom 13: dialogs.ts). It is hidden
- * (Fixture.hidden): a character sees it only close by.
+ * door, a few steps to the west, by the palisade (the reeve tells of it, with Wisdom 13: dialogs.ts).
+ * It is hidden (Fixture.hidden): a character sees it only close by.
  */
-export const TOWN_CACHE: Fixture = { kind: 'cache', tx: TOWN.x0 + 10, ty: TOWN.y0 + 22, hidden: true };
+export const TOWN_CACHE: Fixture = { kind: 'cache', tx: TOWN.x0 + 9, ty: TOWN.y0 + 21, hidden: true };
 
 // ---------------------------------------------------------------- people in the streets
 
@@ -407,11 +448,11 @@ const streetArea = (c0: number, r0: number, c1: number, r1: number): Tile[] => I
 
 const WALKERS: readonly NpcDef[] = [
   {
-    // Brann watches the south entry, where the road from the hut comes in (TOWN_SOUTH; Fede, 2026-10-13).
+    // Brann watches the south gate, where the road from the hut comes in (TOWN_SOUTH; Fede, 2026-10-13).
     id: 'watchman',
     look: 'watchman',
-    home: at(20, 21),
-    area: streetArea(16, 20, 24, 21),
+    home: at(20, 20),
+    area: streetArea(16, 19, 24, 21),
     content: { speaker: 'fixture', dialog: WATCHMAN },
     barks: ['Nothing comes up this road unseen.', 'Keep to the lamps.', 'A quiet night. Too quiet.'],
     greeting: 'Evening, {name}. Keep to the lamps.',
@@ -419,8 +460,8 @@ const WALKERS: readonly NpcDef[] = [
   {
     id: 'peddler',
     look: 'dungeonmaster',
-    home: at(15, 12),
-    area: streetArea(2, 11, 37, 12),
+    home: at(15, 11),
+    area: streetArea(1, 10, 43, 12),
     content: { speaker: 'fixture', dialog: PEDDLER },
     barks: ['Pots and pins!', 'Fine pins, nearly new!', 'Who needs a pot? Anybody?'],
     greeting: '{name}! My best customer!',
@@ -428,8 +469,9 @@ const WALKERS: readonly NpcDef[] = [
   {
     id: 'widow',
     look: 'archivist',
-    home: at(25, 8),
-    area: streetArea(20, 5, 26, 9),
+    // By the fountain, on the west side of the square.
+    home: at(17, 5),
+    area: streetArea(13, 1, 17, 9),
     content: {
       speaker: 'fixture',
       pages: ['The fountain was dry for three summers.', 'Then one night it filled again. Nobody knows why.', 'I come here to listen to it. It sounds like rain.'],
@@ -441,7 +483,7 @@ const WALKERS: readonly NpcDef[] = [
     id: 'child',
     look: 'child',
     home: at(12, 20),
-    area: [...streetArea(0, 20, 44, 21), ...streetArea(17, 14, 18, 19)],
+    area: [...streetArea(1, 19, 43, 21), ...streetArea(23, 13, 23, 18)],
     content: {
       speaker: 'fixture',
       pages: ['Are you an adventurer? Have you seen the imps?', 'Mother says they cannot come past the lamps.', 'I am not scared. Much.'],
@@ -454,18 +496,19 @@ const WALKERS: readonly NpcDef[] = [
 /** The NPCs of the town: the people of the buildings, then the people of the streets. */
 export const TOWN_NPCS: readonly NpcDef[] = [...IRONHOLD.residents, ...WALKERS];
 
-const REEVE_HOUSE = TOWN_BUILDINGS.find((b) => b.id === 'reeve')!;
+const TOWN_HALL = TOWN_BUILDINGS.find((b) => b.id === 'town-hall')!;
 
 /**
- * The argument in the house of the reeve (chapter 1.5.1 of Kandrax, "Incursión Hobgoblin"): a
- * character who started the quest of the burned homesteads (quests.ts, ashes) and comes to the house
- * hears the reeve, a villager and a soldier of the Sovereignty argue. Hobgoblins go through the hills to Silverspring;
+ * The argument in the town hall (chapter 1.5.1 of Kandrax, "Incursión Hobgoblin": in the ayuntamiento,
+ * in the middle of a small square): a character who started the quest of the burned homesteads
+ * (quests.ts, ashes) and comes to the hall, on its ground storey, hears the reeve, a villager and a
+ * soldier of the Sovereignty argue. Hobgoblins go through the hills to Silverspring;
  * they took the scout Himo, and the scout Brys escaped. With Wisdom 13, the character also hears what
  * the soldier says low. At its end, the quest of the raid starts (scenes.ts).
  */
 export const ARGUMENT: SceneDef = {
   id: 'argument',
-  area: { x0: REEVE_HOUSE.x0, y0: REEVE_HOUSE.y0, x1: REEVE_HOUSE.x1, y1: REEVE_HOUSE.y1 + 2 },
+  area: { x0: TOWN_HALL.x0, y0: TOWN_HALL.y0, x1: TOWN_HALL.x1, y1: TOWN_HALL.y1 + 2 },
   when: [{ quest: 'ashes' }, { quest: 'raid', not: true }],
   lines: [
     { npc: 'reeve', text: '...and they go straight for Silverspring. Brys says that there were two squads of them.' },
@@ -517,7 +560,7 @@ export const ARRIVAL: SceneDef = {
   when: { quest: 'road', at: ['go'] },
   lines: [
     { npc: 'child', text: 'Mother! A stranger, up the south road!' },
-    { npc: 'child', text: 'Are you here for the reeve? Her house is on the lane, by the granary.' },
+    { npc: 'child', text: 'Are you here for the reeve? She is in the town hall, on the square.' },
   ],
   effect: ROAD_ARRIVED,
 };

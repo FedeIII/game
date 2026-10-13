@@ -18,6 +18,7 @@ import {
   parseServerMessage,
   stepPlayer,
   useDoor,
+  useStairs,
   type ClientMessage,
   type Gear,
   type Loot,
@@ -29,6 +30,7 @@ import {
   type WireBlow,
   type Toss,
   type DoorResult,
+  type StairsResult,
   type Feet,
   type MoveInput,
   type NpcPose,
@@ -285,7 +287,7 @@ export class NetSession {
 
   /** One tick of the local player. Returns whether an attack starts in it. */
   tick(input: MoveInput): boolean {
-    if (this.status !== 'online') return stepPlayer(this.player, input, this.world, this.traits);
+    if (this.status !== 'online') return stepPlayer(this.player, input, this.world.level(this.player.storey), this.traits);
     const struck = this.prediction.step(this.player, this.world, input, this.remotes.viewTime(performance.now()));
     const batch = this.prediction.takeBatch();
     if (batch) this.send(batch);
@@ -302,6 +304,12 @@ export class NetSession {
   door(tx: number, ty: number, others: readonly Feet[]): DoorResult {
     if (this.status !== 'online') return useDoor(this.world, this.player, tx, ty, [], this.traits);
     return this.prediction.door(this.player, this.world, tx, ty, others);
+  }
+
+  /** Uses stairs (a tile of them): at once here, and through the server for everyone. */
+  stairs(tx: number, ty: number): StairsResult | null {
+    if (this.status !== 'online') return useStairs(this.world, this.player, tx, ty);
+    return this.prediction.stairs(this.player, this.world, tx, ty);
   }
 
   /** Opens a chest (a tile of it) through the server, which answers with loot. False while not online. */

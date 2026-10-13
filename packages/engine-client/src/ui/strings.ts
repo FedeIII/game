@@ -370,6 +370,9 @@ const EN = {
   next: 'Next',
   close: 'Close',
   lookIntoPortal: 'Look into the portal',
+  /** The stairs of a building with storeys: up them, or down the stairwell. */
+  goUp: 'Go up the stairs',
+  goDown: 'Go down the stairs',
   /** The conversation panel (ui/conversation.ts). */
   conversation: {
     end: 'End the conversation',
@@ -446,6 +449,9 @@ const EN = {
     menhir: 'standing stone',
     altar: 'altar',
     namesign: 'sign',
+    stairs: 'stairs',
+    stairwell: 'stairs',
+    palisade: 'palisade',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

@@ -398,7 +398,7 @@ const SELF0 = Array.from({ length: 23 }, () => 0) as unknown as SnapshotMessage[
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
     const remotes = new Remotes();
-    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: SELF0, p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0, 0, 0]], o: 1 });
+    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: SELF0, p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0, 0, 0, 0]], o: 1 });
     remotes.apply(snap(1000, 0), 5000);
     remotes.apply(snap(1050, 4), 5050);
     remotes.apply(snap(1100, 8), 5100);
@@ -413,7 +413,7 @@ describe('the other players on a client', () => {
 
   it('forgets a player that went far away, and still counts it in the world', () => {
     const remotes = new Remotes();
-    const near: SnapshotMessage['p'][number] = [7, 0, 50, 0, 0, 3, 2, 0, 0, 0, 0, 0, 0];
+    const near: SnapshotMessage['p'][number] = [7, 0, 50, 0, 0, 3, 2, 0, 0, 0, 0, 0, 0, 0];
     remotes.apply({ t: 'snap', ms: 1000, a: 0, you: SELF0, p: [near], o: 1 }, 5000);
     expect([remotes.count, remotes.inWorld]).toEqual([1, 1]);
     remotes.apply({ t: 'snap', ms: 1050, a: 0, you: SELF0, p: [], o: 1 }, 5050);
@@ -602,7 +602,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(24);
+    expect(snap!.you).toHaveLength(25);
   });
 
   it('kill a brute with the third blow when it has three blows of hit points, and send what it has left', () => {

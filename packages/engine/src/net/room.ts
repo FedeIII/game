@@ -1,11 +1,11 @@
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
-import { canReachDoor, canReachPile, reachableFixture, useDoor, type Feet } from '../interact.ts';
+import { canReachDoor, canReachPile, reachableFixture, useDoor, useStairs, type Feet } from '../interact.ts';
 import { EMPTY_GEAR, gearSlotAt, sameShown, shownGear, type Gear } from '../gear.ts';
 import { dropWorn, moveItem, ownedPack, unwearFor } from '../inventory.ts';
 import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSlot, type Loot, type Pack } from '../items.ts';
 import { Spoils } from '../loot.ts';
-import { Piles, dropPoint, tossPoint } from '../piles.ts';
-import { createPlayer, resumePoint, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
+import { Piles, dropPoint, pileStorey, tossPoint } from '../piles.ts';
+import { createPlayer, resumePlace, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDeal, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
@@ -19,7 +19,7 @@ import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
 import { Horde, type HordePlayer } from '../mobs.ts';
 import { random } from '../noise.ts';
-import { NpcCrowd } from '../npc.ts';
+import { NpcCrowd, npcStorey } from '../npc.ts';
 import { guestGear, guestTraits, meetsGate, sightOf, type Gate, type PlayerTraits } from '../traits.ts';
 import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
@@ -401,8 +401,8 @@ export class Room {
    * player's character was last (the server's own record, at full precision); `at` is the tile
    * that the client asks for (where it is now: after a reconnection, it may have walked on).
    *
-   * - With a place: the player starts there (resumePoint). When `at` is another tile, close to
-   *   the place, the player starts near `at`.
+   * - With a place: the player starts there, on its storey (resumePlace). When `at` is another tile,
+   *   close to the place, the player starts near `at`, on the ground.
    * - Without one (a new character): near `at` if that is close to the world's spawn, or else on
    *   the spawn itself, indoors too (the Wilds: in the home, the house of the cell (0, 0)).
    *
@@ -414,7 +414,7 @@ export class Room {
     skin: number,
     at?: readonly [number, number],
     name = '',
-    place?: { readonly x: number; readonly y: number },
+    place?: { readonly x: number; readonly y: number; readonly storey?: number },
     character?: JoinCharacter,
   ): RoomPlayer | null {
     if (this.players.size >= this.maxPlayers) return null;
@@ -423,13 +423,14 @@ export class Room {
     const near = at && Math.max(Math.abs(at[0] - home[0]), Math.abs(at[1] - home[1])) <= MAX_START_DISTANCE;
     const atPlace = place && (!at || (at[0] === home[0] && at[1] === home[1]));
     const start = atPlace
-      ? resumePoint(this.world, place.x, place.y)
+      ? resumePlace(this.world, place.x, place.y, place.storey ?? 0)
       : near
-        ? this.world.findSpawn(at[0], at[1], 0)
-        : resumePoint(this.world, anchor.x, anchor.y);
+        ? { ...this.world.findSpawn(at[0], at[1], 0), storey: 0 }
+        : resumePlace(this.world, anchor.x, anchor.y);
     const traits = character?.traits ?? guestTraits(skin);
     const traitsFor = character ? (character.traitsFor ?? null) : (gear: Gear) => guestTraits(skin, gear);
     const state = createPlayer(start.x, start.y);
+    state.storey = start.storey;
     // A character comes back with the hit points that it had (all of them after a defeat), and all its stamina.
     const hp = character?.hp ?? null;
     state.hp = hp === null || hp <= 0 ? traits.maxHp : Math.min(hp, traits.maxHp);
@@ -545,6 +546,7 @@ export class Room {
       id: player.id,
       x: player.state.x,
       y: player.state.y,
+      st: player.state.storey,
       doors: this.world.openDoorList(),
       fd: this.world.forcedDoorList(),
       pk: toWirePack(player.pack),
@@ -563,9 +565,9 @@ export class Room {
   }
 
   /**
-   * Applies a batch of inputs from a player, with its door actions, the chests that it opens and
-   * the piles that it picks up, in order. An input that the room has applied before (a repeat) is
-   * ignored.
+   * Applies a batch of inputs from a player, with its door actions, the chests that it opens, the
+   * piles that it picks up and the stairs that it uses, in order. An input that the room has applied
+   * before (a repeat) is ignored.
    */
   input(id: number, message: InputMessage, nowMs: number): void {
     const player = this.players.get(id);
@@ -575,23 +577,26 @@ export class Room {
     const doors = message.d ?? [];
     const uses = message.u ?? [];
     const picks = message.g ?? [];
+    const stairs = message.c ?? [];
     const last = message.s + message.i.length - 1;
-    // A door action (or a chest, or a pile) for an input that the room already has happens now.
+    // A door action (or a chest, a pile, stairs) for an input that the room already has happens now.
     for (const door of doors) if (door[0] <= player.seq) this.door(player, door);
     for (const use of uses) if (use[0] <= player.seq) this.use(player, use, nowMs);
     for (const pick of picks) if (pick[0] <= player.seq) this.pick(player, pick);
+    for (const step of stairs) if (step[0] <= player.seq) useStairs(this.world, player.state, step[1], step[2]);
     message.i.forEach((wire, k) => {
       const seq = message.s + k;
       if (seq <= player.seq) return;
       for (const door of doors) if (door[0] === seq) this.door(player, door);
       for (const use of uses) if (use[0] === seq) this.use(player, use, nowMs);
       for (const pick of picks) if (pick[0] === seq) this.pick(player, pick);
+      for (const step of stairs) if (step[0] === seq) useStairs(this.world, player.state, step[1], step[2]);
       player.seq = seq;
       if (player.tokens < 1) return;
       player.tokens -= 1;
       // The last tick of a defeat: after it the player wakes at a safe place.
       const waking = player.state.down === 1;
-      const struckNow = stepPlayer(player.state, fromWireInput(wire), this.world, player.traits);
+      const struckNow = stepPlayer(player.state, fromWireInput(wire), this.world.level(player.state.storey), player.traits);
       if (waking) this.wake(player);
       // The room sees each tick of a wade: water ruins what the story says (the lentils of Whitegrove).
       if (player.state.wading) for (const effect of this.wadeEffects) this.applyStory(player.id, effect, nowMs);
@@ -621,6 +626,7 @@ export class Room {
     for (const door of doors) if (door[0] > Math.max(last, player.seq)) this.door(player, door);
     for (const use of uses) if (use[0] > Math.max(last, player.seq)) this.use(player, use, nowMs);
     for (const pick of picks) if (pick[0] > Math.max(last, player.seq)) this.pick(player, pick);
+    for (const step of stairs) if (step[0] > Math.max(last, player.seq)) useStairs(this.world, player.state, step[1], step[2]);
   }
 
   /** Puts what a kill dropped into the killer's pack; what does not fit falls on the ground at the mob (`at`). */
@@ -659,11 +665,12 @@ export class Room {
     let dialog: Dialog | undefined;
     if (from.npc !== undefined) {
       const pose = this.npcs?.poses[from.npc];
-      if (!pose || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return;
-      dialog = this.world.source.npcs?.()[from.npc]?.content.dialog;
+      const def = this.world.source.npcs?.()[from.npc];
+      if (!pose || !def || npcStorey(def) !== player.state.storey || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return;
+      dialog = def.content.dialog;
     } else if (from.at) {
       const [tx, ty] = from.at;
-      const fixture = this.world.fixtureAt(tx, ty);
+      const fixture = this.world.level(player.state.storey).fixtureAt(tx, ty);
       if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return;
       dialog = fixture.content?.dialog;
     }
@@ -704,12 +711,13 @@ export class Room {
       found = dialog ? findEffectAnswer(dialog, effectId) : null;
     } else if (from.npc !== undefined) {
       const pose = this.npcs?.poses[from.npc];
-      if (!pose || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return false;
-      const dialog = this.world.source.npcs?.()[from.npc]?.content.dialog;
+      const def = this.world.source.npcs?.()[from.npc];
+      if (!pose || !def || npcStorey(def) !== player.state.storey || Math.hypot(pose.x - player.state.x, pose.y - player.state.y) > DEAL_RANGE) return false;
+      const dialog = def.content.dialog;
       found = dialog ? findEffectAnswer(dialog, effectId) : null;
     } else if (from.at) {
       const [tx, ty] = from.at;
-      const fixture = this.world.fixtureAt(tx, ty);
+      const fixture = this.world.level(player.state.storey).fixtureAt(tx, ty);
       if (!fixture || Math.hypot(tx * TILE_SIZE + TILE_SIZE / 2 - player.state.x, ty * TILE_SIZE + TILE_SIZE / 2 - player.state.y) > DEAL_RANGE) return false;
       // What the thing says and does for this character (its variant, Fixture.variant.content).
       const content = fixtureContent(fixture, player.quests, player.pack);
@@ -719,7 +727,7 @@ export class Room {
       const scene = this.world.source.scenes?.().find((s) => s.id === from.scene);
       const tx = Math.floor(player.state.x / TILE_SIZE);
       const ty = Math.floor(player.state.y / TILE_SIZE);
-      if (!scene || scene.effect.id !== effectId || !inScene(scene, tx, ty, SCENE_MARGIN)) return false;
+      if (!scene || scene.effect.id !== effectId || (scene.storey ?? 0) !== player.state.storey || !inScene(scene, tx, ty, SCENE_MARGIN)) return false;
       found = { effect: scene.effect, when: scene.when };
     }
     const effect = found?.effect;
@@ -773,8 +781,9 @@ export class Room {
       if (!pack) return;
       player.pack = pack;
     }
-    const at = request.at ? tossPoint(this.world, player.state, request.at[0], request.at[1]) : dropPoint(this.world, player.state);
-    this.piles.put(at.x, at.y, [{ kind, count: request.count }], nowMs, player.state);
+    const level = this.world.level(player.state.storey);
+    const at = request.at ? tossPoint(level, player.state, request.at[0], request.at[1]) : dropPoint(level, player.state);
+    this.piles.put(at.x, at.y, [{ kind, count: request.count }], nowMs, player.state, player.state.storey);
   }
 
   /**
@@ -811,7 +820,7 @@ export class Room {
   /** The player picks up a pile, if it can reach it: what fits goes into the pack, the rest stays on the ground. */
   private pick(player: RoomPlayer, [, pileId]: WirePick): void {
     const pile = this.piles.get(pileId);
-    if (!pile || player.state.down > 0 || !canReachPile(player.state, pile)) return;
+    if (!pile || player.state.down > 0 || pileStorey(pile) !== player.state.storey || !canReachPile(player.state, pile)) return;
     const result = this.piles.take(pileId, player.pack, player.traits.slots);
     if (!result) return;
     player.pack = result.pack;
@@ -832,7 +841,7 @@ export class Room {
 
   /** Acts on a fixture for a player, if it can reach it: a bed rests it; a chest gives its loot (what fits goes into the pack, the rest stays). */
   private use(player: RoomPlayer, [, tx, ty]: WireUse, nowMs: number): void {
-    const fixture = reachableFixture(this.world, player.state, tx, ty);
+    const fixture = reachableFixture(this.world.level(player.state.storey), player.state, tx, ty);
     // A bed rests, unless its variant has something else for this character (a dream).
     if (fixture && fixtureContent(fixture, player.quests, player.pack)?.rest && (!fixture.content?.restFor || player.refuges.includes(fixture.content.restFor))) {
       rest(player.state, player.traits);
@@ -862,7 +871,7 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down, s.storey]);
     }
     const doors = this.world.openDoorList();
     const forced = this.world.forcedDoorList();
@@ -964,6 +973,7 @@ export class Room {
           s.wading ? 1 : 0,
           s.inspired,
           s.glance,
+          s.storey,
         ],
         p: others,
         o: packed.size - 1,
@@ -1011,11 +1021,13 @@ export class Room {
 
   /** Applies a door wish if the player can reach the door. A door never closes on anyone. */
   private door(player: RoomPlayer, [, tx, ty, open]: WireDoor): void {
-    if (!canReachDoor(this.world, player.state, tx, ty)) return;
+    // A door is on the ground storey: a player above it does not reach it.
+    if (player.state.storey !== 0 || !canReachDoor(this.world, player.state, tx, ty)) return;
     if (this.world.isDoorOpen(tx, ty) === (open === 1)) return;
-    // A door never closes on anyone: the other players, or an NPC in the doorway.
-    const others: Feet[] = [...(this.npcs?.poses ?? [])];
-    for (const p of this.players.values()) if (p !== player) others.push(p.state);
+    // A door never closes on anyone: the other players, or an NPC in the doorway (on the ground storey).
+    const npcs = this.world.source.npcs?.() ?? [];
+    const others: Feet[] = (this.npcs?.poses ?? []).filter((_, i) => npcStorey(npcs[i]!) === 0);
+    for (const p of this.players.values()) if (p !== player && p.state.storey === 0) others.push(p.state);
     const result = useDoor(this.world, player.state, tx, ty, others, player.traits);
     if (result === 'opened' || result === 'closed' || result === 'forced') this.doorVersion++;
   }

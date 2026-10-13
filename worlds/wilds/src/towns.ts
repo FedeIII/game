@@ -1,4 +1,4 @@
-import { Ground, fixtureTiles, fixtureType, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef, type QuestEffect } from '@game/engine';
+import { Ground, fixtureTiles, fixtureType, palisadeLook, type Building, type BuildingStyle, type Dialog, type Fixture, type FixtureKind, type Light, type Lore, type NpcDef, type QuestEffect, type Storey } from '@game/engine';
 import { CANDLE } from './houses.ts';
 
 /**
@@ -10,9 +10,10 @@ import { CANDLE } from './houses.ts';
  *   ~  water (a stream or a pool)                 h  a bridge of planks over the water
  *   1-9  the building of `buildings[n - 1]`
  *
- * Every other character is a thing of the streets (`things`: a fountain, a lamp, a crate). The
- * things stand on cobblestones, or on the lane. In front of each door the ground stays clear: no
- * lamp, prop or tree in the 5 x 3 tiles below it (a test checks it).
+ * Every other character is a thing of the streets (`things`: a fountain, a lamp, a crate, a
+ * palisade). The things stand on cobblestones, or on the lane; a palisade stands on grass, and each
+ * tile of it joins the tiles of palisade next to it (palisadeLook). In front of each door the ground
+ * stays clear: no lamp, prop or tree in the 5 x 3 tiles below it (a test checks it).
  */
 
 export type Tile = readonly [number, number];
@@ -69,11 +70,29 @@ export interface Person {
 }
 
 /**
+ * A storey above the ground storey of a building (Building.storeys), from the bottom up. With a plan,
+ * a character can go up to it: the plan is the storey tile by tile, as the plan of the ground storey
+ * but without a door (#, + a lit window in the south wall, . the floor, a letter for a thing of
+ * `things`), and the stairwell (a thing of kind 'stairwell') stands on the tiles of the stairs of the
+ * storey under it. Without a plan, it is only a look: its walls, and its windows (`windows`: columns of
+ * the south wall, 0 the west wall).
+ */
+export interface StoreyPlan {
+  /** The wall set of the storey in the art; default: the walls of the building's style. */
+  readonly walls?: string;
+  readonly floor?: Ground;
+  readonly plan?: readonly string[];
+  readonly things?: Readonly<Record<string, Thing>>;
+  readonly windows?: readonly number[];
+}
+
+/**
  * A building of a town. The plan is the building tile by tile, from the north wall to the south
  * wall, walls included:
  *   #  wall          D  the door (south wall)     +  a lit window (south wall)     .  floor
  * Every other character is a thing of `things` or a person of `people`. A thing of more than one
- * tile (a table, a rug) has its letter on each of its tiles.
+ * tile (a table, a rug, the stairs) has its letter on each of its tiles. `storeys` are the storeys
+ * above it (StoreyPlan).
  */
 export interface Plan {
   /** Unique in the world (a refuge names its building by it). */
@@ -91,6 +110,8 @@ export interface Plan {
   readonly roofProps?: readonly { readonly name: string; readonly column: number }[];
   /** A building that is shut for good: what the player says at its door (Building.locked). */
   readonly locked?: string;
+  /** The storeys above the ground storey, from the bottom up (Building.storeys). */
+  readonly storeys?: readonly StoreyPlan[];
 }
 
 /** A town: its name, where it is, its map, its buildings in the order of their digits, and the things of its streets by character. */
@@ -153,6 +174,23 @@ function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile
   return out;
 }
 
+/** The fixtures of a thing of a building plan on its tiles (one for each tile, or one for its footprint), with what it says and its light. */
+function thingFixtures(thing: Thing, tiles: readonly Tile[], where: string): Fixture[] {
+  const light = LIGHTS[thing.kind];
+  return anchors(thing.kind, tiles, where).map(([tx, ty]) => {
+    // A thing with a conversation (the cauldron) says its lines over itself.
+    const said = {
+      ...(thing.pages ? { pages: thing.pages } : {}),
+      ...(thing.lore ? { lore: thing.lore } : {}),
+      ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}),
+      ...(thing.restFor ? { rest: true, restFor: thing.restFor } : {}),
+      ...(thing.effect ? { effect: thing.effect } : {}),
+    };
+    const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
+    return { kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}), ...(thing.variant ? { variant: thing.variant } : {}) };
+  });
+}
+
 /**
  * The name sign of a settlement (Fede's rule, 2026-10-13: every settlement has a sign with its name, in
  * the style of its dominion): the fixture `namesign` with its west post on (tx, ty), in the style of a
@@ -205,6 +243,11 @@ export class Town {
     this.streetFixtures = [...tiles].flatMap(([ch, list]) => {
       const thing = plan.things[ch];
       if (!thing) return [];
+      if (thing.kind === 'palisade') {
+        // Each tile of palisade joins the tiles of palisade next to it.
+        const at = (tx: number, ty: number) => this.map[ty - this.y0]?.[tx - this.x0] === ch;
+        return list.map(([tx, ty]) => ({ ...thing, tx, ty, look: palisadeLook({ north: at(tx, ty - 1), east: at(tx + 1, ty), south: at(tx, ty + 1), west: at(tx - 1, ty) }) }));
+      }
       return anchors(thing.kind, list, plan.name).map(([tx, ty]) => ({ ...thing, tx, ty }));
     });
   }
@@ -227,6 +270,7 @@ export class Town {
   plotAt(tx: number, ty: number): Plot {
     const ch = this.map[ty - this.y0]?.[tx - this.x0] ?? '.';
     if (ch === 'T') return Plot.Tree;
+    if (this.things[ch]?.kind === 'palisade') return Plot.Garden;
     if (ch === '.') return Plot.Garden;
     if (ch === ':') return Plot.Lane;
     if (ch === '~') return Plot.Water;
@@ -292,19 +336,7 @@ export class Town {
       }
       const thing = plan.things?.[ch];
       if (!thing) throw new Error(`${where}: no thing for '${ch}'`);
-      const light = LIGHTS[thing.kind];
-      for (const [tx, ty] of anchors(thing.kind, tiles, where)) {
-        // A thing with a conversation (the cauldron) says its lines over itself.
-        const said = {
-          ...(thing.pages ? { pages: thing.pages } : {}),
-          ...(thing.lore ? { lore: thing.lore } : {}),
-          ...(thing.dialog ? { dialog: thing.dialog, speaker: 'fixture' as const } : {}),
-          ...(thing.restFor ? { rest: true, restFor: thing.restFor } : {}),
-          ...(thing.effect ? { effect: thing.effect } : {}),
-        };
-        const content = thing.pages || thing.lore || thing.dialog ? { content: said } : {};
-        fixtures.push({ kind: thing.kind, tx, ty, ...content, ...(light ? { light } : {}), ...(thing.variant ? { variant: thing.variant } : {}) });
-      }
+      fixtures.push(...thingFixtures(thing, tiles, where));
     }
     if (doorX === null) throw new Error(`${where}: a building needs a door`);
     if (plan.plan[plan.plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
@@ -333,6 +365,7 @@ export class Town {
       });
     }
     this.floors.set(plan.id, plan.floor);
+    const storeys = this.storeys(plan, where, x0, y0, x1, y1, fixtures);
     return {
       id: plan.id,
       x0,
@@ -347,6 +380,52 @@ export class Town {
       ...(plan.emblem ? { emblem: plan.emblem } : {}),
       ...(plan.roofProps ? { roofProps: plan.roofProps.map(({ name, column }) => ({ name, tx: x0 + column })) } : {}),
       ...(plan.locked ? { locked: plan.locked } : {}),
+      ...(storeys.length > 0 ? { storeys } : {}),
     };
+  }
+
+  /**
+   * Makes the storeys above the ground storey of a building from their plans (StoreyPlan): the walls
+   * and the windows, the things, and the check that each stairwell stands on the stairs of the storey
+   * under it (and that stairs never go up to a storey without a plan).
+   */
+  private storeys(plan: Plan, where: string, x0: number, y0: number, x1: number, y1: number, ground: readonly Fixture[]): Storey[] {
+    const out: Storey[] = [];
+    const tilesOfKind = (fixtures: readonly Fixture[], kind: FixtureKind) =>
+      fixtures
+        .filter((f) => f.kind === kind)
+        .flatMap((f) => fixtureTiles(f).map(([x, y]) => `${x},${y}`))
+        .sort()
+        .join(' ');
+    let below = ground;
+    (plan.storeys ?? []).forEach((level, index) => {
+      const name = `${where}, storey ${index + 1}`;
+      const fixtures: Fixture[] = [];
+      const windows: number[] = [...(level.windows ?? []).map((column) => x0 + column)];
+      if (level.plan) {
+        if (level.plan.length !== y1 - y0 + 1 || level.plan.some((row) => row.length !== x1 - x0 + 1)) throw new Error(`${name}: the plan is not ${x1 - x0 + 1} x ${y1 - y0 + 1}`);
+        for (const [ch, tiles] of tilesOf(level.plan, x0, y0)) {
+          const onWall = tiles.filter(([x, y]) => x === x0 || x === x1 || y === y0 || y === y1);
+          if (ch === '#' || ch === '+') {
+            if (onWall.length !== tiles.length) throw new Error(`${name}: '${ch}' inside the building`);
+            if (ch === '+') {
+              if (tiles.some(([x, y]) => y !== y1 || x === x0 || x === x1)) throw new Error(`${name}: a window is only in the south wall, not a corner`);
+              windows.push(...tiles.map(([x]) => x));
+            }
+            continue;
+          }
+          if (onWall.length) throw new Error(`${name}: '${ch}' on the walls`);
+          if (ch === '.') continue;
+          const thing = level.things?.[ch];
+          if (!thing) throw new Error(`${name}: no thing for '${ch}'`);
+          fixtures.push(...thingFixtures(thing, tiles, name));
+        }
+      }
+      if (tilesOfKind(below, 'stairs') !== tilesOfKind(fixtures, 'stairwell')) throw new Error(`${name}: the stairwell does not stand on the stairs of the storey under it`);
+      out.push({ fixtures, ...(windows.length > 0 ? { windows } : {}), ...(level.walls ? { walls: level.walls } : {}), ...(level.floor !== undefined ? { floor: level.floor } : {}) });
+      below = fixtures;
+    });
+    if (below.some((f) => f.kind === 'stairs')) throw new Error(`${where}: the stairs go up to no storey`);
+    return out;
   }
 }

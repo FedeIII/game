@@ -138,7 +138,7 @@ export const RAID: QuestDef = {
   steps: [
     {
       id: 'heard',
-      journal: 'In the house of the reeve of Ironhold, I heard that hobgoblins go through the hills to Silverspring. They took the scout Himo. The reeve wants a word with me.',
+      journal: 'In the town hall of Ironhold, I heard that hobgoblins go through the hills to Silverspring. They took the scout Himo. The reeve wants a word with me.',
       npc: 'reeve',
     },
     {
@@ -326,7 +326,7 @@ export const CART_MEND: QuestEffect = {
   give: { coins: CART_REWARD, items: [] },
 };
 
-/** The end of the scene in the reeve's house (town.ts, ARGUMENT): the character heard of the raid. */
+/** The end of the scene in the town hall (town.ts, ARGUMENT): the character heard of the raid. */
 export const RAID_HEARD: QuestEffect = { id: 'raid-heard', quest: 'raid', to: 'heard' };
 /** The character tells the reeve that it will warn Silverspring. */
 export const RAID_ASKED: QuestEffect = { id: 'raid-asked', quest: 'raid', to: 'asked', from: ['heard'] };

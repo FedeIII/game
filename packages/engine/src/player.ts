@@ -72,6 +72,11 @@ export interface PlayerState {
   inspired: number;
   /** Ticks left of the spark of a glancing blow (0: none): a mob's attack roll that missed (glancePlayer). */
   glance: number;
+  /**
+   * The storey that it is on (Building.storeys): 0 is the ground, 1 the storey above it. Only stairs
+   * change it (interact.ts, useStairs). It moves on the map of its storey (World.level).
+   */
+  storey: number;
 }
 
 /** An attack lasts this many ticks (0.3 s); a new one can start this many ticks after the last. */
@@ -212,6 +217,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     wading: false,
     inspired: 0,
     glance: 0,
+    storey: 0,
   };
 }
 
@@ -245,10 +251,11 @@ export function glancePlayer(player: PlayerState): void {
   player.glance = GLANCE_TICKS;
 }
 
-/** A defeated player wakes at (x, y) with all its HP and stamina, a guard, and no poison or drink. */
+/** A defeated player wakes at (x, y) on the ground storey with all its HP and stamina, a guard, and no poison or drink. */
 export function wakePlayer(player: PlayerState, x: number, y: number, traits: Partial<Pick<PlayerTraits, 'maxHp' | 'maxStamina'>> = {}): void {
   player.x = x;
   player.y = y;
+  player.storey = 0;
   player.vx = 0;
   player.vy = 0;
   player.down = 0;
@@ -428,6 +435,32 @@ export function resumePoint(
   y: number,
 ): { x: number; y: number } {
   return feetFit(world, x, y) ? { x, y } : world.findSpawn(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE), 0);
+}
+
+/**
+ * Where a character that was last at (x, y) on a storey starts again: as resumePoint() on the map of
+ * that storey (World.level); on the ground storey if the storey is not there any more (a building
+ * without it now).
+ */
+export function resumePlace(
+  world: { level(storey: number): SolidMap & { findSpawn(tx: number, ty: number, clearance?: number): { x: number; y: number } } },
+  x: number,
+  y: number,
+  storey = 0,
+): { x: number; y: number; storey: number } {
+  if (storey > 0) {
+    const level = world.level(storey);
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+    // The storey is still there if the tile is open on it, or one near it.
+    if (feetFit(level, x, y)) return { x, y, storey };
+    try {
+      return { ...level.findSpawn(tx, ty, 0), storey };
+    } catch {
+      // No such storey near: the ground storey.
+    }
+  }
+  return { ...resumePoint(world.level(0), x, y), storey: 0 };
 }
 
 /**

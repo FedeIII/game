@@ -676,7 +676,7 @@ export const MERCHANT: Dialog = {
 };
 
 /**
- * A soldier of the Iron Sovereignty in the house of the reeve (chapter 1.5.1: the soldiers will not
+ * A soldier of the Iron Sovereignty in the town hall (chapter 1.5.1: the soldiers will not
  * leave Ironhold, and they want Silverspring to fall). To a character who heard of the raid, it
  * says to stay out of it; with Wisdom, the character sees why.
  */
@@ -688,7 +688,7 @@ export const SOLDIER: Dialog = {
   nodes: {
     wanted: wanted('The robber of the caravan. Pay your fine to the reeve, or keep out of my way.'),
     move: {
-      say: "Move along, traveller. The reeve's house is no place to stand about.",
+      say: 'Move along, traveller. The town hall is no place to stand about.',
       answers: [{ text: 'Who do you serve?', next: 'serve' }, { text: 'What is happening in the hills?', next: 'hills' }, BYE],
     },
     hills: {

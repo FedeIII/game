@@ -42,10 +42,14 @@ export class NpcViews {
     this.shown = defs.map((def) => ({ x: def.home[0] * 16 + 8, y: def.home[1] * 16 + 12 }));
   }
 
-  update(poses: readonly NpcPose[], seconds: number): void {
+  /** Moves the NPCs to their poses; `seen(i)` says whether the player can see NPC `i` (its storey: Building.storeys). */
+  update(poses: readonly NpcPose[], seconds: number, seen: (index: number) => boolean = () => true): void {
     poses.forEach((pose, i) => {
       const view = this.views[i];
       if (!view) return;
+      const visible = seen(i);
+      view.root.visible = visible;
+      view.ghost.visible = visible;
       view.update(pose.x, pose.y, pose, seconds);
       this.shown[i] = { x: pose.x, y: pose.y };
     });

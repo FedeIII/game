@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 38;
+export const PROTOCOL_VERSION = 39;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -30,6 +30,8 @@ export const MAX_ATTACKS_PER_MESSAGE = 4;
 export const MAX_USES_PER_MESSAGE = 2;
 /** The most piles picked up in one message. */
 export const MAX_PICKS_PER_MESSAGE = 2;
+/** The most uses of stairs in one message (protocol 39). */
+export const MAX_STAIRS_PER_MESSAGE = 2;
 /** The server sends the mobs this close to a player (world pixels): far beyond the screen. */
 export const MOB_SEND_RADIUS = 30 * TILE_SIZE;
 /** The server sends the other players this close to a player (world pixels): far beyond the screen (protocol 38). */
@@ -162,6 +164,14 @@ export type WireUse = readonly [number, number, number];
  */
 export type WirePick = readonly [number, number];
 
+/**
+ * Stairs (or a stairwell) that the player uses: [seq, tx, ty], a tile of them on its storey
+ * (interact.ts, useStairs; protocol 39). It happens just before the input with sequence number
+ * `seq`, as a door action, and the client takes the player to the other storey at once, as the
+ * server does.
+ */
+export type WireStairs = readonly [number, number, number];
+
 /** A batch of inputs. `s` is the sequence number of the first input; the others follow it, one per tick. */
 export interface InputMessage {
   readonly t: 'in';
@@ -171,6 +181,8 @@ export interface InputMessage {
   readonly k?: readonly WireAttack[];
   readonly u?: readonly WireUse[];
   readonly g?: readonly WirePick[];
+  /** Stairs that the player used (protocol 39). */
+  readonly c?: readonly WireStairs[];
 }
 
 /**
@@ -284,19 +296,20 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 
 /**
  * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard, aim
- * code, dodge, down]: attack, stun, guard, dodge and down are the ticks left, as in PlayerState;
- * the aim code is the direction of its attack (aimCode). Positions to 0.1 px.
+ * code, dodge, down, storey]: attack, stun, guard, dodge and down are the ticks left, as in
+ * PlayerState; the aim code is the direction of its attack (aimCode); the storey is the storey of a
+ * building that it is on (0: the ground; protocol 39). Positions to 0.1 px.
  */
-export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number];
+export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number, number];
 
 /**
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
  * dodge, dodge cooldown, dodge direction (radians, exact), hp, recover, stamina (exact), rest,
- * down, poison, poison clock, drunk, wading (0 or 1), inspired, glance].
+ * down, poison, poison clock, drunk, wading (0 or 1), inspired, glance, storey (protocol 39)].
  */
 export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number, number, number,
-  number, number, number, number, number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number, number, number, number, number,
 ];
 
 /**
@@ -444,19 +457,19 @@ export function toWireLoot(source: LootSource, loot: Loot, full: boolean): WireL
   return [LOOT_SOURCES.indexOf(source) as 0 | 1 | 2 | 3, loot.coins, toWireStacks(loot.items), full ? 1 : 0];
 }
 
-/** A pile on the ground (piles.ts): [id, x, y, item code (ITEM_KINDS), count]. Positions in whole pixels. */
-export type WirePile = readonly [number, number, number, number, number];
+/** A pile on the ground (piles.ts): [id, x, y, item code (ITEM_KINDS), count, storey (protocol 39)]. Positions in whole pixels. */
+export type WirePile = readonly [number, number, number, number, number, number];
 
 export function toWirePile(pile: Pile): WirePile {
-  return [pile.id, pile.x, pile.y, ITEM_KINDS.indexOf(pile.kind), pile.count];
+  return [pile.id, pile.x, pile.y, ITEM_KINDS.indexOf(pile.kind), pile.count, pile.storey ?? 0];
 }
 
 /** The piles of the wire; a pile of a kind that this client does not know is left out. */
 export function fromWirePiles(wire: readonly WirePile[]): Pile[] {
   const out: Pile[] = [];
-  for (const [id, x, y, code, count] of wire) {
+  for (const [id, x, y, code, count, storey] of wire) {
     const kind = ITEM_KINDS[code];
-    if (kind) out.push({ id, x, y, kind, count });
+    if (kind) out.push({ id, x, y, kind, count, ...(storey > 0 ? { storey } : {}) });
   }
   return out;
 }
@@ -478,6 +491,8 @@ export interface WelcomeMessage {
   readonly id: number;
   readonly x: number;
   readonly y: number;
+  /** The storey where it starts (Building.storeys; protocol 39): 0, the ground. */
+  readonly st: number;
   /** Its hit points now (the server keeps them with the character). */
   readonly hp: number;
   readonly rf: readonly string[];
@@ -661,6 +676,13 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         if (!Array.isArray(m.g) || m.g.length > MAX_PICKS_PER_MESSAGE || !m.g.every(pickShaped)) return null;
         picks = m.g as WirePick[];
       }
+      let stairs: WireStairs[] | undefined;
+      if (m.c !== undefined) {
+        const stairsShaped = (c: unknown) =>
+          Array.isArray(c) && c.length === 3 && isInt(c[0], 1, SEQ_LIMIT) && isInt(c[1], -TILE_LIMIT, TILE_LIMIT) && isInt(c[2], -TILE_LIMIT, TILE_LIMIT);
+        if (!Array.isArray(m.c) || m.c.length > MAX_STAIRS_PER_MESSAGE || !m.c.every(stairsShaped)) return null;
+        stairs = m.c as WireStairs[];
+      }
       return {
         t: 'in',
         s: m.s,
@@ -669,6 +691,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         ...(attacks ? { k: attacks } : {}),
         ...(uses ? { u: uses } : {}),
         ...(picks ? { g: picks } : {}),
+        ...(stairs ? { c: stairs } : {}),
       };
     }
     case 'skin':

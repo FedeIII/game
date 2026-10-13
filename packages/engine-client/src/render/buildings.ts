@@ -1,11 +1,12 @@
 import { Container, NineSliceSprite, Sprite, type Texture } from 'pixi.js';
-import { DEFAULT_STYLE, Structure, TILE_SIZE, hash2, type Building, type World } from '@game/engine';
+import { DEFAULT_STYLE, Ground, Structure, TILE_SIZE, hash2, storeyCount, storeyWindows, upperStorey, type Building, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
 import { shadowedText } from './name-tag.ts';
 import type { PixelFont } from './pixel-text.ts';
 import { tw } from '../i18n.ts';
+import { GROUND_NAME } from './terrain.ts';
 
 /** How opaque the front wall is while the player is inside: enough to see the room behind it. */
 const FRONT_WALL_INSIDE_ALPHA = 0.35;
@@ -13,7 +14,7 @@ const FRONT_WALL_INSIDE_ALPHA = 0.35;
 const ROOFLESS = 'none';
 /** How fast the roof and the front wall fade (per second, as a fraction of what remains). */
 const FADE_RATE = 10;
-/** Wall tops are drawn 32 pixels above the ground; the roof sits on them. */
+/** Each storey of a wall is 32 pixels high; the roof sits on the top of the top storey. */
 const WALL_HEIGHT = 32;
 /** The ridge line of a roof: this many pixels below the top of its ridge row. */
 const RIDGE_LINE = 8;
@@ -30,8 +31,14 @@ type DoorState = 'open' | 'closed' | 'boarded';
 interface BuildingView {
   readonly building: Building;
   readonly sprites: Sprite[];
-  /** The south wall, door included: it fades while the player is inside. */
-  readonly front: Container[];
+  /**
+   * The walls, a stack of sprites on each tile of them: one for each storey, from the ground up (the
+   * door is the ground storey of its tile). `front`: the tile is in the south wall.
+   */
+  readonly stacks: { readonly ty: number; readonly front: boolean; readonly sprites: Sprite[] }[];
+  /** The floor of the storey above the ground where the player is (Building.storeys), and its storey: the storey that stands on the ground. */
+  floor: Container | null;
+  floorStorey: number;
   /** The sign hangs outside the front wall: it goes away while the player is inside. */
   readonly sign: Container | null;
   readonly door: Sprite;
@@ -47,27 +54,39 @@ interface BuildingView {
  * CRT settings, above the darkness). Fixtures inside buildings are drawn by Fixtures. While the
  * player is inside a building, its roof and its sign fade out and its front wall fades to
  * FRONT_WALL_INSIDE_ALPHA.
+ *
+ * A building with storeys (Building.storeys) has walls of one storey (32 pixels) for each, each
+ * storey in its own wall set and with its own windows, and the roof on the top one. While the player
+ * is inside, the storeys of its front wall above the player's storey go, as the roof does. While the
+ * player is on a storey above the ground, the building shows from that storey up: its walls stand on
+ * the ground, and the floor of that storey covers the ground storey (in the floor layer, over the
+ * ground and under everything that stands).
  */
 export class Buildings {
   private readonly world: World;
   private readonly art: Art;
   private readonly layer: Container;
+  private readonly floorLayer: Container;
   private readonly textLayer: Container;
   private readonly font: PixelFont;
   private readonly views = new Map<string, BuildingView>();
   private readonly wallVariants = new Map<string, Texture[]>();
   private readonly roofVariants = new Map<string, Texture[]>();
 
-  constructor(world: World, art: Art, entityLayer: Container, textLayer: Container, font: PixelFont) {
+  constructor(world: World, art: Art, entityLayer: Container, textLayer: Container, font: PixelFont, floorLayer: Container) {
     this.world = world;
     this.art = art;
     this.layer = entityLayer;
+    this.floorLayer = floorLayer;
     this.textLayer = textLayer;
     this.font = font;
   }
 
-  /** Makes the buildings near the view, removes far ones, and fades roofs and fronts. */
-  update(view: Rect, inside: Building | null, seconds: number): void {
+  /**
+   * Makes the buildings near the view, removes far ones, and fades roofs and fronts. `inside` is the
+   * building that the player is in, and `storey` its storey (PlayerState.storey).
+   */
+  update(view: Rect, inside: Building | null, seconds: number, storey = 0): void {
     const x0 = Math.floor(view.x / TILE_SIZE) - MARGIN_TILES;
     const y0 = Math.floor(view.y / TILE_SIZE) - MARGIN_TILES;
     const x1 = Math.ceil((view.x + view.width) / TILE_SIZE) + MARGIN_TILES;
@@ -83,6 +102,7 @@ export class Buildings {
       const far = b.x1 < x0 - MARGIN_TILES || b.x0 > x1 + MARGIN_TILES || b.y1 < y0 - MARGIN_TILES || b.y0 > y1 + MARGIN_TILES;
       if (!near.has(id) && far) {
         for (const sprite of built.sprites) sprite.destroy();
+        built.floor?.destroy({ children: true });
         built.sign?.destroy({ children: true });
         built.roof.destroy({ children: true });
         this.views.delete(id);
@@ -98,8 +118,18 @@ export class Buildings {
       if (Math.abs(target - built.alpha) < 0.01) built.alpha = target;
       built.roof.alpha = built.alpha;
       built.roof.visible = built.alpha > 0;
+      // The storey that stands on the ground: the player's, while it is inside.
+      const base = built.building === inside ? storey : 0;
       const front = FRONT_WALL_INSIDE_ALPHA + (1 - FRONT_WALL_INSIDE_ALPHA) * built.alpha;
-      for (const item of built.front) item.alpha = front;
+      for (const stack of built.stacks) {
+        stack.sprites.forEach((sprite, level) => {
+          sprite.visible = level >= base && (level === base || !stack.front || built.alpha > 0);
+          sprite.y = (stack.ty + 1) * TILE_SIZE - (level - base) * WALL_HEIGHT;
+          // The front wall: its storey on the ground fades, and the storeys over it go.
+          if (stack.front) sprite.alpha = level === base ? front : built.alpha;
+        });
+      }
+      this.showFloor(built, base);
       if (built.sign) {
         built.sign.alpha = built.alpha;
         built.sign.visible = built.alpha > 0;
@@ -116,22 +146,49 @@ export class Buildings {
     built.door.texture = this.doorTexture(built.building, built.doorState);
   }
 
-  /** The lights of the lit windows of the buildings that are shown, in world pixels. */
+  /** The lights of the lit windows of the buildings that are shown, in world pixels: a window of a storey above the ground lights its wall. */
   lights(): LightSource[] {
     const out: LightSource[] = [];
-    for (const { building } of this.views.values()) {
-      for (const tx of building.windows ?? []) {
-        out.push({
-          x: tx * TILE_SIZE + TILE_SIZE / 2,
-          y: (building.y1 + 1) * TILE_SIZE + WINDOW_LIGHT.y,
-          radius: WINDOW_LIGHT.radius,
-          colour: WINDOW_LIGHT.colour,
-          flicker: true,
-          seed: tx * 7 + building.y1,
-        });
+    for (const { building, floorStorey: base } of this.views.values()) {
+      for (let storey = base; storey < storeyCount(building); storey++) {
+        for (const tx of storeyWindows(building, storey)) {
+          out.push({
+            x: tx * TILE_SIZE + TILE_SIZE / 2,
+            y: (building.y1 + 1) * TILE_SIZE + WINDOW_LIGHT.y - (storey - base) * WALL_HEIGHT,
+            radius: WINDOW_LIGHT.radius,
+            colour: WINDOW_LIGHT.colour,
+            flicker: true,
+            seed: tx * 7 + building.y1 + storey * 13,
+          });
+        }
       }
     }
     return out;
+  }
+
+  /**
+   * Shows the floor of a storey above the ground over the inside of the building (the player is on
+   * it), or no floor (storey 0). The floor of the ground storey is in the ground chunks.
+   */
+  private showFloor(built: BuildingView, storey: number): void {
+    if (built.floorStorey === storey) return;
+    built.floor?.destroy({ children: true });
+    built.floor = null;
+    built.floorStorey = storey;
+    const level = upperStorey(built.building, storey);
+    if (!level) return;
+    const { x0, y0, x1, y1 } = built.building;
+    const variants = this.art.variants(`ground/${GROUND_NAME[level.floor ?? Ground.Floor]}`);
+    const floor = new Container();
+    for (let ty = y0 + 1; ty < y1; ty++) {
+      for (let tx = x0 + 1; tx < x1; tx++) {
+        const tile = new Sprite(variants[hash2(tx, ty, LOOK_SEED + 2 + storey) % variants.length]!);
+        tile.position.set(tx * TILE_SIZE, ty * TILE_SIZE);
+        floor.addChild(tile);
+      }
+    }
+    this.floorLayer.addChild(floor);
+    built.floor = floor;
   }
 
   /** The door open, closed, or boarded up (a building that is shut for good, or barred and not forced). */
@@ -144,9 +201,15 @@ export class Buildings {
     return this.art.frame(`wall/${(building.style ?? DEFAULT_STYLE).walls}/door/${state}`);
   }
 
-  private wallTexture(building: Building, tx: number, ty: number): Texture {
-    const walls = (building.style ?? DEFAULT_STYLE).walls;
-    if (this.world.structure(tx, ty) === Structure.Window) return this.art.frame(`wall/${walls}/window`);
+  /** The wall set of a storey of the building: its own (Storey.walls), or the building's. */
+  private wallsOf(building: Building, storey: number): string {
+    return upperStorey(building, storey)?.walls ?? (building.style ?? DEFAULT_STYLE).walls;
+  }
+
+  /** The wall of a storey of the building on a tile of its walls: a window, or a wall that joins its neighbours. */
+  private wallTexture(building: Building, tx: number, ty: number, storey = 0): Texture {
+    const walls = this.wallsOf(building, storey);
+    if (ty === building.y1 && tx !== building.x0 && tx !== building.x1 && storeyWindows(building, storey).includes(tx)) return this.art.frame(`wall/${walls}/window`);
     const solid = (x: number, y: number) => {
       const s = this.world.structure(x, y);
       return s === Structure.Wall || s === Structure.Door || s === Structure.Window;
@@ -211,7 +274,7 @@ export class Buildings {
   private make(building: Building): BuildingView {
     const { x0, y0, x1, y1, doorX } = building;
     const sprites: Sprite[] = [];
-    const front: Container[] = [];
+    const stacks: BuildingView['stacks'] = [];
     let door: Sprite | null = null;
     // Walls stand on their tile's south-west corner and sort by the tile's middle line.
     const place = (sprite: Sprite, tx: number, ty: number, depth: number): Sprite => {
@@ -221,16 +284,25 @@ export class Buildings {
       sprites.push(sprite);
       return sprite;
     };
+    const storeys = storeyCount(building);
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         if (tx !== x0 && tx !== x1 && ty !== y0 && ty !== y1) continue;
         const isDoor = tx === doorX && ty === y1;
         const sprite = place(new Sprite(isDoor ? this.doorTexture(building, this.doorState(building, tx, ty)) : this.wallTexture(building, tx, ty)), tx, ty, 8);
-        if (ty === y1) front.push(sprite);
         if (isDoor) door = sprite;
+        const stack = { ty, front: ty === y1, sprites: [sprite] };
+        // The storeys above: the same wall, one storey higher each time, over the top of the one under it.
+        for (let storey = 1; storey < storeys; storey++) {
+          const above = place(new Sprite(this.wallTexture(building, tx, ty, storey)), tx, ty, 8 + storey * 0.01);
+          above.y -= storey * WALL_HEIGHT;
+          stack.sprites.push(above);
+        }
+        stacks.push(stack);
       }
     }
     const sign = this.sign(building);
+    const roofHeight = storeys * WALL_HEIGHT;
 
     // The roof sits on the wall tops: rows of slate tiles from the north eave to the south eave.
     // Seen from the south, the back slope shows above the ridge and the front slope below it.
@@ -244,19 +316,19 @@ export class Buildings {
       for (let tx = x0; tx <= x1; tx++) {
         const column = tx === x0 ? 'l' : tx === x1 ? 'r' : 'm';
         const tile = new Sprite(this.roofTexture(roofStyle, row, column, tx, y0 + r));
-        tile.position.set(tx * TILE_SIZE, (y0 + r) * TILE_SIZE - WALL_HEIGHT);
+        tile.position.set(tx * TILE_SIZE, (y0 + r) * TILE_SIZE - roofHeight);
         roof.addChild(tile);
       }
     }
     for (let tx = x0; tx <= x1 && rows > 0; tx++) {
       const shadow = new Sprite(this.art.frame('roof/shadow'));
-      shadow.position.set(tx * TILE_SIZE, (y1 + 1) * TILE_SIZE - WALL_HEIGHT);
+      shadow.position.set(tx * TILE_SIZE, (y1 + 1) * TILE_SIZE - roofHeight);
       roof.addChild(shadow);
     }
     // Chimneys, flags and spires stand on the ridge, in the middle of their column.
     for (const prop of building.roofProps ?? []) {
       const sprite = new Sprite(this.art.frame(`roof/${prop.name}`));
-      sprite.position.set(prop.tx * TILE_SIZE + TILE_SIZE / 2, (y0 + ridge) * TILE_SIZE - WALL_HEIGHT + RIDGE_LINE);
+      sprite.position.set(prop.tx * TILE_SIZE + TILE_SIZE / 2, (y0 + ridge) * TILE_SIZE - roofHeight + RIDGE_LINE);
       roof.addChild(sprite);
     }
     // Just in front of the south wall: above everything in the building, below what stands south of it.
@@ -264,6 +336,6 @@ export class Buildings {
     this.layer.addChild(roof);
 
     if (!door) throw new Error(`building ${building.id} has no door`);
-    return { building, sprites, front, sign, door, doorState: this.doorState(building, doorX, y1), roof, alpha: 1 };
+    return { building, sprites, stacks, floor: null, floorStorey: 0, sign, door, doorState: this.doorState(building, doorX, y1), roof, alpha: 1 };
   }
 }

@@ -3,7 +3,8 @@ import { CHUNK_PIXELS, CHUNK_SIZE, Decor, Ground, TILE_SIZE, hash2, type World }
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 
-const GROUND_NAME: Record<Ground, string> = {
+/** The name of each ground in the art: frames `ground/<name>/<variant>`. */
+export const GROUND_NAME: Record<Ground, string> = {
   [Ground.Water]: 'water',
   [Ground.Sand]: 'sand',
   [Ground.Dirt]: 'dirt',

@@ -218,7 +218,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       if ((perAddress.get(client.ip) ?? 0) > maxPerAddress) return refuse('busy');
       let skin = message.skin;
       let name = message.name;
-      let place: { x: number; y: number } | undefined;
+      let place: { x: number; y: number; storey?: number } | undefined;
       let stored: JoinCharacter | undefined;
       if (accounts) {
         // The look, the name and the place of a player come from its stored character, not from the client.
@@ -282,7 +282,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     const player = client.room?.player(client.playerId);
     if (!accounts || !client.user || !client.character || !player) return;
     try {
-      accounts.savePlace(client.user, client.character, { world: client.world, x: player.state.x, y: player.state.y });
+      accounts.savePlace(client.user, client.character, { world: client.world, x: player.state.x, y: player.state.y, ...(player.state.storey > 0 ? { storey: player.state.storey } : {}) });
       accounts.savePack(client.user, client.character, player.pack);
       accounts.saveGear(client.user, client.character, player.gear);
       accounts.saveVitals(client.user, client.character, player.state.hp, player.refuges);

@@ -131,10 +131,12 @@ describe('piles on the ground', () => {
     expect(findInteraction(world, player, () => true, [], [far])).toBeNull();
   });
 
-  it('goes on the wire as [id, x, y, item code, count]', () => {
+  it('goes on the wire as [id, x, y, item code, count, storey]', () => {
     const pile = { id: 7, x: 3, y: -4, kind: 'antidote' as const, count: 2 };
-    expect(toWirePile(pile)).toEqual([7, 3, -4, ITEM_KINDS.indexOf('antidote'), 2]);
-    expect(fromWirePiles([toWirePile(pile), [8, 0, 0, 999, 1]])).toEqual([pile]);
+    expect(toWirePile(pile)).toEqual([7, 3, -4, ITEM_KINDS.indexOf('antidote'), 2, 0]);
+    expect(fromWirePiles([toWirePile(pile), [8, 0, 0, 999, 1, 0]])).toEqual([pile]);
+    const upstairs = { ...pile, id: 9, storey: 1 };
+    expect(fromWirePiles([toWirePile(upstairs)])).toEqual([upstairs]);
   });
 });
 

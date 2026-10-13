@@ -35,10 +35,13 @@ import {
   clampInput,
   createPlayer,
   facingAngle,
-  resumePoint,
+  resumePlace,
   findInteraction,
   stepPlayer,
   useDoor,
+  useStairs,
+  npcStorey,
+  pileStorey,
   facingOfAngle,
   addToPack,
   ITEM_KINDS,
@@ -371,8 +374,14 @@ async function run(options: GameOptions): Promise<void> {
   // character starts where it was last in this world, and a new one at the world's spawn.
   const at = (params.get('at') ?? '').split(',').map((v) => Number.parseInt(v, 10));
   const place = character?.place?.world === definition.id ? character.place : null;
-  const spawn = at.length === 2 && at.every(Number.isFinite) ? world.findSpawn(at[0], at[1], 0) : place ? resumePoint(world, place.x, place.y) : world.spawn();
+  const spawn =
+    at.length === 2 && at.every(Number.isFinite)
+      ? { ...world.findSpawn(at[0], at[1], 0), storey: 0 }
+      : place
+        ? resumePlace(world, place.x, place.y, place.storey ?? 0)
+        : { ...world.spawn(), storey: 0 };
   const player = createPlayer(spawn.x, spawn.y);
+  player.storey = spawn.storey;
   const previous = { x: player.x, y: player.y };
   // The interpolated position of the player in this frame: speech over the player follows it.
   const shown = { x: player.x, y: player.y };
@@ -442,15 +451,15 @@ async function run(options: GameOptions): Promise<void> {
   // Where the character is: in a world that the page runs, the page tells the server now and then
   // and when it closes; in a shared world the server knows it. A guest has no place.
   const placeOf = character && !definition.multiplayer ? character.id : null;
-  let placeSent = { x: player.x, y: player.y };
+  let placeSent = { x: player.x, y: player.y, storey: player.storey };
   let placeSaveAt = performance.now() + PLACE_SAVE_MS;
-  /** Sends the place if the player moved since the last one. `keepalive` while the page closes. */
+  /** Sends the place (and the storey) if the player moved since the last one. `keepalive` while the page closes. */
   const savePlace = async (keepalive = false): Promise<void> => {
-    if (placeOf === null || (player.x === placeSent.x && player.y === placeSent.y)) return;
-    const sent = (placeSent = { x: player.x, y: player.y });
-    await api.place(placeOf, { world: definition.id, ...sent }, keepalive).catch(() => {
+    if (placeOf === null || (player.x === placeSent.x && player.y === placeSent.y && player.storey === placeSent.storey)) return;
+    const sent = (placeSent = { x: player.x, y: player.y, storey: player.storey });
+    await api.place(placeOf, { world: definition.id, x: sent.x, y: sent.y, ...(sent.storey > 0 ? { storey: sent.storey } : {}) }, keepalive).catch(() => {
       // Not saved: the next time, send it again.
-      if (placeSent === sent) placeSent = { x: Number.NaN, y: Number.NaN };
+      if (placeSent === sent) placeSent = { x: Number.NaN, y: Number.NaN, storey: 0 };
     });
   };
   window.addEventListener('pagehide', () => void savePlace(true));
@@ -487,6 +496,8 @@ async function run(options: GameOptions): Promise<void> {
   const scene = new Container();
   const textScene = new Container();
   const groundLayer = new Container();
+  // The floor of a storey above the ground where the player is (Building.storeys): over the ground storey.
+  const floorLayer = new Container();
   // Items on the ground: over the ground, under everything that stands (piles.ts).
   const pileLayer = new Container();
   const entityLayer = new Container({ sortableChildren: true });
@@ -494,7 +505,7 @@ async function run(options: GameOptions): Promise<void> {
   const ghostLayer = new Container();
   // What glows above the darkness: the eyes of mobs, embers, the stars of a stun.
   const glowLayer = new Container();
-  scene.addChild(groundLayer, pileLayer, entityLayer, ghostLayer);
+  scene.addChild(groundLayer, floorLayer, pileLayer, entityLayer, ghostLayer);
   worldLayer.addChild(scene);
   textLayer.addChild(textScene);
   // The mouse cursor over the world: above everything, without a filter, like the GUI.
@@ -510,7 +521,7 @@ async function run(options: GameOptions): Promise<void> {
   const tagLayer = new Container();
   textScene.addChild(signLayer, tagLayer);
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
-  const buildings = new Buildings(world, art, entityLayer, signLayer, smallFont);
+  const buildings = new Buildings(world, art, entityLayer, signLayer, smallFont, floorLayer);
   const fixtures = new Fixtures(world, art, entityLayer, signLayer, smallFont);
   // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
   // darker wanderer.
@@ -588,6 +599,12 @@ async function run(options: GameOptions): Promise<void> {
   let linesShown = 0;
   let lastLine = '-';
   const tileOf = (p: { x: number; y: number }) => [Math.floor(p.x / TILE_SIZE), Math.floor(p.y / TILE_SIZE)] as const;
+  /**
+   * Whether the player sees someone at (x, y) on a storey (Building.storeys): someone on its own
+   * storey, or on the ground outside the building where the player is.
+   */
+  const seenBy = (p: { readonly x: number; readonly y: number }, storey: number): boolean =>
+    storey === player.storey || (storey === 0 && world.insideOf(...tileOf(p)) !== world.insideOf(...tileOf(player)));
   const sayLines = (lines: readonly (readonly [number, number])[]) => {
     const now = performance.now();
     const poses = npcPoses(now);
@@ -603,6 +620,7 @@ async function run(options: GameOptions): Promise<void> {
       const pose = poses[index];
       const there = pose ? world.insideOf(...tileOf(pose)) : null;
       if (there !== null && there !== here) continue;
+      if (pose && !seenBy(pose, npcStorey(def))) continue;
       // Only an NPC within earshot: the people of a town far away are not heard (their bubbles would sit on the edge of the screen).
       if (pose && Math.hypot(pose.x - player.x, pose.y - player.y) > BARK_HEARING * TILE_SIZE) continue;
       // Nobody talks over the arrival: the title and the host's welcome.
@@ -622,8 +640,8 @@ async function run(options: GameOptions): Promise<void> {
     npcDefs.forEach((def, index) => {
       const pose = poses[index];
       if (!def.greeting || greeted.has(def.id) || !pose || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return;
-      // Only in the same place: both outside, or in the same building.
-      if (world.insideOf(...tileOf(pose)) !== here) return;
+      // Only in the same place: both outside, or in the same building, on the same storey.
+      if (world.insideOf(...tileOf(pose)) !== here || npcStorey(def) !== player.storey) return;
       greeted.add(def.id);
       if (talkWith === npcFixture(def)) return;
       barkBubbles.say(index, tw(def.greeting).replace('{name}', name), () => npcViews!.headOf(index), now);
@@ -962,7 +980,8 @@ async function run(options: GameOptions): Promise<void> {
   };
   /** A line of a gate that the player does not pass: with a clue of the gate when it is 1 or 2 short (gateView), else the plain line. */
   const shortOf = (gate: Gate, clue: string, plain: string): string => (gateView(traits.scores, gate) === 'hint' ? `${clue} ${gateTag(gate)}` : plain);
-  const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) => Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture));
+  const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) =>
+    Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture)) || kind === 'stairs' || kind === 'stairwell';
   /** Over the player's head: where it speaks. */
   const playerHead = () => ({ x: shown.x, y: shown.y - playerView.headHeight });
   /** The player says a line (a door, a chest, a full pack). */
@@ -1053,8 +1072,9 @@ async function run(options: GameOptions): Promise<void> {
       if (!next) return;
       pack = next;
     }
-    const at = toward ? tossPoint(world, player, toward.x, toward.y) : dropPoint(world, player);
-    localPiles.put(at.x, at.y, [{ kind, count }], performance.now(), player);
+    const level = world.level(player.storey);
+    const at = toward ? tossPoint(level, player, toward.x, toward.y) : dropPoint(level, player);
+    localPiles.put(at.x, at.y, [{ kind, count }], performance.now(), player, player.storey);
     gameSounds.fx.play('drop', { delay: toward ? 0.35 : 0 });
   };
   /** Moves an item from place `from` to place `to`: a stack in the pack, or an item that the character puts on or takes off. */
@@ -1349,6 +1369,17 @@ async function run(options: GameOptions): Promise<void> {
       buildings.refreshDoor(target.tx, target.ty);
       return;
     }
+    if (target.kind === 'stairs' || target.kind === 'stairwell') {
+      // Up the stairs, or down the stairwell (Building.storeys): the player is on the other storey at once, as on the server.
+      const climbed = net ? net.stairs(target.tx, target.ty) : useStairs(world, player, target.tx, target.ty);
+      if (climbed) {
+        // No glide from the old place: the player is on the landing.
+        previous.x = shown.x = player.x;
+        previous.y = shown.y = player.y;
+        gameSounds.fx.play('stairs');
+      }
+      return;
+    }
     const key = targetKey(target);
     // A bed rests, unless its variant has something else for this character (the dream of Verath: dream.ts).
     if (target.fixture && fixtureContent(target.fixture, questsNow(), packNow())?.rest && mayRest(target.fixture)) {
@@ -1468,6 +1499,8 @@ async function run(options: GameOptions): Promise<void> {
       if (content?.link && linkCard.visible) return content.link.label;
       return STRINGS.close;
     }
+    if (t.kind === 'stairs') return STRINGS.goUp;
+    if (t.kind === 'stairwell') return STRINGS.goDown;
     if (t.kind === 'npc') return STRINGS.talk;
     if (t.kind === 'portal') return STRINGS.lookIntoPortal;
     if (t.kind === 'signpost' || t.kind === 'namesign') return STRINGS.readSign;
@@ -1608,7 +1641,7 @@ async function run(options: GameOptions): Promise<void> {
         else touchMobs();
       }
       flyOwnArrows(TICK_SECONDS);
-    } else if (stepPlayer(player, input, world, traits)) {
+    } else if (stepPlayer(player, input, world.level(player.storey), traits)) {
       // An attack starts: the sound of the weapon, and its blows on the horde.
       gameSounds.swing(traits.strike, traits.strike.twoHands);
       if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
@@ -1778,8 +1811,15 @@ async function run(options: GameOptions): Promise<void> {
     cursorView.update(packPanel.dragging ? null : mouse.at, camera.zoom, app.renderer.resolution);
 
     const npcsNow = npcPoses(now);
-    npcViews?.update(npcsNow, seconds);
-    target = findInteraction(world, player, accept, [...npcActors(npcDefs, npcsNow), ...guardActors(now)], pilesNow());
+    npcViews?.update(npcsNow, seconds, (i) => !npcsNow[i] || seenBy(npcsNow[i]!, npcStorey(npcDefs[i]!)));
+    // On a storey (Building.storeys): its things, its people and its piles only. The guards walk on the ground.
+    target = findInteraction(
+      world.level(player.storey),
+      player,
+      accept,
+      [...npcActors(npcDefs, npcsNow, player.storey), ...(player.storey === 0 ? guardActors(now) : [])],
+      pilesNow().filter((pile) => pileStorey(pile) === player.storey),
+    );
     if (pendingTalk && now >= pendingTalk.at) openTalk();
     if (conversation.open) {
       // The NPC waits for a player who stands close to it; a stun, or an NPC that is not close
@@ -1793,14 +1833,28 @@ async function run(options: GameOptions): Promise<void> {
 
     const view = camera.view();
     const inside = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
-    buildings.update(view, inside, seconds);
+    buildings.update(view, inside, seconds, player.storey);
     // The spark of a pile shows only where the player can see it: outside, or in its own house.
     pileViews.toss(net ? net.takeTosses(now) : localPiles.takeTosses(), now);
-    pileViews.update(pilesNow(), now, (pile) => world.insideOf(...tileOf(pile)) === inside);
+    pileViews.update(
+      pilesNow().filter((pile) => seenBy(pile, pileStorey(pile))),
+      now,
+      (pile) => world.insideOf(...tileOf(pile)) === inside,
+    );
     // Hidden things (herbs, a cache) show only within the reach of the character's eye (Wisdom).
-    fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek });
-    others?.update(net!.playersAt(now), seconds, view, (x, y) => inShallows(world, x, y));
-    companionViews.update(companionsNow(now), seconds, view);
+    fixtures.update(view, now / 1000, { x: shown.x, y: shown.y, range: traits.seek }, { building: inside, storey: player.storey });
+    others?.update(
+      net!.playersAt(now).filter((p) => seenBy(p, p.storey)),
+      seconds,
+      view,
+      (x, y) => inShallows(world, x, y),
+    );
+    // Companions walk on the ground storey.
+    companionViews.update(
+      companionsNow(now).filter((c) => seenBy(c, 0)),
+      seconds,
+      view,
+    );
     // Free the skins that nobody here wears any more (now and then).
     if (now >= nextRetainAt) {
       nextRetainAt = now + 5000;
@@ -1889,10 +1943,12 @@ async function run(options: GameOptions): Promise<void> {
       const tx = Math.floor(player.x / TILE_SIZE);
       const ty = Math.floor(player.y / TILE_SIZE);
       const playing = scenePlayer.playing;
-      if (playing && !inScene(playing, tx, ty, SCENE_MARGIN)) scenePlayer.stop(now);
+      // A scene plays on the storey of its area (SceneDef.storey: the ground by default).
+      const onStorey = (scene: SceneDef) => (scene.storey ?? 0) === player.storey;
+      if (playing && (!inScene(playing, tx, ty, SCENE_MARGIN) || !onStorey(playing))) scenePlayer.stop(now);
       else if (!playing && player.down === 0) {
         const book = questsNow();
-        const scene = scenes.find((s) => inScene(s, tx, ty) && holds(s.when, book, packNow()) && canApply(s.effect, book, packNow()));
+        const scene = scenes.find((s) => inScene(s, tx, ty) && onStorey(s) && holds(s.when, book, packNow()) && canApply(s.effect, book, packNow()));
         if (scene) scenePlayer.start(scene, sceneLines(scene), now);
       }
       const ended = scenePlayer.update(now, view);
@@ -1909,7 +1965,7 @@ async function run(options: GameOptions): Promise<void> {
       `skin    ${skin} (${look.race} ${look.class} ${look.gender}), look ${lookKey}, name ${displayName()}${name ? '' : ' (from the look)'}`,
       `char    ${character ? `${character.id}` : 'guest'}`,
       `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'} (${others?.count ?? 0} near, ${others?.namesShown ?? 0} named)${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
-      `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
+      `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}${player.storey > 0 ? ` (storey ${player.storey})` : ''}`,
       `facing  ${player.facing}, aim ${Math.round((player.aim * 180) / Math.PI)} deg${mouse.at ? `, mouse ${Math.round(mouse.at.x)},${Math.round(mouse.at.y)}` : ''}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,
       ...(net

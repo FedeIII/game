@@ -157,7 +157,7 @@ road teaches me the game before the story starts (Fede, 2026-10-13: the tutorial
   "El camino a Ferrozar") at the step `go`, with a banner; its journal line names Whitegrove and
   Bronzehold, and the map marks the south edge of Ironhold, where the road comes in.
 - **AC-QST-026.2:** When the character comes into Ironhold, the child in the lane says two lines (a
-  stranger, up the south road; the reeve's house is on the lane), and the quest ends (`arrived`).
+  stranger, up the south road; the reeve is in the town hall, on the square), and the quest ends (`arrived`).
 - **AC-QST-026.3:** No chain shows (docs/game-design.md): the end of the road only lets the reeve
   give "The Razed Villages" (AC-QST-007.3); nothing in the journal or the banner names a next quest.
 
@@ -242,10 +242,10 @@ it happens round me.
 letter leads to an adventure.
 
 **Acceptance Criteria:**
-- **AC-QST-010.1:** In the house of the reeve of Ironhold stand the reeve, a villager and a soldier of
+- **AC-QST-010.1:** In the hall of the town hall of Ironhold (its ground storey) stand the reeve, a villager and a soldier of
   the Sovereignty (iron grey, not the red of the town).
 - **AC-QST-010.2:** A character who started "The Razed Villages", and not "The Hobgoblin Raid",
-  overhears the argument when it comes into the house or within 2 rows of its south wall: the
+  overhears the argument when it comes into the hall or within 2 rows of its south wall: the
   hobgoblins go straight for Silverspring, two squads of them; they took Himo, and Brys thinks that
   he is still alive; the villager wants to warn Silverspring, and the soldier refuses to leave
   Ironhold with no defence. With WIS 13 the character also hears the soldier say low: "Let the
@@ -636,8 +636,8 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   The debug line `quests` shows the scene that plays ("scene argument 3/9").
 - **The raid** (`worlds/wilds/src`): `RAID` (`heard`, `asked`, `scouts`, `band`, `escort`, `home`,
   `lost`, `raid`, `defended`, `title`), `RAID_HEARD` (the effect of the scene), `RAID_ASKED`, `RAID_SCOUTS`;
-  `ARGUMENT` and `TOWN_SCENES` (`town.ts`: the area is the reeve's house and two rows south of it);
-  the people `farmer` (pages) and `soldier` (`SOLDIER`) in the reeve's house; `REEVE` starts at
+  `ARGUMENT` and `TOWN_SCENES` (`town.ts`: the area is the town hall and two rows south of it, on the
+  ground storey); the people `farmer` (pages) and `soldier` (`SOLDIER`) in the town hall; `REEVE` starts at
   `warn` (`heard`) and `go` (`asked`).
 - **The north road and the grove** (`worlds/wilds/src/road.ts`): `Road` (any two ends, level at both),
   `homeRoad()`, `northRoad()`, `NORTH_ROAD_START`, `SILVERSPRING_SITE` (171, -179; the step `asked`

@@ -143,7 +143,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   while not, reconnection). See `docs/multiplayer.md`.
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
   textures; trees and rocks as depth-sorted sprites), `buildings.ts` (walls, doors, roofs,
-  signs; fades the roof, the sign and the front wall while the player is inside),
+  signs; fades the roof, the sign and the front wall while the player is inside; a building with
+  storeys shows from the player's storey up, with the floor of that storey in `floorLayer`),
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures; the plate with
   the name of a name sign, in the sign layer: `Fixtures.plate()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
@@ -300,7 +301,11 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   Iron Sovereignty: two posts of dark oak with iron caps) and `fixture/namesign/mithril` (the Mithril
   Enclave: two pillars of pale stone, `M.paleStone`, with small gold domes); the page hangs the plate
   with the name between them, see `font.ts`. A new dominion's style is a new look, with its plate and
-  its shield.
+  its shield. The stairs between two storeys (`fixture/stairs`: eight steps over 2 x 2 tiles that rise
+  one storey) and the stairwell above them (`fixture/stairwell`: the opening with a railing). The
+  palisade of a town (`fixture/palisade/<0-15>`: two rows of sharpened logs; the look is the sides that
+  join a neighbour, `PALISADE_SIDES` in the engine: 1 north, 2 east, 4 south, 8 west; a run north to
+  south has three columns of logs, so that its tips make one strip).
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
@@ -732,7 +737,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 38.
+protocol: `docs/multiplayer.md`, protocol 39.
 
 ## Language
 
@@ -777,7 +782,7 @@ once the road is done, `ROAD_DONE`; a character from before has it from the lett
 lever: the farmer of Whitegrove lends his, `lent`, or the smith's; 10 coins), `lentils` (the farmer of
 Whitegrove sends a sack to the sergeant of Bronzehold: 5 coins; a wade or a swim with it makes it a
 sack of wet lentils, `wet`, and the sergeant then pays 2 coins to CHA 13 or nothing), and `raid`
-(the scene `ARGUMENT` in the reeve's house, then the reeve asks the character to warn Silverspring).
+(the scene `ARGUMENT` in the town hall, then the reeve asks the character to warn Silverspring).
 The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the
 town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character
 overhears in an area at a step; its NPCs say the lines, a line behind a gate is a murmur, and the
@@ -1022,18 +1027,32 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   `World.forcedDoorList()` has it, until `Spoils` bars it again). The engine does not read the style
   or the roof props. `structureIn()` gives the structure code of each tile;
   `isInside()` says if a tile is in the interior or the doorway.
+- **Storeys** (since 2026-10-13, Fede's request for the town hall of Ironhold;
+  `docs/features/game/storeys.md`): `Building.storeys` are the storeys above the ground storey
+  (`Storey`: its things, windows, walls and floor; walls all round, no door). Stairs join them: the
+  fixture `stairs` on a storey and `stairwell` on the same 2 x 2 tiles above; `useStairs()` takes a
+  player up or down, to `stairsLanding()`. Each player has `PlayerState.storey`, and it moves and
+  acts on the map of its storey, `World.level(storey)` (a `StoreyMap` above the ground): pass that
+  map, not the world, to `stepPlayer()`, `findInteraction()`, `dropPoint()` and the like. NPCs
+  (`NpcDef.storey`), piles (`Pile.storey`) and scenes (`SceneDef.storey`) have a storey too; a
+  companion waits while its leader is up. The server owns the storey (protocol 39), and the store
+  keeps it with the place. A storey without stairs to it is only a look (`StoreyPlan` with
+  `windows`).
 - **Collision:** walls and a closed door are full tiles; fixtures have their boxes; an open
   door is open. The open doors are `World.openDoors`: the first world state that is not in the
   source. The server must own it when multiplayer comes.
 - **Drawing:** walls and the door in the entity layer (sort by the tile's middle line);
   fixtures by their depth line; the roof as one container just in front of the south wall
   (zIndex `y1 * 16 + 8.5`): above everything in the building, below what stands south of it.
-  The roof sits on the wall tops, 32 px up: the north eave (`top`), the back slope, the
+  The roof sits on the wall tops, 32 px up for each storey: the north eave (`top`), the back slope, the
   `ridge`, the front slope, the `eave`. Roof props stand on the ridge line, in the middle of
   their column. Each lit window gives a small warm light (radius 48) on the street in front of
   it (`Buildings.lights()`). The sign is a board in the text layer, over the door.
   While the player is inside (interior or doorway), the roof and the sign fade out and the front
-  wall fades to 35% (or it would hide the two floor rows behind it).
+  wall fades to 35% (or it would hide the two floor rows behind it); the storeys of the front wall
+  above the player's storey go. On an upper storey, the building shows from that storey up, its
+  floor covers the ground storey, and the things, people and players of the other storeys hide
+  (`seenBy()` in `game.ts`).
 
 ## The worlds
 
@@ -1084,29 +1103,37 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   no title on arrival (a small place; Fede's rule of 2026-10-13).
   `?at=-11,99` starts in Whitegrove, `?at=-36,49` in Bronzehold, `?at=-32,16` at the south edge of
   Ironhold.
-- **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a
+- **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10; a new plan on 2026-10-13, Fede's
+  request: wooden walls, and closer to Ferrozar in chapter 1.5.1 and its picture on the Drive,
+  `docs/features/game/towns.md` REQ-TWN-008): the town nearest the home, a
   fixed plan of 45 x 23 tiles (`TOWN`: x -52 to -8, y -8 to 14, the same for every seed) north of
   the home. `MAP` (one character per tile) and a plan for each building, as the Town of Azyr had.
-  The main street runs east to west (cobblestones, lamps); its east end is the gate (`TOWN_GATE`),
-  which leads to the north road; the road from the home comes in at the south edge (`TOWN_SOUTH`). North of the street: the inn (the Crooked Lantern), the smithy, a square
-  with the fountain and the notice board, the chapel, and the chandler. South of it, back to back
-  with it and facing a lane by the lake, with alleys between them: the apothecary, a cottage, the
-  reeve's house, the granary and a house. Five open; four are shut for good (`locked`: the
-  chandler, the cottage, the granary, the house). Ten NPCs (`TOWN_NPCS`): in the buildings the
-  innkeeper and the minstrel, the smith, the priest, the apothecary and the reeve (some walk out
-  to their doorstep); in the streets the watchman Brann at the south entry (where the road from the hut comes in), the peddler, the widow by the
+  A palisade of logs (`P`) goes round it, with two gates: the south gate (`TOWN_SOUTH`, where the
+  road from the home comes in) and the east gate (`TOWN_GATE`, which leads to the north road). The
+  main street runs from the west palisade to the east gate (cobblestones, lamps). North of it: the
+  inn (the Crooked Lantern), a square with the fountain and the notice board and, in its middle, the
+  town hall (two storeys: the hall, of stone, with the reeve, and the reeve's archive above it, of
+  timber, up the stairs), and the chapel. South of it, back to back with it and facing the lane by
+  the south palisade, with alleys between them: the apothecary, a cottage, the smithy, the
+  chandler, the granary and a house. The buildings are of wood (timber, planks), but the chapel and
+  the hall's storey of stone; the inn, the chandler and the house have two storeys outside. Five
+  open; four are shut for good (`locked`: the chandler, the cottage, the granary, the house). Ten
+  NPCs (`TOWN_NPCS`): in the buildings the innkeeper and the minstrel, the reeve, the priest, the
+  apothecary and the smith (some walk out to their doorstep); in the streets the watchman Brann at
+  the south gate (where the road from the hut comes in), the peddler, the widow by the
   fountain and the child in the lane. Each one has three lines that it says by itself, a greeting
   by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
   apothecary, the reeve, the peddler and the smith (`dialogs.ts`), three pages for the others. The inn has a
   bed by its east wall for a character with a room (Charisma).
   Ironhold has a title on arrival (`title: true`) and a name sign of the Sovereignty (`TOWN_NAME_SIGN`:
   west of the road from the hut, two rows south of the town, so that its plate does not hang over
-  the lane). Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
+  the gate). Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
   water; nothing grows on it or close to it. **The signpost** stands outside the hut, two tiles below
   the door on the west side of its path, and points west, where the road leaves: "It reads:
   WHITEGROVE, BRONZEHOLD, IRONHOLD." Tests (`town.test.ts`): the sign and the road for five seeds, the
   hamlets, the walls and doors, the shut doors, every thing and door reachable,
-  the NPC areas, and no mob in the town. `?at=-12,3` starts at the gate. Since 2026-10-11 a
+  the NPC areas, the palisade, the town hall and its storeys, and no mob in the town. `?at=-12,3`
+  starts at the gate, `?at=-29,2` in front of the town hall. Since 2026-10-11 a
   builder makes the towns (`towns.ts`: `TownPlan`, `Town`); `town.ts` keeps the plan and the old
   names (`TOWN`, `TOWN_BUILDINGS`, `inTown()`...), and `IRONHOLD` is the built town.
 - **Silverspring** (`worlds/wilds/src/silverspring.ts`, story phase 4a, 2026-10-11;

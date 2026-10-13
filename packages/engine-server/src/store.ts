@@ -319,7 +319,7 @@ export class AccountStore {
 
   /** Notes where a character is (a checked place); false if it is not the user's. */
   setPlace(userId: number, id: string, place: CharacterPlace): boolean {
-    const json = JSON.stringify({ world: place.world, x: place.x, y: place.y });
+    const json = JSON.stringify({ world: place.world, x: place.x, y: place.y, ...(place.storey ? { storey: place.storey } : {}) });
     return this.db.prepare('UPDATE characters SET place = ? WHERE user_id = ? AND id = ?').run(json, userId, id).changes > 0;
   }
 

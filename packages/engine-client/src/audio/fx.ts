@@ -235,6 +235,19 @@ export const FX = {
       rec(b, 'woodClick', c, o, t + 0.04, 0.6);
     },
   },
+  // Up or down the stairs of a building (Building.storeys): four steps on wood, and a creak.
+  stairs: {
+    seconds: 0.8,
+    variants: 3,
+    samples: ['woodClick'],
+    render: (c, o, t, b) => {
+      for (let i = 0; i < 4; i++) {
+        thud(c, o, t + i * 0.13 + r(0, 0.02), r(110, 140), 0.32, 0.08);
+        rec(b, 'woodClick', c, o, t + i * 0.13, 0.25, -300);
+      }
+      creak(c, o, t + 0.2, 0.35, r(55, 70), 0.08);
+    },
+  },
   doorLocked: {
     seconds: 0.6,
     variants: 2,

@@ -67,6 +67,7 @@ streaming-platform project):
 | Game: The Prologue | `PRO` | [`game/prologue.md`](game/prologue.md) |
 | Game: The Tips | `TIP` | [`game/tips.md`](game/tips.md) |
 | Game: The Towns of the Wilds | `TWN` | [`game/towns.md`](game/towns.md) |
+| Game: Buildings with Storeys | `STY` | [`game/storeys.md`](game/storeys.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 
@@ -109,3 +110,4 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [The Tips](game/tips.md) | Short hints of the tutorial at the top of the screen, the first time of each thing (walk, act, rest, the journal, a conversation, a deal or a shop, the map, sneak, attack, dodge, a hit, a drink, a pile, a defeat): once in a browser, one at a time, keys on a keyboard and buttons on a touch screen, and their switch in the settings |
 | [The Prologue](game/prologue.md) | Nine painted scenes of Kandrax with Fede's texts, for each new character and from the game menu: the world, the Dominions, the gods, Thrain's factory, and the character's identity and mission; its pace and how to skip it |
 | [Sound](game/sound.md) | Music on a recorded orchestra and choir (VSCO 2 CE, FluidR3), loaded when needed: the theme of Kandrax in the prologue, and in the game a music that follows the places, a hunt, a fight, a battle, a dream, a defeat, with stingers for discoveries and quests; the sounds of fights, steps, mobs' voices, doors, chests, coins, drinks and the GUI; an ambience for each place and the sounds of water, fires, fountains and forges near the player; when the sound starts and sleeps, and the "Sound" settings |
+| [Buildings with Storeys](game/storeys.md) | Buildings of more than one storey: walls one storey high for each, each storey with its own walls, windows, floor, things and people; stairs and a stairwell ("Go up the stairs", "Go down the stairs"); a player on a storey walks, acts and drops items only there; the building shows from the player's storey up, and the other storeys hide; the storey on the server (protocol 39) and in the place of a character |

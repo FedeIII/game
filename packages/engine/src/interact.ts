@@ -1,10 +1,10 @@
-import { Structure } from './buildings.ts';
+import { Structure, storeyCount } from './buildings.ts';
 import { TILE_SIZE } from './constants.ts';
-import { decodeFixture, type Fixture, type FixtureKind } from './fixtures.ts';
+import { decodeFixture, fixtureType, type Fixture, type FixtureKind } from './fixtures.ts';
 import { PILE_HALF_HEIGHT, PILE_HALF_WIDTH, type Pile } from './piles.ts';
-import { PLAYER_HALF_HEIGHT, PLAYER_HALF_WIDTH, type PlayerState } from './player.ts';
+import { PLAYER_HALF_HEIGHT, PLAYER_HALF_WIDTH, feetFit, type PlayerState } from './player.ts';
 import { meetsGate, type Gate, type PlayerTraits } from './traits.ts';
-import { Decor, FULL_BOX, type Box, type TileMap } from './world.ts';
+import { Decor, FULL_BOX, type Box, type TileMap, type World } from './world.ts';
 
 /** The things that a player can act on: decor, fixtures, doors (which open and close), and items on the ground. */
 export type Interactable = 'tree' | 'rock' | FixtureKind | 'door' | 'pile';
@@ -233,4 +233,42 @@ export function useDoor(
   if (gapTo(player, tx, ty, FULL_BOX) === 0 || others.some((other) => gapTo(other, tx, ty, FULL_BOX) === 0)) return 'blocked';
   world.setDoorOpen(tx, ty, false);
   return 'closed';
+}
+
+/**
+ * Where a player arrives from stairs or a stairwell (fixtures.ts): in the middle of the row of tiles
+ * south of them, on the other storey. The stairs and the stairwell stand on the same tiles, so the
+ * landing is the same both ways.
+ */
+export function stairsLanding(fixture: Pick<Fixture, 'kind' | 'tx' | 'ty'>): { x: number; y: number } {
+  const columns = Math.max(...fixtureType(fixture.kind).tiles.map((t) => t.dx)) + 1;
+  return { x: fixture.tx * TILE_SIZE + (columns * TILE_SIZE) / 2, y: (fixture.ty + 1) * TILE_SIZE + TILE_SIZE / 2 };
+}
+
+/** Which way stairs on (tx, ty) take a player, or null: 'up' for stairs, 'down' for a stairwell. */
+export type StairsResult = 'up' | 'down';
+
+/**
+ * Takes the player up the stairs, or down the stairwell, on (tx, ty) of its storey: to the storey
+ * above or below, on the landing (stairsLanding). Null: no stairs there, out of reach, no such
+ * storey in the building, no room on the landing, or the player is busy (it strikes, rolls, is
+ * stunned or defeated); then nothing changes. Shared: the client and the multiplayer server apply
+ * the same rule.
+ */
+export function useStairs(world: World, player: PlayerState, tx: number, ty: number): StairsResult | null {
+  if (player.attack > 0 || player.dodge > 0 || player.stun > 0 || player.down > 0) return null;
+  const fixture = reachableFixture(world.level(player.storey), player, tx, ty);
+  if (!fixture || (fixture.kind !== 'stairs' && fixture.kind !== 'stairwell')) return null;
+  const to = fixture.kind === 'stairs' ? player.storey + 1 : player.storey - 1;
+  const building = world.buildingAt(fixture.tx, fixture.ty);
+  if (!building || to < 0 || to >= storeyCount(building)) return null;
+  const landing = stairsLanding(fixture);
+  if (!feetFit(world.level(to), landing.x, landing.y)) return null;
+  player.storey = to;
+  player.x = landing.x;
+  player.y = landing.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.facing = 'down';
+  return fixture.kind === 'stairs' ? 'up' : 'down';
 }

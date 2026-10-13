@@ -18,6 +18,8 @@ import {
   feetFit,
   refugeAt,
   findDeal,
+  stairsLanding,
+  useStairs,
 } from '@game/engine';
 import {
   BRONZEHOLD,
@@ -145,14 +147,99 @@ describe('Ironhold', () => {
   it('has a main street with nine buildings round it: five open and four shut for good', () => {
     expect(TOWN_BUILDINGS).toHaveLength(9);
     expect(TOWN_BUILDINGS.filter((b) => b.locked)).toHaveLength(4);
-    expect(TOWN_BUILDINGS.filter((b) => b.sign).map((b) => b.sign)).toEqual(expect.arrayContaining(['The Crooked Lantern', 'Smithy', 'Apothecary']));
+    expect(TOWN_BUILDINGS.filter((b) => b.sign).map((b) => b.sign)).toEqual(expect.arrayContaining(['The Crooked Lantern', 'Town Hall', 'Smithy', 'Apothecary']));
     // The chapel shows a chalice over its door, not a word (Fede's decision, 2026-10-13).
     const chapel = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
     expect(chapel.emblem).toBe('chalice');
     expect(chapel.sign).toBeUndefined();
-    // The main street: cobblestones from the west edge of the town to the east edge.
-    for (let tx = TOWN.x0; tx <= TOWN.x1; tx++) expect(world.ground(tx, TOWN_GATE.ty)).toBe(Ground.Cobble);
+    // The main street: cobblestones from the west palisade to the east gate.
+    for (let tx = TOWN.x0 + 1; tx <= TOWN.x1; tx++) expect(world.ground(tx, TOWN_GATE.ty)).toBe(Ground.Cobble);
     for (const b of TOWN_BUILDINGS) expect(world.buildingAt(b.doorX, b.y1)).toBe(b);
+  });
+
+  it('has a palisade all round it, open only at the south gate and the east gate (2026-10-13)', () => {
+    const palisade = new Set(TOWN_STREET_FIXTURES.filter((f) => f.kind === 'palisade').map((f) => key(f.tx, f.ty)));
+    const openings: string[] = [];
+    for (let ty = TOWN.y0; ty <= TOWN.y1; ty++) {
+      for (let tx = TOWN.x0; tx <= TOWN.x1; tx++) {
+        const edge = tx === TOWN.x0 || tx === TOWN.x1 || ty === TOWN.y0 || ty === TOWN.y1;
+        if (!edge) {
+          expect(palisade.has(key(tx, ty)), `${tx},${ty}`).toBe(false);
+          continue;
+        }
+        if (palisade.has(key(tx, ty))) expect(world.solidBox(tx, ty), `${tx},${ty}`).not.toBeNull();
+        else openings.push(key(tx, ty));
+      }
+    }
+    // The south gate (three tiles over the road from the hut) and the east gate (the main street).
+    const south = [-1, 0, 1].map((d) => key(TOWN_SOUTH.tx + d, TOWN.y1));
+    const east = [-1, 0, 1].map((d) => key(TOWN.x1, TOWN_GATE.ty + d));
+    expect(openings.sort()).toEqual([...south, ...east].sort());
+    // Each tile joins the tiles of palisade next to it: a corner joins two sides, a run two opposite sides.
+    const corner = TOWN_STREET_FIXTURES.find((f) => f.kind === 'palisade' && f.tx === TOWN.x0 && f.ty === TOWN.y0)!;
+    expect(corner.look).toBe('6');
+    const run = TOWN_STREET_FIXTURES.find((f) => f.kind === 'palisade' && f.tx === TOWN.x0 + 5 && f.ty === TOWN.y0)!;
+    expect(run.look).toBe('10');
+  });
+
+  it('has its town hall in the middle of a square: two storeys, the hall and the archive, joined by stairs', () => {
+    const hall = TOWN_BUILDINGS.find((b) => b.id === 'town-hall')!;
+    expect(hall.sign).toBe('Town Hall');
+    expect(hall.storeys).toHaveLength(1);
+    // Cobblestones on every side of it.
+    for (let tx = hall.x0 - 1; tx <= hall.x1 + 1; tx++) {
+      expect(world.ground(tx, hall.y0 - 1), `${tx},${hall.y0 - 1}`).toBe(Ground.Cobble);
+      expect(world.ground(tx, hall.y1 + 1), `${tx},${hall.y1 + 1}`).toBe(Ground.Cobble);
+    }
+    for (let ty = hall.y0; ty <= hall.y1; ty++) for (const tx of [hall.x0 - 1, hall.x1 + 1]) expect(world.ground(tx, ty), `${tx},${ty}`).toBe(Ground.Cobble);
+    // The reeve, the villager and the soldier are in the hall; the stairs are there too.
+    for (const id of ['reeve', 'farmer', 'soldier']) {
+      const npc = TOWN_NPCS.find((n) => n.id === id)!;
+      expect(inRect(hall, npc.home[0], npc.home[1]), id).toBe(true);
+      expect(npc.storey ?? 0, id).toBe(0);
+    }
+    const stairs = hall.fixtures.find((f) => f.kind === 'stairs')!;
+    // A player walks from the door to the stairs, goes up, and reaches every thing of the archive.
+    const w = new World(new WildsSource(DEFAULT_SEED));
+    w.setDoorOpen(hall.doorX, hall.y1, true);
+    const landing = stairsLanding(stairs);
+    const below = reachable(w, hall.doorX, hall.y1 + 1, hall.x0, hall.y0, hall.x1, hall.y1 + 1);
+    expect(below.has(key(Math.floor(landing.x / TILE_SIZE), Math.floor(landing.y / TILE_SIZE)))).toBe(true);
+    const player = createPlayer(landing.x, landing.y);
+    player.facing = 'up';
+    expect(findInteraction(w.level(0), player, () => true)?.kind).toBe('stairs');
+    expect(useStairs(w, player, stairs.tx, stairs.ty)).toBe('up');
+    expect(player.storey).toBe(1);
+    const up = w.level(1);
+    const area = new Set<string>();
+    const queue: [number, number][] = [[Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE)]];
+    while (queue.length) {
+      const [x, y] = queue.pop()!;
+      if (area.has(key(x, y)) || up.solidBox(x, y)) continue;
+      area.add(key(x, y));
+      queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    const archive = hall.storeys![0]!.fixtures;
+    expect(archive.map((f) => f.kind)).toEqual(expect.arrayContaining(['bookshelf', 'coinchest', 'stairwell']));
+    for (const item of archive) {
+      const near = fixtureTiles(item).some(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].some(([nx, ny]) => area.has(key(nx!, ny!))));
+      expect(near, `${item.kind} at ${item.tx},${item.ty}`).toBe(true);
+      expect(inRect(hall, item.tx, item.ty)).toBe(true);
+    }
+    // Nothing of the archive is below, and the stairwell takes the player down again.
+    expect(w.level(0).fixtureAt(archive[0]!.tx, archive[0]!.ty)?.kind).not.toBe(archive[0]!.kind);
+    expect(useStairs(w, player, stairs.tx, stairs.ty)).toBe('down');
+    expect(player.storey).toBe(0);
+  });
+
+  it('is of wood: timber frames and planks, but for the stone storey of the town hall and the chapel', () => {
+    for (const b of TOWN_BUILDINGS) {
+      const walls = [b.style?.walls, ...(b.storeys ?? []).map((st) => st.walls ?? b.style?.walls)];
+      const wooden = walls.filter((w) => w === 'timber' || w === 'planks').length;
+      if (b.id === 'chapel') expect(walls).toEqual(['gothic']);
+      else if (b.id === 'town-hall') expect(walls).toEqual(['stone', 'timber']);
+      else expect(wooden, b.id).toBe(walls.length);
+    }
   });
 
   it('has lamps, a fountain and a notice board in its streets', () => {
@@ -328,7 +415,8 @@ describe.each(TOWNS)('the town of $town.name', ({ town, gate, people, sign, look
     expect(kinds.filter((k) => k === 'lamppost').length).toBeGreaterThan(10);
     expect(kinds).toContain('noticeboard');
     const area = reachable(world, gate.tx, gate.ty, Math.min(town.x0, gate.tx), town.y0, Math.max(town.x1, gate.tx), town.y1);
-    for (const f of town.streetFixtures) {
+    // A palisade is round the town, not a thing to reach.
+    for (const f of town.streetFixtures.filter((f) => f.kind !== 'palisade')) {
       const near = fixtureTiles(f).some(([x, y]) => [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]].some(([nx, ny]) => area.has(key(nx!, ny!))));
       expect(near, `${f.kind} at ${f.tx},${f.ty}`).toBe(true);
       expect(world.fixtureAt(f.tx, f.ty)).toBe(f);

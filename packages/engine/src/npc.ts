@@ -44,6 +44,17 @@ export interface NpcDef {
    * stands until the raid ends. Without it, its home.
    */
   readonly shelter?: readonly [number, number];
+  /**
+   * The storey of a building where it lives (Building.storeys): its area is on that storey, and only
+   * the players on that storey see it, stop it and talk to it. Default: the ground (0). It does not
+   * use stairs.
+   */
+  readonly storey?: number;
+}
+
+/** The storey of an NPC (NpcDef.storey). */
+export function npcStorey(def: NpcDef): number {
+  return def.storey ?? 0;
 }
 
 /** Where an NPC is and how it moves: the same shape as a player's pose. */
@@ -63,9 +74,14 @@ export const NPC_HOLD_RADIUS = 22;
 export const NPC_HALF_WIDTH = 4;
 export const NPC_HALF_HEIGHT = 3;
 
-/** The NPCs as actors for findInteraction(): where each one is now, with its fixture. */
-export function npcActors(defs: readonly NpcDef[], poses: readonly { readonly x: number; readonly y: number }[]): Actor[] {
-  return poses.map((pose, i) => ({ x: pose.x, y: pose.y, halfWidth: NPC_HALF_WIDTH, halfHeight: NPC_HALF_HEIGHT, fixture: npcFixture(defs[i]!) }));
+/** The NPCs as actors for findInteraction(): where each one is now, with its fixture. With a storey, only the NPCs on it. */
+export function npcActors(defs: readonly NpcDef[], poses: readonly { readonly x: number; readonly y: number }[], storey?: number): Actor[] {
+  const out: Actor[] = [];
+  poses.forEach((pose, i) => {
+    const def = defs[i]!;
+    if (storey === undefined || npcStorey(def) === storey) out.push({ x: pose.x, y: pose.y, halfWidth: NPC_HALF_WIDTH, halfHeight: NPC_HALF_HEIGHT, fixture: npcFixture(def) });
+  });
+  return out;
 }
 
 /** Where an NPC stands on a tile: the middle, a little south of the centre, like the player. */
@@ -178,7 +194,8 @@ export class NpcCrowd {
       if (!area.has(key(def.home[0], def.home[1]))) throw new Error(`npc ${def.id}: home is not in its area`);
       const locked = def.area.find(([tx, ty]) => world.isDoorLocked(tx, ty));
       if (locked) throw new Error(`npc ${def.id}: its area has the locked door at ${locked[0]},${locked[1]}`);
-      const stops = def.area.filter(([tx, ty]) => world.structure(tx, ty) !== Structure.Door);
+      const level = world.level(npcStorey(def));
+      const stops = def.area.filter(([tx, ty]) => level.structure(tx, ty) !== Structure.Door);
       return {
         area,
         inside: stops.filter(([tx, ty]) => world.buildingAt(tx, ty) !== null),
@@ -220,21 +237,28 @@ export class NpcCrowd {
     this.alarmed = next;
   }
 
-  /** Moves every NPC by `dtMs` milliseconds. `players` are the feet of the players near or far. */
-  step(dtMs: number, players: readonly { readonly x: number; readonly y: number }[]): NpcEvents {
+  /**
+   * Moves every NPC by `dtMs` milliseconds. `players` are the feet of the players near or far, and
+   * their storeys (none: the ground).
+   */
+  step(dtMs: number, players: readonly { readonly x: number; readonly y: number; readonly storey?: number }[]): NpcEvents {
     const dt = Math.min(dtMs, 250);
     this.clock += dt;
     let doors = false;
     const barks: [number, number][] = [];
+    // A door is on the ground storey: only the players there stand in a doorway.
+    const ground = players.filter((p) => (p.storey ?? 0) === 0);
     this.brains.forEach((brain, i) => {
       const pose = this.poses[i]! as NpcPose;
-      if (brain.opened && this.closeBehind(brain, pose, players, dt)) doors = true;
+      if (brain.opened && this.closeBehind(brain, pose, ground, dt)) doors = true;
       const alarmed = this.alarmed.has(i);
       const line = alarmed ? null : this.bark(brain, this.defs[i]!, dt);
-      // A player close by: stop, and face the nearest one.
+      const storey = npcStorey(this.defs[i]!);
+      // A player close by, on its storey: stop, and face the nearest one.
       let nearest: { x: number; y: number } | null = null;
       let best = NPC_HOLD_RADIUS;
       for (const p of players) {
+        if ((p.storey ?? 0) !== storey) continue;
         const d = Math.hypot(p.x - pose.x, p.y - pose.y);
         if (d < best) {
           best = d;
@@ -242,7 +266,7 @@ export class NpcCrowd {
         }
       }
       // Never in a doorway, though: there it would keep the door from closing. It stops just after.
-      const inDoorway = this.world.structure(Math.floor(pose.x / TILE_SIZE), Math.floor(pose.y / TILE_SIZE)) === Structure.Door;
+      const inDoorway = this.world.level(storey).structure(Math.floor(pose.x / TILE_SIZE), Math.floor(pose.y / TILE_SIZE)) === Structure.Door;
       if (nearest && !inDoorway && !(alarmed && brain.path.length > 0)) {
         pose.vx = 0;
         pose.vy = 0;

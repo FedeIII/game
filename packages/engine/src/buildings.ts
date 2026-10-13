@@ -1,10 +1,12 @@
 import { fixtureTiles, type Fixture } from './fixtures.ts';
 import type { Gate } from './traits.ts';
+import type { Ground } from './world.ts';
 
 /**
  * The building model: a rectangle of walls with one door in the south wall, a floor inside, and
  * fixtures. Worlds make buildings (by generator or by hand); the engine collides with them,
- * draws them, and fades the roof while the player is inside.
+ * draws them, and fades the roof while the player is inside. A building can have storeys above
+ * its ground storey (Building.storeys), joined by stairs.
  */
 
 /** What is on a tile of the structure layer. Codes from FIXTURE_CODE_BASE up are fixture tiles. */
@@ -36,6 +38,24 @@ export const DEFAULT_STYLE: BuildingStyle = { walls: 'stone', roof: 'slate' };
 export interface RoofProp {
   readonly name: string;
   readonly tx: number;
+}
+
+/**
+ * A storey above the ground storey of a building (Building.storeys; 2026-10-13, Fede's request for
+ * the town hall of Ironhold). It has the rectangle of its building: walls all round, without a door,
+ * and its own things, windows, walls and floor. Stairs join it to the storey under it: a fixture
+ * `stairs` on the storey under it, and a fixture `stairwell` on the same tiles on this storey
+ * (interact.ts, useStairs). A storey without stairs to it is only a look: nobody goes up.
+ */
+export interface Storey {
+  /** The things on this storey: the stairwell, furniture. Their tiles are inside the walls. */
+  readonly fixtures: readonly Fixture[];
+  /** Columns (tx) of the south wall that have a lit window on this storey. Never a corner. */
+  readonly windows?: readonly number[];
+  /** The look of the walls of this storey (the art's wall set); default: the walls of the building's style. */
+  readonly walls?: string;
+  /** The floor of this storey. Default: Ground.Floor (wood). */
+  readonly floor?: Ground;
 }
 
 export interface Building {
@@ -73,6 +93,46 @@ export interface Building {
    * bars it again (loot.ts). NpcCrowd does not check it: do not give an NPC an area through it.
    */
   readonly barred?: Gate;
+  /**
+   * The storeys above the ground storey, from the bottom up: storeys[0] is storey 1. Outside, the
+   * walls are one storey high (32 pixels) for each storey, and the roof sits on the top one.
+   */
+  readonly storeys?: readonly Storey[];
+}
+
+/** How many storeys a building has: the ground storey and the storeys above it. */
+export function storeyCount(building: Building): number {
+  return 1 + (building.storeys?.length ?? 0);
+}
+
+/** A storey above the ground storey (1 and up), or null if the building has no such storey. */
+export function upperStorey(building: Building, storey: number): Storey | null {
+  return storey >= 1 ? (building.storeys?.[storey - 1] ?? null) : null;
+}
+
+/** The things on a storey of a building: the building's own on the ground storey (0). */
+export function storeyFixtures(building: Building, storey: number): readonly Fixture[] {
+  return storey === 0 ? building.fixtures : (upperStorey(building, storey)?.fixtures ?? []);
+}
+
+/** The columns of the south wall with a lit window on a storey of a building. */
+export function storeyWindows(building: Building, storey: number): readonly number[] {
+  return (storey === 0 ? building.windows : upperStorey(building, storey)?.windows) ?? [];
+}
+
+/**
+ * The structure code that a storey above the ground storey (1 and up) of the building puts on a tile
+ * of its rectangle: a wall all round (no door), a window, a tile of a thing, or the floor.
+ */
+export function structureOnStorey(building: Building, storey: number, tx: number, ty: number): number {
+  if (storey === 0) return structureIn(building, tx, ty);
+  const { x0, y0, x1, y1 } = building;
+  if (ty === y1 && tx !== x0 && tx !== x1 && storeyWindows(building, storey).includes(tx)) return Structure.Window;
+  if (tx === x0 || tx === x1 || ty === y0 || ty === y1) return Structure.Wall;
+  for (const fixture of storeyFixtures(building, storey)) {
+    for (const [x, y, code] of fixtureTiles(fixture)) if (x === tx && y === ty) return code;
+  }
+  return Structure.Floor;
 }
 
 export function inRect(building: Building, tx: number, ty: number): boolean {
