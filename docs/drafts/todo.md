@@ -6,16 +6,6 @@
 
 ## Open
 
-- **New places for the action buttons on a phone** (2026-10-13). Fede wants the attack button at the
-  bottom right, the action button (interact) on top of it, and the dodge button (roll) to its left.
-  Now the action button is at the bottom right, the attack button left of it and the dodge button left
-  of that, all three in one row.
-  Code: the positions in `packages/engine-client/src/style.css` (`#action`, `#attack`, `#dodge`:
-  `right` and `bottom` from `--ui-margin`); the buttons in `ui/action-button.ts`, `ui/attack-button.ts`,
-  `ui/dodge-button.ts`. The link card (bottom centre, above the buttons) can need a new place. Update
-  the GUI section of `CLAUDE.md` ("Bottom right: the action button, left of it the attack button...").
-  Ask Fede: is the new layout for touch screens only (`@media (pointer: coarse)`), or for every screen?
-
 - **Remake the main menu** (2026-10-13). An impressive title of the game, World of Kandrax, at the top
   of the screen, and the buttons of the menu at the bottom, with no box round them. Now the menu is
   one panel in the middle of the screen (`main.menu-panel`: a border and a dark background) over the
@@ -126,3 +116,7 @@
 - **The signpost in the story documents** (2026-10-13). `docs/story/world.md` and AC-LANG-005.1 now
   give the text of the signpost as the code gives it: "WHITEGROVE, BRONZEHOLD, IRONHOLD", and the line
   under it. Done 2026-10-13, commit `97cb9b9`.
+- **New places for the action buttons on a phone** (2026-10-13). On every screen (Fede's choice), the
+  attack button is in the bottom-right corner, the action button on top of it and the dodge button left
+  of it; on a screen narrower than 528 px the link card goes above them. Done 2026-10-13, commit
+  `d0b85aa`.
