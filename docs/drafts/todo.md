@@ -124,6 +124,18 @@
   section (`ui/sound-section.ts`, now only in the game's settings panel). Ask Fede: which music (the
   theme of Kandrax or a new piece)? Does the game menu of Escape (`ui/game-menu.ts`) get them too?
 
+- **The standard of Bronzehold shows the phoenix of the Seekers** (2026-10-13, a bug). The standard in
+  the street of Bronzehold (the thing `S`, `BRONZEHOLD_THINGS` in `worlds/wilds/src/hamlets.ts`) says
+  "The standard of the Iron Sovereignty: an anvil on wine red.", but it uses the one frame of the kind
+  `standard` (`standard()` in `packages/engine-client/art/fixtures.ts`): the grey cloth with the red
+  phoenix of the Ashen Seekers (their camp, story phase 8). The fix: a look for the Sovereignty, now that
+  `Fixture.look` gives the style of a thing (`fixture/standard/iron`: an anvil on wine red), and
+  `look: 'iron'` on the standard of Bronzehold.
+- **The signpost in the story documents** (2026-10-13). `docs/story/world.md` (the table of the
+  northern edge of the Sovereignty) says that the signpost by the hut reads "IRONHOLD". The code
+  (`signpost()` in `worlds/wilds/src/road.ts`) says "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow
+  points west, along the road." Correct the story document.
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
