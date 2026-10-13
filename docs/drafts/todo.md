@@ -6,11 +6,6 @@
 
 ## Open
 
-- **Wider speech bubbles for long lines** (2026-10-13). The text over the player and the NPCs (the
-  speech bubble) wraps at a fixed width, so a long line makes a tall, narrow bubble. Let the bubble grow
-  wider when the text is longer than usual. Code: `packages/engine-client/src/render/speech-bubble.ts`
-  (`MAX_TEXT_WIDTH` 104 world pixels; `font.wrap()`), which the bubbles of NPC lines, conversations
-  and the player share; keep it inside the screen ("Speech bubbles stay inside the screen", CLAUDE.md).
 - **Name signs at Whitegrove and Bronzehold** (2026-10-13). A sign with the name of the hamlet right
   outside each one, by the road (Whitegrove: by the south end of its lane, `WHITEGROVE_SOUTH`;
   Bronzehold: `BRONZEHOLD_SOUTH`; `worlds/wilds/src/hamlets.ts`), in the style of the Iron Sovereignty.
@@ -116,3 +111,8 @@
   again (`KANDRAX_OPENING`), a quiet part of the theme, or a new piece?
 
 ## Done
+
+- **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
+  a long one makes a wider bubble (its width grows with the square root of its length, at most 208
+  pixels or the width of the screen), with lines of about the same length (`wrapBubble()` in
+  `text-layout.ts`). Done 2026-10-13, commit `f0fcb77`.
