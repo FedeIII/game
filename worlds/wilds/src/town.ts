@@ -18,7 +18,8 @@ import { DREAM_BED } from './dream.ts';
  * (timber frames, planks), more solid than a village of its size has; the town hall stands on a
  * storey of stone. Five buildings open (the inn, the town hall, the chapel, the apothecary and the
  * smithy) and four are shut for good. In front of each door the ground stays clear: no lamp, prop or
- * tree in the 5 x 3 tiles below it (a test checks it).
+ * tree in the 5 x 3 tiles below it. And no lamp, prop or tree closes a way: not the end of an alley, not
+ * a strip of garden by a wall (tests check both).
  *
  * The plan of the town, one character per tile, north at the top (towns.ts); its north-west tile is
  * (TOWN.x0, TOWN.y0). At the east end of the main street is the east gate (TOWN_GATE), where a road goes
@@ -35,12 +36,12 @@ const MAP = [
   'P.1111111111T=FFF=22222222222=====.3333333..P',
   'PT1111111111.=FFF=22222222222=NN==.3333333.TP',
   'P.1111111111.=FFF=22222222222=====.3333333..P',
-  'P.1111111111.=====22222222222=====.3333333..P',
   'P.1111111111.=====22222222222=====T3333333..P',
+  'P.1111111111.=====22222222222=====.3333333..P',
   'P.1111111111.L=================b=L.3333333..P',
-  'PL==========L====L===========L====L=======L==',
+  'P=L=========L====L===========L====L=======L==',
   'P============================================',
-  'Px=L=======L====L======L=======L==========L==',
+  'Px=L=======L====L=====L========L==========L==',
   'P4444444========6666666=777777=8888888======P',
   'P4444444=555555=6666666=777777=8888888=99999P',
   'P4444444=555555=6666666=777777=8888888=99999P',

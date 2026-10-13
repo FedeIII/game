@@ -20,6 +20,8 @@ import {
   findDeal,
   stairsLanding,
   useStairs,
+  stepPlayer,
+  type Fixture,
 } from '@game/engine';
 import {
   BRONZEHOLD,
@@ -70,6 +72,32 @@ function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1:
     queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
   }
   return seen;
+}
+
+/**
+ * The things of the streets (not the palisade) that close a way: the open tiles round the thing do
+ * not join one another by a short walk round it (within 2 tiles of it). For example, a lamp post at
+ * the end of an alley of one tile: a player in the alley cannot get past it (a bug of 2026-10-13).
+ */
+function blockers(town: { streetFixtures: readonly Fixture[] }): string[] {
+  const out: string[] = [];
+  for (const f of town.streetFixtures.filter((f) => f.kind !== 'palisade')) {
+    const tiles = fixtureTiles(f);
+    const xs = tiles.map(([x]) => x);
+    const ys = tiles.map(([, y]) => y);
+    const [x0, x1, y0, y1] = [Math.min(...xs) - 1, Math.max(...xs) + 1, Math.min(...ys) - 1, Math.max(...ys) + 1];
+    const ring: [number, number][] = [];
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) {
+        const edge = tx === x0 || tx === x1 || ty === y0 || ty === y1;
+        if (edge && !world.solidBox(tx, ty)) ring.push([tx, ty]);
+      }
+    }
+    if (!ring.length) continue;
+    const area = reachable(world, ring[0]![0], ring[0]![1], x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+    if (ring.some(([tx, ty]) => !area.has(key(tx, ty)))) out.push(`${f.kind} at ${f.tx},${f.ty}`);
+  }
+  return out;
 }
 
 describe('the signpost and the road', () => {
@@ -180,6 +208,23 @@ describe('Ironhold', () => {
     expect(corner.look).toBe('6');
     const run = TOWN_STREET_FIXTURES.find((f) => f.kind === 'palisade' && f.tx === TOWN.x0 + 5 && f.ty === TOWN.y0)!;
     expect(run.look).toBe('10');
+  });
+
+  it('lets a player walk through each alley between the south buildings, from the lane to the main street (a bug of 2026-10-13)', () => {
+    // An alley: a column of open ground between two buildings, from the row under the main street to the lane.
+    const [top, lane] = [TOWN.y0 + 13, TOWN.y0 + 19];
+    const alleys: number[] = [];
+    for (let tx = TOWN.x0 + 1; tx < TOWN.x1; tx++) {
+      let open = true;
+      for (let ty = top; ty < lane; ty++) if (world.structure(tx, ty) !== Structure.None || world.solidBox(tx, ty)) open = false;
+      if (open) alleys.push(tx);
+    }
+    expect(alleys).toHaveLength(5);
+    for (const tx of alleys) {
+      const player = createPlayer(tx * TILE_SIZE + 8, lane * TILE_SIZE + 8);
+      for (let i = 0; i < 600 && player.y > TOWN_GATE.ty * TILE_SIZE + 8; i++) stepPlayer(player, { x: 0, y: -1 }, world);
+      expect(Math.floor(player.y / TILE_SIZE), `the alley at ${tx}`).toBe(TOWN_GATE.ty);
+    }
   });
 
   it('has its town hall in the middle of a square: two storeys, the hall and the archive, joined by stairs', () => {
@@ -424,6 +469,10 @@ describe.each(TOWNS)('the town of $town.name', ({ town, gate, people, sign, look
     for (const b of town.buildings) expect(area.has(key(b.doorX, b.y1 + 1)), b.id).toBe(true);
   });
 
+  it('has no lamp or other thing in its streets that closes a way, such as an alley', () => {
+    expect(blockers(town)).toEqual([]);
+  });
+
   it('has people in its streets and in its buildings, each with something to say', () => {
     const inside = people.filter((n) => world.buildingAt(n.home[0], n.home[1]));
     expect(inside.length).toBeGreaterThanOrEqual(3);
@@ -652,6 +701,10 @@ describe.each(HAMLETS)('the hamlet of $town.name', ({ town, entry }) => {
         expect(near, `${item.kind} at ${item.tx},${item.ty} in ${b.id}`).toBe(true);
       }
     }
+  });
+
+  it('has no thing in its lane that closes a way', () => {
+    expect(blockers(town)).toEqual([]);
   });
 
   it('is safe: no mob lives near it or comes into it', () => {

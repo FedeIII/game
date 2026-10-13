@@ -43,6 +43,10 @@ is a plan and not new code.
 - **AC-TWN-001.8:** A shrine or a chapel shows a chalice over its door, painted in pale gold on a
   wooden sign board, and no word (Fede's decision, 2026-10-13): the shrine of Whitegrove and the
   chapel of Ironhold. The other signs over doors show the name of the building.
+- **AC-TWN-001.9:** No lamp, prop or tree of the streets closes a way: the open tiles round each thing
+  join one another by a short walk round it (within 2 tiles of it). Thus a thing never stands at the
+  end of an alley of one tile, and never closes a strip of open ground by a wall (a bug of
+  2026-10-13: a lamp post closed an alley of Ironhold).
 
 ---
 
@@ -143,7 +147,8 @@ villages, so that the first journey of the game teaches me the world and its peo
   pale iron on wine red, as on the shield of its name sign; not the phoenix of the Ashen Seekers), a
   cold forge and two shut houses.
 - **AC-TWN-006.4:** Both hamlets are safe as towns (no mob lives near them or steps into them), are
-  on the map with their names (Spanish: Arboleda Blanca, Bronzal), and follow AC-TWN-001.1 to 001.7.
+  on the map with their names (Spanish: Arboleda Blanca, Bronzal), and follow AC-TWN-001.1 to 001.7
+  and AC-TWN-001.9.
 - **AC-TWN-006.5:** The east gate of Ironhold stays open: a short road joins it to the north road.
 - **AC-TWN-006.6:** Each hamlet has a name sign right outside the south end of its lane, one tile west
   of the road: two posts, and between them a plate of iron in a wine-red frame with the name of the
@@ -215,6 +220,8 @@ town hall in the middle of a small square), so that the game matches the world.
   house, with alleys between them; they face the lane by the south palisade.
 - **AC-TWN-008.6:** The child in the lane says "Are you here for the reeve? She is in the town hall, on
   the square." when a character on the first quest comes in.
+- **AC-TWN-008.7:** A player walks through each of the five alleys between the buildings south of the
+  main street, from the lane to the main street, without a stop.
 
 ---
 
@@ -280,8 +287,9 @@ dominion or in the wildlands that nobody rules (Fede's request, 2026-10-13).
   (`art/buildings.ts`).
 - **The texts in Spanish** (`worlds/wilds/src/text-es.ts`): the Militia is "Milicia", the Silver Trout
   "La Trucha de Plata", the Jeweller "Joyería". Silverspring keeps its name.
-- **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, the
-  people, the safety, the title and the name sign; Silverspring: the gate, the buildings, the stream,
+- **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, no thing
+  that closes a way (`blockers()`), the people, the safety, the title and the name sign; Ironhold: a
+  walk through each alley; Silverspring: the gate, the buildings, the stream,
   Kasmut, the map; the hamlets: the same, their name signs, and no title);
   `packages/engine-client/src/render/place-titles.test.ts` (when a title shows).
 - **The camp of the war band** (`camp.ts`) is a place of the builder too, but not a town: mobs go

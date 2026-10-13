@@ -1166,8 +1166,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   bed by its east wall for a character with a room (Charisma).
   Ironhold has a title on arrival (`title: true`) and a name sign of the Sovereignty (`TOWN_NAME_SIGN`:
   west of the road from the hut, two rows south of the town, so that its plate does not hang over
-  the gate). Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
-  water; nothing grows on it or close to it. **The signpost** stands outside the hut, two tiles below
+  the gate). Nothing stands in the 5 x 3 tiles in front of a door, and no thing of the streets closes
+  a way (an alley: `blockers()` in the tests). **The road** (see above): mud, also over water; nothing
+  grows on it or close to it. **The signpost** stands outside the hut, two tiles below
   the door on the west side of its path, and points west, where the road leaves: "It reads:
   WHITEGROVE, BRONZEHOLD, IRONHOLD." Tests (`town.test.ts`): the sign and the road for five seeds, the
   hamlets, the walls and doors, the shut doors, every thing and door reachable,
