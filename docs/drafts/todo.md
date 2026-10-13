@@ -6,13 +6,6 @@
 
 ## Open
 
-- **The tail of a bubble at the edge of the screen** (2026-10-13, a bug). A speech bubble stays inside
-  the screen: near an edge it moves to the side, but its tail stays in the middle of its bottom, so the
-  tail does not point at the head of the speaker. A wide bubble (the line of a long text) moves more,
-  so this shows more often. The fix: put the tail under the anchor, within the bubble's bottom edge.
-  Code: `SpeechBubble.update()` (where it keeps the bubble inside `view`) and `draw()` (the tail's
-  position) in `packages/engine-client/src/render/speech-bubble.ts`.
-
 - **Music and sound effects in the main menu** (2026-10-13). The main menu (the menu before the game)
   gets music and sound effects. Now it has none: the menu code does not use `audio`; only the sound
   context starts there, on the first click, touch or key (`audio.listen()` in `run()`, `game.ts`).
@@ -126,3 +119,7 @@
   quiet coda of the theme of Kandrax (`KANDRAX_CODA`, `PrologueCard.calm`): a clarinet sings melody A over
   a harp and soft low strings, then a round without it, in place of the rise. Done 2026-10-13, commit
   `be7f5a8`.
+
+- **The tail of a bubble at the edge of the screen** (2026-10-13, a bug). When a speech bubble moves to
+  the side to stay inside the screen, its tail moves back by as much along the bottom edge, so it points
+  at the speaker (`placeBubble()` in `speech-bubble.ts`). Done 2026-10-13, commit `d2fb9b0`.
