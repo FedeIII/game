@@ -124,4 +124,6 @@
   rare bandits that ambush in groups of 1 to 3 in place of the goblin patrols, and each area gives its
   mobs by day and at night (`MobArea`); at night the people without a post go home; the music has night
   forms, the ambience a day and a night, with stingers at dawn and dusk; the lamps and the lit windows
-  are unlit by day. Done 2026-10-13, commits `b5cdd0a` to `17c2775`.
+  are unlit by day. Fede's answers after it: the wildlands have fewer imps and brutes by day, a new
+  character on the road meets one goblin patrol by day (`FIRST_GOBLINS`), and a lamp says another line
+  by day. Done 2026-10-13, commits `b5cdd0a` to `17c2775`, and `0c6d498`.
