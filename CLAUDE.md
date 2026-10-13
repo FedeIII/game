@@ -306,7 +306,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   Iron Sovereignty: two posts of dark oak with iron caps) and `fixture/namesign/mithril` (the Mithril
   Enclave: two pillars of pale stone, `M.paleStone`, with small gold domes); the page hangs the plate
   with the name between them, see `font.ts`. A new dominion's style is a new look, with its plate and
-  its shield. The stairs between two storeys (`fixture/stairs`: eight steps over 2 x 2 tiles that rise
+  its shield. The standard (`fixture/standard`: the grey cloth with the red phoenix of the Ashen
+  Seekers) has the look `iron` too (`fixture/standard/iron`: the anvil of pale iron of the shield of
+  the Sovereignty on wine red, with a swallowtail; the standard of Bronzehold). The stairs between two storeys (`fixture/stairs`: eight steps over 2 x 2 tiles that rise
   one storey) and the stairwell above them (`fixture/stairwell`: the opening with a railing). The
   palisade of a town (`fixture/palisade/<0-15>`: two rows of sharpened logs; the look is the sides that
   join a neighbour, `PALISADE_SIDES` in the engine: 1 north, 2 east, 4 south, 8 west; a run north to

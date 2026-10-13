@@ -138,8 +138,9 @@ villages, so that the first journey of the game teaches me the world and its peo
   two shut houses.
 - **AC-TWN-006.3:** Bronzehold (Bronzal): the guard post of the Sovereignty with its sergeant (a
   conversation; with insight, WIS 13, he tells where the Sovereignty pushes: towards Silverspring), a
-  guard on the lane (how the goblins of the woods fight), the standard of the Sovereignty, a cold
-  forge and two shut houses.
+  guard on the lane (how the goblins of the woods fight), the standard of the Sovereignty (an anvil of
+  pale iron on wine red, as on the shield of its name sign; not the phoenix of the Ashen Seekers), a
+  cold forge and two shut houses.
 - **AC-TWN-006.4:** Both hamlets are safe as towns (no mob lives near them or steps into them), are
   on the map with their names (Spanish: Arboleda Blanca, Bronzal), and follow AC-TWN-001.1 to 001.7.
 - **AC-TWN-006.5:** The east gate of Ironhold stays open: a short road joins it to the north road.

@@ -221,7 +221,7 @@ const BRONZEHOLD_THINGS: Readonly<Record<string, Fixture>> = {
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },
   x: { kind: 'crate', tx: 0, ty: 0, content: { pages: ['Arrows in bundles of twenty, for the guard post.'] } },
   b: { kind: 'barrel', tx: 0, ty: 0 },
-  S: { kind: 'standard', tx: 0, ty: 0, content: { pages: ['The standard of the Iron Sovereignty: an anvil on wine red.'] } },
+  S: { kind: 'standard', look: 'iron', tx: 0, ty: 0, content: { pages: ['The standard of the Iron Sovereignty: an anvil on wine red.'] } },
 };
 
 /** Bronzehold, built from its plan. */

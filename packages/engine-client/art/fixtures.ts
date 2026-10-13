@@ -612,11 +612,24 @@ function brand(): Part[] {
   ];
 }
 
+/** A standard: a pole of dark wood with an iron point and a crossbar, and the cloth that hangs from it. */
+function standard(cloth: Part): Part[] {
+  return [
+    { sdf: cylinder([8, 18, -7], 'y', 0.8, 36), material: M.woodDark },
+    { sdf: roundCone([8, 36, -7], [8, 37.6, -7], 0.8, 0.2), material: M.iron },
+    { sdf: roundCone([3, 34, -6.2], [13, 34, -6.2], 0.45, 0.45), material: M.woodDark },
+    cloth,
+  ];
+}
+
+/** The cloth of a standard, in front of the pole. */
+const STANDARD_CLOTH = box([3.4, 17, -6.4], [12.6, 33.6, -5.8], 0.15);
+
 /**
- * The standard of the Ashen Seekers (story phase 8): a pole of dark wood with a crossbar, and a cloth
- * of pale grey with a phoenix in dark red that rises from ashes.
+ * The standard of the Ashen Seekers (story phase 8, `fixture/standard`): a cloth of pale grey with a
+ * phoenix in dark red that rises from ashes.
  */
-function standard(): Part[] {
+function seekersStandard(): Part[] {
   const phoenix = (x: number, y: number): boolean => {
     const dx = Math.abs(x - 8);
     if (dx < 0.7 && y > 21 && y < 30) return true;
@@ -624,12 +637,28 @@ function standard(): Part[] {
     if (Math.hypot(x - 8, y - 31) < 0.9) return true;
     return y > 19.5 && y < 22 && Math.abs(dx - (22 - y) * 1.1) < 0.6;
   };
-  return [
-    { sdf: cylinder([8, 18, -7], 'y', 0.8, 36), material: M.woodDark },
-    { sdf: roundCone([8, 36, -7], [8, 37.6, -7], 0.8, 0.2), material: M.iron },
-    { sdf: roundCone([3, 34, -6.2], [13, 34, -6.2], 0.45, 0.45), material: M.woodDark },
-    { sdf: box([3.4, 17, -6.4], [12.6, 33.6, -5.8], 0.15), material: (x, y, z) => (z > -6 && phoenix(x, y) ? M.wine : y < 18.5 && noise3(x, y, z, 7) > 0.5 ? M.rubble : M.canvasBone) },
+  return standard({ sdf: STANDARD_CLOTH, material: (x, y, z) => (z > -6 && phoenix(x, y) ? M.wine : y < 18.5 && noise3(x, y, z, 7) > 0.5 ? M.rubble : M.canvasBone) });
+}
+
+/**
+ * The standard of the Iron Sovereignty (Bronzehold, `fixture/standard/iron`): a cloth of wine red with
+ * a swallowtail, and on it the anvil of pale iron of the shield of the Sovereignty (ui/crest/iron),
+ * the horn to the west.
+ */
+function ironStandard(): Part[] {
+  // Rows of about one pixel, from the face down to the foot: [bottom, top, west, east].
+  const rows: readonly (readonly [number, number, number, number])[] = [
+    [29.3, 30.4, 3.8, 11.8], // the face, with the point of the horn
+    [28.2, 29.3, 5.8, 11.8], // the underside of the horn
+    [27.1, 28.2, 6.8, 10.8],
+    [24.9, 27.1, 7.8, 9.8], // the waist
+    [23.8, 24.9, 6.8, 10.8],
+    [22.7, 23.8, 5.8, 11.8], // the foot
   ];
+  const anvil = (x: number, y: number): boolean => rows.some(([y0, y1, x0, x1]) => y > y0 && y <= y1 && x > x0 && x <= x1);
+  // The swallowtail: a notch up into the middle of the bottom edge.
+  const notch: Sdf = (x, y) => (y - 20.5 + 1.2 * Math.abs(x - 8)) / Math.hypot(1, 1.2);
+  return standard({ sdf: subtract(STANDARD_CLOTH, notch), material: (x, y, z) => (z > -6 && anvil(x, y) ? M.metal : M.wine) });
 }
 
 /** A standing stone of the shrine of Tigris (story phase 9): tall, grey, with waves carved round it. */
@@ -808,7 +837,8 @@ export function fixtureFrames(): Frame[] {
     stakeBound('defector', 'fixture/stake-bound-sela'),
     fixture('campfire', campfire(), 24, 32),
     fixture('brand', brand(), 24, 32),
-    fixture('standard', standard(), 24, 56),
+    fixture('standard', seekersStandard(), 24, 56),
+    { ...fixture('standard', ironStandard(), 24, 56), name: 'fixture/standard/iron' },
     fixture('menhir', menhir(), 24, 48),
     fixture('altar', altar(), 40, 32),
     { ...fixture('namesign', namesignIron(), 56, 48), name: 'fixture/namesign/iron' },
