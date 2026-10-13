@@ -1098,8 +1098,18 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   every page shows the same hour with no message from the server. `skyAt()` gives the `Sky`: the
   darkness (1 at night) and `lights` (1 at night, 0 by day): night from 21 to 5, dawn 5 to 7, day 7
   to 19, dusk 19 to 21 (`DAY_HOURS`). `Lighting.update(..., sky)` scales the darkness by it, and the
-  holes and glows of all lights fade out by day. Only the light changes now: mobs, NPCs and the
-  music do not follow the hour. The debug panel's `sky` line gives the hour; `?hour=<0-24>` stops it.
+  holes and glows of all lights fade out by day. The debug panel's `sky` line gives the hour;
+  `?hour=<0-24>` stops it (for the page: the light, the sound, and the mobs and NPCs of a world that the
+  page runs).
+  **Things that follow the hour** (2026-10-13, Fede's choices; REQ-DAY-004): for them it is day from 6:00
+  to 20:00 (`isDaytime(sky)`). The server takes the hour from its clock (`RoomOptions.day` and `clock`;
+  `GAME_HOUR` fixes it for a test server, not in production); no message carries it. The Room sets
+  `Horde.daytime` and `NpcCrowd.night` at each tick, the page from `skyNow()` in a world that it runs.
+  The mobs: an area's mobs by day and at night (see "Mobs and fights": goblins at night and bandits by
+  day in the forest). The NPCs: the people without a post go home at night (`NpcDef.night`; see "Walking
+  NPCs"). The sound: the ambience by day and at night, a night form of each place's music, and the
+  stingers `dawn` and `dusk` (see `audio/`). The lamps and the lit windows: unlit frames by day, the lit
+  frame over them with the alpha of `sky.lights` (`render/unlit.ts`).
 
 ## Buildings
 
