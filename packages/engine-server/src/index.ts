@@ -9,6 +9,7 @@ import {
   SNAPSHOT_RATE,
   World,
   characterSkin,
+  clockAtHour,
   sheetTraits,
   exploredList,
   parseClientMessage,
@@ -51,6 +52,8 @@ export interface ServerOptions {
   /** Accounts, sessions and characters (accounts.ts). Without it: no /api/ and no /auth/. */
   readonly accounts?: AccountsOptions;
   readonly log?: (line: string) => void;
+  /** A fixed hour of the day (0 to 24) for the worlds with a day, in place of the real clock: for tests. */
+  readonly hour?: number;
 }
 
 export interface GameServer {
@@ -113,7 +116,11 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
   const sockets = new Map<Room, Map<number, WebSocket>>();
   for (const definition of options.worlds) {
     if (!definition.multiplayer) continue;
-    const room = new Room(new World(definition.createSource(null)), { maxPlayers: options.maxPlayers ?? 50, random: Math.random });
+    // The mobs and the NPCs follow the hour of the world's day (the real clock, as the pages).
+    const day = definition.day;
+    const fixed = options.hour;
+    const clock = day && fixed !== undefined ? () => clockAtHour(fixed, day) : Date.now;
+    const room = new Room(new World(definition.createSource(null)), { maxPlayers: options.maxPlayers ?? 50, random: Math.random, day, clock });
     rooms.set(definition.id, room);
     sockets.set(room, new Map());
   }

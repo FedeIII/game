@@ -10,6 +10,7 @@ import { DEAL_RANGE, findDeal, findEffectAnswer, makeDeal, type Dialog } from '.
 import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
+import { NIGHT_SKY, isDaytime, skyAtClock, type DayCycle, type Sky } from '../daytime.ts';
 import { Ambushes } from '../ambushes.ts';
 import { Escorts } from '../escorts.ts';
 import { Convoys } from '../convoys.ts';
@@ -88,6 +89,12 @@ export interface RoomOptions {
   readonly random?: () => number;
   /** Where the dice of the fights and the draughts come from (dice.ts); without it, the horde's own random numbers. Tests: AVERAGE_DICE. */
   readonly dice?: DiceSource;
+  /**
+   * The world's day (WorldDefinition.day) and the wall clock (milliseconds since 1970, UTC): the mobs
+   * and the NPCs follow the hour (docs/features/game/day-and-night.md). Without both, it is always night.
+   */
+  readonly day?: DayCycle;
+  readonly clock?: () => number;
 }
 
 /** A rest in a bed of the player's own (Interaction.rest): all hit points and stamina back, no poison or drink. */
@@ -244,11 +251,17 @@ export class Room {
   readonly spoils: Spoils;
   /** The items on the ground. */
   readonly piles: Piles;
+  private readonly day: DayCycle | undefined;
+  private readonly clock: (() => number) | null;
+  /** The sky of the last tick (always night without a day and a clock). */
+  sky: Sky = NIGHT_SKY;
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
     this.maxPlayers = options.maxPlayers ?? 50;
     this.random = options.random ?? null;
+    this.day = options.day;
+    this.clock = options.clock ?? null;
     const defs = world.source.npcs?.() ?? [];
     this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
     const rules = world.source.mobs?.();
@@ -305,6 +318,11 @@ export class Room {
     const dt = this.lastTickMs === null ? 0 : Math.max(0, nowMs - this.lastTickMs);
     this.lastTickMs = nowMs;
     if (dt === 0) return;
+    // The hour: the mobs and the NPCs follow it.
+    this.sky = this.day && this.clock ? skyAtClock(this.clock(), this.day) : NIGHT_SKY;
+    const daytime = isDaytime(this.sky);
+    if (this.horde) this.horde.daytime = daytime;
+    if (this.npcs) this.npcs.night = !daytime;
     if (this.npcs) {
       const feet = [...this.players.values()].map((p) => p.state);
       const events = this.npcs.step(dt, feet);

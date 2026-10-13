@@ -117,6 +117,7 @@ import {
   soundAreaAt,
   type SoundArea,
   hourOf,
+  isDaytime,
   skyAt,
   type Sky,
 } from '@game/engine';
@@ -1705,6 +1706,10 @@ async function run(options: GameOptions): Promise<void> {
         director.moment('refuge');
       }
     }
+    // The mobs and the NPCs of a world that the page runs follow the hour (?hour= too); the server's follow its clock.
+    const daytime = isDaytime(skyNow());
+    if (horde) horde.daytime = daytime;
+    if (localNpcs) localNpcs.night = !daytime;
     if (localNpcs && !net?.serverNpcs) sayLines(localNpcs.step(TICK_SECONDS * 1000, [player]).barks);
     // Mobs see the player from less far with Dexterity, and less again while it sneaks.
     // Companions follow the player (before the mobs, which hunt them too).

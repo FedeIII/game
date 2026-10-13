@@ -932,6 +932,8 @@ export class Horde {
   private clockMs = 0;
   /** For each player that mobs hunt: the mob with the next turn to attack it. See nextUp(). */
   private readonly nextMob = new Map<number, number>();
+  /** Whether it is day (the Room and the page set it from the hour: daytime.ts, isDaytime). */
+  daytime = false;
 
   /** `dice`: where the dice come from; without it, random numbers of their own from `seed` (the AI's stay the same). */
   constructor(world: World, rules: MobRules, seed: number, dice?: DiceSource) {

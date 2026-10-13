@@ -23,6 +23,8 @@ import { WORLDS, shareWorlds } from '../src/worlds.ts';
  *   AUTH_DEV_LOGIN=1   a sign-in with only a name, for development (refused in production)
  *   ADMIN_EMAILS    comma-separated emails of the admins (default none): they see the display
  *                   settings. Production: in /etc/game/secret.env; development: in .env.local
+ *   GAME_HOUR       a fixed hour of the day (0 to 24) for the mobs and the NPCs, in place of the
+ *                   real clock: for tests (refused in production)
  * `npm run server` and scripts/dev.sh set the development values.
  */
 const env = process.env;
@@ -59,7 +61,11 @@ if (env.GAME_DB) {
   refuse('NODE_ENV=production needs GAME_DB (the accounts database)');
 }
 
-const server = await startServer({ worlds, port, host, origins, accounts });
+const hour = env.GAME_HOUR ? Number(env.GAME_HOUR) : undefined;
+if (hour !== undefined && !(hour >= 0 && hour <= 24)) refuse(`GAME_HOUR ${env.GAME_HOUR} is not an hour from 0 to 24`);
+if (hour !== undefined && production) refuse('GAME_HOUR is for development only');
+
+const server = await startServer({ worlds, port, host, origins, accounts, hour });
 
 let stopping = false;
 const stop = async (signal: string) => {

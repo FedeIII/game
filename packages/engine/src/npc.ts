@@ -183,6 +183,8 @@ export class NpcCrowd {
   private lastLineAt = -Infinity;
   /** The NPCs (indices) that take shelter now: a raid on their town (setAlarm). */
   private alarmed = new Set<number>();
+  /** Whether it is night (the Room and the page set it from the hour: daytime.ts). */
+  night = false;
 
   constructor(world: World, defs: readonly NpcDef[], seed: number) {
     this.world = world;

@@ -60,3 +60,22 @@ export function skyAt(hour: number, cycle: DayCycle | undefined): Sky {
   const light = daylight(hour);
   return { hour, darkness: 1 - (1 - cycle.noon) * light, lights: 1 - light };
 }
+
+/**
+ * Whether it is day for the things that follow the hour (the mobs and the NPCs): from the middle of
+ * the dawn to the middle of the dusk (6:00 to 20:00), where the lights show at half. A world without a
+ * day cycle is always at night.
+ */
+export function isDaytime(sky: Sky): boolean {
+  return sky.lights <= 0.5;
+}
+
+/** The sky of a world at `clock` (milliseconds since 1970, UTC). Without a day cycle, it is always night. */
+export function skyAtClock(clock: number, cycle: DayCycle | undefined): Sky {
+  return cycle ? skyAt(hourOf(clock, cycle), cycle) : NIGHT_SKY;
+}
+
+/** A clock (milliseconds since 1970, UTC) at `hour` of a day: a fixed hour for a test server. */
+export function clockAtHour(hour: number, cycle: DayCycle): number {
+  return ((((hour % 24) + 24) % 24) / 24) * cycle.length;
+}
