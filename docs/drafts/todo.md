@@ -6,18 +6,6 @@
 
 ## Open
 
-- **Titles and signs for settlements: the rule** (Fede, 2026-10-13). Big or important towns and
-  villages (important for the story), and ALL cities, get a title over the screen when the player
-  arrives, as the name of a world on arrival (`packages/engine-client/src/render/intro.ts`, `IntroTitle`;
-  now only `WorldDefinition.intro`, once per world). Small or unimportant towns and villages
-  (Whitegrove, Bronzehold) get no title. Every settlement gets a sign with its name, in the style of
-  its dominion (the Sovereignty, the Enclave...). Today: Whitegrove and Bronzehold have name signs
-  (the fixture `namesign`, `look: 'iron'` for the Sovereignty, the name in `label`: `HAMLET_SIGNS` in
-  `worlds/wilds/src/hamlets.ts`); Ironhold and Silverspring have no title on arrival and no name sign.
-  To build: a title on entering a town (a flag on `Town` or a place list, an area like the sound areas,
-  once per visit); a name sign for Ironhold (`iron`) and for Silverspring (a new look for the Enclave:
-  the frames `fixture/namesign/<look>`, `ui/namesign/<look>` and `ui/crest/<look>`).
-
 - **Wet lentils fail the lentils quest** (2026-10-13). If the character steps into the water round a
   lake (the shallows, `Ground.Shallows`, where a character with STR 13 wades) while it carries the sack
   of lentils, the lentils are ruined and the quest fails. The sergeant of Bronzehold then pays only a
@@ -147,3 +135,9 @@
   the south end of its lane, one tile west of the road, in the style of the Iron Sovereignty (two oak
   posts, an iron plate with the name under the anvil shield; the new fixture `namesign` with `look` and
   `label`, `HAMLET_SIGNS`). Done 2026-10-13, commit `f440fe2`.
+
+- **Titles and signs for settlements: the rule** (2026-10-13). Ironhold and Silverspring show their
+  name over the screen when a player comes in, once for each visit (`TownPlan.title`,
+  `WorldSource.placeTitles()`, `render/place-titles.ts`); the hamlets do not. Ironhold has a name sign
+  of the Sovereignty, and Silverspring one of the Mithril Enclave (silver peaks on blue, Fede's choice).
+  Done 2026-10-13, commit `fae19ca`.
