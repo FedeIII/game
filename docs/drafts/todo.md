@@ -6,20 +6,6 @@
 
 ## Open
 
-- **A title when the player changes dominion** (2026-10-13). When a player goes from one dominion into
-  another, the name of the new land shows over the screen. For example, a player that goes north out
-  of Ironhold (Ferrozar) enters the wildlands (las tierras salvajes). Now only a town with a title
-  shows a name (Ironhold, Silverspring), and nothing marks the border of a dominion.
-  Code: the titles of places, `WorldSource.placeTitles()` and `PlaceTitle` (rectangles of tiles) in
-  `packages/engine/src/world.ts`; `PlaceArrivals` in `packages/engine-client/src/render/place-titles.ts`
-  (once for each visit, never over another title), called from `game.ts`; the Wilds' `placeTitles()`
-  in `worlds/wilds/src/source.ts`. The border of the Sovereignty: `FOREST_EDGE_Y` and
-  `inTutorialForest()` in `source.ts` (the row of the north edge of Ironhold). The dominions and the
-  wildlands: `docs/story/world.md`; the rule of titles: `docs/features/game/towns.md`, REQ-TWN-007.
-  Ask Fede: where does the Mithril Enclave start on the north road (round Silverspring only, or a
-  line)? Does the title show at each crossing, in both directions (back south: "The Iron
-  Sovereignty")?
-
 - **A lamp in Ironhold blocks an alley** (2026-10-13, a bug). A lamp post stands between two buildings
   of Ironhold (Ferrozar), so the player cannot go through there to the centre of the town. Probable
   cause: the lamp `L` at column 23 of row 12 of `MAP` (tile -29, 4), on the south side of the main
@@ -125,3 +111,8 @@
   crouches, with eight frames of a sneak walk in every skin and in the wanderer; it stays in the crouch
   when it stops after a sneak walk (Fede's choice), until a walk, an attack, a roll, a hit or water.
   Done 2026-10-13, commit `eeee5fe`.
+
+- **A title when the player changes dominion** (2026-10-13). The name of a land shows over the screen at
+  each crossing, in both directions: the Iron Sovereignty (from the north edge of Ironhold south), the
+  Mithril Enclave (round Silverspring only, Fede's choice) and the Wildlands (`WorldSource.lands()`,
+  `LandCrossings`). Done 2026-10-13, commit `de5509f`.
