@@ -29,6 +29,16 @@
   the lamp post (`lamppost`, `[6, 10, 10, 14]`) in `packages/engine/src/fixtures.ts`; the tests of the
   town in `worlds/wilds/test/town.test.ts` (they check things and doors, not the alleys).
 
+- **A cycle of day and night** (2026-10-13). Fede wants a cycle of day and night. Now the Wilds are
+  always at night: the world has one fixed darkness (`darkness` 1), and only lights make holes in it.
+  Code: `WorldDefinition.darkness` in `packages/engine/src/world.ts`; `Lighting` in
+  `packages/engine-client/src/render/lighting.ts` (`ambient.alpha` = `ambientAlpha` x darkness, set
+  once in the constructor); `new Lighting(...)` in `packages/engine-client/src/game.ts` (the darkness
+  x `traits.night`, the Wisdom trait in `packages/engine/src/traits.ts`); the settings of the light
+  in `packages/engine-client/art/lights.ts` (`LIGHTING`, `meta.lighting`).
+  Ask Fede: how long is one day in real minutes? Is the time of day the same for every player of the
+  shared world? Do other things change with it (mobs, NPCs, the music, the lamps)?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
