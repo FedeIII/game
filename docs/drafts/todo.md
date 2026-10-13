@@ -6,15 +6,6 @@
 
 ## Open
 
-- **Things that follow the hour** (2026-10-13). The first version of the cycle of day and night
-  changes only the light (Fede's choice). Later, other things can follow the hour: the mobs (for
-  example, more mobs at night, or imps and brutes only at night; the server must own this), the NPCs
-  (they go home at night), the music and the ambience (a night mood, a piece at dawn and at dusk), and
-  the art of the lamps and the lit windows (unlit by day). Code: `skyAt()` and `hourOf()` in
-  `packages/engine/src/daytime.ts` (the server can use them with `Date.now()`); `skyNow()` in
-  `packages/engine-client/src/game.ts`; `docs/features/game/day-and-night.md`.
-  Ask Fede: which of these, and how?
-
 - **Levels: players level up; mobs and NPCs have levels** (2026-10-13). A character can rise in
   level (now every character is level 1, Fede's decision of 2026-10-13), and the mobs and the NPCs
   have levels too. Code: `LEVEL`, `PROFICIENCY_BONUS` and `levelHp()` in
@@ -128,3 +119,9 @@
   at the same hour for every player (from the real clock); the darkness falls at dusk and lifts at
   dawn, noon is dim and overcast, and the lights fade out by day (`daytime.ts`, `Lighting`). Done
   2026-10-13, commit `d3c07ff`.
+
+- **Things that follow the hour** (2026-10-13). By day (6:00 to 20:00) the forest of the tutorial has
+  rare bandits that ambush in groups of 1 to 3 in place of the goblin patrols, and each area gives its
+  mobs by day and at night (`MobArea`); at night the people without a post go home; the music has night
+  forms, the ambience a day and a night, with stingers at dawn and dusk; the lamps and the lit windows
+  are unlit by day. Done 2026-10-13, commits `b5cdd0a` to `17c2775`.
