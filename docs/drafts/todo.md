@@ -45,6 +45,20 @@
   `render/others.ts` (`isSneakWalk()`); the rule in `isSneaking()` (`packages/engine`).
   Ask Fede: does a player that stands still and sneaks get a crouch too, or only the sneak walk?
 
+- **A title when the player changes dominion** (2026-10-13). When a player goes from one dominion into
+  another, the name of the new land shows over the screen. For example, a player that goes north out
+  of Ironhold (Ferrozar) enters the wildlands (las tierras salvajes). Now only a town with a title
+  shows a name (Ironhold, Silverspring), and nothing marks the border of a dominion.
+  Code: the titles of places, `WorldSource.placeTitles()` and `PlaceTitle` (rectangles of tiles) in
+  `packages/engine/src/world.ts`; `PlaceArrivals` in `packages/engine-client/src/render/place-titles.ts`
+  (once for each visit, never over another title), called from `game.ts`; the Wilds' `placeTitles()`
+  in `worlds/wilds/src/source.ts`. The border of the Sovereignty: `FOREST_EDGE_Y` and
+  `inTutorialForest()` in `source.ts` (the row of the north edge of Ironhold). The dominions and the
+  wildlands: `docs/story/world.md`; the rule of titles: `docs/features/game/towns.md`, REQ-TWN-007.
+  Ask Fede: where does the Mithril Enclave start on the north road (round Silverspring only, or a
+  line)? Does the title show at each crossing, in both directions (back south: "The Iron
+  Sovereignty")?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
