@@ -83,4 +83,16 @@
   keep: the gates (a friend's price), the conditions (the permit), a robber that traders refuse
   (`Dialog.refuse`), and an answer in the conversation that opens the menu. A new protocol version.
 
+- **The name of another player stays on the screen** (2026-10-13, a bug). After two players meet or
+  pass near each other, the name of the other one stays on the screen for good. It must go when they
+  have parted far enough, or for long enough. The cause: each snapshot carries every player of the
+  world (`Room`, `packages/engine/src/net/room.ts`: `p: others`, all of them, near or far), so the
+  page keeps a view for each one (`render/others.ts`, `Others.update()`). The name tag stays inside
+  the screen (`NameTag.place()` in `render/name-tag.ts` clamps it to the edges, as a speech bubble),
+  so the name of a far player sits at the edge of the screen. The figure is far off the screen, so
+  only the name shows. The fix: show a tag only while its player is on the screen or near it (a
+  margin of some tiles), and fade it out after that (`place(..., visible)` has a switch for it). Also
+  think about sending only the players near each player (as the mobs: "the mobs near this player
+  only"); that saves bytes and work on a world with many players.
+
 ## Done
