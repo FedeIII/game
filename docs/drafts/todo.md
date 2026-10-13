@@ -6,16 +6,6 @@
 
 ## Open
 
-- **Calmer music for the last card of the prologue** (2026-10-13). The last card of the prologue (Fede
-  says "the intro": the card with the hut, the character's name and Thrain's letter) gets calmer music.
-  Now the music of that card is the rise of the theme (`KANDRAX_RISE`: the choir and the violins), which
-  starts on the card of the gods (`crescendo`). Code: the cards in `worlds/wilds/src/prologue.ts` (the
-  last card, `scene: 'hut'`; `PrologueCard.crescendo` in `packages/engine/src/world.ts`); the music in
-  `packages/engine-client/src/ui/prologue.ts` (`audio.playMusic(KANDRAX_OPENING, 3)`, `rise()`, which
-  changes the music on a beat with `audio.nextMusicBeat()`; `sceneAmbience()`); the theme in
-  `packages/engine-client/src/audio/themes/kandrax.ts`. Ask Fede: which music: the opening of the theme
-  again (`KANDRAX_OPENING`), a quiet part of the theme, or a new piece?
-
 - **The tail of a bubble at the edge of the screen** (2026-10-13, a bug). A speech bubble stays inside
   the screen: near an edge it moves to the side, but its tail stays in the middle of its bottom, so the
   tail does not point at the head of the speaker. A wide bubble (the line of a long text) moves more,
@@ -131,3 +121,8 @@
   picture; the town hall has two storeys (the hall and the reeve's archive), with a new engine feature
   for buildings with any number of storeys (`docs/features/game/storeys.md`, protocol 39). Done
   2026-10-13, commit `130b4a1`.
+
+- **Calmer music for the last card of the prologue** (2026-10-13). The card of the hut now brings a
+  quiet coda of the theme of Kandrax (`KANDRAX_CODA`, `PrologueCard.calm`): a clarinet sings melody A over
+  a harp and soft low strings, then a round without it, in place of the rise. Done 2026-10-13, commit
+  `be7f5a8`.
