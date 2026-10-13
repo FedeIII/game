@@ -31,6 +31,15 @@
   line)? Does the title show at each crossing, in both directions (back south: "The Iron
   Sovereignty")?
 
+- **A lamp in Ironhold blocks an alley** (2026-10-13, a bug). A lamp post stands between two buildings
+  of Ironhold (Ferrozar), so the player cannot go through there to the centre of the town. Probable
+  cause: the lamp `L` at column 23 of row 12 of `MAP` (tile -29, 4), on the south side of the main
+  street, stands at the north end of the alley between the smithy (`6`) and the chandler (`7`). The
+  alley is one tile wide, so the post closes it.
+  Code: `MAP` and `STREET_THINGS` (`L`: `lamppost`, `LAMP`) in `worlds/wilds/src/town.ts`; the box of
+  the lamp post (`lamppost`, `[6, 10, 10, 14]`) in `packages/engine/src/fixtures.ts`; the tests of the
+  town in `worlds/wilds/test/town.test.ts` (they check things and doors, not the alleys).
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
