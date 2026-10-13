@@ -5,7 +5,7 @@ import type { MobRules } from './mobs.ts';
 import type { NpcDef } from './npc.ts';
 import type { Gate } from './traits.ts';
 import type { ItemKind, LootTable } from './items.ts';
-import type { QuestDef } from './quests.ts';
+import type { QuestDef, QuestEffect } from './quests.ts';
 import type { SceneDef } from './scenes.ts';
 import type { AmbushDef } from './ambushes.ts';
 import type { ConvoyDef } from './convoys.ts';
@@ -103,6 +103,13 @@ export interface WorldSource {
   escorts?(): readonly EscortDef[];
   /** The convoys of the story (convoys.ts): guards that walk a route, and the attackers that wait for them. Without it, none. */
   convoys?(): readonly ConvoyDef[];
+  /**
+   * The effects of the story that water applies (quests.ts): when a character wades or swims
+   * (PlayerState.wading), each one that can apply to it applies (canApply: the step of its quest,
+   * the items that it takes). In a shared world the server sees the wade, so a page cannot hide it.
+   * Without it, none.
+   */
+  wadeEffects?(): readonly QuestEffect[];
   /** Where the mobs of this world may be, and how many (mobs.ts). Without it, the world has none. */
   mobs?(): MobRules;
   /**

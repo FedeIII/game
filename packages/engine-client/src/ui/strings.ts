@@ -113,6 +113,7 @@ const EN = {
     glaive: { name: 'Glaive', a: 'a glaive', many: 'glaives' },
     crowbar: { name: 'Lever', a: 'a lever', many: 'levers' },
     lentils: { name: 'Sack of lentils', a: 'a sack of lentils', many: 'sacks of lentils' },
+    'wet-lentils': { name: 'Sack of wet lentils', a: 'a sack of wet lentils', many: 'sacks of wet lentils' },
     'badger-fur': { name: 'Badger fur', a: 'a badger fur', many: 'badger furs' },
     mithril: { name: 'Mithril', a: 'a nugget of mithril', many: 'nuggets of mithril' },
     'mithril-permit': { name: 'Permit of Silverspring', a: 'the permit of Silverspring', many: 'permits of Silverspring' },

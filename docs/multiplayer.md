@@ -70,6 +70,16 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## Wet lentils (protocol 37, 2026-10-13)
+
+- The item `wet-lentils` (a new code of `ITEM_KINDS`). No message changed; a page of protocol 36 would
+  not know the code.
+- The room sees each tick of a wade: after each step of a player (`Room.input()`), when
+  `PlayerState.wading` is true, it applies each effect of `WorldSource.wadeEffects()` that can apply
+  (`applyStory()`: the server saves the book at once). The page of that player learns it from `qs` and
+  the pack in the next snapshot, and gets the loot line (`l`). A page cannot hide a wade: the server
+  steps the player itself. In a world that the page runs, the page applies them.
+
 ## The goblins of the forest (protocol 36, 2026-10-13)
 
 - A new kind of mob, `skirmisher` (code 12 of `MOB_KINDS`), and two new states of a mob, `startled`

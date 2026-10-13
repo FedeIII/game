@@ -176,6 +176,14 @@ item and to be paid for it (chapter 1.5.1, [A.2]: the farmer of Arboleda Blanca 
   tells without a gate where the Sovereignty pushes (towards Silverspring), which else needs WIS 13.
 - **AC-QST-027.3:** The farmer lends his lever to a character who met the merchant of the broken cart
   and has no lever (the step `lent` of "The Broken Cart"); the merchant mends the cart with it.
+- **AC-QST-027.4:** If the character wades or swims with the sack (Fede, 2026-10-13: the farmer says to
+  keep it dry), the lentils get wet: the sack becomes a sack of wet lentils (an item of its own), and the
+  quest goes to `wet`, with a banner and a journal line that says that they are ruined. The server sees
+  the wade (it steps the player itself), so a page cannot hide it. The farmer then starts with another
+  line.
+- **AC-QST-027.5:** The sergeant sees the wet sack and does not pay for it. With CHA 13 the character
+  talks him into a part of the pay, 2 coins of 5, and hears the news of the road (`part`); else he
+  takes the sack for nothing (`spoiled`). Both end the quest.
 
 ---
 
@@ -605,13 +613,19 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `ruins`, `symbol`, and the later steps of phases 7 to 10, which end at `gave`, `refused` or `lied`), `CART` (`met`, `lever`, `lent`, `done`),
   `ROAD`, `LENTILS`, `QUESTS`, the effects `READ_LETTER`, `ROAD_ARRIVED`, `START_ASHES`, `TELL_REEVE`,
   `CART_HELP`, `CART_LEVER`, `FARMER_LEVER`, `CART_LIFT` (flag `lifted`), `CART_MEND` (flag `lever`),
-  `CART_REWARD` (10), `LENTILS_TAKE`, `LENTILS_GIVE`. The letter: `home.ts`. The dialogs:
+  `CART_REWARD` (10), `LENTILS_TAKE`, `LENTILS_GIVE`, and for the wet sack `LENTILS_SOAK`,
+  `LENTILS_PLEAD` (`LENTILS_WET_REWARD` 2, behind `PERSUASION_GATE`), `LENTILS_SPOILED`; the item
+  `wet-lentils`. The letter: `home.ts`. The dialogs:
   `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT`, `FARMER`, `SERGEANT` (`dialogs.ts`);
   `ATHLETICS_GATE` (STR 13). The cart: `cartSpot()` (`road.ts`: beside the first leg of the road, from
   three fifths of the way from the hut to Whitegrove), `WildsSource.cart` (with `CART_LANTERN`, and the
   variant `fixture/cart-mended`), the merchant (after the NPCs of Ironhold in `WildsSource.npcs()`, look
   `merchant`), `CART_SAFE` (4 tiles: `roam` and
   `hunt` of `WildsSource.mobs()`).
+- **Wades** (`WorldSource.wadeEffects()`; the Wilds: `WADE_EFFECTS`): the effects that water applies.
+  After each step of a player with `PlayerState.wading` (it wades in shallows, or swims), `Room.input()`
+  applies each one that can apply (`applyStory()`; the server saves the book at once); in a world that
+  the page runs, the page does it after its own step. Protocol 37 (the new item code).
 - **Scenes** (`packages/engine/src/scenes.ts`): `SceneDef` (`id`, `area`, `when`, `lines`, `effect`),
   `SceneLine` (`npc`, `text`, `gate`), `inScene()`, `SCENE_MARGIN` (2), `SCENE_LINE_MAX` (160),
   `checkScenes()`; `WorldSource.scenes()`. The message `quest` carries `scene` (protocol 24), and

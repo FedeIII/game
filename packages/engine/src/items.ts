@@ -71,6 +71,8 @@ export const ITEM_KINDS = [
   'warden-orders',
   // The road to Ironhold (the tutorial, 2026-10-13): the farmer of Whitegrove sends a sack of lentils to Bronzehold.
   'lentils',
+  // The same sack after a wade (2026-10-13): the water ruins the lentils (WorldSource.wadeEffects).
+  'wet-lentils',
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
@@ -119,6 +121,7 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
   'tear-of-tigris': 1,
   'warden-orders': 1,
   lentils: 1,
+  'wet-lentils': 1,
 };
 
 /**

@@ -1,5 +1,5 @@
 import type { Dialog, Gate, ItemKind } from '@game/engine';
-import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, FARMER_LEVER, LENTILS_GIVE, LENTILS_TAKE, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, ROAD_DONE, START_ASHES, TELL_REEVE } from './quests.ts';
+import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, FARMER_LEVER, LENTILS_GIVE, LENTILS_PLEAD, LENTILS_SPOILED, LENTILS_TAKE, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, ROAD_DONE, START_ASHES, TELL_REEVE } from './quests.ts';
 
 /**
  * Mithril (story phase 4d): the jeweller of Silverspring sells a nugget for MITHRIL_COST to a
@@ -1343,7 +1343,8 @@ export const FARMER: Dialog = {
   start: 'wait',
   starts: [
     { when: { quest: 'lentils', at: ['carry'] }, node: 'carrying' },
-    { when: { quest: 'lentils', at: ['done'] }, node: 'thanks' },
+    { when: { quest: 'lentils', at: ['wet'] }, node: 'soaked' },
+    { when: { quest: 'lentils', at: ['done', 'part', 'spoiled'] }, node: 'thanks' },
   ],
   nodes: {
     wait: {
@@ -1380,6 +1381,15 @@ export const FARMER: Dialog = {
         BYE,
       ],
     },
+    // The sack got wet in a wade (quests.ts, LENTILS_SOAK).
+    soaked: {
+      say: 'That sack drips! I said to keep it dry. Wet lentils rot. Take it to the sergeant all the same: he decides.',
+      answers: [
+        { text: 'The merchant needs a lever for his cart.', next: 'lever', effect: FARMER_LEVER, when: { has: 'crowbar', not: true } },
+        { text: 'What is this place?', next: 'place' },
+        BYE,
+      ],
+    },
     thanks: {
       say: 'Bronzehold has its lentils, and I have my peace. Thank you.',
       answers: [
@@ -1399,6 +1409,8 @@ export const FARMER: Dialog = {
 export const SERGEANT: Dialog = {
   name: 'The sergeant of Bronzehold',
   start: 'halt',
+  // A character that brings the sack wet (quests.ts, LENTILS_SOAK): he sees it drip.
+  starts: [{ when: [{ quest: 'lentils', at: ['wet'] }, { has: 'wet-lentils' }], node: 'wet' }],
   nodes: {
     halt: {
       say: 'Bronzehold, a post of the Iron Sovereignty. State your business, traveller.',
@@ -1413,6 +1425,24 @@ export const SERGEANT: Dialog = {
     lentils: {
       say: 'Lentils! At last. Here is your pay. You came up the road with them, so you may hear the news of the road too.',
       answers: [{ text: 'What news?', next: 'trouble' }, BYE],
+    },
+    // Wet lentils: a part of the pay only for a character that talks him into it (CHA 13), else nothing.
+    wet: {
+      say: 'Are those the lentils from Whitegrove? The sack drips! Wet lentils rot within the week. I do not pay for rot.',
+      answers: [
+        { text: 'A day in the sun, and most of them will keep. Pay me for those.', next: 'part', effect: LENTILS_PLEAD, gate: PERSUASION_GATE },
+        { text: 'Then take them for nothing.', next: 'spoiled', effect: LENTILS_SPOILED },
+        { text: 'I go to Ironhold.', next: 'ironhold' },
+        BYE,
+      ],
+    },
+    part: {
+      say: 'Hm. A day in the sun, then. Here is a part of your pay, and not a coin more. You came up the road, so you may hear the news too.',
+      answers: [{ text: 'What news?', next: 'trouble' }, BYE],
+    },
+    spoiled: {
+      say: 'Leave it by the wall. The pigs will eat well. Next time, keep the sack out of the water.',
+      answers: [{ text: 'What do you guard here?', next: 'guard' }, BYE],
     },
     ironhold: {
       say: 'Up the road, north. Keep to it: the woods are full of goblins this year.',

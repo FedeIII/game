@@ -665,6 +665,8 @@ async function run(options: GameOptions): Promise<void> {
   // The NPCs that fight and the convoys that they walk in (guards.ts, convoys.ts: the caravan), in a world that the page runs.
   const localGuards = net ? null : new Guards(world);
   const localConvoys = horde && localGuards ? new Convoys(world, world.source.convoys?.() ?? []) : null;
+  // The effects of the story that water applies (the lentils of Whitegrove), in a world that the page runs; the server sees the wade in a shared world.
+  const localWadeEffects = net ? [] : (world.source.wadeEffects?.() ?? []);
   if (horde && localGuards && localConvoys) {
     // A robber's arrows hit the guards of the convoy that it robs.
     horde.arrowBodies = () => localGuards.bodies(localConvoys.outlawOf({ quests: localQuests, pack }));
@@ -1593,6 +1595,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (waking) wakeHere();
     if (!net) {
+      // A wade ruins what the story says (the lentils of Whitegrove).
+      if (player.wading) for (const effect of localWadeEffects) applyQuest(effect, { scene: 'wade' });
       spoils.tick(performance.now(), [player]);
       localPiles.tick(performance.now());
       // A refuge (the chapel) that the character comes into for the first time.

@@ -45,6 +45,8 @@ const I = {
   arcane: 19,
   dark: 20,
   cloth: 21,
+  wet: 22,
+  water: 23,
 } as const;
 const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#3a2a0c', '#6a4e16', '#9a7624', '#c49c3a', '#e0c060', '#f4dc8a'), bias: 0.15 },
@@ -73,6 +75,10 @@ const ICON_MATERIALS: Material[] = [
   { ramp: ramp('#0c0a0a', '#181414', '#241e1c') },
   // The grey cloth of an elven cloak and boots.
   { ramp: ramp('#1c2024', '#30363c', '#4a525a', '#66707a', '#8892a0'), bias: 0.15 },
+  // Cloth soaked with water: the leather's brown, darker and a little cold.
+  { ramp: ramp('#100c0a', '#1c1612', '#2a221c', '#3a3028', '#4a3e34'), bias: 0.1 },
+  // A puddle: dark water with a cold shine.
+  { ramp: ramp('#0a1014', '#141e26', '#223040', '#3a5064', '#5a7488'), bias: 0.25 },
 ];
 
 /** A ring of radius `major` round the axis z through `c`, with a tube of radius `minor`: it stands facing the viewer. */
@@ -489,6 +495,20 @@ function lentils(): Part[] {
   ];
 }
 
+/** The same sack after a wade: dark with water up to its middle, in a puddle, with a drop on its side. */
+function wetLentils(): Part[] {
+  const bag = displace(ellipsoid([0, 4.4, 0], [5, 4.6, 4]), 0.35, 1.4, 83);
+  const neck = roundCone([0.3, 8.2, 0], [0.8, 10.8, 0], 1.9, 1.2);
+  const soaked: MaterialOf = (x, y, z) => (y < 6.4 + 0.8 * Math.sin(x * 1.3 + z * 0.9) ? I.wet : I.leather);
+  const puddle = ellipsoid([0.4, 0.1, 1.2], [6.8, 0.3, 5.6]);
+  const drop = roundCone([3.6, 3.4, 3.2], [3.9, 2.2, 3.4], 0.25, 0.55);
+  return [
+    { sdf: union(bag, neck), material: soaked },
+    { sdf: cylinder([0.5, 8.7, 0], 'y', 2.05, 0.9), material: I.string },
+    { sdf: union(puddle, drop), material: I.water },
+  ];
+}
+
 /** A badger fur, rolled and tied: grey with the black and white stripes of the head at one end. */
 function badgerFur(): Part[] {
   const roll = roundCone([-5, 3.2, 0], [4.6, 3.2, 0], 3.1, 2.8);
@@ -595,6 +615,7 @@ const MODELS: readonly (readonly [string, () => Part[]])[] = [
   ['tear-of-tigris', tear],
   ['warden-orders', orders],
   ['lentils', lentils],
+  ['wet-lentils', wetLentils],
 ];
 
 export function itemFrames(): Frame[] {

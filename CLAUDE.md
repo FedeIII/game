@@ -715,7 +715,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 36.
+protocol: `docs/multiplayer.md`, protocol 37.
 
 ## Language
 
@@ -758,13 +758,16 @@ Ironhold; the scene `ARRIVAL` ends it when it comes into the town), `ashes` (Ela
 once the road is done, `ROAD_DONE`; a character from before has it from the letter, at `letter`),
 `cart` (the merchant by a broken cart on the road before Whitegrove: lift it with STR 13, or bring a
 lever: the farmer of Whitegrove lends his, `lent`, or the smith's; 10 coins), `lentils` (the farmer of
-Whitegrove sends a sack to the sergeant of Bronzehold: 5 coins), and `raid`
+Whitegrove sends a sack to the sergeant of Bronzehold: 5 coins; a wade or a swim with it makes it a
+sack of wet lentils, `wet`, and the sergeant then pays 2 coins to CHA 13 or nothing), and `raid`
 (the scene `ARGUMENT` in the reeve's house, then the reeve asks the character to warn Silverspring).
 The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the
 town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character
 overhears in an area at a step; its NPCs say the lines, a line behind a gate is a murmur, and the
 end applies an effect (the message `quest` with `scene`, protocol 24). Only that character's page
-plays it. **Ambushes** (`packages/engine/src/ambushes.ts`, `WorldSource.ambushes()`, since story
+plays it. **Wades** (`WorldSource.wadeEffects()`, protocol 37): effects that water applies; after each
+step of a player that wades or swims (`PlayerState.wading`), the Room applies each one that can apply
+(the page in its own world), so a page cannot hide a wade. **Ambushes** (`packages/engine/src/ambushes.ts`, `WorldSource.ambushes()`, since story
 phase 3c): mobs of the story that wait for a character at a step in an area (the scouts of the
 hobgoblins in the grove on the north road to Silverspring); their number follows the characters
 within 12 tiles (`encounters.ts`, the 5e budget), riders sit on worgs (`Horde.spawnRider()`, state

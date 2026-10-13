@@ -12,6 +12,8 @@ import type { QuestDef, QuestEffect } from '@game/engine';
 export const CART_REWARD = 10;
 /** The coins that the sergeant of Bronzehold pays for the farmer's lentils (chapter 1.5.1: bought at 1 gp 2 sp, sold at 1 gp 5 sp). */
 export const LENTILS_REWARD = 5;
+/** The coins that the sergeant pays for a wet sack, and only to a character that talks him into it (CHA 13). */
+export const LENTILS_WET_REWARD = 2;
 
 /**
  * The first quest of the game (Fede, 2026-10-13: the tutorial, docs/drafts/tutorial.md): the letter of
@@ -39,6 +41,10 @@ export const LENTILS: QuestDef = {
   steps: [
     { id: 'carry', journal: 'The farmer of Whitegrove gave me a sack of lentils for the sergeant of Bronzehold, up the road.', npc: 'bronzehold-sergeant' },
     { id: 'done', journal: 'I brought the lentils to Bronzehold, and the sergeant paid me.', end: true },
+    // The water ruins the sack (Fede, 2026-10-13): the farmer said to keep it dry.
+    { id: 'wet', journal: 'I waded through water with the sack, and the lentils got wet. They are ruined. The sergeant of Bronzehold still waits for them.', npc: 'bronzehold-sergeant' },
+    { id: 'part', journal: 'The lentils were wet, but I talked the sergeant of Bronzehold into paying a part of the price.', end: true },
+    { id: 'spoiled', journal: 'I gave the wet lentils to the sergeant of Bronzehold. He paid nothing for them.', end: true },
   ],
 };
 /** The coins that the family of Himo pays when the character brings him home (the chapter: 20 gold). */
@@ -238,6 +244,27 @@ export const LENTILS_GIVE: QuestEffect = {
   take: [{ kind: 'lentils', count: 1 }],
   give: { coins: LENTILS_REWARD, items: [] },
 };
+/** A wade with the sack (WorldSource.wadeEffects): the water ruins the lentils. The room sees it, not the page. */
+export const LENTILS_SOAK: QuestEffect = {
+  id: 'lentils-soak',
+  quest: 'lentils',
+  to: 'wet',
+  from: ['carry'],
+  take: [{ kind: 'lentils', count: 1 }],
+  give: { coins: 0, items: [{ kind: 'wet-lentils', count: 1 }] },
+};
+/** The sergeant takes the wet sack: for a part of the pay, with CHA 13 (the answer's gate), or for nothing. */
+export const LENTILS_PLEAD: QuestEffect = {
+  id: 'lentils-plead',
+  quest: 'lentils',
+  to: 'part',
+  from: ['wet'],
+  take: [{ kind: 'wet-lentils', count: 1 }],
+  give: { coins: LENTILS_WET_REWARD, items: [] },
+};
+export const LENTILS_SPOILED: QuestEffect = { id: 'lentils-spoiled', quest: 'lentils', to: 'spoiled', from: ['wet'], take: [{ kind: 'wet-lentils', count: 1 }] };
+/** The effects that water applies (WildsSource.wadeEffects). */
+export const WADE_EFFECTS: readonly QuestEffect[] = [LENTILS_SOAK];
 
 /** The phoenix of each burned homestead (ruins.ts), in the order of the reeve's word and of the tracks. */
 export const RUIN_HALE: QuestEffect = { id: 'ruin-hale', quest: 'ashes', to: 'ruin1', from: ['reeve'] };

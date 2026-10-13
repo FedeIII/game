@@ -10,9 +10,9 @@ by its name (`NpcDef.greeting`).
 | Person (Spanish) | Id, place | Role in the story |
 |---|---|---|
 | **The merchant** (el comerciante) | `merchant`, by the broken cart (`-3, 123`) | Goes to Ironhold to see if the road can carry a trade with Silverspring. Gives "The Broken Cart". After the help: the news of the trade; INT 13 or CHA 13 hear that the Sovereignty and the Enclave both want the wildlands and play dirty. Refuses a wanted character. |
-| **The farmer of Whitegrove** (el granjero de Arboleda Blanca) | `whitegrove-farmer`, at his stall | Waits for the merchant, who should buy his lentils. Gives "Lentils for Bronzehold". Lends his lever for the cart. |
+| **The farmer of Whitegrove** (el granjero de Arboleda Blanca) | `whitegrove-farmer`, at his stall | Waits for the merchant, who should buy his lentils. Gives "Lentils for Bronzehold", and says to keep the sack dry (another line when it is wet). Lends his lever for the cart. |
 | A villager of Whitegrove | `whitegrove-villager`, Whitegrove | Pages: the shrine is open to all, and the road remembers who steps inside; the goblins run, mostly. |
-| **The sergeant of Bronzehold** (el sargento de Bronzal) | `bronzehold-sergeant`, the guard post | A post of the Iron Sovereignty. Takes the lentils and pays. The news of the road: the Sovereignty sends soldiers and settlers to claim the wildlands, towards Silverspring (after the lentils, or WIS 13). |
+| **The sergeant of Bronzehold** (el sargento de Bronzal) | `bronzehold-sergeant`, the guard post | A post of the Iron Sovereignty. Takes the lentils and pays. Does not pay for wet lentils, except a part to a character with CHA 13. The news of the road: the Sovereignty sends soldiers and settlers to claim the wildlands, towards Silverspring (after the lentils, or WIS 13). |
 | A guard of Bronzehold (un guardia de Bronzal) | `bronzehold-guard`, the lane | How the goblins of the woods fight: some run, some fight, and the ones that run are slow. |
 
 ## Ironhold

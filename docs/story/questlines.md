@@ -58,8 +58,12 @@ Chapter 1.5.1: the farmer of Arboleda Blanca sends lentils to Bronzal. A quest o
 |---|---|---|---|
 | `carry` | The farmer gave me a sack of lentils for the sergeant of Bronzehold. | the sergeant | "I will take it." (`LENTILS_TAKE`: a sack of lentils into the pack). |
 | `done` (end) | I brought the lentils to Bronzehold, and the sergeant paid me. | | "I bring lentils from Whitegrove." (`LENTILS_GIVE`: takes the sack). |
+| `wet` | I waded through water with the sack, and the lentils got wet. They are ruined. | the sergeant | A wade or a swim with the sack (`LENTILS_SOAK`: the sack becomes a sack of wet lentils). The server sees it. |
+| `part` (end) | The lentils were wet, but I talked the sergeant into paying a part of the price. | | CHA 13: "A day in the sun, and most of them will keep." (`LENTILS_PLEAD`: takes the wet sack, 2 coins). |
+| `spoiled` (end) | I gave the wet lentils to the sergeant. He paid nothing for them. | | "Then take them for nothing." (`LENTILS_SPOILED`: takes the wet sack). |
 
-Reward: 5 coins, and the news of the road without the gate of WIS 13 (the answer "What news?").
+The farmer says to keep the sack dry. Reward: 5 coins, and the news of the road without the gate of WIS
+13 (the answer "What news?"). Wet lentils: 2 coins and the news with CHA 13, else nothing.
 
 ## The Razed Villages (`ashes`)
 
@@ -147,7 +151,7 @@ Silverspring.
 | Quest | Reward |
 |---|---|
 | The Broken Cart | 10 coins |
-| Lentils for Bronzehold | 5 coins |
+| Lentils for Bronzehold | 5 coins (wet lentils: 2 coins with CHA 13, else nothing) |
 | The Razed Villages | 12 coins and a draught (Mira); the Tear of Tigris (unless given to Verath); the Warden's orders |
 | The Hobgoblin Raid | 2 badger furs (the scouts); 20 coins (Himo home); a title, a bed at the Silver Trout, and the mithril permit (the band stopped on the road) |
 | The Caravan Ambush | 15 coins and a draught (saved); 20 coins, 3 badger furs and 5 mithril (robbed; then a fine of 60) |

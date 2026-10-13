@@ -217,6 +217,8 @@ export class Room {
   /** The NPCs that fight (guards.ts: the militia and the wagon of a caravan), and the convoys that they walk in (convoys.ts). */
   readonly guards: Guards;
   readonly convoys: Convoys;
+  /** The effects of the story that water applies (WorldSource.wadeEffects): the lentils of Whitegrove get wet. */
+  private readonly wadeEffects: readonly QuestEffect[];
   /** The players whose quest book the room changed by itself (an ambush that ended), for the server to save. */
   private questSaves = new Set<number>();
   /** The NPCs that follow players (companions.ts): a quest adds them (addCompanion). */
@@ -258,6 +260,7 @@ export class Room {
     this.escorts = new Escorts(world.source.escorts?.() ?? []);
     this.guards = new Guards(world);
     this.convoys = new Convoys(world, world.source.convoys?.() ?? []);
+    this.wadeEffects = world.source.wadeEffects?.() ?? [];
     if (this.horde) {
       // A robber's arrows hit the guards of the convoy that it robs.
       this.horde.arrowBodies = (owner) => {
@@ -269,9 +272,9 @@ export class Room {
   }
 
   /**
-   * An effect of the story that the room applies by itself (the end of an ambush, of an escort):
-   * the book and the pack of player `id` change, what does not fit falls at its feet, and the server
-   * saves the book at once (takeQuestSaves).
+   * An effect of the story that the room applies by itself (the end of an ambush, of an escort, a
+   * wade): the book and the pack of player `id` change, what does not fit falls at its feet, and the
+   * server saves the book at once (takeQuestSaves). An effect that cannot apply (canApply) does nothing.
    */
   private applyStory(id: number, effect: QuestEffect, nowMs: number): void {
     const player = this.players.get(id);
@@ -589,6 +592,8 @@ export class Room {
       const waking = player.state.down === 1;
       const struckNow = stepPlayer(player.state, fromWireInput(wire), this.world, player.traits);
       if (waking) this.wake(player);
+      // The room sees each tick of a wade: water ruins what the story says (the lentils of Whitegrove).
+      if (player.state.wading) for (const effect of this.wadeEffects) this.applyStory(player.id, effect, nowMs);
       if (struckNow && this.horde) {
         // The blow lands where the mobs are now, or where its client showed them (not too long ago).
         const view = message.k?.find((attack) => attack[0] === seq)?.[1] ?? nowMs - DEFAULT_REWIND_MS;

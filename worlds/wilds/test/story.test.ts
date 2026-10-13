@@ -96,6 +96,9 @@ import {
   WHITEGROVE,
   ROAD,
   LENTILS_REWARD,
+  LENTILS_WET_REWARD,
+  FARMER,
+  SERGEANT,
   TOWN_SOUTH,
 } from '../src/index.ts';
 
@@ -160,12 +163,16 @@ describe('the quests of the Wilds', () => {
       'dream-refuse',
       'dream-refuse',
       'dream-refuse',
-      // The farmer of Whitegrove lends his lever (three nodes), and sends lentils to Bronzehold.
+      // The farmer of Whitegrove lends his lever (four nodes), and sends lentils to Bronzehold.
+      'farmer-lever',
       'farmer-lever',
       'farmer-lever',
       'farmer-lever',
       'himo-free',
       'lentils-give',
+      // The sergeant takes a wet sack: a part of the pay with CHA 13, or nothing.
+      'lentils-plead',
+      'lentils-spoiled',
       'lentils-take',
       'mira-stone',
       'mira-stone-after',
@@ -196,6 +203,8 @@ describe('the quests of the Wilds', () => {
       for (const when of [convoy.when, convoy.outlaw, ...convoy.waves.map((w) => w.when)]) expect(checkConditions(when, QUESTS)).toEqual([]);
       for (const member of convoy.members) if (member.content?.dialog) expect(checkDialog(member.content.dialog)).toEqual([]);
     }
+    // And what water does: the wet lentils.
+    for (const effect of source.wadeEffects()) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
     for (const escort of source.escorts()) {
       for (const effect of [escort.arrive, escort.fall]) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
       expect(checkConditions(escort.when, QUESTS)).toEqual([]);
@@ -289,6 +298,67 @@ describe('the story through the server', () => {
     far.quests = { ashes: { step: 'letter', flags: [], n: 1 } };
     expect(room.quest(far.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(true);
     expect(far.quests.ashes?.step).toBe('reeve');
+  });
+
+  it('ruins the lentils when the character wades with them: the sergeant pays a part only for CHA 13', () => {
+    const world = new World(source);
+    const room = new Room(world, { dice: AVERAGE_DICE });
+    const farmer = { npc: npcIndex('whitegrove-farmer') };
+    const sergeant = { npc: npcIndex('bronzehold-sergeant') };
+    // A shore near the hamlets: two tiles of open land, then shallows to the east.
+    let shore: { x: number; y: number } | null = null;
+    for (let ty = 20; ty < 120 && !shore; ty++) {
+      for (let tx = -80; tx < 40 && !shore; tx++) {
+        const land = (x: number) => world.ground(x, ty) !== Ground.Water && world.ground(x, ty) !== Ground.Shallows && !world.solidBox(x, ty);
+        if (world.ground(tx, ty) === Ground.Shallows && world.ground(tx + 1, ty) === Ground.Shallows && land(tx - 1) && land(tx - 2)) shore = { x: (tx - 1) * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + TILE_SIZE / 2 };
+      }
+    }
+    expect(shore).not.toBeNull();
+    const east = (p: { id: number }, from: number) => room.input(p.id, { t: 'in', s: from, i: Array.from({ length: 40 }, () => [100, 0] as const) }, from * 16);
+    const carrier = (str: number, cha: number) => {
+      const p = room.join(0, 1, undefined, '', besideNpc('whitegrove-farmer'), { traits: traitsOf({ ...PLAIN_SCORES, str, cha } as Scores, 'fighter', PLAIN_GEAR), pack: { coins: 0, items: [] }, hp: 1 })!;
+      expect(room.quest(p.id, farmer, 'lentils-take', 0)).toBe(true);
+      Object.assign(p.state, shore);
+      return p;
+    };
+    // Without STR 13 the shallows stop the character: the sack stays dry.
+    const weak = carrier(10, 10);
+    east(weak, 1);
+    expect(weak.quests.lentils?.step).toBe('carry');
+    expect(weak.pack.items.some((s) => s?.kind === 'lentils')).toBe(true);
+    // With STR 13 it wades in: the room sees it, the lentils are wet, and the server saves the book at once.
+    room.takeQuestSaves();
+    const strong = carrier(13, 10);
+    east(strong, 1);
+    expect(strong.state.wading).toBe(true);
+    expect(strong.quests.lentils?.step).toBe('wet');
+    expect(strong.pack.items.some((s) => s?.kind === 'lentils')).toBe(false);
+    expect(strong.pack.items.some((s) => s?.kind === 'wet-lentils')).toBe(true);
+    expect(room.takeQuestSaves()).toContain(strong.id);
+    // The farmer and the sergeant see the wet sack.
+    expect(startNode(FARMER, strong.quests, strong.pack)).toBe('soaked');
+    expect(startNode(SERGEANT, strong.quests, strong.pack)).toBe('wet');
+    // At the sergeant: no full pay, no plea without CHA 13; he takes the sack for nothing.
+    goTo(strong, 'bronzehold-sergeant');
+    expect(room.quest(strong.id, sergeant, 'lentils-give', 0)).toBe(false);
+    expect(room.quest(strong.id, sergeant, 'lentils-plead', 0)).toBe(false);
+    expect(room.quest(strong.id, sergeant, 'lentils-spoiled', 0)).toBe(true);
+    expect(strong.quests.lentils?.step).toBe('spoiled');
+    expect(strong.pack.coins).toBe(0);
+    expect(strong.pack.items.some((s) => s?.kind === 'wet-lentils')).toBe(false);
+    // With CHA 13 the sergeant pays a part.
+    const charming = carrier(13, 13);
+    east(charming, 1);
+    expect(charming.quests.lentils?.step).toBe('wet');
+    goTo(charming, 'bronzehold-sergeant');
+    expect(room.quest(charming.id, sergeant, 'lentils-plead', 0)).toBe(true);
+    expect(charming.quests.lentils?.step).toBe('part');
+    expect(charming.pack.coins).toBe(LENTILS_WET_REWARD);
+    expect(LENTILS_WET_REWARD).toBeLessThan(LENTILS_REWARD);
+    // A wade after the end changes nothing.
+    Object.assign(charming.state, shore);
+    east(charming, 41);
+    expect(charming.quests.lentils?.step).toBe('part');
   });
 
   it('lets the farmer of Whitegrove send lentils to Bronzehold, and lend his lever for the cart', () => {

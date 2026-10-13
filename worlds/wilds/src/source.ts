@@ -28,6 +28,7 @@ import {
   type GuardDef,
   type SceneDef,
   type PlaceTitle,
+  type QuestEffect,
   type SoundArea,
   type WorldSource,
 } from '@game/engine';
@@ -36,7 +37,7 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
-import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
+import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
 import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
@@ -935,6 +936,11 @@ export class WildsSource implements WorldSource {
    */
   escorts(): readonly EscortDef[] {
     return [{ companion: HIMO, when: { quest: 'raid', at: ['escort'] }, home: (tx, ty) => IRONHOLD.has(tx, ty), arrive: HIMO_HOME, fall: HIMO_LOST }];
+  }
+
+  /** What water does to the story: the lentils of Whitegrove get wet (LENTILS_SOAK). */
+  wadeEffects(): readonly QuestEffect[] {
+    return WADE_EFFECTS;
   }
 
   /** The talks that a character overhears (town.ts): the argument in the house of the reeve, the plot in the inn, the arrival. */

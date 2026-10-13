@@ -915,4 +915,15 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "Lentils for Bronzehold": "Lentejas para Bronzal",
   "The farmer of Whitegrove gave me a sack of lentils for the sergeant of Bronzehold, up the road.": "El granjero de Arboleda Blanca me ha dado un saco de lentejas para el sargento de Bronzal, camino arriba.",
   "I brought the lentils to Bronzehold, and the sergeant paid me.": "Llevé las lentejas a Bronzal, y el sargento me pagó.",
+  // Wet lentils (quests.ts: LENTILS_SOAK; 2026-10-13).
+  "I waded through water with the sack, and the lentils got wet. They are ruined. The sergeant of Bronzehold still waits for them.": "Crucé el agua a pie con el saco, y las lentejas se mojaron. Se han echado a perder. El sargento de Bronzal aún las espera.",
+  "The lentils were wet, but I talked the sergeant of Bronzehold into paying a part of the price.": "Las lentejas estaban mojadas, pero convencí al sargento de Bronzal de que me pagara una parte del precio.",
+  "I gave the wet lentils to the sergeant of Bronzehold. He paid nothing for them.": "Di las lentejas mojadas al sargento de Bronzal. No me pagó nada por ellas.",
+  "That sack drips! I said to keep it dry. Wet lentils rot. Take it to the sergeant all the same: he decides.": "¡Ese saco gotea! Te dije que no se mojara. Las lentejas mojadas se pudren. Llévaselo al sargento de todos modos: él decide.",
+  "Are those the lentils from Whitegrove? The sack drips! Wet lentils rot within the week. I do not pay for rot.": "¿Son esas las lentejas de Arboleda Blanca? ¡El saco gotea! Las lentejas mojadas se pudren en una semana. Yo no pago por lo podrido.",
+  "A day in the sun, and most of them will keep. Pay me for those.": "Un día al sol, y casi todas aguantarán. Págame por esas.",
+  "Then take them for nothing.": "Entonces quédatelas gratis.",
+  "Hm. A day in the sun, then. Here is a part of your pay, and not a coin more. You came up the road, so you may hear the news too.": "Hm. Un día al sol, entonces. Aquí tienes una parte de tu paga, y ni una moneda más. Has subido el camino, así que puedes oír también las noticias.",
+  "Leave it by the wall. The pigs will eat well. Next time, keep the sack out of the water.": "Déjalo junto al muro. Los cerdos comerán bien. La próxima vez, mantén el saco fuera del agua.",
+  "The sack of lentils is soaked through. The lentils will rot within the week.": "El saco de lentejas está empapado. Las lentejas se pudrirán antes de una semana.",
 };
