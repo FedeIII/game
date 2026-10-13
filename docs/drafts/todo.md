@@ -6,15 +6,6 @@
 
 ## Open
 
-- **A lamp in Ironhold blocks an alley** (2026-10-13, a bug). A lamp post stands between two buildings
-  of Ironhold (Ferrozar), so the player cannot go through there to the centre of the town. Probable
-  cause: the lamp `L` at column 23 of row 12 of `MAP` (tile -29, 4), on the south side of the main
-  street, stands at the north end of the alley between the smithy (`6`) and the chandler (`7`). The
-  alley is one tile wide, so the post closes it.
-  Code: `MAP` and `STREET_THINGS` (`L`: `lamppost`, `LAMP`) in `worlds/wilds/src/town.ts`; the box of
-  the lamp post (`lamppost`, `[6, 10, 10, 14]`) in `packages/engine/src/fixtures.ts`; the tests of the
-  town in `worlds/wilds/test/town.test.ts` (they check things and doors, not the alleys).
-
 - **A cycle of day and night** (2026-10-13). Fede wants a cycle of day and night. Now the Wilds are
   always at night: the world has one fixed darkness (`darkness` 1), and only lights make holes in it.
   Code: `WorldDefinition.darkness` in `packages/engine/src/world.ts`; `Lighting` in
@@ -116,3 +107,8 @@
   each crossing, in both directions: the Iron Sovereignty (from the north edge of Ironhold south), the
   Mithril Enclave (round Silverspring only, Fede's choice) and the Wildlands (`WorldSource.lands()`,
   `LandCrossings`). Done 2026-10-13, commit `de5509f`.
+
+- **A lamp in Ironhold blocks an alley** (2026-10-13, a bug). The lamp at the north end of the alley
+  between the smithy and the chandler moved one tile west, and two more things that closed ground in
+  Ironhold moved too; new tests walk each alley and check that no thing of a town closes a way.
+  Done 2026-10-13, commit `180013e`.
