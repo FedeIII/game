@@ -6,16 +6,6 @@
 
 ## Open
 
-- **Music and sound effects in the main menu** (2026-10-13). The main menu (the menu before the game)
-  gets music and sound effects. Now it has none: the menu code does not use `audio`; only the sound
-  context starts there, on the first click, touch or key (`audio.listen()` in `run()`, `game.ts`).
-  Code: the menu in `packages/engine-client/src/menu/menu.ts` (`runMenu()`, its screens and buttons)
-  and `menu/builder.ts`; the music with `audio.playMusic(track, fade)` (`audio/audio.ts`; the prologue
-  does it in `ui/prologue.ts`), the themes in `audio/themes/` (`kandrax.ts`); the GUI effects in `FX`
-  (`audio/fx.ts`: `uiOpen`, `page`, `uiClick`, `uiSelect`). The menu's "Settings" has no "Sound"
-  section (`ui/sound-section.ts`, now only in the game's settings panel). Ask Fede: which music (the
-  theme of Kandrax or a new piece)? Does the game menu of Escape (`ui/game-menu.ts`) get them too?
-
 - **The standard of Bronzehold shows the phoenix of the Seekers** (2026-10-13, a bug). The standard in
   the street of Bronzehold (the thing `S`, `BRONZEHOLD_THINGS` in `worlds/wilds/src/hamlets.ts`) says
   "The standard of the Iron Sovereignty: an anvil on wine red.", but it uses the one frame of the kind
@@ -123,3 +113,8 @@
 - **The tail of a bubble at the edge of the screen** (2026-10-13, a bug). When a speech bubble moves to
   the side to stay inside the screen, its tail moves back by as much along the bottom edge, so it points
   at the speaker (`placeBubble()` in `speech-bubble.ts`). Done 2026-10-13, commit `d2fb9b0`.
+
+- **Music and sound effects in the main menu** (2026-10-13). The menu before the game plays the opening
+  of the theme of Kandrax (the prologue goes on with it after "Create"), clicks, ticks and rustles, and
+  has a speaker and the "Sound" settings; the game menu rustles, and the music steps back under it
+  (`menu/sounds.ts`). Done 2026-10-13, commit `45cad0a`.
