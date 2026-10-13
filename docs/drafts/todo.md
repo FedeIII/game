@@ -6,15 +6,6 @@
 
 ## Open
 
-- **A cycle of day and night** (2026-10-13). Fede wants a cycle of day and night. Now the Wilds are
-  always at night: the world has one fixed darkness (`darkness` 1), and only lights make holes in it.
-  Code: `WorldDefinition.darkness` in `packages/engine/src/world.ts`; `Lighting` in
-  `packages/engine-client/src/render/lighting.ts` (`ambient.alpha` = `ambientAlpha` x darkness, set
-  once in the constructor); `new Lighting(...)` in `packages/engine-client/src/game.ts` (the darkness
-  x `traits.night`, the Wisdom trait in `packages/engine/src/traits.ts`); the settings of the light
-  in `packages/engine-client/art/lights.ts` (`LIGHTING`, `meta.lighting`).
-  Ask Fede: how long is one day in real minutes? Is the time of day the same for every player of the
-  shared world? Do other things change with it (mobs, NPCs, the music, the lamps)?
 - **Things that follow the hour** (2026-10-13). The first version of the cycle of day and night
   changes only the light (Fede's choice). Later, other things can follow the hour: the mobs (for
   example, more mobs at night, or imps and brutes only at night; the server must own this), the NPCs
@@ -120,3 +111,8 @@
   between the smithy and the chandler moved one tile west, and two more things that closed ground in
   Ironhold moved too; new tests walk each alley and check that no thing of a town closes a way.
   Done 2026-10-13, commit `180013e`.
+
+- **A cycle of day and night** (2026-10-13). One day and one night of the Wilds last 48 real minutes,
+  at the same hour for every player (from the real clock); the darkness falls at dusk and lifts at
+  dawn, noon is dim and overcast, and the lights fade out by day (`daytime.ts`, `Lighting`). Done
+  2026-10-13, commit `d3c07ff`.
