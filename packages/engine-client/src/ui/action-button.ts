@@ -7,10 +7,11 @@ const EYE_ICON = `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="t
 <path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 /**
- * The action button, in the bottom-right corner (the joystick rests in the bottom-left one).
- * It is dim when there is nothing to act on and lights up when there is. The E key does the
- * same on a keyboard. It is outside the game surface, so a tap on it never moves the player,
- * and the other thumb can hold the joystick at the same time.
+ * The action button, at the bottom right: in the corner, or on top of the attack button in a
+ * world with mobs (the joystick rests in the bottom-left corner). It is dim when there is
+ * nothing to act on and lights up when there is. The E key does the same on a keyboard. It is
+ * outside the game surface, so a tap on it never moves the player, and the other thumb can hold
+ * the joystick at the same time.
  */
 export class ActionButton {
   private readonly button: HTMLButtonElement;

@@ -390,9 +390,11 @@ For the HTML GUI:
 - Colours and fonts come only from the theme variables at the top of `src/style.css`: dark
   translucent panel, thin dried-blood-red border, 2 px corners, parchment text, wine-red accent
   with a soft glow for "active", Georgia serif for words, monospace for numbers.
-- Bottom left: the joystick at rest. Bottom right: the action button, left of it the attack
-  button, left of that the dodge button (a world with mobs). Bottom centre, above
-  them: the link card. Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
+- Bottom left: the joystick at rest. Bottom right (Fede's layout of 2026-10-13, on every screen):
+  in a world with mobs the attack button in the corner, the action button on top of it, and the
+  dodge button left of the attack button; in a world without mobs the action button in the corner.
+  Bottom centre, above them: the link card (on a screen narrower than 528 px, above the action
+  button). Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
 - Every engine text the player reads goes in `src/ui/strings.ts` (English) and `src/ui/strings-es.ts`
@@ -937,7 +939,7 @@ results come in `bl` (protocol 26). In the client: `render/mobs.ts` (frames, eye
 lunge, the attack frames of the skin and the effect of its style, in the colour of the style (a
 spell in the colour of the skin's orb; spells, flames and palms glow and give a short light),
 the red flash of a hit, stars over the head while stunned, a blink while guarded, the roll of a
-dodge) and `ui/attack-button.ts` (left of the action button; Space or J on a keyboard). A left click on the
+dodge) and `ui/attack-button.ts` (in the bottom-right corner, under the action button; Space or J on a keyboard). A left click on the
 world attacks towards the mouse pointer, from the player's chest (`input/mouse.ts`). A press is
 kept for 150 ms. The button and Space aim at the nearest mob in reach (for a ranger, in the range of its arrows), else the way the player
 walks or faces. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the

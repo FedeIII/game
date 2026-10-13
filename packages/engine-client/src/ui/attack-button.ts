@@ -5,7 +5,7 @@ const SWORD_ICON = `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden=
 <path d="M19.5 3.5h-3.2L7.6 12.2l4.2 4.2 8.7-8.7z"/><path d="M5.2 13.4l5.4 5.4M7.4 17.6l-3 3M3.6 19.8l.6.6"/></svg>`;
 
 /**
- * The attack button, next to the action button in the bottom-right corner, for a world with
+ * The attack button, in the bottom-right corner under the action button, for a world with
  * mobs. Space (or J) does the same on a keyboard. A press asks for an attack; the game starts it
  * at the next tick in which the player can attack.
  */

@@ -301,10 +301,18 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
   font: 11px/1.2 var(--ui-mono);
 }
 
-/* The attack button: left of the action button, the same size. Lit while the player can attack. */
+/*
+ * A world with mobs (Fede's layout, 2026-10-13): the attack button takes the corner, the action
+ * button goes on top of it, and the dodge button is left of it.
+ */
+body:has(#attack) #action {
+  bottom: calc(var(--ui-margin) + 64px + 14px + env(safe-area-inset-bottom));
+}
+
+/* The attack button: in the corner, the same size as the action button. Lit while the player can attack. */
 #attack {
   position: fixed;
-  right: calc(var(--ui-margin) + 64px + 14px + env(safe-area-inset-right));
+  right: calc(var(--ui-margin) + env(safe-area-inset-right));
   bottom: calc(var(--ui-margin) + env(safe-area-inset-bottom));
   display: grid;
   place-items: center;
@@ -323,10 +331,11 @@ body:has(#settings:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #m
     box-shadow 0.2s;
 }
 
+/* The dodge button: left of the attack button, smaller, its centre level with the attack button's. */
 #dodge {
   position: fixed;
-  right: calc(var(--ui-margin) + 2 * (64px + 14px) + env(safe-area-inset-right));
-  bottom: calc(var(--ui-margin) + env(safe-area-inset-bottom));
+  right: calc(var(--ui-margin) + 64px + 14px + env(safe-area-inset-right));
+  bottom: calc(var(--ui-margin) + 4px + env(safe-area-inset-bottom));
   display: grid;
   place-items: center;
   width: 56px;
@@ -1301,6 +1310,16 @@ body.pack-dragging * {
 
 #link-card[hidden] {
   display: none;
+}
+
+/*
+ * On a narrow screen the card would cover the action button on top of the attack button: it goes
+ * above them. 527 px = the card (320 px) and, on each side, the margin, a button and a gap of 12 px.
+ */
+@media (max-width: 527px) {
+  body:has(#attack) #link-card {
+    bottom: calc(var(--ui-margin) + 2 * 64px + 14px + 16px + env(safe-area-inset-bottom));
+  }
 }
 
 .link-card-title {
