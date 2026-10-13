@@ -2,10 +2,12 @@
  * The tracks of the game's moods (audio/director.ts), and how the music changes from one to the other:
  * a fight cuts in at once (its first bar has a cymbal and the drums), the rest crossfades. The
  * instruments of a sudden mood (tension, a fight, the stingers) load when the game starts and stay;
- * the others load when their place is near.
+ * the others load when their place is near. At night a place plays the night form of its piece
+ * (themes/night.ts); when the hour changes, the two forms crossfade slowly.
  */
+import { DAY_HOURS } from '@game/engine';
 import { audio } from './audio.ts';
-import type { Mood } from './director.ts';
+import { PLACE_MOODS, isPlaceMood, type Mood, type PlaceMood } from './director.ts';
 import { scoreTrack, type MusicTrack } from './music.ts';
 import { BATTLE_INSTRUMENTS, COMBAT_FIRST, COMBAT_INSTRUMENTS, TENSION_INSTRUMENTS, combatComposer, tensionComposer } from './themes/fight.ts';
 import {
@@ -26,6 +28,7 @@ import {
   shrineComposer,
   townComposer,
 } from './themes/places.ts';
+import { NIGHT_FORMS, nightComposer } from './themes/night.ts';
 import { STINGERS, type StingerId } from './themes/stingers.ts';
 import { WILDS_FIRST, WILDS_INSTRUMENTS, wildsComposer } from './themes/wilds.ts';
 
@@ -44,6 +47,45 @@ export const MOOD_TRACKS: Readonly<Record<Exclude<Mood, 'silent'>, MusicTrack>> 
   combat: scoreTrack('combat', COMBAT_INSTRUMENTS, combatComposer(false), { first: COMBAT_FIRST }),
   battle: scoreTrack('battle', BATTLE_INSTRUMENTS, combatComposer(true), { first: COMBAT_FIRST }),
 };
+
+/** The night form of a place's track (NIGHT_FORMS): `<mood>-night`, without the instruments that rest at night. */
+function nightTrack(mood: PlaceMood): MusicTrack {
+  const day = MOOD_TRACKS[mood];
+  const form = NIGHT_FORMS[mood];
+  const keep = (list: readonly string[]) => list.filter((inst) => !(form.drop ?? []).includes(inst));
+  return scoreTrack(`${mood}-night`, keep(day.instruments), nightComposer(form.compose ?? day.compose!, form), { first: keep(day.first ?? day.instruments), level: (day.level ?? 1) * (form.level ?? 1) });
+}
+
+/** The night forms of the places' tracks. */
+export const NIGHT_TRACKS: Readonly<Record<PlaceMood, MusicTrack>> = Object.fromEntries(PLACE_MOODS.map((mood) => [mood, nightTrack(mood)])) as Record<PlaceMood, MusicTrack>;
+
+/** The track of a mood at an hour: a place's night form at night; the other moods do not change. */
+export function trackOf(mood: Exclude<Mood, 'silent'>, night: boolean): MusicTrack {
+  return night && isPlaceMood(mood) ? NIGHT_TRACKS[mood] : MOOD_TRACKS[mood];
+}
+
+/** How long the day form and the night form of a place's music crossfade when the hour changes (s). */
+export const HOUR_FADE = 10;
+
+/**
+ * When the night ends and when it comes (hours): in the middle of the dawn and of the dusk, where the
+ * engine's isDaytime changes (6:00 and 20:00).
+ */
+export const DAWN_HOUR = (DAY_HOURS.dawn + DAY_HOURS.day) / 2;
+export const DUSK_HOUR = (DAY_HOURS.dusk + DAY_HOURS.night) / 2;
+/** The stinger of the hour loads this long before its moment, and stays loaded this long after it (hours of the game). */
+const HOUR_BEFORE = 0.75;
+const HOUR_AFTER = 0.25;
+
+/** The stinger of the hour that is near at this hour ('dawn' or 'dusk': from HOUR_BEFORE before its moment to HOUR_AFTER after it), or null. */
+export function stingerNear(hour: number): 'dawn' | 'dusk' | null {
+  const near = (at: number) => {
+    // The hours from now to the moment, from -12 to 12.
+    const d = ((((at - hour) % 24) + 36) % 24) - 12;
+    return d >= -HOUR_AFTER && d <= HOUR_BEFORE;
+  };
+  return near(DAWN_HOUR) ? 'dawn' : near(DUSK_HOUR) ? 'dusk' : null;
+}
 
 /** How long the music takes to change into a mood (s). */
 export const MOOD_FADE: Readonly<Record<Mood, number>> = {
@@ -71,11 +113,16 @@ export const PINNED_INSTRUMENTS: readonly string[] = [...new Set([...TENSION_INS
 /** The instruments of the stingers of the quests. */
 const QUEST_INSTRUMENTS: readonly string[] = [...new Set([...STINGERS.questStart.instruments, ...STINGERS.questStep.instruments, ...STINGERS.questEnd.instruments])];
 
-/** The music of a game: it follows the director's mood and plays its stingers. */
+/** The music of a game: it follows the director's mood and the hour, and plays its stingers. */
 export class GameMusic {
   private mood: Mood | null = null;
+  /** The track asked for (its id: a place's day or night form), or null. */
+  private track: string | null = null;
 
-  /** Loads what the game needs first: the music of where it starts, then the sudden moods. */
+  /**
+   * Loads what the game needs first: the music of where it starts (the first instruments of the day
+   * form, which has those of the night form too), then the sudden moods.
+   */
   start(place: Mood): void {
     const track = place === 'silent' ? null : MOOD_TRACKS[place];
     if (track) audio.preload(track.first ?? track.instruments);
@@ -84,14 +131,20 @@ export class GameMusic {
     void audio.bank.load(track?.first ?? []).then(() => audio.bank.load(COMBAT_FIRST).then(() => audio.bank.load(PINNED_INSTRUMENTS)));
   }
 
-  /** Plays the mood (when it changed) and the stinger. */
-  apply(mood: Mood, stinger: StingerId | null): void {
-    if (mood !== this.mood) {
+  /**
+   * Plays the mood at its hour (when it changed) and the stinger. A change of the hour alone (the same
+   * place, day to night or back) crossfades over HOUR_FADE.
+   */
+  apply(mood: Mood, stinger: StingerId | null, night: boolean): void {
+    const track = mood === 'silent' ? null : trackOf(mood, night);
+    if (mood !== this.mood || (track?.id ?? null) !== this.track) {
+      const hourOnly = mood === this.mood;
       this.mood = mood;
+      this.track = track?.id ?? null;
       // A fight may end in a defeat.
       if (mood === 'combat' || mood === 'battle') audio.preload(STINGERS.defeat.instruments);
-      if (mood === 'silent') audio.stopMusic(MOOD_FADE.silent);
-      else audio.playMusic(MOOD_TRACKS[mood], MOOD_FADE[mood]);
+      if (!track) audio.stopMusic(MOOD_FADE.silent);
+      else audio.playMusic(track, hourOnly ? HOUR_FADE : MOOD_FADE[mood]);
     }
     if (stinger) audio.playStinger(STINGERS[stinger]);
   }
@@ -99,14 +152,29 @@ export class GameMusic {
   /** Lets the next `apply` start the music again (after the prologue, which had its own). */
   reset(): void {
     this.mood = null;
+    this.track = null;
   }
 
-  /** Preloads the music of a place that the player comes near, and the discovery if the place is new. */
-  near(place: Mood, unseen: boolean): void {
+  /** Preloads the music of a place that the player comes near (at its hour), and the discovery if the place is new. */
+  near(place: Mood, unseen: boolean, night: boolean): void {
     if (place === 'silent') return;
-    const track = MOOD_TRACKS[place];
+    const track = trackOf(place, night);
     audio.preload(track.first ?? track.instruments);
     if (unseen) audio.preload(STINGERS.discover.instruments);
+  }
+
+  /** The stinger of the hour that is loaded and held now, and how to let it go. */
+  private held: { readonly id: 'dawn' | 'dusk'; readonly release: () => void } | null = null;
+
+  /** The hour (0 to 24): shortly before the night ends or comes, the stinger of that moment loads, and stays until just after it. */
+  hour(hour: number): void {
+    const near = stingerNear(hour);
+    if (near === (this.held?.id ?? null)) return;
+    this.held?.release();
+    this.held = null;
+    if (!near) return;
+    audio.preload(STINGERS[near].instruments);
+    this.held = { id: near, release: audio.hold(STINGERS[near].instruments) };
   }
 
   /** A conversation opens: a quest may start, move or end in it. */

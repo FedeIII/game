@@ -392,6 +392,11 @@ export class AudioEngine {
     return this.loadingMusic ?? (this.music && !this.music.stopping ? this.music.id : null) ?? this.wanted.music?.id ?? null;
   }
 
+  /** The id of the ambience that plays (or waits for the first action of the page), or null. */
+  get ambienceId(): AmbienceId | null {
+    return this.ambience?.id ?? this.wanted.ambience ?? null;
+  }
+
   /** Fades the music out over `fade` s. */
   stopMusic(fade = 2.5): void {
     this.musicToken++;

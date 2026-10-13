@@ -1627,9 +1627,12 @@ async function run(options: GameOptions): Promise<void> {
       gameSounds.resume();
     }
     const { mood: place, area } = placeNow();
+    // The hour: the music and the ambience of a place have a day form and a night form.
+    const sky = skyNow();
+    const night = !isDaytime(sky);
     // The sounds of the place and of the things near the player; the mobs' voices; the player's steps.
     const indoors = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE)) !== null;
-    gameSounds.place(world, place, indoors, player.x, player.y, now);
+    gameSounds.place(world, place, indoors, night, player.x, player.y, now);
     gameSounds.mobsNow(mobsNow(), player.x, player.y, now);
     if (player.down === 0 && player.dodge === 0) gameSounds.steps(world, shown.x, shown.y, sneakingShown());
     if (player.dodge > 0 && !dodgeHeard) gameSounds.dodge();
@@ -1646,7 +1649,9 @@ async function run(options: GameOptions): Promise<void> {
       nextNear = now + 2000;
       const tx = Math.floor(player.x / TILE_SIZE);
       const ty = Math.floor(player.y / TILE_SIZE);
-      for (const a of soundAreas) if (tx >= a.x0 - 14 && tx <= a.x1 + 14 && ty >= a.y0 - 14 && ty <= a.y1 + 14 && (PLACE_MOODS as readonly string[]).includes(a.music)) gameMusic.near(a.music as Mood, Boolean(a.discover) && !discoveries.has(a.id));
+      for (const a of soundAreas) if (tx >= a.x0 - 14 && tx <= a.x1 + 14 && ty >= a.y0 - 14 && ty <= a.y1 + 14 && (PLACE_MOODS as readonly string[]).includes(a.music)) gameMusic.near(a.music as Mood, Boolean(a.discover) && !discoveries.has(a.id), night);
+      // The stinger of the dawn or the dusk loads before its moment.
+      gameMusic.hour(sky.hour);
     }
     const mobs = mobsNow().filter((m) => m.state !== 'dying');
     const near = (m: MobLook, range: number) => Math.hypot(m.x - player.x, m.y - player.y) <= range;
@@ -1657,8 +1662,8 @@ async function run(options: GameOptions): Promise<void> {
     const hunting = net ? mobs.filter((m) => net.hunters.has(m.id)) : (horde?.huntersOf(0) ?? []).filter((m) => m.state !== 'dying');
     const inView = (m: MobLook) => m.x >= view.x && m.x <= view.x + view.width && m.y >= view.y && m.y <= view.y + view.height;
     const hunters = hunting.filter((m) => near(m, traits.sense) || inView(m)).length;
-    const direction = director.update({ place, hunters, fighting, boss, kills, dream: dreamVeil.shown, down: player.down > 0 }, now);
-    gameMusic.apply(direction.mood, direction.stinger);
+    const direction = director.update({ place, hunters, fighting, boss, kills, dream: dreamVeil.shown, down: player.down > 0, night }, now);
+    gameMusic.apply(direction.mood, direction.stinger, night);
   };
 
   const sim = new FixedStep(TICK_SECONDS, () => {
@@ -2068,7 +2073,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}${shopPanel.state ? `, shop ${shopPanel.state.side} ${shopPanel.state.chosen ?? '-'}` : ''}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `sky     ${skyLine(skyNow(), definition.day !== undefined, Number.isFinite(fixedHour))}`,
-      `music   ${director.mood ?? '-'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
+      `music   ${director.mood ?? '-'} by ${isDaytime(skyNow()) ? 'day' : 'night'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}, ambience ${audio.ambienceId ?? '-'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,
       `seed    ${world.seed}`,

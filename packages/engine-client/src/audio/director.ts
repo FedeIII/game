@@ -12,13 +12,22 @@
  *   <place>   the mood of the place (WorldSource.soundAreas), when the player has been in it for
  *             PLACE_AFTER_MS: wilds, town, haven, home, chapel, ruins, camp, shrine
  * A fight that ends with kills and no hunter left plays "victory". The engine's moments (a new place,
- * a quest, a refuge, a rest) come through `moment()`. Pure: the tests drive it with a clock.
+ * a quest, a refuge, a rest) come through `moment()`. The hour (2026-10-13): the music of a place has a
+ * night form (audio/game-music.ts), and when the night ends or comes while the music is the place's,
+ * "dawn" or "dusk" plays. Pure: the tests drive it with a clock.
  */
 import type { StingerId } from './themes/stingers.ts';
 
-export type Mood = 'wilds' | 'town' | 'haven' | 'home' | 'chapel' | 'ruins' | 'camp' | 'shrine' | 'dream' | 'tension' | 'combat' | 'battle' | 'silent';
+/** The moods of the places (WorldSource.soundAreas): each has a day form and a night form. */
+export type PlaceMood = 'wilds' | 'town' | 'haven' | 'home' | 'chapel' | 'ruins' | 'camp' | 'shrine';
+export type Mood = PlaceMood | 'dream' | 'tension' | 'combat' | 'battle' | 'silent';
 
-export const PLACE_MOODS: readonly Mood[] = ['wilds', 'town', 'haven', 'home', 'chapel', 'ruins', 'camp', 'shrine'];
+export const PLACE_MOODS: readonly PlaceMood[] = ['wilds', 'town', 'haven', 'home', 'chapel', 'ruins', 'camp', 'shrine'];
+
+/** Whether a mood is a place's (its music follows the hour). */
+export function isPlaceMood(mood: Mood): mood is PlaceMood {
+  return (PLACE_MOODS as readonly Mood[]).includes(mood);
+}
 
 /** A fight holds the music this long after its last sign (ms). */
 export const FIGHT_HOLD_MS = 6000;
@@ -32,7 +41,7 @@ export const PLACE_AFTER_MS = 1500;
 const STINGER_GAP_MS = 3500;
 
 /** The stingers by how much they matter: one may cut in on a lesser one. */
-const STINGER_RANK: Readonly<Record<StingerId, number>> = { defeat: 7, questEnd: 6, discover: 5, questStart: 4, questStep: 3, victory: 2, refuge: 1, rest: 0 };
+const STINGER_RANK: Readonly<Record<StingerId, number>> = { defeat: 8, questEnd: 7, discover: 6, questStart: 5, questStep: 4, victory: 3, refuge: 2, rest: 1, dawn: 0, dusk: 0 };
 
 export interface MoodInput {
   /** The mood of the place where the player is. */
@@ -47,6 +56,8 @@ export interface MoodInput {
   readonly kills: number;
   readonly dream: boolean;
   readonly down: boolean;
+  /** Whether it is night (isDaytime in the engine: from 20:00 to 6:00; a world without a day, always). */
+  readonly night: boolean;
 }
 
 export interface Direction {
@@ -67,6 +78,8 @@ export class MusicDirector {
   private wasDown = false;
   private lastStinger: { id: StingerId; at: number } | null = null;
   private queued: StingerId | null = null;
+  /** The hour of the last update: night or day (null before the first). */
+  private night: boolean | null = null;
 
   get mood(): Mood | null {
     return this.moodNow;
@@ -115,6 +128,9 @@ export class MusicDirector {
     this.wasDown = input.down;
     const wasFight = this.moodNow === 'combat' || this.moodNow === 'battle';
     if (wasFight && mood !== 'combat' && mood !== 'battle' && !input.down && input.kills > this.killsAtFight && input.hunters === 0) this.moment('victory');
+    // The night ends or comes: a stinger over the music of a place (not over a hunt, a fight, a dream or a defeat).
+    if (this.night !== null && input.night !== this.night && isPlaceMood(mood)) this.moment(input.night ? 'dusk' : 'dawn');
+    this.night = input.night;
 
     if (this.queued) {
       const last = this.lastStinger;

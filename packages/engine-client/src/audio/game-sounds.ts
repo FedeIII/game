@@ -14,7 +14,7 @@
 import { Ground, MOB_KINDS, type AttackGear, type MobKind, type World } from '@game/engine';
 import { audio } from './audio.ts';
 import { mobVoice, type VoiceEvent } from './creatures.ts';
-import type { Mood } from './director.ts';
+import { isPlaceMood, type Mood, type PlaceMood } from './director.ts';
 import { FX_INSTRUMENTS, FxPlayer, spatial, type FxId } from './fx.ts';
 import type { AmbienceId, LayerId } from './sounds.ts';
 
@@ -55,30 +55,29 @@ export function stepOf(ground: Ground): FxId | null {
   }
 }
 
-/** The ambience of a mood of a place; inside a building that has no mood of its own, a room's. */
-export function ambienceOf(mood: Mood, indoors: boolean): AmbienceId | null {
+/** The ambience of each place by day and at night (2026-10-13: the sound follows the hour; audio/sounds.ts). */
+export const PLACE_AMBIENCES: Readonly<Record<PlaceMood, { readonly day: AmbienceId; readonly night: AmbienceId }>> = {
+  wilds: { day: 'forestDay', night: 'forest' },
+  town: { day: 'townDay', night: 'townNight' },
+  haven: { day: 'haven', night: 'havenNight' },
+  home: { day: 'hearthDay', night: 'hearth' },
+  chapel: { day: 'candle', night: 'candle' },
+  ruins: { day: 'ruinsDay', night: 'ruins' },
+  camp: { day: 'camp', night: 'campNight' },
+  shrine: { day: 'shrine', night: 'shrineNight' },
+};
+
+/** The ambience of a mood of a place at its hour; inside a building that has no mood of its own, a room's (the same at any hour). */
+export function ambienceOf(mood: Mood, indoors: boolean, night: boolean): AmbienceId | null {
   if (indoors && mood !== 'home' && mood !== 'chapel') return 'indoor';
-  switch (mood) {
-    case 'wilds':
-      return 'forest';
-    case 'town':
-      return 'town';
-    case 'haven':
-      return 'haven';
-    case 'home':
-      return 'hearth';
-    case 'chapel':
-      return 'candle';
-    case 'ruins':
-      return 'ruins';
-    case 'camp':
-      return 'camp';
-    case 'shrine':
-      return 'shrine';
-    default:
-      return null;
-  }
+  if (!isPlaceMood(mood)) return null;
+  return PLACE_AMBIENCES[mood][night ? 'night' : 'day'];
 }
+
+/** How long the day and the night ambience of a place crossfade when the hour changes (s): slower than a change of place. */
+export const HOUR_AMBIENCE_FADE = 12;
+/** How long the ambience crossfades when the player comes into another place (s). */
+const PLACE_AMBIENCE_FADE = 2.5;
 
 /** What a mob's change of state says: a voice for the moment, or nothing. */
 export function voiceOfChange(before: string | undefined, after: string): VoiceEvent | null {
@@ -127,6 +126,8 @@ export class GameSounds {
   private last: { x: number; y: number } | null = null;
   private nextLayers = 0;
   private ambience: AmbienceId | null = null;
+  /** The place of the ambience (its mood, and inside or not): a new ambience in the same place is a change of the hour. */
+  private ambienceWhere: string | null = null;
   private voicesAt: number[] = [];
 
   /** Loads the recorded sounds of the effects, renders the common ones, and listens to the GUI. */
@@ -246,6 +247,7 @@ export class GameSounds {
   /** Quiet: no ambience and no layer (the prologue plays over the game, with its own). Then the next `place` starts them again. */
   silence(): void {
     this.ambience = null;
+    this.ambienceWhere = null;
     for (const layer of ['water', 'fire', 'fountain', 'forge'] as const) audio.setLayer(layer, 0);
     this.nextLayers = Infinity;
   }
@@ -253,17 +255,24 @@ export class GameSounds {
   /** After a silence: the place's sounds come back at the next `place`. */
   resume(): void {
     this.ambience = null;
+    this.ambienceWhere = null;
     this.nextLayers = 0;
     audio.setAmbience(null);
   }
 
-  /** The ambience of the place, and the sounds of the things near the player (a few times a second). */
-  place(world: World, mood: Mood, indoors: boolean, x: number, y: number, now: number): void {
-    const ambience = ambienceOf(mood, indoors);
+  /**
+   * The ambience of the place at its hour, and the sounds of the things near the player (a few times a
+   * second). When only the hour changes, the two ambiences crossfade slowly (HOUR_AMBIENCE_FADE).
+   */
+  place(world: World, mood: Mood, indoors: boolean, night: boolean, x: number, y: number, now: number): void {
+    const ambience = ambienceOf(mood, indoors, night);
     if (this.nextLayers === Infinity) return;
     if (ambience !== this.ambience) {
+      const where = `${mood}:${indoors}`;
+      const hourOnly = this.ambience !== null && where === this.ambienceWhere;
       this.ambience = ambience;
-      audio.setAmbience(ambience, 2.5);
+      this.ambienceWhere = where;
+      audio.setAmbience(ambience, hourOnly ? HOUR_AMBIENCE_FADE : PLACE_AMBIENCE_FADE);
     }
     if (now < this.nextLayers) return;
     this.nextLayers = now + 300;

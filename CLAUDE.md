@@ -220,15 +220,26 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   D5. A Vite page in a long `page.evaluate` may reload itself: run it again.
   **The music follows the game** (`audio/director.ts`, `audio/game-music.ts`, `audio/themes/`): a mood
   from the place (`WorldSource.soundAreas()`), a hunt, a fight, a dream or a defeat, and stingers for a
-  discovery, a quest, a victory, a refuge, a rest. A new world area: add it to `soundAreas()` with one of
-  the moods of `PLACE_MOODS`. A new piece: a composer in `audio/themes/`, a track in `MOOD_TRACKS`.
-  The debug panel's `music` line shows the mood. A headless test of a fight: `?offline&mob=imp,brute`
-  (in development the Wilds is a shared world, and `?mob` works only alone).
+  discovery, a quest, a victory, a refuge, a rest, the dawn and the dusk. A new world area: add it to
+  `soundAreas()` with one of the moods of `PLACE_MOODS`. A new piece: a composer in `audio/themes/`, a
+  track in `MOOD_TRACKS`. **The music follows the hour** (2026-10-13, Fede's choice;
+  `docs/features/game/sound.md`, REQ-SND-009): day from 6:00 to 20:00 (`isDaytime()`, as the mobs and the
+  NPCs); at night each place plays the night form of its piece (`audio/themes/night.ts`: slower, softer,
+  fewer instruments; `NIGHT_TRACKS`, `<place>-night`), the forms crossfade over 10 s, and the stingers
+  `dawn` and `dusk` play when the night ends or comes over the music of a place. A new place mood needs a
+  `NIGHT_FORMS` entry and a `PLACE_AMBIENCES` entry. The debug panel's `music` line shows the mood, "by
+  day" or "by night", the track and the ambience; `?hour=` fixes the hour of the sound too. A headless
+  test of a fight: `?offline&mob=imp,brute` (in development the Wilds is a shared world, and `?mob` works
+  only alone).
   **The sounds of the game** (`audio/game-sounds.ts`, `audio/fx.ts`, `audio/creatures.ts`): effects for
-  the fights, the steps, the things and the GUI, the mobs' voices, the ambience of each place and the
-  sounds near the player (water, fires, fountains, forges). A new effect: a recipe in `FX`, and a call
-  from `game.ts`; a new mob kind needs a voice in `VOICE_OF` (the test checks it). Check the levels of a
-  change with an offline render in a headless page.
+  the fights, the steps, the things and the GUI, the mobs' voices, the ambience of each place by day and
+  at night (`PLACE_AMBIENCES`, `ambienceOf(mood, indoors, night)`: birds, a woodpecker, crows by day in
+  the woods; far voices and a forge in a town by day; crickets and owls at night; a room is the same at
+  any hour; the hour crossfades them over 12 s) and the sounds near the player (water, fires, fountains,
+  forges). The ambience `town` is the prologue's (its scene of the Iron Sovereignty); the game's town has
+  `townDay` and `townNight`. A new effect: a recipe in `FX`, and a call from `game.ts`; a new mob kind
+  needs a voice in `VOICE_OF` (the test checks it). Check the levels of a change with an offline render
+  in a headless page (`renderOffline()`: it leaves out the track's `level`).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;
   made again by `dev`, `build` and `typecheck`). See "Art".
 

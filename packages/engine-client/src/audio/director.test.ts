@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import manifest from '../generated/sounds.json';
-import { FIGHT_HOLD_MS, MusicDirector, PLACE_AFTER_MS, TENSION_AFTER_MS, TENSION_HOLD_MS, type MoodInput } from './director.ts';
-import { MOOD_TRACKS, PINNED_INSTRUMENTS } from './game-music.ts';
+import { FIGHT_HOLD_MS, MusicDirector, PLACE_AFTER_MS, PLACE_MOODS, TENSION_AFTER_MS, TENSION_HOLD_MS, type MoodInput } from './director.ts';
+import { DAWN_HOUR, DUSK_HOUR, MOOD_TRACKS, NIGHT_TRACKS, PINNED_INSTRUMENTS, stingerNear, trackOf } from './game-music.ts';
 import type { ScoreNote } from './music.ts';
+import { NIGHT_FORMS } from './themes/night.ts';
 import { STINGERS } from './themes/stingers.ts';
 
 const INSTRUMENTS = (manifest as unknown as { instruments: Record<string, { kind: string; samples: { root: number | null }[] }> }).instruments;
 
-const CALM: MoodInput = { place: 'wilds', hunters: 0, fighting: false, boss: false, kills: 0, dream: false, down: false };
+const CALM: MoodInput = { place: 'wilds', hunters: 0, fighting: false, boss: false, kills: 0, dream: false, down: false, night: false };
 
 /** A seeded random, so a composer gives the same sections in a test. */
 function seeded(seed: number): () => number {
@@ -99,11 +100,90 @@ describe('the music director', () => {
     d.moment('defeat');
     expect(d.update(CALM, 5100).stinger).toBe('defeat');
   });
+
+  it('plays the dawn and the dusk when the hour changes over the music of a place, never at the start', () => {
+    const d = new MusicDirector();
+    expect(d.update({ ...CALM, night: true }, 0).stinger).toBeNull();
+    expect(d.update({ ...CALM, night: true }, 100).stinger).toBeNull();
+    expect(d.update(CALM, 200)).toEqual({ mood: 'wilds', stinger: 'dawn' });
+    expect(d.update(CALM, 300).stinger).toBeNull();
+    expect(d.update({ ...CALM, night: true }, 10_000)).toEqual({ mood: 'wilds', stinger: 'dusk' });
+    // A start of the page by day: nothing.
+    expect(new MusicDirector().update(CALM, 0).stinger).toBeNull();
+  });
+
+  it('plays no dawn or dusk over a fight, and a greater moment wins over it', () => {
+    const d = new MusicDirector();
+    d.update({ ...CALM, night: true }, 0);
+    expect(d.update({ ...CALM, fighting: true }, 100)).toEqual({ mood: 'combat', stinger: null });
+    const e = new MusicDirector();
+    e.update({ ...CALM, night: true }, 0);
+    e.moment('questStart');
+    expect(e.update(CALM, 100).stinger).toBe('questStart');
+  });
+});
+
+describe('the music of the hour', () => {
+  it('has a night form for each place, slower and softer, on fewer instruments of the day form', () => {
+    for (const mood of PLACE_MOODS) {
+      const day = MOOD_TRACKS[mood];
+      const night = NIGHT_TRACKS[mood];
+      expect(night.id).toBe(`${mood}-night`);
+      expect(trackOf(mood, true)).toBe(night);
+      expect(trackOf(mood, false)).toBe(day);
+      for (const inst of night.instruments) expect(day.instruments, `${mood}: ${inst}`).toContain(inst);
+      for (const inst of NIGHT_FORMS[mood].drop ?? []) expect(night.instruments, `${mood}: ${inst} rests at night`).not.toContain(inst);
+      expect(night.first?.length, mood).toBeGreaterThan(0);
+      expect(night.level ?? 1, mood).toBeLessThanOrEqual(day.level ?? 1);
+      // Over forty sections: slower, softer, and no dropped instrument.
+      const stats = (track: typeof day) => {
+        const next = track.compose!();
+        const random = seeded(11);
+        let bpm = 0;
+        let played = 0;
+        let vel = 0;
+        let notes = 0;
+        for (let i = 0; i < 40; i++) {
+          const section = next(i, random);
+          if (section.notes.length === 0) continue;
+          bpm += section.bpm;
+          played++;
+          for (const note of section.notes) {
+            vel += note.vel;
+            notes++;
+          }
+        }
+        return { bpm: bpm / played, vel: vel / notes };
+      };
+      const a = stats(day);
+      const b = stats(night);
+      expect(b.bpm, mood).toBeLessThan(a.bpm);
+      expect(b.vel, mood).toBeLessThan(a.vel);
+    }
+  });
+
+  it('keeps the other moods the same by night', () => {
+    for (const mood of ['tension', 'combat', 'battle', 'dream'] as const) expect(trackOf(mood, true)).toBe(MOOD_TRACKS[mood]);
+  });
+
+  it('loads the stinger of the dawn and of the dusk shortly before its moment, and keeps it a little after', () => {
+    expect(DAWN_HOUR).toBe(6);
+    expect(DUSK_HOUR).toBe(20);
+    expect(stingerNear(5)).toBeNull();
+    expect(stingerNear(5.5)).toBe('dawn');
+    expect(stingerNear(6.1)).toBe('dawn');
+    expect(stingerNear(6.5)).toBeNull();
+    expect(stingerNear(12)).toBeNull();
+    expect(stingerNear(19.5)).toBe('dusk');
+    expect(stingerNear(20.2)).toBe('dusk');
+    expect(stingerNear(21)).toBeNull();
+    expect(stingerNear(0)).toBeNull();
+  });
 });
 
 describe('the pieces of the game', () => {
   it('play every note on an instrument of their list, near a recorded note, inside its section', () => {
-    for (const [mood, track] of Object.entries(MOOD_TRACKS)) {
+    for (const [mood, track] of [...Object.entries(MOOD_TRACKS), ...Object.entries(NIGHT_TRACKS).map(([m, t]) => [`${m} at night`, t] as const)]) {
       const random = seeded(7);
       // Each piece's composer, as the track makes it: forty sections in a row.
       expect(track.compose, mood).toBeDefined();

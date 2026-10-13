@@ -24,13 +24,27 @@ describe('the sounds of the game', () => {
   });
 
   it('have an ambience for each place, and a room inside a building', () => {
-    for (const mood of PLACE_MOODS) expect(AMBIENCES, mood).toContain(ambienceOf(mood, false));
-    expect(ambienceOf('wilds', false)).toBe('forest');
-    expect(ambienceOf('wilds', true)).toBe('indoor');
-    expect(ambienceOf('town', true)).toBe('indoor');
-    expect(ambienceOf('home', true)).toBe('hearth');
-    expect(ambienceOf('chapel', true)).toBe('candle');
-    expect(ambienceOf('combat', false)).toBeNull();
+    for (const mood of PLACE_MOODS) for (const night of [false, true]) expect(AMBIENCES, mood).toContain(ambienceOf(mood, false, night));
+    expect(ambienceOf('wilds', false, true)).toBe('forest');
+    expect(ambienceOf('wilds', true, true)).toBe('indoor');
+    expect(ambienceOf('town', true, false)).toBe('indoor');
+    expect(ambienceOf('home', true, true)).toBe('hearth');
+    expect(ambienceOf('chapel', true, true)).toBe('candle');
+    expect(ambienceOf('combat', false, true)).toBeNull();
+  });
+
+  it('have the sound of the hour in the places outside: birds by day, crickets and owls at night (2026-10-13)', () => {
+    expect(ambienceOf('wilds', false, false)).toBe('forestDay');
+    expect(ambienceOf('wilds', false, true)).toBe('forest');
+    expect(ambienceOf('town', false, false)).toBe('townDay');
+    expect(ambienceOf('town', false, true)).toBe('townNight');
+    expect(ambienceOf('home', true, false)).toBe('hearthDay');
+    // Every place outside has two ambiences, but the chapel's candle; a room is the same at any hour.
+    for (const mood of PLACE_MOODS) if (mood !== 'chapel') expect(ambienceOf(mood, false, false), mood).not.toBe(ambienceOf(mood, false, true));
+    expect(ambienceOf('wilds', true, false)).toBe(ambienceOf('wilds', true, true));
+    expect(ambienceOf('chapel', true, false)).toBe(ambienceOf('chapel', true, true));
+    // The prologue's ambiences stay.
+    for (const id of ['night', 'wind', 'gale', 'candle', 'forge', 'hearth', 'town', 'shrine']) expect(AMBIENCES).toContain(id);
   });
 
   it('give a mob a voice when it spots the player, gathers for a blow, is hurt or dies', () => {

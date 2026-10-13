@@ -25,7 +25,10 @@ a fight, a dream, a defeat, a discovery, a quest.
 - **An ambience**: a sound that loops under a place or a scene: wind, a fire, a forge (`AmbienceId`).
 - **A mood**: what the music of the game expresses now: a place's (wilds, town, haven, home, chapel,
   ruins, camp, shrine), or tension, combat, battle, dream, silent. Each mood has a track.
-- **A stinger**: a short piece for a moment (a discovery, a quest, a victory, a defeat), over the music.
+- **A stinger**: a short piece for a moment (a discovery, a quest, a victory, a defeat, the dawn, the
+  dusk), over the music.
+- **A night form**: the music of a place at night: the same piece, slower, softer and on fewer
+  instruments (2026-10-13).
 - **A sound area**: a part of the world with a mood of its own (`SoundArea`).
 - **To sleep**: the context is suspended. Nothing sounds and the device does no audio work. When it
   wakes, the music goes on where it stopped.
@@ -203,11 +206,11 @@ a fight tells me what happens in it.
 eyes closed.
 
 **Acceptance Criteria:**
-- **AC-SND-007.1:** Each mood of a place has an ambience: the Wilds a night forest (a soft wind,
-  crickets, owls now and then, a far howl seldom, leaves in the gusts); a town a light wind and a far
-  forge; Silverspring a river and chimes in the wind; the home a hearth; the chapel a candle; the ruins
-  a strong wind and embers; the camps their fires; the shrine a low hum and a far bell. Inside any other
-  building, the hum of a room and a creaking board. It changes over 2.5 s.
+- **AC-SND-007.1:** Each mood of a place has an ambience: the Wilds a forest (a soft wind and leaves in
+  the gusts); a town a light wind; Silverspring a river and chimes in the wind; the home a hearth; the
+  chapel a candle; the ruins a strong wind and embers; the camps their fires; the shrine a low hum and a
+  far bell. The hour adds to it (REQ-SND-009). Inside any other building, the hum of a room and a
+  creaking board, at any hour. It changes over 2.5 s.
 - **AC-SND-007.2:** Near the player, these sound from their side and louder as it comes near: water (a
   lake, a river) within 9 tiles; a fire (a campfire, a brand, a cauldron) within 9 tiles; a fountain
   within 11; a forge or an anvil within 13. Through a wall, at a third.
@@ -229,6 +232,52 @@ the game sounds the same from its first screen.
   presses (with a pointer or a key), ticks when the arrow keys move a choice, and rustles for a new screen.
 - **AC-SND-008.3:** The game menu (Escape) rustles when it opens and closes, and the music steps back to
   40 % while it is open (see [`game-menu.md`](game-menu.md), REQ-GMN-004).
+
+---
+
+### REQ-SND-009: The sound of the hour
+
+**User Story:** As a player, I want to hear the day and the night, so that the hour of the world is
+not only a light.
+
+**Acceptance Criteria (Fede's choice, 2026-10-13: "all three"):**
+- **AC-SND-009.1:** The day and the night are those of the mobs and the NPCs: day from 6:00 to 20:00,
+  where the lights of the world show at half (`isDaytime()`, see [`day-and-night.md`](day-and-night.md)).
+  A world without a day is always at night.
+- **AC-SND-009.2:** The places outside have an ambience by day and one at night:
+  - the Wilds: by day birds (a warble, a call of two falling notes, a trill), a woodpecker far off and
+    a crow now and then; at night crickets, owls and a far howl. No crickets or owls by day, and no
+    birds at night;
+  - a town: by day a far forge, far voices of people (a phrase of a few syllables now and then, a laugh
+    seldom), a dog and birds now and then; at night soft crickets, an owl and a dog now and then, and
+    no forge or voices;
+  - Silverspring: by day birds; at night fewer chimes, crickets and an owl now and then;
+  - the home: by day the hearth and a bird outside now and then; at night the hearth and crickets;
+  - the ruins: by day crows; the camps: at night crickets; the shrine: at night soft crickets.
+  The chapel and the other rooms sound the same at any hour.
+- **AC-SND-009.3:** The far sounds of the day (voices, a dog, crows) are soft and muffled. The day
+  ambience of the Wilds is within 1 dB of the night's; a town by day is about 3 dB busier than at night.
+- **AC-SND-009.4:** At night the music of each place plays its night form: the same piece, slower
+  (84 % to 90 % of its tempo), softer (80 % to 92 % of the loudness of each note), and on fewer
+  instruments: the Wilds without the high violins, the timpani, the flute and the oboe, with the darker
+  soloists (the clarinet, the solo violin, the celli) and two or three sections of silence after a
+  piece; Ironhold without the tambourine and the flute, a softer drum, and a silence after every two
+  sections; Silverspring without the oboe and the glockenspiel; the home without the solo violin; the
+  chapel with softer voices; the ruins without the solo violin; the camps without the trombone and the
+  cymbal, with softer drums; the shrine without the glockenspiel, with softer bells and gong. The night
+  forms are 3 to 5 dB under the day forms. The music of a hunt, a fight, a dream and a defeat does not
+  change.
+- **AC-SND-009.5:** When the night ends or comes, the two forms of the music crossfade over 10 s, and the
+  two ambiences over 12 s (a change of place: 2.5 s and the fade of its mood).
+- **AC-SND-009.6:** When the night ends (6:00), the dawn plays: a horn calls over soft strings in D
+  major, the violins rise, a harp runs up and a glockenspiel catches the first light (about 7 s). When the
+  night comes (20:00), the dusk plays: the celli and the basses sink from D minor to B flat under the
+  violas and soft voices, and a low harp note (8 s). They play over the music of a place only (not in a
+  hunt, a fight, a dream or a defeat), never when the page starts, and they are softer than a quest's
+  stinger (about the level of the refuge and the rest). A stinger of the game that matters more wins over
+  them. Their instruments load 0.75 hour of the game (90 s) before their moment.
+- **AC-SND-009.7:** The debug panel's line `music` says "by day" or "by night", the track (a night form
+  is `<place>-night`) and the ambience.
 
 ---
 
@@ -293,13 +342,19 @@ the game sounds the same from its first screen.
   stinger; `moment(id)`), `FIGHT_HOLD_MS`, `TENSION_AFTER_MS`, `TENSION_HOLD_MS`, `PLACE_AFTER_MS`;
   `Discoveries` (localStorage `game.discovered.v1:<character id>`, or `guest`). `game.ts` gives it the
   place, the hunters, the signs of a fight (`FIGHT_RANGE`, `FIGHT_STATES`, `CLOSE_CHASE`,
-  `FIGHT_SIGN_MS`, `BOSS_KINDS`), the kills, the dream and the defeat, in each frame (`directMusic`).
-- **The pieces** (`audio/themes/`): `wilds.ts` (`wildsComposer`: progressions, soloists, the theme's
-  melody now and then, silences), `places.ts` (town, haven, home, chapel, ruins, camp, shrine, dream),
-  `fight.ts` (tension, combat, battle), `stingers.ts` (`STINGERS`), `common.ts` (the voicings `CHORDS`,
-  the phrases `CELLS`). `audio/game-music.ts`: `MOOD_TRACKS` (each with a `level`: the calm pieces are
-  about 5 dB under a fight), `MOOD_FADE`, `GameMusic` (`start`, `apply`, `near`, `conversation`). Their
-  cost, measured as for the theme: 9 % (the Wilds) to 15 % (a battle) of one core of this server.
+  `FIGHT_SIGN_MS`, `BOSS_KINDS`), the kills, the dream, the defeat and the hour (`night`: not
+  `isDaytime(skyNow())`), in each frame (`directMusic`). `PlaceMood`, `PLACE_MOODS`, `isPlaceMood()`.
+  When `night` changes over a place's mood, it queues `dawn` or `dusk` (the lowest rank of the stingers).
+- **The pieces** (`audio/themes/`): `wilds.ts` (`wildsComposer({ soloists, rests })`: progressions,
+  soloists, the theme's melody now and then, silences), `places.ts` (town, haven, home, chapel, ruins,
+  camp, shrine, dream), `fight.ts` (tension, combat, battle), `stingers.ts` (`STINGERS`), `night.ts`
+  (`NightForm`, `NIGHT_FORMS`, `nightComposer()`: the night form of each place's piece, `NIGHT_SOLOISTS`),
+  `common.ts` (the voicings `CHORDS`, the phrases `CELLS`). `audio/game-music.ts`: `MOOD_TRACKS` (each
+  with a `level`: the calm pieces are about 5 dB under a fight), `NIGHT_TRACKS` (`<place>-night`),
+  `trackOf(mood, night)`, `MOOD_FADE`, `HOUR_FADE`, `DAWN_HOUR`, `DUSK_HOUR`, `stingerNear()`,
+  `GameMusic` (`start`, `apply(mood, stinger, night)`, `near(place, unseen, night)`, `hour(hour)`: it
+  loads and holds the instruments of the dawn or the dusk near its moment, `conversation`). Their cost,
+  measured as for the theme: 9 % (the Wilds) to 15 % (a battle) of one core of this server.
 - **Loading**: the music of the starting place first, then the fight's first instruments, then the
   instruments of the hunt and of the fights, which stay (`PINNED_INSTRUMENTS`). The music of a place
   loads when the player is within 14 tiles of it, with the stinger of discovery if the place is new; the
@@ -323,12 +378,19 @@ the game sounds the same from its first screen.
   attack, the blows, the doors, the sources of loot, the piles, the pack, the drinks, the deals, the
   conversation) and in each frame (`directMusic`). The GUI: the event `game:panel-open`, and a press on
   any button but `#attack`, `#dodge`, `#action` and the answers of a conversation (the panel's `sound`).
-- **The places** (`sounds.ts`): the ambiences `forest`, `town`, `haven`, `indoor`, `ruins`, `camp`,
-  `shrine` (and those of the prologue); the layers `LAYERS` (`water`, `fire`, `fountain`, `forge`),
+- **The places** (`sounds.ts`): the ambiences of the places by day and at night (`forest` and
+  `forestDay`, `townDay` and `townNight`, `haven` and `havenNight`, `hearth` and `hearthDay`, `ruins` and
+  `ruinsDay`, `camp` and `campNight`, `shrine` and `shrineNight`), `indoor`, and those of the prologue
+  (`town` is the prologue's); the sounds of the day: `birds`, `woodpecker`, `crows`, `dog`, `voices`
+  (formant voices, `synth.ts` `voice()`, through a low-pass: far); `crickets`, `owls` and `chimes` take a
+  level or a gap. `PLACE_AMBIENCES` and `ambienceOf(mood, indoors, night)` in `game-sounds.ts`;
+  `GameSounds.place(world, mood, indoors, night, ...)` crossfades over `HOUR_AMBIENCE_FADE` (12 s) when
+  only the hour changed. The layers `LAYERS` (`water`, `fire`, `fountain`, `forge`),
   `startLayer()`; `audio.setLayer(id, level, pan)`, scheduled by the engine's clock. `GameSounds.place()`
   scans the ground (water) and `world.fixturesIn()` (fires, fountains, forges) every 300 ms.
-- **The debug panel** (F3): the line `music`: the mood, the track, the area, and how many instruments
-  are loaded.
+- **The debug panel** (F3): the line `music`: the mood, "by day" or "by night", the track, the
+  ambience (`audio.ambienceId`), the area, and how many instruments are loaded. `?hour=<0-24>` fixes the
+  hour of the sound too.
 - **The prologue**: each scene names its ambience (`AMBIENCE_OF` in `art/prologue.ts`, carried in
   `prologue.json`); `ui/prologue.ts` loads the first instruments with its art (and holds those of the
   rise and the coda until its end: `audio.hold()`), and plays the theme, the ambiences and the effects
@@ -339,8 +401,13 @@ the game sounds the same from its first screen.
   is silent. This is on purpose.
 - **Tests**: `audio/audio.test.ts` (notes, the notation, the choice of a sample, the copies of a loop,
   the decoder's delay, the manifest, the bars of the theme, every note near a recorded note, the rounds,
-  the instruments of the opening, the settings, the held instruments, the music under a menu); `audio/director.test.ts` (the moods and their timing, the stingers, every note of 40
-  sections of each piece and of each stinger near a recorded note of an instrument of its list);
-  `audio/game-sounds.test.ts` (the steps of each ground, the ambience of each mood, the voices of the
-  changes of a mob, the place of a sound, the voice of every kind of mob for every moment, the effects). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to
-  measure the levels in a browser.
+  the instruments of the opening, the settings, the held instruments, the music under a menu); `audio/director.test.ts` (the moods and their timing, the stingers, the dawn and the
+  dusk, every note of 40 sections of each piece, of each night form and of each stinger near a recorded
+  note of an instrument of its list, the night forms slower and softer on fewer instruments, the window of
+  the stingers of the hour); `audio/game-sounds.test.ts` (the steps of each ground, the ambience of each
+  mood by day and at night, the voices of the changes of a mob, the place of a sound, the voice of every
+  kind of mob for every moment, the effects). `renderOffline()` renders a track and an ambience in an
+  `OfflineAudioContext`, to measure the levels in a browser (it leaves out the track's `level`: add it).
+  The levels of 2026-10-13 (dBFS of the loud second windows): the ambiences -37 to -49 (the forest -42.6
+  at night, -42.4 by day; a town -45.8 at night, -43.2 by day); the places' music -23 to -27 by day,
+  -27 to -30 at night; the dawn -28, the dusk -30, the refuge -27, the rest -28, a quest's start -24.

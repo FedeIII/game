@@ -62,11 +62,17 @@ export function wildsSection(part: Part, chords: readonly string[], soloist: (ty
   return notes;
 }
 
-/** A composer of the Wilds: pieces and silences, each piece with its own chords and soloist. */
-export function wildsComposer(): Composer {
+/**
+ * A composer of the Wilds: pieces and silences, each piece with its own chords and soloist. `soloists`:
+ * the soloists to choose from; `rests`: the fewest and the most sections of silence after a piece (the
+ * night form: the darker soloists, and more silence; themes/night.ts).
+ */
+export function wildsComposer(o: { readonly soloists?: readonly (typeof WILDS_SOLOISTS)[number][]; readonly rests?: readonly [number, number] } = {}): Composer {
+  const soloists = o.soloists ?? WILDS_SOLOISTS;
+  const [fewest, most] = o.rests ?? [1, 2];
   const parts: Part[] = ['open', 'a', 'b', 'close'];
   let chords: readonly string[] = WILDS_PROGRESSIONS[0]!;
-  let soloist = WILDS_SOLOISTS[0]!;
+  let soloist = soloists[0]!;
   let motif = false;
   let step = 0;
   let rest = 0;
@@ -77,13 +83,13 @@ export function wildsComposer(): Composer {
     }
     if (step === 0) {
       chords = pick(WILDS_PROGRESSIONS, random);
-      soloist = pick(WILDS_SOLOISTS, random);
+      soloist = pick(soloists, random);
       // The theme's melody comes back now and then, over the theme's chords.
       motif = chords === WILDS_PROGRESSIONS[0] && random() < 0.6;
     }
     const part = parts[step]!;
     step = (step + 1) % parts.length;
-    if (step === 0) rest = random() < 0.5 ? 1 : 2;
+    if (step === 0) rest = random() < 0.5 ? fewest : most;
     return { bpm: WILDS_BPM, beats: SECTION_BEATS, notes: wildsSection(part, chords, soloist, motif, random) };
   };
 }
