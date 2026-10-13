@@ -3,7 +3,7 @@
 ## Overview
 
 Constitution (CON) is the health of the body. With the hit die of the class, it gives the hit
-points of a character (5e, level 1). It also gives how long a mob's hit stuns it, its stamina, and
+points of a character (5e, at its level: [Levels](../game/levels.md)). It also gives how long a mob's hit stuns it, its stamina, and
 how long a poison or a drink lasts. No hit points come back by themselves: a rest in a bed, a
 draught or a defeat heals. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
 refuge that it found, with half of its coins gone. A rest in the bed of the home, and an ale at
@@ -37,10 +37,11 @@ the inn of Ironhold, are the first things that act on these vitals.
 I fall.
 
 **Acceptance Criteria:**
-- **AC-CON-001.1:** A character has the hit points of a level-1 character of its class (5e,
-  [Combat](../game/combat.md), REQ-CMB-001; level 3 until 2026-10-12): the hit die at its most and the
-  CON modifier (at least 1). Until 2026-10-12: the hit die at its most, then half the
-  die + 1 two times, and the CON modifier three times. Each level gives at least 1 hit point.
+- **AC-CON-001.1:** A character has the hit points of its level and class (5e,
+  [Combat](../game/combat.md), REQ-CMB-001, and [Levels](../game/levels.md), REQ-LVL-001): at level 1
+  the hit die at its most and the CON modifier (at least 1); each level after adds half the die + 1
+  and the CON modifier. Each level gives at least 1 hit point. (Until 2026-10-12 every character was
+  level 3.)
 - **AC-CON-001.2:** A guest has the hit points of the class of its look with CON 10, for example
   22 for a fighter.
 - **AC-CON-001.3:** The vitals show the hit points as a red bar, and the numbers on it, for example
@@ -248,8 +249,8 @@ I can choose my scores.
 
 - The traits: `maxHp`, `stun`, `recover`, `maxStamina`, `staminaRefill` and `resist` of
   `PlayerTraits` (`packages/engine/src/traits.ts`, `STUN_PER_MOD`, `STAMINA_PER_MOD`,
-  `REFILL_PER_MOD`, `RESIST_PER_MOD`). `maxHp` is `levelHp(class, CON modifier)`, with `HIT_DIE`
-  and `LEVEL` (3). `recover` is 0 for every character. The plain values are in
+  `REFILL_PER_MOD`, `RESIST_PER_MOD`). `maxHp` is `levelHp(class, CON modifier, level)`, with
+  `HIT_DIE`; the level comes from the XP (`experience.ts`). `recover` is 0 for every character. The plain values are in
   `packages/engine/src/player.ts`: `PLAIN_HP` (18: a d8 class with CON 10, for a player without
   traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`.
 - The state is in `PlayerState`: `hp`, `recover`, `stamina`, `rest`, `down`, `poison`,

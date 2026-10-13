@@ -285,7 +285,7 @@ describe('accounts: sign-in with Google', () => {
     expect(calls[0]!.body.get('code')).toBe('the-code');
     expect(calls[0]!.body.get('code_verifier')).toMatch(/^[\w-]{43}$/);
     // Its verified email is in the list of the admins (any case).
-    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'google', admin: true });
+    expect((await browser.request('GET', '/api/me')).json.user).toEqual({ via: 'google', admin: true, xpDivisor: 10 });
     // A state works once.
     const again = await new Browser(port).request('GET', `/auth/google/callback?state=${state}&code=the-code`);
     expect(again.headers.get('location')).toBe(`${ORIGIN}/?login=failed`);
@@ -365,7 +365,7 @@ describe('accounts: admins', () => {
     expect(await signIn()).toEqual({ user: { via: 'google', admin: false }, kept: '' });
     // Verified ("true" as a string in older tokens): an admin.
     claims = { email: 'Boss@example.com', email_verified: 'true' };
-    expect(await signIn()).toEqual({ user: { via: 'google', admin: true }, kept: 'boss@example.com' });
+    expect(await signIn()).toEqual({ user: { via: 'google', admin: true, xpDivisor: 10 }, kept: 'boss@example.com' });
     // Another email on the same account replaces it.
     claims = { email: 'someone@example.com', email_verified: true };
     expect(await signIn()).toEqual({ user: { via: 'google', admin: false }, kept: 'someone@example.com' });
@@ -375,7 +375,7 @@ describe('accounts: admins', () => {
     const started = await start({ admins: ['boss@example.com'] });
     const boss = new Browser(started.port);
     await boss.signIn('Boss@Example.com');
-    expect((await boss.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: true });
+    expect((await boss.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: true, xpDivisor: 10 });
     // A name is no email.
     const other = new Browser(started.port);
     await other.signIn('boss');
@@ -385,6 +385,31 @@ describe('accounts: admins', () => {
     const plain = new Browser((await start()).port);
     await plain.signIn('boss@example.com');
     expect((await plain.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: false });
+  });
+
+  it('lets an admin choose the divisor of the XP of the kills of its own characters, and nobody else', async () => {
+    const started = await start({ admins: ['boss@example.com'] });
+    const boss = new Browser(started.port);
+    await boss.signIn('boss@example.com');
+    const told: number[] = [];
+    started.accounts!.onXpDivisor((_user, divisor) => told.push(divisor));
+    expect((await boss.request('PUT', '/api/me/xp-divisor', { divisor: 1 })).json).toEqual({ xpDivisor: 1 });
+    expect((await boss.request('GET', '/api/me')).json.user).toEqual({ via: 'dev', admin: true, xpDivisor: 1 });
+    // The game server hears it, and gives it to the admin's characters in the rooms.
+    expect(told).toEqual([1]);
+    for (const divisor of [0, 101, 2.5, '3', null]) expect((await boss.request('PUT', '/api/me/xp-divisor', { divisor })).status).toBe(400);
+    // Another page cannot change it for the admin.
+    expect((await boss.request('PUT', '/api/me/xp-divisor', { divisor: 2 }, 'https://evil.example')).status).toBe(403);
+    const other = new Browser(started.port);
+    await other.signIn('someone@example.com');
+    expect((await other.request('PUT', '/api/me/xp-divisor', { divisor: 1 })).status).toBe(403);
+    expect(told).toEqual([1]);
+    // An admin that is no longer in the list gets the divisor of everybody.
+    await started.close();
+    server = null;
+    const again = new Browser((await start({ db: ':memory:' })).port);
+    await again.signIn('boss@example.com');
+    expect((await again.request('GET', '/api/me')).json.user.xpDivisor).toBeUndefined();
   });
 });
 
@@ -453,6 +478,20 @@ describe('accounts: the shared world', () => {
     const b = await laptop.hello({ character: id });
     expect(b.first).toMatchObject({ t: 'welcome', x: kept.x, y: kept.y });
     await b.close();
+  });
+
+  it('gives a player the XP of its stored character, and the list of characters shows it', async () => {
+    const started = await start();
+    const browser = new Browser(started.port);
+    await browser.signIn('Fede');
+    const id = (await browser.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const listed = async () => ((await browser.request('GET', '/api/characters')).json.characters as { id: string; xp: number }[]).find((c) => c.id === id)!.xp;
+    expect(await listed()).toBe(0);
+    started.accounts!.saveQuests({ id: 1, provider: 'dev', email: '' }, id, {}, { coins: 0, items: [] }, 450);
+    expect(await listed()).toBe(450);
+    const a = await browser.hello({ character: id });
+    expect(a.first).toMatchObject({ t: 'welcome', xp: 450 });
+    await a.close();
   });
 
   it('gives a player the pack of its stored character, and the list of characters shows it', async () => {
@@ -613,7 +652,7 @@ describe('accounts: personal data', () => {
     }
   });
 
-  it('keeps the quest book of a character with its pack, and gives an empty book to a character from before the quests', () => {
+  it('keeps the quest book of a character with its pack and its XP, and gives an empty book to a character from before the quests', () => {
     const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
     try {
       const file = join(dir, 'game.db');
@@ -623,14 +662,16 @@ describe('accounts: personal data', () => {
       if (made === 'limit') throw new Error('limit');
       expect(made.quests).toEqual({});
       expect(store.character(user.id, made.id)!.quests).toEqual({});
-      // The step and its reward go together.
-      expect(store.setQuests(user.id, made.id, { cart: { step: 'done', flags: ['lifted'], n: 2 } }, { coins: 10, items: [{ kind: 'crowbar', count: 1 }] })).toBe(true);
-      expect(store.setQuests(user.id + 1, made.id, {}, { coins: 0, items: [] })).toBe(false);
+      expect(made.xp).toBe(0);
+      // The step and its reward go together: the coins, the items and the XP.
+      expect(store.setQuests(user.id, made.id, { cart: { step: 'done', flags: ['lifted'], n: 2 } }, { coins: 10, items: [{ kind: 'crowbar', count: 1 }] }, 50)).toBe(true);
+      expect(store.setQuests(user.id + 1, made.id, {}, { coins: 0, items: [] }, 0)).toBe(false);
       store.close();
       const again = new AccountStore(file);
       const loaded = again.character(user.id, made.id)!;
       expect(loaded.quests).toEqual({ cart: { step: 'done', flags: ['lifted'], n: 2 } });
       expect(loaded.pack).toEqual({ coins: 10, items: [{ kind: 'crowbar', count: 1 }] });
+      expect(loaded.xp).toBe(50);
       again.close();
       // A bad book in the column is dropped, not trusted.
       const db = new DatabaseSync(file);
@@ -656,9 +697,9 @@ describe('accounts: personal data', () => {
       store.setPlace(user.id, old.id, { world: 'wilds', x: 100, y: 200 });
       store.setPlace(user.id, young.id, { world: 'wilds', x: 300, y: 400 });
       store.close();
-      // The database as it was before the step of 2026-10-13 (the 11 steps before it).
+      // The database as it was before the step of 2026-10-13 (the 11 steps before it), without the columns of the later steps.
       const db = new DatabaseSync(file);
-      db.exec('PRAGMA user_version = 11');
+      db.exec('ALTER TABLE characters DROP COLUMN xp; ALTER TABLE users DROP COLUMN xp_divisor; PRAGMA user_version = 11');
       db.close();
       const again = new AccountStore(file);
       expect(again.character(user.id, old.id)!.place).toBeNull();
@@ -691,7 +732,7 @@ describe('accounts: personal data', () => {
       store.close();
       const check = new DatabaseSync(file);
       const columns = (check.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
-      expect(columns.sort()).toEqual(['created_at', 'email', 'id', 'last_login_at', 'provider', 'subject']);
+      expect(columns.sort()).toEqual(['created_at', 'email', 'id', 'last_login_at', 'provider', 'subject', 'xp_divisor']);
       // And the later steps ran: a character has a place.
       expect((check.prepare('PRAGMA table_info(characters)').all() as { name: string }[]).map((c) => c.name)).toContain('place');
       check.close();

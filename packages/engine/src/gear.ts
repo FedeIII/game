@@ -243,16 +243,27 @@ export function dieBase(die: Die): Dice {
 
 /** An unarmed strike (5e: 1 + the mod). */
 export const UNARMED_BASE: Dice = dice(0, 0, 1);
-/** A monk's martial arts at level 1 (5e: d4 + DEX): its unarmed strike, as quick as a light weapon. */
-export const MARTIAL_ARTS_BASE: Dice = dice(1, 4);
+/**
+ * The die of a monk's martial arts at a level (5e: d4 + DEX at level 1; d6 from level 5, d8 from 11,
+ * d10 from 17): its unarmed strike, as quick as a light weapon.
+ */
+export function martialArts(level: number): Dice {
+  return dice(1, level >= 17 ? 10 : level >= 11 ? 8 : level >= 5 ? 6 : 4);
+}
 /**
  * The cantrip of a spellcaster with an empty main hand or with its focus (CASTER_FOCUS), at level 1:
  * fire bolt and eldritch blast (1d10), produce flame (1d8).
  */
 export const CANTRIP_BASE: Readonly<Partial<Record<CharacterClass, Dice>>> = { druid: dice(1, 8), sorcerer: dice(1, 10), warlock: dice(1, 10), wizard: dice(1, 10) };
 export const CASTER_FOCUS: Readonly<Partial<Record<CharacterClass, Focus>>> = { druid: 'druidic', sorcerer: 'arcane', warlock: 'arcane', wizard: 'arcane' };
-/** A rogue's sneak attack at level 1 (1d6): on a mob that does not hunt the rogue. */
-export const SNEAK_ATTACK: Dice = dice(1, 6);
+/** The dice of a cantrip at a level (5e): one more die at levels 5, 11 and 17 (eldritch blast: one more beam, as one roll here). */
+export function cantripDice(base: Dice, level: number): Dice {
+  return dice(base.count * (1 + (level >= 5 ? 1 : 0) + (level >= 11 ? 1 : 0) + (level >= 17 ? 1 : 0)), base.sides, base.plus);
+}
+/** A rogue's sneak attack at a level (5e): 1d6, and one more d6 at each odd level (2d6 at 3, 3d6 at 5): on a mob that does not hunt the rogue. */
+export function sneakAttack(level: number): Dice {
+  return dice(Math.ceil(Math.max(1, level) / 2), 6);
+}
 /** A light weapon attacks this many ticks quicker; so does a light weapon in the off hand. */
 export const LIGHT_TICKS = 2;
 /** A heavy melee weapon attacks this many ticks slower. */
@@ -287,18 +298,18 @@ export interface AttackGear {
   readonly reach: number;
 }
 
-/** How a class attacks with this gear. */
-export function attackGear(gear: Gear, cls: CharacterClass): AttackGear {
+/** How a class attacks with this gear, at a level (the dice of a cantrip and of martial arts grow with it). */
+export function attackGear(gear: Gear, cls: CharacterClass, level = 1): AttackGear {
   const main = wearableOf(gear.main);
   const off = wearableOf(gear.off);
   const offQuicker = off?.weapon?.light ? LIGHT_TICKS : 0;
   const cantrip = CANTRIP_BASE[cls];
   if (cantrip !== undefined && (!main || (main.weapon?.focus && main.weapon.focus === CASTER_FOCUS[cls]))) {
-    return { base: cantrip, bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
+    return { base: cantripDice(cantrip, level), bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
   }
   if (!main?.weapon) {
     return cls === 'monk'
-      ? { base: MARTIAL_ARTS_BASE, bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false, reach: 0 }
+      ? { base: martialArts(level), bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false, reach: 0 }
       : { base: UNARMED_BASE, bonus: 0, kind: 'unarmed', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
   }
   const weapon = main.weapon;

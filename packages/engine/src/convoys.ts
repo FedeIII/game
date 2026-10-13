@@ -145,7 +145,7 @@ export class Convoys {
         run.waves = def.waves.filter((w) => book.some((p) => holds(w.when, p.quests, p.pack)));
         run.phase = 'fight';
         for (const g of run.guards) g.halted = true;
-        this.nextWave(run, horde, players.filter(inParty).length);
+        this.nextWave(run, horde, players.filter(inParty).map((p) => p.level ?? 1));
       } else if (run.phase === 'fight') {
         let alive = 0;
         for (const id of run.mobs) {
@@ -158,7 +158,7 @@ export class Convoys {
         if (alive === 0) {
           const wave = run.waves.shift();
           if (wave?.effect) give(wave.effect, inParty);
-          if (run.waves.length > 0) this.nextWave(run, horde, players.filter(inParty).length);
+          if (run.waves.length > 0) this.nextWave(run, horde, players.filter(inParty).map((p) => p.level ?? 1));
           else {
             run.phase = 'on';
             run.mobs = [];
@@ -192,13 +192,13 @@ export class Convoys {
     return { def, guards: list, anchor: list[0]!, party, route, meetIndex: Math.floor(route.length * def.meet), phase: 'walk', waves: [], mobs: [], last: new Map() };
   }
 
-  /** The next wave: its units for `count` characters, from a little ahead of the anchor on the route. */
-  private nextWave(run: Run, horde: Horde, count: number): void {
+  /** The next wave: its units for characters of these levels (at least one of level 1), from a little ahead of the anchor on the route. */
+  private nextWave(run: Run, horde: Horde, levels: readonly number[]): void {
     const wave = run.waves[0];
     if (!wave) return;
     const units = sizeEncounter(
       wave.units.map((u) => u.map((m) => m.kind)),
-      Math.max(1, count),
+      levels,
     ).length;
     const members = wave.units.slice(0, units).flat();
     const ahead = run.route[Math.min(run.route.length - 1, run.anchor.routeIndex + CONVOY_AMBUSH_AHEAD * 4)]!;

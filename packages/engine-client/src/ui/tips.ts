@@ -10,7 +10,7 @@ import { STRINGS } from './strings.ts';
  */
 
 /** Every tip, in the order of a new player's first minutes. */
-export const TIP_IDS = ['walk', 'act', 'rest', 'journal', 'talk', 'deal', 'map', 'sneak', 'attack', 'dodge', 'hit', 'drink', 'pickup', 'defeat'] as const;
+export const TIP_IDS = ['walk', 'act', 'rest', 'journal', 'talk', 'deal', 'map', 'sneak', 'attack', 'dodge', 'hit', 'drink', 'pickup', 'defeat', 'xp'] as const;
 export type TipId = (typeof TIP_IDS)[number];
 
 /** How long a tip shows (ms) if the player does not do the thing first, and the pause between two tips. */

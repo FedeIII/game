@@ -23,8 +23,8 @@ const TICK_MS = TICK_SECONDS * 1000;
 const at = (tx: number, ty: number) => ({ x: tx * TILE_SIZE + 8, y: ty * TILE_SIZE + 12 });
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {} };
 /** A militia of the Enclave (5e: a guard) and the wagon of a caravan. */
-const MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
-const WAGON: GuardDef = { id: 'wagon', name: 'Wagon', look: 'wagon', hp: 30, ac: 11, speed: 0.5 };
+const MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, cr: 1 / 8, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
+const WAGON: GuardDef = { id: 'wagon', name: 'Wagon', look: 'wagon', hp: 30, ac: 11, cr: 0, speed: 0.5 };
 const ROUTE = Array.from({ length: 81 }, (_, i) => at(10 + i / 4, 5));
 
 function setup() {
@@ -140,9 +140,9 @@ describe('guards', () => {
     const robber: GuardPlayer = { id: 2, state: createPlayer(at(11, 5).x, at(11, 5).y), outlaw: ['caravan'] };
     guards.strike(robber.state, Math.atan2(militia.state.y - robber.state.y, militia.state.x - robber.state.x), 2, { toHit: 99, damage: dice(0, 0, 50), push: 1, stagger: 1, opening: 0 }, ['caravan'], AVERAGE_DICE);
     const events = run(world, horde, guards, [], 4000, at(10, 5));
-    expect(events.map((e) => [e.kind, e.def, e.by ?? null])).toEqual([
-      ['fell', 'militia', 2],
-      ['gone', 'militia', null],
+    expect(events.map((e) => [e.kind, e.def, e.by ?? null, e.hitters ?? null])).toEqual([
+      ['fell', 'militia', 2, [2]],
+      ['gone', 'militia', null, null],
     ]);
     expect(guards.list).toHaveLength(0);
   });

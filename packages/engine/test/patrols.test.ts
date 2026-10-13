@@ -91,7 +91,7 @@ function startle(horde: Horde, members: Mob[], player: HordePlayer): number {
 describe('the goblins of the forest (the tutorial)', () => {
   it('are the SRD goblin with a scimitar, slower than a player, and on the wire as new codes', () => {
     const s = MOB_STATS.skirmisher;
-    expect([s.health, s.ac, s.toHit, s.xp]).toEqual([7, 15, 4, 50]);
+    expect([s.health, s.ac, s.toHit, s.cr]).toEqual([7, 15, 4, 1 / 4]);
     expect(s.damage).toEqual(dice(1, 6, 2));
     expect(s.arrowRange).toBeUndefined();
     expect(s.chaseSpeed).toBeLessThan(PLAYER_SPEED);

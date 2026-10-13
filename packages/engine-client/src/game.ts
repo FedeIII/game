@@ -121,6 +121,13 @@ import {
   isDaytime,
   skyAt,
   type Sky,
+  KILL_XP_DIVISOR,
+  LEVEL_XP,
+  MAX_LEVEL,
+  MAX_XP,
+  killXp,
+  levelOf,
+  levelProgress,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
@@ -187,6 +194,7 @@ import { BuildWatch } from './ui/new-build.ts';
 import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
+import { xpSection } from './ui/xp-section.ts';
 import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
 import { STRINGS } from './ui/strings.ts';
 import { WorldMenu } from './ui/world-menu.ts';
@@ -340,6 +348,8 @@ async function run(options: GameOptions): Promise<void> {
   let character: Character | null = null;
   // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings; a guest never.
   let admin = false;
+  // The divisor of the XP of the kills of the character (experience.ts): an admin chooses its own in the settings.
+  let xpDivisor = KILL_XP_DIVISOR;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
   let fresh = false;
   // The prologue (ui/prologue.ts): once for a new character, before it enters the world (?prologue
@@ -351,7 +361,7 @@ async function run(options: GameOptions): Promise<void> {
   };
   const cards = definition.prologue;
   if (options.accounts && !guest) {
-    ({ character, admin, fresh } = await runMenu({
+    ({ character, admin, fresh, xpDivisor = KILL_XP_DIVISOR } = await runMenu({
       title: options.name ?? tw(definition.name),
       site: options.title ?? location.host,
       skins,
@@ -406,11 +416,15 @@ async function run(options: GameOptions): Promise<void> {
   // world that the page runs, the page has its own, which it does not save. A guest wears the 5e
   // kit of the class of its look.
   let gear: Gear = character?.gear ?? guestGear(skin);
-  /** What the scores and some gear give in the game (traits.ts): a guest has every score at 10, and the class of its look. */
-  const traitsFor = (worn: Gear): PlayerTraits => (character ? sheetTraits(character, worn) : guestTraits(skin, worn));
-  // The traits follow the gear (followGear): its Armour Class, its damage, its walk.
-  let traits = traitsFor(gear);
+  /** What the scores, some gear and the level give in the game (traits.ts): a guest has every score at 10, and the class of its look. */
+  const traitsFor = (worn: Gear, level: number): PlayerTraits => (character ? sheetTraits(character, worn, level) : guestTraits(skin, worn, level));
+  // The XP of the character (experience.ts): its level comes from it. In a shared world the server
+  // keeps it (net.xp); in a world that the page runs, the page has its own, which it does not save.
+  let localXp = character?.xp ?? 0;
+  // The traits follow the gear and the level (followGear): its Armour Class, its damage, its walk, its hit points.
+  let traits = traitsFor(gear, levelOf(localXp));
   let traitsGear = gear;
+  let traitsLevel = traits.level;
   // The hit points of the character from its last visit (all of them for a new one), and all its stamina.
   // In a shared world the welcome gives the server's word.
   const storedHp = character?.hp ?? null;
@@ -426,6 +440,11 @@ async function run(options: GameOptions): Promise<void> {
   let pack: Pack = character?.pack ?? EMPTY_PACK;
   const packNow = (): Pack => net?.pack ?? pack;
   const gearNow = (): Gear => net?.gear ?? gear;
+  const xpNow = (): number => net?.xp ?? localXp;
+  /** XP for the character in a world that the page runs (a kill, a quest): its level follows (followGear). */
+  const gainXp = (xp: number): void => {
+    if (xp > 0) localXp = Math.min(MAX_XP, localXp + xp);
+  };
   // The quest book of the character (quests.ts). In a shared world the server keeps it (net.quests);
   // in a world that the page runs, the page has its own, which it does not save.
   const quests = definition.quests ?? [];
@@ -833,6 +852,7 @@ async function run(options: GameOptions): Promise<void> {
 
   // How many other visitors are here: an admin only, in the "You" section of the settings.
   if (net && admin) you.addLine(new PresenceLabel(net).element);
+  you.setLevel(levelProgress(localXp));
   // ?nolight shows the world without the darkness, to look at the art.
   // The night is less dark for a character with Wisdom (PlayerTraits.night).
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness * traits.night);
@@ -943,6 +963,8 @@ async function run(options: GameOptions): Promise<void> {
   settings.addSection(soundSection());
   settings.addSection(language);
   settings.addSection(you.element);
+  // An admin chooses the divisor of the XP of the kills of its own characters (ui/xp-section.ts): to test the levels.
+  if (admin && character) settings.appendSection(xpSection(xpDivisor, (divisor) => api.setXpDivisor(divisor), (divisor) => (xpDivisor = divisor)));
   // The worlds menu only when there is another world to go to.
   if (options.worlds.length > 1) new WorldMenu(options.worlds, definition);
 
@@ -1150,10 +1172,17 @@ async function run(options: GameOptions): Promise<void> {
    */
   const followGear = (): void => {
     const worn = gearNow();
-    if (worn === traitsGear) return;
+    const level = levelOf(xpNow());
+    if (worn === traitsGear && level === traitsLevel) return;
+    const risen = level > traitsLevel;
+    const maxHp = traits.maxHp;
     traitsGear = worn;
-    traits = traitsFor(worn);
+    traitsLevel = level;
+    traits = traitsFor(worn, level);
     net?.setTraits(traits);
+    // A new level adds its hit points (5e). In a shared world the server adds them, and its next snapshot says so.
+    if (risen && !net && player.down === 0) player.hp = Math.min(traits.maxHp, player.hp + Math.max(0, traits.maxHp - maxHp));
+    if (risen) levelUp(level);
     // An amulet of health that comes off takes its hit points with it (the server does the same).
     player.hp = Math.min(player.hp, traits.maxHp);
     player.stamina = Math.min(player.stamina, traits.maxStamina);
@@ -1226,6 +1255,12 @@ async function run(options: GameOptions): Promise<void> {
   const banner = new QuestBanner(font);
   textScene.addChild(banner.root);
   fixtures.setHolds(holdsNow);
+  /** A new level (experience.ts): a banner as for a quest, its music, and the words for a screen reader. */
+  const levelUp = (level: number): void => {
+    banner.show(STRINGS.levelUp.kicker, STRINGS.levelUp.title(level));
+    director.moment('questEnd');
+    vitals.announce(STRINGS.levelUp.spoken(level));
+  };
   /** A quest started, moved on or ended: a banner for each change, and the journal's button shines. */
   const questsChanged = (before: QuestBook, after: QuestBook): void => {
     for (const change of questChanges(before, after, quests)) {
@@ -1262,6 +1297,7 @@ async function run(options: GameOptions): Promise<void> {
     localQuests = next.book;
     pack = next.pack;
     gear = carried.gear;
+    gainXp(effect.xp ?? 0);
     const now = performance.now();
     lootText.add(dropLines(next.taken), now);
     if (next.left.items.length > 0) {
@@ -1752,16 +1788,22 @@ async function run(options: GameOptions): Promise<void> {
     horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? []), ...(localGuards?.targets() ?? [])]);
     // An ambush that ends moves the quest on (here the page applies it: where does not matter).
     if (horde && localAmbushes) {
-      for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
+      for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack, level: traits.level }])) applyQuest(effect, { scene: 'ambush' });
       for (const { effect } of localConfrontations?.step(TICK_SECONDS * 1000, horde, [{ id: 0, state: player, quests: localQuests, pack }]) ?? []) applyQuest(effect, { scene: 'confrontation' });
       // During a raid, the people of the town take shelter.
       localNpcs?.setAlarm(localAmbushes.sheltered);
     }
     // The convoys start, meet their attackers and end.
-    if (horde && localGuards && localConvoys?.defs.length) for (const { effect } of localConvoys.step(horde, localGuards, [{ id: 0, state: player, quests: localQuests, pack }], guardEvents)) applyQuest(effect, { scene: 'convoy' });
+    if (horde && localGuards && localConvoys?.defs.length) for (const { effect } of localConvoys.step(horde, localGuards, [{ id: 0, state: player, quests: localQuests, pack, level: traits.level }], guardEvents)) applyQuest(effect, { scene: 'convoy' });
     for (const { mob } of horde?.takeShotKills() ?? []) {
       kills++;
       takeDrop(horde!.drop(mob), performance.now(), mob);
+    }
+    // The XP of the kills (the player is 0 here), and of the guards that a robber brought down.
+    for (const { mob, hitters } of horde?.takeDefeats() ?? []) if (hitters.includes(0)) gainXp(killXp(MOB_STATS[mob.kind].cr, xpDivisor));
+    for (const event of guardEvents) {
+      const guard = event.kind === 'fell' && event.hitters?.includes(0) ? localGuards?.list.find((g) => g.id === event.id) : undefined;
+      if (guard) gainXp(killXp(guard.def.cr, xpDivisor));
     }
   });
 
@@ -1775,7 +1817,7 @@ async function run(options: GameOptions): Promise<void> {
   // ---------------------------------------------------------------- tips
   //
   // What the tips watch from one frame to the next: the health, the way walked, a fall, a talk.
-  const tipWatch = { hp: player.hp, walked: 0, x: player.x, y: player.y, fell: false, talking: false };
+  const tipWatch = { hp: player.hp, walked: 0, x: player.x, y: player.y, fell: false, talking: false, xp: xpNow() };
   const updateTips = (now: number): void => {
     const w = tipWatch;
     const step = Math.hypot(player.x - w.x, player.y - w.y);
@@ -1807,6 +1849,9 @@ async function run(options: GameOptions): Promise<void> {
     if (player.down === 0 && player.hp > 0 && player.hp <= traits.maxHp * 0.4 && healing > 0) tips.request('drink');
     w.hp = player.hp;
     if (pilesNow().some((pile) => Math.hypot(pile.x - player.x, pile.y - player.y) < 5 * TILE_SIZE)) tips.request('pickup');
+    // The first XP: the tip of the gold bar.
+    if (xpNow() > w.xp) tips.request('xp');
+    w.xp = xpNow();
     // A fall: the tip comes when the character wakes.
     if (player.down > 0) w.fell = true;
     else if (w.fell) {
@@ -1957,6 +2002,8 @@ async function run(options: GameOptions): Promise<void> {
     numbersGlance = player.glance;
     fightNumbers.update(now);
     vitals.update(player, traits.maxHp, traits.maxStamina);
+    vitals.setLevel(levelProgress(xpNow()));
+    you.setLevel(levelProgress(xpNow()));
     directMusic(now, view);
     if (!net || net.status !== 'online') for (const [cx, cy] of seenChunks(player.x, player.y)) localExplored.add(`${cx},${cy}`);
     // The quest book changed (an effect, the server's word): the journal, the map's marks and the answers follow.
@@ -2075,6 +2122,7 @@ async function run(options: GameOptions): Promise<void> {
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
       `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
+      `xp      ${xpNow()} (level ${traits.level}${traits.level < MAX_LEVEL ? `, next at ${LEVEL_XP[traits.level]}` : ''}), a kill gives its XP / ${xpDivisor}${net?.xp !== null && net?.xp !== undefined ? ' (server)' : ''}`,
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,
       ...(npcDefs.length ? [`lines   ${linesHeard} heard, ${linesShown} shown, last ${lastLine}`] : []),

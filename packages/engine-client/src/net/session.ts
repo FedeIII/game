@@ -114,6 +114,8 @@ export class NetSession {
   private readonly refugeListeners: ((refuges: readonly string[]) => void)[] = [];
   /** The quest book of the character, in the server's last word (null before the welcome). */
   quests: QuestBook | null = null;
+  /** The XP of the character, in the server's last word (null before the welcome): its level comes from it (experience.ts). */
+  xp: number | null = null;
   private readonly questListeners: ((before: QuestBook, after: QuestBook) => void)[] = [];
   private readonly blowListeners: ((blows: readonly WireBlow[]) => void)[] = [];
   private traits: PlayerTraits;
@@ -154,7 +156,7 @@ export class NetSession {
     this.connect();
   }
 
-  /** New traits for the player (its gear changed): the prediction uses them at once. */
+  /** New traits for the player (its gear or its level changed): the prediction uses them at once. */
   setTraits(traits: PlayerTraits): void {
     this.traits = traits;
     this.prediction.traits = traits;
@@ -417,6 +419,7 @@ export class NetSession {
         this.id = message.id;
         this.refuges = message.rf;
         this.quests = fromWireBook(message.qs ?? []);
+        this.xp = Number.isInteger(message.xp) ? message.xp : 0;
         this.explored.clear();
         for (const [cx, cy] of message.ex) this.explored.add(`${cx},${cy}`);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
@@ -449,6 +452,7 @@ export class NetSession {
           this.quests = fromWireBook(message.qs);
           if (before !== null) for (const listener of this.questListeners) listener(before, this.quests);
         }
+        if (Number.isInteger(message.xp)) this.xp = message.xp!;
         if (message.bl) for (const listener of this.blowListeners) listener(message.bl);
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);

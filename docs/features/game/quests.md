@@ -26,7 +26,8 @@ robs it and is wanted until it pays a fine.
   of the changes.
 - **Step**: a stage of a quest, with a line for the journal. A step can end the quest.
 - **Effect**: what an answer or a thing does to a quest: it starts it or moves it to a step, and it
-  can set a flag, take items and give coins and items.
+  can set a flag, take items and give coins and items, and XP (since 2026-10-14:
+  `docs/features/game/levels.md`, REQ-LVL-003).
 - **Condition**: a quest at some steps (or started at all), or an item in the pack; or the opposite
   of one.
 - **Open quest**: a quest at a step that does not end it. **Done quest**: one at a step that ends it.
@@ -585,7 +586,7 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
 - **The engine** (`packages/engine/src/quests.ts`): `QuestDef` (`id`, `title`, `steps`),
   `QuestStep` (`id`, `journal`, `at`, `npc`, `end`), `QuestEntry` (`step`, `flags`, `n`),
   `QuestBook`, `EMPTY_BOOK`, `When` and `Conditions`, `holds()`, `QuestEffect` (`id`, `quest`, `to`,
-  `from`, `flag`, `take`, `give`), `canApply()`, `applyEffect()`, `firstThatHolds()`,
+  `from`, `flag`, `take`, `give`, `cost`, `xp`), `canApply()`, `applyEffect()`, `firstThatHolds()`,
   `checkQuests()` (a book from outside: `QUEST_ID` ids, `MAX_QUESTS` 64, `MAX_FLAGS` 8),
   `checkQuestDefs()` (`QUEST_LIMITS`: title 40, journal 240 characters), `checkEffect()`,
   `checkConditions()`, `questChanges()` (for the banner).

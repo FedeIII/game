@@ -69,10 +69,14 @@ export interface MenuOptions {
   readonly prologue?: (latest: Character | null) => Promise<void>;
 }
 
-/** The chosen character, if the account is an admin, and if the character was just made (its prologue plays). */
+/**
+ * The chosen character, if the account is an admin (and then the divisor of the XP of its kills,
+ * experience.ts), and if the character was just made (its prologue plays).
+ */
 export interface MenuChoice {
   readonly character: Character;
   readonly admin: boolean;
+  readonly xpDivisor?: number;
   readonly fresh: boolean;
 }
 
@@ -235,7 +239,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         logo.stop();
         speaker.stop();
         setTimeout(() => root.remove(), 400);
-        resolve({ character: played, admin: me?.user?.admin === true, fresh });
+        resolve({ character: played, admin: me?.user?.admin === true, ...(me?.user?.xpDivisor !== undefined ? { xpDivisor: me.user.xpDivisor } : {}), fresh });
       } catch (error) {
         fail(error, () => void start(character, fresh));
       }

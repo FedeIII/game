@@ -8,6 +8,13 @@ import type { QuestDef, QuestEffect } from '@game/engine';
  * (town.ts) and the letter (home.ts) carry them.
  */
 
+/*
+ * The XP of the quests (experience.ts, `xp` on an effect; Fede, 2026-10-14): the quests give more than
+ * half of a character's XP. The end of a quest or a big step of it gives XP: 100 for the end of the
+ * road, a fight of the story or the end of a long quest, 25 to 75 for a small quest or a step on the
+ * way. A game of chapter 1 ends at about level 3 (worlds/wilds/test/economy.test.ts).
+ */
+
 /** The coins that the merchant pays for the help with the cart. */
 export const CART_REWARD = 10;
 /** The coins that the sergeant of Bronzehold pays for the farmer's lentils (chapter 1.5.1: bought at 1 gp 2 sp, sold at 1 gp 5 sp). */
@@ -201,7 +208,7 @@ export const QUESTS: readonly QuestDef[] = [ROAD, ASHES, CART, LENTILS, RAID, CA
 /** The end of the scene in the Crooked Lantern (town.ts, PLOT): the character heard of the plot. */
 export const CARAVAN_HEARD: QuestEffect = { id: 'caravan-heard', quest: 'caravan', to: 'heard' };
 /** Every attacker of the caravan fell, and its wagon lives. */
-export const CARAVAN_SAVED: QuestEffect = { id: 'caravan-saved', quest: 'caravan', to: 'saved', from: ['heard'], give: { coins: CARAVAN_REWARD, items: [{ kind: 'draught', count: 1 }] } };
+export const CARAVAN_SAVED: QuestEffect = { id: 'caravan-saved', quest: 'caravan', to: 'saved', from: ['heard'], give: { coins: CARAVAN_REWARD, items: [{ kind: 'draught', count: 1 }] }, xp: 100 };
 /** The attackers broke the wagon. */
 export const CARAVAN_LOST: QuestEffect = { id: 'caravan-lost', quest: 'caravan', to: 'lost', from: ['heard'] };
 /** The character tells the driver to hand over the cargo: its militia fight it (it is an outlaw of the caravan). */
@@ -231,7 +238,7 @@ export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'road', to: 
  */
 export const GOBLINS_MET: QuestEffect = { id: 'goblins-met', quest: 'road', from: ['go'], flag: 'goblins' };
 /** The character comes into Ironhold (town.ts, the scene ARRIVAL): the road ends. */
-export const ROAD_ARRIVED: QuestEffect = { id: 'road-arrived', quest: 'road', to: 'arrived', from: ['go'] };
+export const ROAD_ARRIVED: QuestEffect = { id: 'road-arrived', quest: 'road', to: 'arrived', from: ['go'], xp: 100 };
 /** The reeve hears that Thrain sent the character (a character from before the road, whose letter started `ashes`). */
 export const TELL_REEVE: QuestEffect = { id: 'tell-reeve', quest: 'ashes', to: 'reeve', from: ['letter'] };
 /** The reeve tells of the burned homesteads, to a character that came by the road: it starts `ashes`. */
@@ -248,6 +255,7 @@ export const LENTILS_GIVE: QuestEffect = {
   from: ['carry'],
   take: [{ kind: 'lentils', count: 1 }],
   give: { coins: LENTILS_REWARD, items: [] },
+  xp: 50,
 };
 /** A wade with the sack (WorldSource.wadeEffects): the water ruins the lentils. The room sees it, not the page. */
 export const LENTILS_SOAK: QuestEffect = {
@@ -266,15 +274,16 @@ export const LENTILS_PLEAD: QuestEffect = {
   from: ['wet'],
   take: [{ kind: 'wet-lentils', count: 1 }],
   give: { coins: LENTILS_WET_REWARD, items: [] },
+  xp: 40,
 };
-export const LENTILS_SPOILED: QuestEffect = { id: 'lentils-spoiled', quest: 'lentils', to: 'spoiled', from: ['wet'], take: [{ kind: 'wet-lentils', count: 1 }] };
+export const LENTILS_SPOILED: QuestEffect = { id: 'lentils-spoiled', quest: 'lentils', to: 'spoiled', from: ['wet'], take: [{ kind: 'wet-lentils', count: 1 }], xp: 25 };
 /** The effects that water applies (WildsSource.wadeEffects). */
 export const WADE_EFFECTS: readonly QuestEffect[] = [LENTILS_SOAK];
 
 /** The phoenix of each burned homestead (ruins.ts), in the order of the reeve's word and of the tracks. */
 export const RUIN_HALE: QuestEffect = { id: 'ruin-hale', quest: 'ashes', to: 'ruin1', from: ['reeve'] };
 export const RUIN_MARROW: QuestEffect = { id: 'ruin-marrow', quest: 'ashes', to: 'ruin2', from: ['ruin1'] };
-export const RUIN_TANNER: QuestEffect = { id: 'ruin-tanner', quest: 'ashes', to: 'ruins', from: ['ruin2'] };
+export const RUIN_TANNER: QuestEffect = { id: 'ruin-tanner', quest: 'ashes', to: 'ruins', from: ['ruin2'], xp: 50 };
 /** The priest or the apothecary of Ironhold tells what it knows of the phoenix. */
 export const ASHES_SYMBOL: QuestEffect = { id: 'ashes-symbol', quest: 'ashes', to: 'symbol', from: ['ruins'] };
 
@@ -285,11 +294,11 @@ export const ASHES_NEXT: QuestEffect = { id: 'ashes-next', quest: 'ashes', to: '
 /** Mira Wren gives the wave stone to the character who warns her. */
 export const MIRA_STONE: QuestEffect = { id: 'mira-stone', quest: 'ashes', to: 'stone', from: ['next'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 /** The cinder hounds fell at the Wren homestead: Mira pays. */
-export const ASHES_HELD: QuestEffect = { id: 'ashes-held', quest: 'ashes', to: 'held', from: ['next', 'stone'], give: { coins: WREN_REWARD, items: [{ kind: 'draught', count: 1 }] } };
+export const ASHES_HELD: QuestEffect = { id: 'ashes-held', quest: 'ashes', to: 'held', from: ['next', 'stone'], give: { coins: WREN_REWARD, items: [{ kind: 'draught', count: 1 }] }, xp: 100 };
 /** The hounds came to the homestead first: the Seekers took the stone. */
 export const ASHES_LATE: QuestEffect = { id: 'ashes-late', quest: 'ashes', to: 'late', from: ['next'] };
 /** The guards of the camp of the Seekers fell (story phase 8). */
-export const CAMP_TAKEN: QuestEffect = { id: 'camp-taken', quest: 'ashes', to: 'camp', from: ['held', 'late'] };
+export const CAMP_TAKEN: QuestEffect = { id: 'camp-taken', quest: 'ashes', to: 'camp', from: ['held', 'late'], xp: 75 };
 /** The character cuts the ropes of Sela, at the post of the camp. */
 export const SELA_FREE: QuestEffect = { id: 'sela-free', quest: 'ashes', to: 'captive', from: ['camp'] };
 /** The chest of the camp gives the wave stone back to a character who has none (the quest stays at its step). */
@@ -304,11 +313,11 @@ export const TEAR_TAKEN: QuestEffect = {
   give: { coins: 0, items: [{ kind: 'tear-of-tigris', count: 1 }] },
 };
 /** The Ash Warden went in ash and its Seekers fell at the shrine: its orders are the character's. */
-export const ASHES_RELIC: QuestEffect = { id: 'ashes-relic', quest: 'ashes', to: 'relic', from: ['shrine'], give: { coins: 0, items: [{ kind: 'warden-orders', count: 1 }] } };
+export const ASHES_RELIC: QuestEffect = { id: 'ashes-relic', quest: 'ashes', to: 'relic', from: ['shrine'], give: { coins: 0, items: [{ kind: 'warden-orders', count: 1 }] }, xp: 100 };
 /** The dream of Verath (story phase 10): the character gives the Tear (from its pack or its neck), refuses, or lies. */
-export const DREAM_GIVE: QuestEffect = { id: 'dream-give', quest: 'ashes', to: 'gave', from: ['relic'], take: [{ kind: 'tear-of-tigris', count: 1 }] };
-export const DREAM_REFUSE: QuestEffect = { id: 'dream-refuse', quest: 'ashes', to: 'refused', from: ['relic'] };
-export const DREAM_LIE: QuestEffect = { id: 'dream-lie', quest: 'ashes', to: 'lied', from: ['relic'] };
+export const DREAM_GIVE: QuestEffect = { id: 'dream-give', quest: 'ashes', to: 'gave', from: ['relic'], take: [{ kind: 'tear-of-tigris', count: 1 }], xp: 100 };
+export const DREAM_REFUSE: QuestEffect = { id: 'dream-refuse', quest: 'ashes', to: 'refused', from: ['relic'], xp: 100 };
+export const DREAM_LIE: QuestEffect = { id: 'dream-lie', quest: 'ashes', to: 'lied', from: ['relic'], xp: 100 };
 /** Mira gives the stone after the fight to a character who has none (it fought the hounds before it warned her, or lost the stone). */
 export const MIRA_STONE_AFTER: QuestEffect = { id: 'mira-stone-after', quest: 'ashes', to: 'held', from: ['held'], give: { coins: 0, items: [{ kind: 'wave-stone', count: 1 }] } };
 
@@ -319,7 +328,7 @@ export const CART_LEVER: QuestEffect = { id: 'cart-lever', quest: 'cart', to: 'l
 /** The farmer of Whitegrove lends his lever (Fede, 2026-10-13: the cart comes before Ironhold, so the lever is near). */
 export const FARMER_LEVER: QuestEffect = { id: 'farmer-lever', quest: 'cart', to: 'lent', from: ['met', 'lever', 'lent'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
 /** A strong character lifts the cart (Strength 13), and the merchant pays. */
-export const CART_LIFT: QuestEffect = { id: 'cart-lift', quest: 'cart', to: 'done', from: ['met', 'lever', 'lent'], flag: 'lifted', give: { coins: CART_REWARD, items: [] } };
+export const CART_LIFT: QuestEffect = { id: 'cart-lift', quest: 'cart', to: 'done', from: ['met', 'lever', 'lent'], flag: 'lifted', give: { coins: CART_REWARD, items: [] }, xp: 50 };
 /** The character brings a lever: the merchant keeps it, and pays. */
 export const CART_MEND: QuestEffect = {
   id: 'cart-mend',
@@ -329,6 +338,7 @@ export const CART_MEND: QuestEffect = {
   flag: 'lever',
   take: [{ kind: 'crowbar', count: 1 }],
   give: { coins: CART_REWARD, items: [] },
+  xp: 50,
 };
 
 /** The end of the scene in the town hall (town.ts, ARGUMENT): the character heard of the raid. */
@@ -337,19 +347,19 @@ export const RAID_HEARD: QuestEffect = { id: 'raid-heard', quest: 'raid', to: 'h
 export const RAID_ASKED: QuestEffect = { id: 'raid-asked', quest: 'raid', to: 'asked', from: ['heard'] };
 
 /** The end of the ambush in the grove: the scouts fell. Their packs had badger furs. */
-export const RAID_SCOUTS: QuestEffect = { id: 'raid-scouts', quest: 'raid', to: 'scouts', from: ['asked'], give: { coins: 0, items: [{ kind: 'badger-fur', count: 2 }] } };
+export const RAID_SCOUTS: QuestEffect = { id: 'raid-scouts', quest: 'raid', to: 'scouts', from: ['asked'], give: { coins: 0, items: [{ kind: 'badger-fur', count: 2 }] }, xp: 75 };
 /** The war band fell on the north road, before it came to Silverspring. */
-export const RAID_BAND: QuestEffect = { id: 'raid-band', quest: 'raid', to: 'band', from: ['scouts'] };
+export const RAID_BAND: QuestEffect = { id: 'raid-band', quest: 'raid', to: 'band', from: ['scouts'], xp: 100 };
 /** The war band came to the gate of Silverspring first: the raid begins. */
 export const RAID_ARRIVED: QuestEffect = { id: 'raid-arrived', quest: 'raid', to: 'raid', from: ['scouts'] };
 /** The character cuts the ropes of Himo at the post of the camp (camp.ts). */
 export const HIMO_FREE: QuestEffect = { id: 'himo-free', quest: 'raid', to: 'escort', from: ['band'] };
 /** Himo comes home to Ironhold with the character: his family pays. */
-export const HIMO_HOME: QuestEffect = { id: 'himo-home', quest: 'raid', to: 'home', from: ['escort'], give: { coins: HIMO_REWARD, items: [] } };
+export const HIMO_HOME: QuestEffect = { id: 'himo-home', quest: 'raid', to: 'home', from: ['escort'], give: { coins: HIMO_REWARD, items: [] }, xp: 50 };
 /** Himo falls on the way home. */
 export const HIMO_LOST: QuestEffect = { id: 'himo-lost', quest: 'raid', to: 'lost', from: ['escort'] };
 /** The war band fell in the streets of Silverspring. */
-export const RAID_DEFENDED: QuestEffect = { id: 'raid-defended', quest: 'raid', to: 'defended', from: ['raid'] };
+export const RAID_DEFENDED: QuestEffect = { id: 'raid-defended', quest: 'raid', to: 'defended', from: ['raid'], xp: 100 };
 /**
  * Kasmut gives the title in the guard of Silverspring (the flag `title`; the bed at the Silver Trout
  * goes with it). When the band fell on the road, before the town knew of it, she also gives the
@@ -362,5 +372,6 @@ export const RAID_TITLE_PERMIT: QuestEffect = {
   from: ['home', 'lost'],
   flag: 'permit',
   give: { coins: 0, items: [{ kind: 'mithril-permit', count: 1 }] },
+  xp: 50,
 };
-export const RAID_TITLE: QuestEffect = { id: 'raid-title', quest: 'raid', to: 'title', from: ['defended'] };
+export const RAID_TITLE: QuestEffect = { id: 'raid-title', quest: 'raid', to: 'title', from: ['defended'], xp: 50 };

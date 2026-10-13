@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -188,7 +188,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, for an admin only, saved in localStorage
   `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
-  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
+  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
+  `xp-section.ts` (the "Experience" section of the settings, for an admin only: the divisor of the XP of the kills of its own characters),
   `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
   trader, in the place of the top-right panels, opened by an answer of a conversation: the trader's
   close-up and line, "Buy" and "Sell", the coins, the wares with the prices for the character, the
@@ -556,7 +557,10 @@ gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase
 `/etc/game/secret.env` in production and in `.env.local` on the laptop, never in git: the
 repository is public. `/api/me` says `admin`, and the menu gives it to the game. Only an admin sees
 the display settings (the CRT switch and sliders); the others get `CRT_DEFAULTS`, and the game
-ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). The dev sign-in takes
+ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). An admin also chooses the
+divisor of the XP of the kills of its own characters (2026-10-14, to test the levels: "Experience" in
+the settings, `ui/xp-section.ts`; `PUT /api/me/xp-divisor`, the column `xp_divisor` of `users`; the
+server gives it to the Room at once, `Room.setXpDivisor()`); the others always have `KILL_XP_DIVISOR`. The dev sign-in takes
 an email as the name: it then signs in with that email, as Google would, so an admin email there
 is an admin.
 
@@ -598,8 +602,8 @@ builder and the "You" section still name every gate.
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
   ranger, rogue; WIS cleric, druid; INT wizard; CHA sorcerer, warlock. The class decides the
-  ability, not the item in the hand. A blow rolls d20 + `toHit` (`PROFICIENCY_BONUS` 2 + that
-  modifier + a magic bonus) against the mob's AC; a hit takes `damage` (`Dice`: the die of the gear,
+  ability, not the item in the hand. A blow rolls d20 + `toHit` (`proficiencyBonus(level)`: +2, +3 at
+  level 5; + that modifier + a magic bonus) against the mob's AC; a hit takes `damage` (`Dice`: the die of the gear,
   see "Equipment", + that modifier + a magic bonus) from its hit points. See "Mobs and fights".
 - **Strength**, for every class: the push of a blow (`push`: `knockback` x (1 + 0.15 x mod)), how
   long a mob reels (`stagger`: `hurtMs` x (1 + 0.2 x mod)), the slots of the pack (6 + 2 x mod: 4
@@ -637,13 +641,14 @@ builder and the "You" section still name every gate.
   armour without its STR: 3/4 of the walk (`traits.speed`); noisy armour: mobs see a sneaking character from 3/4 (`traits.sneakSight`).
   **Damage** (`attackGear()`, dice): one die of the weapon (`dieBase()`: 1d6, 1d8, 1d12; a
   versatile weapon with an empty off hand its bigger die), an unarmed strike 1, a monk's martial
-  arts 1d4, the cantrip of a sorcerer, a warlock or a wizard 1d10 and of a druid 1d8 (an empty hand
-  or its focus); a light weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the
-  attacks arrows for any class (`traits.ranged`); a rogue's sneak attack +1d6 (level 1) on a mob that does not
-  hunt it (`Blow.sneak`). **Kits** (`kitOf()`, `sheetKit()`): a new character, and one from before,
+  arts 1d4 (`martialArts(level)`: 1d6 from level 5), the cantrip of a sorcerer, a warlock or a wizard
+  1d10 and of a druid 1d8 (an empty hand or its focus; `cantripDice()`: two dice from level 5); a light
+  weapon attacks 2 ticks quicker, a heavy melee one 4 slower; a bow makes the attacks arrows for any
+  class (`traits.ranged`); a rogue's sneak attack (`sneakAttack(level)`: 1d6, 2d6 at level 3, 3d6 at
+  5) on a mob that does not hunt it (`Blow.sneak`). **Kits** (`kitOf()`, `sheetKit()`): a new character, and one from before,
   gets the worn part of the SRD kit of its class; a guest the kit of its look (`guestGear()`). The
-  traits follow the gear: `traitsOf(scores, class, gear)`; the Room's `traitsFor`, the page's
-  `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
+  traits follow the gear and the level: `traitsOf(scores, class, gear, level)`; the Room's
+  `traitsFor(gear, level)`, the page's `followGear()`. Moves: `moveItem()` and the addresses (`GEAR_BASE` 32 + the index of the worn
   slot) in `move` and `put`, protocol 19. The figure holds and wears what the character
   wears (protocols 20 and 21: `lk`, `RemotePlayer.look`, `dressSkin()` in the art). The smith of
   Ironhold sells and buys gear (see "Shops").
@@ -693,8 +698,9 @@ builder and the "You" section still name every gate.
   13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
   open."), never for one without ("It is locked. I cannot pick it."); it gives more (1 to 3
   coins in one of two, a second thing in about one of three).
-- **Constitution**: hit points (`maxHp` = `levelHp(class, mod)`: level 1 of 5e (`LEVEL`), the hit die
-  `HIT_DIE` at its most and the mod; a fighter with CON 10 has 10, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
+- **Constitution**: hit points (`maxHp` = `levelHp(class, mod, level)`: 5e, the hit die `HIT_DIE` at
+  its most and the mod at level 1, then half the die + 1 and the mod for each level; a fighter with CON
+  10 has 10 at level 1, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
   stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
   roll, and the sneak walk does not hide), and the length of a poison or a drink (`resist`:
@@ -778,14 +784,43 @@ builder and the "You" section still name every gate.
 - The store keeps the HP, the refuges and the seen chunks of each character (columns `hp`,
   `refuges`, `explored`; saved with the place; on 2026-10-11 a migration gave every character all
   its HP on the new scale). The vitals (`ui/vitals.ts`): a red bar for HP with the numbers ("17 /
-  28") and a stamina bar at the top left, the effects in words, a red flash at the screen edges on
-  a hit, a dark veil on a defeat.
+  28"), a stamina bar, and the level ("Lv 2") with a thin gold bar of the way to the next level at
+  the top left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
+  defeat.
 
 In the client: the builder (step 2) and the "You" section show the traits in words and numbers
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 39.
+protocol: `docs/multiplayer.md`, protocol 41.
+
+## Levels and experience
+
+Since 2026-10-14 (Fede's decisions; `docs/features/game/levels.md`; protocol 41).
+`packages/engine/src/experience.ts`: a character rises from level 1 to `MAX_LEVEL` (5) with the XP of
+the 5e table (`LEVEL_XP`: 300, 900, 2700, 6500; `levelOf()`, `levelProgress()`). A level gives the 5e
+numbers only: hit points (`levelHp`), the proficiency bonus (+3 at 5), the sneak attack, the cantrip
+dice and the martial arts die (above); the ability increase of level 4 and the class features come
+later. Kills and quests give XP:
+
+- **A kill** gives the XP of the mob's challenge rating divided by `KILL_XP_DIVISOR` (10: a kill is much
+  easier here than at the table; `killXp()`) to each character whose blow hit it (`Horde.takeDefeats()`:
+  the mob and its `hitters`; arrows too). The level of a mob is its 5e CR (`MobStats.cr`; `mobXp()`
+  gives its 5e XP for the encounters), and of a guard `GuardDef.cr` (a fallen guard: `GuardEvent.hitters`,
+  the XP for a robber). No screen shows the level of a mob or an NPC (Fede's decision). A mob that goes
+  in ash (the Ash Warden) is no kill.
+- **A quest** gives the XP of its effects (`QuestEffect.xp`; `checkEffect()` wants it only on an effect
+  that moves the quest on, so it comes once). **The quests give more than half of the XP**, as of the
+  coins (`docs/game-design.md`); `worlds/wilds/test/economy.test.ts` keeps it with the model of chapter 1,
+  which ends at level 3. When you add XP to a quest, keep it green.
+
+The server owns the XP (`RoomPlayer.xp`, `Room.gainXp()`): at a new level the traits follow at once and
+the HP that the level adds come on top (5e). The store keeps it (column `xp`, saved with the quest book:
+`setQuests()`); the welcome and a snapshot carry it (`xp`) to its own player only. In a world that the
+page runs, the page has its own (not saved). The page: "Lv 2" and the gold bar in the vitals, "Level 2 ·
+450 / 900 XP" in the "You" section, a banner and the stinger `questEnd` at a new level, and the tip `xp`
+at the first XP. The encounters of the story size themselves for the levels there
+(`sizeEncounter(units, levels)`: the 5e deadly budget of each level, `XP_THRESHOLDS`).
 
 ## Language
 
@@ -937,17 +972,17 @@ runs them after the ambushes, the page in a world that it runs. The Wilds: `FIRS
 patrol in the forest by day; a goblin fight at night sets the flag too (`GOBLINS_MET`).
 
 **The 5e scale** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
-`docs/features/game/combat.md`; protocol 26): a character is a **level-1** character (Fede's decision,
-2026-10-13; level 3 before; a system to level up comes later), the mobs have the
+`docs/features/game/combat.md`; protocol 26): a character starts at **level 1** (Fede's decision,
+2026-10-13; level 3 before) and rises with its XP (see "Levels and experience"), the mobs have the
 numbers of their SRD stat blocks, and both sides roll to hit against the AC. `MOB_STATS` has
-`health`, `ac`, `toHit`, `damage` (dice) and `xp`: the imp (a quasit) 7 HP, AC 13, +4, 1d4+3; the
+`health`, `ac`, `toHit`, `damage` (dice) and `cr` (the challenge rating: the level of the mob): the imp (a quasit) 7 HP, AC 13, +4, 1d4+3; the
 brute (a half-ogre) 30, 12, +5, 2d8+3; the goblin 7, 15; the worg 26, 13; the hobgoblin 11, 18;
 the bugbear 27, 16. The dice are in `dice.ts` (`Dice`, `rollDice()`, `attackRoll()`,
 `formatDice()`). The rolls come from `Horde.dice` (seeded: the server's in a shared world, the
 page's in its own world). A test that counts blows or hits gives `AVERAGE_DICE` (the average of
 the dice, and every attack hits): `new Room(world, { dice: AVERAGE_DICE })`, or the 4th argument of
-`new Horde()`. `encounters.ts` (`sizeEncounter()`: the 5e XP budget of level 1) sizes the encounters
-of the story to the characters there.
+`new Horde()`. `encounters.ts` (`sizeEncounter()`: the 5e XP budget of the levels there) sizes the
+encounters of the story to the characters there.
 
 `packages/engine/src/mobs.ts` (`Horde`): hostile mobs of two kinds (`MOB_STATS`): the **imp**,
 small and quick (runs at 96 px/s, faster than a player, and keeps running during its short
@@ -1453,7 +1488,7 @@ stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
 `cmp` (each companion, its tile, a stun or a defeat; and its mode and HP in a world that the page
-runs), `pack`, `gear` (the worn items, AC, the attack with its bonus and its dice, the walk) and
+runs), `xp` (the XP, the level, the next level and the divisor of a kill), `pack`, `gear` (the worn items, AC, the attack with its bonus and its dice, the walk) and
 `piles`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
 for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with

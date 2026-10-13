@@ -19,7 +19,8 @@ import { Guards, type GuardEvent } from '../guards.ts';
 import { fixtureContent } from '../fixtures.ts';
 import { CHUNK_PIXELS } from '../constants.ts';
 import { Companions, type Companion, type CompanionDef, type CompanionEvent } from '../companions.ts';
-import { Horde, type HordePlayer } from '../mobs.ts';
+import { Horde, MOB_STATS, type HordePlayer } from '../mobs.ts';
+import { KILL_XP_DIVISOR, MAX_XP, killXp, levelOf } from '../experience.ts';
 import { random } from '../noise.ts';
 import { NpcCrowd, npcStorey } from '../npc.ts';
 import { guestGear, guestTraits, meetsGate, sightOf, type Gate, type PlayerTraits } from '../traits.ts';
@@ -135,8 +136,13 @@ export interface RoomPlayer {
   doorVersion: number;
   /** What its scores and its gear give (from its stored character; without one, guestTraits() of its look). */
   traits: PlayerTraits;
-  /** The traits of its scores with other gear (JoinCharacter.traitsFor), or null: the traits do not change. */
-  readonly traitsFor: ((gear: Gear) => PlayerTraits) | null;
+  /** The traits of its scores with other gear, at a level (JoinCharacter.traitsFor), or null: the traits do not change. */
+  readonly traitsFor: ((gear: Gear, level: number) => PlayerTraits) | null;
+  /** Its character's XP (experience.ts: its level comes from it), and whether it changed since the last snapshot. The server saves it with the character. */
+  xp: number;
+  xpChanged: boolean;
+  /** A kill gives it the XP of the challenge rating of the mob divided by this (killXp): KILL_XP_DIVISOR, or an admin's own. */
+  xpDivisor: number;
   /** What it carries. The server saves it with the character. */
   pack: Pack;
   /** What it wears (gear.ts). The server saves it with the character. */
@@ -186,8 +192,12 @@ export function seenChunks(x: number, y: number): [number, number][] {
 export interface JoinCharacter {
   /** Its traits with its gear. */
   readonly traits: PlayerTraits;
-  /** Its traits with other gear: the room calls it when the gear changes. Without it, the traits stay. */
-  readonly traitsFor?: (gear: Gear) => PlayerTraits;
+  /** Its traits with other gear, at a level: the room calls it when the gear or the level changes. Without it, the traits stay. */
+  readonly traitsFor?: (gear: Gear, level: number) => PlayerTraits;
+  /** Its XP (experience.ts); without it, 0. Its traits must be those of its level (levelOf). */
+  readonly xp?: number;
+  /** The divisor of the XP of its kills (an admin's own, experience.ts); without it, KILL_XP_DIVISOR. */
+  readonly xpDivisor?: number;
   readonly pack?: Pack;
   /** What it wears; without it, nothing. */
   readonly gear?: Gear;
@@ -304,7 +314,43 @@ export class Room {
     player.packChanged = true;
     if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
     if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
+    this.gainXp(player, effect.xp ?? 0);
     this.questSaves.add(id);
+  }
+
+  /**
+   * Gives a player XP (a kill, a quest). At a new level (experience.ts) its traits follow at once,
+   * and it gets the hit points that the level adds (5e).
+   */
+  private gainXp(player: RoomPlayer, xp: number): void {
+    if (xp <= 0) return;
+    const before = levelOf(player.xp);
+    player.xp = Math.min(MAX_XP, player.xp + xp);
+    player.xpChanged = true;
+    const level = levelOf(player.xp);
+    if (level === before || !player.traitsFor) return;
+    const maxHp = player.traits.maxHp;
+    player.traits = player.traitsFor(player.gear, level);
+    if (player.state.down === 0) player.state.hp = Math.min(player.traits.maxHp, player.state.hp + Math.max(0, player.traits.maxHp - maxHp));
+  }
+
+  /** The XP of a kill: each character among `hitters` (the ids of those whose blows hit it) gets killXp of the challenge rating, with its own divisor. */
+  private awardKill(cr: number, hitters: readonly number[]): void {
+    for (const id of new Set(hitters)) {
+      const player = this.players.get(id);
+      if (player) this.gainXp(player, killXp(cr, player.xpDivisor));
+    }
+  }
+
+  /** The XP of the mobs that blows and arrows killed since the last call (Horde.takeDefeats). */
+  private awardKills(): void {
+    for (const { mob, hitters } of this.horde?.takeDefeats() ?? []) this.awardKill(MOB_STATS[mob.kind].cr, hitters);
+  }
+
+  /** A new divisor of the XP of the kills of a player (an admin chose it in the settings). */
+  setXpDivisor(id: number, divisor: number): void {
+    const player = this.players.get(id);
+    if (player) player.xpDivisor = divisor;
   }
 
   /** The players whose quest book the room changed by itself since the last call (the server saves them). */
@@ -346,6 +392,11 @@ export class Room {
     if (this.guards.list.length > 0) {
       const guardPlayers = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, outlaw: this.convoys.outlawOf(p), traits: p.traits }));
       guardEvents = this.guards.step(dt, this.horde, guardPlayers, this.dice, this.convoys.anchors());
+      // A guard that a robber brought down: its XP for the characters whose blows hit it.
+      for (const event of guardEvents) {
+        const guard = event.kind === 'fell' && event.hitters ? this.guards.list.find((g) => g.id === event.id) : undefined;
+        if (guard) this.awardKill(guard.def.cr, event.hitters!);
+      }
     }
     if (this.escorts.defs.length > 0) {
       // The escorts: a character at the step gets its companion; one that comes home or falls ends the escort.
@@ -361,7 +412,7 @@ export class Room {
       this.hits += this.horde.step(dt, players).filter((hit) => hit[2] > 0).length;
       for (const result of this.horde.takeShotResults()) this.players.get(result.owner)?.blows.push(toWireBlow(result));
       // The ambushes of the story: they start for a character at their step in their area, and their end moves the quest on.
-      const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
+      const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack, level: levelOf(p.xp) }));
       for (const { player: id, effect } of this.ambushes.step(this.horde, people)) this.applyStory(id, effect, nowMs);
       // The sure confrontations: a group that a new character meets once (the goblins of the forest by day).
       for (const { player: id, effect } of this.confrontations.step(dt, this.horde, people)) this.applyStory(id, effect, nowMs);
@@ -374,6 +425,7 @@ export class Room {
         const shooter = this.players.get(owner);
         if (shooter) this.give(shooter, this.horde.drop(mob), mob, nowMs);
       }
+      this.awardKills();
       this.trail.push({ ms: nowMs, at: new Map(this.horde.mobs.map((m) => [m.id, [m.x, m.y] as const])) });
       while (this.trail.length > 2 && this.trail[0]!.ms < nowMs - TRAIL_MS) this.trail.shift();
     }
@@ -452,7 +504,7 @@ export class Room {
         ? { ...this.world.findSpawn(at[0], at[1], 0), storey: 0 }
         : resumePlace(this.world, anchor.x, anchor.y);
     const traits = character?.traits ?? guestTraits(skin);
-    const traitsFor = character ? (character.traitsFor ?? null) : (gear: Gear) => guestTraits(skin, gear);
+    const traitsFor = character ? (character.traitsFor ?? null) : (gear: Gear, level: number) => guestTraits(skin, gear, level);
     const state = createPlayer(start.x, start.y);
     state.storey = start.storey;
     // A character comes back with the hit points that it had (all of them after a defeat), and all its stamina.
@@ -475,6 +527,9 @@ export class Room {
       doorVersion: this.doorVersion,
       traits,
       traitsFor,
+      xp: character?.xp ?? 0,
+      xpChanged: false,
+      xpDivisor: character?.xpDivisor ?? KILL_XP_DIVISOR,
       pack: character?.pack ?? EMPTY_PACK,
       gear: character ? (character.gear ?? EMPTY_GEAR) : guestGear(skin),
       gearChanged: false,
@@ -563,6 +618,7 @@ export class Room {
     player.packChanged = false;
     player.gearChanged = false;
     player.questsChanged = false;
+    player.xpChanged = false;
     const piles = this.pilesNear(player);
     player.pileKey = pileKey(piles);
     return {
@@ -576,6 +632,7 @@ export class Room {
       pk: toWirePack(player.pack),
       gr: toWireGear(player.gear),
       qs: toWireBook(player.quests),
+      xp: player.xp,
       pl: piles,
       hp: player.state.hp,
       rf: [...player.refuges],
@@ -646,6 +703,8 @@ export class Room {
         }
       }
     });
+    // The XP of the kills of this batch.
+    this.awardKills();
     // And one for an input that has not come yet happens after this batch.
     for (const door of doors) if (door[0] > Math.max(last, player.seq)) this.door(player, door);
     for (const use of uses) if (use[0] > Math.max(last, player.seq)) this.use(player, use, nowMs);
@@ -767,6 +826,7 @@ export class Room {
     player.packChanged = true;
     if (result.left.items.length > 0) this.piles.put(player.state.x, player.state.y, result.left.items, nowMs, player.state);
     if (!lootIsEmpty(result.taken) || !lootIsEmpty(result.left)) player.loot.push(toWireLoot('drop', result.taken, !lootIsEmpty(result.left)));
+    this.gainXp(player, effect.xp ?? 0);
     return true;
   }
 
@@ -835,7 +895,7 @@ export class Room {
     player.gear = gear;
     player.gearChanged = true;
     if (!player.traitsFor) return;
-    player.traits = player.traitsFor(gear);
+    player.traits = player.traitsFor(gear, levelOf(player.xp));
     // An amulet of health that comes off takes its hit points with it.
     player.state.hp = Math.min(player.state.hp, player.traits.maxHp);
     player.state.stamina = Math.min(player.state.stamina, player.traits.maxStamina);
@@ -956,6 +1016,8 @@ export class Room {
       p.refugesChanged = false;
       const quests = p.questsChanged;
       p.questsChanged = false;
+      const xp = p.xpChanged;
+      p.xpChanged = false;
       const woke = p.woke;
       p.woke = null;
       const blows = p.blows;
@@ -1009,6 +1071,7 @@ export class Room {
         ...(tossed.length > 0 ? { ts: tossed } : {}),
         ...(refuges ? { rf: [...p.refuges] } : {}),
         ...(quests ? { qs: toWireBook(p.quests) } : {}),
+        ...(xp ? { xp: p.xp } : {}),
         ...(blows.length > 0 ? { bl: blows } : {}),
         ...(woke !== null ? { wk: woke } : {}),
         ...(explored.length > 0 ? { ex: explored } : {}),

@@ -1,6 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
+import { crXp } from './experience.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, glancePlayer, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
@@ -110,8 +111,12 @@ export interface MobStats {
   readonly damage: Dice;
   /** Dice that its hit adds when another mob stands next to its target (a hobgoblin's martial advantage). */
   readonly allyDice?: Dice;
-  /** The XP of the stat block (5e): the encounters of the story size themselves with it. */
-  readonly xp: number;
+  /**
+   * Its level: the challenge rating of its stat block (5e; 1/8, 1/4, 1/2, 1, 2...). It changes none of
+   * its numbers, and no screen shows it (Fede, 2026-10-14): its XP (mobXp) sizes the encounters of the
+   * story, and a kill gives a share of it (experience.ts, killXp).
+   */
+  readonly cr: number;
   /** A blow pushes it this far away from the attacker (world pixels), dead or not, times Blow.push. */
   readonly knockback: number;
   /** A blow that does not kill stuns it for this long (ms), times Blow.stagger: its wind-up or its blow stops. */
@@ -192,8 +197,8 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 13,
     toHit: 4,
     damage: dice(1, 4, 3),
-    // A quasit without its magic (no invisibility, no scare): as a CR 1/4 for the encounters.
-    xp: 50,
+    // A quasit without its magic (no invisibility, no scare): as a CR 1/4.
+    cr: 1 / 4,
     knockback: 10,
     hurtMs: 250,
     // An imp's claws carry a poison (Fede's choice, 2026-10-10).
@@ -222,7 +227,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 12,
     toHit: 5,
     damage: dice(2, 8, 3),
-    xp: 200,
+    cr: 1,
     knockback: 18,
     hurtMs: 320,
     poisonTicks: 0,
@@ -251,7 +256,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 15,
     toHit: 4,
     damage: dice(1, 6, 2),
-    xp: 50,
+    cr: 1 / 4,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -281,7 +286,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 13,
     toHit: 5,
     damage: dice(2, 6, 3),
-    xp: 100,
+    cr: 1 / 2,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -312,7 +317,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     toHit: 3,
     damage: dice(1, 8, 1),
     allyDice: dice(2, 6),
-    xp: 100,
+    cr: 1 / 2,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -341,13 +346,13 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 16,
     toHit: 4,
     damage: dice(2, 8, 2),
-    xp: 200,
+    cr: 1,
     knockback: 20,
     hurtMs: 300,
     poisonTicks: 0,
   },
   // The leader of the war band, a caster with a staff. HP and AC of the Hobgoblin Devastator of
-  // Volo's Guide (45, 13). Its XP is the game's own: Volo's block is CR 4 for its spells (fireball,
+  // Volo's Guide (45, 13). Its CR is the game's own: Volo's block is CR 4 for its spells (fireball,
   // fly); here it has its staff and its rite only, about CR 1.
   devastator: {
     wanderSpeed: 22,
@@ -372,7 +377,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 13,
     toHit: 3,
     damage: dice(1, 6, 1),
-    xp: 200,
+    cr: 1,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -404,7 +409,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 13,
     toHit: 4,
     damage: dice(2, 4, 2),
-    xp: 50,
+    cr: 1 / 4,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -434,7 +439,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 12,
     toHit: 0,
     damage: dice(0, 0),
-    xp: 0,
+    cr: 0,
     knockback: 0,
     hurtMs: 0,
     poisonTicks: 0,
@@ -465,7 +470,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 13,
     toHit: 4,
     damage: dice(1, 6, 2),
-    xp: 100,
+    cr: 1 / 2,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -495,7 +500,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 12,
     toHit: 4,
     damage: dice(1, 10),
-    xp: 100,
+    cr: 1 / 2,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -527,7 +532,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 15,
     toHit: 5,
     damage: dice(1, 8, 3),
-    xp: 450,
+    cr: 2,
     knockback: 8,
     hurtMs: 200,
     poisonTicks: 0,
@@ -560,7 +565,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 15,
     toHit: 4,
     damage: dice(1, 6, 2),
-    xp: 50,
+    cr: 1 / 4,
     knockback: 12,
     hurtMs: 260,
     poisonTicks: 0,
@@ -594,7 +599,7 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ac: 12,
     toHit: 3,
     damage: dice(1, 6, 1),
-    xp: 25,
+    cr: 1 / 8,
     knockback: 10,
     hurtMs: 240,
     poisonTicks: 0,
@@ -602,6 +607,11 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     ambush: { group: [1, 3], creepSpeed: 44, hold: 5 * TILE_SIZE, spring: 40, holdMs: 2500 },
   },
 };
+
+/** The 5e XP of a mob kind, from its challenge rating (MobStats.cr): the encounters of the story size themselves with it. */
+export function mobXp(kind: MobKind): number {
+  return crXp(MOB_STATS[kind].cr);
+}
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
@@ -818,6 +828,15 @@ export interface ShotResult extends BlowResult {
 /** A mob's attack on a player: [mob id, player id, damage]; damage 0 is a miss (it glanced off). */
 export type MobHit = [number, number, number];
 
+/**
+ * A mob that a blow killed (an arrow too), and the attackers whose blows hit it before (their ids:
+ * players, and guards): each character among them gets the XP of the kill (experience.ts, killXp).
+ */
+export interface Defeat {
+  readonly mob: Mob;
+  readonly hitters: readonly number[];
+}
+
 /** A mob walks at most this far from its home while it wanders (world pixels). */
 const WANDER_RADIUS = 4 * TILE_SIZE;
 /**
@@ -979,6 +998,8 @@ interface Brain {
   native: boolean;
   /** A lurker close to its player: how long it has held still (ms). */
   holdMs: number;
+  /** The attackers (players, guards) whose blows hit it: a kill gives each character among them its XP. */
+  readonly hitters: Set<number>;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -1040,6 +1061,8 @@ export class Horde {
   /** Mobs that arrows killed since the last takeShotKills(), and what the arrows did since the last takeShotResults(). */
   private shotKills: ShotKill[] = [];
   private shotResults: ShotResult[] = [];
+  /** Mobs that blows and arrows killed since the last takeDefeats(), with the attackers that hit them. */
+  private defeats: Defeat[] = [];
   /** Where the dice of the fights come from (dice.ts): the horde's own random numbers, or the averages (tests). */
   readonly dice: DiceSource;
   /** The guard after a stun of each player (ticks), from the last step. */
@@ -1173,6 +1196,7 @@ export class Horde {
       routeSpeed: 0,
       riteMs: 0,
       loop: false,
+      hitters: new Set(),
       group: 0,
       slotX: 0,
       slotY: 0,
@@ -1467,6 +1491,13 @@ export class Horde {
     return kills;
   }
 
+  /** The mobs that blows and arrows killed since the last call, with the attackers whose blows hit them (the XP of a kill). */
+  takeDefeats(): Defeat[] {
+    const defeats = this.defeats;
+    this.defeats = [];
+    return defeats;
+  }
+
   /** What the players' arrows did to mobs since the last call (a hit, a miss), with their shooters. */
   takeShotResults(): ShotResult[] {
     const results = this.shotResults;
@@ -1516,9 +1547,11 @@ export class Horde {
     brain.push = stats.knockback * blow.push;
     brain.reelMs = stats.hurtMs * blow.stagger;
     mob.health = Math.max(0, mob.health - damage);
+    if (attackerId !== undefined) brain.hitters.add(attackerId);
     if (mob.health <= 0) {
       this.enter(mob, 'dying');
       this.spawnMs = Math.max(this.spawnMs, KILL_PAUSE_MS);
+      this.defeats.push({ mob, hitters: [...brain.hitters] });
       return { mob, damage, crit };
     }
     // The Ash Warden: hurt to half, it goes in ash (its health stays: it is not dead).

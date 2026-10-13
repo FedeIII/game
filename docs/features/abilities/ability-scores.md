@@ -24,7 +24,7 @@ the other effects of INT, WIS and CHA come later (`docs/drafts/abilities.md`).
 - **Attack ability**: the ability that a class attacks with. It gives the attack bonus and the
   damage of a blow.
 - **Attack bonus**: what a character adds to the d20 of its attack roll: +2 (the proficiency bonus
-  of a level-1 character), the modifier of its attack ability and a magic bonus.
+  of levels 1 to 4; +3 at level 5), the modifier of its attack ability and a magic bonus.
 - **Attack roll**: d20 + the attack bonus against the Armour Class (AC) of a mob
   ([Combat](../game/combat.md)).
 - **Hit points of a mob**: the health of a mob, in points, from its 5e stat block. A blow that hits
@@ -191,11 +191,11 @@ which score to raise, without a list of everything that I cannot do.
 - **The display of a gate** is `gateView(scores, gate)` (`traits.ts`): `'open'`, `'hint'` (1 or
   `GATE_HINT` (2) under it) or `'hidden'` (Fede's rule, 2026-10-10). The page writes the clue
   with `gateTag()` (`packages/engine-client/src/ui/conversation.ts`).
-- **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class, gear)`,
+- **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class, gear, level)`,
   `sheetTraits(sheet, gear)` (a stored character), `guestTraits(skin, gear)` (a guest; its gear
   is `guestGear(skin)`), `GUEST_TRAITS` (every score 10, a fighter and `PLAIN_GEAR`, a rapier: for
   tests and for a player without a look), `PLAIN_SCORES`, `Gate`, `meetsGate()` and `GATE_SCORE`
-  (13). The attack bonus is `PlayerTraits.toHit`: `PROFICIENCY_BONUS` (2, at `LEVEL` 3) + the
+  (13). The attack bonus is `PlayerTraits.toHit`: `proficiencyBonus(level)` (2; 3 at level 5) + the
   modifier of the attack ability + the magic bonus of the weapon. The damage is
   `PlayerTraits.damage`, a `Dice` (`packages/engine/src/dice.ts`): the dice of the gear
   (`packages/engine/src/gear.ts`, [Equipment](../items/equipment.md)) + the same modifier and

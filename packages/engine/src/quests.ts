@@ -100,6 +100,12 @@ export interface QuestEffect {
   readonly cost?: number;
   /** Coins and items that the character gets. What does not fit in the pack falls at its feet. */
   readonly give?: Loot;
+  /**
+   * The XP that the character gets (experience.ts): the quests give more than half of a character's
+   * XP. Only an effect that moves its quest on (a step that it does not come from) gives XP, so it
+   * gives it once.
+   */
+  readonly xp?: number;
 }
 
 /** Whether the effect can apply to a character with `book` and `pack`: the quest is at a step that it comes from, and the pack has what it takes. */
@@ -189,6 +195,8 @@ export function checkEffect(effect: QuestEffect, quests: readonly QuestDef[]): s
   for (const step of [...(effect.to === undefined ? [] : [effect.to]), ...(effect.from ?? [])]) if (!questStep(quest, step)) problems.push(`${effect.id}: no step "${step}" in ${quest.id}`);
   if (effect.flag !== undefined && !QUEST_ID.test(effect.flag)) problems.push(`${effect.id}: the flag "${effect.flag}" is not good`);
   if (effect.cost !== undefined && (!Number.isInteger(effect.cost) || effect.cost < 0)) problems.push(`${effect.id}: the cost is not a whole number of coins`);
+  if (effect.xp !== undefined && (!Number.isInteger(effect.xp) || effect.xp <= 0)) problems.push(`${effect.id}: the XP is not a whole number above 0`);
+  if (effect.xp !== undefined && (effect.to === undefined || effect.from?.includes(effect.to))) problems.push(`${effect.id}: an effect that gives XP must move its quest on, to a step that it does not come from`);
   return problems;
 }
 

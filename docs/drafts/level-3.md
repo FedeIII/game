@@ -4,6 +4,10 @@
 > `docs/features/game/combat.md`) when built · **Status:** B1 built 2026-10-11 (protocol 26); B2
 > (the encounters) comes with the ambush of story phase 3c
 
+> **2026-10-14: levels 1 to 5** (Fede's decisions). Characters rise with their XP; the numbers of each
+> level and the XP of kills and quests are in `docs/features/game/levels.md`, and the encounters size
+> themselves for the levels there.
+
 > **2026-10-13: level 1** (Fede's decision). Characters start at level 1; a system to level up comes
 > later. What changed: the hit points (the hit die at its most and the CON modifier: a fighter with
 > CON 10 has 10), the sneak attack (1d6), and the encounter budget (one level-1 character: easy 25,

@@ -526,10 +526,10 @@ describe('the hobgoblin band (story phase 3)', () => {
     expect(MOB_KINDS.filter((k) => MOB_STATS[k].straight)).toEqual(['worg', 'hound']);
     // The numbers of the SRD (level-3.md): the goblin and the hobgoblin are few hit points behind good
     // armour; the worg and the bugbear take many blows.
-    expect([MOB_STATS.goblin.health, MOB_STATS.goblin.ac, MOB_STATS.goblin.xp]).toEqual([7, 15, 50]);
-    expect([MOB_STATS.worg.health, MOB_STATS.worg.ac, MOB_STATS.worg.xp]).toEqual([26, 13, 100]);
-    expect([MOB_STATS.hobgoblin.health, MOB_STATS.hobgoblin.ac, MOB_STATS.hobgoblin.xp]).toEqual([11, 18, 100]);
-    expect([MOB_STATS.bugbear.health, MOB_STATS.bugbear.ac, MOB_STATS.bugbear.xp]).toEqual([27, 16, 200]);
+    expect([MOB_STATS.goblin.health, MOB_STATS.goblin.ac, MOB_STATS.goblin.cr]).toEqual([7, 15, 1 / 4]);
+    expect([MOB_STATS.worg.health, MOB_STATS.worg.ac, MOB_STATS.worg.cr]).toEqual([26, 13, 1 / 2]);
+    expect([MOB_STATS.hobgoblin.health, MOB_STATS.hobgoblin.ac, MOB_STATS.hobgoblin.cr]).toEqual([11, 18, 1 / 2]);
+    expect([MOB_STATS.bugbear.health, MOB_STATS.bugbear.ac, MOB_STATS.bugbear.cr]).toEqual([27, 16, 1]);
     expect(MOB_STATS.hobgoblin.allyDice).toEqual(dice(2, 6));
   });
 
@@ -595,7 +595,7 @@ describe('the Hobgoblin Devastator (story phase 4b)', () => {
   }
 
   it('has the HP and the AC of its block, a staff, and the loot of the war band', () => {
-    expect([MOB_STATS.devastator.health, MOB_STATS.devastator.ac, MOB_STATS.devastator.toHit, MOB_STATS.devastator.xp]).toEqual([45, 13, 3, 200]);
+    expect([MOB_STATS.devastator.health, MOB_STATS.devastator.ac, MOB_STATS.devastator.toHit, MOB_STATS.devastator.cr]).toEqual([45, 13, 3, 1]);
     expect(MOB_STATS.devastator.damage).toEqual(dice(1, 6, 1));
     expect(MOB_STATS.devastator.rite).toMatchObject({ ms: 6000, runes: 3, allies: ['hobgoblin', 'bugbear'] });
     expect(MOB_LOOT.devastator.items?.map((i) => i.pick[0]![0])).toEqual(['luck-amulet', 'splint-armour']);
@@ -655,7 +655,7 @@ describe('the Hobgoblin Devastator (story phase 4b)', () => {
 
 describe('the Ashen Seekers (story phases 7 to 9)', () => {
   it('have the cinder hound charge straight, as a wolf of the SRD', () => {
-    expect([MOB_STATS.hound.health, MOB_STATS.hound.ac, MOB_STATS.hound.toHit, MOB_STATS.hound.xp]).toEqual([13, 13, 4, 50]);
+    expect([MOB_STATS.hound.health, MOB_STATS.hound.ac, MOB_STATS.hound.toHit, MOB_STATS.hound.cr]).toEqual([13, 13, 4, 1 / 4]);
     expect(MOB_STATS.hound.damage).toEqual(dice(2, 4, 2));
     expect(MOB_STATS.hound.straight).toBe(true);
     expect(MOB_STATS.adept.arrowRange).toBeGreaterThan(MOB_STATS.adept.reach);

@@ -24,8 +24,8 @@ import { textSource } from './helpers.ts';
 const TICK_MS = TICK_SECONDS * 1000;
 const at = (tx: number, ty: number) => ({ x: tx * TILE_SIZE + 8, y: ty * TILE_SIZE + 12 });
 const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {} };
-const MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
-const WAGON: GuardDef = { id: 'wagon', name: 'Wagon', look: 'wagon', hp: 30, ac: 11, speed: 0.6 };
+const MILITIA: GuardDef = { id: 'militia', name: 'Militia', look: 'militia', hp: 11, ac: 16, cr: 1 / 8, blow: { toHit: 3, damage: dice(1, 6, 1), push: 1, stagger: 1, opening: 0 } };
+const WAGON: GuardDef = { id: 'wagon', name: 'Wagon', look: 'wagon', hp: 30, ac: 11, cr: 0, speed: 0.6 };
 /** The caravan walks row 5 from tile 60 west to tile 0; it meets its attackers halfway. */
 const ROUTE = Array.from({ length: 241 }, (_, i) => [60.5 - i / 4, 5.5] as const);
 const CARAVAN: ConvoyDef = {

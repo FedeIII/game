@@ -14,7 +14,6 @@ import {
   PLAIN_SCORES,
   PLAYER_SPEED,
   Room,
-  SNEAK_ATTACK,
   TICK_SECONDS,
   TILE_SIZE,
   World,
@@ -38,6 +37,7 @@ import {
   moveItem,
   parseClientMessage,
   sightOf,
+  sneakAttack,
   stepPlayer,
   takeOffSlotFor,
   toWireGear,
@@ -256,8 +256,8 @@ describe('the damage with the gear', () => {
 
   it("adds a rogue's sneak attack on a mob that does not hunt it", () => {
     const rogue = traitsOf(scores({ dex: 16 }), 'rogue', gear({ main: 'shortsword' }));
-    expect(rogue.sneak).toBe(SNEAK_ATTACK);
-    expect(formatDice(SNEAK_ATTACK)).toBe('1d6');
+    expect(rogue.sneak).toEqual(sneakAttack(1));
+    expect(formatDice(rogue.sneak)).toBe('1d6');
     // With the average of the dice: 1d6+3 is 6, and the sneak attack (1d6 at level 1) adds 3.
     expect(rollBlow(rogue, { kind: 'imp', state: 'walk' }, true, AVERAGE_DICE).damage).toBe(6 + 3);
     expect(rollBlow(rogue, { kind: 'imp', state: 'chase' }, false, AVERAGE_DICE).damage).toBe(6);

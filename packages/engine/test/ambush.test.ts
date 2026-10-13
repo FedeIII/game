@@ -63,7 +63,7 @@ const forest: MobRules = { roam: () => true, hunt: () => true, population: {}, a
 describe('the bandit', () => {
   it('is the SRD bandit, at the level of a goblin, and on the wire as new codes', () => {
     const s = MOB_STATS.bandit;
-    expect([s.health, s.ac, s.toHit, s.xp]).toEqual([11, 12, 3, 25]);
+    expect([s.health, s.ac, s.toHit, s.cr]).toEqual([11, 12, 3, 1 / 8]);
     expect(s.damage).toEqual(dice(1, 6, 1));
     expect(s.chaseSpeed).toBeLessThan(PLAYER_SPEED);
     expect(s.ambush!.creepSpeed).toBeLessThan(PLAYER_SPEED);

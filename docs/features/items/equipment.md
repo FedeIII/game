@@ -445,9 +445,9 @@ mob before it comes close.
   `bonus`, `kind` (`weapon`, `cantrip`, `martial-arts`, `unarmed`), `quicker`, `ranged`,
   `twoHands`), `armourClass()`, `gearLuck()`, `tooHeavy()` and `HEAVY_SPEED` (0.75), `isNoisy()`
   and `NOISY_SIGHT` (0.75), `dieBase()` (one die of the weapon), `UNARMED_BASE` (1, no die),
-  `MARTIAL_ARTS_BASE` (1d4), `CANTRIP_BASE` (1d10; a druid 1d8), `CASTER_FOCUS`, `SNEAK_ATTACK`
-  (2d6), `LIGHT_TICKS` (2), `HEAVY_TICKS` (4).
-- **The traits** (`packages/engine/src/traits.ts`): `traitsOf(scores, class, gear)` gives the new
+  `martialArts(level)` (1d4; 1d6 from level 5), `CANTRIP_BASE` (1d10; a druid 1d8) and `cantripDice()`
+  (two dice from level 5), `CASTER_FOCUS`, `sneakAttack(level)` (1d6; 2d6 at level 3, 3d6 at 5), `LIGHT_TICKS` (2), `HEAVY_TICKS` (4).
+- **The traits** (`packages/engine/src/traits.ts`): `traitsOf(scores, class, gear, level)` gives the new
   traits `class`, `luck`, `strike`, `sneak` (dice; none for a class other than the rogue), `ac`,
   `speed` and `sneakSight`; `damage` (dice), `toHit`, `cooldown` and `ranged` come from the gear.
   `scores` has the luck on each score (for the gates); the scales come from the scores without it.

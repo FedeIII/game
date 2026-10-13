@@ -151,10 +151,14 @@ Silverspring.
 
 ## Rewards
 
-| Quest | Reward |
-|---|---|
-| The Broken Cart | 10 coins |
-| Lentils for Bronzehold | 5 coins (wet lentils: 2 coins with CHA 13, else nothing) |
-| The Razed Villages | 12 coins and a draught (Mira); the Tear of Tigris (unless given to Verath); the Warden's orders |
-| The Hobgoblin Raid | 2 badger furs (the scouts); 20 coins (Himo home); a title, a bed at the Silver Trout, and the mithril permit (the band stopped on the road) |
-| The Caravan Ambush | 15 coins and a draught (saved); 20 coins, 3 badger furs and 5 mithril (robbed; then a fine of 60) |
+| Quest | Reward | XP (since 2026-10-14, `docs/features/game/levels.md`) |
+|---|---|---|
+| The Road to Ironhold | | 100 (the arrival) |
+| The Broken Cart | 10 coins | 50 |
+| Lentils for Bronzehold | 5 coins (wet lentils: 2 coins with CHA 13, else nothing) | 50 (wet lentils: 40 with CHA 13, else 25) |
+| The Razed Villages | 12 coins and a draught (Mira); the Tear of Tigris (unless given to Verath); the Warden's orders | 50 (the three homesteads, `ruins`), 100 (the hounds fall, `held`), 75 (the camp, `camp`), 100 (the Warden goes, `relic`), 100 (the dream, at its end) |
+| The Hobgoblin Raid | 2 badger furs (the scouts); 20 coins (Himo home); a title, a bed at the Silver Trout, and the mithril permit (the band stopped on the road) | 75 (the scouts), 100 (the band falls, on the road or in Silverspring), 50 (Himo home), 50 (the title) |
+| The Caravan Ambush | 15 coins and a draught (saved); 20 coins, 3 badger furs and 5 mithril (robbed; then a fine of 60) | 100 (saved); a robber gets the XP of the militia that it brings down |
+
+The quests give more than half of a character's XP, as of its coins; a game of chapter 1 ends at about
+level 3 (`worlds/wilds/test/economy.test.ts`).

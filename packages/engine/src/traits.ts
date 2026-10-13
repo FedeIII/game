@@ -6,7 +6,6 @@ import {
   HEAVY_SPEED,
   NOISY_SIGHT,
   QUIET_SIGHT,
-  SNEAK_ATTACK,
   armourClass,
   attackGear,
   gearLuck,
@@ -14,6 +13,7 @@ import {
   isNoisy,
   isQuiet,
   kitOf,
+  sneakAttack,
   tooHeavy,
   wornScores,
   type AttackGear,
@@ -51,15 +51,17 @@ export interface PlayerTraits {
   readonly luck: number;
   /** Its class: what it can wear (gear.ts, canUse). */
   readonly class: CharacterClass;
+  /** Its level (experience.ts, levelOf: 1 to MAX_LEVEL): its hit points, its proficiency bonus, the dice of a sneak attack, a cantrip, martial arts. */
+  readonly level: number;
   /** The ability that the class attacks with (ATTACK_ABILITY). */
   readonly attack: Ability;
   /** How it attacks with what it holds: a weapon, a cantrip, martial arts or an unarmed strike (attackGear). */
   readonly strike: AttackGear;
   /** The dice of a blow's damage (5e): the dice of `strike` + the modifier of the attack ability + a magic bonus. */
   readonly damage: Dice;
-  /** Its attack bonus (5e): d20 + this against the AC of a mob. PROFICIENCY_BONUS + the modifier of the attack ability + a magic bonus. */
+  /** Its attack bonus (5e): d20 + this against the AC of a mob. proficiencyBonus(level) + the modifier of the attack ability + a magic bonus. */
   readonly toHit: number;
-  /** The dice that a blow adds on a mob that does not hunt it (a rogue's sneak attack, 1d6 at level 1; else none). */
+  /** The dice that a blow adds on a mob that does not hunt it (a rogue's sneak attack, sneakAttack(level): 1d6 at level 1; else none). */
   readonly sneak: Dice;
   /** How far its blows hit (world pixels, plus the radius of the mob): ATTACK_REACH, more with a reach weapon. */
   readonly reach: number;
@@ -130,11 +132,13 @@ export interface Gate {
 const NO_DICE: Dice = dice(0, 6);
 
 /**
- * The level of a character, and its proficiency bonus (5e). Level 1 since 2026-10-13 (Fede's decision:
- * characters start at level 1; a system to level up comes later). From 2026-10-11 it was level 3.
+ * The proficiency bonus of a level (5e): +2 at levels 1 to 4, +3 at 5 to 8, and so on. A character
+ * starts at level 1 (Fede's decision, 2026-10-13; level 3 from 2026-10-11) and rises with its XP
+ * (experience.ts, since 2026-10-14).
  */
-export const LEVEL = 1;
-export const PROFICIENCY_BONUS = 2;
+export function proficiencyBonus(level: number): number {
+  return 2 + Math.floor((Math.max(1, level) - 1) / 4);
+}
 /** The hit die of each class (5e). */
 export const HIT_DIE: Readonly<Record<CharacterClass, number>> = {
   barbarian: 12,
@@ -152,13 +156,13 @@ export const HIT_DIE: Readonly<Record<CharacterClass, number>> = {
 };
 
 /**
- * The hit points of a character at LEVEL (5e): the hit die at its most for the first level, its
+ * The hit points of a character at a level (5e): the hit die at its most for the first level, its
  * average (half + 1) for each level after, and the CON modifier for each level; at least 1 for each level.
  */
-export function levelHp(cls: CharacterClass, conMod: number): number {
+export function levelHp(cls: CharacterClass, conMod: number, level = 1): number {
   const die = HIT_DIE[cls];
   let hp = 0;
-  for (let level = 1; level <= LEVEL; level++) hp += Math.max(1, (level === 1 ? die : die / 2 + 1) + conMod);
+  for (let at = 1; at <= level; at++) hp += Math.max(1, (at === 1 ? die : die / 2 + 1) + conMod);
   return hp;
 }
 /** Each point of the STR modifier pushes a mob this share further, and makes it reel this share longer. */
@@ -236,14 +240,14 @@ export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden'
 }
 
 /**
- * The traits of a class with these final scores and this gear. The worn items can raise the scores
- * first (wornScores: gauntlets of ogre power, a belt of dwarvenkind): the scales and the gates use
- * the raised scores.
+ * The traits of a class with these final scores and this gear, at a level (experience.ts). The worn
+ * items can raise the scores first (wornScores: gauntlets of ogre power, a belt of dwarvenkind): the
+ * scales and the gates use the raised scores.
  */
-export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): PlayerTraits {
+export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level = 1): PlayerTraits {
   const scores = wornScores(final, gear);
   const attack = ATTACK_ABILITY[cls];
-  const strike = attackGear(gear, cls);
+  const strike = attackGear(gear, cls, level);
   const luck = gearLuck(gear);
   const ac = armourClass(gear, scores, cls);
   const str = abilityModifier(scores.str);
@@ -256,11 +260,12 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     scores: luck === 0 ? scores : (Object.fromEntries(ABILITIES.map((a) => [a, scores[a] + luck])) as Record<Ability, number>),
     luck,
     class: cls,
+    level,
     attack,
     strike,
     damage: plusDice(strike.base, strike.bonus + abilityModifier(scores[attack])),
-    toHit: PROFICIENCY_BONUS + abilityModifier(scores[attack]) + strike.bonus,
-    sneak: cls === 'rogue' ? SNEAK_ATTACK : NO_DICE,
+    toHit: proficiencyBonus(level) + abilityModifier(scores[attack]) + strike.bonus,
+    sneak: cls === 'rogue' ? sneakAttack(level) : NO_DICE,
     reach: ATTACK_REACH + strike.reach,
     ac,
     speed: tooHeavy(gear, scores) ? HEAVY_SPEED : 1,
@@ -278,7 +283,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
     sight: Math.max(0.1, 1 - SIGHT_PER_MOD * dex),
     ranged: strike.ranged,
     range: (RANGE_TILES + dex) * TILE_SIZE,
-    maxHp: levelHp(cls, con),
+    maxHp: levelHp(cls, con, level),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
     recover: 0,
     maxStamina: Math.max(10, PLAIN_STAMINA + STAMINA_PER_MOD * con),
@@ -296,9 +301,9 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear): Player
   };
 }
 
-/** The traits of a stored character with this gear. */
-export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>, gear: Gear): PlayerTraits {
-  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class, gear);
+/** The traits of a stored character with this gear, at a level (experience.ts, levelOf its XP). */
+export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>, gear: Gear, level = 1): PlayerTraits {
+  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class, gear, level);
 }
 
 /** The 5e kit of a stored character's class (gear.ts, kitOf): the gear of a new character. */
@@ -315,8 +320,8 @@ export function guestGear(skin: number): Gear {
 }
 
 /** The traits of a player without a character (a guest): every score 10, the class of its look, and its kit (guestGear). */
-export function guestTraits(skin: number, gear: Gear = guestGear(skin)): PlayerTraits {
-  return traitsOf(PLAIN_SCORES, appearanceOf(skin).class, gear);
+export function guestTraits(skin: number, gear: Gear = guestGear(skin), level = 1): PlayerTraits {
+  return traitsOf(PLAIN_SCORES, appearanceOf(skin).class, gear, level);
 }
 
 /**

@@ -7,8 +7,11 @@ import type { Character, CharacterPlace, CharacterSheet } from '@game/engine';
  */
 
 export interface Me {
-  /** How the visitor signed in, and if it is an admin (it sees the display settings), or null. */
-  readonly user: { readonly via: 'google' | 'dev'; readonly admin: boolean } | null;
+  /**
+   * How the visitor signed in, and if it is an admin (it sees the display settings), or null. An
+   * admin also has the divisor of the XP of the kills of its own characters (experience.ts).
+   */
+  readonly user: { readonly via: 'google' | 'dev'; readonly admin: boolean; readonly xpDivisor?: number } | null;
   readonly login: { readonly google: boolean; readonly dev: boolean };
 }
 
@@ -78,4 +81,6 @@ export const api = {
   /** Notes where the character is (a world that the page runs). `keepalive` while the page closes. */
   place: (id: string, place: CharacterPlace, keepalive = false) => call<null>('PUT', `/api/characters/${encodeURIComponent(id)}/place`, place, keepalive),
   remove: (id: string) => call<null>('DELETE', `/api/characters/${encodeURIComponent(id)}`),
+  /** An admin chooses the divisor of the XP of the kills of its own characters (the settings of the game). */
+  setXpDivisor: async (divisor: number) => (await call<{ xpDivisor: number }>('PUT', '/api/me/xp-divisor', { divisor })).xpDivisor,
 };

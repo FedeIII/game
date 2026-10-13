@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 40;
+export const PROTOCOL_VERSION = 41;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -506,6 +506,8 @@ export interface WelcomeMessage {
   readonly gr: WireGear;
   /** Its character's quest book (protocol 23). */
   readonly qs: WireBook;
+  /** Its character's XP (protocol 41): its level comes from it (experience.ts). */
+  readonly xp: number;
   /** The piles on the ground near the player (within PILE_SEND_RADIUS). */
   readonly pl: readonly WirePile[];
 }
@@ -534,6 +536,8 @@ export interface SnapshotMessage {
   readonly gr?: WireGear;
   /** The player's quest book, when it changed (protocol 23). Only the player gets its own book. */
   readonly qs?: WireBook;
+  /** The player's XP, when it changed (protocol 41: a kill, a quest). Only the player gets its own. */
+  readonly xp?: number;
   /** What the player's blows and arrows did since the last snapshot (protocol 26): [mob id, damage (0: a miss), 1 for a critical hit]. */
   readonly bl?: readonly WireBlow[];
   /** What shows of the gear of every player (SHOWN_SLOTS), `[id, look]`, when one changed or a player came or went (protocol 20). */

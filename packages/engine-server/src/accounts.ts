@@ -1,5 +1,20 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CHARACTER_ID, NAME_MAX, checkGear, checkPack, checkPlace, checkSheet, cleanName, type Character, type CharacterPlace, type Gear, type Pack, type QuestBook } from '@game/engine';
+import {
+  CHARACTER_ID,
+  KILL_XP_DIVISOR,
+  NAME_MAX,
+  checkGear,
+  checkPack,
+  checkPlace,
+  checkSheet,
+  checkXpDivisor,
+  cleanName,
+  type Character,
+  type CharacterPlace,
+  type Gear,
+  type Pack,
+  type QuestBook,
+} from '@game/engine';
 import { googleAuthUrl, googleIdentity, newLogin, type GoogleConfig } from './google.ts';
 import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
 
@@ -8,8 +23,9 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  * characters (the JSON API that the menu of the page uses). nginx sends /api/ and /auth/ here,
  * as it sends /ws; in development, Vite does.
  *
- *   GET    /api/me                      who is signed in (how, and if an admin; or null), and the ways to sign in
+ *   GET    /api/me                      who is signed in (how, if an admin, and an admin's XP divisor; or null), and the ways to sign in
  *   DELETE /api/me                      deletes the account, its sessions and its characters
+ *   PUT    /api/me/xp-divisor           {divisor}: an admin's divisor of the XP of the kills of its own characters (experience.ts)
  *   GET    /api/characters              the account's characters
  *   POST   /api/characters              a new character (a CharacterSheet as JSON)
  *   POST   /api/characters/<id>/play    the character starts to play (stamps it, returns it)
@@ -30,7 +46,8 @@ import { AccountStore, LOGIN_STATE_MS, type User } from './store.ts';
  * connections. A page whose session ended goes back to the sign-in screen.
  *
  * An admin is an account whose email is in `admins` (ADMIN_EMAILS). Only an admin sees the display
- * settings (the CRT effect) in the game.
+ * settings (the CRT effect) in the game, and chooses the divisor of the XP of the kills of its own
+ * characters (Fede's decision, 2026-10-14: to test the levels; the others always have KILL_XP_DIVISOR).
  */
 
 /** The worlds of the application, for the places of characters. */
@@ -122,6 +139,7 @@ export class Accounts {
   private readonly pruneTimer: ReturnType<typeof setInterval>;
   private readonly worlds: PlaceWorlds;
   private readonly signInListeners: ((user: User) => void)[] = [];
+  private readonly divisorListeners: ((user: User, divisor: number) => void)[] = [];
   private readonly admins: ReadonlySet<string>;
   private readonly mirrors: ReadonlySet<string>;
 
@@ -181,6 +199,16 @@ export class Accounts {
     this.signInListeners.push(listener);
   }
 
+  /** Calls `listener` when an admin chooses another divisor of the XP of its kills: the game server applies it at once. */
+  onXpDivisor(listener: (user: User, divisor: number) => void): void {
+    this.divisorListeners.push(listener);
+  }
+
+  /** The divisor of the XP of the kills of a user's characters: an admin's own choice, else KILL_XP_DIVISOR. */
+  xpDivisorOf(user: User): number {
+    return (this.isAdmin(user) ? this.store.xpDivisor(user.id) : null) ?? KILL_XP_DIVISOR;
+  }
+
   /** A user's character, or null if it has no character with that id. */
   characterOf(user: User, id: string): Character | null {
     return CHARACTER_ID.test(id) ? this.store.character(user.id, id) : null;
@@ -209,10 +237,10 @@ export class Accounts {
     if (CHARACTER_ID.test(id) && Number.isFinite(hp)) this.store.setVitals(user.id, id, hp, refuges);
   }
 
-  /** Notes the quest book and the pack of a user's character together (the server's word, after an effect on a quest). */
-  saveQuests(user: User, id: string, quests: QuestBook, pack: Pack): void {
+  /** Notes the quest book, the pack and the XP of a user's character together (the server's word, after an effect on a quest). */
+  saveQuests(user: User, id: string, quests: QuestBook, pack: Pack, xp: number): void {
     const checked = checkPack(pack);
-    if (checked && CHARACTER_ID.test(id)) this.store.setQuests(user.id, id, quests, checked);
+    if (checked && CHARACTER_ID.test(id)) this.store.setQuests(user.id, id, quests, checked, xp);
   }
 
   /** Notes the chunks that a user's character has seen (the server's word, in a shared world). */
@@ -244,6 +272,7 @@ export class Accounts {
 
     if (path === '/api/me' && method === 'GET') return this.me(request, response);
     if (path === '/api/me' && method === 'DELETE') return this.deleteAccount(request, response);
+    if (path === '/api/me/xp-divisor' && method === 'PUT') return this.setXpDivisor(request, response);
     if (path === '/auth/google' && method === 'GET') return this.googleStart(request, response);
     if (path === '/auth/google/callback' && method === 'GET') return this.googleCallback(request, response, url);
     if (path === '/auth/dev' && method === 'POST') return this.devSignIn(request, response);
@@ -307,7 +336,7 @@ export class Accounts {
       response,
       200,
       {
-        user: session ? { via: session.user.provider, admin: this.isAdmin(session.user) } : null,
+        user: session ? this.userJson(session.user) : null,
         login: { google: Boolean(this.options.google), dev: Boolean(this.options.devLogin) },
       },
       headers,
@@ -375,7 +404,18 @@ export class Accounts {
     if (!name) throw new HttpError(400, 'name');
     const user = this.store.signIn('dev', name, this.now(), email);
     const token = this.startSession(user);
-    this.json(response, 200, { user: { via: user.provider, admin: this.isAdmin(user) } }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
+    this.json(response, 200, { user: this.userJson(user) }, { 'set-cookie': this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs) });
+  }
+
+  /** An admin chooses the divisor of the XP of the kills of its own characters (the settings of the game). */
+  private async setXpDivisor(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const user = this.requireUser(request);
+    if (!this.isAdmin(user)) throw new HttpError(403, 'admin');
+    const divisor = checkXpDivisor(((await readJson(request)) as { divisor?: unknown } | null)?.divisor);
+    if (divisor === null) throw new HttpError(400, 'divisor');
+    this.store.setXpDivisor(user.id, divisor);
+    for (const listener of this.divisorListeners) listener(user, divisor);
+    this.json(response, 200, { xpDivisor: divisor });
   }
 
   /** The visitor deletes its account: the user, its sessions and its characters, at once. */
@@ -401,6 +441,12 @@ export class Accounts {
     const token = this.store.createSession(user.id, this.now(), this.lifetimeMs);
     for (const listener of this.signInListeners) listener(user);
     return token;
+  }
+
+  /** A user as /api/me shows it: how it signs in, whether it is an admin, and an admin's divisor of the XP of its kills. */
+  private userJson(user: User): { via: string; admin: boolean; xpDivisor?: number } {
+    const admin = this.isAdmin(user);
+    return { via: user.provider, admin, ...(admin ? { xpDivisor: this.xpDivisorOf(user) } : {}) };
   }
 
   private requireUser(request: IncomingMessage): User {

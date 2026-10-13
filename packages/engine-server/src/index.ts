@@ -10,6 +10,7 @@ import {
   World,
   characterSkin,
   clockAtHour,
+  levelOf,
   sheetTraits,
   exploredList,
   parseClientMessage,
@@ -172,6 +173,11 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     wss.handleUpgrade(request, socket, head, (ws) => connected(ws, addressOf(request), session?.user ?? null, session?.token ?? null));
   });
 
+  // An admin chose another divisor of the XP of its kills: its characters in the rooms get it at once.
+  accounts?.onXpDivisor((user, divisor) => {
+    for (const client of clients.values()) if (client.user?.id === user.id && client.room) client.room.setXpDivisor(client.playerId, divisor);
+  });
+
   // A sign-in ends the account's other sessions: their connections end too. The character's place
   // is saved as the connection closes, so the new device goes on from there.
   accounts?.onSignIn((user) => {
@@ -235,10 +241,12 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
         name = character.name;
         if (character.place?.world === message.world) place = character.place;
         client.character = character.id;
-        // What its scores give, and what it carries and wears: from the stored character too.
+        // What its scores give at its level, and what it carries and wears: from the stored character too.
         stored = {
-          traits: sheetTraits(character, character.gear),
-          traitsFor: (gear) => sheetTraits(character, gear),
+          traits: sheetTraits(character, character.gear, levelOf(character.xp)),
+          traitsFor: (gear, level) => sheetTraits(character, gear, level),
+          xp: character.xp,
+          xpDivisor: accounts.xpDivisorOf(client.user!),
           pack: character.pack,
           gear: character.gear,
           hp: character.hp,
@@ -273,18 +281,18 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     client.room.input(client.playerId, message, t);
   }
 
-  /** Notes the quest book and the pack of the character of a client (with accounts, in a room). */
+  /** Notes the quest book, the pack and the XP of the character of a client (with accounts, in a room). */
   function saveQuests(client: Client): void {
     const player = client.room?.player(client.playerId);
     if (!accounts || !client.user || !client.character || !player) return;
     try {
-      accounts.saveQuests(client.user, client.character, player.quests, player.pack);
+      accounts.saveQuests(client.user, client.character, player.quests, player.pack, player.xp);
     } catch (error) {
       log(`quests: ${(error as Error).message}`);
     }
   }
 
-  /** Notes where the character of a client is now, and what it carries and wears (with accounts, in a room). */
+  /** Notes where the character of a client is now, what it carries and wears, and its XP (with accounts, in a room). */
   function savePlace(client: Client): void {
     const player = client.room?.player(client.playerId);
     if (!accounts || !client.user || !client.character || !player) return;
@@ -294,7 +302,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
       accounts.saveGear(client.user, client.character, player.gear);
       accounts.saveVitals(client.user, client.character, player.state.hp, player.refuges);
       accounts.saveExplored(client.user, client.character, exploredList(player.explored));
-      accounts.saveQuests(client.user, client.character, player.quests, player.pack);
+      accounts.saveQuests(client.user, client.character, player.quests, player.pack, player.xp);
     } catch (error) {
       log(`place: ${(error as Error).message}`);
     }

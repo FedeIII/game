@@ -293,11 +293,14 @@ describe('the story through the server', () => {
     goTo(near, 'reeve');
     expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(false);
     expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'tell-reeve', 0)).toBe(false);
-    // In Ironhold the scene of the arrival ends the road; then the reeve starts the story.
+    // In Ironhold the scene of the arrival ends the road, with its XP; then the reeve starts the story.
+    expect(near.xp).toBe(0);
     expect(room.quest(near.id, { scene: 'arrival' }, 'road-arrived', 0)).toBe(true);
     expect(near.quests.road?.step).toBe('arrived');
+    expect(near.xp).toBe(100);
     expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(true);
     expect(near.quests.ashes?.step).toBe('reeve');
+    expect(near.xp).toBe(100);
     expect(room.quest(near.id, { npc: npcIndex('reeve') }, 'start-ashes', 0)).toBe(false);
     // A character from before the road, whose letter started the story, still tells the reeve.
     far.quests = { ashes: { step: 'letter', flags: [], n: 1 } };
@@ -564,6 +567,8 @@ describe('the scouts in the grove', () => {
     for (let t = 100; t < 3000 && p.quests.raid?.step === 'asked'; t += 50) room.tick(t);
     expect(p.quests.raid?.step).toBe('scouts');
     expect(p.pack.items).toEqual([{ kind: 'badger-fur', count: 2 }]);
+    // The XP of the two kills (a worg, a goblin: a tenth of 100 and of 50), and of the step.
+    expect(p.xp).toBe(10 + 5 + 75);
     expect(room.takeQuestSaves()).toEqual([p.id]);
     expect(room.takeQuestSaves()).toEqual([]);
   });

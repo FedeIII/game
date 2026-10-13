@@ -1,4 +1,4 @@
-import { ABILITIES, type PlayerTraits, type Scores } from '@game/engine';
+import { ABILITIES, type LevelProgress, type PlayerTraits, type Scores } from '@game/engine';
 import { SKIN_PORTRAIT } from '../../art/skins.ts';
 import { STRINGS } from './strings.ts';
 import { traitsList } from './traits-list.ts';
@@ -24,14 +24,16 @@ export interface YouCallbacks {
 
 /**
  * The "You" section of the settings panel: a picture of the character (standing, facing south),
- * its name, race and class, its ability scores, what they give in the game, and the way back to
- * the menu.
+ * its name, race and class, its level and XP, its ability scores, what they give in the game, and
+ * the way back to the menu.
  */
 export class YouSection {
   readonly element: HTMLElement;
   private readonly preview: HTMLCanvasElement;
   private readonly traits: HTMLElement;
   private readonly traitsHeading: HTMLElement;
+  private readonly level: HTMLElement;
+  private shownLevel = '';
 
   constructor(info: YouInfo, callbacks: YouCallbacks) {
     const text = STRINGS.you;
@@ -57,7 +59,9 @@ export class YouSection {
     const kind = document.createElement('span');
     kind.className = 'you-kind';
     kind.textContent = info.account ? info.kind : `${info.kind} · ${text.guest}`;
-    about.append(name, kind);
+    this.level = document.createElement('span');
+    this.level.className = 'you-level';
+    about.append(name, kind, this.level);
     if (info.scores) {
       const scores = document.createElement('dl');
       scores.className = 'you-scores';
@@ -104,7 +108,15 @@ export class YouSection {
     this.element.append(heading, row, this.traits, actions);
   }
 
-  /** Shows new traits (the gear changed). */
+  /** Shows the level of the character and its XP. */
+  setLevel(progress: LevelProgress): void {
+    const key = `${progress.level}/${progress.xp}`;
+    if (key === this.shownLevel) return;
+    this.shownLevel = key;
+    this.level.textContent = STRINGS.you.level(progress.level, progress.xp, progress.to);
+  }
+
+  /** Shows new traits (the gear or the level changed). */
   setTraits(traits: PlayerTraits): void {
     this.traits.replaceChildren(this.traitsHeading, traitsList(traits));
   }

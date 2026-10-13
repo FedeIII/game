@@ -1,19 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { MOB_LOOT, dialogDeals, type Dialog, type ItemKind, type LootTable, type MobKind, type QuestEffect } from '@game/engine';
+import { MOB_LOOT, MOB_STATS, dialogDeals, killXp, levelOf, type Dialog, type ItemKind, type LootTable, type MobKind, type QuestEffect } from '@game/engine';
 import {
   ASHES_HELD,
+  ASHES_RELIC,
+  CAMP_TAKEN,
   CARAVAN_SAVED,
   CART_LIFT,
   DEFAULT_SEED,
+  DREAM_REFUSE,
   HIMO_HOME,
   LENTILS_GIVE,
   LENTILS_WET_REWARD,
   PEDDLER,
+  QUESTS,
+  RAID_BAND,
   RAID_SCOUTS,
+  RAID_TITLE_PERMIT,
+  ROAD_ARRIVED,
+  RUIN_TANNER,
   SMITH,
   TOWN_CACHE,
   WildsSource,
 } from '../src/index.ts';
+import * as questModule from '../src/quests.ts';
 
 /**
  * Coins are scarce (Fede, 2026-10-13; docs/game-design.md, "Coins"): the rewards of the quests are more
@@ -119,5 +128,49 @@ describe('the economy of the Wilds', () => {
   it('a chest has no coins at times', () => {
     const chests = chestTables();
     for (const table of [chests.chest, chests.locked, chests.barred]) expect(table.coinChance).toBeLessThan(1);
+  });
+});
+
+/**
+ * The XP of a game of chapter 1, alone (experience.ts; Fede, 2026-10-14): the effects of the quests by
+ * their best way, and the kills of the model above (KILLS, STORY_KILLS). The Ash Warden goes in ash:
+ * no kill.
+ */
+const XP_WAY: readonly QuestEffect[] = [
+  ROAD_ARRIVED,
+  CART_LIFT,
+  LENTILS_GIVE,
+  RUIN_TANNER,
+  ASHES_HELD,
+  CAMP_TAKEN,
+  ASHES_RELIC,
+  DREAM_REFUSE,
+  RAID_SCOUTS,
+  RAID_BAND,
+  HIMO_HOME,
+  RAID_TITLE_PERMIT,
+  CARAVAN_SAVED,
+];
+const killsXp = (kills: Partial<Record<MobKind, number>>) => Object.entries(kills).reduce((sum, [kind, n]) => sum + killXp(MOB_STATS[kind as MobKind].cr) * n, 0);
+
+describe('the experience of the Wilds', () => {
+  it('quests give more than half of the XP of a game of chapter 1 (the model)', () => {
+    const quests = XP_WAY.reduce((sum, e) => sum + (e.xp ?? 0), 0);
+    const kills = killsXp(KILLS) + killsXp(STORY_KILLS);
+    expect(quests / (quests + kills)).toBeGreaterThan(0.5);
+  });
+
+  it('takes a character of chapter 1 to level 3, for which the chapter was made, but not to level 4', () => {
+    const total = XP_WAY.reduce((sum, e) => sum + (e.xp ?? 0), 0) + killsXp(KILLS) + killsXp(STORY_KILLS);
+    expect(levelOf(total)).toBe(3);
+    // The road and its small quests (the tutorial) end at level 1; the first steps after it bring level 2.
+    const road = [ROAD_ARRIVED, CART_LIFT, LENTILS_GIVE].reduce((sum, e) => sum + (e.xp ?? 0), 0) + killsXp({ skirmisher: KILLS.skirmisher, bandit: KILLS.bandit });
+    expect(levelOf(road)).toBe(1);
+    expect(levelOf(road + (RUIN_TANNER.xp ?? 0))).toBe(2);
+  });
+
+  it('gives XP in every quest', () => {
+    const effects = (Object.values(questModule) as unknown[]).filter((e): e is QuestEffect => typeof e === 'object' && e !== null && 'quest' in e && (((e as QuestEffect).xp ?? 0) > 0));
+    for (const quest of QUESTS) expect(effects.some((e) => e.quest === quest.id), quest.id).toBe(true);
   });
 });

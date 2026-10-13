@@ -10,6 +10,8 @@ import {
   checkPlace,
   checkQuests,
   checkSheet,
+  checkXp,
+  checkXpDivisor,
   sheetKit,
   type Character,
   type CharacterPlace,
@@ -103,6 +105,10 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-13: the hut moved south of Ironhold (the cell HOME_CELL of the Wilds). A character made
   // before the new hut went live starts in its new hut, not where it was (Fede's decision).
   `UPDATE characters SET place = NULL WHERE created_at < ${NEW_HUT_AT};`,
+  // 2026-10-14: levels (experience.ts). The XP of each character (null: 0), and the divisor of the XP
+  // of the kills that an admin chose for the admin's own characters (null: KILL_XP_DIVISOR).
+  `ALTER TABLE characters ADD COLUMN xp INTEGER;
+   ALTER TABLE users ADD COLUMN xp_divisor INTEGER;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
@@ -123,6 +129,7 @@ interface CharacterRow {
   explored: string | null;
   gear: string | null;
   quests: string | null;
+  xp: number | null;
 }
 
 /** The most chunks that a stored character keeps as seen (the Room's MAX_EXPLORED). */
@@ -174,6 +181,7 @@ function toCharacter(row: CharacterRow): Character | null {
     refuges: checkRefuges(parse(row.refuges)),
     explored: checkExplored(parse(row.explored)),
     quests: checkQuests(parse(row.quests)),
+    xp: checkXp(row.xp),
   };
 }
 
@@ -287,14 +295,14 @@ export class AccountStore {
   /** A user's characters: the last played first, then the newest. */
   characters(userId: number): Character[] {
     const rows = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests, xp FROM characters WHERE user_id = ? ORDER BY played_at IS NULL, played_at DESC, created_at DESC')
       .all(userId) as unknown as CharacterRow[];
     return rows.map(toCharacter).filter((c): c is Character => c !== null);
   }
 
   character(userId: number, id: string): Character | null {
     const row = this.db
-      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests FROM characters WHERE user_id = ? AND id = ?')
+      .prepare('SELECT id, sheet, created_at, played_at, place, pack, hp, refuges, explored, gear, quests, xp FROM characters WHERE user_id = ? AND id = ?')
       .get(userId, id) as CharacterRow | undefined;
     return row ? toCharacter(row) : null;
   }
@@ -308,7 +316,7 @@ export class AccountStore {
     this.db
       .prepare('INSERT INTO characters (id, user_id, sheet, created_at, played_at, gear) VALUES (?, ?, ?, ?, NULL, ?)')
       .run(id, userId, JSON.stringify(sheet), now, gearJson(gear));
-    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, gear, hp: null, refuges: [], explored: [], quests: EMPTY_BOOK };
+    return { ...sheet, id, createdAt: now, playedAt: null, place: null, pack: EMPTY_PACK, gear, hp: null, refuges: [], explored: [], quests: EMPTY_BOOK, xp: 0 };
   }
 
   /** Notes that a character starts to play; returns it, or null if it is not the user's. */
@@ -330,13 +338,24 @@ export class AccountStore {
   }
 
   /**
-   * Notes the quest book and the pack of a character together (the server's word, after an effect
-   * on a quest: the step and its reward change at once); false if it is not the user's.
+   * Notes the quest book, the pack and the XP of a character together (the server's word, after an
+   * effect on a quest: the step and its reward change at once); false if it is not the user's.
    */
-  setQuests(userId: number, id: string, quests: QuestBook, pack: Pack): boolean {
+  setQuests(userId: number, id: string, quests: QuestBook, pack: Pack, xp: number): boolean {
     const book = JSON.stringify(checkQuests(quests));
     const json = JSON.stringify({ coins: pack.coins, items: pack.items.map((s) => (s ? { kind: s.kind, count: s.count } : null)) });
-    return this.db.prepare('UPDATE characters SET quests = ?, pack = ? WHERE user_id = ? AND id = ?').run(book, json, userId, id).changes > 0;
+    return this.db.prepare('UPDATE characters SET quests = ?, pack = ?, xp = ? WHERE user_id = ? AND id = ?').run(book, json, checkXp(xp), userId, id).changes > 0;
+  }
+
+  /** The divisor of the XP of the kills that a user (an admin) chose, or null: none (KILL_XP_DIVISOR). */
+  xpDivisor(userId: number): number | null {
+    const row = this.db.prepare('SELECT xp_divisor FROM users WHERE id = ?').get(userId) as { xp_divisor: number | null } | undefined;
+    return checkXpDivisor(row?.xp_divisor);
+  }
+
+  /** Notes the divisor of the XP of the kills that a user (an admin) chose; null clears it. */
+  setXpDivisor(userId: number, divisor: number | null): void {
+    this.db.prepare('UPDATE users SET xp_divisor = ? WHERE id = ?').run(divisor === null ? null : checkXpDivisor(divisor), userId);
   }
 
   /** Notes what a character wears (the server's word, from a shared world); false if it is not the user's. */

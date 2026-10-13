@@ -37,6 +37,7 @@ const EN = {
       drink: { keys: 'Your health is low: [1] drinks a healing draught.', touch: 'Your health is low: tap a draught on the belt, top left.' },
       pickup: { keys: 'Something lies on the ground: walk to it and press [E] to pick it up.', touch: 'Something lies on the ground: walk to it and tap the action button.' },
       defeat: { keys: 'You fell, and woke in safety: at home, or at the last refuge that you entered.', touch: 'You fell, and woke in safety: at home, or at the last refuge that you entered.' },
+      xp: { keys: 'You gained experience. The gold bar under your health, top left, fills on the way to the next level.', touch: 'You gained experience. The gold bar under your health, top left, fills on the way to the next level.' },
     },
   },
   /** A new build of the game is out (ui/new-build.ts): the page reloads itself. */
@@ -170,6 +171,23 @@ const EN = {
     hp: (hp: number, max: number): string => `${hp} of ${max} hit points`,
     poisoned: 'Poisoned',
     drunk: 'Drunk',
+    /** The level by the gold bar (experience.ts), and what a screen reader hears of it. */
+    level: (level: number): string => `Lv ${level}`,
+    xp: (level: number, xp: number, next: number | null): string => (next === null ? `Level ${level}, ${xp} XP` : `Level ${level}, ${xp} of ${next} XP`),
+  },
+  /** A new level (experience.ts): the banner, and what a screen reader hears. */
+  levelUp: {
+    kicker: 'New level',
+    title: (level: number): string => `Level ${level}`,
+    spoken: (level: number): string => `New level: level ${level}.`,
+  },
+  /** The experience section of the settings (ui/xp-section.ts), for an admin only. */
+  experience: {
+    heading: 'Experience',
+    divisor: 'Kill XP: 5e XP ÷',
+    note: (usual: number): string => `For your own characters only; the other players have ${usual}.`,
+    saved: 'Saved',
+    failed: 'Not saved',
   },
   /** A bed of the player's own (Interaction.rest). */
   rest: 'Rest',
@@ -460,6 +478,7 @@ const EN = {
   you: {
     heading: 'You',
     guest: 'A guest: nothing is saved',
+    level: (level: number, xp: number, next: number | null): string => (next === null ? `Level ${level} · ${xp} XP` : `Level ${level} · ${xp} / ${next} XP`),
     mainMenu: 'Main menu',
     signOut: 'Sign out',
   },

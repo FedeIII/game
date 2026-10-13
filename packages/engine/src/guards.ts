@@ -43,6 +43,12 @@ export interface GuardDef {
   /** Its most hit points and its Armour Class (5e: a guard has 11 and 16). */
   readonly hp: number;
   readonly ac: number;
+  /**
+   * Its level: the challenge rating of its stat block (5e: a guard 1/8; 0 for one that never fights).
+   * It changes none of its numbers, and no screen shows it: a character that brings it down gets a
+   * share of its XP (experience.ts, killXp).
+   */
+  readonly cr: number;
   /** Its blow (5e: a spear, +3 and 1d6+1); without it, it never fights (the wagon). */
   readonly blow?: Blow;
   /** Its walk, as a share of a player's (a wagon is slow). Default 1. */
@@ -86,6 +92,8 @@ export interface GuardEvent {
   readonly kind: 'fell' | 'gone';
   /** Who brought it down: a character (`player`), or a mob (`mob`) or nobody known. */
   readonly by?: number;
+  /** When it fell: the characters whose blows hit it (they get the XP of its challenge rating, GuardDef.cr). */
+  readonly hitters?: readonly number[];
 }
 
 /** What a character's blow did to a guard: its damage (0: a miss) and whether it was a critical hit. */
@@ -106,6 +114,8 @@ export class Guards {
   private clockMs = 0;
   /** Who struck each guard last (a character id; a mob as -id), for the events. */
   private readonly lastHit = new Map<number, number>();
+  /** The characters whose blows hit each guard (the XP when it falls). */
+  private readonly hitBy = new Map<number, Set<number>>();
 
   constructor(world: World) {
     this.world = world;
@@ -143,6 +153,7 @@ export class Guards {
     const i = this.all.findIndex((g) => g.id === id);
     if (i >= 0) this.all.splice(i, 1);
     this.lastHit.delete(id);
+    this.hitBy.delete(id);
   }
 
   /** The guards as targets for the horde: the mobs of the story hunt them (a quarry), and they bring no new mobs. */
@@ -171,7 +182,10 @@ export class Guards {
     const traits = { maxHp: def.hp, recover: 0, speed: def.speed ?? 1 };
     if (state.down > 0) {
       const first = state.down === DOWN_TICKS;
-      if (first) events.push({ id: guard.id, group: guard.group, def: def.id, kind: 'fell', ...(this.lastHit.has(guard.id) ? { by: this.lastHit.get(guard.id)! } : {}) });
+      if (first) {
+        const hitters = [...(this.hitBy.get(guard.id) ?? [])];
+        events.push({ id: guard.id, group: guard.group, def: def.id, kind: 'fell', ...(this.lastHit.has(guard.id) ? { by: this.lastHit.get(guard.id)! } : {}), ...(hitters.length > 0 ? { hitters } : {}) });
+      }
       stepPlayer(state, NO_MOVE, this.world, traits);
       if (state.down === 0) {
         // It died: it goes.
@@ -301,6 +315,9 @@ export class Guards {
     if (damage > 0) {
       hitPlayer(guard.state, damage, 20, 0);
       this.lastHit.set(guard.id, attackerId);
+      const hitters = this.hitBy.get(guard.id) ?? new Set<number>();
+      hitters.add(attackerId);
+      this.hitBy.set(guard.id, hitters);
     }
     return { guard, damage, crit: roll.hit && roll.crit };
   }

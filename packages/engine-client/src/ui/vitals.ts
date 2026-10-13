@@ -1,3 +1,4 @@
+import type { LevelProgress } from '@game/engine';
 import { STRINGS } from './strings.ts';
 
 /** What the vitals show of the player (PlayerState). */
@@ -14,9 +15,10 @@ const HURT_MS = 450;
 
 /**
  * The player's vitals (Constitution), HTML over the canvas in the top-left corner: a red bar of the
- * hit points with their numbers ("17 / 28", 5e level 3), a thin stamina bar under it, and the effects in words
+ * hit points with their numbers ("17 / 28"), a thin stamina bar under it, the level and a thin gold
+ * bar of the way to the next level (experience.ts, since 2026-10-14), and the effects in words
  * (poisoned, drunk). A hit flashes the screen edges red; a defeat fades the screen to black until
- * the player wakes. Screen readers hear the hit points.
+ * the player wakes. Screen readers hear the hit points, the level, and a new level.
  */
 export class Vitals {
   private readonly root: HTMLElement;
@@ -25,7 +27,12 @@ export class Vitals {
   private readonly status: HTMLElement;
   private readonly hurt: HTMLElement;
   private readonly veil: HTMLElement;
+  private readonly level: HTMLElement;
+  private readonly levelNumber: HTMLElement;
+  private readonly xpFill: HTMLElement;
+  private readonly spoken: HTMLElement;
   private shown = '';
+  private shownLevel = '';
   private lastHp: number | null = null;
 
   constructor() {
@@ -40,9 +47,26 @@ export class Vitals {
     this.fill = document.createElement('div');
     this.fill.className = 'vitals-stamina-fill';
     bar.append(this.fill);
+    this.level = document.createElement('div');
+    this.level.className = 'vitals-level';
+    this.level.setAttribute('role', 'img');
+    this.levelNumber = document.createElement('span');
+    this.levelNumber.className = 'vitals-level-number';
+    this.levelNumber.setAttribute('aria-hidden', 'true');
+    const xpBar = document.createElement('div');
+    xpBar.className = 'vitals-xp';
+    xpBar.setAttribute('aria-hidden', 'true');
+    this.xpFill = document.createElement('div');
+    this.xpFill.className = 'vitals-xp-fill';
+    xpBar.append(this.xpFill);
+    this.level.append(this.levelNumber, xpBar);
     this.status = document.createElement('div');
     this.status.className = 'vitals-status';
-    this.root.append(this.pips, bar, this.status);
+    this.spoken = document.createElement('div');
+    this.spoken.className = 'sr-only';
+    this.spoken.setAttribute('role', 'status');
+    this.spoken.setAttribute('aria-live', 'polite');
+    this.root.append(this.pips, bar, this.level, this.status, this.spoken);
     this.hurt = document.createElement('div');
     this.hurt.id = 'hurt';
     this.hurt.setAttribute('aria-hidden', 'true');
@@ -55,6 +79,21 @@ export class Vitals {
   /** The box in the top-left corner, for what goes under the vitals (the drink belt). */
   get element(): HTMLElement {
     return this.root;
+  }
+
+  /** Shows the level of the character, and the share of the way to the next one. */
+  setLevel(progress: LevelProgress): void {
+    const key = `${progress.level}/${progress.xp}`;
+    if (key === this.shownLevel) return;
+    this.shownLevel = key;
+    this.levelNumber.textContent = STRINGS.vitals.level(progress.level);
+    this.xpFill.style.width = `${Math.round(100 * progress.share)}%`;
+    this.level.setAttribute('aria-label', STRINGS.vitals.xp(progress.level, progress.xp, progress.to));
+  }
+
+  /** Screen readers hear a line (a new level). */
+  announce(text: string): void {
+    this.spoken.textContent = text;
   }
 
   /** Shows the vitals of the player: its hit points as a share of `maxHp`, with the numbers, and the stamina as a share of `maxStamina`. */

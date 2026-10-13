@@ -219,6 +219,8 @@ export interface Character extends CharacterSheet {
   readonly explored: readonly (readonly [number, number])[];
   /** Its quest book (quests.ts): the step of each quest that it started. The server keeps it. */
   readonly quests: QuestBook;
+  /** Its experience (experience.ts): its level comes from it (levelOf). The server keeps it. */
+  readonly xp: number;
 }
 
 /** The id of a world, as a place names it. */

@@ -67,6 +67,8 @@ export interface AmbushPlayer {
   readonly state: PlayerState;
   readonly quests: QuestBook;
   readonly pack: Pack;
+  /** Its level (experience.ts): the encounters are sized for it (encounters.ts). Default 1. */
+  readonly level?: number;
 }
 
 /** The characters within this many tiles count as "there" (level-3.md), and get the end. */
@@ -152,16 +154,16 @@ export class Ambushes {
       if (!starter) continue;
       const there = players.filter((p) => Math.hypot(p.state.x - starter.state.x, p.state.y - starter.state.y) <= AMBUSH_RADIUS * TILE_SIZE);
       const party = new Set(there.filter((p) => holds(def.when, p.quests, p.pack)).map((p) => p.id));
-      this.running.push({ def, mobs: this.spawn(def, horde, starter.state, there.length), players: party, last: new Map() });
+      this.running.push({ def, mobs: this.spawn(def, horde, starter.state, there.map((p) => p.level ?? 1)), players: party, last: new Map() });
     }
     return out;
   }
 
-  /** Puts the mobs of an ambush for `count` characters at its point furthest from (x, y); a band that marches, in its column at the start of its route. */
-  private spawn(def: AmbushDef, horde: Horde, at: { readonly x: number; readonly y: number }, count: number): number[] {
+  /** Puts the mobs of an ambush for characters of these levels at its point furthest from (x, y); a band that marches, in its column at the start of its route. */
+  private spawn(def: AmbushDef, horde: Horde, at: { readonly x: number; readonly y: number }, levels: readonly number[]): number[] {
     const units = sizeEncounter(
       def.units.map((u) => u.map((m) => m.kind)),
-      count,
+      levels,
     ).length;
     const members = def.units.slice(0, units).flat();
     const route = def.march?.route.map(([x, y]) => ({ x: x * TILE_SIZE, y: y * TILE_SIZE }));

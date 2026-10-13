@@ -1,10 +1,11 @@
-# Combat (5e, Level 1)
+# Combat (5e)
 
 ## Overview
 
 Since 2026-10-11 (Fede's decision; plan: `docs/drafts/level-3.md`) the game uses the basic 5e
-numbers. A character is a level-1 character since 2026-10-13 (Fede's decision: a system to level up
-comes later; from 2026-10-11 to 2026-10-12 it was level 3), the mobs have the hit points, the Armour Class, the attack bonus and the damage of
+numbers. A character starts at level 1 since 2026-10-13 (Fede's decision; from 2026-10-11 to
+2026-10-12 it was level 3), and rises to level 5 with its XP since 2026-10-14 (`docs/features/game/levels.md`),
+the mobs have the hit points, the Armour Class, the attack bonus and the damage of
 their SRD stat blocks, and the dice roll. A blow and a mob's hit roll d20 against the Armour Class;
 a hit rolls its damage dice. No hit points come back by themselves: a bed, a draught or a defeat
 heals. The real-time rules stay: a blow must touch the mob, the dodge, the guard after a stun, the
@@ -23,7 +24,8 @@ turns of a pack, the wind-ups.
 ### REQ-CMB-001: A character of level 1
 
 **User Story:** As Fede, I want a new character to be a level-1 character of 5e, so that it starts
-at the beginning and grows later (a system to level up comes later).
+at the beginning and grows later (it levels up: `docs/features/game/levels.md`, REQ-LVL-001, where the
+numbers of the levels 2 to 5 are).
 
 **Acceptance Criteria:**
 - **AC-CMB-001.1:** The hit points of a character are those of level 1: the hit die of its class at
@@ -283,11 +285,13 @@ goblins for new players if they are there during the day").
 - **Dice** (`packages/engine/src/dice.ts`): `Dice`, `dice()`, `plusDice()`, `formatDice()`,
   `averageDice()`, `rollDice()`, `attackRoll()`, `DiceSource` (`rollingDice()`, or `AVERAGE_DICE`:
   the average of the dice and every attack hits, for tests).
-- **Characters** (`packages/engine/src/traits.ts`): `LEVEL` 3, `PROFICIENCY_BONUS` 2, `HIT_DIE`,
-  `levelHp()`; `PlayerTraits.damage` (dice), `toHit`, `sneak` (dice), `recover` 0. `gear.ts`:
-  `dieBase()`, `CANTRIP_BASE`, `MARTIAL_ARTS_BASE`, `UNARMED_BASE`, `SNEAK_ATTACK`.
+- **Characters** (`packages/engine/src/traits.ts`): `proficiencyBonus(level)`, `HIT_DIE`,
+  `levelHp(cls, conMod, level)`; `PlayerTraits.level`, `damage` (dice), `toHit`, `sneak` (dice),
+  `recover` 0. `gear.ts`: `dieBase()`, `CANTRIP_BASE`, `cantripDice()`, `martialArts()`, `UNARMED_BASE`,
+  `sneakAttack()`. The levels: `docs/features/game/levels.md`.
 - **Mobs** (`packages/engine/src/mobs.ts`): `MobStats.health`, `ac`, `toHit`, `damage`, `allyDice`,
-  `xp` (for the encounters of the story); `Blow` (`toHit`, `damage`, `sneak`, `opening`, `push`,
+  `cr` (the challenge rating: `mobXp()` gives its 5e XP, for the encounters of the story and the XP of a
+  kill); `Blow` (`toHit`, `damage`, `sneak`, `opening`, `push`,
   `stagger`, `reach`), `PLAIN_BLOW`, `rollBlow()`, `BlowResult`, `MobHit`, `ShotResult`,
   `Horde.dice`, `Horde.strike()` (results), `Horde.takeShotResults()`, `ALLY_RANGE`.
 - **The player** (`packages/engine/src/player.ts`): `hitPlayer()` (a hit that its roll landed),
@@ -302,9 +306,10 @@ goblins for new players if they are there during the day").
 - **Tests**: `packages/engine/test/dice.test.ts`; the tests of the mobs, the gear and the abilities use
   `AVERAGE_DICE` where they count blows or hits.
 - **Encounters** (`packages/engine/src/encounters.ts`): the ambush of the scouts and the war band are
-  sized to the characters there with the 5e budget of level 1 (easy 25, medium 50, hard 75, deadly
-  100 XP for each character; `docs/features/game/quests.md`, REQ-QST-012 and REQ-QST-013). The band
-  of the chapter is for about thirteen level-1 characters; one gets its first unit.
+  sized to the characters there with the 5e budget of their levels (the deadly budget: 100 XP for a
+  level-1 character, 200 for level 2, 400 for 3, 500 for 4, 1100 for 5; `docs/features/game/quests.md`,
+  REQ-QST-012 and REQ-QST-013). The band of the chapter is for about thirteen level-1 characters, or six
+  of level 3; one level-1 character gets its first unit.
 - **The Devastator** (`packages/engine/src/mobs.ts`): the kind `devastator` (code 6), `MobStats.rite`
   (`Rite`: `ms` 6000, `radius` 128, `runes` 3, `allies`, `burnMs` 30000, `cooldownMs` 15000), the state
   `rite` (code 9), `Mob.runes`, `Mob.burning`, `BURN_TO_HIT`, `BURN_DICE`; the wire carries the runes

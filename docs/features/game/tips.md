@@ -42,6 +42,7 @@ game without a manual.
   | `drink` | 40% of the health or less, with a healing draught in the pack | (its time) |
   | `pickup` | a pile on the ground within 5 tiles | a pick-up |
   | `defeat` | the character wakes after a fall | (its time) |
+  | `xp` | the first XP of the character (a kill, a quest; `docs/features/game/levels.md`): the gold bar of the level | (its time) |
 
 - **AC-TIP-001.2:** One tip shows at a time, for 9 s, or until its thing is done. The next one comes
   0.9 s later. A tip whose thing the player did before its moment never shows.

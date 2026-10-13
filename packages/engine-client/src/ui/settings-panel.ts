@@ -236,8 +236,8 @@ export class SettingsPanel {
     this.panel.addEventListener('click', () => {
       setTimeout(() => {
         const focused = document.activeElement;
-        // Not a text field: the visitor is about to type in it.
-        const typing = focused instanceof HTMLInputElement && focused.type === 'text';
+        // Not a field to type in (a text, a number): the visitor is about to type in it.
+        const typing = focused instanceof HTMLInputElement && (focused.type === 'text' || focused.type === 'number');
         if (focused instanceof HTMLElement && this.panel.contains(focused) && !typing) focused.blur();
       }, 0);
     });
@@ -249,6 +249,11 @@ export class SettingsPanel {
   /** Puts a section at the top of the panel, over the display settings. */
   addSection(section: HTMLElement): void {
     this.panel.prepend(section);
+  }
+
+  /** Puts a section at the end of the panel, under the display settings (the experience, for an admin). */
+  appendSection(section: HTMLElement): void {
+    this.panel.append(section);
   }
 
   /** The filters take the settings: the switch for all of them, the values for the world's. */
