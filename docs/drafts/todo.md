@@ -26,4 +26,41 @@
   town (a flag on `Town` or a place list, an area like the sound areas, once per visit), and a name sign
   fixture for each dominion's style (art), with Spanish names.
 
+- **Wet lentils fail the lentils quest** (2026-10-13). If the character steps into the water round a
+  lake (the shallows, `Ground.Shallows`, where a character with STR 13 wades) while it carries the sack
+  of lentils, the lentils are ruined and the quest fails. The sergeant of Bronzehold then pays only a
+  part of the reward, and only to a character with enough Charisma (a gate, `PERSUASION_GATE`).
+  Code: the quest `LENTILS`, `LENTILS_TAKE`, `LENTILS_GIVE` and `LENTILS_REWARD` in
+  `worlds/wilds/src/quests.ts`; the sergeant (`SERGEANT`, node `lentils`) and the farmer (`FARMER`)
+  in `worlds/wilds/src/dialogs.ts`; the item `lentils` in `packages/engine/src/items.ts`; the wade in
+  `packages/engine/src/player.ts` (`isWading()`, `inShallows()`). The server must see the wade (the
+  Room), so that a page cannot hide it; a new step (for example `ruined`) or an item `wet-lentils`;
+  a journal line and Spanish forms.
+
+- **Goblin patrols: any number flees** (2026-10-13). Now a startled group always keeps at least one
+  goblin that flees and at least one that fights (a group of 3: 1 or 2 flee). Make it random over all
+  the numbers: all flee, 2 flee, 1 flees, or none flees and all fight. Code: `Horde.startle()` in
+  `packages/engine/src/mobs.ts` (the line `const fleeing = ...`), and its comment; the tests of the
+  patrol in `packages/engine/test/` (they can count on "at least one flees"); `docs/drafts/tutorial.md`
+  and `docs/features/game/combat.md` (REQ-CMB-009) say how a patrol chooses.
+
+- **A chalice over the door of a shrine, not the word** (2026-10-13). A shrine shows no "Shrine"
+  sign over its door; it shows a chalice symbol there instead. Now the shrine of Whitegrove has
+  `sign: 'Shrine'` (`worlds/wilds/src/hamlets.ts`, the plan of the shrine; Spanish "Santuario" in
+  `text-es.ts`). A sign is text on a board (`Buildings.sign()` in
+  `packages/engine-client/src/render/buildings.ts`, the frame `ui/sign`): a symbol needs a new field
+  on `Building` (for example `emblem: 'chalice'`), a frame in the atlas (`art/fixtures.ts` or
+  `art/font.ts`, in the style of the game), and the renderer. The map label of the refuge
+  (`source.ts`, `landmarks()`, "Shrine") can stay. Ask Fede: does the chapel of Ironhold keep its word
+  "Chapel"?
+
+- **An empty box at the top centre of the screen** (2026-10-13, a bug). Sometimes a panel with no text
+  stays at the top centre. The cause: the control hint `#hint` (`apps/game/index.html`, a `<div>` with
+  no class `gone`; the style `#hint` in `packages/engine-client/src/style.css` gives it a border and a
+  background). Before 2026-10-13 the game put the controls in it and hid it after 3 tiles of walk. The
+  tips (commit e3a4242) took that text away, but the empty box still shows: under a tip it is hidden,
+  and while a panel is open (`body:has(...) #hint`), so it shows "sometimes". The fix: start it with
+  the class `gone` in `index.html` (it shows only with `Hud.showHint()`, the new-build line), or hide
+  `#hint:empty` in the style. Check a screenshot of the game after it.
+
 ## Done
