@@ -1,5 +1,8 @@
 import { STRINGS } from './strings.ts';
-/** The HTML overlay: the control hint, the debug panel and the fatal-error screen. */
+/**
+ * The HTML overlay: the hint, the debug panel and the fatal-error screen. The page's #hint starts
+ * with the class `gone` (empty, it is an empty box); only showHint() shows it (the new-build line).
+ */
 export class Hud {
   private readonly hint: HTMLElement;
   private readonly debugPanel: HTMLElement;
