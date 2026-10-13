@@ -2399,6 +2399,7 @@ body.conversing #link-card {
   box-sizing: border-box;
   display: grid;
   place-items: center;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -2440,11 +2441,103 @@ body.conversing #link-card {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 45%, rgb(8 9 11 / 0) 0%, rgb(8 9 11 / 0.5) 80%), linear-gradient(rgb(8 9 11 / 0.05), rgb(8 9 11 / 0.25));
+  /* The edges darker, and the bottom more, where the buttons of the main screen are. */
+  background: radial-gradient(ellipse at 50% 45%, rgb(8 9 11 / 0) 0%, rgb(8 9 11 / 0.5) 80%), linear-gradient(rgb(8 9 11 / 0.05) 50%, rgb(8 9 11 / 0.55));
+}
+
+/*
+ * The frame of the menu: the logo (menu/logo.ts), the screen, and the site under them. A screen with
+ * a panel (the builder, the list, the settings) is in the middle of the page, under a smaller logo.
+ * On the main screen and the sign-in (`.menu-open`; Fede's layout, 2026-10-13) the frame fills the
+ * page: the logo at the top, the screen at the bottom, with no box round it.
+ */
+.menu-frame {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+#menu.menu-open .menu-frame {
+  align-self: stretch;
+  min-height: 100%;
+}
+
+#menu .menu-head {
+  margin: 0 0 12px;
+}
+
+#menu.menu-open .menu-head {
+  margin: clamp(8px, 3vh, 32px) 0 0;
 }
 
 #menu .menu-panel {
   position: relative;
+}
+
+#menu.menu-open .menu-panel {
+  margin-top: auto;
+  padding: 28px 0 0;
+  border: none;
+  background: none;
+}
+
+/* Over the picture, the words of the open screens need a shadow. */
+#menu.menu-open .menu-panel,
+#menu.menu-open .menu-site {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 10px rgb(0 0 0 / 0.8);
+}
+
+/* The logo is the heading; its text is for screen readers, and it shows only if the picture does not load. */
+#menu .menu-name {
+  line-height: 0;
+}
+
+#menu .menu-name-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#menu .menu-name.no-logo {
+  line-height: 1.1;
+}
+
+#menu .menu-name.no-logo .menu-name-text {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
+
+#menu .menu-name.no-logo .menu-logo {
+  display: none;
+}
+
+/* A sheet of frames, one under the other (menu/logo.ts sets the size, the margins and the frame), scaled by whole device pixels. */
+.menu-logo {
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  transition: opacity 1.2s ease-out;
+}
+
+.menu-logo.shown {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-logo {
+    transition: none;
+  }
 }
 
 .menu-panel {
@@ -2469,7 +2562,7 @@ body.conversing #link-card {
 }
 
 .menu-site {
-  margin: 4px 0 0;
+  margin: 10px 0 0;
   font: 12px var(--ui-mono);
   opacity: 0.55;
 }

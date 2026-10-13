@@ -130,7 +130,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   action flow (doors, pages, links). The atlas loads while the menu shows. In a shared world it
   makes a `NetSession` and the tick goes through it.
 - `menu/`: the menu before the game (see "Menu, characters and accounts"): `menu.ts`
-  (`runMenu()`: sign-in, main screen, continue), `builder.ts` (the character builder),
+  (`runMenu()`: sign-in, main screen, continue), `logo.ts` (`MenuLogo`: the logo of the game at the
+  top, its scale in whole device pixels and its shine), `builder.ts` (the character builder),
   `portrait.ts` (a skin in the menu, walking or still), `names.ts` (random names per race),
   `api.ts` (the accounts API), `dom.ts`, `resume.ts` (after a reload for a new build, the menu
   starts the same character at once: a note in sessionStorage `game.resume.v1`, good for one start
@@ -354,6 +355,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   spark of a glancing blow on the player). The equipment has models of its own: `cuirass()` (a
   pattern for each armour), `shield()`, `sword()`, `greataxe()`, `mace()`, `longbow()`, `staff()`,
   `amulet()`. Preview new icons on a dark slot before you commit them.
+- `menu-logo.ts`: the logo of the menu (`menuLogo()`): "WORLD OF" in the pixel font over "KANDRAX",
+  letters cut as vector shapes and painted as metal (bevel, outline, glow, rubies, glints), and the
+  frames of a shine under the logo at rest. `build.ts` writes `src/generated/menu-logo.png` and
+  `menu-logo.json`.
 - `lights.ts`: light holes at the radii of `LIGHTING.radii` (48, 96, 150) and the glow. The
   settings go into the atlas JSON (`meta.lighting`).
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
@@ -422,7 +427,11 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"; the game's settings panel has it
   too), and for an admin the CRT settings),
   and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
-  sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). Music and sounds (2026-10-13,
+  sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). **The logo and the layout**
+  (Fede, 2026-10-13): the logo of the game, painted in pixel art (`art/menu-logo.ts`,
+  `src/generated/menu-logo.png`; `menu/logo.ts`), is at the top; on the sign-in and the main screen
+  the buttons are at the bottom of the page, with no box round them (`Layout` `open`); the builder,
+  the list and the settings keep their panel under a smaller logo (`panel`). Music and sounds (2026-10-13,
   `menu/sounds.ts`): the opening of the theme of Kandrax, and a speaker at the top right. See
   `docs/features/game/main-menu.md`. "Delete account" asks first, then deletes the account,
   its sessions and all its characters. "Privacy" opens `/privacy/` (`apps/game/privacy/

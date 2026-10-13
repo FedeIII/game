@@ -11,6 +11,7 @@ import { STRINGS } from '../ui/strings.ts';
 import { ApiError, api, type Me } from './api.ts';
 import { CharacterBuilder } from './builder.ts';
 import { el } from './dom.ts';
+import { MenuLogo } from './logo.ts';
 import { SkinPortrait } from './portrait.ts';
 import { takeMenuScreen, takeResume } from './resume.ts';
 import { MenuSounds } from './sounds.ts';
@@ -47,8 +48,15 @@ function backdrop(): { element: HTMLElement; stop: () => void } {
   return { element, stop: () => window.removeEventListener('resize', cover) };
 }
 
+/**
+ * How a screen of the menu shows: `open`, the logo at the top and the screen at the bottom over the
+ * picture, with no box (the sign-in, the main screen, and the short screens: loading, a failure); or
+ * `panel`, a smaller logo over a panel that holds the screen (the builder, the list, the settings).
+ */
+type Layout = 'open' | 'panel';
+
 export interface MenuOptions {
-  /** The big title: the world's name. */
+  /** The big title: the game's name (the logo shows it). */
   readonly title: string;
   /** The small line under it: the site. */
   readonly site: string;
@@ -141,24 +149,26 @@ function privacyLink(): HTMLAnchorElement {
 /**
  * The menu before the game, over the whole page: sign in (with Google; in development also with
  * only a name), then "New game" (the character builder) or "Continue" (a character of the
- * account). It resolves with the character to play, and then it leaves the page. It has music and
- * sounds (menu/sounds.ts), and a speaker at the top right turns all the sound on and off.
+ * account). It resolves with the character to play, and then it leaves the page. The logo of the
+ * game is at the top (menu/logo.ts; see `Layout`). It has music and sounds (menu/sounds.ts), and a
+ * speaker at the top right turns all the sound on and off.
  */
 export function runMenu(options: MenuOptions): Promise<MenuChoice> {
   return new Promise((resolve) => {
     const root = el('div', { id: 'menu' });
     const screen = el('div', { class: 'menu-body' });
     const status = el('p', { class: 'menu-status', role: 'status', 'aria-live': 'polite' });
-    const panel = el(
+    const logo = new MenuLogo(options.title);
+    const frame = el(
       'main',
-      { class: 'menu-panel' },
-      el('header', { class: 'menu-head' }, el('h1', { class: 'menu-name' }, options.title), el('p', { class: 'menu-site' }, options.site)),
-      screen,
-      status,
+      { class: 'menu-frame' },
+      el('header', { class: 'menu-head' }, logo.element),
+      el('div', { class: 'menu-panel' }, screen, status),
+      el('p', { class: 'menu-site' }, options.site),
     );
     const picture = backdrop();
     const speaker = soundToggle('menu-sound');
-    root.append(picture.element, panel, speaker.element);
+    root.append(picture.element, frame, speaker.element);
     document.body.append(root);
     const sounds = new MenuSounds(root);
 
@@ -179,8 +189,10 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     const say = (text: string) => {
       status.textContent = text;
     };
-    /** Puts a screen in the panel. */
-    const place = (...children: HTMLElement[]) => {
+    /** Puts a screen in the menu, in its layout. */
+    const place = (layout: Layout, ...children: HTMLElement[]) => {
+      root.classList.toggle('menu-open', layout === 'open');
+      logo.setOpen(layout === 'open');
       for (const portrait of portraits.splice(0)) portrait.stop();
       if (builder && !children.includes(builder.element)) {
         builder.stop();
@@ -193,20 +205,20 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       (screen.querySelector('[tabindex="-1"]') as HTMLElement | null)?.focus();
     };
     /** A new screen: it comes with a rustle. */
-    const show = (...children: HTMLElement[]) => {
-      place(...children);
+    const show = (layout: Layout, ...children: HTMLElement[]) => {
+      place(layout, ...children);
       sounds.screen();
     };
     const fail = (error: unknown, retry: () => void) => {
       const text = error instanceof ApiError && (error.status === 0 || error.status >= 500) ? T.serverDown : T.failed;
       const again = el('button', { type: 'button', class: 'menu-button menu-primary' }, T.retry);
       again.addEventListener('click', retry);
-      show(el('section', { class: 'menu-screen' }, el('h2', { class: 'menu-title', tabindex: '-1' }, text), el('div', { class: 'menu-actions' }, again)));
+      show('open', el('section', { class: 'menu-screen' }, el('h2', { class: 'menu-title', tabindex: '-1' }, text), el('div', { class: 'menu-actions' }, again)));
     };
     const loading = (text: string = T.loading) => {
       // A notice (a sign-in that failed, a session that ended) waits for the screen after this one.
       const waiting = notice;
-      place(el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
+      place('open', el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
       notice = waiting;
     };
 
@@ -220,6 +232,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         // takes its place with a crossfade.
         root.classList.add('leaving');
         picture.stop();
+        logo.stop();
         speaker.stop();
         setTimeout(() => root.remove(), 400);
         resolve({ character: played, admin: me?.user?.admin === true, fresh });
@@ -256,7 +269,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       if (!me?.login.google && !me?.login.dev) parts.push(el('p', { class: 'menu-hint' }, T.noSignIn));
       parts.push(el('p', { class: 'menu-account' }, privacyLink()));
       parts.push(languageChoice('menu-account lang-choice', () => location.reload()));
-      show(el('section', { class: 'menu-screen' }, ...parts));
+      show('open', el('section', { class: 'menu-screen' }, ...parts));
     };
 
     const main = () => {
@@ -316,6 +329,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         no.focus();
       });
       show(
+        'open',
         el(
           'section',
           { class: 'menu-screen menu-main' },
@@ -351,7 +365,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         const display = new CrtControls(crtStateFrom(new URLSearchParams(location.search), loadSavedCrt()), () => {});
         parts.push(el('h3', { class: 'menu-subtitle' }, T.display), display.element);
       }
-      show(el('section', { class: 'menu-screen menu-settings' }, ...parts, el('div', { class: 'menu-actions' }, back)));
+      show('panel', el('section', { class: 'menu-screen menu-settings' }, ...parts, el('div', { class: 'menu-actions' }, back)));
     };
 
     const create = () => {
@@ -373,7 +387,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           );
         },
       });
-      show(made.element);
+      show('panel', made.element);
       builder = made;
       made.focusTitle();
     };
@@ -423,6 +437,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         list.append(item);
       }
       show(
+        'panel',
         el(
           'section',
           { class: 'menu-screen' },

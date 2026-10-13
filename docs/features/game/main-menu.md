@@ -6,13 +6,17 @@ The main menu is the menu of the page before the game (`runMenu()`, `packages/en
 the sign-in, the main screen ("New game", "Continue"), the list of characters and the character builder.
 This document gives what Fede asked for on 2026-10-12: a pixel-art picture behind the menu, "Prologue"
 on the main screen once the browser saw the prologue, and a settings screen; and on 2026-10-13: music
-and sounds in the menu. The sign-in, the characters and the accounts are in `CLAUDE.md` ("Menu,
+and sounds in the menu, and the logo of the game at the top of the menu, with the buttons of the main
+screen at the bottom. The sign-in, the characters and the accounts are in `CLAUDE.md` ("Menu,
 characters and accounts").
 
 ## Terminology
 
 - **The main screen**: the screen of the menu after the sign-in, with "New game" and "Continue".
 - **The backdrop**: the picture behind the menu.
+- **The logo**: the title of the game, World of Kandrax, as a picture in pixel art.
+- **An open screen**: a screen of the menu without a panel: the logo at the top, the screen at the
+  bottom over the picture.
 - **An admin**: an account whose email is in the server's `ADMIN_EMAILS` (`/api/me` says `admin`).
 
 ## Requirements
@@ -28,9 +32,9 @@ from the first screen.
   game (384 x 216 pixels).
 - **AC-MNU-001.2:** The picture covers the page at a whole scale, so its pixels stay sharp. A narrow
   screen (a phone held upright) shows its middle: the village and the path.
-- **AC-MNU-001.3:** The picture is darker at its edges and a little darker overall, so that the panel
-  of the menu reads well over it. It fades in when it is loaded; until then, the menu has its dark
-  background.
+- **AC-MNU-001.3:** The picture is darker at its edges, a little darker overall, and darker at the
+  bottom, so that the panel and the buttons of the menu read well over it. It fades in when it is
+  loaded; until then, the menu has its dark background.
 
 ---
 
@@ -96,11 +100,52 @@ before I play.
 
 ---
 
+### REQ-MNU-005: The logo and the open screens
+
+**User Story:** As a visitor, I want an impressive title of the game over the picture, and the buttons
+out of the way at the bottom, so that the first screen looks like the title screen of a game.
+
+**Acceptance Criteria:**
+- **AC-MNU-005.1:** The top of the menu has the logo (Fede's choice, 2026-10-13: a painted logo, not
+  text): "WORLD OF" small, in the pixel font of the game, between two rules with diamonds, over a big
+  "KANDRAX". The letters of KANDRAX have wedge serifs; the K and the X are taller than the others; each
+  A has a ruby in its bar. Their metal is pale gold above a dark horizon line and the fire of the sunset
+  below it, with a bevel lit from the top left, a near-black outline, a dark red rim, a dark halo and a
+  red glow round them, and glints on the K, the first A and the X. The name is the same in Spanish.
+- **AC-MNU-005.2:** The logo has sharp pixels: a whole number of device pixels for each pixel of its
+  art. On an open screen its letters are as wide as the screen allows (less 40 CSS pixels), and it
+  takes at most 30 % of the height of the screen. Over a panel it is about half that size. Its glow
+  may reach into the sides of the screen; the page never scrolls sideways.
+- **AC-MNU-005.3:** The logo fades in when it is loaded. Then a shine crosses its metal from left to
+  right (14 frames of 40 ms), 1.6 s after it shows and then every 7 to 10 s. With reduced motion, it
+  does not fade and it does not shine.
+- **AC-MNU-005.4:** The sign-in and the main screen are open screens (Fede's choice, 2026-10-13): the
+  logo at the top, and at the bottom of the page, with no box round them, the buttons (or the sign-in),
+  the account line, the language and the site. Their words have a dark shadow, so that they read over
+  the picture. The short screens (loading, a failure) are open too.
+- **AC-MNU-005.5:** The character builder, the list of characters and the settings keep their panel
+  in the middle of the page, under the smaller logo, with the site under the panel.
+- **AC-MNU-005.6:** The logo is the heading of the menu: the heading has the name as text for screen
+  readers. If the picture of the logo does not load, the name shows as text (italic Georgia, as
+  before).
+
+---
+
 ## Feature Behavior & Rules
 
 - **The picture**: `art/menu-art.ts` (`menuBackground()`, painted by code; the picture's pixels are not
   copied); `art/build.ts` writes `src/generated/menu.png`; `backdrop()` in `menu/menu.ts` loads it and
   sets its whole scale; `.menu-backdrop` in `style.css`.
+- **The logo**: `art/menu-logo.ts` (`menuLogo()`: the letters as vector shapes, painted by code;
+  `MENU_LOGO_FRAMES` frames, one under the other: the logo at rest, then the shine); `art/build.ts`
+  writes `src/generated/menu-logo.png` and `menu-logo.json` (the size of a frame, the number of frames,
+  and `pad`, the room for the glow). `MenuLogo` in `menu/logo.ts` makes the heading, sets the scale
+  (`logoScale()`), and plays the shine; `.menu-logo` and `.menu-name-text` in `style.css`. Tests:
+  `art/menu-logo.test.ts`, `menu/logo.test.ts`.
+- **The layout**: `runMenu()` gives each screen its layout (`Layout`: `open` or `panel`; `place()`
+  and `show()`); `#menu.menu-open` in `style.css` (`.menu-frame` fills the page, `.menu-panel` loses
+  its box and goes to the bottom). The game menu (Escape in the game) keeps its panel and its text
+  title.
 - **The prologue**: `MenuOptions.prologue` (`game.ts` gives it when the world has a prologue);
   `prologueSeen()` in `ui/prologue.ts`, which marks it when a prologue ends.
 - **The settings**: `settingsScreen` and `controlList()` in `menu/menu.ts`; the texts in
