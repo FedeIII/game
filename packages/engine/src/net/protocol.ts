@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 39;
+export const PROTOCOL_VERSION = 40;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;

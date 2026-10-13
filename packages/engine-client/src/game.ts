@@ -670,12 +670,18 @@ async function run(options: GameOptions): Promise<void> {
   // ?mob=imp,brute puts those mobs (any kinds of MOB_KINDS) near the player at the start, one tile
   // apart, 5 tiles to the east (for tests and for a look at them). Single-player worlds only. The
   // kinds that patrol (MobStats.patrol: ?mob=skirmisher,skirmisher) come as one group, 8 tiles east,
-  // walking its loop.
+  // walking its loop. The kinds that ambush (MobStats.ambush: ?mob=bandit,bandit) come as one group
+  // that lurks 3 tiles east: in the seek of a player with Wisdom 10, so the page shows it crouched.
   const patrolling = new Map<MobKind, number>();
+  const ambushing = new Map<MobKind, number>();
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
     if (!horde || !(MOB_KINDS as readonly string[]).includes(kind)) return;
     if (MOB_STATS[kind as MobKind].patrol) {
       patrolling.set(kind as MobKind, (patrolling.get(kind as MobKind) ?? 0) + 1);
+      return;
+    }
+    if (MOB_STATS[kind as MobKind].ambush) {
+      ambushing.set(kind as MobKind, (ambushing.get(kind as MobKind) ?? 0) + 1);
       return;
     }
     const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 5, Math.floor(player.y / TILE_SIZE) + i * 2 - 1, 0);
@@ -684,6 +690,10 @@ async function run(options: GameOptions): Promise<void> {
   for (const [kind, count] of patrolling) {
     const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 8, Math.floor(player.y / TILE_SIZE), 0);
     horde!.spawnPatrol(kind, spot.x, spot.y, count);
+  }
+  for (const [kind, count] of ambushing) {
+    const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 3, Math.floor(player.y / TILE_SIZE), 0);
+    horde!.spawnAmbush(kind, spot.x, spot.y, count);
   }
   // The companions (NPCs that follow a player) of a world that the page runs; a shared world gets
   // the server's. ?companion=<look> puts one of that NPC look next to the player at the start,
@@ -801,7 +811,8 @@ async function run(options: GameOptions): Promise<void> {
     let best: MobLook | null = null;
     let bestD = Infinity;
     for (const mob of mobsNow()) {
-      if (mob.state === 'dying') continue;
+      // Not at a dying mob, or at a lurker that the player does not see.
+      if (mob.state === 'dying' || (mobViews && !mobViews.sees(mob))) continue;
       const d = Math.hypot(mob.x - player.x, mob.y - player.y);
       // A ranger aims at the nearest mob in the range of its arrows.
       const reach = traits.ranged ? traits.range : traits.reach + MOB_STATS[mob.kind].radius + AIM_SLACK;
@@ -1774,7 +1785,7 @@ async function run(options: GameOptions): Promise<void> {
     if (hunters.some((mob) => mob.state === 'windup')) tips.request('dodge');
     if (player.attack > 0) tips.done('attack', now);
     if (player.dodge > 0) tips.done('dodge', now);
-    const unseen = mobsNow().some((mob) => mob.state !== 'dying' && Math.hypot(mob.x - player.x, mob.y - player.y) < 10 * TILE_SIZE && !hunters.some((h) => h.id === mob.id));
+    const unseen = mobsNow().some((mob) => mob.state !== 'dying' && mob.state !== 'lurk' && Math.hypot(mob.x - player.x, mob.y - player.y) < 10 * TILE_SIZE && !hunters.some((h) => h.id === mob.id));
     if (sneakingShown()) tips.done('sneak', now);
     else if (unseen && hunters.length === 0) tips.request('sneak');
     if (player.down === 0 && player.hp < w.hp) tips.request('hit');
@@ -1831,6 +1842,8 @@ async function run(options: GameOptions): Promise<void> {
     const shake = now < shakeUntil ? SHAKE.amount * ((shakeUntil - now) / SHAKE.ms) : 0;
     camera.follow(scene, shown.x + Math.round((Math.random() - 0.5) * 2 * shake), shown.y + Math.round((Math.random() - 0.5) * 2 * shake));
     mobViews?.setReading(meetsGate(traits.scores, READ_FOE_GATE), meetsGate(traits.scores, READ_OPENING_GATE));
+    // An ambush that lurks shows only within the seek of the player (Wisdom), as a hidden thing does.
+    mobViews?.setSeeker({ x: shown.x, y: shown.y, range: traits.seek });
     mobViews?.update(mobsNow(), now, seconds);
     // A cinder adept's bolt is fire (its shooter: the mob of a negative owner).
     const kinds = new Map(mobsNow().map((m) => [m.id, m.kind]));

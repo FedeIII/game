@@ -88,7 +88,8 @@ export function voiceOfChange(before: string | undefined, after: string): VoiceE
   if (after === 'windup') return 'windup';
   // A patrol that sees the player yelps as it stops short (protocol 36).
   if (after === 'startled') return 'alert';
-  if (after === 'chase' && (before === undefined || before === 'idle' || before === 'walk' || before === 'ride' || before === 'rite')) return 'alert';
+  // An ambush that springs out of hiding shouts (protocol 40).
+  if (after === 'chase' && (before === undefined || before === 'idle' || before === 'walk' || before === 'ride' || before === 'rite' || before === 'lurk')) return 'alert';
   return null;
 }
 

@@ -14,6 +14,7 @@ import {
   World,
   createPlayer,
   dice,
+  populationArea,
   stepPlayer,
   toWireMob,
   type HordePlayer,
@@ -28,7 +29,7 @@ import { textSource } from './helpers.ts';
  * The goblins of the forest on the road to Ironhold (the tutorial, docs/drafts/tutorial.md): the
  * skirmisher patrols with its group, startles when it sees a player, then flees or fights; a player
  * catches one that flees; one that gets away hides and goes back to its loop. A world chooses where
- * they live (MobRules.populationAt, roam with the kind).
+ * they live (MobRules.areaAt, roam with the kind).
  */
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -98,7 +99,7 @@ describe('the goblins of the forest (the tutorial)', () => {
     expect(s.patrol!.group).toEqual([2, 3]);
     // New codes at the end: the old kinds and states keep theirs.
     expect(MOB_KINDS.indexOf('skirmisher')).toBe(12);
-    expect(MOB_STATES.slice(10)).toEqual(['startled', 'flee']);
+    expect(MOB_STATES.slice(10, 12)).toEqual(['startled', 'flee']);
     const mob = { id: 1, kind: 'skirmisher' as MobKind, x: 0, y: 0, vx: 0, vy: 0, facing: 'down' as const, state: 'flee' as const, stateMs: 0, health: 7 };
     expect(toWireMob(mob)[1]).toBe(12);
     expect(toWireMob(mob)[7]).toBe(11);
@@ -223,7 +224,7 @@ describe('the goblins of the forest (the tutorial)', () => {
   });
 });
 
-describe('the mobs of an area (MobRules.populationAt)', () => {
+describe('the mobs of an area (MobRules.areaAt)', () => {
   it('bring the goblins of a forest in groups, and keep imps and brutes out of it', () => {
     // West of x = 0 a forest of goblins; east of it the usual imps and brutes.
     const forest = (tx: number) => tx < 0;
@@ -231,7 +232,7 @@ describe('the mobs of an area (MobRules.populationAt)', () => {
       roam: (tx, _ty, kind) => (kind === 'skirmisher' ? forest(tx) : !forest(tx)),
       hunt: () => true,
       population: { imp: 3, brute: 1 },
-      populationAt: (tx) => (forest(tx) ? { skirmisher: 4 } : { imp: 3, brute: 1 }),
+      areaAt: (tx) => populationArea(forest(tx) ? { skirmisher: 4 } : { imp: 3, brute: 1 }),
     };
     const horde = new Horde(new World(textSource([])), rules, 4, AVERAGE_DICE);
     const west: HordePlayer = { id: 1, state: tough(at(-120, 0).x, at(-120, 0).y) };

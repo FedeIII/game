@@ -319,7 +319,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
-  `mob/<kind>/shadow`. The eyes are a material of their own: the build lists the eye pixels of
+  `mob/<kind>/shadow`; a kind that ambushes (`CROUCHING`: the bandit) also has `.../crouch` and
+  `.../creep/<0-5>`. The eyes are a material of their own: the build lists the eye pixels of
   each frame in `meta.mobEyes`, and the game draws them glowing above the darkness. In a death
   the eyes go dark. Preview the frames when you change a model: poses that look right in one
   view can hide the head in another.
@@ -889,9 +890,26 @@ where it came. The first one that sees a player **startles** the group (state `s
 from none to all (each number with the same chance), **flees** (state `flee`, 64 px/s: slower than a
 player, so a player catches it; caught, cornered or hit, it turns and fights; away, it hides for
 `HIDE_MS` 10 s and goes back to its loop), and the others fight. A
-world chooses where they live: `MobRules.populationAt(tx, ty)` (the population round a player on that
-tile, in place of `population`; a short population of patrols comes as one group) and
-`MobRules.roam(tx, ty, kind)`. `?mob=skirmisher,skirmisher,skirmisher` puts one group 8 tiles east.
+world chooses where they live: `MobRules.areaAt(tx, ty)` (below; a short population of patrols comes as
+one group) and `MobRules.roam(tx, ty, kind)`. `?mob=skirmisher,skirmisher,skirmisher` puts one group 8
+tiles east.
+
+**The mobs of an area by day and at night** (since 2026-10-13, Fede's decision; protocol 40;
+`docs/features/game/combat.md`, REQ-CMB-010 and REQ-CMB-011): `MobRules.areaAt(tx, ty)` gives the
+`MobArea` round a player on that tile: a list of `MobSpawn` by `day` and one at `night` (a kind, `count`
+round each player, `behaviour` `wander`, `patrol` or `ambush`, `group`, and `every`: a rare spawn comes
+about once in that time round a player). Without it, `population` is the same by day and at night
+(`populationArea()`). `Horde.daytime` is the hour (`isDaytime()`: 6:00 to 20:00); the Room sets it from
+`RoomOptions.day` and `clock` (the server: `Date.now`, or `GAME_HOUR` for a test), the page from
+`skyNow()`. A mob that the area brought and does not want at this hour goes away when no player is within
+17 tiles. The Wilds (`FOREST_MOBS` in `source.ts`): in the forest of the tutorial the goblin patrols at
+night, and by day the **bandits** (the SRD bandit: 11 HP, AC 12, +3, 1d6+1), rare (a group about every 8
+minutes round a player), in a group of 1 to 3 that **ambushes** (`MobStats.ambush`,
+`Horde.spawnAmbush()`): it comes 11 to 15 tiles ahead of the player and hides (state `lurk`), creeps after
+the player crouched (44 px/s), holds still within 5 tiles, and springs within 2.5 tiles, after a hold of
+2.5 s, or at a blow (which takes it unaware). A page shows a lurker only within the seek of its player
+(WIS; `seesMob()` in `render/mobs.ts`); it shouts when it springs. In the wildlands, imps and brutes by day
+and at night. `?mob=bandit,bandit,bandit` puts one lurking group 3 tiles east.
 
 **The 5e scale** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
 `docs/features/game/combat.md`; protocol 26): a character is a **level-1** character (Fede's decision,
@@ -1130,8 +1148,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
-  `FOREST_EDGE_Y` -8, the row of Ironhold's north edge: south of it): only goblin patrols live there (`MobRules.populationAt`,
-  `roam(tx, ty, kind)`; the skirmisher), round the hut, the two hamlets and Ironhold; imps and brutes keep the
+  `FOREST_EDGE_Y` -8, the row of Ironhold's north edge: south of it): only goblin patrols live there at
+  night, and rare bandits by day (`FOREST_MOBS`, `MobRules.areaAt`, `roam(tx, ty, kind)`; the skirmisher
+  and the bandit), round the hut, the two hamlets and Ironhold; imps and brutes keep the
   wildlands north of Ironhold (Fede, 2026-10-13). Ironhold is the last town of the Sovereignty before the
   wildlands, on the way to Silverspring, the Enclave's last village. Plan: `docs/drafts/tutorial.md`.
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below

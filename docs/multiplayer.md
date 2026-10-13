@@ -70,6 +70,17 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## Things that follow the hour (protocol 40, 2026-10-13)
+
+The mobs and the NPCs follow the hour of the world's day (`docs/features/game/day-and-night.md`). The
+server takes the hour from its own clock (`RoomOptions.day` and `clock`: `Date.now`, or `GAME_HOUR` for a
+test), as the pages do; no message carries it.
+
+- A new kind of mob, `bandit` (code 13 of `MOB_KINDS`), and a new state of a mob, `lurk` (code 12 of
+  `MOB_STATES`): the bandits of the forest of the tutorial by day hide, creep after a player and spring
+  at it (`docs/features/game/combat.md`, REQ-CMB-010). `WireMob` does not change; a page of protocol 39
+  would not know the codes. A page shows a mob that lurks only within the seek of its player.
+
 ## Storeys (protocol 39, 2026-10-13)
 
 A building can have storeys above its ground storey (`Building.storeys`; Fede's request for the town

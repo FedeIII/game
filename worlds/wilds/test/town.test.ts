@@ -29,6 +29,7 @@ import {
   BRONZEHOLD_SOUTH,
   DEFAULT_SEED,
   FOREST_EDGE_Y,
+  FOREST_MOBS,
   HAMLET_NPCS,
   HAMLET_SIGNS,
   IRONHOLD,
@@ -804,10 +805,18 @@ describe('the forest of the tutorial', () => {
     expect(BRONZEHOLD.y0).toBeGreaterThan(FOREST_EDGE_Y);
     // The land round Ironhold is of the forest too; the wildlands start at its north edge.
     expect(TOWN.y0).toBe(FOREST_EDGE_Y);
-    expect(rules.populationAt!(home.doorX, home.y1 + 4)).toEqual({ skirmisher: 3 });
-    expect(rules.populationAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toEqual({ skirmisher: 3 });
-    expect(rules.populationAt!(TOWN.x0 - 4, TOWN.y0 + 4)).toEqual({ skirmisher: 3 });
-    expect(rules.populationAt!(TOWN_GATE.tx, TOWN.y0 - 1)).toEqual({ imp: 4, brute: 2 });
+    // At night the goblin patrols, by day the rare bandits; imps and brutes by day and at night north of it.
+    expect(rules.areaAt!(home.doorX, home.y1 + 4)).toBe(FOREST_MOBS);
+    expect(rules.areaAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toBe(FOREST_MOBS);
+    expect(rules.areaAt!(TOWN.x0 - 4, TOWN.y0 + 4)).toBe(FOREST_MOBS);
+    expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }]);
+    expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group])).toEqual([['bandit', 'ambush', [1, 3]]]);
+    const wildlands = rules.areaAt!(TOWN_GATE.tx, TOWN.y0 - 1);
+    expect(wildlands.night).toEqual([
+      { kind: 'imp', count: 4 },
+      { kind: 'brute', count: 2 },
+    ]);
+    expect(wildlands.day).toEqual(wildlands.night);
     // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
     let forest = 0;
     let wild = 0;
@@ -816,6 +825,7 @@ describe('the forest of the tutorial', () => {
         if (!rules.roam(tx, ty)) continue;
         forest++;
         expect(rules.roam(tx, ty, 'skirmisher')).toBe(true);
+        expect(rules.roam(tx, ty, 'bandit')).toBe(true);
         expect(rules.roam(tx, ty, 'imp')).toBe(false);
         expect(rules.roam(tx, ty, 'brute')).toBe(false);
       }
@@ -825,6 +835,7 @@ describe('the forest of the tutorial', () => {
         if (!rules.roam(tx, ty)) continue;
         wild++;
         expect(rules.roam(tx, ty, 'skirmisher')).toBe(false);
+        expect(rules.roam(tx, ty, 'bandit')).toBe(false);
         expect(rules.roam(tx, ty, 'imp')).toBe(true);
       }
     }

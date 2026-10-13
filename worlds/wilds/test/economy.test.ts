@@ -69,8 +69,11 @@ function chestTables(): { chest: LootTable; locked: LootTable; barred: LootTable
   return { chest: found.chest!, locked: found.locked!, barred: found.barred! };
 }
 
-/** The model: the roaming mobs that a character kills in chapter 1, alone (the goblins of the forest on the road, then the wildlands). */
-const KILLS: Partial<Record<MobKind, number>> = { skirmisher: 9, imp: 12, brute: 4 };
+/**
+ * The model: the roaming mobs that a character kills in chapter 1, alone (the goblins of the forest on
+ * the road at night, a rare ambush of bandits there by day, then the wildlands).
+ */
+const KILLS: Partial<Record<MobKind, number>> = { skirmisher: 9, bandit: 3, imp: 12, brute: 4 };
 /** The chests that it opens: ordinary, locked (DEX 13), barred (STR 13), and the buried cache (WIS 13). */
 const OPENED = { chest: 12, locked: 2, barred: 2, cache: 1 } as const;
 /** The quests that it finishes, by their best way. */

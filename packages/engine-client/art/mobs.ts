@@ -9,7 +9,9 @@
  * masks of bone and the red phoenix on the brow: the watcher (no weapon), the blade (a sword), the
  * cinder adept (a staff with an ember) and the Ash Warden (taller, with a crest of bone). The goblin of
  * the forest on the road to Ironhold (the tutorial): the skirmisher, a goblin with a curved scimitar and
- * a small round shield. All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
+ * a small round shield. The bandit of the same forest by day: a robber in a hood of dark leather, with a
+ * scarf of rust red over its face and a scimitar; it ambushes, so it also crouches and creeps (the
+ * frames `crouch` and `creep/<i>`). All are SDF models (sdf.ts) in poses: a stand, a walk, a wind-up, a
  * blow and a death. Their eyes glow: the build lists the eye pixels of each frame
  * (meta.mobEyes), and the game draws them above the darkness.
  *
@@ -22,8 +24,10 @@ import { ellipsoid, roundCone, sphere, type Material, type Part, type Sdf, type 
 import { renderModel, type RenderInfo } from './sdf.ts';
 import type { Frame } from './sprites.ts';
 
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher';
-const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher' | 'bandit';
+const KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher', 'bandit'];
+/** The kinds that ambush (MobStats.ambush in the engine): they have the frames `crouch` and `creep/<i>`. */
+export const CROUCHING: readonly MobKind[] = ['bandit'];
 
 /** Material slots of a mob. */
 const MM = { hide: 0, belly: 1, horn: 2, claw: 3, eye: 4, mouth: 5, cloth: 6, wood: 7, metal: 8, wing: 9 } as const;
@@ -39,6 +43,8 @@ export interface MobPose {
   readonly strike: number;
   readonly death: number;
   readonly reel?: number;
+  /** A crouch (0..1): low on bent knees, the body forward (an ambush that hides or creeps). */
+  readonly crouch?: number;
 }
 
 const POSE: MobPose = { phase: 0, walk: 0, windup: 0, strike: 0, death: 0 };
@@ -58,10 +64,11 @@ export const MOB_FRAMES: Readonly<Record<MobKind, { width: number; height: numbe
   adept: { width: 56, height: 68, pivotX: 28, pivotY: 52 },
   warden: { width: 64, height: 72, pivotX: 32, pivotY: 56 },
   skirmisher: { width: 40, height: 40, pivotX: 20, pivotY: 32 },
+  bandit: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
 };
 
-/** Frames of each animation. */
-export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6 } as const;
+/** Frames of each animation (`creep`: the kinds of CROUCHING only). */
+export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6, creep: 6 } as const;
 
 /** The colour of the glow of the eyes, for the game. */
 export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = {
@@ -78,6 +85,8 @@ export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = {
   adept: 0xffb050,
   warden: 0xff5a20,
   skirmisher: 0xffd040,
+  // A bandit's eyes are a man's: a faint pale glint under the hood.
+  bandit: 0xc8b898,
 };
 
 const PALETTES: Readonly<Record<MobKind, Material[]>> = {
@@ -131,6 +140,21 @@ const PALETTES: Readonly<Record<MobKind, Material[]>> = {
     wood: ramp('#0c0806', '#1a110b', '#291b11', '#392618', '#4a311f'),
     metal: ramp('#0f1114', '#1d2026', '#2f343c', '#454c56', '#606a76', '#808a96'),
     wing: ramp('#2a2620', '#4a443a', '#6e6656', '#958b75'),
+  }),
+  // A bandit: weathered skin, a jerkin of brown leather (cloth), trousers of dark grey wool (belly), a
+  // hood, a cape, boots and a belt of near-black leather (horn), a scarf of rust red over the face
+  // (wing), a scimitar of dull iron.
+  bandit: materials({
+    hide: ramp('#1e120c', '#311e14', '#47301f', '#5e412b', '#765438', '#8c6646'),
+    belly: ramp('#09090a', '#111113', '#1a1a1c', '#242326', '#2e2d30'),
+    horn: ramp('#060505', '#0d0b09', '#15120f', '#1f1a15', '#29231c'),
+    claw: ramp('#16130f', '#332d24', '#554c3d', '#7b705a'),
+    eye: ramp('#5e5446', '#8c7f68', '#b8a98c'),
+    mouth: ramp('#050203', '#120405', '#22090a'),
+    cloth: ramp('#0b0907', '#15110d', '#211b14', '#2e261c', '#3c3224', '#4a3e2c'),
+    wood: ramp('#0c0806', '#1a110b', '#291b11', '#392618', '#4a311f'),
+    metal: ramp('#0f1114', '#1d2026', '#2f343c', '#454c56', '#606a76', '#808a96'),
+    wing: ramp('#160705', '#2a0d09', '#40140d', '#561c12', '#6c2517'),
   }),
   // A black wolf with a grey muzzle and belly.
   worg: materials({
@@ -524,7 +548,7 @@ interface Build {
   readonly limb: number;
   /** The radius of the head, and its kind: big ears (goblin), a heavy jaw (hobgoblin), a bear's snout (bugbear). */
   readonly head: number;
-  readonly face: 'goblin' | 'hobgoblin' | 'bugbear' | 'mask';
+  readonly face: 'goblin' | 'hobgoblin' | 'bugbear' | 'mask' | 'hood';
   /** The length of the arms, as a share of the length of the legs. */
   readonly arms: number;
   /** A hunch: the chest forward of the hips (model pixels). */
@@ -541,6 +565,8 @@ interface Build {
   readonly robe?: boolean;
   /** A crest of bone on the mask, swept back as the wings of a phoenix (the Ash Warden). */
   readonly crest?: boolean;
+  /** Clothes over all of the body: a jerkin with sleeves, trousers, and boots and a belt of leather (horn) (the bandit). */
+  readonly clothed?: boolean;
 }
 
 const GOBLIN: Build = { hip: 6.6, chest: 10.4, shoulders: 2.1, limb: 0.75, head: 2.3, face: 'goblin', arms: 1.0, hunch: 1.0, weapon: 'bow' };
@@ -553,6 +579,8 @@ const ADEPT: Build = { ...SEEKER, hunch: 0.5, weapon: 'staff' };
 const WARDEN: Build = { hip: 10.6, chest: 17.0, shoulders: 3.7, limb: 1.15, head: 2.4, face: 'mask', arms: 1.0, hunch: 0.2, weapon: 'sword', robe: true, crest: true };
 /** The goblin of the forest: the goblin's body, a scimitar in the right hand and a small round shield on the left arm. */
 const SKIRMISHER: Build = { ...GOBLIN, hunch: 0.9, weapon: 'scimitar', shield: true, shieldSize: 0.55 };
+/** The bandit: a man in a hood and a scarf, in clothes of leather, with a scimitar. */
+const BANDIT: Build = { hip: 10.0, chest: 15.6, shoulders: 3.2, limb: 1.0, head: 2.3, face: 'hood', arms: 0.95, hunch: 0.3, weapon: 'scimitar', clothed: true };
 
 /**
  * A humanoid of the hobgoblin band. The legs walk as the imp's do; the arms rest, wind up and
@@ -565,7 +593,8 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   const kneel = Math.min(1, pose.death / 0.35);
   const thigh = b.hip * 0.5;
   const shin = b.hip * 0.52;
-  const crouch = b.weapon === 'bow' ? 0.25 * windup : 0.3 * windup + 0.15 * strike;
+  const low = pose.crouch ?? 0;
+  const crouch = (b.weapon === 'bow' ? 0.25 * windup : 0.3 * windup + 0.15 * strike) + 1.5 * low;
   const legs: Leg[] = [-1, 1].map((side) => {
     const p = phase + (side < 0 ? 0 : Math.PI);
     const swing = 0.5 * walk * Math.sin(p);
@@ -579,18 +608,20 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   });
   const lift = -Math.min(...legs.map((l) => Math.min(l.ankle[1] - b.limb * 0.7, l.toe[1] - b.limb * 0.5, l.knee[1] - b.limb)));
   const up = (v: Vec3): Vec3 => [v[0], v[1] + lift, v[2]];
-  const legMaterial = b.armour ? MM.cloth : MM.hide;
+  const legMaterial = b.armour ? MM.cloth : b.clothed ? MM.belly : MM.hide;
   for (const leg of legs) {
     m.chain([up(leg.hip), up(leg.knee), up(leg.ankle)], [b.limb * 1.25, b.limb, b.limb * 0.8], legMaterial);
-    m.cone(up(leg.ankle), up(leg.toe), b.limb * 0.85, b.limb * 0.6, b.armour ? MM.metal : MM.hide);
+    m.cone(up(leg.ankle), up(leg.toe), b.limb * 0.85, b.limb * 0.6, b.armour ? MM.metal : b.clothed ? MM.horn : MM.hide);
+    // Boots to the middle of the shin.
+    if (b.clothed) m.cone(up(leg.ankle), up(mix(leg.ankle, leg.knee, 0.55)), b.limb * 0.92, b.limb * 0.98, MM.horn);
   }
 
   // The body leans forward with the hunch, back in a wind-up, forward in the blow.
   const bob = 0.35 * walk * Math.abs(Math.sin(phase));
-  const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike);
+  const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike) + 3.4 * low;
   const pelvis = up([0, b.hip + 0.6 + bob, 0]);
   const chest = up([0, b.chest + bob - 0.2 * strike, lean]);
-  const torso = b.armour ? MM.metal : b.weapon === 'bow' || b.face === 'mask' ? MM.cloth : MM.hide;
+  const torso = b.armour ? MM.metal : b.weapon === 'bow' || b.face === 'mask' || b.clothed ? MM.cloth : MM.hide;
   m.cone(pelvis, chest, b.shoulders * 0.75, b.shoulders * 0.95, torso);
   m.ellipsoid(add(mix(pelvis, chest, 0.25), [0, 0, 0.2]), [b.shoulders * 0.85, b.limb * 1.2, b.shoulders * 0.6], b.armour ? MM.cloth : MM.cloth);
   if (b.armour) {
@@ -602,7 +633,14 @@ function humanoid(pose: MobPose, b: Build): Part[] {
       m.ellipsoid(add(chest, [x, y, z]), [2.2, 2.0, 1.6], MM.hide);
     }
   }
-  for (const side of [-1, 1]) m.sphere(add(chest, [side * b.shoulders, 0.2, -0.2]), b.limb * 1.3, b.armour ? MM.metal : b.robe ? MM.cloth : MM.hide);
+  for (const side of [-1, 1]) m.sphere(add(chest, [side * b.shoulders, 0.2, -0.2]), b.limb * 1.3, b.armour ? MM.metal : b.robe || b.clothed ? MM.cloth : MM.hide);
+  if (b.clothed) {
+    // A belt of dark leather with a pouch, a strap across the chest, and a short cape on the back.
+    m.ellipsoid(add(pelvis, [0, 0.5, 0.1]), [b.shoulders * 0.82, b.limb * 0.45, b.shoulders * 0.62], MM.horn);
+    m.ellipsoid(add(pelvis, [b.shoulders * 0.55, 0.0, b.shoulders * 0.45]), [0.9, 1.0, 0.6], MM.horn);
+    m.cone(add(chest, [-b.shoulders * 0.7, 0.2, b.shoulders * 0.45]), add(mix(pelvis, chest, 0.3), [b.shoulders * 0.6, 0, b.shoulders * 0.55]), 0.35, 0.35, MM.horn);
+    m.ellipsoid(add(chest, [0, -1.6, -b.shoulders * 0.62]), [b.shoulders * 1.05, 3.2, 0.6], MM.horn);
+  }
   if (b.robe) {
     // A robe from the chest to the feet, wide at the hem, with a band of wine at the waist.
     m.cone(add(chest, [0, -1.0, 0]), up([0, b.limb * 0.6, lean * 0.3]), b.shoulders * 0.9, b.shoulders * 1.12, MM.cloth);
@@ -646,6 +684,15 @@ function humanoid(pose: MobPose, b: Build): Part[] {
       // The crest: three blades of bone from the brow, up and back, as wings that rise.
       for (const side of [-1, 0, 1]) m.cone(add(head, [side * 0.7, b.head * 0.7, b.head * 0.6]), add(head, [side * 2.2, b.head * 2.1, -b.head * 0.6]), 0.45, 0.08, MM.horn);
     }
+  } else if (b.face === 'hood') {
+    // A man's face in a deep hood of leather, and a scarf of rust red over the nose and the mouth, its
+    // ends down the back: a robber of the road.
+    m.ellipsoid(add(head, [0, b.head * 0.3, -0.4]), [b.head * 1.15, b.head * 1.08, b.head * 1.05], MM.horn);
+    m.cone(add(head, [0, b.head * 0.85, -0.8]), add(head, [0, b.head * 1.25, -2.0]), b.head * 0.45, 0.2, MM.horn);
+    m.ellipsoid(add(head, [0, 0.15, b.head * 0.62]), [b.head * 0.72, b.head * 0.42, b.head * 0.55], MM.hide);
+    for (const side of [-1, 1]) m.sphere(add(head, [side * 0.72, 0.25, b.head * 0.95]), 0.3, eye);
+    m.ellipsoid(add(head, [0, -b.head * 0.48, b.head * 0.42]), [b.head * 0.98, b.head * 0.58, b.head * 0.72], MM.wing);
+    m.cone(add(head, [0.5, -b.head * 0.6, -b.head * 0.55]), add(head, [1.0, -b.head * 1.9, -b.head * 1.15]), 0.55, 0.25, MM.wing);
   } else {
     // A bear's head: a broad snout with a dark nose, small round ears, shaggy cheeks.
     m.ellipsoid(add(head, [0, -b.head * 0.35, b.head * 0.85]), [b.head * 0.55, b.head * 0.45, b.head * 0.6], MM.belly);
@@ -695,7 +742,7 @@ function humanoid(pose: MobPose, b: Build): Part[] {
     }
     const elbow = add(shoulder, elbowD);
     const wrist = add(elbow, wristD);
-    m.chain([shoulder, elbow, wrist], [b.limb * 1.1, b.limb * 0.95, b.limb * 0.85], b.fur ? MM.hide : b.armour || b.robe ? MM.cloth : MM.hide);
+    m.chain([shoulder, elbow, wrist], [b.limb * 1.1, b.limb * 0.95, b.limb * 0.85], b.fur ? MM.hide : b.armour || b.robe || b.clothed ? MM.cloth : MM.hide);
     if (b.armour) m.cone(elbow, mix(elbow, wrist, 0.85), b.limb * 1.05, b.limb * 0.95, MM.metal);
     m.sphere(wrist, b.limb * 0.95, MM.hide);
     hands[side] = wrist;
@@ -844,6 +891,7 @@ const MODELS: Readonly<Record<MobKind, (pose: MobPose) => Part[]>> = {
   adept: (pose) => scaled(humanoid(pose, ADEPT), 1.1),
   warden: (pose) => scaled(humanoid(pose, WARDEN), 1.18),
   skirmisher: (pose) => scaled(humanoid(pose, SKIRMISHER), 1.3),
+  bandit: (pose) => scaled(humanoid(pose, BANDIT), 1.12),
 };
 
 /** The model of a kind in a pose, with the death's fall. */
@@ -868,9 +916,13 @@ export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   return tilt(parts, 1.45 * fall * fall - 0.1 * Math.min(1, d / 0.3), 0, 3.5 * Math.max(0, (d - 0.7) / 0.3), 4);
 }
 
-/** The poses of the animations, in order. */
-export function mobPoses(): { name: string; pose: MobPose }[] {
+/** The poses of the animations, in order; a kind of CROUCHING also crouches and creeps. */
+export function mobPoses(kind?: MobKind): { name: string; pose: MobPose }[] {
   const out: { name: string; pose: MobPose }[] = [{ name: 'stand', pose: POSE }];
+  if (kind && CROUCHING.includes(kind)) {
+    out.push({ name: 'crouch', pose: { ...POSE, crouch: 1 } });
+    for (let i = 0; i < MOB_ANIMATIONS.creep; i++) out.push({ name: `creep/${i}`, pose: { ...POSE, crouch: 1, walk: 0.55, phase: (i / MOB_ANIMATIONS.creep) * 2 * Math.PI } });
+  }
   for (let i = 0; i < MOB_ANIMATIONS.walk; i++) out.push({ name: `walk/${i}`, pose: { ...POSE, walk: 1, phase: (i / MOB_ANIMATIONS.walk) * 2 * Math.PI } });
   out.push({ name: 'windup/0', pose: { ...POSE, windup: 0.55 } }, { name: 'windup/1', pose: { ...POSE, windup: 1 } });
   out.push({ name: 'strike/0', pose: { ...POSE, windup: 0.25, strike: 0.85 } }, { name: 'strike/1', pose: { ...POSE, strike: 1 } });
@@ -894,11 +946,13 @@ const SHADOWS: Readonly<Record<MobKind, readonly [number, number]>> = {
   adept: [20, 7],
   warden: [22, 8],
   skirmisher: [14, 6],
+  bandit: [20, 7],
 };
 
 /**
  * The frames of the mobs, `mob/<kind>/<view>/<pose>` (stand, walk/i, windup/i, strike/i, hurt,
- * die/i), their shadows `mob/<kind>/shadow`, and the eye pixels of each frame.
+ * die/i; for CROUCHING also crouch and creep/i), their shadows `mob/<kind>/shadow`, and the eye pixels
+ * of each frame.
  */
 export function mobFrames(): { frames: Frame[]; eyes: Record<string, number[]> } {
   const frames: Frame[] = [];
@@ -907,7 +961,7 @@ export function mobFrames(): { frames: Frame[]; eyes: Record<string, number[]> }
     const size = MOB_FRAMES[kind];
     const anchor = { x: size.pivotX / size.width, y: size.pivotY / size.height };
     for (const view of VIEWS) {
-      for (const { name, pose } of mobPoses()) {
+      for (const { name, pose } of mobPoses(kind)) {
         const info: RenderInfo = {};
         const image = renderModel(mobModel(kind, pose), PALETTES[kind], { ...size, yaw: view.yaw }, info);
         const frameName = `mob/${kind}/${view.name}/${name}`;

@@ -403,6 +403,8 @@ export const MOB_LOOT: Readonly<Record<MobKind, LootTable>> = {
   warden: {},
   // A goblin of the forest (the tutorial): a coin in one kill of four.
   skirmisher: { coins: [1, 1], coinChance: 1 / 4 },
+  // A bandit of the forest by day: a robber carries a little of what it took, a coin or two in one kill of three.
+  bandit: { coins: [1, 2], coinChance: 1 / 3 },
 };
 
 /** Rolls a loot table with a random source: the same source gives the same loot. */

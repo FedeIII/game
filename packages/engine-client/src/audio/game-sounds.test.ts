@@ -36,6 +36,8 @@ describe('the sounds of the game', () => {
   it('give a mob a voice when it spots the player, gathers for a blow, is hurt or dies', () => {
     expect(voiceOfChange('idle', 'chase')).toBe('alert');
     expect(voiceOfChange('walk', 'chase')).toBe('alert');
+    // An ambush that springs out of hiding shouts.
+    expect(voiceOfChange('lurk', 'chase')).toBe('alert');
     expect(voiceOfChange(undefined, 'chase')).toBe('alert');
     expect(voiceOfChange('retreat', 'chase')).toBeNull();
     expect(voiceOfChange('chase', 'windup')).toBe('windup');

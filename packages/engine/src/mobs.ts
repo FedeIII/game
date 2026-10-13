@@ -38,10 +38,12 @@ import { FULL_BOX, type SolidMap, type World } from './world.ts';
  * caster that goes in ash at half of its hit points: MobStats.vanishAt). The goblins of the forest
  * on the road to Ironhold (the tutorial, docs/drafts/tutorial.md; protocol 36): the skirmisher, a
  * goblin with a scimitar that patrols with its group, startles when it sees a player, and flees or
- * fights (MobStats.patrol).
+ * fights (MobStats.patrol). The bandits of the same forest by day (things that follow the hour,
+ * docs/features/game/day-and-night.md; protocol 40): the bandit, a robber with a scimitar, that
+ * ambushes a player with its group (MobStats.ambush).
  */
-export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher';
-export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher'];
+export type MobKind = 'imp' | 'brute' | 'goblin' | 'worg' | 'hobgoblin' | 'bugbear' | 'devastator' | 'hound' | 'watcher' | 'seeker' | 'adept' | 'warden' | 'skirmisher' | 'bandit';
+export const MOB_KINDS: readonly MobKind[] = ['imp', 'brute', 'goblin', 'worg', 'hobgoblin', 'bugbear', 'devastator', 'hound', 'watcher', 'seeker', 'adept', 'warden', 'skirmisher', 'bandit'];
 
 /**
  * The rite of the Hobgoblin Devastator (chapter 1.5.1: "Arma Elemental de Área", a spell of 4 turns
@@ -142,6 +144,20 @@ export interface MobStats {
    * cornered one turns and fights; one that gets away hides for HIDE_MS and then goes back to its loop.
    */
   readonly patrol?: { readonly group: readonly [number, number]; readonly fleeSpeed: number };
+  /**
+   * An ambush (the bandits of the forest by day, Horde.spawnAmbush): a group of `group[0]` to `group[1]`
+   * mobs hides near a player (state 'lurk': a page shows it only to a player whose seek reaches it,
+   * PlayerTraits.seek). It creeps after the nearest player at `creepSpeed`, to where the player will be.
+   * Within `hold` of the player (world pixels) it holds still and waits; it springs at the player within
+   * `spring`, after `holdMs` of a hold, or at a blow that reaches it.
+   */
+  readonly ambush?: {
+    readonly group: readonly [number, number];
+    readonly creepSpeed: number;
+    readonly hold: number;
+    readonly spring: number;
+    readonly holdMs: number;
+  };
 }
 
 /** A watcher on a march stands this many points of its route before the end (Road: 4 points for each tile). */
@@ -551,17 +567,52 @@ export const MOB_STATS: Readonly<Record<MobKind, MobStats>> = {
     // 0.8 of the speed of a player (80 px/s): a player that runs after one catches it.
     patrol: { group: [2, 3], fleeSpeed: 64 },
   },
+  // A bandit of the forest road (Fede, 2026-10-13: by day it takes the place of the goblins, rare, in a
+  // group of 1 to 3, at the level of a goblin): a robber in a hood, with a scarf over its face and a
+  // scimitar, the SRD bandit (AC 12, 11 hit points, +3, 1d6+1). It ambushes (MobStats.ambush): it
+  // creeps after a player unseen, holds still in cover when it is close, and springs out.
+  bandit: {
+    wanderSpeed: 30,
+    chaseSpeed: 74,
+    retreatSpeed: 70,
+    sight: 130,
+    forget: 240,
+    reach: 16,
+    hitRange: 23,
+    windupMs: 600,
+    strikeMs: 280,
+    windupSpeed: 0,
+    lunge: 6,
+    stunTicks: 45,
+    retreatMs: [900, 1400],
+    harass: [42, 56],
+    radius: 8,
+    halfWidth: 4,
+    halfHeight: 3,
+    deathMs: 800,
+    health: 11,
+    ac: 12,
+    toHit: 3,
+    damage: dice(1, 6, 1),
+    xp: 25,
+    knockback: 10,
+    hurtMs: 240,
+    poisonTicks: 0,
+    // It creeps a little slower than a player walks (80 px/s), and as fast as a sneak walk.
+    ambush: { group: [1, 3], creepSpeed: 44, hold: 5 * TILE_SIZE, spring: 40, holdMs: 2500 },
+  },
 };
 
 /**
  * What a mob does: stands (idle) or walks round its home, runs at a player (chase), winds up,
  * strikes, runs away after a hit (retreat), dies, reels from a blow that did not kill it (hurt),
  * rides another mob (ride: a goblin on a worg, protocol 27), casts a rite (rite: the Devastator,
- * protocol 29), stops short when it sees a player (startled: a patrol, protocol 36), or flees from
- * the player (flee: a patrol, protocol 36). The order is the code on the wire.
+ * protocol 29), stops short when it sees a player (startled: a patrol, protocol 36), flees from
+ * the player (flee: a patrol, protocol 36), or hides and creeps after a player (lurk: an ambush,
+ * protocol 40). The order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite' | 'startled' | 'flee';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite', 'startled', 'flee'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite' | 'startled' | 'flee' | 'lurk';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite', 'startled', 'flee', 'lurk'];
 
 export interface Mob {
   readonly id: number;
@@ -640,6 +691,57 @@ export function averageBlow(blow: Pick<Blow, 'damage'>): number {
   return Math.max(1, averageDice(blow.damage));
 }
 
+/**
+ * How the mobs of an area live (MobSpawn.behaviour). `wander`: alone, round its home, and it prowls
+ * towards the players. `patrol`: a group on a loop that startles when it sees a player, then flees or
+ * fights (MobStats.patrol). `ambush`: a group that hides, creeps after a player unseen and springs at it
+ * (MobStats.ambush, state 'lurk').
+ */
+export type MobBehaviour = 'wander' | 'patrol' | 'ambush';
+
+/** A kind of mob in an area at an hour (MobArea): how many, in what groups, how often, and how it behaves. */
+export interface MobSpawn {
+  readonly kind: MobKind;
+  /** How many of them live round each player. */
+  readonly count: number;
+  /** How they behave. Default: the kind's (MobStats.patrol: patrol; MobStats.ambush: ambush; else wander). */
+  readonly behaviour?: MobBehaviour;
+  /** The mobs of a group (patrol, ambush): from group[0] to group[1]. Default: the kind's (MobStats.patrol or ambush). */
+  readonly group?: readonly [number, number];
+  /**
+   * A rare mob: the mean time between two of its groups round one player (ms; each wait is from half of
+   * it to one and a half times it, and the first one starts when the player comes into the area at that
+   * hour). Without it, a group comes as soon as the area wants more.
+   */
+  readonly every?: number;
+}
+
+/**
+ * The mobs of an area by day and at night (Horde.daytime; Fede, 2026-10-13). An area can have the same
+ * mobs by day and at night, with another number or behaviour, or the same lists.
+ */
+export interface MobArea {
+  readonly day: readonly MobSpawn[];
+  readonly night: readonly MobSpawn[];
+}
+
+/** The behaviour of a kind without another one in its spawn: a patrol or an ambush if its stats have one. */
+export function kindBehaviour(kind: MobKind): MobBehaviour {
+  const stats = MOB_STATS[kind];
+  return stats.patrol ? 'patrol' : stats.ambush ? 'ambush' : 'wander';
+}
+
+/** The behaviour of a spawn (MobSpawn.behaviour, else the kind's). */
+export function spawnBehaviour(spawn: MobSpawn): MobBehaviour {
+  return spawn.behaviour ?? kindBehaviour(spawn.kind);
+}
+
+/** The same mobs by day and at night: one spawn for each kind of a population, with the kind's behaviour. */
+export function populationArea(population: Readonly<Partial<Record<MobKind, number>>>): MobArea {
+  const spawns = MOB_KINDS.filter((kind) => (population[kind] ?? 0) > 0).map((kind): MobSpawn => ({ kind, count: population[kind]! }));
+  return { day: spawns, night: spawns };
+}
+
 /** Where the mobs of a world may be, and how many there are. */
 export interface MobRules {
   /**
@@ -654,13 +756,16 @@ export interface MobRules {
    * towns too. Without it, as `hunt`.
    */
   raid?(tx: number, ty: number): boolean;
-  /** How many mobs of each kind live round each player (a kind without a number: none). */
+  /**
+   * How many mobs of each kind live round each player (a kind without a number: none), by day and at
+   * night, with the kind's behaviour. `areaAt` takes its place where a world gives it.
+   */
   readonly population: Readonly<Partial<Record<MobKind, number>>>;
   /**
-   * The population round a player that stands on this tile, in place of `population` (an area with
-   * mobs of its own: the goblins of the forest on the road to Ironhold, and no other kind there).
+   * The mobs of the area where a player stands, by day and at night (MobArea), in place of `population`:
+   * the goblins of the forest on the road to Ironhold at night, its bandits by day.
    */
-  populationAt?(tx: number, ty: number): Readonly<Partial<Record<MobKind, number>>>;
+  areaAt?(tx: number, ty: number): MobArea;
 }
 
 /** A player as the horde sees it: an id, and its state (a hit changes the state: a stun). */
@@ -800,6 +905,16 @@ const PATROL_POINTS = 6;
 const PATROL_RADIUS = [3, 6] as const;
 /** The members of a patrol walk this far apart (world pixels). */
 const PATROL_GAP = 7;
+/** An ambush comes this far ahead of its player (tiles), and never closer to a player than AMBUSH_NEAREST (tiles). */
+const AMBUSH_DISTANCE = [11, 15] as const;
+const AMBUSH_NEAREST = 8;
+/** A lurker creeps after a player within this distance (world pixels), to where the player will be in AMBUSH_LEAD ms. */
+const LURK_RANGE = 24 * TILE_SIZE;
+const AMBUSH_LEAD = 1500;
+/** The members of an ambush keep this far apart (world pixels). */
+const AMBUSH_GAP = 14;
+/** A mob that the area does not want at this hour goes away when no player is this close (tiles): out of view. */
+const LEAVE_DISTANCE = 17;
 
 interface Brain {
   home: { readonly x: number; readonly y: number };
@@ -856,6 +971,12 @@ interface Brain {
   flee: boolean;
   /** A patrol that got away: it hides this long more (ms), and stands still. */
   hideMs: number;
+  /** How it lives (MobBehaviour): an ambush lurks again after a hunt. */
+  behaviour: MobBehaviour;
+  /** A mob that the horde brought for an area (populate): it goes away when the area does not want it at this hour. */
+  native: boolean;
+  /** A lurker close to its player: how long it has held still (ms). */
+  holdMs: number;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -878,6 +999,15 @@ function facingTo(dx: number, dy: number, current: Facing): Facing {
 }
 
 const tileOf = (v: number) => Math.floor(v / TILE_SIZE);
+
+/** The way a player goes (radians): where it walks, else where it faces. */
+function headingOf(player: PlayerState): number {
+  if (Math.hypot(player.vx, player.vy) > 1) return Math.atan2(player.vy, player.vx);
+  return player.facing === 'left' ? Math.PI : player.facing === 'right' ? 0 : player.facing === 'up' ? -Math.PI / 2 : Math.PI / 2;
+}
+
+/** An ambush of a kind without MobStats.ambush (MobSpawn.behaviour 'ambush'). */
+const DEFAULT_AMBUSH: NonNullable<MobStats['ambush']> = { group: [1, 3], creepSpeed: 40, hold: 5 * TILE_SIZE, spring: 40, holdMs: 2500 };
 
 /** A marching mob is at a point of its route this close (world pixels). */
 const ROUTE_REACH = 8;
@@ -932,8 +1062,12 @@ export class Horde {
   private clockMs = 0;
   /** For each player that mobs hunt: the mob with the next turn to attack it. See nextUp(). */
   private readonly nextMob = new Map<number, number>();
-  /** Whether it is day (the Room and the page set it from the hour: daytime.ts, isDaytime). */
+  /** Whether it is day (the Room and the page set it from the hour: daytime.ts, isDaytime): the areas give their mobs of that hour (MobArea). */
   daytime = false;
+  /** The mobs of a world without MobRules.areaAt: its population, by day and at night. */
+  private readonly plainArea: MobArea;
+  /** For each player, when the next group of each rare spawn (MobSpawn.every) may come (horde ms). */
+  private readonly rareAt = new Map<number, Map<MobKind, number>>();
 
   /** `dice`: where the dice come from; without it, random numbers of their own from `seed` (the AI's stay the same). */
   constructor(world: World, rules: MobRules, seed: number, dice?: DiceSource) {
@@ -943,6 +1077,7 @@ export class Horde {
     this.dice = dice ?? rollingDice(rng(seed ^ 0x5bd1e995));
     this.ground = { solidBox: (tx, ty) => (this.passable(tx, ty) ? world.solidBox(tx, ty) : FULL_BOX) };
     this.raidGround = { solidBox: (tx, ty) => (this.passable(tx, ty, true) ? world.solidBox(tx, ty) : FULL_BOX) };
+    this.plainArea = populationArea(rules.population);
   }
 
   /** The mobs that are alive (not dying). */
@@ -1041,6 +1176,9 @@ export class Horde {
       slotY: 0,
       flee: false,
       hideMs: 0,
+      behaviour: kindBehaviour(kind),
+      native: false,
+      holdMs: 0,
     });
     return mob;
   }
@@ -1058,6 +1196,7 @@ export class Horde {
       const mob = this.spawn(kind, x, y);
       const brain = this.brains.get(mob.id)!;
       brain.group = group;
+      brain.behaviour = 'patrol';
       // The first one walks on the loop; the others a step to its sides and behind it.
       const angle = i * 2.3;
       brain.slotX = i === 0 ? 0 : Math.cos(angle) * PATROL_GAP;
@@ -1086,6 +1225,31 @@ export class Horde {
       if (this.open(tx, ty, kind)) points.push({ x: tx * TILE_SIZE + TILE_SIZE / 2, y: ty * TILE_SIZE + 12 });
     }
     return points.length >= 3 ? points : null;
+  }
+
+  /**
+   * Puts an ambush of `size` mobs of `kind` round (x, y): a group that hides (state 'lurk') and creeps
+   * after the nearest player (MobStats.ambush), each member a few steps from the others.
+   */
+  spawnAmbush(kind: MobKind, x: number, y: number, size: number): Mob[] {
+    const group = this.nextGroup++;
+    const members: Mob[] = [];
+    for (let i = 0; i < size; i++) {
+      const angle = i * 2.3;
+      const ox = i === 0 ? 0 : Math.cos(angle) * AMBUSH_GAP;
+      const oy = i === 0 ? 0 : Math.sin(angle) * AMBUSH_GAP * 0.7;
+      // Its own place beside the first one, if that place is open; else the same place.
+      const open = this.open(tileOf(x + ox), tileOf(y + oy), kind);
+      const mob = this.spawn(kind, open ? x + ox : x, open ? y + oy : y);
+      const brain = this.brains.get(mob.id)!;
+      brain.group = group;
+      brain.behaviour = 'ambush';
+      brain.slotX = ox;
+      brain.slotY = oy;
+      this.enter(mob, 'lurk');
+      members.push(mob);
+    }
+    return members;
   }
 
   /**
@@ -1143,7 +1307,13 @@ export class Horde {
         case 'idle':
         case 'walk':
           if ((!brain.route || brain.loop) && this.despawn(mob, players)) break;
+          if (this.leaves(mob, brain, people)) break;
           if (MOB_STATS[mob.kind].watch !== undefined && this.watched(mob, players)) break;
+          if (brain.behaviour === 'ambush' && brain.restMs <= 0) {
+            // An ambush after a hunt, or that wandered: it hides again.
+            this.enter(mob, 'lurk');
+            break;
+          }
           if (brain.hideMs > 0) {
             // A patrol that got away hides: it stands still, and looks for nobody.
             brain.hideMs -= dt;
@@ -1213,6 +1383,10 @@ export class Horde {
           break;
         case 'flee':
           this.flee(mob, brain, byId, dt);
+          break;
+        case 'lurk':
+          if (this.despawn(mob, players) || this.leaves(mob, brain, people)) break;
+          this.lurk(mob, brain, players, dt);
           break;
       }
     }
@@ -1296,6 +1470,8 @@ export class Horde {
       return { mob, damage, crit: false };
     }
     const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
+    // A blow on a lurker: its ambush springs at the attacker (the blow still takes it unaware).
+    if (mob.state === 'lurk' && attackerId !== undefined) this.spring(mob, attackerId, null);
     const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
     if (damage === 0) {
       // A miss: the mob does not reel, but it knows who attacked it.
@@ -1583,6 +1759,110 @@ export class Horde {
     brain.goal = null;
     if (brain.route) brain.routeIndex = nearestPoint(brain.route, mob);
     this.enter(mob, 'idle');
+  }
+
+  /**
+   * An ambush lurks (MobStats.ambush): unseen, it creeps after the nearest player that it may hunt, to
+   * where the player will be soon, in its place in the group. Close to the player it holds still, in
+   * its cover. It springs at the player (spring()) within its spring distance, or after a hold of
+   * `holdMs`. Without a player near, it stays where it is.
+   */
+  private lurk(mob: Mob, brain: Brain, players: readonly HordePlayer[], dt: number): void {
+    const ambush = MOB_STATS[mob.kind].ambush ?? DEFAULT_AMBUSH;
+    let best: HordePlayer | null = null;
+    let bestD = LURK_RANGE;
+    for (const p of players) {
+      // Not a companion or a guard, a defeated player, one upstairs, or one in a town or a building.
+      if (p.companion || p.quarry || p.state.down > 0 || p.state.storey !== 0) continue;
+      if (!this.passable(tileOf(p.state.x), tileOf(p.state.y))) continue;
+      const d = Math.hypot(p.state.x - mob.x, p.state.y - mob.y);
+      if (d < bestD) {
+        best = p;
+        bestD = d;
+      }
+    }
+    if (!best) {
+      brain.holdMs = 0;
+      mob.vx = 0;
+      mob.vy = 0;
+      return;
+    }
+    const target = best.state;
+    if (bestD <= ambush.spring && this.sees(mob, target, ambush.spring)) {
+      this.spring(mob, best.id, target);
+      return;
+    }
+    if (bestD <= ambush.hold) {
+      // Close: it waits in its cover for the player to come, but not for ever.
+      mob.vx = 0;
+      mob.vy = 0;
+      mob.facing = facingTo(target.x - mob.x, target.y - mob.y, mob.facing);
+      brain.holdMs += dt;
+      if (brain.holdMs >= ambush.holdMs && this.sees(mob, target, ambush.hold)) this.spring(mob, best.id, target);
+      return;
+    }
+    brain.holdMs = 0;
+    const lead = AMBUSH_LEAD / 1000;
+    const gx = target.x + target.vx * lead + brain.slotX;
+    const gy = target.y + target.vy * lead + brain.slotY;
+    this.steer(mob, brain, Math.atan2(gy - mob.y, gx - mob.x), ambush.creepSpeed, dt);
+  }
+
+  /**
+   * An ambush springs at player `id` (at `at`, if known): the mob and each member of its group that
+   * lurks go for the player at once, one after the other in its line.
+   */
+  private spring(first: Mob, id: number, at: PlayerState | null): void {
+    const group = this.brains.get(first.id)!.group;
+    const members = this.mobs.filter((m) => m === first || (group !== 0 && m.state === 'lurk' && this.brains.get(m.id)!.group === group));
+    members.forEach((m, i) => {
+      const b = this.brains.get(m.id)!;
+      b.target = id;
+      b.seenX = at?.x ?? m.x;
+      b.seenY = at?.y ?? m.y;
+      b.lostMs = 0;
+      b.curve = this.newCurve();
+      b.queuedMs = this.clockMs + i;
+      b.holdMs = 0;
+      b.home = { x: m.x, y: m.y };
+      this.enter(m, 'chase');
+      if (at) m.facing = facingTo(at.x - m.x, at.y - m.y, m.facing);
+    });
+  }
+
+  /** Whether the area where the mob stands wants it at this hour: a spawn of its kind with its behaviour. */
+  private wanted(mob: Mob, brain: Brain): boolean {
+    return this.spawnsAt(tileOf(mob.x), tileOf(mob.y)).some((s) => s.kind === mob.kind && spawnBehaviour(s) === brain.behaviour);
+  }
+
+  /**
+   * A mob that the horde brought for an area goes away when the area does not want it at this hour (a
+   * goblin by day, a bandit at night) and no player is near enough to see it go. Returns whether it went.
+   */
+  private leaves(mob: Mob, brain: Brain, players: readonly HordePlayer[]): boolean {
+    if (!brain.native || this.wanted(mob, brain)) return false;
+    const near = LEAVE_DISTANCE * TILE_SIZE;
+    if (players.some((p) => Math.hypot(p.state.x - mob.x, p.state.y - mob.y) <= near)) return false;
+    this.remove(mob);
+    return true;
+  }
+
+  /** The mobs of the area at a tile at this hour: MobRules.areaAt, else the population. */
+  private spawnsAt(tx: number, ty: number): readonly MobSpawn[] {
+    const area = this.rules.areaAt?.(tx, ty) ?? this.plainArea;
+    return this.daytime ? area.day : area.night;
+  }
+
+  /** Whether the rare spawn (MobSpawn.every) of `kind` may come for player `id` now; its first wait starts here. */
+  private rareReady(id: number, spawn: MobSpawn): boolean {
+    let waits = this.rareAt.get(id);
+    if (!waits) this.rareAt.set(id, (waits = new Map()));
+    const at = waits.get(spawn.kind);
+    if (at === undefined) {
+      waits.set(spawn.kind, this.clockMs + spawn.every! * this.between(0.5, 1.5));
+      return false;
+    }
+    return this.clockMs >= at;
   }
 
   private wander(mob: Mob, brain: Brain, dt: number, players: readonly HordePlayer[]): void {
@@ -1907,7 +2187,7 @@ export class Horde {
 
   /** Whether the mob hunts the player `playerId` now (not when it wanders, or dies). */
   private hunts(mob: Mob, playerId: number): boolean {
-    return mob.state !== 'idle' && mob.state !== 'walk' && mob.state !== 'dying' && this.brains.get(mob.id)!.target === playerId;
+    return mob.state !== 'idle' && mob.state !== 'walk' && mob.state !== 'lurk' && mob.state !== 'dying' && this.brains.get(mob.id)!.target === playerId;
   }
 
   /** The mobs that attack the player `playerId` now (in their wind-up or their blow). In a pack their attacks overlap. */
@@ -2112,40 +2392,59 @@ export class Horde {
   }
 
   /**
-   * Brings new mobs where players have fewer than the world wants (MobRules.populationAt where the
-   * player stands, else MobRules.population), one at a time (a patrol: one group), out of their sight.
+   * Brings new mobs where players have fewer than the area wants at this hour (MobRules.areaAt where
+   * the player stands, else MobRules.population), one at a time (a patrol or an ambush: one group), out
+   * of their sight; a rare spawn only after its wait (MobSpawn.every). An ambush comes ahead of its
+   * player, where it walks or faces, and hides.
    */
   private populate(dt: number, players: readonly HordePlayer[]): void {
     this.spawnMs -= dt;
     if (this.spawnMs > 0 || players.length === 0) return;
     this.spawnMs = SPAWN_GAP_MS;
     if (this.living >= MAX_MOBS) return;
-    let best: { player: PlayerState; kind: MobKind; short: number } | null = null;
+    for (const id of [...this.rareAt.keys()]) if (!players.some((p) => p.id === id)) this.rareAt.delete(id);
+    let best: { player: PlayerState; id: number; spawn: MobSpawn; short: number } | null = null;
     for (const p of players) {
-      const population = this.rules.populationAt?.(tileOf(p.state.x), tileOf(p.state.y)) ?? this.rules.population;
-      for (const kind of MOB_KINDS) {
-        const want = population[kind];
-        if (!want) continue;
+      for (const spawn of this.spawnsAt(tileOf(p.state.x), tileOf(p.state.y))) {
+        if (spawn.count <= 0) continue;
+        if (spawn.every !== undefined && !this.rareReady(p.id, spawn)) continue;
         let have = 0;
         for (const mob of this.mobs) {
-          if (mob.kind === kind && mob.state !== 'dying' && Math.hypot(mob.x - p.state.x, mob.y - p.state.y) <= POPULATION_RADIUS * TILE_SIZE) have++;
+          if (mob.kind === spawn.kind && mob.state !== 'dying' && Math.hypot(mob.x - p.state.x, mob.y - p.state.y) <= POPULATION_RADIUS * TILE_SIZE) have++;
         }
-        if (want - have > (best?.short ?? 0)) best = { player: p.state, kind, short: want - have };
+        if (spawn.count - have > (best?.short ?? 0)) best = { player: p.state, id: p.id, spawn, short: spawn.count - have };
       }
     }
     if (!best) return;
+    const { kind } = best.spawn;
+    const behaviour = spawnBehaviour(best.spawn);
+    const ambush = behaviour === 'ambush';
     for (let tries = 0; tries < 16; tries++) {
-      const angle = this.random() * 2 * Math.PI;
-      const r = this.between(SPAWN_DISTANCE[0], SPAWN_DISTANCE[1]) * TILE_SIZE;
+      // An ambush: ahead of the player, a little to a side. The others: all round, out of sight.
+      const angle = ambush ? headingOf(best.player) + this.between(-0.6, 0.6) : this.random() * 2 * Math.PI;
+      const r = (ambush ? this.between(AMBUSH_DISTANCE[0], AMBUSH_DISTANCE[1]) : this.between(SPAWN_DISTANCE[0], SPAWN_DISTANCE[1])) * TILE_SIZE;
       const tx = tileOf(best.player.x + Math.cos(angle) * r);
       const ty = tileOf(best.player.y + Math.sin(angle) * r);
-      if (!this.open(tx, ty, best.kind)) continue;
+      if (!this.open(tx, ty, kind)) continue;
       const x = tx * TILE_SIZE + TILE_SIZE / 2;
       const y = ty * TILE_SIZE + 12;
-      if (players.some((p) => Math.hypot(p.state.x - x, p.state.y - y) < SPAWN_DISTANCE[0] * TILE_SIZE)) continue;
-      const patrol = MOB_STATS[best.kind].patrol;
-      if (patrol) this.spawnPatrol(best.kind, x, y, Math.max(patrol.group[0], Math.min(patrol.group[1], best.short)));
-      else this.spawn(best.kind, x, y);
+      const nearest = (ambush ? AMBUSH_NEAREST : SPAWN_DISTANCE[0]) * TILE_SIZE;
+      if (players.some((p) => Math.hypot(p.state.x - x, p.state.y - y) < nearest)) continue;
+      let mobs: Mob[];
+      if (behaviour === 'patrol') {
+        const group = best.spawn.group ?? MOB_STATS[kind].patrol?.group ?? [1, 1];
+        mobs = this.spawnPatrol(kind, x, y, Math.max(group[0], Math.min(group[1], best.short)));
+      } else if (ambush) {
+        const group = best.spawn.group ?? MOB_STATS[kind].ambush?.group ?? DEFAULT_AMBUSH.group;
+        const size = group[0] + Math.floor(this.random() * (group[1] - group[0] + 1));
+        mobs = this.spawnAmbush(kind, x, y, Math.max(1, Math.min(size, best.short)));
+      } else mobs = [this.spawn(kind, x, y)];
+      for (const mob of mobs) {
+        const brain = this.brains.get(mob.id)!;
+        brain.native = true;
+        brain.behaviour = behaviour;
+      }
+      if (best.spawn.every !== undefined) this.rareAt.get(best.id)!.set(kind, this.clockMs + best.spawn.every * this.between(0.5, 1.5));
       return;
     }
   }

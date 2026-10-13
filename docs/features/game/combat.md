@@ -190,10 +190,69 @@ beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial
   character) hides where it is for 10 s, and then walks back to its loop. A patrol far from every
   character (36 tiles) goes away.
 - **AC-CMB-009.7:** A world chooses where the goblins live and that no other mob lives there:
-  `MobRules.populationAt()` gives the mobs round a character on a tile (in place of `population`), and
-  `MobRules.roam()` knows the kind of the mob. A short population of skirmishers comes as one group.
+  `MobRules.areaAt()` gives the mobs round a character on a tile, by day and at night (in place of
+  `population`; REQ-CMB-010), and `MobRules.roam()` knows the kind of the mob. A short population of
+  skirmishers comes as one group. In the Wilds the goblins live in the forest at night only.
 - **AC-CMB-009.8:** `?mob=skirmisher,skirmisher,skirmisher` puts one group of three, 8 tiles east of
   the character, on its loop (a world that the page runs).
+
+---
+
+### REQ-CMB-010: The mobs of an area by day and at night
+
+**User Story:** As a player, I want other foes by day than at night, so that the hour changes the
+danger of a place (Fede, 2026-10-13: "Every area should have mobs defined for day and for night. With
+frequency and encoded behavior.").
+
+**Acceptance Criteria:**
+- **AC-CMB-010.1:** A world gives the mobs of each area by day and at night (`MobArea`: `day` and
+  `night`, two lists of `MobSpawn`). An area can have other mobs by day and at night, the same mobs with
+  another number or behaviour, or the same lists.
+- **AC-CMB-010.2:** A spawn gives a kind, how many live round each character (`count`), how they behave
+  (`behaviour`: `wander` alone, `patrol` a group on a loop, `ambush` a group that hides; default: the
+  kind's), the size of a group (`group`; default: the kind's), and a frequency (`every`: a rare spawn
+  comes about once in that time round a character, each wait from half of it to one and a half times
+  it; without it, a mob comes as soon as the area wants one).
+- **AC-CMB-010.3:** It is day from 6:00 to 20:00 (the middle of the dawn to the middle of the dusk:
+  `isDaytime()`). The server takes the hour from its clock, as the pages do; a world without a day is
+  always at night.
+- **AC-CMB-010.4:** A mob that the area brought and does not want at this hour (a goblin by day, a
+  bandit at night) goes away when no character is within 17 tiles of it: nobody sees it go. A mob that
+  hunts finishes its hunt first. The mobs of the story never go.
+- **AC-CMB-010.5:** The Wilds: in the forest of the tutorial, the goblin patrols at night as before
+  (3 round a character, groups of 2 or 3), and by day the bandits (REQ-CMB-011: 3 round a character,
+  groups of 1 to 3, a group about every 8 minutes). In the wildlands, 4 imps and 2 brutes, by day and
+  at night.
+
+---
+
+### REQ-CMB-011: The bandits of the forest
+
+**User Story:** As a player on the road to Ironhold by day, I want a rare ambush of robbers, so that the
+day has its own danger (Fede, 2026-10-13: "Very rare, they appear as a pack of 1 to 3 of them (same
+level than goblins) that try to ambush the player.").
+
+**Acceptance Criteria:**
+- **AC-CMB-011.1:** The bandit is the bandit of the SRD with a scimitar: 11 hit points, AC 12, +3,
+  1d6+1, 25 XP; a wind-up of 0.6 s in which it stands. A kill gives 1 or 2 coins in one kill of three.
+  The art: a man in a hood of dark leather, a scarf of rust red over the face, a jerkin, a short cape
+  and a scimitar; it also crouches and creeps.
+- **AC-CMB-011.2:** A group of bandits comes 11 to 15 tiles ahead of a character (the way it walks, or
+  faces), never within 8 tiles of a character, and hides (the state `lurk`).
+- **AC-CMB-011.3:** A bandit that lurks creeps after the nearest character within 24 tiles, crouched,
+  at 44 px/s (slower than a walk), to where the character will be in 1.5 s, each one in its place in
+  the group. It does not stalk a character in a town, in a building, upstairs or defeated.
+- **AC-CMB-011.4:** Within 5 tiles of the character it holds still and waits. It springs at the
+  character within 40 pixels (2.5 tiles), or after 2.5 s of a hold; the whole group springs with it, and
+  each one shouts. A blow or an arrow that reaches a lurker springs its group too, and the blow takes it
+  unaware (a rogue's sneak attack).
+- **AC-CMB-011.5:** A page shows a bandit that lurks only within the seek of its character (Wisdom:
+  3 + 2 x the modifier tiles, as a hidden thing), faint and crouched; elsewhere it is not drawn, the
+  attack button does not aim at it, and the sense (the red chevrons) does not mark it. When it springs,
+  it comes into view in 0.18 s.
+- **AC-CMB-011.6:** After a hunt that it gives up, a bandit rests 3 s and then hides again.
+- **AC-CMB-011.7:** `?mob=bandit,bandit,bandit` puts one group of three that lurks 3 tiles east of the
+  character (a world that the page runs).
 
 ---
 
@@ -246,3 +305,18 @@ beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial
   `SKIRMISHER`, the weapon `scimitar`, `Build.shieldSize`); the page: the "!" in `render/mobs.ts`
   (`placeAlert()`, `ALERT`; `MobViews` takes the font and the text layer), the yelp
   (`voiceOfChange()`, `VOICE_OF`). Tests: `packages/engine/test/patrols.test.ts`. Protocol 36.
+- **The mobs of an area by hour** (`packages/engine/src/mobs.ts`): `MobArea`, `MobSpawn`,
+  `MobBehaviour`, `MobRules.areaAt?(tx, ty)` (it took the place of `populationAt`), `populationArea()`
+  (a population as the same lists by day and at night), `kindBehaviour()`, `spawnBehaviour()`,
+  `Horde.daytime` (the Room sets it in `tick()` from `RoomOptions.day` and `clock`; the page from
+  `skyNow()`), the rare waits of each character (`rareReady()`), `LEAVE_DISTANCE` 17. The Wilds:
+  `FOREST_MOBS` and `WILD_MOBS` in `worlds/wilds/src/source.ts`.
+- **The bandits** (`packages/engine/src/mobs.ts`): the kind `bandit` (code 13), `MobStats.ambush`
+  (`group` [1, 3], `creepSpeed` 44, `hold` 80, `spring` 40, `holdMs` 2500), the state `lurk` (code 12),
+  `Horde.spawnAmbush(kind, x, y, size)`, `AMBUSH_DISTANCE` [11, 15], `AMBUSH_NEAREST` 8, `LURK_RANGE`
+  24 tiles, `AMBUSH_LEAD` 1500, `lurk()` and `spring()`; `MOB_LOOT.bandit`. The art: `art/mobs.ts`
+  (the build `BANDIT`, the face `hood`, `Build.clothed`, `MobPose.crouch`, the frames `crouch` and
+  `creep/<i>` of the kinds of `CROUCHING`). The page: `render/mobs.ts` (`seesMob()`,
+  `MobViews.setSeeker()`, `LURK_ALPHA`, `SPRING_FADE_MS`), the shout (`voiceOfChange()`: `lurk` to
+  `chase`; `VOICE_OF.bandit`). Tests: `packages/engine/test/ambush.test.ts`,
+  `packages/engine-client/src/render/mobs.test.ts`. Protocol 40.

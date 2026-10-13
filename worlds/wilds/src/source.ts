@@ -15,6 +15,7 @@ import {
   type Chunk,
   type Fixture,
   type LootTable,
+  type MobArea,
   type MobKind,
   type MobRules,
   type NpcDef,
@@ -32,6 +33,7 @@ import {
   type QuestEffect,
   type SoundArea,
   type WorldSource,
+  populationArea,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
@@ -168,19 +170,32 @@ const REFUGES: readonly Refuge[] = [
   { id: 'whitegrove', building: WHITEGROVE_SHRINE.id, x: WHITEGROVE_SHRINE.doorX * TILE_SIZE + TILE_SIZE / 2, y: (WHITEGROVE_SHRINE.y1 - 1) * TILE_SIZE + 12 },
 ];
 
-/** The mobs round each player in the wildlands: four imps and two brutes. The hobgoblin band comes only with the story: none of it roams. */
+/**
+ * The mobs round each player in the wildlands: four imps and two brutes, by day and at night. The
+ * hobgoblin band comes only with the story: none of it roams.
+ */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
+const WILD_MOBS: MobArea = populationArea(MOB_POPULATION);
 
 /**
  * The forest at the northern edge of the Iron Sovereignty, from this row south (tiles): the woods of
  * the tutorial, round the hut, Whitegrove, Bronzehold and Ironhold, to the north edge of Ironhold
  * (Fede, 2026-10-13: the only enemies on the way from the hut to Ironhold are goblins, and imps and
- * brutes live only north of Ironhold, the last town of the Sovereignty). Only goblin patrols live
- * there (the skirmisher: mobs.ts); imps and brutes keep the wildlands north of it.
+ * brutes live only north of Ironhold, the last town of the Sovereignty). Only goblin patrols (at
+ * night) and bandits (by day) live there (FOREST_MOBS); imps and brutes keep the wildlands north of it.
  */
 export const FOREST_EDGE_Y = IRONHOLD.y0;
-/** The goblins round a player in the forest of the tutorial: one patrol of 2 or 3. */
-const FOREST_POPULATION = { skirmisher: 3 } as const;
+/**
+ * The mobs of the forest of the tutorial (Fede, 2026-10-13). At night: the goblins, one patrol of 2 or
+ * 3 round each player, as before. By day the bandits take their place: very rare (a group about every
+ * 8 minutes round a player in the forest), a group of 1 to 3 that ambushes the player.
+ */
+export const FOREST_MOBS: MobArea = {
+  night: [{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }],
+  day: [{ kind: 'bandit', count: 3, behaviour: 'ambush', group: [1, 3], every: 8 * 60_000 }],
+};
+/** The kinds that live in the forest of the tutorial, and only there. */
+const FOREST_KINDS: ReadonlySet<MobKind> = new Set(['skirmisher', 'bandit']);
 /** Whether a tile is in the forest of the tutorial. */
 export function inTutorialForest(_tx: number, ty: number): boolean {
   return ty >= FOREST_EDGE_Y;
@@ -999,14 +1014,15 @@ export class WildsSource implements WorldSource {
    * the path to its door: a player who comes out of a door does not walk into one) and in or near
    * a town. They hunt everywhere outside the houses and the towns: they never come into a town, so
    * it is safe. They never come near the lantern of the merchant's cart (CART_SAFE). In the forest
-   * of the tutorial (inTutorialForest) only goblin patrols live, and only there (Fede, 2026-10-13).
+   * of the tutorial (inTutorialForest) only goblin patrols live at night and bandits by day, and only
+   * there (Fede, 2026-10-13: FOREST_MOBS).
    */
   mobs(): MobRules {
     const cart = this.cart;
     const nearCart = (tx: number, ty: number) => Math.hypot(tx + 0.5 - (cart.tx + 1), ty + 0.5 - (cart.ty + 0.5)) <= CART_SAFE;
     // A margin of two rows between the two kinds of woods: no mob lives on the line itself.
     const kindFits = (ty: number, kind: MobKind | undefined) =>
-      kind === undefined || (kind === 'skirmisher' ? ty >= FOREST_EDGE_Y + 2 : ty < FOREST_EDGE_Y - 2);
+      kind === undefined || (FOREST_KINDS.has(kind) ? ty >= FOREST_EDGE_Y + 2 : ty < FOREST_EDGE_Y - 2);
     return {
       roam: (tx, ty, kind) =>
         kindFits(ty, kind) &&
@@ -1019,7 +1035,7 @@ export class WildsSource implements WorldSource {
       // The mobs of the raid on Silverspring go into the town too (an event: Fede's decision, 2026-10-11).
       raid: (tx, ty) => !nearCart(tx, ty),
       population: MOB_POPULATION,
-      populationAt: (tx, ty) => (inTutorialForest(tx, ty) ? FOREST_POPULATION : MOB_POPULATION),
+      areaAt: (tx, ty) => (inTutorialForest(tx, ty) ? FOREST_MOBS : WILD_MOBS),
     };
   }
 }

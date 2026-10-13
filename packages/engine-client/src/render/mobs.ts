@@ -28,7 +28,7 @@ const BAR = { width: 12, gap: 3, back: 0x2a0c0c, fill: 0xc0302a } as const;
 /** The glint of a wind-up (INT 15): it blinks at this rate (ms). */
 const GLINT_BLINK_MS = 90;
 /** From the feet to the top of the head of each kind (world pixels): the bar and the glint go there. */
-const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29, hound: 17, watcher: 28, seeker: 28, adept: 27, warden: 33, skirmisher: 22 };
+const HEAD: Readonly<Record<MobKind, number>> = { imp: 17, brute: 33, goblin: 22, worg: 20, hobgoblin: 27, bugbear: 36, devastator: 29, hound: 17, watcher: 28, seeker: 28, adept: 27, warden: 33, skirmisher: 22, bandit: 27 };
 
 /** From the feet to the top of the head of a mob of this kind (world pixels): numbers and bars go over it. */
 export function mobHead(kind: MobKind): number {
@@ -36,7 +36,7 @@ export function mobHead(kind: MobKind): number {
 }
 
 /** World pixels of travel for each walk frame. */
-const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4, hound: 6, watcher: 4, seeker: 4, adept: 4, warden: 4, skirmisher: 3 };
+const STRIDE: Readonly<Record<MobKind, number>> = { imp: 3, brute: 5, goblin: 3, worg: 6, hobgoblin: 4, bugbear: 5, devastator: 4, hound: 6, watcher: 4, seeker: 4, adept: 4, warden: 4, skirmisher: 3, bandit: 4 };
 /** The glow of the eyes, above the darkness. */
 const EYE_GLOW: Readonly<Record<MobKind, number>> = {
   imp: 0xffa040,
@@ -52,6 +52,7 @@ const EYE_GLOW: Readonly<Record<MobKind, number>> = {
   adept: 0xffb050,
   warden: 0xff5a20,
   skirmisher: 0xffd040,
+  bandit: 0xc8b898,
 };
 /** The ash of a death: how tall and wide the body is (world pixels), and how many motes rise from it. */
 const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly width: number; readonly count: number }>> = {
@@ -68,6 +69,7 @@ const ASH_SIZE: Readonly<Record<MobKind, { readonly height: number; readonly wid
   adept: { height: 26, width: 12, count: 28 },
   warden: { height: 30, width: 14, count: 60 },
   skirmisher: { height: 16, width: 8, count: 14 },
+  bandit: { height: 24, width: 12, count: 20 },
 };
 /** The kinds that go in ash (Horde.vanish): no fall, the body thins into ash over this share of its death. */
 const VANISH: ReadonlySet<MobKind> = new Set(['watcher', 'warden']);
@@ -97,6 +99,17 @@ const RIDE_LIFT = 9;
 /** The death: the frames play over this share of the death; the body fades out over the end. */
 const DIE_FRAMES_SHARE = 0.6;
 const FADE_FROM = 0.55;
+/**
+ * An ambush that lurks (state 'lurk'): the page shows it only to a player whose seek reaches it
+ * (setSeeker), faint and crouched (the frames crouch and creep/i). When it springs, it comes into view
+ * over SPRING_FADE_MS.
+ */
+const LURK_ALPHA = 0.55;
+const SPRING_FADE_MS = 180;
+/** Whether a player (the seeker: where it is, and its seek in world pixels) sees a mob: every mob, except one that lurks out of its seek. */
+export function seesMob(mob: Pick<MobLook, 'x' | 'y' | 'state'>, seeker: { readonly x: number; readonly y: number; readonly range: number } | null): boolean {
+  return mob.state !== 'lurk' || (seeker !== null && Math.hypot(mob.x - seeker.x, mob.y - seeker.y) <= seeker.range);
+}
 /** The white flash of a blow, at the start of a death or a reel (ms). */
 const FLASH_MS = 110;
 /** Ash and embers that rise from a dead mob: for this long (ms). */
@@ -140,6 +153,9 @@ interface MobView {
   ring: Container | null;
   /** The "!" of a startle (a patrol), in the text layer; made when it is first needed. */
   alert: Container | null;
+  /** Whether it lurked unseen in the last frame, and when it came into view after that (local ms). */
+  hidden: boolean;
+  shownAt: number;
 }
 
 /**
@@ -163,6 +179,18 @@ export class MobViews {
   private readOpening = false;
   /** The font and the layer of the "!" of a startle (the text layer, above the darkness); none: no "!". */
   private readonly alerts: { readonly font: PixelFont; readonly layer: Container } | null;
+  /** The player who looks for hidden things (Wisdom: PlayerTraits.seek, world pixels): it sees a lurker within its range. */
+  private seeker: { readonly x: number; readonly y: number; readonly range: number } | null = null;
+
+  /** Sets where the player is and how far it sees hidden things (seek): a mob that lurks shows within that range. */
+  setSeeker(seeker: { readonly x: number; readonly y: number; readonly range: number } | null): void {
+    this.seeker = seeker;
+  }
+
+  /** Whether the player sees this mob (seesMob). */
+  sees(mob: Pick<MobLook, 'x' | 'y' | 'state'>): boolean {
+    return seesMob(mob, this.seeker);
+  }
 
   /** Sets what the player reads of the mobs: a health bar over each one, and a glint on a wind-up. */
   setReading(health: boolean, opening: boolean): void {
@@ -231,7 +259,7 @@ export class MobViews {
     const glint = new Sprite(this.art.frame('fx/star'));
     glint.visible = false;
     this.glowLayer.addChild(bar, glint);
-    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint, ring: null, alert: null };
+    const view: MobView = { root, body, flash, shadow, eyes, kind: mob.kind, travelled: 0, diedAt: null, seen: true, bar, barFill, glint, ring: null, alert: null, hidden: false, shownAt: -Infinity };
     this.views.set(mob.id, view);
     return view;
   }
@@ -241,7 +269,7 @@ export class MobViews {
     const key = `${kind}/${facing}/${name}`;
     let list = this.frames.get(key);
     if (!list) {
-      const single = name === 'stand' || name === 'hurt';
+      const single = name === 'stand' || name === 'hurt' || name === 'crouch';
       list = single ? [this.art.frame(`mob/${key}`)] : this.art.variants(`mob/${key}`);
       this.frames.set(key, list);
       list.forEach((texture, i) => this.names.set(texture, single ? `mob/${key}` : `mob/${key}/${i}`));
@@ -277,6 +305,21 @@ export class MobViews {
         name = 'windup';
         index = Math.floor(mob.stateMs / 420) % 2 === 0 ? 1 : 0;
         break;
+      case 'lurk': {
+        // An ambush hides: crouched, it creeps (a kind without those frames stands and walks).
+        const crouches = MOB_STATS[mob.kind].ambush !== undefined;
+        const speed = Math.hypot(mob.vx, mob.vy);
+        if (speed > 1) {
+          view.travelled += speed * seconds;
+          name = crouches ? 'creep' : 'walk';
+          index = Math.floor(view.travelled / STRIDE[mob.kind]) % 6;
+        } else {
+          view.travelled = 0;
+          name = crouches ? 'crouch' : 'stand';
+        }
+        alpha = this.sees(mob) ? LURK_ALPHA : 0;
+        break;
+      }
       case 'dying': {
         const t = mob.stateMs / stats.deathMs;
         if (VANISH.has(mob.kind)) {
@@ -305,6 +348,11 @@ export class MobViews {
         }
       }
     }
+    // An ambush that sprang out of hiding comes into view quickly.
+    const hidden = mob.state === 'lurk' && alpha === 0;
+    if (view.hidden && !hidden && mob.state !== 'lurk') view.shownAt = now;
+    view.hidden = hidden;
+    if (mob.state !== 'lurk' && now - view.shownAt < SPRING_FADE_MS) alpha *= Math.max(0, (now - view.shownAt) / SPRING_FADE_MS);
     const texture = this.frame(mob.kind, mob.facing, name, index);
     const x = Math.round(mob.x);
     const riding = mob.state === 'ride';
@@ -318,7 +366,7 @@ export class MobViews {
     view.shadow.alpha = alpha;
     const touched = this.touches.get(mob.id);
     const flashing = ((mob.state === 'dying' || mob.state === 'hurt') && mob.stateMs < FLASH_MS) || (touched !== undefined && performance.now() - touched < FLASH_MS);
-    view.flash.visible = flashing;
+    view.flash.visible = flashing && !hidden;
     if (flashing) {
       view.flash.texture = texture;
       view.flash.alpha = 0.85 * (1 - mob.stateMs / FLASH_MS);
@@ -327,7 +375,7 @@ export class MobViews {
     // What the player reads of it (Intelligence): its health over its head, and a glint in its wind-up.
     const top = y - HEAD[mob.kind];
     const living = mob.state !== 'dying' && mob.health !== undefined;
-    view.bar.visible = this.readHealth && living;
+    view.bar.visible = this.readHealth && living && alpha > 0;
     if (view.bar.visible) {
       view.bar.position.set(x - Math.floor(BAR.width / 2) - 1, top - BAR.gap - 3);
       view.barFill.width = Math.max(0, Math.round((BAR.width * mob.health!) / stats.health));

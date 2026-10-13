@@ -6,7 +6,7 @@
  *   hurt    a blow reaches it
  *   death   it falls
  * Small creatures (imps, goblins) chitter; big ones (brutes, hobgoblins, bugbears) growl; beasts
- * (worgs, hounds) bark and snarl; the watchers whisper; the Seekers (people) shout; the great foes
+ * (worgs, hounds) bark and snarl; the watchers whisper; the Seekers and the bandits (people) shout; the great foes
  * roar. Each call is a little different (`Math.random`).
  */
 import type { MobKind } from '@game/engine';
@@ -32,6 +32,7 @@ export const VOICE_OF: Readonly<Record<MobKind, { readonly kind: Kind; readonly 
   devastator: { kind: 'roar', size: 1 },
   warden: { kind: 'roar', size: 1.25 },
   skirmisher: { kind: 'chitter', size: 1.15 },
+  bandit: { kind: 'shout', size: 1.1 },
 };
 
 const r = (a: number, b: number) => a + Math.random() * (b - a);
