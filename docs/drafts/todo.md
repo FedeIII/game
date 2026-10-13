@@ -6,16 +6,6 @@
 
 ## Open
 
-- **A chalice over the door of a shrine, not the word** (2026-10-13). A shrine shows no "Shrine"
-  sign over its door; it shows a chalice symbol there instead. Now the shrine of Whitegrove has
-  `sign: 'Shrine'` (`worlds/wilds/src/hamlets.ts`, the plan of the shrine; Spanish "Santuario" in
-  `text-es.ts`). A sign is text on a board (`Buildings.sign()` in
-  `packages/engine-client/src/render/buildings.ts`, the frame `ui/sign`): a symbol needs a new field
-  on `Building` (for example `emblem: 'chalice'`), a frame in the atlas (`art/fixtures.ts` or
-  `art/font.ts`, in the style of the game), and the renderer. The map label of the refuge
-  (`source.ts`, `landmarks()`, "Shrine") can stay. Ask Fede: does the chapel of Ironhold keep its word
-  "Chapel"?
-
 - **An empty box at the top centre of the screen** (2026-10-13, a bug). Sometimes a panel with no text
   stays at the top centre. The cause: the control hint `#hint` (`apps/game/index.html`, a `<div>` with
   no class `gone`; the style `#hint` in `packages/engine-client/src/style.css` gives it a border and a
@@ -155,3 +145,7 @@
 - **Goblin patrols: any number flees** (2026-10-13). A startled patrol chooses at random how many of
   its goblins flee, from none (all fight) to all, each number with the same chance (`Horde.startle()`).
   Done 2026-10-13, commit `91f18c7`.
+
+- **A chalice over the door of a shrine, not the word** (2026-10-13). The shrine of Whitegrove and the
+  chapel of Ironhold show a chalice in pale gold on the wooden sign board over the door, and no word
+  (`Building.emblem`, the frame `ui/emblem/chalice`). Done 2026-10-13, commit `08dca1f`.
