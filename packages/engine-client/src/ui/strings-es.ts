@@ -371,6 +371,7 @@ export const ES: Strings = {
     standard: 'el estandarte',
     menhir: 'el menhir',
     altar: 'el altar',
+    namesign: 'el letrero',
     pile: 'las cosas del suelo',
   },
   linkClose: 'Cerrar',

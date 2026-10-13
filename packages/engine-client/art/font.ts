@@ -221,6 +221,30 @@ const MORE = ['#####', '.###.', '..#..'];
 const SIGN = ['.#####.', '#lllll#', '#wwwww#', '#wWwww#', '#wwwWw#', '#wwwww#', '.#####.'];
 const SIGN_COLOURS = { '#': rgb('#140d09'), l: rgb('#5a3f2a'), w: rgb('#3d2a1c'), W: rgb('#33231a') };
 
+/**
+ * The plate of a name sign of the Iron Sovereignty (render/fixtures.ts): dark iron in a wine-red frame,
+ * with a rivet in each corner and a pale top edge (the light comes from the top left). It stretches as
+ * a nine-slice, 3 pixels on each side.
+ */
+const IRON_SIGN = ['.#####.', '#wwwww#', '#wrhrw#', '#wiiiw#', '#wrirw#', '#wwwww#', '.#####.'];
+const IRON_SIGN_COLOURS = { '#': rgb('#0b0c0f'), w: rgb('#501a1d'), r: rgb('#4b535f'), h: rgb('#2d3139'), i: rgb('#1a1d24') };
+/** The shield of the Iron Sovereignty over the plate: an anvil of pale iron on wine red, the horn to the west. */
+const IRON_CREST = [
+  '#########',
+  '#hhwwwww#',
+  '#hwwwwww#',
+  '#aaaaaaw#',
+  '#wwAAAww#',
+  '#wwwAwww#',
+  '#wwAAAww#',
+  '#wwwwwww#',
+  '.#wwwww#.',
+  '..#www#..',
+  '...#w#...',
+  '....#....',
+];
+const IRON_CREST_COLOURS = { '#': rgb('#0b0c0f'), w: rgb('#501a1d'), h: rgb('#662325'), a: rgb('#a0a8b2'), A: rgb('#6b7581') };
+
 // ---------------------------------------------------------------- mouse cursor
 
 /**
@@ -261,6 +285,8 @@ export function fontFrames(): Frame[] {
   frames.push({ name: 'ui/bubble-tail', image: grid(BUBBLE_TAIL, BUBBLE), anchor: { x: 0.5, y: 0 } });
   frames.push({ name: 'ui/more', image: grid(MORE, { '#': 0xd8ccb0ff }) });
   frames.push({ name: 'ui/sign', image: grid(SIGN, SIGN_COLOURS) });
+  frames.push({ name: 'ui/namesign/iron', image: grid(IRON_SIGN, IRON_SIGN_COLOURS) });
+  frames.push({ name: 'ui/crest/iron', image: grid(IRON_CREST, IRON_CREST_COLOURS) });
   // The hot spot is the centre of the top-left pixel.
   frames.push({ name: 'ui/cursor', image: grid(CURSOR, CURSOR_COLOURS), anchor: { x: 0.5 / CURSOR[0]!.length, y: 0.5 / CURSOR.length } });
   return frames;

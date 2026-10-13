@@ -48,6 +48,7 @@ are fixed: the same for every seed. From the south to the north:
 | The broken cart | `-3, 123`, on the first leg | The merchant's cart, with a lantern: no mob comes within 4 tiles. |
 | **Whitegrove** (Arboleda Blanca) | `-20..-2, 88..109` | A hamlet of the Sovereignty: the farmer's house and stall, the **shrine** (a refuge), two shut houses. |
 | **Bronzehold** (Bronzal) | `-45..-27, 38..59` | A village of the Sovereignty: the guard post, a forge, two shut houses. |
+| The name signs of the hamlets | `-16..-14, 110` and `-41..-39, 60`: right outside the south end of each lane, west of the road | Two posts and an iron plate with the name (WHITEGROVE, BRONZEHOLD) under the anvil of the Iron Sovereignty. A hamlet has no title on arrival. |
 
 **The forest of the tutorial** is every tile from row `FOREST_EDGE_Y` (-8, the north edge of
 Ironhold) south: the whole road from the hut, and the land round Ironhold (Fede, 2026-10-13). A

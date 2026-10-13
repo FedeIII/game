@@ -332,6 +332,8 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "Under it, in another hand: LOST, one grey goat. Answers to nothing.": "Debajo, con otra letra: PERDIDA, una cabra gris. No atiende a ningún nombre.",
   "A third notice, half torn off: the names of the families who boarded up their houses in the woods. \"Goods left inside at the owner's risk.\"": "Un tercer aviso, medio arrancado: los nombres de las familias que tapiaron sus casas en el bosque. «Los bienes dejados dentro quedan a riesgo del dueño».",
   "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road.": "Pone: ARBOLEDA BLANCA, BRONZAL, FERROZAR. La flecha señala al oeste, a lo largo del camino.",
+  "It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty.": "Pone: ARBOLEDA BLANCA. Sobre el nombre, el yunque de la Soberanía del Hierro.",
+  "It reads: BRONZEHOLD. Over the name, the anvil of the Iron Sovereignty.": "Pone: BRONZAL. Sobre el nombre, el yunque de la Soberanía del Hierro.",
   "Under it, cut with a knife: KEEP TO THE ROAD.": "Debajo, grabado a cuchillo: NO TE SALGAS DEL CAMINO.",
   "Home": "Hogar",
   "Ironhold": "Ferrozar",

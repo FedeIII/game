@@ -509,7 +509,7 @@ async function run(options: GameOptions): Promise<void> {
   textScene.addChild(signLayer, tagLayer);
   const terrain = new Terrain(app.renderer, world, art, groundLayer, entityLayer);
   const buildings = new Buildings(world, art, entityLayer, signLayer, smallFont);
-  const fixtures = new Fixtures(world, art, entityLayer);
+  const fixtures = new Fixtures(world, art, entityLayer, signLayer, smallFont);
   // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
   // darker wanderer.
   // The standing frame of the skin's sheet: the "You" section and the pack panel show it.
@@ -1424,7 +1424,7 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (t.kind === 'npc') return STRINGS.talk;
     if (t.kind === 'portal') return STRINGS.lookIntoPortal;
-    if (t.kind === 'signpost') return STRINGS.readSign;
+    if (t.kind === 'signpost' || t.kind === 'namesign') return STRINGS.readSign;
     return STRINGS.examine(STRINGS.names[t.kind]);
   };
 

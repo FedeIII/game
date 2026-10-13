@@ -37,7 +37,7 @@ import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
-import { BRONZEHOLD, HAMLET_NPCS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
+import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -292,9 +292,16 @@ export const CART_SAFE = 4;
 /** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
 const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
 
-/** The loose things of the woods (the shrine of Tigris, shrine.ts), by each tile of their footprint. */
+/** The loose things of the woods: the shrine of Tigris (shrine.ts) and the name signs of the hamlets (hamlets.ts). */
+const LOOSE_FIXTURE_LIST: readonly Fixture[] = [...SHRINE_FIXTURES, ...HAMLET_SIGNS];
+/** The same, by each tile of their footprint. */
 const LOOSE_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
-for (const fixture of SHRINE_FIXTURES) for (const [tx, ty, code] of fixtureTiles(fixture)) LOOSE_FIXTURES.set(`${tx},${ty}`, { fixture, code });
+for (const fixture of LOOSE_FIXTURE_LIST) for (const [tx, ty, code] of fixtureTiles(fixture)) LOOSE_FIXTURES.set(`${tx},${ty}`, { fixture, code });
+/** The tiles of the name signs of the hamlets and the tiles next to them: no tree or rock grows there. */
+const NAME_SIGN_GROUND = new Set(
+  HAMLET_SIGNS.flatMap((sign) => fixtureTiles(sign).flatMap(([x, y]) => [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => `${x + dx},${y + dy}`)))),
+);
+const nearNameSign = (tx: number, ty: number) => NAME_SIGN_GROUND.has(`${tx},${ty}`);
 /** Whether a tile is in or next to the rectangle of the shrine of Tigris: no tree, rock or herb grows there. */
 const nearShrine = (tx: number, ty: number) => tx >= SHRINE_RECT.x0 - 1 && tx <= SHRINE_RECT.x1 + 1 && ty >= SHRINE_RECT.y0 - 1 && ty <= SHRINE_RECT.y1 + 1;
 
@@ -511,7 +518,7 @@ export class WildsSource implements WorldSource {
         }
         const loose = LOOSE_FIXTURES.get(`${tx},${ty}`);
         if (loose) {
-          // A thing of the shrine of Tigris, on the bank of the pool: dry ground under it.
+          // A thing of the shrine of Tigris, on the bank of the pool, or a name sign: dry ground under it.
           const natural = naturalGround(this.seed, tx, ty);
           chunk.ground[index] = isWet(natural) ? Ground.Grass : natural;
           chunk.structure[index] = loose.code;
@@ -565,10 +572,11 @@ export class WildsSource implements WorldSource {
           // A short mud path leads to the door.
           chunk.ground[index] = house && tx === house.doorX && onApproach(house, tx, ty) ? Ground.Dirt : ground;
           // Nothing grows on a house, right next to it, or in front of its door; no tree grows
-          // right next to the signpost; no tree or rock in the ring round the camp and the burned homesteads (a clearing).
+          // right next to the signpost; no tree or rock in the ring round the camp and the burned homesteads (a clearing),
+          // and none right next to the name sign of a hamlet.
           const decor = house ? Decor.None : naturalDecor(this.seed, tx, ty, ground);
           const solid = decor === Decor.Tree || decor === Decor.Rock;
-          chunk.decor[index] = (decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1) || (solid && (nearPlace(tx, ty, CAMP_CLEARING, CLEARINGS) || nearShrine(tx, ty))) ? Decor.None : decor;
+          chunk.decor[index] = (decor === Decor.Tree && Math.abs(tx - sign.tx) <= 1 && Math.abs(ty - sign.ty) <= 1) || (solid && (nearPlace(tx, ty, CAMP_CLEARING, CLEARINGS) || nearShrine(tx, ty) || nearNameSign(tx, ty))) ? Decor.None : decor;
         }
       }
     }
@@ -660,7 +668,7 @@ export class WildsSource implements WorldSource {
     const within = (f: Fixture) => f.tx >= x0 && f.tx <= x1 && f.ty >= y0 && f.ty <= y1;
     const out = this.cellHousesIn(x0, y0, x1, y1).flatMap((h) => h.fixtures.filter(within));
     if (PLACES.some((t) => overlaps(t, x0, y0, x1, y1))) out.push(...TOWN_FIXTURE_LIST.filter(within));
-    out.push(...SHRINE_FIXTURES.filter(within));
+    out.push(...LOOSE_FIXTURE_LIST.filter(within));
     if (within(this.sign)) out.push(this.sign);
     if (within(this.cart)) out.push(this.cart);
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {

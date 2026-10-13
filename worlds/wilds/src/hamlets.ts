@@ -237,6 +237,25 @@ export const BRONZEHOLD = new Town({
 export const BRONZEHOLD_SOUTH: Tile = [BRONZEHOLD.x0 + BRONZEHOLD_LANE, BRONZEHOLD.y1 + 1];
 export const BRONZEHOLD_NORTH: Tile = [BRONZEHOLD.x0 + BRONZEHOLD_LANE, BRONZEHOLD.y0 - 1];
 
+// ---------------------------------------------------------------- name signs
+
+/**
+ * The name sign of a hamlet (Fede's rule, 2026-10-13: every settlement has a sign with its name, in
+ * the style of its dominion): right outside the south end of its lane, west of the road that comes in
+ * there, in the style of the Iron Sovereignty (`look: 'iron'`). Its east post stands one tile west of
+ * the road, so its plate never hangs over the road (a plate is in the text layer, over a player there).
+ * A hamlet is small: no title over the screen.
+ */
+function nameSign(town: Town, lane: number, pages: readonly string[]): Fixture {
+  return { kind: 'namesign', look: 'iron', tx: town.x0 + lane - 5, ty: town.y1 + 1, label: town.name, content: { pages } };
+}
+
+/** The name signs of Whitegrove and Bronzehold, in the woods just outside them (source.ts). */
+export const HAMLET_SIGNS: readonly Fixture[] = [
+  nameSign(WHITEGROVE, WHITEGROVE_LANE, ['It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty.']),
+  nameSign(BRONZEHOLD, BRONZEHOLD_LANE, ['It reads: BRONZEHOLD. Over the name, the anvil of the Iron Sovereignty.']),
+];
+
 // ---------------------------------------------------------------- people in the streets
 
 const WALKERS: readonly NpcDef[] = [

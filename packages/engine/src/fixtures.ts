@@ -118,6 +118,19 @@ export const FIXTURE_TYPES = [
   // The shrine of Tigris at the pool of the Silvervein (story phase 9): standing stones and an altar.
   { id: 34, kind: 'menhir', tiles: ONE_TILE([4, 7, 12, 14]), depth: 12 },
   { id: 35, kind: 'altar', tiles: TWO_WIDE(4, 13), depth: 8 },
+  // The name sign of a settlement (2026-10-13), in the style of its dominion (Fixture.look): two posts,
+  // in the middle of the west and the east tile, with the name on a plate between them (Fixture.label).
+  // Nothing stands in the middle tile: the plate hangs over it.
+  {
+    id: 36,
+    kind: 'namesign',
+    tiles: [
+      { dx: 0, dy: 0, box: [6, 10, 10, 14] },
+      { dx: 1, dy: 0, box: null },
+      { dx: 2, dy: 0, box: [6, 10, 10, 14] },
+    ],
+    depth: 12,
+  },
 ] as const satisfies readonly FixtureType[];
 
 export type FixtureKind = (typeof FIXTURE_TYPES)[number]['kind'];
@@ -224,8 +237,16 @@ export interface Fixture {
   /** The anchor tile: the south-west tile of the footprint. */
   readonly tx: number;
   readonly ty: number;
-  /** An art variant: the look of an NPC, for example. */
+  /**
+   * An art variant: the look of an NPC (`npc/<look>`), or the style of a thing (`fixture/<kind>/<look>`:
+   * the dominion of a name sign, 'iron' for the Iron Sovereignty).
+   */
   readonly look?: string;
+  /**
+   * A name that the page writes on a board of the thing (a name sign: the name of the settlement), in
+   * the world's English; the page translates it. The engine does not read it.
+   */
+  readonly label?: string;
   /** What acting on it shows. Without content, the world's default line for the kind is used. */
   readonly content?: Interaction;
   readonly light?: Light;

@@ -421,6 +421,7 @@ const EN = {
     standard: 'standard',
     menhir: 'standing stone',
     altar: 'altar',
+    namesign: 'sign',
     pile: 'things on the ground',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',

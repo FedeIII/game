@@ -144,7 +144,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
   textures; trees and rocks as depth-sorted sprites), `buildings.ts` (walls, doors, roofs,
   signs; fades the roof, the sign and the front wall while the player is inside),
-  `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures),
+  `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures; the plate with
+  the name of a name sign, in the sign layer: `Fixtures.plate()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
   their torches and their names), `name-tag.ts` (a name over a head, in the small font: the
@@ -287,7 +288,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
   client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
   `signpost` points west only (do not mirror it); its post is on the east side of its tile.
-  `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom).
+  `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom). A thing with a `look`
+  has the frame `fixture/<kind>/<look>`: the name sign of a settlement, `fixture/namesign/iron` (the
+  Iron Sovereignty: two posts of dark oak with iron caps; the page hangs the plate with the name
+  between them, see `font.ts`). A new dominion's style is a new look, with its plate and its shield.
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
@@ -338,7 +342,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
   one; it is for the names over other players. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
-  (`ui/sign`) and the mouse cursor (`ui/cursor`: a short sword, 10 x 10, its tip on the hot spot
+  (`ui/sign`), the plate of a name sign and the shield over it (`ui/namesign/<look>`,
+  `ui/crest/<look>`: `iron`, the iron plate in a wine-red frame and the anvil of the Sovereignty) and
+  the mouse cursor (`ui/cursor`: a short sword, 10 x 10, its tip on the hot spot
   at the top-left pixel).
 
 Look at art before you commit it: a preview PNG, or a screenshot of the game with `?nolight`.
@@ -928,8 +934,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   **Structure codes:** each type has a range of codes in the structure layer, one per tile, after
   the range of the type before it. Add a new type at the end of the list; do not change the
   number of tiles of a type. All codes must stay below 256 (a test checks it).
-- **A fixture** is a placed instance: kind, anchor tile, optional `look` (NPC costume),
-  `content` and `light`. Content (`Interaction`): `pages` (one per press of the action button),
+- **A fixture** is a placed instance: kind, anchor tile, optional `look` (NPC costume, or the
+  style of a thing: `fixture/<kind>/<look>`), `label` (a name that the page writes on a plate over
+  it: a name sign), `content` and `light`. Content (`Interaction`): `pages` (one per press of the action button),
   `speaker` (`'player'`, the default, or `'fixture'` for an NPC: the bubble goes over its head),
   `link` (`url`, `label`, `title`: the link card), and `dialog` (a conversation, for an NPC; it
   takes the place of the pages). Without content, the world's `examine[kind]` line is used; a
@@ -1032,6 +1039,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   a refuge `whitegrove`; an open farmhouse, two shut houses) and Bronzehold (x -45, y 38, west of the
   lake: the guard post of the Sovereignty with the sergeant, `SERGEANT`; a guard on the lane,
   `BRONZEHOLD_GUARD`; a cold forge; two shut houses). Their NPCs come last in `npcs()` (`HAMLET_NPCS`).
+  Each has a name sign in the style of the Iron Sovereignty (`HAMLET_SIGNS`: `namesign`, `look:
+  'iron'`, `label` its name) right outside the south end of its lane, one tile west of the road, and
+  no title on arrival (a small place; Fede's rule of 2026-10-13).
   `?at=-11,99` starts in Whitegrove, `?at=-36,49` in Bronzehold, `?at=-32,16` at the south edge of
   Ironhold.
 - **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10): the town nearest the home, a

@@ -281,6 +281,22 @@ function signpost(): Part[] {
   ];
 }
 
+/**
+ * The name sign of a settlement of the Iron Sovereignty (2026-10-13): two square posts of dark oak,
+ * 32 pixels apart, on footings of stone, with iron bands and pointed iron caps. The plate with the name
+ * and the shield of the Sovereignty are not in the art: the game hangs them between the posts
+ * (render/fixtures.ts: the frames ui/namesign/iron and ui/crest/iron), in the language of the page.
+ */
+function namesignIron(): Part[] {
+  return [8, 40].flatMap((x): Part[] => [
+    { sdf: box([x - 2.6, 0, -10.6], [x + 2.6, 2, -5.4], 0.5), material: M.stoneB },
+    { sdf: box([x - 1.4, 0, -9.4], [x + 1.4, 30, -6.6], 0.3), material: M.beam },
+    { sdf: box([x - 1.7, 3.4, -9.7], [x + 1.7, 4.8, -6.3], 0.15), material: M.iron },
+    { sdf: box([x - 1.7, 26.6, -9.7], [x + 1.7, 28, -6.3], 0.15), material: M.iron },
+    { sdf: roundCone([x, 30, -8], [x, 33, -8], 1.9, 0.4), material: M.iron },
+  ]);
+}
+
 /** A round stone fountain, 3 x 3 tiles, with a basin, a pillar, an upper bowl and still water. */
 function fountain(): Part[] {
   const c: Vec3 = [24, 0, -24];
@@ -667,5 +683,6 @@ export function fixtureFrames(): Frame[] {
     fixture('standard', standard(), 24, 56),
     fixture('menhir', menhir(), 24, 48),
     fixture('altar', altar(), 40, 32),
+    { ...fixture('namesign', namesignIron(), 56, 48), name: 'fixture/namesign/iron' },
   ];
 }

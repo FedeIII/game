@@ -137,6 +137,15 @@ villages, so that the first journey of the game teaches me the world and its peo
 - **AC-TWN-006.4:** Both hamlets are safe as towns (no mob lives near them or steps into them), are
   on the map with their names (Spanish: Arboleda Blanca, Bronzal), and follow AC-TWN-001.1 to 001.7.
 - **AC-TWN-006.5:** The east gate of Ironhold stays open: a short road joins it to the north road.
+- **AC-TWN-006.6:** Each hamlet has a name sign right outside the south end of its lane, one tile west
+  of the road: two posts, and between them a plate of iron in a wine-red frame with the name of the
+  hamlet (WHITEGROVE, BRONZEHOLD; in Spanish ARBOLEDA BLANCA, BRONZAL) under the anvil of the Iron
+  Sovereignty on a wine-red shield. The plate shows above the darkness, as the signs over doors.
+  "Read the sign" says "It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty."
+  (Bronzehold: "BRONZEHOLD"). No tree or rock grows next to a sign.
+- **AC-TWN-006.7:** A hamlet is small: no title shows over the screen when a player arrives there
+  (Fede's rule, 2026-10-13: every settlement has a name sign in the style of its dominion; only the
+  cities and the big or important towns get a title).
 
 ---
 
@@ -168,9 +177,21 @@ villages, so that the first journey of the game teaches me the world and its peo
 - **The texts in Spanish** (`worlds/wilds/src/text-es.ts`): the Militia is "Milicia", the Silver Trout
   "La Trucha de Plata", the Jeweller "Joyería". Silverspring keeps its name.
 - **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, the
-  people, the safety; Silverspring: the gate, the buildings, the stream, Kasmut, the map).
+  people, the safety; Silverspring: the gate, the buildings, the stream, Kasmut, the map; the hamlets:
+  the same, and their name signs).
 - **The camp of the war band** (`camp.ts`) is a place of the builder too, but not a town: mobs go
   there (`PLACES` and `TOWNS` in `source.ts`).
 - **During the raid** (REQ-QST-015) its mobs may go into Silverspring, and its people take shelter
   (`NpcDef.shelter`: the panner at the crates by the inn; the others at their homes).
 - **Barks**: `BARK_HEARING` (18 tiles) in `packages/engine-client/src/game.ts`.
+- **Name signs** (2026-10-13): the fixture `namesign` (`packages/engine/src/fixtures.ts`: three tiles,
+  a post in the west tile and in the east tile, nothing solid in the middle one), with `Fixture.look`
+  (the style of the dominion: `iron`, the Iron Sovereignty) and `Fixture.label` (the name, in English;
+  the page translates it with `tw()`). `HAMLET_SIGNS` in `worlds/wilds/src/hamlets.ts` (`nameSign()`:
+  the anchor 5 columns west of the middle of the lane, one row south of the hamlet); in `source.ts` they
+  are loose things of the woods (`LOOSE_FIXTURE_LIST`: dry ground under them; `nearNameSign()`: no tree
+  or rock next to them). The art: `fixture/namesign/iron` (`art/fixtures.ts`), and the plate
+  `ui/namesign/iron` and the shield `ui/crest/iron` (`art/font.ts`). The page draws the plate in the
+  layer of the signs over doors (`Fixtures.plate()` in `render/fixtures.ts`: the small font with a
+  shadow, the bottom 20 pixels over the south edge of the sign, the shield 4 pixels down over its
+  top). The action is "Read the sign" (`STRINGS.readSign`).

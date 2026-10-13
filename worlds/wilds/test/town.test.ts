@@ -26,6 +26,7 @@ import {
   DEFAULT_SEED,
   FOREST_EDGE_Y,
   HAMLET_NPCS,
+  HAMLET_SIGNS,
   IRONHOLD,
   WHITEGROVE,
   WHITEGROVE_NORTH,
@@ -518,6 +519,35 @@ describe.each(HAMLETS)('the hamlet of $town.name', ({ town, entry }) => {
     const rules = source.mobs();
     for (let ty = town.y0 - 2; ty <= town.y1 + 2; ty++) for (let tx = town.x0 - 2; tx <= town.x1 + 2; tx++) expect(rules.roam(tx, ty, 'skirmisher')).toBe(false);
     for (let ty = town.y0; ty <= town.y1; ty++) for (let tx = town.x0; tx <= town.x1; tx++) expect(rules.hunt(tx, ty)).toBe(false);
+  });
+
+  it('has a name sign in the style of the Iron Sovereignty, right outside the south end of its lane, beside the road', () => {
+    const sign = HAMLET_SIGNS.find((f) => f.label === town.name)!;
+    expect(sign).toMatchObject({ kind: 'namesign', look: 'iron', ty: entry[1] });
+    expect(sign.content?.pages?.join(' ')).toContain(`It reads: ${town.name.toUpperCase()}.`);
+    const tiles = fixtureTiles(sign);
+    expect(tiles.map(([x]) => x)).toEqual([entry[0] - 5, entry[0] - 4, entry[0] - 3]);
+    for (const seed of SEEDS) {
+      const s = new WildsSource(seed);
+      const w = new World(s);
+      // West of the road, never on it, with one tile between its east post and the road.
+      for (const [tx, ty] of tiles) {
+        expect(s.road.on(tx, ty), `${seed}: ${tx},${ty}`).toBe(false);
+        expect(w.fixtureAt(tx, ty)).toBe(sign);
+      }
+      expect(s.road.on(entry[0] - 1, entry[1])).toBe(true);
+      expect(s.road.on(entry[0] - 2, entry[1])).toBe(false);
+      expect(w.fixturesIn(entry[0] - 5, entry[1], entry[0], entry[1])).toContain(sign);
+      // Two posts, and nothing solid between them; no tree or rock round it.
+      expect(tiles.map(([x, y]) => w.solidBox(x, y) !== null)).toEqual([true, false, true]);
+      for (let ty = entry[1]; ty <= entry[1] + 1; ty++) {
+        for (let tx = entry[0] - 6; tx <= entry[0] - 2; tx++) expect([Decor.Tree, Decor.Rock], `${seed}: ${tx},${ty}`).not.toContain(w.decor(tx, ty));
+      }
+    }
+    // A player next to its east post, by the road, reads it.
+    const player = createPlayer((entry[0] - 2) * TILE_SIZE + 3, entry[1] * TILE_SIZE + 12);
+    player.facing = 'left';
+    expect(findInteraction(world, player)).toMatchObject({ kind: 'namesign', fixture: sign });
   });
 
   it('is a town of the map', () => {
