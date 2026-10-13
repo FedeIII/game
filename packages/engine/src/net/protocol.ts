@@ -554,7 +554,7 @@ export interface SnapshotMessage {
   readonly wk?: number;
   /** Chunks that the player's character saw for the first time, [cx, cy] (the map). */
   readonly ex?: readonly (readonly [number, number])[];
-  /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code]. */
+  /** The world's NPCs, in the order of WorldSource.npcs(): [x, y, vx, vy, facing code, away?]. */
   readonly n?: readonly WireNpc[];
   /**
    * Lines that NPCs said since the last snapshot: [npc index, line index in its barks]. Every
@@ -569,8 +569,11 @@ export interface SnapshotMessage {
   readonly h?: readonly number[];
 }
 
-/** An NPC as the clients see it: [x, y, vx, vy, facing code]. Positions to 0.1 px. */
-export type WireNpc = readonly [number, number, number, number, number];
+/**
+ * An NPC as the clients see it: [x, y, vx, vy, facing code], and a 1 at the end while it is away (in its
+ * house for the night: NpcPose.away; the clients do not show it). Positions to 0.1 px.
+ */
+export type WireNpc = readonly [number, number, number, number, number, 1?];
 
 /** Why the server does not let a client in. The client then plays alone. */
 /** `account`: the server has accounts, and the visitor is not signed in or the character is not its own. */

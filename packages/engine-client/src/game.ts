@@ -630,6 +630,8 @@ async function run(options: GameOptions): Promise<void> {
       // The visitor sees what it hears: an NPC outside, or in the same house. A keeper under a
       // roof does not put a bubble over it. And no line over a dialog with that NPC.
       const pose = poses[index];
+      // Nobody hears an NPC that is in its house for the night (NpcPose.away).
+      if (pose?.away) continue;
       const there = pose ? world.insideOf(...tileOf(pose)) : null;
       if (there !== null && there !== here) continue;
       if (pose && !seenBy(pose, npcStorey(def))) continue;
@@ -651,7 +653,7 @@ async function run(options: GameOptions): Promise<void> {
     const here = world.insideOf(...tileOf(player));
     npcDefs.forEach((def, index) => {
       const pose = poses[index];
-      if (!def.greeting || greeted.has(def.id) || !pose || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return;
+      if (!def.greeting || greeted.has(def.id) || !pose || pose.away || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return;
       // Only in the same place: both outside, or in the same building, on the same storey.
       if (world.insideOf(...tileOf(pose)) !== here || npcStorey(def) !== player.storey) return;
       greeted.add(def.id);
@@ -1347,6 +1349,8 @@ async function run(options: GameOptions): Promise<void> {
     const guard = guardOf.get(talkWith);
     // A thing that talks (the cauldron) stands still: the middle of its anchor tile. A guard walks.
     const pose = walker !== undefined ? npcPoses(now)[walker] : guard !== undefined ? guardAt(guard, now) : { x: talkWith.tx * TILE_SIZE + TILE_SIZE / 2, y: talkWith.ty * TILE_SIZE + TILE_SIZE / 2 };
+    // An NPC that went into its house for the night (NpcPose.away) ends the conversation.
+    if (pose && 'away' in pose && pose.away) return false;
     return pose !== undefined && pose !== null && Math.hypot(pose.x - player.x, pose.y - player.y) <= TALK_RANGE;
   };
 

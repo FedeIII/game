@@ -256,6 +256,9 @@ const WALKERS: readonly NpcDef[] = [
     area: SILVERSPRING.streetArea(25, 5, 33, 12),
     // During the raid, he hides behind the crates by the inn (NpcDef.shelter).
     shelter: SILVERSPRING.at(25, 5),
+    // At night he goes home to the panner's house in the lane (NpcDef.night: the people without a post
+    // go home at night, Fede's choice of 2026-10-13): down the alley by the river, and west on the lane.
+    night: { tile: SILVERSPRING.at(5, 19), way: [...SILVERSPRING.streetArea(28, 13, 28, 18), ...SILVERSPRING.streetArea(5, 19, 28, 19)] },
     content: {
       speaker: 'fixture',
       pages: [

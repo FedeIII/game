@@ -1030,6 +1030,14 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   the poses; otherwise the client runs its own crowd. To act on one, findInteraction() takes
   `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.
   The client draws them with `render/npcs.ts` (frames `npc/<look>/<view>/stand|walk/<i>`).
+  **At night** (since 2026-10-13, Fede's choice "Some go home"; `docs/features/npcs/night.md`): an
+  NpcDef with `night` (`tile`, and `way`: tiles that it walks only to go home and back) walks home at
+  20:00 (`NpcCrowd.night`, which the Room and the page set from the hour: `isDaytime()`), says no
+  lines, and comes out at 6:00. In front of a door (a shut house) it goes in: `NpcPose.away` (a sixth
+  number `1` in the snapshot's `n`), not drawn (`NpcViews` fades it), not an actor, no greeting. Inside
+  an open building it stays, seen and silent. A raid wins over the night. Only the people without a
+  post or a role have one: the widow (the chapel), the villager of Whitegrove and the panner of
+  Silverspring (their shut houses). A person of a conversation, a scene or a quest step never goes.
 
 - **Companions** (`packages/engine/src/companions.ts`, since 2026-10-11, Fede's decision for the
   escort of Himo; `docs/features/npcs/companions.md`): NPCs that follow a player (`CompanionDef`:

@@ -277,6 +277,9 @@ const WALKERS: readonly NpcDef[] = [
       pages: ['The shrine is open day and night. Step inside once, and the road remembers you, they say.', 'Mind the goblins in the woods. They run, mostly.'],
     },
     barks: ['Another one for the road.', 'Birches and lentils. That is Whitegrove.', 'Who walks so late?'],
+    // At night the villager goes into the shut cottage by the lane (NpcDef.night: the people without a
+    // post go home at night, Fede's choice of 2026-10-13), across the garden in front of its door.
+    night: { tile: WHITEGROVE.at(14, 19), way: [WHITEGROVE.at(11, 19), WHITEGROVE.at(12, 19), WHITEGROVE.at(13, 19), WHITEGROVE.at(14, 19)] },
   },
   {
     id: 'bronzehold-guard',

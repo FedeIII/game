@@ -56,6 +56,7 @@ streaming-platform project):
 | Items: Equipment | `EQ` | [`items/equipment.md`](items/equipment.md) |
 | NPCs: Companions | `CMP` | [`npcs/companions.md`](npcs/companions.md) |
 | NPCs: Guards (NPCs that fight) | `GRD` | [`npcs/guards.md`](npcs/guards.md) |
+| NPCs: NPCs at Night | `NGT` | [`npcs/night.md`](npcs/night.md) |
 | Game: Language | `LANG` | [`game/language.md`](game/language.md) |
 | Game: Quests and the Journal | `QST` | [`game/quests.md`](game/quests.md) |
 | Game: Combat (5e, Level 1) | `CMB` | [`game/combat.md`](game/combat.md) |
@@ -98,6 +99,7 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | Document | Feature |
 |---|---|
 | [Companions](npcs/companions.md) | NPCs that follow a player: the shortest way of tiles round what blocks, doors that they open, the catch-up, the wait when there is no way and the follow again, mobs that hunt them (and bring no new mobs), the two kinds of defeat (gone or wakes), the events for the quests, the companions of every player in a shared world (protocol 22), their look, name and lantern on the screen, and the test switch `?companion=<look>` |
+| [NPCs at Night](npcs/night.md) | The people without a post go home at night (the widow of Ironhold to the chapel, the villager of Whitegrove and the panner of Silverspring into their shut houses), silent, and come out at dawn; the people of the story, the guards and the traders stay out; nobody sees or talks to an NPC that is away; a raid wins over the night |
 
 ## Game
 

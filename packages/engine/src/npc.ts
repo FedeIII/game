@@ -15,6 +15,10 @@ import type { World } from './world.ts';
  * moment, walks through, and closes the door behind it when nobody stands in the doorway. It
  * does not close a door that it did not open.
  *
+ * At night (NpcCrowd.night: the hour of the world's day, daytime.ts) the people without a post go
+ * home (NpcDef.night): they say no lines, and in front of the door of their house they go in (away)
+ * until dawn. The others walk on as by day.
+ *
  * A world gives its NPCs with WorldSource.npcs(). In a shared world the server runs them (a
  * Room has an NpcCrowd) and sends their poses in the snapshots; in a single-player world, or
  * while the server is not there, the client runs the same NpcCrowd. The crowd uses only its own
@@ -50,6 +54,15 @@ export interface NpcDef {
    * use stairs.
    */
   readonly storey?: number;
+  /**
+   * Where it goes at night (NpcCrowd.night), for a person without a post (Fede's choice, 2026-10-13):
+   * `tile` is a tile in front of the door of its house (just south of a door), or a tile inside an open
+   * building. At dusk it walks there, and at night it says no lines. In front of a door it goes in: it
+   * is away (NpcPose.away: nobody sees it or talks to it) until dawn, when it comes out there and walks
+   * as before. Inside a building it stays there, silent, until dawn. `way`: more tiles that it walks
+   * only on its way home and back, never to stop by day. A raid (NpcCrowd.setAlarm) wins over the night.
+   */
+  readonly night?: { readonly tile: readonly [number, number]; readonly way?: readonly (readonly [number, number])[] };
 }
 
 /** The storey of an NPC (NpcDef.storey). */
@@ -64,6 +77,8 @@ export interface NpcPose {
   vx: number;
   vy: number;
   facing: Facing;
+  /** It is in its house for the night (NpcDef.night): nobody sees it, and nobody talks to it. */
+  away?: boolean;
 }
 
 /** World pixels per second: a calm walk (players walk at 80). */
@@ -74,11 +89,15 @@ export const NPC_HOLD_RADIUS = 22;
 export const NPC_HALF_WIDTH = 4;
 export const NPC_HALF_HEIGHT = 3;
 
-/** The NPCs as actors for findInteraction(): where each one is now, with its fixture. With a storey, only the NPCs on it. */
-export function npcActors(defs: readonly NpcDef[], poses: readonly { readonly x: number; readonly y: number }[], storey?: number): Actor[] {
+/**
+ * The NPCs as actors for findInteraction(): where each one is now, with its fixture. With a storey, only
+ * the NPCs on it. An NPC that is away (in its house for the night) is not one.
+ */
+export function npcActors(defs: readonly NpcDef[], poses: readonly { readonly x: number; readonly y: number; readonly away?: boolean }[], storey?: number): Actor[] {
   const out: Actor[] = [];
   poses.forEach((pose, i) => {
     const def = defs[i]!;
+    if (pose.away) return;
     if (storey === undefined || npcStorey(def) === storey) out.push({ x: pose.x, y: pose.y, halfWidth: NPC_HALF_WIDTH, halfHeight: NPC_HALF_HEIGHT, fixture: npcFixture(def) });
   });
   return out;
@@ -127,7 +146,9 @@ const CLOSE_PATIENCE_MS = 6000;
 const INSIDE_SHARE = 0.7;
 
 interface Brain {
+  /** The tiles where it walks by day (NpcDef.area), and those with its way home for the night (NpcDef.night). */
   readonly area: ReadonlySet<string>;
+  readonly wide: ReadonlySet<string>;
   /** Where it may stop: the area without doors, inside buildings and outside. */
   readonly inside: readonly (readonly [number, number])[];
   readonly outside: readonly (readonly [number, number])[];
@@ -146,6 +167,10 @@ interface Brain {
   /** While it stands: the time left before it walks on, and before it looks round. */
   waitMs: number;
   lookMs: number;
+  /** At night: it goes home, or it is at home (NpcDef.night). */
+  homeward: boolean;
+  /** Whether its tile of the night is in front of a door: there it goes in (away). */
+  readonly goesIn: boolean;
 }
 
 const key = (tx: number, ty: number) => `${tx},${ty}`;
@@ -183,8 +208,10 @@ export class NpcCrowd {
   private lastLineAt = -Infinity;
   /** The NPCs (indices) that take shelter now: a raid on their town (setAlarm). */
   private alarmed = new Set<number>();
-  /** Whether it is night (the Room and the page set it from the hour: daytime.ts). */
+  /** Whether it is night (the Room and the page set it from the hour: daytime.ts): the people with NpcDef.night go home. */
   night = false;
+  /** Whether step() has run: a crowd that starts at night puts its people at home at once. */
+  private started = false;
 
   constructor(world: World, defs: readonly NpcDef[], seed: number) {
     this.world = world;
@@ -194,12 +221,25 @@ export class NpcCrowd {
     this.brains = defs.map((def) => {
       const area = new Set(def.area.map(([tx, ty]) => key(tx, ty)));
       if (!area.has(key(def.home[0], def.home[1]))) throw new Error(`npc ${def.id}: home is not in its area`);
-      const locked = def.area.find(([tx, ty]) => world.isDoorLocked(tx, ty));
+      const way = def.night?.way ?? [];
+      const locked = [...def.area, ...way].find(([tx, ty]) => world.isDoorLocked(tx, ty));
       if (locked) throw new Error(`npc ${def.id}: its area has the locked door at ${locked[0]},${locked[1]}`);
+      const wide = new Set([...area, ...way.map(([tx, ty]) => key(tx, ty))]);
       const level = world.level(npcStorey(def));
       const stops = def.area.filter(([tx, ty]) => level.structure(tx, ty) !== Structure.Door);
+      let goesIn = false;
+      if (def.night) {
+        const [nx, ny] = def.night.tile;
+        if (!wide.has(key(nx, ny))) throw new Error(`npc ${def.id}: its tile of the night is not in its area or its way`);
+        goesIn = world.buildingAt(nx, ny) === null;
+        if (goesIn && level.structure(nx, ny - 1) !== Structure.Door) throw new Error(`npc ${def.id}: its tile of the night is not inside a building or in front of a door`);
+        if (key(def.home[0], def.home[1]) !== key(nx, ny) && this.route({ area, wide, tile: [def.home[0], def.home[1]] }, def.night.tile, true).length === 0) {
+          throw new Error(`npc ${def.id}: no way home for the night`);
+        }
+      }
       return {
         area,
+        wide,
         inside: stops.filter(([tx, ty]) => world.buildingAt(tx, ty) !== null),
         outside: stops.filter(([tx, ty]) => world.buildingAt(tx, ty) === null),
         opened: null,
@@ -213,6 +253,8 @@ export class NpcCrowd {
         // A random first stop, so the NPCs of a town do not all set off at once.
         waitMs: this.between(500, 6000),
         lookMs: this.between(1500, 4000),
+        homeward: false,
+        goesIn,
       };
     });
   }
@@ -248,13 +290,18 @@ export class NpcCrowd {
     this.clock += dt;
     let doors = false;
     const barks: [number, number][] = [];
+    // A crowd that starts at night: its people without a post are at home already.
+    if (!this.started && this.night) this.brains.forEach((brain, i) => !this.alarmed.has(i) && this.atHome(brain, this.defs[i]!, this.poses[i]! as NpcPose));
+    this.started = true;
     // A door is on the ground storey: only the players there stand in a doorway.
     const ground = players.filter((p) => (p.storey ?? 0) === 0);
     this.brains.forEach((brain, i) => {
       const pose = this.poses[i]! as NpcPose;
       if (brain.opened && this.closeBehind(brain, pose, ground, dt)) doors = true;
       const alarmed = this.alarmed.has(i);
-      const line = alarmed ? null : this.bark(brain, this.defs[i]!, dt);
+      if (this.homeward(brain, this.defs[i]!, pose, alarmed)) return;
+      // No lines in a raid, and none on the way home or at home.
+      const line = alarmed || brain.homeward ? null : this.bark(brain, this.defs[i]!, dt);
       const storey = npcStorey(this.defs[i]!);
       // A player close by, on its storey: stop, and face the nearest one.
       let nearest: { x: number; y: number } | null = null;
@@ -285,6 +332,53 @@ export class NpcCrowd {
       else if (this.walk(brain, pose, dt)) doors = true;
     });
     return { doors, barks };
+  }
+
+  /**
+   * The night of an NPC with NpcDef.night: at dusk it sets off home; in front of its door it goes in
+   * (away); at dawn it comes out and walks on. A raid wins over the night: an NPC that is away comes
+   * out and goes to its shelter (setAlarm). Returns whether it is away now (then it does nothing else).
+   */
+  private homeward(brain: Brain, def: NpcDef, pose: NpcPose, alarmed: boolean): boolean {
+    const night = def.night;
+    if (!night) return false;
+    const wanted = this.night && !alarmed;
+    if (wanted && !brain.homeward) {
+      brain.homeward = true;
+      brain.path = this.route(brain, night.tile, true);
+      brain.waitMs = Infinity;
+    } else if (!wanted && brain.homeward) {
+      brain.homeward = false;
+      if (pose.away) {
+        // It comes out of its door.
+        pose.away = false;
+        pose.facing = 'down';
+      }
+      // Dawn: a short wait, then the walks go on. (A raid has given it the way to its shelter.)
+      if (!alarmed) {
+        brain.path = [];
+        brain.waitMs = this.between(1000, 5000);
+      }
+    }
+    if (brain.homeward && brain.goesIn && !pose.away && brain.path.length === 0 && brain.tile[0] === night.tile[0] && brain.tile[1] === night.tile[1]) {
+      // In front of its door: it goes in.
+      pose.away = true;
+      pose.vx = 0;
+      pose.vy = 0;
+    }
+    return pose.away === true;
+  }
+
+  /** Puts an NPC with NpcDef.night at home at once, for a crowd that starts at night. */
+  private atHome(brain: Brain, def: NpcDef, pose: NpcPose): void {
+    if (!def.night) return;
+    const [tx, ty] = def.night.tile;
+    Object.assign(pose, standPoint(tx, ty), { vx: 0, vy: 0, facing: 'down' as Facing });
+    brain.tile = [tx, ty];
+    brain.path = [];
+    brain.homeward = true;
+    brain.waitMs = Infinity;
+    if (brain.goesIn) pose.away = true;
   }
 
   /** Counts down to the next line; returns the index of a line to say now (not the last one), or null. */
@@ -412,11 +506,15 @@ export class NpcCrowd {
     return false;
   }
 
-  /** The tiles from the NPC's tile to `target`, through its area (four directions), without the first. */
-  private route(brain: Brain, target: readonly [number, number]): [number, number][] {
+  /**
+   * The tiles from the NPC's tile to `target` (four directions), without the first: through its area,
+   * or with `wide` (and from a tile of its way home) through its way home for the night too.
+   */
+  private route(brain: Pick<Brain, 'area' | 'wide' | 'tile'>, target: readonly [number, number], wide = false): [number, number][] {
     const start = key(brain.tile[0], brain.tile[1]);
     const goal = key(target[0], target[1]);
     if (start === goal) return [];
+    const tiles = wide || !brain.area.has(start) ? brain.wide : brain.area;
     const from = new Map<string, string | null>([[start, null]]);
     const queue: [number, number][] = [brain.tile];
     while (queue.length > 0) {
@@ -424,7 +522,7 @@ export class NpcCrowd {
       if (key(x, y) === goal) break;
       for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
         const k = key(nx, ny);
-        if (!brain.area.has(k) || from.has(k)) continue;
+        if (!tiles.has(k) || from.has(k)) continue;
         from.set(k, key(x, y));
         queue.push([nx, ny]);
       }

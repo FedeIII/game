@@ -3,7 +3,8 @@
 Every person of the game, as the code has them: the NPCs (`WildsSource.npcs()`, with their ids), the
 people of the quests that are not NPCs, and the people whom the texts only name. "Gates" are the
 answers behind a score (`docs/features/abilities/`). Each NPC with a gate of Charisma greets a character
-by its name (`NpcDef.greeting`).
+by its name (`NpcDef.greeting`). At night (20:00 to 6:00) the people without a post or a role go home,
+and come out at dawn (`NpcDef.night`, `docs/features/npcs/night.md`); the others stay where they are.
 
 ## On the road: the northern edge of the Sovereignty
 
@@ -11,7 +12,7 @@ by its name (`NpcDef.greeting`).
 |---|---|---|
 | **The merchant** (el comerciante) | `merchant`, by the broken cart (`-3, 123`) | Goes to Ironhold to see if the road can carry a trade with Silverspring. Gives "The Broken Cart". After the help: the news of the trade; INT 13 or CHA 13 hear that the Sovereignty and the Enclave both want the wildlands and play dirty. Refuses a wanted character. |
 | **The farmer of Whitegrove** (el granjero de Arboleda Blanca) | `whitegrove-farmer`, at his stall | Waits for the merchant, who should buy his lentils. Gives "Lentils for Bronzehold", and says to keep the sack dry (another line when it is wet). Lends his lever for the cart. |
-| A villager of Whitegrove | `whitegrove-villager`, Whitegrove | Pages: the shrine is open to all, and the road remembers who steps inside; the goblins run, mostly. |
+| A villager of Whitegrove | `whitegrove-villager`, Whitegrove; at night in the shut cottage | Pages: the shrine is open to all, and the road remembers who steps inside; the goblins run, mostly. |
 | **The sergeant of Bronzehold** (el sargento de Bronzal) | `bronzehold-sergeant`, the guard post | A post of the Iron Sovereignty. Takes the lentils and pays. Does not pay for wet lentils, except a part to a character with CHA 13. The news of the road: the Sovereignty sends soldiers and settlers to claim the wildlands, towards Silverspring (after the lentils, or WIS 13). |
 | A guard of Bronzehold (un guardia de Bronzal) | `bronzehold-guard`, the lane | How the goblins of the woods fight: some run, some fight, and the ones that run are slow. |
 
@@ -31,7 +32,7 @@ by its name (`NpcDef.greeting`).
 | A villager | `farmer`, the town hall | Argues for a warning to Silverspring (the scene "the argument"). His brother farms by the hills. |
 | **A soldier of the Sovereignty** (un soldado de la Soberanía) | `soldier`, the town hall | "Ironhold is ours to guard. Ironhold, and nothing else." Will not send soldiers to Silverspring. WIS 13: the Sovereignty wants the hobgoblins to reach Silverspring. |
 | **Corwin, the peddler** (el buhonero) | `peddler`, the street | Buys rings (5), cups (3), candle stubs (1), imp horns (2), brute tusks (4), badger furs (4). |
-| A widow | `widow`, by the fountain | Pages: the fountain was dry for three summers. |
+| A widow | `widow`, by the fountain; at night in the chapel | Pages: the fountain was dry for three summers. She has no house: at night she keeps a vigil in the chapel, on the rug before the lectern. |
 | A child | `child`, the lane | Sees the character first when it arrives up the south road (the scene "the arrival"), and sends it to the reeve. |
 
 ## Silverspring
@@ -42,7 +43,7 @@ by its name (`NpcDef.greeting`).
 | **Tova, of the Silver Trout** (de la Trucha de Plata) | `host`, the inn | Sells ale. Gives the bed of the guard (a refuge) to a character with the title. |
 | **Ilsa, the jeweller** (la joyera) | `jeweller`, the jeweller | Sells mithril at cost (5 coins) to a holder of the permit. |
 | **Doran, of the militia** (de la milicia) | `militia`, the west end of the main street | Watches the end of the north road. |
-| A panner | `prospector`, by the stream | Pages: mithril dust in the water of the Silvervein. |
+| A panner | `prospector`, by the stream; at night in the panner's house | Pages: mithril dust in the water of the Silvervein. |
 | **The driver of the caravan** | the wagon of the convoy (`WAGON_DRIVER`) | Drives the caravan of Silverspring on the north road. Thanks a defender in the name of the Enclave; a robber tells it to hand over the cargo. |
 
 ## The wildlands

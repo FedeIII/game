@@ -109,7 +109,7 @@ interface Sample {
   /** A player's dodge and defeat (ticks); a mob's runes left in a rite, and whether its weapon burns. */
   readonly e?: number;
   readonly f?: number;
-  /** A player's storey. */
+  /** A player's storey; an NPC that is away (1: in its house for the night). */
   readonly g?: number;
 }
 
@@ -263,10 +263,10 @@ export class Remotes {
       // An arrow that is not in the snapshot has hit or stopped; it shows until the time shown passes its last sample.
       for (const [id, arrow] of this.arrows) if (!flying.has(id) && arrow.samples[arrow.samples.length - 1]!.ms < snapshot.ms - HISTORY_MS) this.arrows.delete(id);
     }
-    snapshot.n?.forEach(([x, y, vx, vy, facing], i) => {
+    snapshot.n?.forEach(([x, y, vx, vy, facing, away], i) => {
       const samples = (this.npcs[i] ??= []);
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) return;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, ...(away ? { g: 1 } : {}) });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     });
   }
@@ -366,7 +366,8 @@ export class Remotes {
     const t = localMs - Math.min(...this.offsets.map((o) => o.offset)) - INTERPOLATION_DELAY_MS;
     return this.npcs.map((samples) => {
       const s = sampleAt(samples, t);
-      return { x: s.x, y: s.y, vx: s.vx, vy: s.vy, facing: facingFromCode(s.facing) };
+      // Away (in its house for the night) from the last sample at or before the time shown.
+      return { x: s.x, y: s.y, vx: s.vx, vy: s.vy, facing: facingFromCode(s.facing), ...(s.since.g === 1 ? { away: true } : {}) };
     });
   }
 

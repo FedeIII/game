@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NPC_HOLD_RADIUS, NpcCrowd, Room, World, findInteraction, createPlayer, npcActors, npcFixture, standPoint, type NpcDef, type SnapshotMessage } from '../src/index.ts';
+import { NPC_HOLD_RADIUS, NpcCrowd, Remotes, Room, World, clockAtHour, findInteraction, createPlayer, npcActors, npcFixture, standPoint, type NpcDef, type SnapshotMessage } from '../src/index.ts';
 import { houseSource } from './helpers.ts';
 
 /** The interior of the test house (walls x 2..8, y 2..6): x 3..7, y 3..5. */
@@ -243,5 +243,140 @@ describe('NPCs in a doorway', () => {
     expect(passes).toBeGreaterThanOrEqual(1);
     expect(Math.floor(pose.y / 16)).toBe(7);
     expect(inDoorwayStill).toBeLessThan(600);
+  });
+});
+
+describe('NPCs at night (NpcDef.night)', () => {
+  // The yard south of the test house (walls x 2..8, y 2..6, door at 5, 6): x 2..9, y 8..10. The tile in
+  // front of the door (5, 7) is not in the yard: only the way home leads there.
+  const YARD: [number, number][] = [];
+  for (let ty = 8; ty <= 10; ty++) for (let tx = 2; tx <= 9; tx++) YARD.push([tx, ty]);
+  const yard = new Set(YARD.map(([x, y]) => `${x},${y}`));
+  const villager: NpcDef = { ...keeper, id: 'villager', home: [3, 10], area: YARD, barks: ['One.', 'Two.', 'Three.'], night: { tile: [5, 7], way: [[5, 7]] } };
+  const DAY = { length: 48 * 60_000, noon: 0.25 };
+
+  it('walk only their area by day, never their way home', () => {
+    const crowd = new NpcCrowd(new World(houseSource({ locked: 'Locked.' })), [villager], 3);
+    for (let t = 0; t < 10 * 60_000; t += 50) {
+      crowd.step(50, []);
+      expect(yard.has(tileOf(crowd.poses[0]!))).toBe(true);
+    }
+  });
+
+  it('go home at dusk to the door of a shut house, go in, say nothing all night, and come out at dawn', () => {
+    const world = new World(houseSource({ locked: 'Locked.' }));
+    const crowd = new NpcCrowd(world, [villager], 3);
+    const pose = crowd.poses[0]!;
+    for (let t = 0; t < 60_000; t += 50) crowd.step(50, []);
+    crowd.night = true;
+    let lines = 0;
+    let t = 0;
+    while (!pose.away && t < 60_000) {
+      lines += crowd.step(50, []).barks.length;
+      t += 50;
+    }
+    expect(pose.away).toBe(true);
+    expect(tileOf(pose)).toBe('5,7');
+    // All night: in its house, silent, not a target of the action button; the shut door stays shut.
+    for (let i = 0; i < 4 * 60 * 20; i++) lines += crowd.step(50, [{ x: 5 * 16 + 8, y: 7 * 16 + 10 }]).barks.length;
+    expect(lines).toBe(0);
+    expect(pose.away).toBe(true);
+    expect(tileOf(pose)).toBe('5,7');
+    expect(npcActors([villager], crowd.poses)).toEqual([]);
+    expect(world.isDoorOpen(5, 6)).toBe(false);
+    // Dawn: it comes out of its door, walks back into its yard, and speaks again.
+    crowd.night = false;
+    crowd.step(50, []);
+    expect(pose.away).toBe(false);
+    expect(npcActors([villager], crowd.poses)).toHaveLength(1);
+    for (let i = 0; i < 2 * 60 * 20; i++) lines += crowd.step(50, []).barks.length;
+    expect(yard.has(tileOf(pose))).toBe(true);
+    expect(lines).toBeGreaterThan(0);
+  });
+
+  it('go into an open building through its door, and stay there, seen and silent, until dawn', () => {
+    const world = new World(houseSource());
+    const sleeper: NpcDef = { ...villager, id: 'sleeper', night: { tile: [4, 4], way: [[5, 7], [5, 6], [5, 5], [5, 4], [4, 4]] } };
+    const crowd = new NpcCrowd(world, [sleeper], 7);
+    crowd.step(50, []);
+    crowd.night = true;
+    let lines = 0;
+    let passed = false;
+    for (let i = 0; i < 3 * 60 * 20; i++) {
+      lines += crowd.step(50, []).barks.length;
+      if (tileOf(crowd.poses[0]!) === '5,6') passed = true;
+    }
+    const pose = crowd.poses[0]!;
+    expect(passed).toBe(true);
+    expect(tileOf(pose)).toBe('4,4');
+    expect(pose.away).toBeFalsy();
+    expect(lines).toBe(0);
+    // It closed the door behind it, and a player inside can talk to it.
+    expect(world.isDoorOpen(5, 6)).toBe(false);
+    expect(npcActors([sleeper], crowd.poses)).toHaveLength(1);
+    crowd.night = false;
+    for (let i = 0; i < 2 * 60 * 20; i++) crowd.step(50, []);
+    expect(yard.has(tileOf(pose))).toBe(true);
+  });
+
+  it('are at home at once in a crowd that starts at night', () => {
+    const crowd = new NpcCrowd(new World(houseSource({ locked: 'Locked.' })), [villager, { ...keeper, area: YARD, home: [8, 9] }], 3);
+    crowd.night = true;
+    crowd.step(50, []);
+    expect(tileOf(crowd.poses[0]!)).toBe('5,7');
+    expect(crowd.poses[0]!.away).toBe(true);
+    // An NPC without a home for the night walks on.
+    expect(crowd.poses[1]!.away).toBeFalsy();
+  });
+
+  it('leave their house for a raid at night, take shelter, and go home again when it ends', () => {
+    const crowd = new NpcCrowd(new World(houseSource({ locked: 'Locked.' })), [{ ...villager, shelter: [9, 10] }], 3);
+    const pose = crowd.poses[0]!;
+    crowd.night = true;
+    crowd.step(50, []);
+    expect(pose.away).toBe(true);
+    crowd.setAlarm(new Set(['villager']));
+    for (let i = 0; i < 60 * 20; i++) crowd.step(50, []);
+    expect(pose.away).toBe(false);
+    expect(tileOf(pose)).toBe('9,10');
+    crowd.setAlarm(new Set());
+    for (let i = 0; i < 60 * 20; i++) crowd.step(50, []);
+    expect(pose.away).toBe(true);
+    expect(tileOf(pose)).toBe('5,7');
+  });
+
+  it('need a tile of the night inside a building or in front of a door, and a way to it', () => {
+    const world = new World(houseSource({ locked: 'Locked.' }));
+    expect(() => new NpcCrowd(world, [{ ...villager, night: { tile: [3, 9] } }], 1)).toThrow(/inside a building or in front of a door/);
+    expect(() => new NpcCrowd(world, [{ ...villager, night: { tile: [5, 7] } }], 1)).toThrow(/not in its area or its way/);
+    expect(() => new NpcCrowd(world, [{ ...villager, night: { tile: [5, 7], way: [[5, 7], [5, 6]] } }], 1)).toThrow(/locked door/);
+  });
+
+  it('go away on the server at night: the snapshots say so, and the clients do not show them', () => {
+    const world = new World({ ...houseSource({ locked: 'Locked.' }), npcs: () => [villager] });
+    const room = new Room(world, { random: () => 0.25, day: DAY, clock: () => clockAtHour(23, DAY) });
+    room.join(0, 1);
+    let last: SnapshotMessage | null = null;
+    for (let ms = 0; ms <= 2000; ms += 50) {
+      room.tick(ms);
+      room.broadcast(ms, (_, m) => (last = m));
+    }
+    const npc = last!.n![0]!;
+    expect(npc[5]).toBe(1);
+    expect(`${Math.floor(npc[0] / 16)},${Math.floor(npc[1] / 16)}`).toBe('5,7');
+    const remotes = new Remotes();
+    remotes.apply(last!, 1000);
+    expect(remotes.npcsAt(2000)[0]!.away).toBe(true);
+    // By day the snapshot has no sixth number, and the client shows the NPC.
+    const day = new Room(new World({ ...houseSource({ locked: 'Locked.' }), npcs: () => [villager] }), { random: () => 0.25, day: DAY, clock: () => clockAtHour(12, DAY) });
+    day.join(0, 1);
+    let noon: SnapshotMessage | null = null;
+    day.tick(0);
+    day.tick(50);
+    day.broadcast(50, (_, m) => (noon = m));
+    expect(noon!.n![0]!).toHaveLength(5);
+    const atNoon = new Remotes();
+    atNoon.apply(noon!, 1000);
+    expect(atNoon.npcsAt(2000)[0]!.away).toBeUndefined();
   });
 });

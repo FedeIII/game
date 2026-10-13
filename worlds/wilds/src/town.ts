@@ -479,6 +479,14 @@ const WALKERS: readonly NpcDef[] = [
     },
     barks: ['Listen... like rain.', 'Three summers dry.', 'My husband built that wall.'],
     greeting: 'Hello, {name}. Listen... like rain.',
+    // At night she keeps a vigil in the chapel, on the rug before the lectern (NpcDef.night: the people
+    // without a post go home at night, Fede's choice of 2026-10-13). She has no house of her own: the
+    // four shut houses are of families that went south. Her way: along the square and the main street
+    // to the door of the chapel.
+    night: {
+      tile: at(37, 6),
+      way: [...streetArea(18, 9, 30, 9), ...streetArea(30, 10, 33, 11), ...streetArea(34, 11, 38, 11), at(38, 10), at(38, 9), at(38, 8), at(38, 7), at(38, 6), at(37, 6)],
+    },
   },
   {
     id: 'child',

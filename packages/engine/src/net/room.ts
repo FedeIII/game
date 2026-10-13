@@ -925,7 +925,7 @@ export class Room {
     ]);
     companions.push(...guards);
     const npcs: WireNpc[] | null = this.npcs
-      ? this.npcs.poses.map((n) => [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)])
+      ? this.npcs.poses.map((n): WireNpc => (n.away ? [round(n.x), round(n.y), 0, 0, facingCode(n.facing), 1] : [round(n.x), round(n.y), Math.round(n.vx), Math.round(n.vy), facingCode(n.facing)]))
       : null;
     for (const p of this.players.values()) {
       // A client that cannot take more now (a slow connection) gets the next one, doors included.
