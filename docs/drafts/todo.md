@@ -123,6 +123,19 @@
   the GUI section of `CLAUDE.md` ("Bottom right: the action button, left of it the attack button...").
   Ask Fede: is the new layout for touch screens only (`@media (pointer: coarse)`), or for every screen?
 
+- **Remake the main menu** (2026-10-13). An impressive title of the game, World of Kandrax, at the top
+  of the screen, and the buttons of the menu at the bottom, with no box round them. Now the menu is
+  one panel in the middle of the screen (`main.menu-panel`: a border and a dark background) over the
+  picture of Nivalia; the panel has the title (`h1.menu-name`, italic Georgia 34 px) and the site, and
+  under them the screen (on the main screen the buttons in `div.menu-actions.menu-stack`, the account
+  line and the language).
+  Code: `runMenu()` (the panel and its header) and `main()` (the main screen) in
+  `packages/engine-client/src/menu/menu.ts`; `backdrop()` there and `art/menu-art.ts` (the picture);
+  the styles `.menu-panel`, `.menu-head`, `.menu-name`, `.menu-actions` in
+  `packages/engine-client/src/style.css`; `docs/features/game/main-menu.md`.
+  Ask Fede: is the title text (the pixel font, or a serif) or a painted logo in the art? Do the other
+  screens of the menu (sign-in, builder, continue, settings) keep their panel?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
