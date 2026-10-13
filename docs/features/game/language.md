@@ -97,7 +97,7 @@ that both languages tell of the same world.
 
 **Acceptance Criteria:**
 - **AC-LANG-005.1:** The town of the Wilds is Ironhold (Thornwick until 2026-10-11): its sign on
-  the signpost ("It reads: IRONHOLD."), the map, and every line that names it.
+  the signpost ("It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD."), the map, and every line that names it.
 - **AC-LANG-005.2:** The reeve is Elama Rothenel, the reeve (Aldous until 2026-10-11).
 
 ---

@@ -43,7 +43,7 @@ are fixed: the same for every seed. From the south to the north:
 | Place | Where | What |
 |---|---|---|
 | **The hut** (the home; el hogar) | the cell `HOME_CELL` (1, 5): `33..39, 129..134` | The character's own hut: a bed (rest, and the wake point after a defeat), a chest (no loot), the table with the letter of Thrain. Every new character starts here. The house of the next cell to the east is never barred. |
-| The signpost | `34, 136`, below the hut, west of its path | "It reads: IRONHOLD." It points west, where the road leaves. |
+| The signpost | `34, 136`, below the hut, west of its path | "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road." Under it, cut with a knife: "KEEP TO THE ROAD." |
 | **The road to Ironhold** | `road.ts`, `homeLegs()` | From the hut west, then north through Whitegrove and Bronzehold, to the south edge of Ironhold (`TOWN_SOUTH`, `-32, 15`). |
 | The broken cart | `-3, 123`, on the first leg | The merchant's cart, with a lantern: no mob comes within 4 tiles. |
 | **Whitegrove** (Arboleda Blanca) | `-20..-2, 88..109` | A hamlet of the Sovereignty: the farmer's house and stall, the **shrine** (a refuge), two shut houses. |
