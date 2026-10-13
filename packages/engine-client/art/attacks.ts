@@ -290,3 +290,17 @@ export function rollParts(spec: FigureSpec, frame: number): Part[] {
   const { action, angle } = rollPose(frame);
   return tumble(figure(spec, 0, 0, action), angle, [0, ROLL_PIVOT_Y * spec.height, ROLL_PIVOT_Z]);
 }
+
+/** Frames of the sneak walk in a sheet: as many as the walk has. */
+export const SNEAK_FRAMES = 8;
+/** A player that sneaks: how far it crouches (FigureAction.crouch), how far it leans forward, and how long its strides are (a walk amount; 1 is a walk). */
+const SNEAK = { crouch: 1, lean: 0.4, stride: 0.6 } as const;
+
+/**
+ * The parts of a figure that sneaks: in a crouch (the knees bent, the body low and forward, the
+ * arms ready), at rest when `frame` is null, else in frame `frame` of the sneak walk (short strides).
+ */
+export function sneakParts(spec: FigureSpec, frame: number | null): Part[] {
+  const action: FigureAction = { lean: SNEAK.lean, crouch: SNEAK.crouch };
+  return frame === null ? figure(spec, 0, 0, action) : figure(spec, (frame / SNEAK_FRAMES) * 2 * Math.PI, SNEAK.stride, action);
+}

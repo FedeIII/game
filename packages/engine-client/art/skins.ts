@@ -14,7 +14,7 @@
  * keep rendered skins in localStorage under that version.
  */
 import { CANTRIP_BASE, CASTER_FOCUS, SHOWN_SLOTS, WEARABLES, appearanceOf, type Appearance, type CharacterClass, type Gender, type ItemKind, type Race, type ShownGear } from '@game/engine';
-import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, attackAction, attackStyle, fallParts, rollParts, type AttackStyle } from './attacks.ts';
+import { ATTACK_FRAMES, ATTACK_STANCE, FALL_FRAMES, ROLL_FRAMES, SNEAK_FRAMES, attackAction, attackStyle, fallParts, rollParts, sneakParts, type AttackStyle } from './attacks.ts';
 import {
   figure,
   figureMaterials,
@@ -29,9 +29,9 @@ import {
   type Palette,
 } from './figure.ts';
 import { Image } from './image.ts';
-import { HEIGHT_SCALE, renderModel } from './sdf.ts';
+import { HEIGHT_SCALE, renderModel, type Part } from './sdf.ts';
 
-export const SKIN_VERSION = 8;
+export const SKIN_VERSION = 9;
 
 /**
  * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
@@ -47,11 +47,30 @@ export const SKIN_VIEWS = [
   { name: 'right', yaw: Math.PI / 2 },
   { name: 'left', yaw: -Math.PI / 2 },
 ] as const;
-/** Columns of a sheet: the stand, then the walk frames, the attack frames, the roll frames and the fall frames. */
+/**
+ * Columns of a sheet: the stand, then the walk frames, the attack frames, the roll frames, the fall
+ * frames, the crouch (a player that sneaks, at rest) and the frames of the sneak walk.
+ */
 export const SKIN_WALK_FRAMES = 8;
 export const SKIN_ATTACK_FRAMES = ATTACK_FRAMES;
 export const SKIN_ROLL_FRAMES = ROLL_FRAMES;
 export const SKIN_FALL_FRAMES = FALL_FRAMES;
+export const SKIN_SNEAK_FRAMES = SNEAK_FRAMES;
+const ATTACK_COLUMN = 1 + SKIN_WALK_FRAMES;
+const ROLL_COLUMN = ATTACK_COLUMN + SKIN_ATTACK_FRAMES;
+const FALL_COLUMN = ROLL_COLUMN + SKIN_ROLL_FRAMES;
+const CROUCH_COLUMN = FALL_COLUMN + SKIN_FALL_FRAMES;
+/** The first column of each kind of frame in a sheet, and the number of columns (`count`). */
+export const SKIN_COLUMNS = {
+  stand: 0,
+  walk: 1,
+  attack: ATTACK_COLUMN,
+  roll: ROLL_COLUMN,
+  fall: FALL_COLUMN,
+  crouch: CROUCH_COLUMN,
+  sneak: CROUCH_COLUMN + 1,
+  count: CROUCH_COLUMN + 1 + SKIN_SNEAK_FRAMES,
+} as const;
 
 export interface Skin {
   readonly seed: number;
@@ -72,7 +91,7 @@ export interface SkinLook {
 }
 
 export interface SkinSheet {
-  /** SKIN_VIEWS rows by 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + SKIN_FALL_FRAMES columns of SKIN_FRAME. */
+  /** SKIN_VIEWS rows by SKIN_COLUMNS.count columns of SKIN_FRAME. */
   readonly image: Image;
   /** From the feet to just above the head or hat, in screen pixels: speech goes there. */
   readonly headHeight: number;
@@ -869,29 +888,24 @@ export function skinAttack(skin: Skin): AttackStyle {
   return skin.style ?? attackStyle(skin.appearance.class, skin.spec);
 }
 
-/** Renders the sheet of a skin: every view, the stand, the walk, the attack, the roll and the fall. */
+/** Renders the sheet of a skin: every view, the stand, the walk, the attack, the roll, the fall, the crouch and the sneak walk. */
 export function renderSkinSheet(skin: Skin): SkinSheet {
   const { width, height } = SKIN_FRAME;
-  const image = new Image(width * (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + SKIN_FALL_FRAMES), height * SKIN_VIEWS.length);
+  const image = new Image(width * SKIN_COLUMNS.count, height * SKIN_VIEWS.length);
   const materials = figureMaterials(skin.palette);
   const style = skinAttack(skin);
   SKIN_VIEWS.forEach((view, row) => {
-    for (let column = 0; column <= SKIN_WALK_FRAMES; column++) {
-      const parts = column === 0 ? figure(skin.spec, 0, 0) : figure(skin.spec, ((column - 1) / SKIN_WALK_FRAMES) * 2 * Math.PI, 1);
-      image.draw(renderModel(parts, materials, { ...SKIN_FRAME, yaw: view.yaw }), column * width, row * height);
-    }
+    const draw = (parts: Part[], column: number) => image.draw(renderModel(parts, materials, { ...SKIN_FRAME, yaw: view.yaw }), column * width, row * height);
+    draw(figure(skin.spec, 0, 0), SKIN_COLUMNS.stand);
+    for (let f = 0; f < SKIN_WALK_FRAMES; f++) draw(figure(skin.spec, (f / SKIN_WALK_FRAMES) * 2 * Math.PI, 1), SKIN_COLUMNS.walk + f);
     for (let f = 0; f < SKIN_ATTACK_FRAMES; f++) {
       const [phase, amount] = ATTACK_STANCE[f]!;
-      const parts = figure(skin.spec, phase, amount, attackAction(style, f, skin.spec));
-      image.draw(renderModel(parts, materials, { ...SKIN_FRAME, yaw: view.yaw }), (1 + SKIN_WALK_FRAMES + f) * width, row * height);
+      draw(figure(skin.spec, phase, amount, attackAction(style, f, skin.spec)), SKIN_COLUMNS.attack + f);
     }
-    for (let f = 0; f < SKIN_ROLL_FRAMES; f++) {
-      image.draw(renderModel(rollParts(skin.spec, f), materials, { ...SKIN_FRAME, yaw: view.yaw }), (1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + f) * width, row * height);
-    }
-    for (let f = 0; f < SKIN_FALL_FRAMES; f++) {
-      const column = 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + f;
-      image.draw(renderModel(fallParts(skin.spec, f), materials, { ...SKIN_FRAME, yaw: view.yaw }), column * width, row * height);
-    }
+    for (let f = 0; f < SKIN_ROLL_FRAMES; f++) draw(rollParts(skin.spec, f), SKIN_COLUMNS.roll + f);
+    for (let f = 0; f < SKIN_FALL_FRAMES; f++) draw(fallParts(skin.spec, f), SKIN_COLUMNS.fall + f);
+    draw(sneakParts(skin.spec, null), SKIN_COLUMNS.crouch);
+    for (let f = 0; f < SKIN_SNEAK_FRAMES; f++) draw(sneakParts(skin.spec, f), SKIN_COLUMNS.sneak + f);
   });
   return { image, headHeight: Math.round(figureTop(skin.spec) * HEIGHT_SCALE) + 4 };
 }

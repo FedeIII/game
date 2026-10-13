@@ -6,6 +6,8 @@ import type { LightSource } from './lighting.ts';
 
 /** World pixels of travel for each walk frame: 8 frames make one 32-pixel cycle of two steps. */
 const STRIDE = 4;
+/** The same for the sneak walk: shorter strides. */
+const SNEAK_STRIDE = 3;
 
 /** The wanderer of the atlas: from the centre of the feet to just above the hood, in world pixels. */
 const ATLAS_HEAD_HEIGHT = 30;
@@ -33,7 +35,7 @@ export const ATTACK_TINT: Readonly<Record<AttackStyle, number>> = {
 };
 /** The colour of an arrow in flight (render/arrows.ts). */
 export const ARROW_TINT = 0xc8b48c;
-/** A player that sneaks is a little darker (and its torch smaller: game.ts). */
+/** A player that crouches (it sneaks) is a little darker (and its torch smaller: game.ts, others.ts). */
 const SNEAK_TINT = 0x9a948e;
 /** A poisoned player shows this green now and then. */
 const POISON_TINT = 0x9cc48a;
@@ -74,7 +76,7 @@ export interface PlayerPose {
   readonly wading?: boolean;
   /** Ticks left of a dodge (a roll), as in PlayerState. */
   readonly dodge?: number;
-  /** Whether it sneaks (a slow walk): it shows a little darker. */
+  /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
   readonly sneaking?: boolean;
   /** Ticks left of a defeat, as in PlayerState: it falls and lies. */
   readonly down?: number;
@@ -84,7 +86,7 @@ export interface PlayerPose {
   readonly glance?: number;
 }
 
-/** The frames of one look of the player: a stand, a walk and an attack for each facing. */
+/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a fall, a crouch and a sneak walk. */
 export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
@@ -93,6 +95,9 @@ export interface PlayerTextures {
   readonly roll: Readonly<Record<Facing, readonly Texture[]>>;
   /** The frames of a defeat: it falls, and it lies. */
   readonly fall: Readonly<Record<Facing, readonly Texture[]>>;
+  /** A player that sneaks: the crouch at rest, and the frames of the sneak walk. */
+  readonly crouch: Readonly<Record<Facing, Texture>>;
+  readonly sneak: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -104,20 +109,26 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const attack = {} as Record<Facing, Texture[]>;
   const roll = {} as Record<Facing, Texture[]>;
   const fall = {} as Record<Facing, Texture[]>;
+  const crouch = {} as Record<Facing, Texture>;
+  const sneak = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
     attack[facing] = art.variants(`player/${facing}/attack`);
     roll[facing] = art.variants(`player/${facing}/roll`);
     fall[facing] = art.variants(`player/${facing}/fall`);
+    crouch[facing] = art.frame(`player/${facing}/crouch`);
+    sneak[facing] = art.variants(`player/${facing}/sneak`);
   }
-  return { stand, walk, attack, roll, fall, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, fall, crouch, sneak, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
  * Shows one player. The walk animation advances with the distance moved, not with time, so
  * a slow joystick push gives a slow walk. The textures can change at any time (a skin that has
  * just been rendered); the sprite keeps its place, because every frame is anchored at the feet.
+ * A player that sneaks on purpose crouches: the sneak walk, and the crouch when it stops (see
+ * `crouched`).
  */
 export class PlayerView {
   /** The opacity of the copy of the player that shows through trees. */
@@ -157,6 +168,7 @@ export class PlayerView {
   private readonly anchor: { readonly x: number; readonly y: number };
   private readonly wadeFrames = new Map<Texture, Texture>();
   private wading = false;
+  private crouch = false;
 
   constructor(art: Art, textures: PlayerTextures, pending = false) {
     this.textures = textures;
@@ -214,6 +226,15 @@ export class PlayerView {
     return this.light;
   }
 
+  /**
+   * Whether it crouches: from the start of a sneak walk (PlayerPose.sneaking) until it walks on
+   * without a sneak, strikes, rolls, falls, takes a hit or wades. So a player that stops after a
+   * sneak walk stays in the crouch. The page shows a crouch as sneaking on purpose: a smaller torch.
+   */
+  get crouched(): boolean {
+    return this.crouch;
+  }
+
   /** Changes the look. The next update() shows it. */
   setTextures(textures: PlayerTextures): void {
     this.textures = textures;
@@ -234,13 +255,16 @@ export class PlayerView {
     this.wading = state.wading === true;
     this.ghost.position.set(x, y + (this.wading ? WADE_DEPTH : 0));
     const now = performance.now();
-    this.fight(state, now);
-
     const speed = Math.hypot(state.vx, state.vy);
-    let texture: Texture;
     const attack = state.attack ?? 0;
     const dodge = state.dodge ?? 0;
     const down = state.down ?? 0;
+    if (attack > 0 || dodge > 0 || down > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
+    else if (state.sneaking) this.crouch = true;
+    else if (speed >= 1) this.crouch = false;
+    this.fight(state, now);
+
+    let texture: Texture;
     if (down > 0) {
       // A defeat: it falls back, then lies.
       const frames = this.textures.fall[state.facing];
@@ -260,11 +284,11 @@ export class PlayerView {
       this.travelled = 0;
     } else if (speed < 1) {
       this.travelled = 0;
-      texture = this.textures.stand[state.facing];
+      texture = (this.crouch ? this.textures.crouch : this.textures.stand)[state.facing];
     } else {
       this.travelled += speed * seconds;
-      const frames = this.textures.walk[state.facing];
-      texture = frames[Math.floor(this.travelled / STRIDE) % frames.length]!;
+      const frames = (this.crouch ? this.textures.sneak : this.textures.walk)[state.facing];
+      texture = frames[Math.floor(this.travelled / (this.crouch ? SNEAK_STRIDE : STRIDE)) % frames.length]!;
     }
     // In shallow water: the figure lower, its frame cut at the water line, a ripple round it.
     const shown = this.wading ? this.wadeFrame(texture) : texture;
@@ -333,7 +357,7 @@ export class PlayerView {
     if (!this.pending) {
       const sick = state.poisoned && Math.floor(now / 400) % 3 === 0;
       this.body.tint =
-        sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : sinceGlance < GLANCE_FLASH_MS ? GLANCE_TINT : sick ? POISON_TINT : state.sneaking ? SNEAK_TINT : 0xffffff;
+        sinceHit < HIT_FLASH_MS ? HIT_TINT : stun > 0 ? DAZED_TINT : sinceGlance < GLANCE_FLASH_MS ? GLANCE_TINT : sick ? POISON_TINT : this.crouch ? SNEAK_TINT : 0xffffff;
       this.ghost.tint = this.body.tint;
     }
     // The guard after a stun: the player blinks, so everyone sees that mobs cannot hit it now.

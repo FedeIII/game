@@ -118,16 +118,20 @@ round them.
 less.
 
 **Acceptance Criteria:**
-- **AC-DEX-005.1:** While the player sneaks on purpose, its torch has a radius of 96, not 150, and
-  its figure is a little darker.
-- **AC-DEX-005.2:** On purpose means a slow walk, or the sneak walk while it is on (also while the
-  player stands). A player who stands still with the sneak walk off hides from mobs, but its torch
-  stays full.
-- **AC-DEX-005.3:** Another player who walks slowly shows a torch with a radius of 48, not 96, and
-  a darker figure. Another player who stands still shows the full torch, also with its sneak walk
-  on.
+- **AC-DEX-005.1:** While the player sneaks on purpose, its figure crouches, its torch has a radius
+  of 96, not 150, and its figure is a little darker.
+- **AC-DEX-005.2:** On purpose means a slow walk, the sneak walk while it is on (also while the
+  player stands), or a stop after a slow walk. A player who stands still with the sneak walk off,
+  and not after a slow walk, hides from mobs, but it stands up and its torch stays full.
+- **AC-DEX-005.3:** Another player who walks slowly crouches, shows a torch with a radius of 48, not
+  96, and a darker figure. When it stops, it stays so. Another player who stands still without a
+  slow walk before shows the full torch, also with its sneak walk on.
 - **AC-DEX-005.4:** The torch and the figure change only the picture. Mobs see the player by the
   rules of REQ-DEX-004.
+- **AC-DEX-005.5:** The crouch has its own frames for every look, in each of the four views: the
+  crouch at rest (the knees bent, the body low and forward, the arms ready) and eight frames of the
+  sneak walk, with short strides. A walk without a sneak, an attack, a roll, a defeat, a hit or
+  shallow water ends the crouch (Fede's decision, 2026-10-13).
 
 ---
 
@@ -226,7 +230,11 @@ loot in them.
 - **The look of sneaking:** `SNEAK_TORCH` (96) and `sneakingShown()` in `game.ts`, `OTHER_TORCH`
   (`radius` 96, `sneaking` 48) in `render/others.ts`, and `SNEAK_TINT` in
   `render/player-view.ts`. The page does not know the sneak walk of another player, so it shows
-  only a slow walk.
+  only a slow walk. `PlayerView.crouched` keeps the crouch after a sneak walk; the frames are
+  `PlayerTextures.crouch` and `PlayerTextures.sneak` (`SNEAK_STRIDE`, 3 px a frame). The art:
+  `sneakParts()` in `art/attacks.ts` and `FigureAction.crouch` in `art/figure.ts`; the columns
+  `SKIN_COLUMNS.crouch` and `SKIN_COLUMNS.sneak` of a skin sheet (`SKIN_VERSION` 9), and the frames
+  `player/<view>/crouch` and `player/<view>/sneak/<i>` of the atlas wanderer.
 - **The C key** is `KeyC` (`KeyboardEvent.code`). The page ignores it in a form field and with
   Ctrl, Meta or Alt. Nothing in the GUI shows that the sneak walk is on; `?debug` shows "(walk)".
 - **Arrows** (`packages/engine/src/arrows.ts`): `ARROW_SPEED` (240), `ARROW_START` (6),

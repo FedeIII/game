@@ -87,17 +87,23 @@ export interface FigureSpec {
 }
 
 /**
- * A pose for an attack (attacks.ts makes them). Each arm points along two directions in model
- * space, [upper arm, forearm]; `right` is the arm on the +x side, whose hand holds the item.
- * `lean` bends the upper body forward. `weapon` is what that hand holds during the attack.
+ * A pose: an attack, a roll, a fall or a crouch (attacks.ts makes them). Each arm points along two
+ * directions in model space, [upper arm, forearm]; `right` is the arm on the +x side, whose hand
+ * holds the item. An arm without a pose swings with the walk. `lean` bends the upper body forward.
+ * `weapon` is what that hand holds during the attack.
  */
 export interface FigureAction {
-  readonly right: readonly [Vec3, Vec3];
+  readonly right?: readonly [Vec3, Vec3];
   readonly left?: readonly [Vec3, Vec3];
   readonly lean: number;
   readonly weapon?: Weapon;
   /** 0 to 1: the legs fold up under the body, for a roll (see tumble()). Default 0. */
   readonly tuck?: number;
+  /**
+   * 0 to 1: a crouch, for a player that sneaks: the knees bend and the body goes down, and the arms
+   * come forward and swing less. Default 0.
+   */
+  readonly crouch?: number;
 }
 
 /**
@@ -184,6 +190,14 @@ const FOREARM = 4.0;
 const HEAD_Y = 25.3;
 const HEAD_Z = 0.2;
 const HEAD_RADIUS = 1.9;
+/** A full crouch: the thighs turn forward by this much (radians), and the knees bend by this much more. */
+const CROUCH_THIGH = 0.85;
+const CROUCH_KNEE = 1.6;
+/** In a full crouch the knees go out to the sides by this much, so that the crouch shows from the front too. */
+const CROUCH_KNEE_OUT = 1.0;
+/** In a full crouch the arms come forward by this much (radians), and the elbows bend by this much more. */
+const CROUCH_ARM = 0.5;
+const CROUCH_ELBOW = 0.25;
 
 function add(a: Vec3, b: Vec3): Vec3 {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -297,9 +311,10 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   const zs = 0.75 + 0.25 * w;
   const robe = spec.body === 'robe';
 
+  const crouch = action?.crouch ?? 0;
   const swing = (robe ? 0.48 : 0.62) * amount;
   const kneeBend = 1.05 * amount;
-  const armSwing = 0.5 * amount;
+  const armSwing = 0.5 * amount * (1 - 0.5 * crouch);
   // A small forward lean of the upper body when it walks; an attack adds its own.
   const lean = 0.1 * amount + (action?.lean ?? 0);
   const hipY = HIP_Y * h;
@@ -307,14 +322,16 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   const tuck = action?.tuck ?? 0;
   const legs = [-1, 1].map((side) => {
     const p = phase + (side < 0 ? 0 : Math.PI);
-    // A tuck folds the thighs up to the front and the shins back under them.
-    const theta = swing * Math.sin(p) + 2.0 * tuck;
+    // A tuck folds the thighs up to the front and the shins back under them; a crouch does the
+    // same, less.
+    const theta = swing * Math.sin(p) + 2.0 * tuck + CROUCH_THIGH * crouch;
     // The knee bends most while the leg swings forward, under the body.
-    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p)) + 2.7 * tuck;
+    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p)) + 2.7 * tuck + CROUCH_KNEE * crouch;
     const hip: Vec3 = [side * HIP_HALF_WIDTH * w, hipY, 0];
-    const kneeAt = add(hip, [0, -THIGH * h * Math.cos(theta), THIGH * h * Math.sin(theta)]);
+    const out = side * CROUCH_KNEE_OUT * crouch * w;
+    const kneeAt = add(hip, [out, -THIGH * h * Math.cos(theta), THIGH * h * Math.sin(theta)]);
     const shin = theta - knee;
-    const ankle = add(kneeAt, [0, -SHIN * h * Math.cos(shin), SHIN * h * Math.sin(shin)]);
+    const ankle = add(kneeAt, [-0.5 * out, -SHIN * h * Math.cos(shin), SHIN * h * Math.sin(shin)]);
     const toe = add(ankle, [0, -0.45, 2.1]);
     return { hip, knee: kneeAt, ankle, toe };
   });
@@ -330,10 +347,12 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   };
 
   // ---------------------------------------------------------------- legs
+  // A robe in a crouch: the bent knees push the cloth forward, so they show in the colour of the robe.
+  const thighs = robe && crouch > 0 ? FM.garment : FM.trousers;
   for (const leg of legs) {
     const ankle = up(leg.ankle);
-    part(C(up(leg.hip), up(leg.knee), 1.7 * limb, 1.35 * limb), FM.trousers);
-    part(C(up(leg.knee), ankle, 1.35 * limb, 1.05 * limb), (_x, y) => (y < ankle[1] + 3.2 ? FM.boots : FM.trousers));
+    part(C(up(leg.hip), up(leg.knee), 1.7 * limb, 1.35 * limb), thighs);
+    part(C(up(leg.knee), ankle, 1.35 * limb, 1.05 * limb), (_x, y) => (y < ankle[1] + 3.2 ? FM.boots : thighs));
     part(C(ankle, up(leg.toe), 1.0 * limb, 0.8 * limb), FM.boots);
   }
 
@@ -349,7 +368,8 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
     // A long skirt from the waist to the ankles, with folds; it sways as the figure walks.
     const sway = 0.5 * amount * Math.sin(phase);
     const top = up([0, 15.2 * h, 0]);
-    const skirt = C(top, up([sway, 1.7, -0.2]), 2.5 * w, 3.5 * w + 0.4);
+    // In a crouch the hem stays above the ground.
+    const skirt = C(top, [sway, 1.7 + lift * (1 - crouch), -0.2], 2.5 * w, 3.5 * w + 0.4);
     const folds: Sdf = (x, y, z) => skirt.sdf(x, y, z) + 0.22 * Math.sin(Math.atan2(x, z) * 7) * Math.min(1, Math.max(0, (top[1] - y) / 8));
     part({ sdf: folds, bound: [skirt.bound[0], skirt.bound[1], skirt.bound[2], skirt.bound[3] + 0.3] }, FM.garment);
   }
@@ -360,11 +380,12 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   let rightForearm: Vec3 = [0, -1, 0];
   for (const side of [-1, 1]) {
     const p = phase + (side < 0 ? 0 : Math.PI);
-    // The arm swings against the leg on the same side, and bends more when it swings forward.
-    const alpha = -armSwing * Math.sin(p);
-    const bend = 0.3 + 0.5 * Math.max(0, alpha);
+    // The arm swings against the leg on the same side, and bends more when it swings forward. In a
+    // crouch the arms come forward, a little out, ready.
+    const alpha = -armSwing * Math.sin(p) + CROUCH_ARM * crouch;
+    const bend = 0.3 + 0.5 * Math.max(0, alpha) + CROUCH_ELBOW * crouch;
     const shoulder: Vec3 = [side * SHOULDER_HALF_WIDTH * w, SHOULDER_Y * h, 0];
-    let elbow = add(shoulder, scale(unit(side * 0.16, -Math.cos(alpha), Math.sin(alpha)), UPPER_ARM * h));
+    let elbow = add(shoulder, scale(unit(side * (0.16 + 0.2 * crouch), -Math.cos(alpha), Math.sin(alpha)), UPPER_ARM * h));
     let forearm = unit(side * 0.06, -Math.cos(alpha + bend), Math.sin(alpha + bend));
     // An attack puts the arm where it says.
     const posed = side === 1 ? action?.right : action?.left;

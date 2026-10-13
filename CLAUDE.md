@@ -138,8 +138,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   within 5 minutes; the game menu notes a screen in the same way: `game.menu-screen.v1`).
 - `skins/`: the skin seed of a guest (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
-  localStorage cache of rendered sheets; `cancel()` drops a look that the builder no longer
-  shows).
+  localStorage cache of rendered sheets, which drops the sheets of an older `SKIN_VERSION`;
+  `cancel()` drops a look that the builder no longer shows).
 - `net/session.ts`: the connection to the multiplayer server (prediction while online, alone
   while not, reconnection). See `docs/multiplayer.md`.
 - `render/`: `camera.ts` (pixel-perfect zoom), `terrain.ts` (ground chunks drawn into render
@@ -148,7 +148,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   storeys shows from the player's storey up, with the floor of that storey in `floorLayer`),
   `fixtures.ts` (furniture, props, NPCs, portal glows; gives the lights of fixtures; the plate with
   the name of a name sign, in the sign layer: `Fixtures.plate()`),
-  `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
+  `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, the crouch and
+  the sneak walk of a player that sneaks (`PlayerView.crouched`), and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
   their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
   `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
@@ -276,7 +277,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   jerkin instead of metal), and the attack style of the weapon (`HELD`; a focus of the class casts, another staff bashes, an empty
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
-  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall) frames of 56 x 56
+  `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
+  walk; the first column of each: `SKIN_COLUMNS`) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -334,7 +336,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   figure tucked, `FigureAction.tuck`, and turned forward round its middle by `tumble()` in
   `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer. The fall of
   a defeat: `fallParts()` (two frames: the figure turns back round its hips, then lies on its
-  back), as `player/<view>/fall/<i>` for the wanderer.
+  back), as `player/<view>/fall/<i>` for the wanderer. The sneak: `sneakParts()` (the crouch at
+  rest, and eight frames of the sneak walk with short strides: `FigureAction.crouch` bends the
+  knees, spreads them a little and brings the arms forward; the lean bends the body forward), in
+  every skin sheet and as `player/<view>/crouch` and `player/<view>/sneak/<i>` for the wanderer.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
@@ -653,8 +658,11 @@ builder and the "You" section still name every gate.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
   within their sight times `HordePlayer.sight`. On purpose (the sneak walk of C, or a slow walk; not
-  just standing still) the torch is smaller (96, others' 48) and the figure a little darker. A
-  player in shallow water never sneaks. When stamina exists (CON),
+  just standing still) the figure crouches (the crouch and the sneak walk frames), the torch is
+  smaller (96, others' 48) and the figure a little darker. A player that stops after a sneak walk
+  stays in the crouch (Fede's decision, 2026-10-13) until it walks without a sneak, strikes, rolls,
+  falls, takes a hit or wades (`PlayerView.crouched`; the page sees it for the other players too,
+  from their speed). A player in shallow water never sneaks. When stamina exists (CON),
   sneaking uses it too (Fede's note, 2026-10-10).
 - **Arrows** (`arrows.ts`): every attack with a bow in the hands (the ranger's kit) is an arrow (`Horde.shoot()`), 240 px/s, that
   reaches the first living mob on its way (the attack roll, the damage and the force of the

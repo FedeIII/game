@@ -3,9 +3,11 @@ import type { Facing } from '@game/engine';
 import type { AttackStyle } from '../../art/attacks.ts';
 import {
   SKIN_ATTACK_FRAMES,
+  SKIN_COLUMNS,
   SKIN_FALL_FRAMES,
   SKIN_FRAME,
   SKIN_ROLL_FRAMES,
+  SKIN_SNEAK_FRAMES,
   SKIN_VERSION,
   SKIN_VIEWS,
   SKIN_WALK_FRAMES,
@@ -27,7 +29,8 @@ export function attackLook(look: SkinLook): { style: AttackStyle; tint: number }
 }
 
 /** Rendered skins in localStorage: the visitor's own and the last ones met. */
-const CACHE_PREFIX = `game.skins.v${SKIN_VERSION}.`;
+const CACHE_ROOT = 'game.skins.v';
+const CACHE_PREFIX = `${CACHE_ROOT}${SKIN_VERSION}.`;
 const CACHE_INDEX = `${CACHE_PREFIX}index`;
 const CACHE_SIZE = 24;
 /** Skins kept as textures; beyond this, the ones that nobody wears now are freed (retain()). */
@@ -36,6 +39,20 @@ const MAX_READY = 40;
 interface Cached {
   readonly png: string;
   readonly headHeight: number;
+}
+
+/** Removes the skins that an older SKIN_VERSION kept: the page cannot use them, and they fill the storage. */
+function dropOldSkins(): void {
+  try {
+    const old: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(CACHE_ROOT) && !key.startsWith(CACHE_PREFIX)) old.push(key);
+    }
+    for (const key of old) localStorage.removeItem(key);
+  } catch {
+    // A blocked storage: nothing to remove.
+  }
 }
 
 function readIndex(): string[] {
@@ -66,6 +83,7 @@ export class SkinStore {
   private busy = false;
 
   constructor() {
+    dropOldSkins();
     try {
       this.worker = new Worker(new URL('./skin-worker.ts', import.meta.url), { type: 'module' });
       this.worker.onmessage = (event: MessageEvent<SkinResult>) => {
@@ -214,7 +232,8 @@ export class SkinStore {
       if (wearing.has(key)) continue;
       for (const facing of Object.keys(textures.stand) as Facing[]) {
         textures.stand[facing].destroy(false);
-        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing], ...textures.fall[facing]]) frame.destroy(false);
+        textures.crouch[facing].destroy(false);
+        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing], ...textures.fall[facing], ...textures.sneak[facing]]) frame.destroy(false);
       }
       this.sheets.get(key)?.base.destroy(true);
       this.sheets.delete(key);
@@ -223,7 +242,7 @@ export class SkinStore {
     }
   }
 
-  /** The frames of a sheet: one row per view, the stand, the walk, the attack and the roll. */
+  /** The frames of a sheet: one row per view, the stand, the walk, the attack, the roll, the fall, the crouch and the sneak walk. */
   private textures(key: string, canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
     const base = Texture.from(canvas);
     base.source.scaleMode = 'nearest';
@@ -237,13 +256,18 @@ export class SkinStore {
     const attack = {} as Record<Facing, Texture[]>;
     const roll = {} as Record<Facing, Texture[]>;
     const fall = {} as Record<Facing, Texture[]>;
+    const crouch = {} as Record<Facing, Texture>;
+    const sneak = {} as Record<Facing, Texture[]>;
+    const frames = (first: number, length: number, row: number) => Array.from({ length }, (_, i) => frame(first + i, row));
     SKIN_VIEWS.forEach((view, row) => {
-      stand[view.name] = frame(0, row);
-      walk[view.name] = Array.from({ length: SKIN_WALK_FRAMES }, (_, i) => frame(1 + i, row));
-      attack[view.name] = Array.from({ length: SKIN_ATTACK_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + i, row));
-      roll[view.name] = Array.from({ length: SKIN_ROLL_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + i, row));
-      fall[view.name] = Array.from({ length: SKIN_FALL_FRAMES }, (_, i) => frame(1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES + SKIN_ROLL_FRAMES + i, row));
+      stand[view.name] = frame(SKIN_COLUMNS.stand, row);
+      walk[view.name] = frames(SKIN_COLUMNS.walk, SKIN_WALK_FRAMES, row);
+      attack[view.name] = frames(SKIN_COLUMNS.attack, SKIN_ATTACK_FRAMES, row);
+      roll[view.name] = frames(SKIN_COLUMNS.roll, SKIN_ROLL_FRAMES, row);
+      fall[view.name] = frames(SKIN_COLUMNS.fall, SKIN_FALL_FRAMES, row);
+      crouch[view.name] = frame(SKIN_COLUMNS.crouch, row);
+      sneak[view.name] = frames(SKIN_COLUMNS.sneak, SKIN_SNEAK_FRAMES, row);
     });
-    return { stand, walk, attack, roll, fall, headHeight };
+    return { stand, walk, attack, roll, fall, crouch, sneak, headHeight };
   }
 }

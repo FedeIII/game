@@ -4,7 +4,9 @@ import { attackStyle } from './attacks.ts';
 import { SMALL_GLYPHS } from './font.ts';
 import {
   SKIN_ATTACK_FRAMES,
+  SKIN_COLUMNS,
   SKIN_FRAME,
+  SKIN_SNEAK_FRAMES,
   SKIN_VIEWS,
   SKIN_WALK_FRAMES,
   dressSkin,
@@ -137,8 +139,13 @@ describe('player skins', () => {
     ];
     for (const seed of seeds) {
       const sheet = renderSkinSheet(skinFromSeed(seed));
+      // The stand, the walk, the attack, the crouch and the sneak walk.
+      const columns = [
+        ...Array.from({ length: 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES }, (_, i) => i),
+        ...Array.from({ length: 1 + SKIN_SNEAK_FRAMES }, (_, i) => SKIN_COLUMNS.crouch + i),
+      ];
       for (let row = 0; row < SKIN_VIEWS.length; row++) {
-        for (let column = 0; column <= SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES; column++) {
+        for (const column of columns) {
           const x0 = column * width;
           const y0 = row * height;
           for (let i = 0; i < width; i++) {
@@ -155,6 +162,31 @@ describe('player skins', () => {
       expect(sheet.headHeight).toBeLessThan(height);
     }
   }, 180_000);
+
+  it('crouches in a sneak: lower than the stand, at rest and in each frame of the sneak walk', () => {
+    const { width, height } = SKIN_FRAME;
+    /** The first row of a frame with an opaque pixel. */
+    const top = (sheet: ReturnType<typeof renderSkinSheet>, column: number, row: number): number => {
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (sheet.image.get(column * width + x, row * height + y) & 0xff) return y;
+      return height;
+    };
+    const seeds = [
+      appearanceSeed({ race: 'human', class: 'rogue', gender: 'male', variant: 3 }),
+      appearanceSeed({ race: 'half-orc', class: 'barbarian', gender: 'male', variant: 8 }),
+      appearanceSeed({ race: 'gnome', class: 'monk', gender: 'female', variant: 2 }),
+    ];
+    for (const seed of seeds) {
+      // Empty hands: an axe or a staff stands above the head.
+      const sheet = renderSkinSheet(skinOfLook({ seed, shown: { main: null, off: null, armour: null } }));
+      // The front view (row 0) and the side view (row 2).
+      for (const row of [0, 2]) {
+        const stand = top(sheet, SKIN_COLUMNS.stand, row);
+        expect(top(sheet, SKIN_COLUMNS.crouch, row), `${seed} crouch`).toBeGreaterThanOrEqual(stand + 2);
+        for (let f = 0; f < SKIN_SNEAK_FRAMES; f++) expect(top(sheet, SKIN_COLUMNS.sneak + f, row), `${seed} sneak ${f}`).toBeGreaterThanOrEqual(stand + 1);
+      }
+      expect(SKIN_COLUMNS.count * width).toBe(sheet.image.width);
+    }
+  }, 60_000);
 
   it('gives every skin a name for its class: the same every time, short, and drawn by the small font', () => {
     expect(skinName(4242)).toBe(skinName(4242));

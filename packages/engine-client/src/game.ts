@@ -924,8 +924,11 @@ async function run(options: GameOptions): Promise<void> {
     const scale = sneakWalk ? SNEAK_SPEED : 1;
     return clampInput({ x: (keys.x + stick.x) * scale, y: (keys.y + stick.y) * scale });
   };
-  /** Whether the player sneaks on purpose: the sneak walk, or a slow walk (standing still also hides it from mobs, but not on purpose). */
-  const sneakingShown = () => isSneaking(player) && (sneakWalk || Math.hypot(player.vx, player.vy) > 1);
+  /**
+   * Whether the player sneaks on purpose: the sneak walk, a slow walk, or the crouch after one
+   * (PlayerView.crouched). Standing still also hides it from mobs, but not on purpose.
+   */
+  const sneakingShown = () => isSneaking(player) && (sneakWalk || Math.hypot(player.vx, player.vy) > 1 || playerView.crouched);
 
   const hud = new Hud(params.has('debug'));
   // A deploy publishes a new build: the page reloads itself at a calm moment (in the loop below),

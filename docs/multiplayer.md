@@ -532,7 +532,8 @@ effect of the blow in its direction.
   another one without saving it. The seed goes in `hello`, and the server sends each player's
   seed to the others. Every client makes the same skin from a seed
   (`art/skins.ts`), renders it in a Web Worker (`src/skins/skin-worker.ts`) and keeps the last
-  24 sheets in localStorage (`game.skins.v<SKIN_VERSION>.*`). Until a skin is ready, its player
+  24 sheets in localStorage (`game.skins.v<SKIN_VERSION>.*`; it removes the sheets of an older
+  version). Until a skin is ready, its player
   shows as a darker wanderer from the atlas. The server never reads a seed; it only checks
   that it is a whole number from 0 to 2^32 - 1. The Wilds use the visitor's skin too.
 - A correction from the server moves the interpolation with it; a correction of up to 2 tiles
