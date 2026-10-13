@@ -564,15 +564,18 @@ describe('the shrine of Whitegrove', () => {
 });
 
 describe('the forest of the tutorial', () => {
-  it('has only goblin patrols, round the hut and the hamlets; imps and brutes keep the wildlands north of it', () => {
+  it('has only goblin patrols, round the hut, the hamlets and Ironhold; imps and brutes keep the wildlands north of it', () => {
     const rules = source.mobs();
     const home = source.home();
     expect(home.y0).toBeGreaterThan(FOREST_EDGE_Y);
     expect(WHITEGROVE.y0).toBeGreaterThan(FOREST_EDGE_Y);
     expect(BRONZEHOLD.y0).toBeGreaterThan(FOREST_EDGE_Y);
-    expect(TOWN.y1).toBeLessThan(FOREST_EDGE_Y);
+    // The land round Ironhold is of the forest too; the wildlands start at its north edge.
+    expect(TOWN.y0).toBe(FOREST_EDGE_Y);
     expect(rules.populationAt!(home.doorX, home.y1 + 4)).toEqual({ skirmisher: 3 });
-    expect(rules.populationAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toEqual({ imp: 4, brute: 2 });
+    expect(rules.populationAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toEqual({ skirmisher: 3 });
+    expect(rules.populationAt!(TOWN.x0 - 4, TOWN.y0 + 4)).toEqual({ skirmisher: 3 });
+    expect(rules.populationAt!(TOWN_GATE.tx, TOWN.y0 - 1)).toEqual({ imp: 4, brute: 2 });
     // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
     let forest = 0;
     let wild = 0;

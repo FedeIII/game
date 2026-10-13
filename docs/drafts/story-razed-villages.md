@@ -57,9 +57,10 @@ the thread that connects the quests.
   2026-10-12). Built on 2026-10-13: see `docs/story/world.md`.
 - **Ironhold** (Thornwick until 2026-10-11; Ferrozar in Kandrax) is the frontier village, north of the
   home. Its plan, its buildings and its ten NPCs stay. The reeve (alguacil) is the head of the village.
-  *Superseded:* in the game, Ironhold is not a village of the Sovereignty (Bronzehold is its last
-  village), soldiers of the Sovereignty stay in it, and Brann, the watchman, is of the town watch, not a
-  soldier. See `docs/story/world.md` and `docs/drafts/story-fixes.md`.
+  Ironhold is the last town of the Sovereignty before the wildlands, on the way to Silverspring (Fede,
+  2026-10-13). Soldiers of the Sovereignty stay in it, and Brann, the watchman, is of the town watch,
+  not a soldier; he stands at the south entry, where the road from the hut comes in. See
+  `docs/story/world.md`.
 - **Silverspring** is the mithril village of the Enclave, a new fixed town north-east of
   Ironhold, at the end of a new road.
 - **The razed villages:** the Ashen Seekers burn homesteads of the wildlands, north of Ironhold. They look for relics of

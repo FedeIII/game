@@ -47,36 +47,41 @@ are fixed: the same for every seed. From the south to the north:
 | **The road to Ironhold** | `road.ts`, `homeLegs()` | From the hut west, then north through Whitegrove and Bronzehold, to the south edge of Ironhold (`TOWN_SOUTH`, `-32, 15`). |
 | The broken cart | `-3, 123`, on the first leg | The merchant's cart, with a lantern: no mob comes within 4 tiles. |
 | **Whitegrove** (Arboleda Blanca) | `-20..-2, 88..109` | A hamlet of the Sovereignty: the farmer's house and stall, the **shrine** (a refuge), two shut houses. |
-| **Bronzehold** (Bronzal) | `-45..-27, 38..59` | "The last village of the Sovereignty": the guard post, a forge, two shut houses. |
+| **Bronzehold** (Bronzal) | `-45..-27, 38..59` | A village of the Sovereignty: the guard post, a forge, two shut houses. |
 
-**The forest of the tutorial** is every tile from row `FOREST_EDGE_Y` (15, the row of the south entry
-of Ironhold) south: the whole road from the hut. A character there has goblin patrols round it (the
-skirmisher: 2 or 3 in a group, about 3 round each character), and goblins live only from row 17 south.
-No imp and no brute lives there; they live from row 12 north, round Ironhold and in the wildlands.
+**The forest of the tutorial** is every tile from row `FOREST_EDGE_Y` (-8, the north edge of
+Ironhold) south: the whole road from the hut, and the land round Ironhold (Fede, 2026-10-13). A
+character there has goblin patrols round it (the skirmisher: 2 or 3 in a group, about 3 round each
+character), and goblins live only from row -6 south. No imp and no brute lives there; they live from
+row -11 north, in the wildlands.
 
 ### Ironhold
 
 **Ironhold** (Ferrozar): `-52..-8, -8..14`, north of Bronzehold, at the end of the road from the hut.
 An inn (the Crooked Lantern; el Farol Torcido), a smithy, a chapel (a refuge), the apothecary, the
 reeve's house, and four houses that are shut for good (the chandler, a cottage, the granary, a house).
-The road from the hut comes in at the south edge (`TOWN_SOUTH`). The watchman stands at the east gate
-(`TOWN_GATE`, `-7, 3`); from the gate a road goes north along the town to the north road.
+The road from the hut comes in at the south edge (`TOWN_SOUTH`), where the watchman Brann stands on
+the lane. From the east gate (`TOWN_GATE`, `-7, 3`) a road goes north along the town to the north road.
 
 What the people say of Ironhold:
 
-- It is not a town of the Sovereignty. "Bronzehold is the last village of the Sovereignty. Past it,
-  only Ironhold and the wildlands" (the farmer of Whitegrove). The soldiers in it "are soldiers of the
-  Sovereignty, not of Ironhold" (the reeve); "Ironhold has no soldiers" (to Kasmut).
-- Soldiers of the Sovereignty stay in it: "Ironhold is ours to guard" (a soldier).
+- It is a town of the Sovereignty: the last one before the wildlands, on the way to Silverspring, the
+  last village of the Mithril Enclave (Fede, 2026-10-13). "Up the road: Bronzehold, then Ironhold, the
+  last town of the Sovereignty. Past it, the wildlands" (the farmer of Whitegrove).
+- It has no soldiers of its own, only Brann of the town watch. Soldiers of the Sovereignty stay in it:
+  "Ironhold is ours to guard" (a soldier). They "are soldiers of the Sovereignty, not of Ironhold"
+  (the reeve): they guard what the Sovereignty wants, not the town. "Ironhold has no soldiers. The
+  soldiers are of the Sovereignty" (to Kasmut).
 - "Past Ironhold the wildlands start, and nobody rules them" (the sergeant of Bronzehold).
 - The town shrinks: the woods came closer, the roads went bad, and the families went south.
 
-Mobs never come into the town. The mobs round it are those of the wildlands (below).
+Mobs never come into the town. Round it are only the goblin patrols of the forest; the wildlands start
+at its north edge.
 
-### The wildlands, north of the forest of the road
+### The wildlands, north of Ironhold
 
-North of the forest, a character has about 4 imps and 2 brutes round it, and they live only north of
-row 22 (two rows of margin from the forest). Lonely houses stand in about a third of the 24 x 24-tile cells:
+North of the forest (row -9 and north), a character has about 4 imps and 2 brutes round it, and they
+live only from row -11 north (two rows of margin from the forest). Lonely houses stand in about a third of the 24 x 24-tile cells:
 a quarter of the houses with a chest are barred (STR 13), a third of the other chests are locked
 (DEX 13).
 
@@ -94,7 +99,7 @@ a quarter of the houses with a chest are barred (STR 13), a third of the other c
 
 | Place | Where | What |
 |---|---|---|
-| **Silverspring** | `172..213, -189..-166`, at the end of the north road | The mithril village of the Mithril Enclave. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. |
+| **Silverspring** | `172..213, -189..-166`, at the end of the north road | The mithril village of the Mithril Enclave: the counterpart of Ironhold, the last village of the Enclave before the wildlands. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. |
 | **The Silvervein** (el río Vena de Plata) | from its spring (`205, -223`), through Silverspring, to a pool (`196, -115`) | The river of Silverspring. It brings mithril dust down from the hills. |
 | **The Wren homestead** (la granja de los Wren) | `176..188, -108..-98`, by the pool | A whole house. Mira Wren lives there with her two children. |
 | **The burned trail** | from the Wren homestead east into the hills | The trail of the Ashen Seekers. |
@@ -114,8 +119,8 @@ A character that falls (0 HP) wakes at its home, or at the nearest refuge that i
 
 | Mob | Where |
 |---|---|
-| Goblin patrols (the skirmisher) | the forest of the road only |
-| Imps and brutes | the wildlands |
+| Goblin patrols (the skirmisher) | the forest of the road and the land round Ironhold only |
+| Imps and brutes | the wildlands, north of Ironhold |
 | The hobgoblin scouts: worgs with goblin riders, a hobgoblin, a bugbear | the grove (the raid), the caravan |
 | The war band: the Hobgoblin Devastator, hobgoblins, a bugbear | the north road, the raid on Silverspring, the caravan |
 | The cinder hounds (los sabuesos de ceniza) and a watcher | the burned trail, the Wren homestead |

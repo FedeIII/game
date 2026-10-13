@@ -1012,9 +1012,10 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
-  `FOREST_EDGE_Y` 15, the row of Ironhold's south entry: south of it): only goblin patrols live there (`MobRules.populationAt`,
-  `roam(tx, ty, kind)`; the skirmisher), round the hut and the two hamlets; imps and brutes keep the
-  wildlands north of it. Plan: `docs/drafts/tutorial.md`.
+  `FOREST_EDGE_Y` -8, the row of Ironhold's north edge: south of it): only goblin patrols live there (`MobRules.populationAt`,
+  `roam(tx, ty, kind)`; the skirmisher), round the hut, the two hamlets and Ironhold; imps and brutes keep the
+  wildlands north of Ironhold (Fede, 2026-10-13). Ironhold is the last town of the Sovereignty before the
+  wildlands, on the way to Silverspring, the Enclave's last village. Plan: `docs/drafts/tutorial.md`.
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below
   the path to the hut's door west and north to **Whitegrove** (Arboleda Blanca), up its lane, on to
   **Bronzehold** (Bronzal), up its lane, and north to the south edge of Ironhold (`TOWN_SOUTH`, below an
@@ -1039,7 +1040,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   reeve's house, the granary and a house. Five open; four are shut for good (`locked`: the
   chandler, the cottage, the granary, the house). Ten NPCs (`TOWN_NPCS`): in the buildings the
   innkeeper and the minstrel, the smith, the priest, the apothecary and the reeve (some walk out
-  to their doorstep); in the streets the watchman at the gate, the peddler, the widow by the
+  to their doorstep); in the streets the watchman Brann at the south entry (where the road from the hut comes in), the peddler, the widow by the
   fountain and the child in the lane. Each one has three lines that it says by itself, a greeting
   by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
   apothecary, the reeve, the peddler and the smith (`dialogs.ts`), three pages for the others. The inn has a

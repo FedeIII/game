@@ -38,7 +38,7 @@ export const ATHLETICS_GATE: Gate = { ability: 'str', min: 13 };
 /** The gate of persuasion: Charisma 13 (answers that win a person over). */
 export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };
 
-/** Brann, the watchman at the east gate of Ironhold (town.ts, TOWN_GATE), where the north road starts. */
+/** Brann, the watchman at the south entry of Ironhold (town.ts, TOWN_SOUTH), where the road from the hut comes in. */
 export const WATCHMAN: Dialog = {
   name: 'Brann, the watchman',
   start: 'halt',
@@ -71,7 +71,7 @@ export const WATCHMAN: Dialog = {
       answers: [{ text: 'Where should I go first?', next: 'advice' }, { text: 'What is out there in the woods?', next: 'woods' }, BYE],
     },
     woods: {
-      say: 'Imps, quick as cats. And the big grey ones with clubs. They never come past the lamps.',
+      say: 'Goblins, on the road behind you. North of the town, worse: imps, quick as cats, and big grey ones with clubs. They never come past the lamps.',
       answers: [{ text: 'Why not?', next: 'lamps' }, { text: 'I will be careful.' }],
     },
     lamps: {
@@ -83,7 +83,7 @@ export const WATCHMAN: Dialog = {
       answers: [{ text: 'Can I come in?', next: 'enter' }, BYE],
     },
     enter: {
-      say: 'The gate is open to anyone who is not an imp. Welcome to Ironhold.',
+      say: 'Ironhold is open to anyone who is not a goblin. Welcome.',
       answers: [
         { text: 'Where should I go first?', next: 'advice' },
         { text: 'You look like a man who needs a drink. The next one is on me.', next: 'treat', gate: PERSUASION_GATE },
@@ -187,7 +187,7 @@ export const APOTHECARY: Dialog = {
       answers: [{ text: 'A phoenix is burned into each of them. Do you know the sign?', next: 'raiders', effect: ASHES_SYMBOL }, { text: 'Something else.', next: 'careful' }, BYE],
     },
     raiders: {
-      say: 'Travellers say that raiders from the south leave it: cutthroats who call themselves the Ashen Seekers. They burn the houses to hide what they steal.',
+      say: 'Travellers say that raiders leave it: cutthroats who call themselves the Ashen Seekers. Nobody knows where they come from. They burn the houses to hide what they steal.',
       answers: [{ text: 'Is that all that people say?', next: 'rumours' }, BYE],
     },
     rumours: {
@@ -1389,7 +1389,7 @@ export const FARMER: Dialog = {
       ],
     },
     place: {
-      say: 'Whitegrove: birches, lentils, and a shrine for the road. Bronzehold is the last village of the Sovereignty. Past it, only Ironhold and the wildlands.',
+      say: 'Whitegrove: birches, lentils, and a shrine for the road. Up the road: Bronzehold, then Ironhold, the last town of the Sovereignty. Past it, the wildlands.',
       answers: [BYE],
     },
   },

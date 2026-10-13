@@ -408,8 +408,8 @@ what they know of the sign, so that the mystery deepens.
 - **AC-QST-018.1:** At `ruins`, the map marks the priest of Ironhold. The priest and the apothecary
   each start with the burned homesteads.
 - **AC-QST-018.2:** The priest calls the phoenix the sign of a god before the gods; with INT 13, the
-  character learns of "those who seek in the ashes". The apothecary says that raiders from the south
-  call themselves the Ashen Seekers. The stories do not agree.
+  character learns of "those who seek in the ashes". The apothecary says that raiders call themselves
+  the Ashen Seekers, and that nobody knows where they come from. The stories do not agree.
 - **AC-QST-018.3:** Either of them moves the quest to `symbol`. The later steps of the story come with
   its later phases.
 

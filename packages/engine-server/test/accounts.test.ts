@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { EMPTY_GEAR, PROTOCOL_VERSION, characterSkin, kitOf, sheetKit, toWireGear, type CharacterSheet, type ServerMessage, type WorldDefinition } from '@game/engine';
 import { houseSource } from '../../engine/test/helpers.ts';
-import { AccountStore, startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
+import { AccountStore, NEW_HUT_AT, startServer, type AccountsOptions, type GameServer } from '../src/index.ts';
 
 const shared: WorldDefinition = { id: 'shared', name: 'Shared', createSource: () => houseSource(), examine: {}, darkness: 0, multiplayer: true };
 /** A world that the page runs (not shared): its places come from the page. */
@@ -586,6 +586,31 @@ describe('accounts: personal data', () => {
       const third = new AccountStore(file);
       expect(third.character(user.id, made.id)!.quests).toEqual({});
       third.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('moves a character from before the new hut to its hut, and keeps the place of a newer one', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
+    try {
+      const file = join(dir, 'game.db');
+      const store = new AccountStore(file);
+      const user = store.signIn('google', '1', 1);
+      const old = store.createCharacter(user.id, sheet, NEW_HUT_AT - 60_000);
+      const young = store.createCharacter(user.id, sheet, NEW_HUT_AT + 60_000);
+      if (old === 'limit' || young === 'limit') throw new Error('limit');
+      store.setPlace(user.id, old.id, { world: 'wilds', x: 100, y: 200 });
+      store.setPlace(user.id, young.id, { world: 'wilds', x: 300, y: 400 });
+      store.close();
+      // The database as it was before the step of 2026-10-13 (the 11 steps before it).
+      const db = new DatabaseSync(file);
+      db.exec('PRAGMA user_version = 11');
+      db.close();
+      const again = new AccountStore(file);
+      expect(again.character(user.id, old.id)!.place).toBeNull();
+      expect(again.character(user.id, young.id)!.place).toEqual({ world: 'wilds', x: 300, y: 400 });
+      again.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

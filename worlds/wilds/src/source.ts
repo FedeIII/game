@@ -165,12 +165,12 @@ const MOB_POPULATION = { imp: 4, brute: 2 } as const;
 
 /**
  * The forest at the northern edge of the Iron Sovereignty, from this row south (tiles): the woods of
- * the tutorial, round the hut, Whitegrove and Bronzehold, to the south edge of Ironhold, where the road
- * comes in (Fede, 2026-10-13: the only enemies on the way from the hut to Ironhold are goblins). Only
- * goblin patrols live there (the skirmisher: mobs.ts); imps and brutes keep the land round Ironhold
- * and the wildlands north of it (docs/drafts/story-fixes.md, 3: the land round the town is Fede's call).
+ * the tutorial, round the hut, Whitegrove, Bronzehold and Ironhold, to the north edge of Ironhold
+ * (Fede, 2026-10-13: the only enemies on the way from the hut to Ironhold are goblins, and imps and
+ * brutes live only north of Ironhold, the last town of the Sovereignty). Only goblin patrols live
+ * there (the skirmisher: mobs.ts); imps and brutes keep the wildlands north of it.
  */
-export const FOREST_EDGE_Y = IRONHOLD.y1 + 1;
+export const FOREST_EDGE_Y = IRONHOLD.y0;
 /** The goblins round a player in the forest of the tutorial: one patrol of 2 or 3. */
 const FOREST_POPULATION = { skirmisher: 3 } as const;
 /** Whether a tile is in the forest of the tutorial. */

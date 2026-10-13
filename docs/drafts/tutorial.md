@@ -71,7 +71,8 @@ Bronzal is Bronzehold.
 - **Weak** (a proposal, for the level question below): 5 HP, AC 12, +3 to hit, 1d4+1 damage, wind-up
   0.7 s. Loot: a coin or two, now and then a crude dagger.
 - **Where.** The forest between the hut and Ironhold, at the edge of the Sovereignty, has only goblin
-  patrols; imps and brutes keep the wildlands north of Ironhold. The world is shared, so the area
+  patrols, and so has the land round Ironhold (`FOREST_EDGE_Y` is the north edge of Ironhold, Fede,
+  2026-10-13); imps and brutes keep the wildlands north of Ironhold. The world is shared, so the area
   decides, not the quest of each player.
 
 ## Tips (a new system)

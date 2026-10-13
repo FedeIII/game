@@ -37,6 +37,9 @@ export interface User {
   readonly email: string;
 }
 
+/** When the new hut went live on game.azyr.io (2026-10-12, 22:52 UTC; the commit a7737c5), in ms. */
+export const NEW_HUT_AT = Date.UTC(2026, 9, 12, 22, 52);
+
 const MIGRATIONS: readonly string[] = [
   `CREATE TABLE users (
      id INTEGER PRIMARY KEY,
@@ -97,6 +100,9 @@ const MIGRATIONS: readonly string[] = [
   // 2026-10-13: characters are level 1 (Fede's decision): a fighter has about 10 hit points, not 25.
   // Every character gets all of them on the new scale.
   `UPDATE characters SET hp = NULL;`,
+  // 2026-10-13: the hut moved south of Ironhold (the cell HOME_CELL of the Wilds). A character made
+  // before the new hut went live starts in its new hut, not where it was (Fede's decision).
+  `UPDATE characters SET place = NULL WHERE created_at < ${NEW_HUT_AT};`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */

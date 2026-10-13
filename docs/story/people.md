@@ -20,14 +20,14 @@ by its name (`NpcDef.greeting`).
 | Person (Spanish) | Id, place | Role in the story |
 |---|---|---|
 | **Elama Rothenel, the reeve** (la alguacil) | `reeve`, her house on the lane | Runs what is left of the town. Wrote to Thrain first. Gives "The Razed Villages" after the road; asks the character to warn Silverspring ("The Hobgoblin Raid"); takes the fine of a robber of the caravan. Gates: INT 13 (her ledgers, her map), WIS 13 (her fear, the buried savings), CHA 13 (the granary). |
-| **Brann, the watchman** (el guardia) | `watchman`, the east gate | "The whole watch, these days." Tells of the imps and the brutes, and of the lamps that keep them out. WIS 13: something else than the candles keeps them out. CHA 13: walk away from the brutes. |
+| **Brann, the watchman** (el guardia) | `watchman`, the south entry (the lane, where the road from the hut comes in) | "Halt! Who walks the road at night?" "The whole watch, these days." Tells of the goblins of the road, of the imps and the brutes north of the town, and of the lamps that keep them out. WIS 13: something else than the candles keeps them out. CHA 13: walk away from the brutes. |
 | **Marta, the innkeeper** (la posadera) | `innkeeper`, the Crooked Lantern | Sells ale (2 coins). CHA 13: a room, and her inn becomes a refuge. |
 | A minstrel | `minstrel`, the inn | Pages: sad songs. |
 | A soldier at the inn | `inn-soldier`, the inn | Plots against the caravan of Silverspring with a villager (the scene "the plot"). |
 | A drinker | `drinker`, the inn | The villager of the plot. |
 | **The smith** (el herrero) | `smith`, the smithy | Sells armour, a shield and weapons, buys them back for half. Gives a lever for the cart. Buys mithril (10 coins). |
 | **The priest** (el sacerdote) | `priest`, the chapel | Keeps the candles of the chapel. Reads the sign of the phoenix: "a god before the gods" (INT 13: "those who seek in the ashes"). Sends the character to the Wrens. |
-| **Isolde, the apothecary** (la boticaria) | `apothecary`, the apothecary | Sells the three draughts (CHA 13: a friend's price). The rumour of the phoenix: raiders "from the south" who call themselves the Ashen Seekers. Gates: INT 13 (to brew), WIS 13 (her ashroot). The cauldron in her shop brews draughts (INT 10, 13, 15). |
+| **Isolde, the apothecary** (la boticaria) | `apothecary`, the apothecary | Sells the three draughts (CHA 13: a friend's price). The rumour of the phoenix: raiders who call themselves the Ashen Seekers; "Nobody knows where they come from." Gates: INT 13 (to brew), WIS 13 (her ashroot). The cauldron in her shop brews draughts (INT 10, 13, 15). |
 | A villager | `farmer`, the reeve's house | Argues for a warning to Silverspring (the scene "the argument"). His brother farms by the hills. |
 | **A soldier of the Sovereignty** (un soldado de la Soberanía) | `soldier`, the reeve's house | "Ironhold is ours to guard. Ironhold, and nothing else." Will not send soldiers to Silverspring. WIS 13: the Sovereignty wants the hobgoblins to reach Silverspring. |
 | **Corwin, the peddler** (el buhonero) | `peddler`, the street | Buys rings (5), cups (3), candle stubs (1), imp horns (2), brute tusks (4), badger furs (4). |

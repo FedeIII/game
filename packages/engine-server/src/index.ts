@@ -22,7 +22,7 @@ import { Accounts, type AccountsOptions } from './accounts.ts';
 import type { User } from './store.ts';
 
 export { Accounts, type AccountsOptions, type PlaceWorlds } from './accounts.ts';
-export { AccountStore, type User } from './store.ts';
+export { AccountStore, NEW_HUT_AT, type User } from './store.ts';
 export type { GoogleConfig } from './google.ts';
 
 /**

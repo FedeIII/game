@@ -398,12 +398,13 @@ const streetArea = (c0: number, r0: number, c1: number, r1: number): Tile[] => I
 
 const WALKERS: readonly NpcDef[] = [
   {
+    // Brann watches the south entry, where the road from the hut comes in (TOWN_SOUTH; Fede, 2026-10-13).
     id: 'watchman',
     look: 'watchman',
-    home: at(42, 11),
-    area: streetArea(38, 11, 44, 13),
+    home: at(20, 21),
+    area: streetArea(16, 20, 24, 21),
     content: { speaker: 'fixture', dialog: WATCHMAN },
-    barks: ['Nothing comes past this gate.', 'Keep to the lamps.', 'A quiet night. Too quiet.'],
+    barks: ['Nothing comes up this road unseen.', 'Keep to the lamps.', 'A quiet night. Too quiet.'],
     greeting: 'Evening, {name}. Keep to the lamps.',
   },
   {
