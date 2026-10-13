@@ -705,6 +705,39 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
 }
 
 /**
+ * Turns a figure round the z axis (the way it faces) through `pivot` by `angle` (radians): with a
+ * positive angle the top goes to the figure's right (+x). For the evade of a brace: the figure sways
+ * out of a blow, its feet on the ground.
+ */
+export function sway(parts: readonly Part[], angle: number, pivot: Vec3): Part[] {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const [px, py] = pivot;
+  // A point (or a normal) of the turned figure comes from this point of the figure.
+  const back = (dx: number, dy: number): [number, number] => [dx * cos - dy * sin, dx * sin + dy * cos];
+  return parts.map((p) => {
+    const sdf: Sdf = (x, y, z) => {
+      const [bx, by] = back(x - px, y - py);
+      return p.sdf(px + bx, py + by, z);
+    };
+    const material = p.material;
+    const turned: Part['material'] =
+      typeof material === 'number'
+        ? material
+        : (x, y, z, nx, ny, nz) => {
+            const [bx, by] = back(x - px, y - py);
+            const [mx, my] = back(nx, ny);
+            return material(px + bx, py + by, z, mx, my, nz);
+          };
+    if (!p.bound) return { sdf, material: turned };
+    const [bx, by, bz, br] = p.bound;
+    const dx = bx - px;
+    const dy = by - py;
+    return { sdf, material: turned, bound: [px + dx * cos + dy * sin, py - dx * sin + dy * cos, bz, br] as const };
+  });
+}
+
+/**
  * Turns a figure round the x axis through `pivot` by `angle` (radians): with a positive angle the
  * top goes forward (+z) and down, a forward roll. For the roll of a dodge, with a tucked pose.
  */

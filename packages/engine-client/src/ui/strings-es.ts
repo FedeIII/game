@@ -28,6 +28,7 @@ export const ES: Strings = {
       sneak: { keys: 'Un enemigo no te ha visto. [C] camina con sigilo, y los enemigos te ven más tarde.', touch: 'Un enemigo no te ha visto. Un empujón pequeño del joystick camina con sigilo.' },
       attack: { keys: '¡Un enemigo! [Espacio] golpea al enemigo más cercano; un clic golpea hacia el puntero.', touch: '¡Un enemigo! El botón de ataque golpea al enemigo más cercano.' },
       dodge: { keys: 'Prepara un golpe: [Mayús] o un clic derecho te apartan rodando.', touch: 'Prepara un golpe: el botón de esquivar te aparta rodando.' },
+      brace: { keys: 'Retrocede justo después de tu golpe: te quedas en tu sitio, en guardia. Un golpe en la guardia no te toca.', touch: 'Tira del joystick hacia atrás justo después de tu golpe: te quedas en tu sitio, en guardia. Un golpe en la guardia no te toca.' },
       hit: { keys: 'Te han herido. La barra roja, arriba a la izquierda, es tu salud: no vuelve sola.', touch: 'Te han herido. La barra roja, arriba a la izquierda, es tu salud: no vuelve sola.' },
       drink: { keys: 'Te queda poca salud: [1] bebe un brebaje curativo.', touch: 'Te queda poca salud: toca un brebaje en el cinturón, arriba a la izquierda.' },
       pickup: { keys: 'Hay algo en el suelo: acércate y pulsa [E] para recogerlo.', touch: 'Hay algo en el suelo: acércate y toca el botón de acción.' },
@@ -140,6 +141,7 @@ export const ES: Strings = {
   },
   fight: {
     miss: 'fallo',
+    evade: 'esquiva',
     crit: (n: number): string => `${n}!`,
   },
   vitals: {

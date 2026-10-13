@@ -48,6 +48,15 @@ export interface PlayerState {
   dodgeCooldown: number;
   /** The direction of the dodge in progress or of the last one (radians). */
   dodgeAim: number;
+  /**
+   * Ticks left in which a step back braces (0: none): BRACE_WINDOW_TICKS from the end of a melee
+   * attack (PlayerTraits.brace).
+   */
+  braceWindow: number;
+  /** Ticks left of a brace (0: none): the player stands, faces the way it struck, and evades a blow that reaches it. */
+  brace: number;
+  /** Ticks left of an evade (0: none): the player sways out of a blow where it stands, and no mob can hit it. */
+  evade: number;
   /** Hit points (CON): a mob's hit takes some; at 0 the player is defeated (`down`). */
   hp: number;
   /** Ticks until a hit point comes back (while it has fewer than its most). */
@@ -93,6 +102,20 @@ export const DODGE_TICKS = 15;
 export const DODGE_DISTANCE = 32;
 export const DODGE_COOLDOWN_TICKS = 96;
 /**
+ * The brace (2026-10-14, Fede's idea): a step back right after a melee attack does not walk away. In
+ * the first BRACE_WINDOW_TICKS after the attack (0.15 s) a move away from the way of the attack
+ * (BRACE_BACK) starts a brace: the player stands where it is, faces the way it struck, and tenses for
+ * BRACE_TICKS (0.3 s). A mob's blow or arrow that reaches it in the brace gets no attack roll: the
+ * player evades it where it stands (evadeBlow), and no mob can hit it for EVADE_TICKS (0.25 s). A
+ * brace with no blow ends, and the player walks again (a step back later than the window is a walk:
+ * the kite). An attack or a roll breaks a brace.
+ */
+export const BRACE_WINDOW_TICKS = 9;
+export const BRACE_TICKS = 18;
+export const EVADE_TICKS = 15;
+/** A move is "back" when the cosine of its angle to the way of the attack is at most this (120 degrees or more). */
+export const BRACE_BACK = -0.5;
+/**
  * A player that walks at this share of PLAYER_SPEED or slower, or stands, sneaks: mobs see it from
  * half as far (mobs.ts, HordePlayer.sight).
  */
@@ -135,9 +158,10 @@ export interface PlayerMap extends SolidMap {
 
 /**
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
- * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS.
+ * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS, and no brace
+ * (a guard or a companion: only a character braces).
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed'>>;
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace'>>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -206,6 +230,9 @@ export function createPlayer(x: number, y: number): PlayerState {
     dodge: 0,
     dodgeCooldown: 0,
     dodgeAim: 0,
+    braceWindow: 0,
+    brace: 0,
+    evade: 0,
     hp: PLAIN_HP,
     recover: 0,
     stamina: PLAIN_STAMINA,
@@ -240,6 +267,7 @@ export function hitPlayer(player: PlayerState, damage: number, stunTicks: number
     player.stun = 0;
     player.inspired = 0;
     player.dodge = 0;
+    player.evade = 0;
     player.poison = 0;
     player.poisonClock = 0;
   }
@@ -249,6 +277,20 @@ export function hitPlayer(player: PlayerState, damage: number, stunTicks: number
 /** A mob's attack that its roll misses: it glances off the player's armour (a spark, no stun, no damage). */
 export function glancePlayer(player: PlayerState): void {
   player.glance = GLANCE_TICKS;
+}
+
+/**
+ * A mob's blow (or arrow) that reaches the player: if the player braces, it evades the blow where it
+ * stands (EVADE_TICKS), and the blow gets no attack roll. Returns whether it evaded. The caller calls
+ * it before the roll.
+ */
+export function evadeBlow(player: PlayerState): boolean {
+  if (player.brace === 0 || player.down > 0 || player.stun > 0) return false;
+  player.brace = 0;
+  player.evade = EVADE_TICKS;
+  player.vx = 0;
+  player.vy = 0;
+  return true;
 }
 
 /** A defeated player wakes at (x, y) on the ground storey with all its HP and stamina, a guard, and no poison or drink. */
@@ -267,6 +309,9 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.stun = 0;
   player.attack = 0;
   player.dodge = 0;
+  player.braceWindow = 0;
+  player.brace = 0;
+  player.evade = 0;
   player.poison = 0;
   player.poisonClock = 0;
   player.drunk = 0;
@@ -274,17 +319,20 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.evade === 0;
 }
 
 /** Whether the player can start a dodge in its next tick: it has the stamina (and it is not in shallow water: see stepPlayer). */
 export function canDodge(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.evade === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
 }
 
-/** Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in a dodge. */
+/**
+ * Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in a
+ * dodge or an evade. A player that braces can be reached: it then evades (evadeBlow).
+ */
 export function canBeHit(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0 && player.evade === 0;
 }
 
 /** Whether a velocity is a sneak walk: slower than SNEAK_SPEED, but not standing. */
@@ -295,18 +343,21 @@ export function isSneakWalk(vx: number, vy: number): boolean {
 
 /**
  * Whether the player sneaks: it stands, or it walks slowly (SNEAK_SPEED) with stamina left; not in
- * shallow water (the water makes it slow, not the player), not while it strikes, rolls or lies.
+ * shallow water (the water makes it slow, not the player), not while it strikes, braces, evades, rolls
+ * or lies.
  */
-export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'>): boolean {
-  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading) return false;
+export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'> & Partial<Pick<PlayerState, 'brace' | 'evade'>>): boolean {
+  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading || (player.brace ?? 0) > 0 || (player.evade ?? 0) > 0) return false;
   if (Math.hypot(player.vx, player.vy) <= 1) return true;
   return isSneakWalk(player.vx, player.vy) && player.stamina > 0;
 }
 
-/** A hit: the player stops, its attack ends, and it cannot act for `ticks` ticks. */
+/** A hit: the player stops, its attack (and a brace) ends, and it cannot act for `ticks` ticks. */
 export function stunPlayer(player: PlayerState, ticks: number): void {
   player.stun = Math.max(player.stun, ticks);
   player.attack = 0;
+  player.braceWindow = 0;
+  player.brace = 0;
   player.vx = 0;
   player.vy = 0;
 }
@@ -467,8 +518,10 @@ export function resumePlace(
  * Advances one player by one tick. This is the authoritative rule: the client runs it for
  * prediction and the server runs it to decide the true state. A stunned player and a player
  * that strikes stand still. A player who can wade (`traits`) walks in shallow water, slowly, and
- * does not attack there; one who can swim (the Tear of Tigris) does the same in deep water. Returns true if an attack starts in this tick: the caller finds what it
- * hits (a client alone, or the server).
+ * does not attack there; one who can swim (the Tear of Tigris) does the same in deep water. A step
+ * back right after a melee attack braces (BRACE_TICKS), and a brace that a blow reached evades it
+ * (EVADE_TICKS): both stand still. Returns true if an attack starts in this tick: the caller finds what
+ * it hits (a client alone, or the server).
  */
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
@@ -498,17 +551,30 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     roll(player, world, solid, dt);
     return false;
   }
+  if (player.evade > 0) {
+    // It sways out of the blow and back, where it stands.
+    player.evade--;
+    player.vx = 0;
+    player.vy = 0;
+    return false;
+  }
   if (player.attack > 0) {
     player.attack--;
     player.vx = 0;
     player.vy = 0;
+    // The end of a melee attack: a step back now braces.
+    if (player.attack === 0 && traits.brace) player.braceWindow = BRACE_WINDOW_TICKS;
     return false;
   }
   const input0 = clampInput(input);
   const wading = wadingAt(world, player.x, player.y, traits);
   // After an ale the walk sways: the direction turns to and fro, slowly.
   const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
+  const window = player.braceWindow;
+  if (player.braceWindow > 0) player.braceWindow--;
   if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
+    player.braceWindow = 0;
+    player.brace = 0;
     player.stamina -= DODGE_STAMINA;
     player.rest = 0;
     // A roll the way the input moves, or the way the player faces when it stands.
@@ -520,6 +586,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     return false;
   }
   if (move.attack !== undefined && player.cooldown === 0 && !wading) {
+    player.braceWindow = 0;
+    player.brace = 0;
     player.attack = ATTACK_TICKS;
     player.cooldown = traits.cooldown ?? ATTACK_COOLDOWN_TICKS;
     player.aim = move.attack;
@@ -527,6 +595,18 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vx = 0;
     player.vy = 0;
     return true;
+  }
+  if (player.brace === 0 && window > 0 && !wading && movesBack(move, player.aim)) {
+    player.braceWindow = 0;
+    player.brace = BRACE_TICKS;
+  }
+  if (player.brace > 0) {
+    // A brace: it stands, faces the way it struck, and evades a blow that reaches it (evadeBlow).
+    player.brace--;
+    player.facing = facingOfAngle(player.aim);
+    player.vx = 0;
+    player.vy = 0;
+    return false;
   }
   const speed = PLAYER_SPEED * (traits.speed ?? 1) * (wading ? WADE_SPEED : 1);
   player.vx = move.x * speed;
@@ -573,6 +653,13 @@ function body(player: PlayerState, traits: StepTraits, dt: number): void {
     if (player.poison === 0) player.poisonClock = 0;
   }
   if (player.drunk > 0) player.drunk--;
+}
+
+/** Whether a move goes away from the direction `aim` (radians): BRACE_BACK. */
+function movesBack(move: MoveInput, aim: number): boolean {
+  const length = Math.hypot(move.x, move.y);
+  if (length < 0.1) return false;
+  return (move.x * Math.cos(aim) + move.y * Math.sin(aim)) / length <= BRACE_BACK;
 }
 
 /** A move turned by the sway of a drink, which changes slowly with the ticks left. */

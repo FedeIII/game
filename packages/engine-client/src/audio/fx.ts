@@ -158,6 +158,15 @@ export const FX = {
       thud(c, o, t + 0.3, 80, 0.2, 0.08);
     },
   },
+  // A brace that a blow reached: a short swish of cloth, where the player stands.
+  evade: {
+    seconds: 0.35,
+    variants: 3,
+    render: (c, o, t) => {
+      whoosh(c, o, t, 0.2, 0.14, 420, 1700);
+      rustle(c, o, t + 0.02, 0.14, 2400, 0.07);
+    },
+  },
   mobFall: {
     seconds: 0.4,
     variants: 3,

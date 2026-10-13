@@ -33,6 +33,7 @@ const EN = {
       sneak: { keys: 'A foe has not seen you. [C] walks quietly, and foes see you later.', touch: 'A foe has not seen you. A small push of the stick walks quietly.' },
       attack: { keys: 'A foe! [Space] strikes the nearest foe; a click strikes towards the pointer.', touch: 'A foe! The attack button strikes the nearest foe.' },
       dodge: { keys: 'It winds up to strike: [Shift] or a right click rolls you out of the way.', touch: 'It winds up to strike: the dodge button rolls you out of the way.' },
+      brace: { keys: 'Step back just after your blow: you stay where you are, and brace. A blow in the brace does not touch you.', touch: 'Pull the stick back just after your blow: you stay where you are, and brace. A blow in the brace does not touch you.' },
       hit: { keys: 'You are hurt. The red bar, top left, is your health: it does not come back by itself.', touch: 'You are hurt. The red bar, top left, is your health: it does not come back by itself.' },
       drink: { keys: 'Your health is low: [1] drinks a healing draught.', touch: 'Your health is low: tap a draught on the belt, top left.' },
       pickup: { keys: 'Something lies on the ground: walk to it and press [E] to pick it up.', touch: 'Something lies on the ground: walk to it and tap the action button.' },
@@ -164,6 +165,8 @@ const EN = {
   /** What the dice of a fight did (render/fight-numbers.ts): a miss, and a critical hit. */
   fight: {
     miss: 'miss',
+    /** A brace that took a blow: the player evaded it (player.ts, evadeBlow). */
+    evade: 'evade',
     crit: (n: number): string => `${n}!`,
   },
   /** The vitals (ui/vitals.ts): hit points, stamina, effects. */

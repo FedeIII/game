@@ -151,7 +151,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `unlit.ts` (the lamps and the lit windows by day: the unlit frame `<frame>/unlit` under the lit one,
   which shows with the alpha `litAlpha()` of the sky's lights; `dayFrames()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, the crouch and
-  the sneak walk of a player that sneaks (`PlayerView.crouched`), and a faint copy above the props
+  the sneak walk of a player that sneaks (`PlayerView.crouched`), the brace and the evade (the frames,
+  and a sway of 2 px back from the way of the attack), and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
   their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
   `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
@@ -292,7 +293,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
-  walk; the first column of each: `SKIN_COLUMNS`) frames of 56 x 56
+  walk + brace + 3 evade; the first column of each: `SKIN_COLUMNS`) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -359,6 +360,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   rest, and eight frames of the sneak walk with short strides: `FigureAction.crouch` bends the
   knees, spreads them a little and brings the arms forward; the lean bends the body forward), in
   every skin sheet and as `player/<view>/crouch` and `player/<view>/sneak/<i>` for the wanderer.
+  The brace: `braceParts()` (the knees bent, one foot back, the weapon up in front: the guard of its
+  style, `GUARDS`) and the evade: `evadeParts()` (three frames: the braced figure sways to its side
+  round its feet, `sway()` in `figure.ts`, and leans back), in every skin sheet and as
+  `player/<view>/brace` and `player/<view>/evade/<i>` for the wanderer.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
@@ -678,6 +683,13 @@ builder and the "You" section still name every gate.
   way the input moves (or the way the player faces), in which no mob can hit (`canBeHit`); walls
   stop it, and it does not start in shallow water (it ends there). Shift, the right mouse button
   or the dodge button (`ui/dodge-button.ts`).
+- **The brace** (`player.ts`; 2026-10-14, Fede's idea: stay in melee as safe as a kite;
+  `docs/features/game/combat.md`, REQ-CMB-013; the next ideas: `docs/drafts/combat-melee.md`): a step
+  back (120 degrees or more from the attack, `BRACE_BACK`) in the first 9 ticks after a melee attack
+  (`BRACE_WINDOW_TICKS`; `PlayerTraits.brace`: not with a bow) braces for 18 ticks (`BRACE_TICKS`): the
+  player stands, faces the way it struck. A mob's blow or arrow that reaches it then gets no roll: it
+  evades where it stands (`evadeBlow()`, `EVADE_TICKS` 15, `canBeHit` false; "evade" over it). A roll or
+  an attack breaks a brace; it costs nothing. Guards and companions never brace.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
   within their sight times `HordePlayer.sight`. On purpose (the sneak walk of C, or a slow walk; not
@@ -792,7 +804,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 41.
+protocol: `docs/multiplayer.md`, protocol 42.
 
 ## Levels and experience
 

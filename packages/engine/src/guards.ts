@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { attackRoll, rollDice, type DiceSource } from './dice.ts';
 import { MOB_STATS, type Blow, type Horde, type HordePlayer, type Mob } from './mobs.ts';
-import { ATTACK_REACH, DOWN_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, createPlayer, facingFor, glancePlayer, hitPlayer, resumePoint, stepPlayer, type MoveInput, type PlayerState } from './player.ts';
+import { ATTACK_REACH, DOWN_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, createPlayer, evadeBlow, facingFor, glancePlayer, hitPlayer, resumePoint, stepPlayer, type MoveInput, type PlayerState } from './player.ts';
 import type { Interaction } from './fixtures.ts';
 import type { World } from './world.ts';
 
@@ -259,6 +259,8 @@ export class Guards {
     }
     const p = players.find((x) => x.id === target!.id);
     if (!p || !canBeHit(p.state) || !attackHits(state.x, state.y, state.aim, p.state.x, p.state.y, PLAYER_HALF_WIDTH, blow.reach)) return;
+    // A character that braces evades the swing where it stands (player.ts).
+    if (evadeBlow(p.state)) return;
     const roll = attackRoll(blow.toHit, p.traits?.ac ?? 10, dice);
     if (!roll.hit) {
       glancePlayer(p.state);

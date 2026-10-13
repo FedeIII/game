@@ -172,7 +172,7 @@ export class GameSounds {
     this.at(id, mob.x, mob.y, px, py, 1, 20 * TILE);
   }
 
-  /** The player is hit, a blow glances off it, it dodges, it falls. */
+  /** The player is hit, a blow glances off it, it dodges or evades, it falls. */
   hurt(): void {
     this.fx.play('hurt');
   }
@@ -181,6 +181,9 @@ export class GameSounds {
   }
   dodge(): void {
     this.fx.play('dodge', { gain: 0.8 });
+  }
+  evade(): void {
+    this.fx.play('evade', { gain: 0.8 });
   }
   down(): void {
     this.fx.play('down');

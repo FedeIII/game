@@ -4,6 +4,7 @@ import type { AttackStyle } from '../../art/attacks.ts';
 import {
   SKIN_ATTACK_FRAMES,
   SKIN_COLUMNS,
+  SKIN_EVADE_FRAMES,
   SKIN_FALL_FRAMES,
   SKIN_FRAME,
   SKIN_ROLL_FRAMES,
@@ -258,6 +259,8 @@ export class SkinStore {
     const fall = {} as Record<Facing, Texture[]>;
     const crouch = {} as Record<Facing, Texture>;
     const sneak = {} as Record<Facing, Texture[]>;
+    const brace = {} as Record<Facing, Texture>;
+    const evade = {} as Record<Facing, Texture[]>;
     const frames = (first: number, length: number, row: number) => Array.from({ length }, (_, i) => frame(first + i, row));
     SKIN_VIEWS.forEach((view, row) => {
       stand[view.name] = frame(SKIN_COLUMNS.stand, row);
@@ -267,7 +270,9 @@ export class SkinStore {
       fall[view.name] = frames(SKIN_COLUMNS.fall, SKIN_FALL_FRAMES, row);
       crouch[view.name] = frame(SKIN_COLUMNS.crouch, row);
       sneak[view.name] = frames(SKIN_COLUMNS.sneak, SKIN_SNEAK_FRAMES, row);
+      brace[view.name] = frame(SKIN_COLUMNS.brace, row);
+      evade[view.name] = frames(SKIN_COLUMNS.evade, SKIN_EVADE_FRAMES, row);
     });
-    return { stand, walk, attack, roll, fall, crouch, sneak, headHeight };
+    return { stand, walk, attack, roll, fall, crouch, sneak, brace, evade, headHeight };
   }
 }

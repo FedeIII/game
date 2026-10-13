@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, DODGE_TICKS, DOWN_TICKS, facingAngle, type Facing } from '@game/engine';
+import { ATTACK_TICKS, DODGE_TICKS, DOWN_TICKS, EVADE_TICKS, facingAngle, type Facing } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -41,6 +41,8 @@ const SNEAK_TINT = 0x9a948e;
 const POISON_TINT = 0x9cc48a;
 /** A defeat shows the falling frame for this many ticks, then the lying one. */
 const FALL_SWITCH = 10;
+/** In an evade the figure also sways back from the way it struck, by at most this (world pixels). */
+const EVADE_BACK = 2;
 /** Effects that glow (added to what is under them), and give a little light. */
 const GLOWING: ReadonlySet<AttackStyle> = new Set(['spell', 'flame', 'palm']);
 /** A hit: the body flashes red for this long (ms); then it is a little grey while stunned. */
@@ -76,6 +78,9 @@ export interface PlayerPose {
   readonly wading?: boolean;
   /** Ticks left of a dodge (a roll), as in PlayerState. */
   readonly dodge?: number;
+  /** Ticks left of a brace and of an evade, as in PlayerState. */
+  readonly brace?: number;
+  readonly evade?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
   readonly sneaking?: boolean;
   /** Ticks left of a defeat, as in PlayerState: it falls and lies. */
@@ -86,7 +91,7 @@ export interface PlayerPose {
   readonly glance?: number;
 }
 
-/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a fall, a crouch and a sneak walk. */
+/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a fall, a crouch, a sneak walk, a brace and an evade. */
 export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
@@ -98,6 +103,9 @@ export interface PlayerTextures {
   /** A player that sneaks: the crouch at rest, and the frames of the sneak walk. */
   readonly crouch: Readonly<Record<Facing, Texture>>;
   readonly sneak: Readonly<Record<Facing, readonly Texture[]>>;
+  /** A player that braces after its blow, and the frames of an evade (player.ts, BRACE_TICKS). */
+  readonly brace: Readonly<Record<Facing, Texture>>;
+  readonly evade: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -111,6 +119,8 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const fall = {} as Record<Facing, Texture[]>;
   const crouch = {} as Record<Facing, Texture>;
   const sneak = {} as Record<Facing, Texture[]>;
+  const brace = {} as Record<Facing, Texture>;
+  const evade = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
@@ -119,8 +129,10 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
     fall[facing] = art.variants(`player/${facing}/fall`);
     crouch[facing] = art.frame(`player/${facing}/crouch`);
     sneak[facing] = art.variants(`player/${facing}/sneak`);
+    brace[facing] = art.frame(`player/${facing}/brace`);
+    evade[facing] = art.variants(`player/${facing}/evade`);
   }
-  return { stand, walk, attack, roll, fall, crouch, sneak, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, fall, crouch, sneak, brace, evade, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -259,7 +271,9 @@ export class PlayerView {
     const attack = state.attack ?? 0;
     const dodge = state.dodge ?? 0;
     const down = state.down ?? 0;
-    if (attack > 0 || dodge > 0 || down > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
+    const brace = state.brace ?? 0;
+    const evade = state.evade ?? 0;
+    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
     else if (state.sneaking) this.crouch = true;
     else if (speed >= 1) this.crouch = false;
     this.fight(state, now);
@@ -274,6 +288,14 @@ export class PlayerView {
       // The roll, by the ticks since the dodge started.
       const frames = this.textures.roll[state.facing];
       texture = frames[Math.min(frames.length - 1, Math.floor(((DODGE_TICKS - 1 - dodge) * frames.length) / (DODGE_TICKS - 1)))]!;
+      this.travelled = 0;
+    } else if (evade > 0) {
+      // The evade, by the ticks since it started: out of the blow, and back.
+      const frames = this.textures.evade[state.facing];
+      texture = frames[Math.min(frames.length - 1, Math.floor(((EVADE_TICKS - evade) * frames.length) / EVADE_TICKS))]!;
+      this.travelled = 0;
+    } else if (brace > 0) {
+      texture = this.textures.brace[state.facing];
       this.travelled = 0;
     } else if (attack > 0) {
       // The attack frames, by the ticks since the attack started.
@@ -353,7 +375,11 @@ export class PlayerView {
     this.wasGlanced = glance > 0;
     const sinceGlance = now - this.glanceAt;
     const sway = stun > 0 && sinceHit < 400 ? Math.round(Math.sin(sinceHit / 45)) : 0;
-    this.body.position.set(Math.round(fx * lunge) + sway, Math.round(fy * lunge) + (this.wading ? WADE_DEPTH : 0));
+    // An evade: the body goes back from the way it struck and comes again, where it stands.
+    const evade = state.evade ?? 0;
+    const back = evade > 0 ? -EVADE_BACK * Math.sin((Math.PI * (EVADE_TICKS - evade + 1)) / (EVADE_TICKS + 1)) : 0;
+    const aim = state.aim ?? facingAngle(state.facing);
+    this.body.position.set(Math.round(fx * lunge + Math.cos(aim) * back) + sway, Math.round(fy * lunge + Math.sin(aim) * back) + (this.wading ? WADE_DEPTH : 0));
     if (!this.pending) {
       const sick = state.poisoned && Math.floor(now / 400) % 3 === 0;
       this.body.tint =

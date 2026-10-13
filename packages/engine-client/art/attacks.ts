@@ -5,7 +5,7 @@
  * No Node imports: the browser renders skins with it.
  */
 import type { CharacterClass } from '@game/engine';
-import { figure, tumble, type FigureAction, type FigureSpec, type Weapon } from './figure.ts';
+import { figure, sway, tumble, type FigureAction, type FigureSpec, type Weapon } from './figure.ts';
 import type { Part, Vec3 } from './sdf.ts';
 
 /**
@@ -303,4 +303,63 @@ const SNEAK = { crouch: 1, lean: 0.4, stride: 0.6 } as const;
 export function sneakParts(spec: FigureSpec, frame: number | null): Part[] {
   const action: FigureAction = { lean: SNEAK.lean, crouch: SNEAK.crouch };
   return frame === null ? figure(spec, 0, 0, action) : figure(spec, (frame / SNEAK_FRAMES) * 2 * Math.PI, SNEAK.stride, action);
+}
+
+/** Frames of an evade in a sheet: the figure sways out of a blow, to the full sway, and back. */
+export const EVADE_FRAMES = 3;
+/** The brace: how far the knees bend (FigureAction.crouch), how far the body leans (back: less than 0), and the stride of the feet (a walk amount). */
+const BRACE = { crouch: 0.55, lean: -0.08, stride: 0.45 } as const;
+/** In each frame of an evade: the sway to the side (radians, sway()), the lean back, and the crouch. */
+const EVADE = [
+  [0.2, -0.2, 0.65],
+  [0.36, -0.32, 0.8],
+  [0.16, -0.14, 0.65],
+] as const;
+
+/** The guard of each style in a brace: the arms, and the direction of a staff. The weapon is up in front, at the foe. */
+const GUARDS: Readonly<Record<AttackStyle, { readonly right: ArmPose; readonly left?: 'mirror' | ArmPose; readonly staff?: Vec3 }>> = {
+  // The blade raised in front, the free hand forward.
+  slash: { right: [[0.3, -0.45, 0.85], [0.0, 0.75, 0.65]], left: [[-0.3, -0.6, 0.7], [0.05, 0.1, 1]] },
+  // The point at the foe, the other arm up behind.
+  thrust: { right: [[0.25, -0.45, 0.85], [0.0, 0.25, 1]], left: [[-0.35, -0.5, -0.75], [-0.1, 0.55, -0.4]] },
+  // Both hands on the staff, across the body.
+  bash: { right: [[0.25, -0.55, 0.75], [0.0, 0.1, 1]], left: 'mirror', staff: [0.55, 0.8, 0.25] },
+  // The hands forward, ready to cast; a staff upright in front.
+  spell: { right: [[0.25, -0.45, 0.8], [0.0, 0.3, 0.95]], left: 'mirror', staff: [0, 0.85, 0.5] },
+  flame: { right: [[0.25, -0.5, 0.75], [0.0, -0.1, 1]], left: [[-0.3, -0.6, 0.7], [0.05, 0.1, 1]] },
+  miasma: { right: [[0.25, -0.45, 0.8], [0.0, 0.35, 0.95]], left: [[-0.25, -0.5, 0.75], [0.0, 0.2, 1]] },
+  // An open guard: both palms forward.
+  palm: { right: [[0.25, -0.5, 0.75], [0.0, 0.45, 0.9]], left: [[-0.25, -0.55, 0.7], [0.0, 0.25, 1]] },
+  // The bow low in front (an arrow never braces, but the sheet has the frame).
+  shoot: { right: [[0.25, -0.55, 0.6], [0.05, -0.3, 0.9]], left: [[-0.2, -0.4, 0.85], [0.0, -0.1, 1]] },
+  // The fists up.
+  punch: { right: [[0.25, -0.6, 0.7], [0.0, 0.7, 0.7]], left: [[-0.25, -0.6, 0.7], [0.0, 0.6, 0.8]] },
+};
+
+/**
+ * The pose of a brace (player.ts, BRACE_TICKS): a figure that tenses after its blow, as if to dodge.
+ * The knees bend, the weight goes back a little, and the weapon is up in front, at the foe (GUARDS).
+ */
+export function braceAction(style: AttackStyle, spec: FigureSpec): FigureAction {
+  const guard = GUARDS[style];
+  const left = guard.left === 'mirror' ? mirror(guard.right) : guard.left;
+  // The weapon of the attack, in the hand; a staff along the guard.
+  const held = attackAction(style, ATTACK_FRAMES - 1, spec).weapon;
+  const weapon = held?.kind === 'staff' && guard.staff ? { ...held, dir: guard.staff } : held?.kind === 'bow' ? { ...held, draw: 0 } : held;
+  return { right: guard.right, ...(left ? { left } : {}), lean: BRACE.lean, crouch: BRACE.crouch, ...(weapon ? { weapon } : {}) };
+}
+
+/** The parts of a figure that braces: one foot back, the knees bent, the weapon ready. */
+export function braceParts(spec: FigureSpec, style: AttackStyle): Part[] {
+  return figure(spec, Math.PI * 0.5, BRACE.stride, braceAction(style, spec));
+}
+
+/**
+ * The parts of frame `frame` of an evade (a brace that a blow reached): the braced figure sways to
+ * its side round its feet, and leans back, out of the blow; then it comes back. The feet stay.
+ */
+export function evadeParts(spec: FigureSpec, style: AttackStyle, frame: number): Part[] {
+  const [angle, lean, crouch] = EVADE[frame]!;
+  const action: FigureAction = { ...braceAction(style, spec), lean, crouch };
+  return sway(figure(spec, Math.PI * 0.5, BRACE.stride, action), angle, [0, 0, 0]);
 }

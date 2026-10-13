@@ -955,7 +955,7 @@ export class Room {
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down, s.storey]);
+      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down, s.storey, s.brace, s.evade]);
     }
     const doors = this.world.openDoorList();
     const forced = this.world.forcedDoorList();
@@ -1060,6 +1060,9 @@ export class Room {
           s.inspired,
           s.glance,
           s.storey,
+          s.braceWindow,
+          s.brace,
+          s.evade,
         ],
         p: others,
         o: packed.size - 1,

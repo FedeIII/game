@@ -1078,6 +1078,7 @@ async function run(options: GameOptions): Promise<void> {
   // The hit points and the glancing blows of the player, as the last frame saw them: a change shows a number.
   let numbersHp = player.hp;
   let numbersGlance = player.glance;
+  let numbersEvade = player.evade;
   // The hit points, the stamina and the effects (top left); a red flash on a hit, a dark veil on a defeat.
   const vitals = new Vitals();
   /** Wakes the player after a defeat, in a world that the page runs: at home or at the nearest refuge; half of the coins go. */
@@ -1841,6 +1842,9 @@ async function run(options: GameOptions): Promise<void> {
     if (hunters.some((mob) => mob.state === 'windup')) tips.request('dodge');
     if (player.attack > 0) tips.done('attack', now);
     if (player.dodge > 0) tips.done('dodge', now);
+    // The end of a melee blow next to a foe: the brace (player.ts, BRACE_TICKS).
+    if (player.braceWindow > 0 && hunters.some((mob) => Math.hypot(mob.x - player.x, mob.y - player.y) < 3 * TILE_SIZE)) tips.request('brace');
+    if (player.brace > 0 || player.evade > 0) tips.done('brace', now);
     const unseen = mobsNow().some((mob) => mob.state !== 'dying' && mob.state !== 'lurk' && Math.hypot(mob.x - player.x, mob.y - player.y) < 10 * TILE_SIZE && !hunters.some((h) => h.id === mob.id));
     if (sneakingShown()) tips.done('sneak', now);
     else if (unseen && hunters.length === 0) tips.request('sneak');
@@ -1985,7 +1989,7 @@ async function run(options: GameOptions): Promise<void> {
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
     // The player's arrows in a world that the page runs: what each one did.
     if (horde) for (const result of horde.takeShotResults()) showBlow(result.mob.id, result.damage, result.crit);
-    // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; a draught, what it gave back.
+    // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; one that a brace evaded, "evade"; a draught, what it gave back.
     if (player.down === 0 && player.hp !== numbersHp) {
       const change = player.hp - numbersHp;
       if (change < 0) {
@@ -1998,8 +2002,13 @@ async function run(options: GameOptions): Promise<void> {
       fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
       gameSounds.glance();
     }
+    if (player.evade > numbersEvade) {
+      fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+      gameSounds.evade();
+    }
     numbersHp = player.hp;
     numbersGlance = player.glance;
+    numbersEvade = player.evade;
     fightNumbers.update(now);
     vitals.update(player, traits.maxHp, traits.maxStamina);
     vitals.setLevel(levelProgress(xpNow()));
@@ -2120,7 +2129,7 @@ async function run(options: GameOptions): Promise<void> {
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
-      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
+      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, brace ${player.braceWindow}/${player.brace}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       `xp      ${xpNow()} (level ${traits.level}${traits.level < MAX_LEVEL ? `, next at ${LEVEL_XP[traits.level]}` : ''}), a kill gives its XP / ${xpDivisor}${net?.xp !== null && net?.xp !== undefined ? ' (server)' : ''}`,
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,

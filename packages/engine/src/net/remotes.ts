@@ -31,12 +31,14 @@ export interface RemotePlayer {
   readonly facing: Facing;
   /** The direction of its attack (radians, as PlayerState.aim). */
   readonly aim: number;
-  /** Ticks left of its attack, its stun, its guard, its dodge and its defeat (as in PlayerState), at the time shown. */
+  /** Ticks left of its attack, its stun, its guard, its dodge, its defeat, its brace and its evade (as in PlayerState), at the time shown. */
   readonly attack: number;
   readonly stun: number;
   readonly guard: number;
   readonly dodge: number;
   readonly down: number;
+  readonly brace: number;
+  readonly evade: number;
   /** The storey of a building that it is on (PlayerState.storey). */
   readonly storey: number;
 }
@@ -111,6 +113,9 @@ interface Sample {
   readonly f?: number;
   /** A player's storey; an NPC that is away (1: in its house for the night). */
   readonly g?: number;
+  /** A player's brace and evade (ticks). */
+  readonly h?: number;
+  readonly i?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -197,7 +202,7 @@ export class Remotes {
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     this.everyone = snapshot.o;
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey, brace, evade] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -207,7 +212,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey, h: brace, i: evade });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // The companions near the player; one that is not in the snapshot went (or is far).
@@ -397,6 +402,8 @@ export class Remotes {
         guard: ticksAt(since.c, since, t),
         dodge: ticksAt(since.e, since, t),
         down: ticksAt(since.f, since, t),
+        brace: ticksAt(since.h, since, t),
+        evade: ticksAt(since.i, since, t),
         storey: since.g ?? 0,
       });
     }

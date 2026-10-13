@@ -251,12 +251,12 @@ export type StairsResult = 'up' | 'down';
 /**
  * Takes the player up the stairs, or down the stairwell, on (tx, ty) of its storey: to the storey
  * above or below, on the landing (stairsLanding). Null: no stairs there, out of reach, no such
- * storey in the building, no room on the landing, or the player is busy (it strikes, rolls, is
- * stunned or defeated); then nothing changes. Shared: the client and the multiplayer server apply
+ * storey in the building, no room on the landing, or the player is busy (it strikes, rolls, braces,
+ * evades, is stunned or defeated); then nothing changes. Shared: the client and the multiplayer server apply
  * the same rule.
  */
 export function useStairs(world: World, player: PlayerState, tx: number, ty: number): StairsResult | null {
-  if (player.attack > 0 || player.dodge > 0 || player.stun > 0 || player.down > 0) return null;
+  if (player.attack > 0 || player.dodge > 0 || player.brace > 0 || player.evade > 0 || player.stun > 0 || player.down > 0) return null;
   const fixture = reachableFixture(world.level(player.storey), player, tx, ty);
   if (!fixture || (fixture.kind !== 'stairs' && fixture.kind !== 'stairwell')) return null;
   const to = fixture.kind === 'stairs' ? player.storey + 1 : player.storey - 1;

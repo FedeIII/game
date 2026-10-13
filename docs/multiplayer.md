@@ -70,6 +70,18 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The brace (protocol 42, 2026-10-14)
+
+A step back right after a melee attack braces, and a blow in the brace is evaded where the player
+stands (`docs/features/game/combat.md`, REQ-CMB-013).
+
+- `stepPlayer()` starts the brace from the input and the state (`braceWindow`, `aim`), so the page
+  predicts it exactly. The evade comes from the server: the Room's horde (`evadeBlow()`, before the
+  roll of a mob's blow). The page gets it in its own state and replays its inputs on it.
+- `you` has three more numbers at its end: the brace window, the brace and the evade (ticks).
+- Each entry of `p` has two more numbers at its end: the brace and the evade (ticks), so the others
+  show the pose and the sway.
+
 ## Levels and experience (protocol 41, 2026-10-14)
 
 A character rises from level 1 to level 5 with its XP (`docs/features/game/levels.md`). The server owns

@@ -3,7 +3,7 @@ import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
 import { crXp } from './experience.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, glancePlayer, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, evadeBlow, glancePlayer, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -1579,9 +1579,11 @@ export class Horde {
    * A mob's attack that reached player `id`: its roll against the player's AC (5e). A hit takes its
    * damage (with the martial advantage of a hobgoblin that has an ally next to the player), stuns and
    * poisons; a miss glances off. A player with Charisma close by gives a player that was hurt more
-   * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit.
+   * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit. A
+   * player that braces evades it where it stands, with no roll (evadeBlow): not a hit, not in `hits`.
    */
   private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
+    if (evadeBlow(target)) return false;
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;

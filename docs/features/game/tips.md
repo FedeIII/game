@@ -38,6 +38,7 @@ game without a manual.
   | `sneak` | a mob within 10 tiles that does not hunt the player | the player sneaks on purpose |
   | `attack` | the first mob that hunts the player | an attack |
   | `dodge` | the wind-up of a mob that hunts the player | a dodge |
+  | `brace` | the end of a melee blow, with a mob that hunts the player within 3 tiles | a brace (`docs/features/game/combat.md`, REQ-CMB-013) |
   | `hit` | the first hit taken | (its time) |
   | `drink` | 40% of the health or less, with a healing draught in the pack | (its time) |
   | `pickup` | a pile on the ground within 5 tiles | a pick-up |
