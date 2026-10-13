@@ -6,17 +6,6 @@
 
 ## Open
 
-- **Wet lentils fail the lentils quest** (2026-10-13). If the character steps into the water round a
-  lake (the shallows, `Ground.Shallows`, where a character with STR 13 wades) while it carries the sack
-  of lentils, the lentils are ruined and the quest fails. The sergeant of Bronzehold then pays only a
-  part of the reward, and only to a character with enough Charisma (a gate, `PERSUASION_GATE`).
-  Code: the quest `LENTILS`, `LENTILS_TAKE`, `LENTILS_GIVE` and `LENTILS_REWARD` in
-  `worlds/wilds/src/quests.ts`; the sergeant (`SERGEANT`, node `lentils`) and the farmer (`FARMER`)
-  in `worlds/wilds/src/dialogs.ts`; the item `lentils` in `packages/engine/src/items.ts`; the wade in
-  `packages/engine/src/player.ts` (`isWading()`, `inShallows()`). The server must see the wade (the
-  Room), so that a page cannot hide it; a new step (for example `ruined`) or an item `wet-lentils`;
-  a journal line and Spanish forms.
-
 - **Goblin patrols: any number flees** (2026-10-13). Now a startled group always keeps at least one
   goblin that flees and at least one that fights (a group of 3: 1 or 2 flee). Make it random over all
   the numbers: all flee, 2 flee, 1 flees, or none flees and all fight. Code: `Horde.startle()` in
@@ -151,3 +140,8 @@
   `WorldSource.placeTitles()`, `render/place-titles.ts`); the hamlets do not. Ironhold has a name sign
   of the Sovereignty, and Silverspring one of the Mithril Enclave (silver peaks on blue, Fede's choice).
   Done 2026-10-13, commit `fae19ca`.
+
+- **Wet lentils fail the lentils quest** (2026-10-13). A wade or a swim with the sack makes it a sack
+  of wet lentils (`WorldSource.wadeEffects()`: the server sees the wade) and moves the quest to `wet`;
+  the sergeant then pays 2 coins to a character with CHA 13, or nothing. Done 2026-10-13, commit
+  `4e6cf98`.
