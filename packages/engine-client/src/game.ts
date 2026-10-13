@@ -1522,6 +1522,13 @@ async function run(options: GameOptions): Promise<void> {
     character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null,
     // "Prologue" plays it again, over the game (the character stands still meanwhile).
     definition.prologue ? () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) : null,
+    // A rustle when it opens and closes, and the music steps back while it is open (Fede, 2026-10-13).
+    (what) => {
+      if (what === 'open' || what === 'close') {
+        audio.hushMusic(what === 'open');
+        gameSounds.fx.play('uiOpen', { gain: what === 'open' ? 0.7 : 0.5 });
+      } else gameSounds.fx.play(what === 'press' ? 'uiClick' : 'uiSelect', { gain: 0.7 });
+    },
   );
   // A touch screen has no Escape key: a faint button opens the menu there (as the stick, from the first touch).
   joystick.onTouchMode(() => gameMenu.showButton());

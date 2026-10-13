@@ -410,8 +410,6 @@ export const ES: Strings = {
   prologue: {
     label: 'Prólogo',
     skip: 'Saltar',
-    soundOn: 'Sonido activado',
-    soundOff: 'Sonido desactivado',
   },
   sound: {
     heading: 'Sonido',
@@ -419,6 +417,8 @@ export const ES: Strings = {
     effects: 'Efectos',
     mute: 'Silenciar todo',
     credits: 'Grabaciones:',
+    on: 'Sonido activado',
+    off: 'Sonido desactivado',
   },
   gameMenu: {
     label: 'Menú de la partida',

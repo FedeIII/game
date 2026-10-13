@@ -3,6 +3,7 @@ import { LANG } from '../i18n.ts';
 import { languageChoice } from '../ui/language-choice.ts';
 import { prologueSeen } from '../ui/prologue.ts';
 import { CrtControls, crtStateFrom, loadSavedCrt } from '../ui/settings-panel.ts';
+import { soundSection, soundToggle } from '../ui/sound-section.ts';
 import { tipsControls } from '../ui/tips.ts';
 import { characterLook } from '../skins/look.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
@@ -12,6 +13,7 @@ import { CharacterBuilder } from './builder.ts';
 import { el } from './dom.ts';
 import { SkinPortrait } from './portrait.ts';
 import { takeMenuScreen, takeResume } from './resume.ts';
+import { MenuSounds } from './sounds.ts';
 
 const T = STRINGS.menu;
 
@@ -139,7 +141,8 @@ function privacyLink(): HTMLAnchorElement {
 /**
  * The menu before the game, over the whole page: sign in (with Google; in development also with
  * only a name), then "New game" (the character builder) or "Continue" (a character of the
- * account). It resolves with the character to play, and then it leaves the page.
+ * account). It resolves with the character to play, and then it leaves the page. It has music and
+ * sounds (menu/sounds.ts), and a speaker at the top right turns all the sound on and off.
  */
 export function runMenu(options: MenuOptions): Promise<MenuChoice> {
   return new Promise((resolve) => {
@@ -154,8 +157,10 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       status,
     );
     const picture = backdrop();
-    root.append(picture.element, panel);
+    const speaker = soundToggle('menu-sound');
+    root.append(picture.element, panel, speaker.element);
     document.body.append(root);
+    const sounds = new MenuSounds(root);
 
     let me: Me | null = null;
     let characters: Character[] = [];
@@ -174,7 +179,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     const say = (text: string) => {
       status.textContent = text;
     };
-    const show = (...children: HTMLElement[]) => {
+    /** Puts a screen in the panel. */
+    const place = (...children: HTMLElement[]) => {
       for (const portrait of portraits.splice(0)) portrait.stop();
       if (builder && !children.includes(builder.element)) {
         builder.stop();
@@ -186,6 +192,11 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       // The first heading of a screen takes the focus: a screen reader says where the visitor is.
       (screen.querySelector('[tabindex="-1"]') as HTMLElement | null)?.focus();
     };
+    /** A new screen: it comes with a rustle. */
+    const show = (...children: HTMLElement[]) => {
+      place(...children);
+      sounds.screen();
+    };
     const fail = (error: unknown, retry: () => void) => {
       const text = error instanceof ApiError && (error.status === 0 || error.status >= 500) ? T.serverDown : T.failed;
       const again = el('button', { type: 'button', class: 'menu-button menu-primary' }, T.retry);
@@ -195,7 +206,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     const loading = (text: string = T.loading) => {
       // A notice (a sign-in that failed, a session that ended) waits for the screen after this one.
       const waiting = notice;
-      show(el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
+      place(el('section', { class: 'menu-screen' }, el('p', { class: 'menu-title', tabindex: '-1' }, text)));
       notice = waiting;
     };
 
@@ -205,8 +216,11 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         const played = await api.play(character.id);
         // The look of the character first: the game wears it at once.
         options.skins.get(characterLook(played), undefined, true);
+        // The music goes on: the prologue of a new character goes on with it, and the game's music
+        // takes its place with a crossfade.
         root.classList.add('leaving');
         picture.stop();
+        speaker.stop();
         setTimeout(() => root.remove(), 400);
         resolve({ character: played, admin: me?.user?.admin === true, fresh });
       } catch (error) {
@@ -262,6 +276,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           void prologue(characters[0] ?? null).then(() => {
             again.disabled = false;
             again.focus();
+            // The prologue's music faded out at its end: the menu's comes back.
+            sounds.music();
           });
         });
         buttons.push(again);
@@ -313,8 +329,9 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
     };
 
     /**
-     * The settings: the controls of the game (to read), the language, the tips (ui/tips.ts), and for
-     * an admin the display settings (the CRT effect; the game reads them when it starts).
+     * The settings: the controls of the game (to read), the language, the sound (ui/sound-section.ts),
+     * the tips (ui/tips.ts), and for an admin the display settings (the CRT effect; the game reads
+     * them when it starts).
      */
     const settingsScreen = () => {
       const back = el('button', { type: 'button', class: 'menu-button' }, T.back);
@@ -325,6 +342,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         controlList(),
         el('h3', { class: 'menu-subtitle' }, STRINGS.settings.language),
         languageChoice('lang-choice menu-settings-lang', () => location.reload()),
+        el('h3', { class: 'menu-subtitle' }, STRINGS.sound.heading),
+        soundSection(false),
         el('h3', { class: 'menu-subtitle' }, STRINGS.tips.heading),
         tipsControls(),
       ];
@@ -342,6 +361,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       }
       const made = new CharacterBuilder(options.skins, {
         back: main,
+        turn: () => sounds.screen(),
         create: (sheet: CharacterSheet) => {
           made.setBusy(T.creating);
           api.create(sheet).then(
@@ -422,11 +442,16 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       loading();
       try {
         me = await api.me();
-        if (!me.user) return signIn();
+        if (!me.user) {
+          sounds.music();
+          return signIn();
+        }
         characters = await api.characters();
         const resume = takeResume();
         const again = resume ? characters.find((c) => c.id === resume) : undefined;
         if (again) return void start(again);
+        // The music of the menu (not after a reload for a new build: the game goes on at once).
+        sounds.music();
         // The game menu asked for a screen: "Load game" (the list) or "New game" (the builder).
         const screen = takeMenuScreen();
         if (screen === 'new') return create();

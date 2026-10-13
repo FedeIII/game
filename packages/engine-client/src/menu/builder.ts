@@ -66,6 +66,8 @@ function andList(items: readonly string[]): string {
 export interface BuilderCallbacks {
   /** Step 1, Back: leave the builder. */
   back(): void;
+  /** The builder shows its other step (a sound of a new screen). */
+  turn?(): void;
   /** Step 2, Create: the finished sheet. */
   create(sheet: CharacterSheet): void;
 }
@@ -182,6 +184,7 @@ export class CharacterBuilder {
       this.step = 2;
       this.render();
       this.focusTitle();
+      this.callbacks.turn?.();
     });
     return [title, step, el('div', { class: 'builder-look' }, preview, choices), el('div', { class: 'menu-actions' }, back, next)];
   }
@@ -310,6 +313,7 @@ export class CharacterBuilder {
       this.step = 1;
       this.render();
       this.focusTitle();
+      this.callbacks.turn?.();
     });
     const reset = el('button', { type: 'button', class: 'menu-button' }, T.reset);
     reset.addEventListener('click', () => {

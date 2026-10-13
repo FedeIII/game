@@ -1,10 +1,11 @@
 import type { PrologueCard } from '@game/engine';
 import { audio } from '../audio/audio.ts';
 import type { MusicTrack } from '../audio/music.ts';
-import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, RISE_FIRST, THEME_FIRST } from '../audio/themes/kandrax.ts';
+import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, RISE_FIRST, THEME_FIRST, THEME_INSTRUMENTS } from '../audio/themes/kandrax.ts';
 import { AMBIENCES, EFFECT_INSTRUMENTS, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
 import { LANG, tw } from '../i18n.ts';
+import { soundToggle } from './sound-section.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -65,12 +66,6 @@ export function sceneAmbience(scene: Pick<SceneData, 'ambience'> | undefined): A
   const id = scene?.ambience;
   return id !== undefined && (AMBIENCES as readonly string[]).includes(id) ? (id as AmbienceId) : null;
 }
-
-/** A speaker, with waves (sound on) or a cross (sound off). */
-const speaker = (on: boolean) =>
-  `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/>${
-    on ? '<path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M17.8 7.2a6.8 6.8 0 0 1 0 9.6"/>' : '<path d="M16 9.5l5 5M21 9.5l-5 5"/>'
-  }</svg>`;
 
 /** The pixel font in the sheet (art/font.ts): the place of each glyph, by its character code. */
 interface FontData {
@@ -624,22 +619,9 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   skip.type = 'button';
   skip.className = 'prologue-skip';
   skip.textContent = T.skip;
-  const sound = document.createElement('button');
-  sound.type = 'button';
-  sound.className = 'prologue-sound';
-  const showSound = () => {
-    const on = !audio.settings.muted;
-    sound.innerHTML = speaker(on);
-    // A toggle keeps its name ("Sound"); aria-pressed says the state, the tooltip says it in words.
-    sound.setAttribute('aria-label', STRINGS.sound.heading);
-    sound.setAttribute('aria-pressed', String(on));
-    sound.title = on ? T.soundOn : T.soundOff;
-  };
-  showSound();
-  sound.addEventListener('click', () => {
-    audio.resume();
-    audio.setSettings({ ...audio.settings, muted: !audio.settings.muted });
-  });
+  // The speaker turns all the sound of the game on and off (ui/sound-section.ts).
+  const toggle = soundToggle('prologue-sound');
+  const sound = toggle.element;
   root.append(content, spoken, sound, skip);
   document.body.append(root);
   playing = true;
@@ -687,13 +669,17 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   // The orchestra loads with the art: the first instruments of the theme, and those of the effects.
   audio.preload([...THEME_FIRST, ...EFFECT_INSTRUMENTS]);
-  // The instruments of the rise and of the coda load meanwhile: each must start at once when its card comes.
-  audio.preload([...RISE_FIRST, ...CODA_INSTRUMENTS]);
+  // The instruments of the rise and of the coda load meanwhile: each must start at once when its card
+  // comes. They stay loaded until the end, however long the player reads (the opening plays fewer).
+  audio.preload([...RISE_FIRST, ...CODA_INSTRUMENTS, ...THEME_INSTRUMENTS]);
+  const release = audio.hold([...THEME_INSTRUMENTS, ...CODA_INSTRUMENTS]);
   let sheet: HTMLImageElement;
   try {
     sheet = await loadSheet();
   } catch {
     // No art (offline, a failed request): no prologue; the game goes on.
+    release();
+    toggle.stop();
     window.removeEventListener('resize', fit);
     root.remove();
     playing = false;
@@ -704,7 +690,6 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   ctx.imageSmoothingEnabled = false;
   // The opening of the theme, round and round until the card of the rise (themes/kandrax.ts).
   audio.playMusic(KANDRAX_OPENING, 3);
-  const unfollow = audio.onSettings(showSound);
   const scenes = new Map(DATA.scenes.map((s) => [s.id, s]));
 
   let resolveDone: () => void = () => {};
@@ -939,7 +924,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   function finishNow(): void {
     markSeen();
     window.clearTimeout(musicTimer);
-    unfollow();
+    toggle.stop();
+    release();
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', fit);
     window.removeEventListener('keydown', onKey, { capture: true });

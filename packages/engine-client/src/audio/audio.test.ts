@@ -7,7 +7,8 @@ import { decoderDelay, INSTRUMENT_IDS, pickSample, type Instrument, type Sample 
 import { DEFAULT_SOUND, parseSound } from './settings.ts';
 import { AMBIENCES, EFFECTS, EFFECT_INSTRUMENTS } from './sounds.ts';
 import { pluckSamples } from './synth.ts';
-import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, KANDRAX_THEME, MELODY_A, MELODY_B, RISE_FIRST, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
+import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, KANDRAX_THEME, MELODY_A, MELODY_B, OPENING_INSTRUMENTS, RISE_FIRST, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
+import { AudioEngine, HUSHED } from './audio.ts';
 
 const INSTRUMENTS = (manifest as unknown as { instruments: Record<string, { kind: string; rate: number; samples: { file: string; root: number | null; loop?: number[]; seconds: number }[] }> }).instruments;
 
@@ -175,6 +176,11 @@ describe('the theme of Kandrax', () => {
     expect(insts(opening[2]!.notes).has('oboe')).toBe(true);
     expect([...insts(opening[3]!.notes)].every((i) => (THEME_FIRST as readonly string[]).includes(i))).toBe(true);
     expect(insts(opening[4]!.notes).has('horn')).toBe(true);
+    // It loads only what it plays: the menu before the game plays it too (Fede, 2026-10-13).
+    const played = new Set(opening.flatMap((section) => section.notes.map((n) => n.inst)));
+    expect(KANDRAX_OPENING.instruments).toBe(OPENING_INSTRUMENTS);
+    expect([...played].sort()).toEqual([...OPENING_INSTRUMENTS].sort());
+    expect(KANDRAX_OPENING.instruments.length).toBeLessThan(KANDRAX_THEME.instruments.length);
     const rise = sections(KANDRAX_RISE, 3);
     expect(insts(rise[0]!.notes).has('choir')).toBe(true);
     expect(insts(rise[0]!.notes).has('violins')).toBe(true);
@@ -205,6 +211,30 @@ describe('the theme of Kandrax', () => {
       for (const inst of ['basses', 'celli', 'violas', 'harp']) expect(loudest(section.notes, inst), inst).toBeLessThan(loudest(night, inst));
       expect(section.notes.filter((n) => n.inst === 'harp')).toHaveLength(ROUND_BEATS);
     }
+  });
+});
+
+describe('the engine', () => {
+  it('keeps held instruments loaded until they are released (the prologue holds those of its later cards)', () => {
+    const engine = new AudioEngine();
+    expect(engine.kept).toEqual([]);
+    const release = engine.hold(['harp', 'clarinet']);
+    const other = engine.hold(['harp', 'choir']);
+    expect(engine.kept.sort()).toEqual(['choir', 'clarinet', 'harp']);
+    release();
+    expect(engine.kept.sort()).toEqual(['choir', 'harp']);
+    other();
+    expect(engine.kept).toEqual([]);
+  });
+
+  it('steps the music back under a menu, about 8 dB, and brings it back (Fede, 2026-10-13)', () => {
+    const engine = new AudioEngine();
+    expect(engine.musicHushed).toBe(false);
+    engine.hushMusic(true);
+    expect(engine.musicHushed).toBe(true);
+    expect(20 * Math.log10(HUSHED)).toBeCloseTo(-8, 0);
+    engine.hushMusic(false);
+    expect(engine.musicHushed).toBe(false);
   });
 });
 

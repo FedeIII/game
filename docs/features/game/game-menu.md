@@ -53,6 +53,20 @@ does not move under the menu.
 
 ---
 
+### REQ-GMN-004: The sounds of the game menu
+
+**User Story:** As a player, I want the game menu to sound as the rest of the GUI, and the music to
+step back under it, so that I know that the game waits.
+
+**Acceptance Criteria (Fede, 2026-10-13):**
+- **AC-GMN-004.1:** The game menu opens and closes with a rustle.
+- **AC-GMN-004.2:** While it is open, the music of the game (and a stinger) steps back to 40 % (about
+  8 dB under it); when it closes, the music comes back. The effects and the ambience do not change.
+- **AC-GMN-004.3:** A press of a button clicks: with a pointer (as every button of the GUI), or with
+  Enter or Space. The arrow keys and Tab tick when they move to another button.
+
+---
+
 ### REQ-GMN-003: Load game and New game
 
 **User Story:** As a player, I want to load another character or make a new one from the game, so that
@@ -90,5 +104,9 @@ I do not have to go through the main screen.
   sessionStorage (`game.menu-screen.v1`), good for one start within 5 minutes; `takeMenuScreen()` in
   `runMenu()` (`menu/menu.ts`) shows that screen after the sign-in check. The place is saved with
   `savePlace(true)` (`keepalive`) before the reload, as for "Main menu" in the "You" section.
+- **The sounds**: `GameMenu` asks the page for them (`GameMenuSound`: `open`, `close`, `press` for a key
+  press, `move`); `game.ts` plays `uiOpen`, `uiClick` and `uiSelect` and calls `audio.hushMusic()`
+  (`HUSHED` in `audio/audio.ts`).
 - **Tests**: `packages/engine-client/src/ui/game-menu.test.ts` (`escapeAction()`),
-  `packages/engine-client/src/menu/resume.test.ts` (the screen note).
+  `packages/engine-client/src/menu/resume.test.ts` (the screen note),
+  `packages/engine-client/src/audio/audio.test.ts` (the music steps back).

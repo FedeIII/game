@@ -148,10 +148,19 @@ export function openingRound(index: number): { kind: 0 | 1; cycle: number } {
   return step === 2 ? { kind: 0, cycle: 0 } : { kind: 1, cycle: step };
 }
 
-/** The opening of the prologue: the night and the horn, round and round until the rise. */
+/**
+ * The instruments of the opening: only those that it plays. The menu before the game plays it too
+ * (Fede, 2026-10-13), so a visitor who only signs in and continues does not load the whole orchestra.
+ */
+export const OPENING_INSTRUMENTS = [...THEME_FIRST, 'violins', 'horn', 'oboe', 'flute'] as const;
+
+/**
+ * The opening of the prologue: the night and the horn, round and round until the rise. It is also the
+ * music of the menu before the game: after "Create", the prologue goes on with it without a break.
+ */
 export const KANDRAX_OPENING = scoreTrack(
   'kandrax-opening',
-  THEME_INSTRUMENTS,
+  OPENING_INSTRUMENTS,
   () => (index) => {
     const { kind, cycle } = openingRound(index);
     return { bpm: KANDRAX_BPM, beats: ROUND_BEATS, notes: roundNotes(kind, cycle) };

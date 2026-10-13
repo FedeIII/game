@@ -1546,7 +1546,9 @@ body.pack-dragging * {
   cursor: pointer;
 }
 
-.prologue-sound {
+/* The speaker of the prologue and of the menu (ui/sound-section.ts, soundToggle): all the sound on and off. */
+.prologue-sound,
+.menu-sound {
   position: fixed;
   top: calc(14px + env(safe-area-inset-top));
   right: calc(84px + env(safe-area-inset-right));
@@ -1563,8 +1565,17 @@ body.pack-dragging * {
 }
 
 .prologue-sound:hover,
-.prologue-sound:focus-visible {
+.prologue-sound:focus-visible,
+.menu-sound:hover,
+.menu-sound:focus-visible {
   opacity: 1;
+}
+
+/* The menu's speaker: at the top of the menu, and it scrolls with it (a long screen on a phone never goes under it). */
+.menu-sound {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right));
+  top: calc(10px + env(safe-area-inset-top));
 }
 
 .prologue-skip:hover,

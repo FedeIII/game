@@ -7,7 +7,9 @@ import { STRINGS } from './strings.ts';
  * page runs alone also stands still, but a shared world goes on (game.ts). "Load game" and "New
  * game" save the place and reload the page into the menu, at the list of characters or at the
  * builder (menu/resume.ts, markMenuScreen); a visitor without a character has only Resume. On a
- * touch screen a faint button under the settings button opens it too (showButton).
+ * touch screen a faint button under the settings button opens it too (showButton). It has sounds
+ * (Fede, 2026-10-13): the page plays them for `sound` (game.ts: a rustle, the music steps back while
+ * it is open; a click for a key press, a tick when the keys move between the choices).
  */
 
 /** What "Load game" and "New game" do. */
@@ -15,6 +17,9 @@ export interface GameMenuActions {
   readonly load: () => void;
   readonly create: () => void;
 }
+
+/** What the game menu asks the page to sound: it opens or closes, a key presses a choice, the keys move between the choices. */
+export type GameMenuSound = 'open' | 'close' | 'press' | 'move';
 
 /** What a press of Escape does: close the game menu, open it, or nothing (another panel takes the key). */
 export type EscapeAction = 'close' | 'open' | 'none';
@@ -36,13 +41,15 @@ export class GameMenu {
   private readonly buttons: HTMLButtonElement[] = [];
   /** What had the focus before the menu opened: it gets it back. */
   private before: Element | null = null;
+  private readonly sound: (what: GameMenuSound) => void;
 
   /**
    * `title`: the name of the world, over the choices. Without `actions`, no "Load game" and "New game".
-   * With `prologue`, a last choice plays the prologue again (ui/prologue.ts).
+   * With `prologue`, a last choice plays the prologue again (ui/prologue.ts). `sound` plays its sounds.
    */
-  constructor(title: string, actions: GameMenuActions | null, prologue: (() => void) | null = null) {
+  constructor(title: string, actions: GameMenuActions | null, prologue: (() => void) | null = null, sound: (what: GameMenuSound) => void = () => {}) {
     const T = STRINGS.gameMenu;
+    this.sound = sound;
     this.root = document.createElement('div');
     this.root.id = 'game-menu';
     this.root.hidden = true;
@@ -66,7 +73,11 @@ export class GameMenu {
       b.type = 'button';
       b.className = primary ? 'menu-button menu-primary' : 'menu-button';
       b.textContent = text;
-      b.addEventListener('click', act);
+      b.addEventListener('click', (event) => {
+        // A press of a key (Enter, Space): a pointer has its click from the page (audio/game-sounds.ts).
+        if (event.detail === 0) this.sound('press');
+        act();
+      });
       this.buttons.push(b);
       stack.append(b);
     };
@@ -124,12 +135,14 @@ export class GameMenu {
     this.root.hidden = false;
     document.body.classList.add('game-menu-open');
     this.buttons[0]?.focus();
+    this.sound('open');
   }
 
   close(): void {
     if (!this.shown) return;
     this.root.hidden = true;
     document.body.classList.remove('game-menu-open');
+    this.sound('close');
     // Give the focus back; else the keys of the game would go to a hidden button.
     if (this.before instanceof HTMLElement && this.before !== document.body) this.before.focus();
     else if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -148,6 +161,7 @@ export class GameMenu {
     if (live.length === 0) return true;
     const at = live.indexOf(document.activeElement as HTMLButtonElement);
     const next = at < 0 ? (step > 0 ? 0 : live.length - 1) : (at + step + live.length) % live.length;
+    if (live[next] !== document.activeElement) this.sound('move');
     live[next]!.focus();
     return true;
   }

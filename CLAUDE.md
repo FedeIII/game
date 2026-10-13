@@ -204,9 +204,13 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   while the page is hidden or muted; buses for music, effects and ambience; a clock schedules 0.8 s
   ahead), `samples.ts` (`SampleBank`: loads an instrument when a track needs it), `sampler.ts`
   (`playNote()`; long notes by crossfaded copies of a loop), `music.ts` (`scoreTrack()`, the notation
-  `line()`/`chord()`/`hits()`, `SEATING`, `LEVELS`), `themes/kandrax.ts` (the prologue's theme),
-  `sounds.ts` (`EFFECTS`, `AMBIENCES`), `synth.ts` (synthesized effects), `settings.ts` (localStorage
-  `game.audio.v1`). The "Sound" section of the settings: `ui/sound-section.ts`. This box cannot listen:
+  `line()`/`chord()`/`hits()`, `SEATING`, `LEVELS`), `themes/kandrax.ts` (the theme of the prologue and
+  of the menu), `sounds.ts` (`EFFECTS`, `AMBIENCES`), `synth.ts` (synthesized effects), `settings.ts`
+  (localStorage `game.audio.v1`). The "Sound" section of the settings and the speaker that mutes all:
+  `ui/sound-section.ts` (`soundSection()`, `soundToggle()`). **The menus** (2026-10-13): the menu before
+  the game plays the opening of the theme (`KANDRAX_OPENING`; after "Create" the prologue goes on with
+  it) and clicks, ticks and rustles (`menu/sounds.ts`); the game menu rustles, and the music steps back
+  under it (`audio.hushMusic()`). This box cannot listen:
   check a change with `renderOffline()` in a headless page (levels, a spectrogram), and keep every score
   note within 3 semitones of a recorded note (the test checks it). The horn has no samples between C4 and
   D5. A Vite page in a long `page.evaluate` may reload itself: run it again.
@@ -410,11 +414,12 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
   `?login=failed` or `cancelled` once.
 - **Main screen**: "New game", "Continue" (off without characters), "Prologue" (only once this
-  browser saw it), "Settings" (the controls to read, the language, the switch of the tips (`ui/tips.ts`:
-  "Show tips", "Show all tips again"; the game's settings panel has it too), and for an admin the CRT
-  settings),
+  browser saw it), "Settings" (the controls to read, the language, the sound (`soundSection()`), the
+  switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"; the game's settings panel has it
+  too), and for an admin the CRT settings),
   and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
-  sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). See
+  sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). Music and sounds (2026-10-13,
+  `menu/sounds.ts`): the opening of the theme of Kandrax, and a speaker at the top right. See
   `docs/features/game/main-menu.md`. "Delete account" asks first, then deletes the account,
   its sessions and all its characters. "Privacy" opens `/privacy/` (`apps/game/privacy/
   index.html`, a second Vite page; its text must say what the server keeps, so change it with
@@ -458,7 +463,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the settings button opens it): "Resume", "Load game" (a reload
   into the list of characters) and "New game" (a reload into the builder). The character stands
-  still meanwhile; a world that the page runs stands still too, a shared world goes on.
+  still meanwhile; a world that the page runs stands still too, a shared world goes on. It rustles when
+  it opens and closes, and the music steps back to 40 % under it (Fede, 2026-10-13).
 - **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page
   finds the new build (`ui/new-build.ts`) and reloads itself at a calm moment: no conversation, no
   defeat, no mob that hunts the player. It says "A new version of the game is out. Loading it…"

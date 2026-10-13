@@ -22,6 +22,8 @@ import { reverbBuffer } from './synth.ts';
 /** The clock looks this far ahead (s), every CLOCK_MS. */
 const LOOKAHEAD = 0.8;
 const CLOCK_MS = 100;
+/** The level of the music while a menu covers the game (hushMusic): about 8 dB under it. */
+export const HUSHED = 0.4;
 
 /** The buses of a context, for the page and for a render to a file. */
 export interface Buses {
@@ -118,6 +120,10 @@ export class AudioEngine {
   private readonly listeners = new Set<(settings: SoundSettings) => void>();
   /** The sounds of things near the player (setLayer): each with its gain and its pan. */
   private readonly layers = new Map<LayerId, { readonly loop: Ambience; readonly gain: GainNode; readonly pan: StereoPannerNode }>();
+  /** The lists of instruments that stay loaded while something holds them (hold). */
+  private readonly holds = new Set<readonly string[]>();
+  /** The level of the music bus: 1, or HUSHED under a menu (hushMusic). */
+  private musicLevel = 1;
 
   /**
    * Starts the context on the first touch, click or key of the page (a browser asks for it). A hidden
@@ -194,6 +200,7 @@ export class AudioEngine {
         return;
       }
       this.buses = makeBuses(this.ctx, this.settingsNow);
+      this.buses.music.gain.value = this.musicLevel;
       this.ctx.addEventListener('statechange', () => this.onState());
     }
     this.sync();
@@ -205,7 +212,7 @@ export class AudioEngine {
     if (this.clock === null) {
       this.clock = window.setInterval(() => this.tick(), CLOCK_MS);
       // Now and then, the instruments that no music has used for a while go (their memory comes back).
-      window.setInterval(() => this.bank.sweep(this.music?.instruments ?? []), 30_000);
+      window.setInterval(() => this.bank.sweep(this.kept), 30_000);
     }
     const { music, ambience } = this.wanted;
     this.wanted = { music: null, ambience: null };
@@ -256,6 +263,36 @@ export class AudioEngine {
   /** Fetches and decodes instruments now (a track that will play soon), with or without a context. */
   preload(ids: readonly string[]): void {
     void this.bank.load(ids);
+  }
+
+  /**
+   * Keeps instruments loaded until the returned function is called, also while no music plays them:
+   * the prologue loads the music of its later cards early, and it must still be there when a slow
+   * reader comes to them.
+   */
+  hold(ids: readonly string[]): () => void {
+    const held = [...ids];
+    this.holds.add(held);
+    return () => void this.holds.delete(held);
+  }
+
+  /** The instruments that the sweep keeps: those of the music that plays, and the held ones. */
+  get kept(): string[] {
+    return [...new Set([...(this.music?.instruments ?? []), ...[...this.holds].flat()])];
+  }
+
+  /**
+   * The music steps back (to HUSHED) while a menu covers the game, and comes back after it (Fede,
+   * 2026-10-13: the game menu of Escape). The stingers step back with it.
+   */
+  hushMusic(on: boolean): void {
+    this.musicLevel = on ? HUSHED : 1;
+    if (this.ctx && this.buses) this.buses.music.gain.setTargetAtTime(this.musicLevel, this.ctx.currentTime, 0.25);
+  }
+
+  /** Whether the music steps back now (hushMusic). */
+  get musicHushed(): boolean {
+    return this.musicLevel < 1;
   }
 
   /**

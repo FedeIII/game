@@ -56,7 +56,7 @@ game sounds as I like.
 **Acceptance Criteria:**
 - **AC-SND-002.1:** The settings panel has a section "Sound" (Spanish: "Sonido") with a slider "Music"
   ("Música") and a slider "Effects" ("Efectos"), from 0 to 100 % in steps of 5, and a box "Mute all"
-  ("Silenciar todo").
+  ("Silenciar todo"). The settings of the menu before the game have the same section (2026-10-13).
 - **AC-SND-002.2:** The defaults are music 60 %, effects 80 %, not muted. The effects slider also sets
   the ambiences (at 90 % of its value).
 - **AC-SND-002.3:** A change applies at once. The browser keeps the settings for the next visit.
@@ -83,13 +83,15 @@ world of Kandrax feels alive.
   timpani roll and a cymbal that swell into the next round; (3) the full orchestra: melody A an octave up
   on the violins and the flute, the horns a third under it, trombones, the choir, trumpets on the last
   chord, a cymbal, a bass drum and the timpani. Then rounds 1 to 3 go round.
-- **AC-SND-003.6:** The prologue plays the theme in two parts (Fede, 2026-10-13). The opening (rounds 0
+- **AC-SND-003.6:** The prologue plays the theme in two parts (Fede, 2026-10-13). After "Create", the
+  opening is already playing (the music of the menu, REQ-SND-008): the prologue goes on with it. The opening (rounds 0
   and 1) goes round while the player reads, as long as it takes: round 1 with the horn, round 1 with the
   oboe, round 0, and again (each round ends on A, which leads back to D). When the card of the gods
   starts, the rise (round 2: the choir and the violins; then round 3 and the rounds after it) comes in:
   on the next chord of the opening if it is within 2.5 s, else on its next beat, with a crossfade of
   2 s; at once if no music plays yet. A player who goes fast hears the rise at that card all the same.
-  Its first instruments load with the prologue.
+  Its first instruments load with the prologue, and the instruments of the rise and of the coda stay
+  loaded until the prologue ends, however long the player reads.
 - **AC-SND-003.7:** The last card (the hut) has calmer music (Fede, 2026-10-13): the coda of the theme
   (`KANDRAX_CODA`), at the same tempo and on the same chords. A clarinet sings melody A as written, over
   soft contrabasses, celli and violas, and a harp with one note on each beat (half the motion of the
@@ -106,7 +108,7 @@ world of Kandrax feels alive.
   gong, a timpani and two glockenspiel notes (D and A) when the title shows. While a line types, a quill scratches (at most once for
   every three characters and every 55 ms, never on a space).
 - **AC-SND-003.4:** A button with a speaker, at the top right next to "Skip", mutes and unmutes all the
-  sound of the game (the same setting as "Mute all"). Its name for a screen reader is "Sound"
+  sound of the game (the same setting as "Mute all"). The menu before the game has the same button. Its name for a screen reader is "Sound"
   ("Sonido"), and it is pressed when the sound is on. Its tooltip says "Sound on" or "Sound off".
 - **AC-SND-003.5:** When the prologue ends by itself, the chord of D minor plays on the glockenspiel over
   a harp, the music fades out over 4 s and
@@ -214,12 +216,30 @@ eyes closed.
 
 ---
 
+### REQ-SND-008: The sound of the menus
+
+**User Story:** As a visitor, I want music in the menu before the game and sounds in the menus, so that
+the game sounds the same from its first screen.
+
+**Acceptance Criteria (Fede, 2026-10-13):**
+- **AC-SND-008.1:** The menu before the game plays the opening of the theme of Kandrax (AC-SND-003.6),
+  with a fade in of 3 s, from the first click, touch or key of the page. It loads only the 10
+  instruments of the opening (about 1.6 MB), not the whole orchestra.
+- **AC-SND-008.2:** The menu before the game clicks for a button, a link, a chip or a box that the visitor
+  presses (with a pointer or a key), ticks when the arrow keys move a choice, and rustles for a new screen.
+- **AC-SND-008.3:** The game menu (Escape) rustles when it opens and closes, and the music steps back to
+  40 % while it is open (see [`game-menu.md`](game-menu.md), REQ-GMN-004).
+
+---
+
 ## Feature Behavior & Rules
 
 - **The engine** (`packages/engine-client/src/audio/audio.ts`): `audio` (one `AudioEngine` for the
   page): `listen()` (the first action, and the page's visibility; `game.ts` calls it at the start),
   `resume()`, `playMusic(track, fade)`, `stopMusic(fade)`, `setAmbience(id | null, fade)`,
-  `play(effect, delay)`, `settings`, `setSettings()`, `onSettings()`, `running`. A clock (every 100 ms)
+  `play(effect, delay)`, `settings`, `setSettings()`, `onSettings()`, `running`, `hold(ids)` (instruments
+  that stay loaded until the returned function is called; `kept`: what the sweep keeps),
+  `hushMusic(on)` (the music bus at `HUSHED`, 0.4, under a menu). A clock (every 100 ms)
   schedules the notes of the music and the events of the ambience 0.8 s ahead of the context's time.
 - **The buses** (`makeBuses()`): music, with a hall reverb (3.2 s, 38 % wet: the recordings have a room
   of their own); effects, with a room reverb (1.7 s); ambience, dry. All go to a master gain (0 when
@@ -248,8 +268,9 @@ eyes closed.
   (`LEVELS`) and a seat (`SEATING`: violins to the left, celli and basses to the right, the harp far
   left).
 - **The theme** (`themes/kandrax.ts`): `KANDRAX_THEME`, `THEME_CHORDS`, `MELODY_A`, `MELODY_B`,
-  `themeNotes(round)`, `themeRound()`, `THEME_FIRST`; for the prologue `KANDRAX_OPENING`
-  (`openingRound()`), `KANDRAX_RISE` and `RISE_FIRST`. `AudioEngine.nextMusicBeat(bpm, beats, within)`
+  `themeNotes(round)`, `themeRound()`, `THEME_FIRST`; for the prologue and the menu `KANDRAX_OPENING`
+  (`openingRound()`, `OPENING_INSTRUMENTS`: only what it plays), and for the prologue `KANDRAX_RISE` and
+  `RISE_FIRST`. `AudioEngine.nextMusicBeat(bpm, beats, within)`
   gives the next chord or beat of the music that plays; `playMusic(track, fade, at)` starts a track there. The horn was recorded up to C4 and from D5: its
   melodies are an octave down.
 - **The synthesized sounds** (`synth.ts`): `pluck`, `bell` (FM), `boom`, `anvil`, `noiseHit`, `whoosh`;
@@ -261,8 +282,9 @@ eyes closed.
   does): the fullest round of the theme takes about 20 % of one core, the reverb 9 % of it. The theme's
   20 instruments take about 48 MB of memory decoded.
 - **The settings** (`settings.ts`): `SoundSettings`, `DEFAULT_SOUND`, localStorage `game.audio.v1`,
-  `parseSound()` (each value checked). The section: `ui/sound-section.ts` (`.settings-sound`); the texts:
-  `STRINGS.sound`, and `STRINGS.prologue.soundOn` and `soundOff`.
+  `parseSound()` (each value checked). The section: `ui/sound-section.ts` (`soundSection()`,
+  `.settings-sound`; `soundToggle()`, the speaker of the prologue and of the menu); the texts:
+  `STRINGS.sound` (`on` and `off`: the tooltip of the speaker).
 - **The areas** (`packages/engine/src/world.ts`): `SoundArea` (`id`, `music`, a rectangle of tiles,
   `building`, `discover`), `WorldSource.soundAreas()`, `soundAreaAt()`. The Wilds: `soundAreas()` in
   `worlds/wilds/src/source.ts` (home, chapel, ironhold, silverspring, ruin-1 to ruin-3, wren, war-camp,
@@ -308,13 +330,16 @@ eyes closed.
 - **The debug panel** (F3): the line `music`: the mood, the track, the area, and how many instruments
   are loaded.
 - **The prologue**: each scene names its ambience (`AMBIENCE_OF` in `art/prologue.ts`, carried in
-  `prologue.json`); `ui/prologue.ts` loads the first instruments with its art, and plays the theme, the
-  ambiences and the effects (`.prologue-sound`).
+  `prologue.json`); `ui/prologue.ts` loads the first instruments with its art (and holds those of the
+  rise and the coda until its end: `audio.hold()`), and plays the theme, the ambiences and the effects
+  (`.prologue-sound`).
+- **The menus**: `menu/sounds.ts` (`MenuSounds`: the music and the effects of the menu before the game);
+  the game menu's `sound` (`ui/game-menu.ts`, `game.ts`).
 - **iPhone and iPad**: Web Audio follows the silent switch of the device. With the switch on, the game
   is silent. This is on purpose.
 - **Tests**: `audio/audio.test.ts` (notes, the notation, the choice of a sample, the copies of a loop,
   the decoder's delay, the manifest, the bars of the theme, every note near a recorded note, the rounds,
-  the settings); `audio/director.test.ts` (the moods and their timing, the stingers, every note of 40
+  the instruments of the opening, the settings, the held instruments, the music under a menu); `audio/director.test.ts` (the moods and their timing, the stingers, every note of 40
   sections of each piece and of each stinger near a recorded note of an instrument of its list);
   `audio/game-sounds.test.ts` (the steps of each ground, the ambience of each mood, the voices of the
   changes of a mob, the place of a sound, the voice of every kind of mob for every moment, the effects). `renderOffline()` renders a track and an ambience in an `OfflineAudioContext`, to

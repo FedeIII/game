@@ -5,8 +5,9 @@
 The main menu is the menu of the page before the game (`runMenu()`, `packages/engine-client/src/menu/`):
 the sign-in, the main screen ("New game", "Continue"), the list of characters and the character builder.
 This document gives what Fede asked for on 2026-10-12: a pixel-art picture behind the menu, "Prologue"
-on the main screen once the browser saw the prologue, and a settings screen. The sign-in, the
-characters and the accounts are in `CLAUDE.md` ("Menu, characters and accounts").
+on the main screen once the browser saw the prologue, and a settings screen; and on 2026-10-13: music
+and sounds in the menu. The sign-in, the characters and the accounts are in `CLAUDE.md` ("Menu,
+characters and accounts").
 
 ## Terminology
 
@@ -67,8 +68,31 @@ that I know how to play from the first step.
 - **AC-MNU-003.4:** Only for an admin, "Display" gives the CRT settings of the game's settings panel
   (`CrtControls`: the on/off switch, the sliders, the `?crt=` link, "Copy link", "Reset"). They are
   saved in this browser (`game.crt.v2`), and the game takes them when it starts.
-- **AC-MNU-003.5:** "Tips" (between "Language" and "Display") gives "Show tips" and "Show all tips
+- **AC-MNU-003.5:** "Tips" (between "Sound" and "Display") gives "Show tips" and "Show all tips
   again" (`tipsControls()`; see [`tips.md`](tips.md), REQ-TIP-003).
+- **AC-MNU-003.6:** "Sound" (between "Language" and "Tips"; Spanish: "Sonido") gives the controls of
+  the "Sound" section of the game's settings panel: "Music", "Effects", "Mute all" and the credits of
+  the recordings (`soundSection()`; see [`sound.md`](sound.md), REQ-SND-002).
+
+---
+
+### REQ-MNU-004: Music and sounds in the menu
+
+**User Story:** As a visitor, I want music and sounds in the menu, so that the world of Kandrax starts
+before I play.
+
+**Acceptance Criteria:**
+- **AC-MNU-004.1:** On every screen of the menu (the sign-in, the main screen, the builder, the list of
+  characters, the settings), the opening of the theme of Kandrax plays (the music that starts the
+  prologue: the night and the horn, round and round; Fede's choice, 2026-10-13). It fades in over 3 s
+  at the first click, touch or key of the page (see [`sound.md`](sound.md), REQ-SND-008).
+- **AC-MNU-004.2:** A press on a button, a link, a chip or a box clicks; a choice that the arrow keys
+  move ticks; a new screen of the menu (and the other step of the builder) comes with a rustle.
+- **AC-MNU-004.3:** A speaker at the top right of the menu turns all the sound of the game on and off,
+  as the speaker of the prologue. It scrolls with the menu.
+- **AC-MNU-004.4:** After "Create", the prologue goes on with the same music, without a break. After
+  "Continue", the music of the game takes its place with a crossfade. After the prologue from the main
+  screen, the music of the menu comes back.
 
 ---
 
@@ -81,4 +105,10 @@ that I know how to play from the first step.
   `prologueSeen()` in `ui/prologue.ts`, which marks it when a prologue ends.
 - **The settings**: `settingsScreen` and `controlList()` in `menu/menu.ts`; the texts in
   `STRINGS.menu` (`settings`, `controls`, `touch`, `or`, `display`, `controlList`); `CrtControls` in
-  `ui/settings-panel.ts`, which the game's settings panel uses too.
+  `ui/settings-panel.ts` and `soundSection(false)` in `ui/sound-section.ts` (without its own heading),
+  which the game's settings panel uses too.
+- **The sound**: `MenuSounds` in `menu/sounds.ts` (`music()`: `KANDRAX_OPENING`; `screen()`: the rustle;
+  the listeners of the clicks, the ticks and the keys on the menu's root); `runMenu()` calls `music()`
+  after the sign-in check (not after a reload for a new build, which starts the game at once), and
+  `show()` (not `place()`, the screens that wait) rustles; `BuilderCallbacks.turn` for the steps. The
+  speaker: `soundToggle('menu-sound')` (`ui/sound-section.ts`), `.menu-sound` in `style.css`.

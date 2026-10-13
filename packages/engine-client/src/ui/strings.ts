@@ -468,8 +468,6 @@ const EN = {
   prologue: {
     label: 'Prologue',
     skip: 'Skip',
-    soundOn: 'Sound on',
-    soundOff: 'Sound off',
   },
   /** The sound section of the settings (ui/sound-section.ts). */
   sound: {
@@ -479,6 +477,9 @@ const EN = {
     mute: 'Mute all',
     /** Before the credits of the recorded instruments. */
     credits: 'Recordings:',
+    /** The tooltip of the speaker button (the prologue, the menu). */
+    on: 'Sound on',
+    off: 'Sound off',
   },
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
   gameMenu: {
