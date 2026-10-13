@@ -124,6 +124,16 @@
   (`signpost()` in `worlds/wilds/src/road.ts`) says "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow
   points west, along the road." Correct the story document.
 
+- **New places for the action buttons on a phone** (2026-10-13). Fede wants the attack button at the
+  bottom right, the action button (interact) on top of it, and the dodge button (roll) to its left.
+  Now the action button is at the bottom right, the attack button left of it and the dodge button left
+  of that, all three in one row.
+  Code: the positions in `packages/engine-client/src/style.css` (`#action`, `#attack`, `#dodge`:
+  `right` and `bottom` from `--ui-margin`); the buttons in `ui/action-button.ts`, `ui/attack-button.ts`,
+  `ui/dodge-button.ts`. The link card (bottom centre, above the buttons) can need a new place. Update
+  the GUI section of `CLAUDE.md` ("Bottom right: the action button, left of it the attack button...").
+  Ask Fede: is the new layout for touch screens only (`@media (pointer: coarse)`), or for every screen?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
