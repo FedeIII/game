@@ -149,7 +149,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
-  `speech-bubble.ts` (pages of text over a head, above the darkness), `marks.ts` (the marks at the
+  `speech-bubble.ts` (pages of text over a head, above the darkness; a short text wraps at 104 world
+  pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
+  `wrapBubble()` in `text-layout.ts`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
   of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back), `piles.ts` (the items on the

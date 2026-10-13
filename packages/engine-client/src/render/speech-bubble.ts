@@ -2,6 +2,7 @@ import { Container, NineSliceSprite, Sprite } from 'pixi.js';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { PixelFont } from './pixel-text.ts';
+import { wrapBubble } from './text-layout.ts';
 import { tw } from '../i18n.ts';
 
 /** How long a single short line stays, and how long it takes to appear and to fade, in milliseconds. */
@@ -9,8 +10,10 @@ const DURATION = 2500;
 const FADE_IN = 120;
 const FADE_OUT = 300;
 
-/** The longest line before the text wraps, in world pixels. */
+/** The longest line of a short text before it wraps, in world pixels. */
 const MAX_TEXT_WIDTH = 104;
+/** The longest line of a long text, in world pixels: a long text makes a wider bubble (wrapBubble()). */
+const WIDEST_TEXT = 208;
 
 // The frame, in world pixels: a 1-pixel border, then padding round the text.
 const BORDER = 1;
@@ -19,6 +22,10 @@ const PAD_TOP = 2;
 const PAD_BOTTOM = 1;
 const TAIL_WIDTH = 5;
 const TAIL_HEIGHT = 3;
+/** The room for the "more pages" triangle, at the right of the text. */
+const MORE_WIDTH = 6;
+/** The gap between the bubble and the edge of the screen, in world pixels. */
+const EDGE = 2;
 
 /** The colour of the text: the parchment of the GUI theme (--ui-ink in style.css). */
 const INK = 0xd8ccb0;
@@ -65,6 +72,8 @@ export class SpeechBubble {
   private hideAt = -Infinity;
   /** Whether a dialog of one page stays until the game closes it. */
   private stay = false;
+  /** The longest line of the text, in world pixels: WIDEST_TEXT, or less on a narrow screen. */
+  private widest = WIDEST_TEXT;
 
   constructor(art: Art, font: PixelFont, options: SpeechOptions = {}) {
     this.font = font;
@@ -134,11 +143,20 @@ export class SpeechBubble {
 
   private layout(now: number): void {
     const line = this.pages[this.page]!;
-    const lines = this.font.wrap(line, MAX_TEXT_WIDTH);
+    this.draw();
+    // One short page goes away by itself; a dialog (or a page that must stay) stays until it is closed.
+    this.hideAt = this.pages.length === 1 && !this.stay ? now + this.duration(line) : Infinity;
+    if (this.live) this.live.textContent = line;
+  }
+
+  /** Wraps the page on screen and sizes the frame round it. */
+  private draw(): void {
+    const widths = { base: MAX_TEXT_WIDTH, widest: this.widest, lineHeight: this.font.lineHeight };
+    const lines = wrapBubble(this.pages[this.page]!, widths, (l) => this.font.measure(l));
     const textWidth = Math.max(...lines.map((l) => this.font.measure(l)));
     const textHeight = (lines.length - 1) * this.font.lineHeight + this.font.height;
     const more = this.hasMore;
-    this.width = textWidth + 2 * (BORDER + PAD_X) + (more ? 6 : 0);
+    this.width = textWidth + 2 * (BORDER + PAD_X) + (more ? MORE_WIDTH : 0);
     this.height = textHeight + 2 * BORDER + PAD_TOP + PAD_BOTTOM;
 
     this.text?.destroy({ children: true });
@@ -149,21 +167,25 @@ export class SpeechBubble {
     this.frame.height = this.height;
     // The tail's top row covers the bottom border, which opens the frame there.
     this.tail.position.set(Math.floor((this.width - TAIL_WIDTH) / 2), this.height - 1);
-    this.more.position.set(this.width - BORDER - 6, this.height - BORDER - 4);
+    this.more.position.set(this.width - BORDER - MORE_WIDTH, this.height - BORDER - 4);
     this.more.visible = more;
-
-    // One short page goes away by itself; a dialog (or a page that must stay) stays until it is closed.
-    this.hideAt = this.pages.length === 1 && !this.stay ? now + this.duration(line) : Infinity;
-    if (this.live) this.live.textContent = line;
   }
 
   /**
    * Follows the anchor, fades the bubble in and out, and blinks the "more" triangle. With `view`
    * (the part of the world on the screen), the bubble stays inside it, 2 pixels from the edges:
-   * an NPC at the top of the screen still shows its whole line.
+   * an NPC at the top of the screen still shows its whole line. A long line is never wider than
+   * the screen either.
    */
   update(now: number, view?: Rect): void {
     if (this.showing && now >= this.hideAt) this.pages = [];
+    if (view) {
+      const widest = Math.min(WIDEST_TEXT, Math.floor(view.width) - 2 * (EDGE + BORDER + PAD_X) - MORE_WIDTH);
+      if (widest !== this.widest) {
+        this.widest = widest;
+        if (this.showing) this.draw();
+      }
+    }
     const alpha = Math.min(1, (now - this.shownAt) / FADE_IN, (this.hideAt + FADE_OUT - now) / FADE_OUT);
     this.root.visible = alpha > 0;
     if (!this.root.visible) {
@@ -179,8 +201,8 @@ export class SpeechBubble {
     let left = x - this.width / 2;
     let top = y - this.height - TAIL_HEIGHT + 1;
     if (view) {
-      left = Math.max(view.x + 2, Math.min(view.x + view.width - this.width - 2, left));
-      top = Math.max(view.y + 2, Math.min(view.y + view.height - this.height - 2, top));
+      left = Math.max(view.x + EDGE, Math.min(view.x + view.width - this.width - EDGE, left));
+      top = Math.max(view.y + EDGE, Math.min(view.y + view.height - this.height - EDGE, top));
     }
     this.root.position.set(Math.round(left), Math.round(top));
   }
