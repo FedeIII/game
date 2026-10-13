@@ -143,7 +143,10 @@ const ticksAt = (value: number | undefined, sample: Sample, t: number) => Math.m
  * past, so they move smoothly although snapshots come only 20 times a second.
  */
 export class Remotes {
+  /** The other players near the player (the server sends those within PLAYER_SEND_RADIUS), by id. */
   private readonly players = new Map<number, { skin: number; samples: Sample[] }>();
+  /** The number of other players in the world, near or far, from the last snapshot. */
+  private everyone = 0;
   /** The companions near the player, by id: what does not change, and a short history. */
   private companions = new Map<number, { look: string; name: string; maxHp: number; leader: number; samples: Sample[] }>();
   /** The names from the last roster, by player id. */
@@ -159,13 +162,20 @@ export class Remotes {
   /** Recent (local arrival time - server time) values. Their minimum is the least delayed one. */
   private offsets: { localMs: number; offset: number }[] = [];
 
+  /** The number of other players near the player: those that it can see. */
   get count(): number {
     return this.players.size;
+  }
+
+  /** The number of other players in the world, near or far. */
+  get inWorld(): number {
+    return this.everyone;
   }
 
   /** Forgets everything, for a new connection. */
   clear(): void {
     this.players.clear();
+    this.everyone = 0;
     this.names = new Map();
     this.looks = new Map();
     this.companions.clear();
@@ -181,6 +191,7 @@ export class Remotes {
     if (snapshot.lk) this.looks = new Map(snapshot.lk.map(([id, look]) => [id, fromWireLook(look)]));
     this.offsets.push({ localMs, offset: localMs - snapshot.ms });
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
+    this.everyone = snapshot.o;
     const seen = new Set<number>();
     for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down] of snapshot.p) {
       seen.add(id);
@@ -211,7 +222,7 @@ export class Remotes {
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     for (const id of this.companions.keys()) if (!near.has(id)) this.companions.delete(id);
-    // A player that is not in the snapshot has left.
+    // A player that is not in the snapshot has left, or is far away now.
     for (const id of this.players.keys()) if (!seen.has(id)) this.players.delete(id);
     if (snapshot.m) {
       this.mobs ??= new Map();

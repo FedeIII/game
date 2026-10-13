@@ -67,7 +67,7 @@ export class CompanionViews {
       shown.y = companion.y;
       shown.view.update(companion.x, companion.y, companion, seconds);
       shown.view.root.alpha = companion.down > 0 ? DOWN_ALPHA : 1;
-      shown.tag.place(companion.x, companion.y, shown.view.headHeight, view);
+      shown.tag.place(companion.x, companion.y, shown.view.headHeight, view, 1, true, seconds);
     }
     for (const [id, shown] of this.views) if (!present.has(id)) this.remove(id, shown);
   }

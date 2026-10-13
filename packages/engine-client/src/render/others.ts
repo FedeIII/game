@@ -34,7 +34,9 @@ interface OtherView {
  * entity layer like the local player (and its faint copy above the props). Until a skin is
  * rendered, the player shows as a darker wanderer; a new skin replaces the old one when it is
  * ready. Each one has its name over its head (the name of its look if it chose none), in the
- * small font, in the text layer (above the darkness). It also gives their torches.
+ * small font, in the text layer (above the darkness), while it is on the screen or near it
+ * (`NameTag`). The server sends only the players near the visitor (PLAYER_SEND_RADIUS). It also
+ * gives their torches.
  */
 export class OtherPlayers {
   private readonly art: Art;
@@ -70,6 +72,13 @@ export class OtherPlayers {
     return n;
   }
 
+  /** The number of names that show now: only those of the players on the screen or near it. */
+  get namesShown(): number {
+    let n = 0;
+    for (const v of this.views.values()) if (v.tag.showing) n++;
+    return n;
+  }
+
   /** `wading` tells if a point (the feet) is in shallow water: then the figure stands in it. */
   update(players: readonly RemotePlayer[], seconds: number, view: Rect, wading: (x: number, y: number) => boolean = () => false): void {
     const present = new Set<number>();
@@ -86,12 +95,14 @@ export class OtherPlayers {
       const inWater = wading(player.x, player.y);
       other.sneaking = !inWater && player.attack === 0 && player.dodge === 0 && player.down === 0 && isSneakWalk(player.vx, player.vy);
       other.view.update(player.x, player.y, { ...player, wading: inWater, sneaking: other.sneaking }, seconds);
-      other.tag.place(player.x, player.y, other.view.headHeight, view, other.alpha);
+      other.tag.place(player.x, player.y, other.view.headHeight, view, other.alpha, true, seconds);
     }
     const step = seconds / FADE_SECONDS;
     for (const [id, other] of this.views) {
       if (!present.has(id)) other.here = false;
       other.alpha = Math.max(0, Math.min(1, other.alpha + (other.here ? step : -step)));
+      // A player that left (or went out of the server's range) fades out where it was, with its name.
+      if (!other.here) other.tag.place(other.x, other.y, other.view.headHeight, view, other.alpha, true, seconds);
       other.view.root.alpha = other.alpha;
       other.view.ghost.alpha = other.alpha * PlayerView.GHOST_ALPHA;
       if (!other.here && other.alpha === 0) this.remove(id, other);

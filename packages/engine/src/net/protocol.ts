@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 37;
+export const PROTOCOL_VERSION = 38;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -32,6 +32,8 @@ export const MAX_USES_PER_MESSAGE = 2;
 export const MAX_PICKS_PER_MESSAGE = 2;
 /** The server sends the mobs this close to a player (world pixels): far beyond the screen. */
 export const MOB_SEND_RADIUS = 30 * TILE_SIZE;
+/** The server sends the other players this close to a player (world pixels): far beyond the screen (protocol 38). */
+export const PLAYER_SEND_RADIUS = 30 * TILE_SIZE;
 /** The server sends the piles (items on the ground) this close to a player (world pixels). */
 export const PILE_SEND_RADIUS = 30 * TILE_SIZE;
 /** The largest message, in bytes, in either direction from a client. */
@@ -496,14 +498,18 @@ export interface WelcomeMessage {
 /**
  * The state of the world for one player. `ms` is the server's clock; `a` is the last input of
  * this player that the server has applied; `you` is its true state (WireSelf), at full
- * precision; `p` holds the other players. `doors` comes only when the doors changed.
+ * precision; `p` holds the other players near it, and `o` counts all of them. `doors` comes
+ * only when the doors changed.
  */
 export interface SnapshotMessage {
   readonly t: 'snap';
   readonly ms: number;
   readonly a: number;
   readonly you: WireSelf;
+  /** The other players within PLAYER_SEND_RADIUS of this player (protocol 38: before, all of them). */
   readonly p: readonly WirePlayer[];
+  /** The number of other players in the world, near or far (protocol 38). */
+  readonly o: number;
   readonly doors?: readonly (readonly [number, number])[];
   /** The forced doors: it comes with `doors`. */
   readonly fd?: readonly (readonly [number, number])[];

@@ -278,9 +278,9 @@ export class NetSession {
     this.listeners.push(listener);
   }
 
-  /** The number of other players in the shared world. */
+  /** The number of other players in the shared world, near or far. */
   get others(): number {
-    return this.status === 'online' ? this.remotes.count : 0;
+    return this.status === 'online' ? this.remotes.inWorld : 0;
   }
 
   /** One tick of the local player. Returns whether an attack starts in it. */
@@ -419,12 +419,12 @@ export class NetSession {
         return;
       }
       case 'snap': {
-        const count = this.remotes.count;
+        const count = this.remotes.inWorld;
         const others = [...this.remotes.at(now), ...this.remotes.npcsAt(now)];
         const { dx, dy } = this.prediction.reconcile(this.player, this.world, message, others);
         this.addJump(dx, dy);
         this.remotes.apply(message, now);
-        if (this.remotes.count !== count) this.changed();
+        if (this.remotes.inWorld !== count) this.changed();
         if (message.b) for (const listener of this.barkListeners) listener(message.b);
         if (message.pk) this.pack = fromWirePack(message.pk);
         if (message.gr) this.gear = fromWireGear(message.gr);

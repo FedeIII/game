@@ -1908,7 +1908,7 @@ async function run(options: GameOptions): Promise<void> {
       `world   ${definition.id}`,
       `skin    ${skin} (${look.race} ${look.class} ${look.gender}), look ${lookKey}, name ${displayName()}${name ? '' : ' (from the look)'}`,
       `char    ${character ? `${character.id}` : 'guest'}`,
-      `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'}${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
+      `net     ${net ? `${net.status}, ${net.others} other${net.others === 1 ? '' : 's'} (${others?.count ?? 0} near, ${others?.namesShown ?? 0} named)${net.rttMs === null ? '' : `, rtt ${net.rttMs.toFixed(0)} ms`}` : 'single player'}`,
       `tile    ${Math.floor(player.x / TILE_SIZE)}, ${Math.floor(player.y / TILE_SIZE)}`,
       `facing  ${player.facing}, aim ${Math.round((player.aim * 180) / Math.PI)} deg${mouse.at ? `, mouse ${Math.round(mouse.at.x)},${Math.round(mouse.at.y)}` : ''}`,
       `target  ${target ? `${target.kind} at ${target.tx}, ${target.ty}` : '-'}`,

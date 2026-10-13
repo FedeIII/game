@@ -9,6 +9,7 @@ import {
   MAX_USES_PER_MESSAGE,
   NO_INPUT,
   MOB_SEND_RADIUS,
+  PLAYER_SEND_RADIUS,
   PROTOCOL_VERSION,
   Prediction,
   Remotes,
@@ -304,6 +305,29 @@ describe('a multiplayer room', () => {
     expect(seen.get(b.id)!.p.map((p) => [p[0], p[6]])).toEqual([[a.id, 4_000_000_000]]);
   });
 
+  it('sends each player only the other players near it, and counts all of them', () => {
+    const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
+    const a = room.join(0, 1)!;
+    const b = room.join(0, 2)!;
+    const c = room.join(0, 3)!;
+    const seen = new Map<number, SnapshotMessage>();
+    const ids = (id: number) => seen.get(id)!.p.map((p) => p[0]).sort();
+    // b goes far to the east; c stays next to a.
+    b.state.x = a.state.x + PLAYER_SEND_RADIUS + 2 * TILE_SIZE;
+    c.state.x = a.state.x + TILE_SIZE;
+    room.broadcast(0, (id, m) => seen.set(id, m));
+    expect(ids(a.id)).toEqual([c.id]);
+    expect(ids(b.id)).toEqual([]);
+    expect(ids(c.id)).toEqual([a.id]);
+    // Each one still knows how many others are in the world.
+    for (const p of [a, b, c]) expect(seen.get(p.id)!.o).toBe(2);
+    // b comes back within the radius: the two see each other again.
+    b.state.x = a.state.x + PLAYER_SEND_RADIUS - TILE_SIZE;
+    room.broadcast(50, (id, m) => seen.set(id, m));
+    expect(ids(a.id)).toEqual([b.id, c.id].sort());
+    expect(ids(b.id)).toEqual([a.id, c.id].sort());
+  });
+
   it('shares a door: one player opens it and the other sees it open', () => {
     const net = new SimNetwork(40);
     const a = new SimClient(north);
@@ -374,7 +398,7 @@ const SELF0 = Array.from({ length: 23 }, () => 0) as unknown as SnapshotMessage[
 describe('the other players on a client', () => {
   it('interpolates between snapshots, in the past, and forgets a player that left', () => {
     const remotes = new Remotes();
-    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: SELF0, p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0, 0, 0]] });
+    const snap = (ms: number, x: number): SnapshotMessage => ({ t: 'snap', ms, a: 0, you: SELF0, p: [[7, x, 50, 80, 0, 3, 2, 0, 0, 0, 0, 0, 0]], o: 1 });
     remotes.apply(snap(1000, 0), 5000);
     remotes.apply(snap(1050, 4), 5050);
     remotes.apply(snap(1100, 8), 5100);
@@ -383,8 +407,20 @@ describe('the other players on a client', () => {
     expect(r).toMatchObject({ id: 7, skin: 2, x: 6, y: 50, facing: 'right' });
     // Later than the last snapshot, it stays there and does not guess.
     expect(remotes.at(9000)[0]!.x).toBe(8);
-    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: SELF0, p: [] }, 5150);
+    remotes.apply({ t: 'snap', ms: 1150, a: 0, you: SELF0, p: [], o: 0 }, 5150);
     expect(remotes.count).toBe(0);
+  });
+
+  it('forgets a player that went far away, and still counts it in the world', () => {
+    const remotes = new Remotes();
+    const near: SnapshotMessage['p'][number] = [7, 0, 50, 0, 0, 3, 2, 0, 0, 0, 0, 0, 0];
+    remotes.apply({ t: 'snap', ms: 1000, a: 0, you: SELF0, p: [near], o: 1 }, 5000);
+    expect([remotes.count, remotes.inWorld]).toEqual([1, 1]);
+    remotes.apply({ t: 'snap', ms: 1050, a: 0, you: SELF0, p: [], o: 1 }, 5050);
+    expect([remotes.count, remotes.inWorld]).toEqual([0, 1]);
+    expect(remotes.at(5150)).toEqual([]);
+    remotes.clear();
+    expect(remotes.inWorld).toBe(0);
   });
 });
 

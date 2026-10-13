@@ -46,7 +46,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `quest` | an effect on a quest (protocol 23): an answer to an NPC (`npc`: its index), a thing that the player reads (`at`: a tile of it, the letter), or the end of a scene that it overheard (`scene`: its id; protocol 24), and the id of the effect there |
 | client to server | `move` | two places, `from` and `to`: slots of the pack, or worn slots (protocol 19): the player moves a stack (protocol 18), or puts an item on or takes it off |
 | server to client | `welcome` | player id, start position, open doors, forced doors (`fd`), the player's pack (`pk`: coins and `[item code, count]`; protocol 11; null for a free slot, protocol 18), its hit points (`hp`) and the refuges of its character (`rf`; protocol 13), and the chunks that its character has seen (`ex`: `[cx, cy]`; protocol 14), and the piles within 30 tiles (`pl`: `[id, x, y, item code, count]`; protocol 17), and what its character wears (`gr`: an item code for each worn slot, -1 for none; protocol 19) |
-| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack, and the ticks of the spark of a glancing blow, protocol 19), the others (positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, hit points left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), what it wears when that changed (`gr`; protocol 19), what shows of the gear of every player when one changed (`lk`: the hands, protocol 20; the armour, protocol 21), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the companions near it (`cp`; protocol 22), its quest book when it changed (`qs`; protocol 23), what its own blows and arrows did since the last snapshot (`bl`: `[mob id, damage, critical]`; protocol 26), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
+| server to client | `snap` | 20 per second: server clock, the last applied input, the player's own exact state (with its attack, cooldown, stun and guard ticks and the direction of its attack, and the ticks of the spark of a glancing blow, protocol 19), the other players within 30 tiles (`p`, protocol 38: positions to 0.1 px, their skin seeds, their attack, stun and guard ticks, and the direction of their attack), the number of other players in the world (`o`; protocol 38), the mobs within 30 tiles (`m`: id, kind, position, velocity, facing, state, ms in the state, hit points left), the doors when they changed (with the forced doors, `fd`), the player's pack when it changed (`pk`), what it wears when that changed (`gr`; protocol 19), what shows of the gear of every player when one changed (`lk`: the hands, protocol 20; the armour, protocol 21), the loot that it got (`l`: `[source, coins, stacks, full]`, source 0 a chest, 1 a drop, 2 a lock that it could not pick, 3 a pile that it picked up), the piles within 30 tiles when their ids or counts changed (`pl`; protocol 17), the tosses onto those piles (`ts`: `[pile id, x, y]`, where the items came from; protocol 18), the arrows near it (`ar`: id, shooter, x, y, aim code), the ids of the mobs that hunt it (`h`; protocol 15), the companions near it (`cp`; protocol 22), its quest book when it changed (`qs`; protocol 23), what its own blows and arrows did since the last snapshot (`bl`: `[mob id, damage, critical]`; protocol 26), the refuges of its character when they changed (`rf`), the chunks that it saw for the first time (`ex`), the coins that a defeat took (`wk`), the world's walking NPCs (`n`: their poses, in the order of `WorldSource.npcs()`), the lines that NPCs say (`b`), and the names (`names`: `[id, name]` for every player with a name, only when one changed) |
 | server to client | `refused` | `version`, `world`, `full`, `busy`, `account` (a server with accounts: no session, no character, or not the visitor's own), or `elsewhere` (protocol 9: the account signed in on another device; it can come at any time, and the server closes the connection) |
 | server to client | `pong` | the client's clock, back |
 
@@ -69,6 +69,20 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Ironhold, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## Near players only (protocol 38, 2026-10-13)
+
+- A snapshot carries only the other players within 30 tiles of its player (`PLAYER_SEND_RADIUS`, as
+  for the mobs): `p`. Before, it carried every player of the world. The new field `o` gives the
+  number of other players in the world, near or far, in each snapshot.
+- The page forgets a player that is not in `p` (`Remotes`), as one that left: its figure fades out
+  where it was. It comes back when that player is near again. The presence line of an admin counts
+  `o` (`Remotes.inWorld`, `NetSession.others`).
+- The names and the looks (`names`, `lk`) still name every player of the world: they come only when
+  one changes.
+- A name tag shows only while its player is on the screen or within 2 tiles of it (`TAG_MARGIN` in
+  `render/name-tag.ts`), and fades out farther away. Before, the name of a far player stayed at the
+  edge of the screen for good: a tag stays inside the screen, and the snapshots carried every player.
 
 ## Shops (still protocol 37, 2026-10-13)
 
@@ -421,8 +435,10 @@ The look and the name of a player come from its character (above). The protocol 
   again; it never trusts the client. A character's name is cleaned in the same way when it is
   made (`checkSheet()`).
 - The others see the name over the player's head, in the small pixel font (capitals only, 5 px
-  high), in the text layer (above the darkness), inside the screen. The local player sees its
-  own name too (`render/name-tag.ts`); it hides while a speech bubble is over the player.
+  high), in the text layer (above the darkness), inside the screen. It shows only while that
+  player is on the screen or within 2 tiles of it (`TAG_MARGIN`), and fades out farther away
+  (protocol 38). The local player sees its own name too (`render/name-tag.ts`); it hides while a
+  speech bubble is over the player.
 - A player without a name (a guest, `?nomenu`) is called by its look: `skinName(seed)`
   (`art/skins.ts`) gives a first name and a title for the class ("Sister Petra", "Sir Galen").
   Every client makes the same name from the skin seed, so it is not on the wire.
@@ -484,10 +500,10 @@ effect of the blow in its direction.
   game never stops for the network. It reconnects with a backoff (1 s to 30 s; at once after
   code 1012, a server restart) and starts again on the player's current tile. `?offline` plays
   a shared world alone.
-- `render/others.ts` (`OtherPlayers`): the other players in their skins, with a fade in and out
-  and a smaller torch each.
+- `render/others.ts` (`OtherPlayers`): the other players near the visitor in their skins, with a
+  fade in and out, a smaller torch each, and their names while they are on the screen or near it.
 - `ui/presence.ts`: for an admin only, a line in the "You" section of the settings ("2 other
-  visitors here", or why the visitor is alone). The other visitors see no such line.
+  visitors here", from `o`: near or far; or why the visitor is alone). The other visitors see no such line.
 - Skins (protocol 2, 2026-10-07; from the character since protocol 7): a skin is a 32-bit seed.
   A character's seed encodes its race, class, gender and variant (`appearanceSeed()`); a guest
   (`?nomenu`) has a random seed that the browser keeps (`game.skin.v1`); `?skin=<n>` shows
@@ -539,11 +555,13 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
 - `packages/engine/test/net.test.ts`: a simulated network (latency in simulated milliseconds)
   with a Room and clients: exact prediction, interpolation, the input rate limit, repeats,
   mobs (a kill that every client sees, the rewind of a blow and its limit, a stun that the
-  prediction keeps, only the mobs near a player),
-  skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
+  prediction keeps, only the mobs near a player), only the players near a player (and `o`, the
+  count of all of them; protocol 38), skins (and a change of skin, with its gap), names (cleaned, sent only when they change),
   a full room, and doors (shared, out of reach, never onto a player).
 - `packages/engine/test/dice.test.ts`: the dice, the attack roll, and `bl` only in the snapshot of
   the player who struck (protocol 26).
+- `packages/engine-client/src/render/name-tag.test.ts`: a name tag shows only for a player on the
+  screen or within 2 tiles of it, and fades out and in.
 - `packages/engine/test/piles.test.ts`: the items on the ground: where a pile lies, a pick-up and
   its reach, the overflow of a kill, `pl` only when the piles change, and the messages.
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
@@ -551,4 +569,5 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
   ping and health.
 - In a browser: two Playwright contexts in a shared world (see CLAUDE.md, "Verify a change in a
   browser"): each sees the other (the `others` line of `?debug`; for an admin also `#presence`), and a door
-  that one opens is open for the other.
+  that one opens is open for the other. The `net` line of `?debug` gives the others in the world, the
+  near ones and the names that show: "3 others (2 near, 1 named)".

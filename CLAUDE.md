@@ -148,8 +148,10 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   the name of a name sign, in the sign layer: `Fixtures.plate()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
-  their torches and their names), `name-tag.ts` (a name over a head, in the small font: the
-  other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
+  their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
+  `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
+  visitor's own; without a chosen name, `skinName()` of the look; it shows only while its player is on
+  the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `place-titles.ts` (`PlaceArrivals`: when the name of a place shows over the screen; see "Arrival in
@@ -730,7 +732,7 @@ In the client: the builder (step 2) and the "You" section show the traits in wor
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 37.
+protocol: `docs/multiplayer.md`, protocol 38.
 
 ## Language
 
@@ -1299,8 +1301,8 @@ closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.s
 `?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it;
 only on `localhost` or `127.0.0.1`: every visitor of game.azyr.io signs in, Fede's decision of
 2026-10-11),
-`?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
-`others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
+`?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` (the others in the world, the near ones and the names
+that show) and `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `place` (the visit of a place
 with a title, and the phase of its title); `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the

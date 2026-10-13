@@ -25,6 +25,7 @@ import { refugeAt, wakePoint, type World } from '../world.ts';
 import {
   MOB_SEND_RADIUS,
   PILE_SEND_RADIUS,
+  PLAYER_SEND_RADIUS,
   SKIN_CHANGE_GAP_MS,
   cleanName,
   aimCode,
@@ -902,9 +903,10 @@ export class Room {
     for (const p of this.players.values()) {
       // A client that cannot take more now (a slow connection) gets the next one, doors included.
       if (skip(p.id)) continue;
-      const others: WirePlayer[] = [];
-      for (const [id, wire] of packed) if (id !== p.id) others.push(wire);
       const s = p.state;
+      // The other players near this player only: the others are far off its screen.
+      const others: WirePlayer[] = [];
+      for (const [id, wire] of packed) if (id !== p.id && Math.hypot(wire[1] - s.x, wire[2] - s.y) <= PLAYER_SEND_RADIUS) others.push(wire);
       const changed = p.doorVersion !== this.doorVersion;
       p.doorVersion = this.doorVersion;
       const renamed = p.namesVersion !== this.namesVersion;
@@ -964,6 +966,7 @@ export class Room {
           s.glance,
         ],
         p: others,
+        o: packed.size - 1,
         ...(changed ? { doors, fd: forced } : {}),
         ...(pack ? { pk: toWirePack(p.pack) } : {}),
         ...(gear ? { gr: toWireGear(p.gear) } : {}),

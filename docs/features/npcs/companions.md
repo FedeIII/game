@@ -121,7 +121,7 @@ that the world is the same for all.
 
 **Acceptance Criteria:**
 - **AC-CMP-007.1:** A companion shows in the frames of its NPC look, with its name over its head
-  in the small font.
+  in the small font while it is on the screen or within 2 tiles of it (`TAG_MARGIN`).
 - **AC-CMP-007.2:** It carries a small lantern: a light of radius 48 round it.
 - **AC-CMP-007.3:** A hit flashes it red, a stun shows stars over its head, and the guard after a
   stun makes it blink, as for a player.
