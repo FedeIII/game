@@ -55,7 +55,7 @@ Kandrax; the Spanish texts use the names of Kandrax (Fede, 2026-10-11). Each doc
   for the broken cart, which stands on the road before Whitegrove. The forest of the road has only
   goblin patrols. The burned homesteads are in the wildlands north of Ironhold. Characters start at
   level 1. The prologue waits for the player at the end of each card, and its music rises with the
-  card of the gods.
+  card of the gods and calms with the last card (the hut).
 - **2026-10-12**. The prologue (nine cards). Phases 7 to 10 of the Arcane Raiders: the Wren
   homestead, the camp of the Seekers, the shrine of Tigris, the dream of Verath. Chapter 2 is on hold.
 - **2026-10-11**. The quests, Ironhold's people, Silverspring, the hobgoblin raid, the caravan, the

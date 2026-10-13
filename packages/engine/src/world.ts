@@ -607,5 +607,7 @@ export interface PrologueCard {
   readonly bannerLine?: number;
   /** The music of the prologue rises with this card (its choir and violins), however long the player took to reach it. */
   readonly crescendo?: boolean;
+  /** The music of the prologue calms down with this card (a quiet coda of its theme): the last card. */
+  readonly calm?: boolean;
   readonly lines: readonly string[];
 }

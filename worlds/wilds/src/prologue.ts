@@ -73,6 +73,8 @@ export const PROLOGUE: readonly PrologueCard[] = [
   },
   {
     scene: 'hut',
+    // Calmer music for the character's own card (Fede, 2026-10-13): the theme of Kandrax, quietly.
+    calm: true,
     title: '{name}',
     subtitle: '{kind}',
     lines: [

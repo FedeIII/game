@@ -102,7 +102,8 @@ holds me back.
 - **AC-PRO-003.4:** While it plays, no key reaches the game. A screen reader hears each title and line.
 - **AC-PRO-003.5:** The prologue has music, an ambience for each scene and small effects, and a button
   that mutes them (see [`sound.md`](sound.md), REQ-SND-003). The music rises (its choir and violins)
-  with the card of the gods, however long the player took to reach it (AC-SND-003.6).
+  with the card of the gods, however long the player took to reach it (AC-SND-003.6), and it calms (a
+  quiet coda of the theme) with the last card, the hut (AC-SND-003.7).
 - **AC-PRO-003.6:** All the texts can be seen on a desktop, on a phone held upright and on a phone on
   its side. The text goes under the scene, or beside it on a wide and short screen, whichever gives the
   larger scene with the longest card in view. The box of the text has the size of the longest card
@@ -115,7 +116,8 @@ holds me back.
 
 - **The cards** (`packages/engine/src/world.ts`): `WorldDefinition.prologue`, `PrologueCard` (`scene`,
   `title`, `subtitle`, `banner`, `bannerLine` (the line with which the banner shows; 0 or none: before
-  the first line), `crescendo` (the music rises with this card: the gods), `lines`; `{name}` and
+  the first line), `crescendo` (the music rises with this card: the gods), `calm` (the music calms with this card: the
+  hut), `lines`; `{name}` and
   `{kind}` in the texts). The Wilds: `PROLOGUE`
   (`worlds/wilds/src/prologue.ts`; sources: `Kandrax AI Context`, `Kandrax - Mundo`, `Kandrax - Dioses`,
   `0.0 - Guía del aventurero novato`, `Los Investigadores de Forjacero`, `Lugares/Dominios Centrales`);

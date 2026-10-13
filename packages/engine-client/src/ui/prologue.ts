@@ -1,6 +1,7 @@
 import type { PrologueCard } from '@game/engine';
 import { audio } from '../audio/audio.ts';
-import { CHORD_BEATS, KANDRAX_BPM, KANDRAX_OPENING, KANDRAX_RISE, RISE_FIRST, THEME_FIRST } from '../audio/themes/kandrax.ts';
+import type { MusicTrack } from '../audio/music.ts';
+import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, RISE_FIRST, THEME_FIRST } from '../audio/themes/kandrax.ts';
 import { AMBIENCES, EFFECT_INSTRUMENTS, type AmbienceId } from '../audio/sounds.ts';
 import prologueData from '../generated/prologue.json';
 import { LANG, tw } from '../i18n.ts';
@@ -21,7 +22,8 @@ import { STRINGS } from './strings.ts';
  * wide, short screen (a phone on its side), whichever gives the larger scene with all the text in
  * view. "Skip" or Escape ends the prologue at once.
  *
- * Its sound (audio/): the theme of Kandrax from the first scene to the end, the ambience of each scene
+ * Its sound (audio/): the theme of Kandrax from the first scene to the end (its opening, its rise with
+ * the gods, and its quiet coda with the last card), the ambience of each scene
  * (the night, the wind, a candle, the forge, a hearth), a rush of air at each new card, a strike and
  * bells for a title, the scratch of a quill as a line types, and a chord at the end. A speaker button
  * by "Skip" turns all sound on and off (the setting of the whole game).
@@ -685,8 +687,8 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   // The orchestra loads with the art: the first instruments of the theme, and those of the effects.
   audio.preload([...THEME_FIRST, ...EFFECT_INSTRUMENTS]);
-  // The instruments of the rise load meanwhile: it must start at once when its card comes.
-  audio.preload(RISE_FIRST);
+  // The instruments of the rise and of the coda load meanwhile: each must start at once when its card comes.
+  audio.preload([...RISE_FIRST, ...CODA_INSTRUMENTS]);
   let sheet: HTMLImageElement;
   try {
     sheet = await loadSheet();
@@ -714,9 +716,9 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
   let cardStart = 0;
   /** When the player asked to leave the card (ms from its start): its fade out runs from there. Null: the card waits. */
   let leaveAt: number | null = null;
-  /** The rise of the music has started (or is about to). */
-  let risen = false;
-  let riseTimer = 0;
+  /** The part of the theme that plays (or is about to): the opening, the rise, or the coda. */
+  let part: 'opening' | 'rise' | 'coda' = 'opening';
+  let musicTimer = 0;
   let scene: SceneData | undefined;
   let emitters: Emitter[] = [];
   let texts: ReturnType<typeof cardTexts> = { title: null, subtitle: null, banner: null, lines: [] };
@@ -770,25 +772,28 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
     if (index > 0) audio.play('whoosh');
     if (texts.title) audio.play('title', PROLOGUE_TIMING.fade / 1000 - 0.2);
     else if (bannerLine === 0) audio.play('title', PROLOGUE_BANNER.start / 1000);
-    if (card.crescendo) rise();
+    if (card.crescendo && part === 'opening') changeMusic('rise', KANDRAX_RISE, 2);
+    if (card.calm && part !== 'coda') changeMusic('coda', KANDRAX_CODA, 3);
     ticked = 0;
   }
 
   /**
-   * The rise of the theme (its choir and violins) with this card, however long the player took to reach
-   * it (Fede, 2026-10-13): on the next chord of the opening when it is near, else on its next beat, with
-   * a crossfade of 2 s. Without music yet (it loads, or the sound is off), the rise is what plays next.
+   * Another part of the theme with this card, however long the player took to reach it (Fede,
+   * 2026-10-13): the rise (its choir and violins) with the gods, the coda with the last card. It comes
+   * in on the next chord of the music that plays when it is near, else on its next beat, with a
+   * crossfade of `fade` s. Without music yet (it loads, or the sound is off), it is what plays next. A
+   * change that waits for its beat gives way to a later one.
    */
-  function rise(): void {
-    if (risen) return;
-    risen = true;
+  function changeMusic(next: typeof part, track: MusicTrack, fade: number): void {
+    part = next;
+    window.clearTimeout(musicTimer);
     const beat = audio.nextMusicBeat(KANDRAX_BPM, CHORD_BEATS, 2.5);
     if (!beat) {
-      audio.playMusic(KANDRAX_RISE, 2);
+      audio.playMusic(track, fade);
       return;
     }
-    // Ask a moment before the beat: the notes of the opening that are already set reach it.
-    riseTimer = window.setTimeout(() => !ending && audio.playMusic(KANDRAX_RISE, 2, beat.at), Math.max(0, beat.wait - 0.3) * 1000);
+    // Ask a moment before the beat: the notes of the music that are already set reach it.
+    musicTimer = window.setTimeout(() => !ending && audio.playMusic(track, fade, beat.at), Math.max(0, beat.wait - 0.3) * 1000);
   }
 
   /**
@@ -933,7 +938,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
 
   function finishNow(): void {
     markSeen();
-    window.clearTimeout(riseTimer);
+    window.clearTimeout(musicTimer);
     unfollow();
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', fit);

@@ -450,7 +450,9 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   2026-10-13): the lines of a card come by themselves, then the card waits. **The music** is the opening
   of the theme (`KANDRAX_OPENING`, round and round) until the card with `crescendo` (the gods), where the
   rise (`KANDRAX_RISE`: the choir and the violins) comes in on a chord or a beat
-  (`AudioEngine.nextMusicBeat()`), however long the player took.
+  (`AudioEngine.nextMusicBeat()`), however long the player took. The card with `calm` (the hut, the last
+  one) brings the coda in the same way (`KANDRAX_CODA`: a clarinet over a harp and soft low strings;
+  Fede, 2026-10-13).
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the settings button opens it): "Resume", "Load game" (a reload

@@ -39,6 +39,12 @@ describe('the prologue of each world', () => {
     expect(cards.filter((card) => card.crescendo).map((card) => card.scene)).toEqual(['gods']);
   });
 
+  it('calms the music with the last card only: the hut (Fede, 2026-10-13)', () => {
+    const cards = WORLDS.find((world) => world.id === 'wilds')!.prologue!;
+    expect(cards.filter((card) => card.calm).map((card) => card.scene)).toEqual(['hut']);
+    expect(cards[cards.length - 1]!.calm).toBe(true);
+  });
+
   it('shows a banner with a line that the card has', () => {
     for (const world of WORLDS) {
       for (const card of world.prologue ?? []) {

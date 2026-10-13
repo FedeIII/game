@@ -19,7 +19,7 @@ what a person of Kandrax knows. How it plays (the page, the art, the sound) is i
 | 6 | `iron` | Banner: "Iron Sovereignty" (Soberanía del Hierro), with the second line | The Central Dominions are the youngest. The Iron Sovereignty: south-west, on the Great Sea; capital Iron Bay, a port and a republic of guilds; mining, metalwork, engineering. Its neighbour to the north is the Mithril Enclave. |
 | 7 | `mithril` | Banner: "Mithril Enclave" (Enclave del Mithril) | The northernmost Central Dominion, under the mountains; capital Great Bwini, ruled from a great temple; arcane and divine magic. Between the two dominions lie lands that no dominion claims: lawless and dangerous. |
 | 8 | `factory` | | In the Iron Sovereignty, next to Iron Bay: Thalesferro, and the factory of Thrain Steelforge, a dwarf engineer. His company makes all kinds of equipment, and he looks into strange arcane events. |
-| 9 | `hut` | Title: the character's name; subtitle: its race and class | You are a consultant for Thrain. Homesteads burn in the wildlands north of the Iron Sovereignty. His letter waits on the table of your hut, at the northern edge of the Sovereignty, south of Ironhold. |
+| 9 | `hut` | Title: the character's name; subtitle: its race and class | You are a consultant for Thrain. Homesteads burn in the wildlands north of the Iron Sovereignty. His letter waits on the table of your hut, at the northern edge of the Sovereignty, south of Ironhold. **The music calms here** (below). |
 
 The last card leads into the game: the letter on the table starts "The Road to Ironhold"
 (`questlines.md`), and the hut is where `world.md` puts it.
@@ -35,6 +35,9 @@ The last card leads into the game: the letter on the table starts "The Road to I
   card of the gods (card 5, `crescendo: true`), however long the player took to reach it. If the player
   stays long on an earlier card, the music before the crescendo repeats, with smooth joins. If the
   player goes on quickly, the crescendo fades in at once with that card.
+- **The last card** (the hut, card 9, `calm: true`) has calmer music (Fede, 2026-10-13): a quiet coda of
+  the theme, with a clarinet over a harp and soft low strings. It comes in with that card in the same
+  way, and it goes round while the player reads.
 - "Skip" ends the prologue at any time.
 
 ## When it plays

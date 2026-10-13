@@ -9,11 +9,13 @@
  *            trumpets on the last chord, drums and a cymbal
  * then rounds 1 to 3 again, with other colours.
  *
- * The prologue plays it in two tracks (Fede, 2026-10-13: the rise comes with the card of the gods,
- * however long the player takes to reach it). The opening (KANDRAX_OPENING) plays rounds 0 and 1 and
- * then goes round them while the player reads: round 1 with the horn, round 1 with the oboe, round 0,
- * and again; each round ends on A, which leads back to D. The rise (KANDRAX_RISE) starts at round 2 when
- * the card of the gods starts, on a beat of the opening (ui/prologue.ts), and goes on from there.
+ * The prologue plays it in three tracks (Fede, 2026-10-13: the rise comes with the card of the gods,
+ * however long the player takes to reach it, and the last card, the hut, has calmer music). The opening
+ * (KANDRAX_OPENING) plays rounds 0 and 1 and then goes round them while the player reads: round 1 with
+ * the horn, round 1 with the oboe, round 0, and again; each round ends on A, which leads back to D. The
+ * rise (KANDRAX_RISE) starts at round 2 when the card of the gods starts, on a beat of the opening
+ * (ui/prologue.ts), and goes on from there. The coda (KANDRAX_CODA) comes in the same way with the last
+ * card: the theme, quietly.
  */
 import { chord, hits, line, scoreTrack, type ScoreNote, type Section } from '../music.ts';
 
@@ -165,3 +167,31 @@ export const KANDRAX_RISE = scoreTrack('kandrax-rise', THEME_INSTRUMENTS, () => 
 
 /** The length of a round of the theme (s). */
 export const THEME_ROUND_SECONDS = (ROUND_BEATS * 60) / KANDRAX_BPM;
+
+/** The instruments of the coda: all of them start it, so the prologue loads them early. */
+export const CODA_INSTRUMENTS = ['basses', 'celli', 'violas', 'harp', 'clarinet'] as const;
+
+/**
+ * The notes of a round of the coda (Fede, 2026-10-13: calmer music for the last card): the tempo and
+ * the chords of the theme, soft low strings, and the harp one note a beat (half the motion of the
+ * theme). With `song`, a clarinet sings melody A as written, where it is warm.
+ */
+export function codaNotes(song: boolean): ScoreNote[] {
+  const notes: ScoreNote[] = [];
+  THEME_CHORDS.forEach((c, i) => {
+    const at = i * CHORD_BEATS;
+    notes.push(...line('basses', `${c.bass}:8`, at, { vel: 0.4, attack: 0.8, release: 1.2 }));
+    notes.push(...line('celli', `${c.cello}:8`, at, { vel: 0.38, attack: 0.9, release: 1.2 }));
+    notes.push(...chord('violas', `${c.pad[0]} ${c.pad[1]}`, at, 8, { vel: 0.3, attack: 1.2, release: 1.4 }));
+    c.arp.split(' ').forEach((note, k) => notes.push(...line('harp', `${note}:1`, at + k, { vel: k === 0 ? 0.46 : 0.36, hold: 4 })));
+    if (song) notes.push(...line('clarinet', MELODY_A[i]!, at, { vel: 0.5, attack: 0.12, hold: 1.03, release: 0.6 }));
+  });
+  return notes;
+}
+
+/**
+ * The coda of the prologue: a round with the clarinet, a round without it (a breath), and again, as
+ * long as the player reads. Its level (measured in offline renders of a round): about 3 dB under the
+ * night (round 0) and 8 dB under the full orchestra (round 3), and 15 dB over the hearth of the hut.
+ */
+export const KANDRAX_CODA = scoreTrack('kandrax-coda', CODA_INSTRUMENTS, () => (index) => ({ bpm: KANDRAX_BPM, beats: ROUND_BEATS, notes: codaNotes(index % 2 === 0) }), { level: 1.4 });

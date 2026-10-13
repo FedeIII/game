@@ -90,6 +90,14 @@ world of Kandrax feels alive.
   on the next chord of the opening if it is within 2.5 s, else on its next beat, with a crossfade of
   2 s; at once if no music plays yet. A player who goes fast hears the rise at that card all the same.
   Its first instruments load with the prologue.
+- **AC-SND-003.7:** The last card (the hut) has calmer music (Fede, 2026-10-13): the coda of the theme
+  (`KANDRAX_CODA`), at the same tempo and on the same chords. A clarinet sings melody A as written, over
+  soft contrabasses, celli and violas, and a harp with one note on each beat (half the motion of the
+  theme); the next round has no clarinet (a breath); and again, as long as the player reads. It comes in
+  as the rise does (on the next chord within 2.5 s, else on the next beat), with a crossfade of 3 s, and
+  a change that still waits for its beat (the rise of a player who goes fast) gives way to it. Its level
+  is about 3 dB under the first round of the opening and 8 dB under the full orchestra. Its instruments
+  load with the prologue.
 - **AC-SND-003.2:** Each scene has an ambience, and the ambience crossfades (1.6 s) when the scene
   changes: the world at night: crickets and a soft wind; the ruins, the gods, the Central Dominions:
   wind; the wild lands: a strong wind; the map: a candle; the factory: a forge with anvils; the hut: a

@@ -7,7 +7,7 @@ import { decoderDelay, INSTRUMENT_IDS, pickSample, type Instrument, type Sample 
 import { DEFAULT_SOUND, parseSound } from './settings.ts';
 import { AMBIENCES, EFFECTS, EFFECT_INSTRUMENTS } from './sounds.ts';
 import { pluckSamples } from './synth.ts';
-import { CHORD_BEATS, KANDRAX_BPM, KANDRAX_OPENING, KANDRAX_RISE, KANDRAX_THEME, MELODY_A, MELODY_B, RISE_FIRST, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
+import { CHORD_BEATS, CODA_INSTRUMENTS, KANDRAX_BPM, KANDRAX_CODA, KANDRAX_OPENING, KANDRAX_RISE, KANDRAX_THEME, MELODY_A, MELODY_B, RISE_FIRST, ROUND_BEATS, THEME_CHORDS, THEME_FIRST, themeNotes, themeRound } from './themes/kandrax.ts';
 
 const INSTRUMENTS = (manifest as unknown as { instruments: Record<string, { kind: string; rate: number; samples: { file: string; root: number | null; loop?: number[]; seconds: number }[] }> }).instruments;
 
@@ -181,6 +181,30 @@ describe('the theme of Kandrax', () => {
     // Its first instruments load early: the rise starts at once.
     for (const inst of insts(rise[0]!.notes)) expect(RISE_FIRST as readonly string[], inst).toContain(inst);
     expect(insts(rise[1]!.notes).has('trumpetStac')).toBe(true);
+  });
+
+  it('ends the prologue with a quiet coda: the clarinet, then a breath, on the chords of the theme (Fede, 2026-10-13)', () => {
+    const next = KANDRAX_CODA.compose!();
+    const coda = Array.from({ length: 4 }, (_, i) => next(i, Math.random));
+    const loudest = (notes: readonly { inst: string; vel: number }[], inst: string) => Math.max(0, ...notes.filter((n) => n.inst === inst).map((n) => n.vel));
+    const night = KANDRAX_OPENING.compose!()(0, Math.random).notes;
+    for (const [i, section] of coda.entries()) {
+      // The same tempo and the same rounds: it comes in on a chord of the rise.
+      expect([section.bpm, section.beats]).toEqual([KANDRAX_BPM, ROUND_BEATS]);
+      for (const note of section.notes) {
+        // Every instrument loads with the prologue, and each note is near a recorded one.
+        expect(CODA_INSTRUMENTS as readonly string[], note.inst).toContain(note.inst);
+        expect(distance(note.inst, note.midi), `${note.inst} ${note.midi}`).toBeLessThanOrEqual(INSTRUMENTS[note.inst]!.kind === 'once' ? 3.5 : 3);
+        expect(note.beat).toBeLessThan(ROUND_BEATS);
+      }
+      // The clarinet sings melody A in one round of two.
+      const song = section.notes.filter((n) => n.inst === 'clarinet');
+      expect(song.length > 0, `round ${i}`).toBe(i % 2 === 0);
+      if (i % 2 === 0) expect(song.map((n) => n.midi)).toEqual(MELODY_A.flatMap((bar) => line('clarinet', bar).map((n) => n.midi)));
+      // Softer than the night, the calmest round of the opening, in each section, and the harp half as busy.
+      for (const inst of ['basses', 'celli', 'violas', 'harp']) expect(loudest(section.notes, inst), inst).toBeLessThan(loudest(night, inst));
+      expect(section.notes.filter((n) => n.inst === 'harp')).toHaveLength(ROUND_BEATS);
+    }
   });
 });
 
