@@ -6,10 +6,6 @@
 
 ## Open
 
-- **Name signs at Whitegrove and Bronzehold** (2026-10-13). A sign with the name of the hamlet right
-  outside each one, by the road (Whitegrove: by the south end of its lane, `WHITEGROVE_SOUTH`;
-  Bronzehold: `BRONZEHOLD_SOUTH`; `worlds/wilds/src/hamlets.ts`), in the style of the Iron Sovereignty.
-  They are small hamlets: no title over the screen (the rule below).
 - **Titles and signs for settlements: the rule** (Fede, 2026-10-13). Big or important towns and
   villages (important for the story), and ALL cities, get a title over the screen when the player
   arrives, as the name of a world on arrival (`packages/engine-client/src/render/intro.ts`, `IntroTitle`;
@@ -134,3 +130,8 @@
   a long one makes a wider bubble (its width grows with the square root of its length, at most 208
   pixels or the width of the screen), with lines of about the same length (`wrapBubble()` in
   `text-layout.ts`). Done 2026-10-13, commit `f0fcb77`.
+
+- **Name signs at Whitegrove and Bronzehold** (2026-10-13). Each hamlet has a name sign right outside
+  the south end of its lane, one tile west of the road, in the style of the Iron Sovereignty (two oak
+  posts, an iron plate with the name under the anvil shield; the new fixture `namesign` with `look` and
+  `label`, `HAMLET_SIGNS`). Done 2026-10-13, commit `f440fe2`.
