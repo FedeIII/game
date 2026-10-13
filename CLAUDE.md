@@ -925,8 +925,16 @@ minutes round a player), in a group of 1 to 3 that **ambushes** (`MobStats.ambus
 `Horde.spawnAmbush()`): it comes 11 to 15 tiles ahead of the player and hides (state `lurk`), creeps after
 the player crouched (44 px/s), holds still within 5 tiles, and springs within 2.5 tiles, after a hold of
 2.5 s, or at a blow (which takes it unaware). A page shows a lurker only within the seek of its player
-(WIS; `seesMob()` in `render/mobs.ts`); it shouts when it springs. In the wildlands, imps and brutes by day
-and at night. `?mob=bandit,bandit,bandit` puts one lurking group 3 tiles east.
+(WIS; `seesMob()` in `render/mobs.ts`); it shouts when it springs. In the wildlands (`WILD_MOBS`), 4 imps
+and 2 brutes at night, and by day fewer that come seldom (2 imps, about one each minute; 1 brute, about
+every two). `?mob=bandit,bandit,bandit` puts one lurking group 3 tiles east.
+**Sure confrontations** (`packages/engine/src/confrontations.ts`, `WorldSource.confrontations()`;
+REQ-CMB-012): a group that a character meets once. A character for whom `when` holds, outside in `area`
+at `hours` for `SETTLE_MS` (6 s), gets a group of the kind ahead of it out of view (`Horde.spawnAhead()`);
+when a mob of the kind hunts it, `met` applies (a quest flag; `When.flag` is a condition on it). The Room
+runs them after the ambushes, the page in a world that it runs. The Wilds: `FIRST_GOBLINS` (Fede,
+2026-10-13): a new character on the road (`road` at `go`, without the flag `goblins`) meets one goblin
+patrol in the forest by day; a goblin fight at night sets the flag too (`GOBLINS_MET`).
 
 **The 5e scale** (since 2026-10-11, Fede's decision: `docs/drafts/level-3.md`,
 `docs/features/game/combat.md`; protocol 26): a character is a **level-1** character (Fede's decision,
@@ -1109,7 +1117,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   day in the forest). The NPCs: the people without a post go home at night (`NpcDef.night`; see "Walking
   NPCs"). The sound: the ambience by day and at night, a night form of each place's music, and the
   stingers `dawn` and `dusk` (see `audio/`). The lamps and the lit windows: unlit frames by day, the lit
-  frame over them with the alpha of `sky.lights` (`render/unlit.ts`).
+  frame over them with the alpha of `sky.lights` (`render/unlit.ts`); by day a thing can say another line
+  (`WorldDefinition.examineByDay`: the lamp).
 
 ## Buildings
 
@@ -1188,7 +1197,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
   `FOREST_EDGE_Y` -8, the row of Ironhold's north edge: south of it): only goblin patrols live there at
   night, and rare bandits by day (`FOREST_MOBS`, `MobRules.areaAt`, `roam(tx, ty, kind)`; the skirmisher
-  and the bandit), round the hut, the two hamlets and Ironhold; imps and brutes keep the
+  and the bandit; one goblin patrol by day for a new character, `FIRST_GOBLINS`), round the hut, the two hamlets and Ironhold; imps and brutes keep the
   wildlands north of Ironhold (Fede, 2026-10-13). Ironhold is the last town of the Sovereignty before the
   wildlands, on the way to Silverspring, the Enclave's last village. Plan: `docs/drafts/tutorial.md`.
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below

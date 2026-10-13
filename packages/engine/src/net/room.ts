@@ -12,6 +12,7 @@ import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
 import { NIGHT_SKY, isDaytime, skyAtClock, type DayCycle, type Sky } from '../daytime.ts';
 import { Ambushes } from '../ambushes.ts';
+import { Confrontations } from '../confrontations.ts';
 import { Escorts } from '../escorts.ts';
 import { Convoys } from '../convoys.ts';
 import { Guards, type GuardEvent } from '../guards.ts';
@@ -220,6 +221,8 @@ export class Room {
   readonly dice: DiceSource;
   /** The ambushes of the story (ambushes.ts): the scouts in the grove. */
   readonly ambushes: Ambushes;
+  /** The sure confrontations (confrontations.ts): the goblins that a new character meets once by day. */
+  readonly confrontations: Confrontations;
   /** The escorts of the story (escorts.ts): Himo, whom a character takes home. */
   readonly escorts: Escorts;
   /** The NPCs that fight (guards.ts: the militia and the wagon of a caravan), and the convoys that they walk in (convoys.ts). */
@@ -271,6 +274,7 @@ export class Room {
     this.piles = new Piles(world);
     this.companions = new Companions(world);
     this.ambushes = new Ambushes(world, world.source.ambushes?.() ?? []);
+    this.confrontations = new Confrontations(world.source.confrontations?.() ?? []);
     this.escorts = new Escorts(world.source.escorts?.() ?? []);
     this.guards = new Guards(world);
     this.convoys = new Convoys(world, world.source.convoys?.() ?? []);
@@ -359,6 +363,8 @@ export class Room {
       // The ambushes of the story: they start for a character at their step in their area, and their end moves the quest on.
       const people = [...this.players.values()].map((p) => ({ id: p.id, state: p.state, quests: p.quests, pack: p.pack }));
       for (const { player: id, effect } of this.ambushes.step(this.horde, people)) this.applyStory(id, effect, nowMs);
+      // The sure confrontations: a group that a new character meets once (the goblins of the forest by day).
+      for (const { player: id, effect } of this.confrontations.step(dt, this.horde, people)) this.applyStory(id, effect, nowMs);
       // During a raid, the people of the town take shelter.
       this.npcs?.setAlarm(this.ambushes.sheltered);
       // The convoys: they start, meet their attackers, and end (saved, lost, robbed).

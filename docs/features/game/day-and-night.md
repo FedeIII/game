@@ -84,14 +84,16 @@ different to play and to hear, not only to see (Fede, 2026-10-13).
   message carries the hour. A test server can fix it (`GAME_HOUR`).
 - **AC-DAY-004.3:** The mobs: each area has its mobs by day and at night (`docs/features/game/combat.md`,
   REQ-CMB-010). In the forest of the tutorial the goblin patrols are there at night, and rare bandits
-  that ambush by day (REQ-CMB-011).
+  that ambush by day (REQ-CMB-011); a new character on the road meets one patrol of goblins by day
+  (REQ-CMB-012). In the wildlands the imps and the brutes are less frequent by day.
 - **AC-DAY-004.4:** The NPCs: at night the people without a post go home and say no lines; they come
   out at dawn (`docs/features/npcs/night.md`).
 - **AC-DAY-004.5:** The sound: from 6:00 to 20:00 the places sound by day, and at night each place plays
   a slower, softer form of its music; a stinger marks the dawn and the dusk
   (`docs/features/game/sound.md`, REQ-SND-009).
 - **AC-DAY-004.6:** The lamps and the lit windows show unlit by day, lit at night, and at half at 6:00
-  and 20:00, as their light.
+  and 20:00, as their light. By day a lamp says another line: "A lamp, cold by day. Someone lights it at
+  dusk." (`WorldDefinition.examineByDay`).
 
 ---
 
@@ -115,9 +117,9 @@ different to play and to hear, not only to see (Fede, 2026-10-13).
   each `tick()` sets `Horde.daytime` and `NpcCrowd.night`. The server (`startServer`) gives `Date.now`, or
   `ServerOptions.hour` (`GAME_HOUR`, refused in production). The page sets the same for a world that it
   runs, from `skyNow()` (so `?hour=` works there).
-- **The mobs:** `MobRules.areaAt()` and `MobArea` (`docs/features/game/combat.md`, REQ-CMB-010 and
-  REQ-CMB-011); the Wilds: `FOREST_MOBS` (goblins at night, bandits by day) and the imps and brutes of the
-  wildlands, the same by day and at night.
+- **The mobs:** `MobRules.areaAt()` and `MobArea` (`docs/features/game/combat.md`, REQ-CMB-010 to
+  REQ-CMB-012); the Wilds: `FOREST_MOBS` (goblins at night, bandits by day), `FIRST_GOBLINS` (one patrol
+  by day for a new character), and `WILD_MOBS` (the imps and brutes of the wildlands: fewer by day).
 - **The NPCs:** at night (20:00 to 6:00) the people without a post go home (`NpcDef.night`): the widow
   of Ironhold to the chapel, the villager of Whitegrove and the panner of Silverspring into their shut
   houses. They say no lines, and they come out at dawn. See `docs/features/npcs/night.md`.
@@ -129,7 +131,9 @@ different to play and to hear, not only to see (Fede, 2026-10-13).
   frame for each (`wall/<walls>/window/unlit`, `fixture/lamppost/unlit`, `fixture/cart/unlit`,
   `fixture/cart-mended/unlit`), and the page draws the lit frame over it with the alpha of `sky.lights`
   (`render/unlit.ts`, `litAlpha()`). They are lit at night, unlit by day, and at half at 6:00 and 20:00,
-  as the light holes are. Fires, forges, candles and braziers stay lit.
+  as the light holes are. Fires, forges, candles and braziers stay lit. By day a thing can have another
+  line (`WorldDefinition.examineByDay`, in place of `examine`; the page reads it at `isDaytime(skyNow())`):
+  the lamp of the Wilds.
 - **Tests and switches:** `?hour=<0-24>` stops the hour (`?hour=12` noon, `?hour=0` midnight), for a
   screenshot. The debug panel's `sky` line gives the hour, the darkness and the lights ("12:00,
   darkness 0.25, lights 0.00 (?hour)"). Tests: `packages/engine/test/daytime.test.ts`,

@@ -23,6 +23,7 @@ import {
   type Refuge,
   dice,
   type AmbushDef,
+  type ConfrontationDef,
   type AmbushMember,
   type ConvoyDef,
   type EscortDef,
@@ -40,7 +41,7 @@ import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
-import { ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
+import { GOBLINS_MET, ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
 import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
@@ -171,11 +172,19 @@ const REFUGES: readonly Refuge[] = [
 ];
 
 /**
- * The mobs round each player in the wildlands: four imps and two brutes, by day and at night. The
- * hobgoblin band comes only with the story: none of it roams.
+ * The mobs round each player in the wildlands: four imps and two brutes at night. By day they are less
+ * frequent (Fede, 2026-10-13): two imps and one brute, and each one comes only after a wait (an imp
+ * about every minute, a brute about every two). The hobgoblin band comes only with the story: none of
+ * it roams.
  */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
-const WILD_MOBS: MobArea = populationArea(MOB_POPULATION);
+export const WILD_MOBS: MobArea = {
+  night: populationArea(MOB_POPULATION).night,
+  day: [
+    { kind: 'imp', count: 2, every: 60_000 },
+    { kind: 'brute', count: 1, every: 120_000 },
+  ],
+};
 
 /**
  * The forest at the northern edge of the Iron Sovereignty, from this row south (tiles): the woods of
@@ -193,6 +202,23 @@ export const FOREST_EDGE_Y = IRONHOLD.y0;
 export const FOREST_MOBS: MobArea = {
   night: [{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }],
   day: [{ kind: 'bandit', count: 3, behaviour: 'ambush', group: [1, 3], every: 8 * 60_000 }],
+};
+/**
+ * A new character on the road to Ironhold (the letter read, Ironhold not reached) that is in the forest
+ * by day meets one patrol of goblins (Fede, 2026-10-13: "force a single confrontation with goblins for
+ * new players if they are there during the day"): by day the forest has only rare bandits, and the
+ * goblins are the first fight of the tutorial. A meeting with goblins at night counts too (GOBLINS_MET).
+ */
+export const FIRST_GOBLINS: ConfrontationDef = {
+  id: 'first-goblins',
+  kind: 'skirmisher',
+  when: [
+    { quest: 'road', at: ['go'] },
+    { quest: 'road', flag: 'goblins', not: true },
+  ],
+  area: { x0: -Infinity, y0: FOREST_EDGE_Y + 2, x1: Infinity, y1: Infinity },
+  hours: 'day',
+  met: GOBLINS_MET,
 };
 /** The kinds that live in the forest of the tutorial, and only there. */
 const FOREST_KINDS: ReadonlySet<MobKind> = new Set(['skirmisher', 'bandit']);
@@ -987,6 +1013,11 @@ export class WildsSource implements WorldSource {
    */
   escorts(): readonly EscortDef[] {
     return [{ companion: HIMO, when: { quest: 'raid', at: ['escort'] }, home: (tx, ty) => IRONHOLD.has(tx, ty), arrive: HIMO_HOME, fall: HIMO_LOST }];
+  }
+
+  /** The sure confrontations: the goblins that a new character on the road meets once by day (FIRST_GOBLINS). */
+  confrontations(): readonly ConfrontationDef[] {
+    return [FIRST_GOBLINS];
   }
 
   /** What water does to the story: the lentils of Whitegrove get wet (LENTILS_SOAK). */

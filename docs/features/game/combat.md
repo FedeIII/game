@@ -221,8 +221,9 @@ frequency and encoded behavior.").
   hunts finishes its hunt first. The mobs of the story never go.
 - **AC-CMB-010.5:** The Wilds: in the forest of the tutorial, the goblin patrols at night as before
   (3 round a character, groups of 2 or 3), and by day the bandits (REQ-CMB-011: 3 round a character,
-  groups of 1 to 3, a group about every 8 minutes). In the wildlands, 4 imps and 2 brutes, by day and
-  at night.
+  groups of 1 to 3, a group about every 8 minutes). In the wildlands, 4 imps and 2 brutes at night;
+  by day they are less frequent (Fede, 2026-10-13): 2 imps and 1 brute, an imp about every minute and a
+  brute about every two minutes.
 
 ---
 
@@ -253,6 +254,27 @@ level than goblins) that try to ambush the player.").
 - **AC-CMB-011.6:** After a hunt that it gives up, a bandit rests 3 s and then hides again.
 - **AC-CMB-011.7:** `?mob=bandit,bandit,bandit` puts one group of three that lurks 3 tiles east of the
   character (a world that the page runs).
+
+---
+
+### REQ-CMB-012: The first goblins of a new character
+
+**User Story:** As a new player on the road to Ironhold by day, I want to meet the goblins once, so that
+the tutorial has its first fight at any hour (Fede, 2026-10-13: "force a single confrontation with
+goblins for new players if they are there during the day").
+
+**Acceptance Criteria:**
+- **AC-CMB-012.1:** A character on the road (the quest `road` at `go`) without the flag `goblins` of the
+  road, that is outside in the forest of the tutorial by day for 6 s, gets one patrol of goblins (2 or 3)
+  17 to 21 tiles ahead of it (the way it walks, or faces), out of its view. Not in a town or a hamlet,
+  in a building, upstairs, or while defeated.
+- **AC-CMB-012.2:** When a goblin hunts the character (it startles at it, chases it), the road gets the
+  flag `goblins`, and no other patrol comes for it. A meeting with goblins at night sets the flag too.
+- **AC-CMB-012.3:** A patrol that is gone (the character went on, far from it) comes again ahead of the
+  character; one that did not meet the character in 90 s goes when the character is out of its view,
+  and comes again ahead of it.
+- **AC-CMB-012.4:** The server owns it (the Room brings the patrol and sets the flag; the store saves
+  the book); a page that runs its world does the same.
 
 ---
 
@@ -320,3 +342,9 @@ level than goblins) that try to ambush the player.").
   `MobViews.setSeeker()`, `LURK_ALPHA`, `SPRING_FADE_MS`), the shout (`voiceOfChange()`: `lurk` to
   `chase`; `VOICE_OF.bandit`). Tests: `packages/engine/test/ambush.test.ts`,
   `packages/engine-client/src/render/mobs.test.ts`. Protocol 40.
+- **Sure confrontations** (`packages/engine/src/confrontations.ts`): `ConfrontationDef` (`kind`,
+  `group`, `when`, `area`, `hours`, `met`), `Confrontations.step()` (the Room after the ambushes; the
+  page in a world that it runs), `SETTLE_MS` 6000, `WAIT_MS` 90000, `WorldSource.confrontations()`,
+  `Horde.spawnAhead()` (`AHEAD_DISTANCE` [17, 21]); a quest condition with a flag (`When.flag`). The
+  Wilds: `FIRST_GOBLINS` (`source.ts`), `GOBLINS_MET` (`quests.ts`). Tests:
+  `packages/engine/test/confrontations.test.ts`, `worlds/wilds/test/first-goblins.test.ts`.

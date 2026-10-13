@@ -54,11 +54,12 @@ export const EMPTY_BOOK: QuestBook = {};
 
 /**
  * A condition: a quest at a step (`at`: one of these steps; without it, at any step: the quest
- * started), or an item in the pack (`has`). `not` turns it round: a quest that is not at those
- * steps (or that did not start), an item that is not in the pack.
+ * started), and with a flag (`flag`: QuestEffect.flag), or an item in the pack (`has`). `not` turns it
+ * round: a quest that is not at those steps or without the flag (or that did not start), an item that
+ * is not in the pack.
  */
 export type When =
-  | { readonly quest: string; readonly at?: readonly string[]; readonly not?: boolean }
+  | { readonly quest: string; readonly at?: readonly string[]; readonly flag?: string; readonly not?: boolean }
   | { readonly has: ItemKind; readonly not?: boolean };
 
 /** One condition or a list of them: all must hold. */
@@ -69,7 +70,11 @@ export function holds(when: Conditions | undefined, book: QuestBook, pack: Pack)
   if (!when) return true;
   const list: readonly When[] = Array.isArray(when) ? when : [when as When];
   return list.every((w) => {
-    const yes = 'has' in w ? hasItems(pack, [{ kind: w.has, count: 1 }]) : book[w.quest] !== undefined && (!w.at || w.at.includes(book[w.quest]!.step));
+    const entry = 'has' in w ? undefined : book[w.quest];
+    const yes =
+      'has' in w
+        ? hasItems(pack, [{ kind: w.has, count: 1 }])
+        : entry !== undefined && (!w.at || w.at.includes(entry.step)) && (!w.flag || entry.flags.includes(w.flag));
     return w.not ? !yes : yes;
   });
 }
@@ -197,6 +202,7 @@ export function checkConditions(when: Conditions | undefined, quests: readonly Q
     const quest = quests.find((q) => q.id === w.quest);
     if (!quest) problems.push(`no quest "${w.quest}"`);
     else for (const step of w.at ?? []) if (!questStep(quest, step)) problems.push(`no step "${step}" in ${quest.id}`);
+    if (w.flag !== undefined && !QUEST_ID.test(w.flag)) problems.push(`the flag "${w.flag}" is not a short lowercase id`);
   }
   return problems;
 }

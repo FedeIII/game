@@ -62,10 +62,13 @@ From the south to the north:
 | The name signs of the hamlets | `-16..-14, 110` and `-41..-39, 60`: right outside the south end of each lane, west of the road | Two posts and an iron plate with the name (WHITEGROVE, BRONZEHOLD) under the anvil of the Iron Sovereignty. A hamlet has no title on arrival. |
 
 **The forest of the tutorial** is every tile from row `FOREST_EDGE_Y` (-8, the north edge of
-Ironhold) south: the whole road from the hut, and the land round Ironhold (Fede, 2026-10-13). A
-character there has goblin patrols round it (the skirmisher: 2 or 3 in a group, about 3 round each
-character), and goblins live only from row -6 south. No imp and no brute lives there; they live from
-row -11 north, in the wildlands.
+Ironhold) south: the whole road from the hut, and the land round Ironhold (Fede, 2026-10-13). At night
+a character there has goblin patrols round it (the skirmisher: 2 or 3 in a group, about 3 round each
+character). By day the goblins keep away, and rare bandits ambush there instead (1 to 3, a group about
+every 8 minutes round a character; `FOREST_MOBS`); but a new character on the road meets one patrol of
+goblins by day (`FIRST_GOBLINS`; its first fight). Goblins and bandits live only from row -6 south. No
+imp and no brute lives there; they live from row -11 north, in the wildlands: 4 imps and 2 brutes round
+a character at night, and by day 2 imps and 1 brute that come seldom (`WILD_MOBS`).
 
 ### Ironhold
 
@@ -143,8 +146,9 @@ A character that falls (0 HP) wakes at its home, or at the nearest refuge that i
 
 | Mob | Where |
 |---|---|
-| Goblin patrols (the skirmisher) | the forest of the road and the land round Ironhold only |
-| Imps and brutes | the wildlands, north of Ironhold |
+| Goblin patrols (the skirmisher) | the forest of the road and the land round Ironhold only; at night, and one patrol by day for a new character on the road |
+| Bandits (los bandidos) | the same forest, by day only; rare, in ambush |
+| Imps and brutes | the wildlands, north of Ironhold; fewer by day |
 | The hobgoblin scouts: worgs with goblin riders, a hobgoblin, a bugbear | the grove (the raid), the caravan |
 | The war band: the Hobgoblin Devastator, hobgoblins, a bugbear | the north road, the raid on Silverspring, the caravan |
 | The cinder hounds (los sabuesos de ceniza) and a watcher | the burned trail, the Wren homestead |

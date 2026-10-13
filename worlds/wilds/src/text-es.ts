@@ -19,6 +19,7 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "A barrel of sour wine.": "Un barril de vino agrio.",
   "An old crate, nailed shut.": "Una caja vieja, cerrada con clavos.",
   "A lamp. Someone keeps it lit.": "Una farola. Alguien la mantiene encendida.",
+  "A lamp, cold by day. Someone lights it at dusk.": "Una farola, fría de día. Alguien la enciende al anochecer.",
   "Clear, cold water. A few coins shine at the bottom.": "Agua clara y fría. Unas monedas brillan en el fondo.",
   "Tall candles in an iron stand.": "Velas altas en un soporte de hierro.",
   "An old signpost.": "Un poste indicador viejo.",

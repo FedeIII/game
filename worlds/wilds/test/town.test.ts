@@ -30,6 +30,7 @@ import {
   DEFAULT_SEED,
   FOREST_EDGE_Y,
   FOREST_MOBS,
+  WILD_MOBS,
   HAMLET_NPCS,
   HAMLET_SIGNS,
   IRONHOLD,
@@ -812,11 +813,16 @@ describe('the forest of the tutorial', () => {
     expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }]);
     expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group])).toEqual([['bandit', 'ambush', [1, 3]]]);
     const wildlands = rules.areaAt!(TOWN_GATE.tx, TOWN.y0 - 1);
+    expect(wildlands).toBe(WILD_MOBS);
     expect(wildlands.night).toEqual([
       { kind: 'imp', count: 4 },
       { kind: 'brute', count: 2 },
     ]);
-    expect(wildlands.day).toEqual(wildlands.night);
+    // By day fewer, and each one only after a wait (Fede: "less frequent during day").
+    expect(wildlands.day).toEqual([
+      { kind: 'imp', count: 2, every: 60_000 },
+      { kind: 'brute', count: 1, every: 120_000 },
+    ]);
     // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
     let forest = 0;
     let wild = 0;

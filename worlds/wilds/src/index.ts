@@ -10,7 +10,7 @@ export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
 export { River, SILVERVEIN } from './river.ts';
-export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FOREST_EDGE_Y, FOREST_MOBS, LANDS, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource, inTutorialForest } from './source.ts';
+export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FIRST_GOBLINS, FOREST_EDGE_Y, FOREST_MOBS, LANDS, WILD_MOBS, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource, inTutorialForest } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME_SIGN, TOWN_SOUTH, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NAME_SIGN, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -153,6 +153,10 @@ export const wilds: WorldDefinition = {
     standard: 'A standard of grey cloth with a red phoenix.',
     menhir: 'A standing stone, carved with waves.',
     altar: 'An old altar of stone.',
+  },
+  // By day the lamps are not lit (Fede, 2026-10-13).
+  examineByDay: {
+    lamppost: 'A lamp, cold by day. Someone lights it at dusk.',
   },
   // What each item is, and what it is for here (the pack panel adds what a drink does).
   items: {

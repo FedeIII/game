@@ -203,6 +203,11 @@ describe('the quests of the Wilds', () => {
       for (const when of [convoy.when, convoy.outlaw, ...convoy.waves.map((w) => w.when)]) expect(checkConditions(when, QUESTS)).toEqual([]);
       for (const member of convoy.members) if (member.content?.dialog) expect(checkDialog(member.content.dialog)).toEqual([]);
     }
+    // The sure confrontation of the goblins by day.
+    for (const confrontation of source.confrontations()) {
+      expect(checkEffect(confrontation.met, QUESTS), confrontation.met.id).toEqual([]);
+      expect(checkConditions(confrontation.when, QUESTS)).toEqual([]);
+    }
     // And what water does: the wet lentils.
     for (const effect of source.wadeEffects()) expect(checkEffect(effect, QUESTS), effect.id).toEqual([]);
     for (const escort of source.escorts()) {

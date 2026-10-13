@@ -225,6 +225,11 @@ export const CARAVAN_FINE: QuestEffect = { id: 'caravan-fine', quest: 'caravan',
 
 /** The letter on the table of the home: to read it starts the first quest, the road to Ironhold (ROAD). */
 export const READ_LETTER: QuestEffect = { id: 'read-letter', quest: 'road', to: 'go' };
+/**
+ * A character on the road met the goblins of the forest (a patrol hunted it: the first fight of the
+ * tutorial). The flag keeps it from the sure confrontation of the goblins by day (source.ts, FIRST_GOBLINS).
+ */
+export const GOBLINS_MET: QuestEffect = { id: 'goblins-met', quest: 'road', from: ['go'], flag: 'goblins' };
 /** The character comes into Ironhold (town.ts, the scene ARRIVAL): the road ends. */
 export const ROAD_ARRIVED: QuestEffect = { id: 'road-arrived', quest: 'road', to: 'arrived', from: ['go'] };
 /** The reeve hears that Thrain sent the character (a character from before the road, whose letter started `ashes`). */

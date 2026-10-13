@@ -82,6 +82,7 @@ import {
   sheetTraits,
   EMPTY_BOOK,
   Ambushes,
+  Confrontations,
   MOB_KINDS,
   formatDice,
   rollingDice,
@@ -703,6 +704,8 @@ async function run(options: GameOptions): Promise<void> {
   const localCompanions = net ? null : new Companions(world);
   // The ambushes of the story (ambushes.ts) in a world that the page runs; the server runs them in a shared world.
   const localAmbushes = horde ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
+  // The sure confrontations (confrontations.ts: the goblins that a new character meets once by day) in a world that the page runs.
+  const localConfrontations = horde ? new Confrontations(world.source.confrontations?.() ?? []) : null;
   // The escorts of the story (escorts.ts: Himo) in a world that the page runs, with its companions.
   const localEscorts = localCompanions ? new Escorts(world.source.escorts?.() ?? []) : null;
   // The NPCs that fight and the convoys that they walk in (guards.ts, convoys.ts: the caravan), in a world that the page runs.
@@ -1010,7 +1013,8 @@ async function run(options: GameOptions): Promise<void> {
       });
       return { ...content, pages: [...(content.pages ?? []), ...extra] };
     }
-    const line = definition.examine[t.kind];
+    // By day a thing can have another line (a lamp that is not lit).
+    const line = (isDaytime(skyNow()) ? definition.examineByDay?.[t.kind] : undefined) ?? definition.examine[t.kind];
     return line ? { pages: [line] } : null;
   };
   /** Whether the player may rest in a bed: its own, or one of a refuge that its character has (the room at the inn). */
@@ -1749,6 +1753,7 @@ async function run(options: GameOptions): Promise<void> {
     // An ambush that ends moves the quest on (here the page applies it: where does not matter).
     if (horde && localAmbushes) {
       for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack }])) applyQuest(effect, { scene: 'ambush' });
+      for (const { effect } of localConfrontations?.step(TICK_SECONDS * 1000, horde, [{ id: 0, state: player, quests: localQuests, pack }]) ?? []) applyQuest(effect, { scene: 'confrontation' });
       // During a raid, the people of the town take shelter.
       localNpcs?.setAlarm(localAmbushes.sheltered);
     }

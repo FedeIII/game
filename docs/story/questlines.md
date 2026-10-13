@@ -27,8 +27,11 @@ merchant ─▶ cart          farmer ─▶ lentils          (both: any time, on
 
 The tutorial (Fede, 2026-10-13; `docs/drafts/tutorial.md`). The letter of Thrain Steelforge sends the
 character from its hut north up the road, through Whitegrove and Bronzehold, to Ironhold. On the road
-the game teaches its basics with tips (`docs/features/game/tips.md`); the only enemies are goblin
-patrols.
+the game teaches its basics with tips (`docs/features/game/tips.md`); the enemies are goblin patrols at
+night and rare bandits by day. A character at `go` meets one patrol of goblins by day all the same: it
+comes ahead of the character, out of view, and the first goblin that hunts the character sets the flag
+`goblins` of the road (`FIRST_GOBLINS`, `GOBLINS_MET`); a meeting with goblins at night sets it too
+(Fede, 2026-10-13).
 
 | Step | The journal says | The map marks | What moves the quest there |
 |---|---|---|---|

@@ -37,6 +37,7 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
   };
   add(definition.name);
   Object.values(definition.examine).forEach(add);
+  Object.values(definition.examineByDay ?? {}).forEach(add);
   Object.values(definition.items ?? {}).forEach(add);
   if (definition.intro) {
     add(definition.intro.title);

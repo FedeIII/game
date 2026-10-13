@@ -915,6 +915,8 @@ const AMBUSH_LEAD = 1500;
 const AMBUSH_GAP = 14;
 /** A mob that the area does not want at this hour goes away when no player is this close (tiles): out of view. */
 const LEAVE_DISTANCE = 17;
+/** A group of the story comes this far ahead of its player (tiles: Horde.spawnAhead), out of its view. */
+const AHEAD_DISTANCE = [17, 21] as const;
 
 interface Brain {
   home: { readonly x: number; readonly y: number };
@@ -1250,6 +1252,31 @@ export class Horde {
       members.push(mob);
     }
     return members;
+  }
+
+  /**
+   * Puts a group of `kind` ahead of a player (where it walks or faces), out of its view (AHEAD_DISTANCE
+   * tiles, and that far from the other `players`), on open ground where the kind may live: from
+   * `group[0]` to `group[1]` mobs, with the kind's behaviour (a patrol on its loop, an ambush that lurks;
+   * a confrontation of the story, confrontations.ts). Returns the mobs; none without room.
+   */
+  spawnAhead(kind: MobKind, group: readonly [number, number], player: PlayerState, players: readonly PlayerState[] = []): Mob[] {
+    for (let tries = 0; tries < 24; tries++) {
+      const angle = headingOf(player) + this.between(-0.35, 0.35);
+      const r = this.between(AHEAD_DISTANCE[0], AHEAD_DISTANCE[1]) * TILE_SIZE;
+      const tx = tileOf(player.x + Math.cos(angle) * r);
+      const ty = tileOf(player.y + Math.sin(angle) * r);
+      if (!this.open(tx, ty, kind)) continue;
+      const x = tx * TILE_SIZE + TILE_SIZE / 2;
+      const y = ty * TILE_SIZE + 12;
+      if ([player, ...players].some((p) => Math.hypot(p.x - x, p.y - y) < SPAWN_DISTANCE[0] * TILE_SIZE)) continue;
+      const size = group[0] + Math.floor(this.random() * (group[1] - group[0] + 1));
+      const behaviour = kindBehaviour(kind);
+      if (behaviour === 'patrol') return this.spawnPatrol(kind, x, y, size);
+      if (behaviour === 'ambush') return this.spawnAmbush(kind, x, y, size);
+      return Array.from({ length: size }, () => this.spawn(kind, x, y));
+    }
+    return [];
   }
 
   /**

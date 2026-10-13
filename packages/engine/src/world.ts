@@ -8,6 +8,7 @@ import type { ItemKind, LootTable } from './items.ts';
 import type { QuestDef, QuestEffect } from './quests.ts';
 import type { SceneDef } from './scenes.ts';
 import type { AmbushDef } from './ambushes.ts';
+import type { ConfrontationDef } from './confrontations.ts';
 import type { DayCycle } from './daytime.ts';
 import type { ConvoyDef } from './convoys.ts';
 import type { EscortDef } from './escorts.ts';
@@ -100,6 +101,8 @@ export interface WorldSource {
   scenes?(): readonly SceneDef[];
   /** The ambushes of the story (ambushes.ts): mobs that wait for a character at a step in an area. Without it, none. */
   ambushes?(): readonly AmbushDef[];
+  /** The sure confrontations (confrontations.ts): a group that each character at some steps meets once. Without it, none. */
+  confrontations?(): readonly ConfrontationDef[];
   /** The escorts of the story (escorts.ts): companions that a step gives a character, until they come home. Without it, none. */
   escorts?(): readonly EscortDef[];
   /** The convoys of the story (convoys.ts): guards that walk a route, and the attackers that wait for them. Without it, none. */
@@ -572,6 +575,8 @@ export interface WorldDefinition {
   createSource(seed: number | null): WorldSource;
   /** Default lines for things without content of their own, by kind (tree, rock, bed, ...). */
   readonly examine: Readonly<Record<string, string>>;
+  /** Lines that take the place of `examine` by day (daytime.ts, isDaytime): a lamp that is not lit. */
+  readonly examineByDay?: Readonly<Record<string, string>>;
   /** How dark the night is, from 0 (no darkness) to 1 (full). */
   readonly darkness: number;
   /**

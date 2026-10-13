@@ -23,6 +23,7 @@ export * from './quests.ts';
 export * from './scenes.ts';
 export * from './encounters.ts';
 export * from './ambushes.ts';
+export * from './confrontations.ts';
 export * from './escorts.ts';
 export * from './guards.ts';
 export * from './convoys.ts';
