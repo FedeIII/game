@@ -95,4 +95,14 @@
   think about sending only the players near each player (as the mobs: "the mobs near this player
   only"); that saves bytes and work on a world with many players.
 
+- **Calmer music for the last card of the prologue** (2026-10-13). The last card of the prologue (Fede
+  says "the intro": the card with the hut, the character's name and Thrain's letter) gets calmer music.
+  Now the music of that card is the rise of the theme (`KANDRAX_RISE`: the choir and the violins), which
+  starts on the card of the gods (`crescendo`). Code: the cards in `worlds/wilds/src/prologue.ts` (the
+  last card, `scene: 'hut'`; `PrologueCard.crescendo` in `packages/engine/src/world.ts`); the music in
+  `packages/engine-client/src/ui/prologue.ts` (`audio.playMusic(KANDRAX_OPENING, 3)`, `rise()`, which
+  changes the music on a beat with `audio.nextMusicBeat()`; `sceneAmbience()`); the theme in
+  `packages/engine-client/src/audio/themes/kandrax.ts`. Ask Fede: which music: the opening of the theme
+  again (`KANDRAX_OPENING`), a quiet part of the theme, or a new piece?
+
 ## Done
