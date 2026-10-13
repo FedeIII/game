@@ -6,19 +6,6 @@
 
 ## Open
 
-- **Remake the main menu** (2026-10-13). An impressive title of the game, World of Kandrax, at the top
-  of the screen, and the buttons of the menu at the bottom, with no box round them. Now the menu is
-  one panel in the middle of the screen (`main.menu-panel`: a border and a dark background) over the
-  picture of Nivalia; the panel has the title (`h1.menu-name`, italic Georgia 34 px) and the site, and
-  under them the screen (on the main screen the buttons in `div.menu-actions.menu-stack`, the account
-  line and the language).
-  Code: `runMenu()` (the panel and its header) and `main()` (the main screen) in
-  `packages/engine-client/src/menu/menu.ts`; `backdrop()` there and `art/menu-art.ts` (the picture);
-  the styles `.menu-panel`, `.menu-head`, `.menu-name`, `.menu-actions` in
-  `packages/engine-client/src/style.css`; `docs/features/game/main-menu.md`.
-  Ask Fede: is the title text (the pixel font, or a serif) or a painted logo in the art? Do the other
-  screens of the menu (sign-in, builder, continue, settings) keep their panel?
-
 - **Sneak sprites and animations for players** (2026-10-13). A player that sneaks gets sprites and
   animations of its own. Now a sneaking player uses the normal stand and walk frames, only a little
   darker (`SNEAK_TINT`), with a smaller torch.
@@ -120,3 +107,8 @@
   attack button is in the bottom-right corner, the action button on top of it and the dodge button left
   of it; on a screen narrower than 528 px the link card goes above them. Done 2026-10-13, commit
   `d0b85aa`.
+
+- **Remake the main menu** (2026-10-13). The menu has a painted pixel-art logo of World of Kandrax at the
+  top (`art/menu-logo.ts`, `menu/logo.ts`), with a shine now and then; the sign-in and the main screen have
+  their buttons at the bottom with no box, and the other screens keep their panel under a smaller logo.
+  Done 2026-10-13, commit `ec1be5a`.
