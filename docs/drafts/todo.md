@@ -6,18 +6,6 @@
 
 ## Open
 
-- **The name of another player stays on the screen** (2026-10-13, a bug). After two players meet or
-  pass near each other, the name of the other one stays on the screen for good. It must go when they
-  have parted far enough, or for long enough. The cause: each snapshot carries every player of the
-  world (`Room`, `packages/engine/src/net/room.ts`: `p: others`, all of them, near or far), so the
-  page keeps a view for each one (`render/others.ts`, `Others.update()`). The name tag stays inside
-  the screen (`NameTag.place()` in `render/name-tag.ts` clamps it to the edges, as a speech bubble),
-  so the name of a far player sits at the edge of the screen. The figure is far off the screen, so
-  only the name shows. The fix: show a tag only while its player is on the screen or near it (a
-  margin of some tiles), and fade it out after that (`place(..., visible)` has a switch for it). Also
-  think about sending only the players near each player (as the mobs: "the mobs near this player
-  only"); that saves bytes and work on a world with many players.
-
 - **Redesign Ironhold: wooden walls, and closer to the Drive** (2026-10-13). Give Ironhold wooden
   walls, and make the town match the documents of Kandrax on the Drive better. Code: the plan `MAP`
   and `BUILDINGS` (each with `style: { walls, roof }`; now stone, gothic, brick, rubble, timber and
@@ -130,3 +118,8 @@
   coins and the pack, one item for each trade, for Isolde, Corwin, the smith and Ilsa; the inns keep the
   ale and the room in the conversation, and the protocol did not change. Done 2026-10-13, commit
   `408a22c`.
+
+- **The name of another player stays on the screen** (2026-10-13, a bug). A name tag now shows only
+  while its player is on the screen or within 2 tiles of it, and fades out farther away; protocol 38
+  sends only the other players within 30 tiles, and counts all of them in `o`. Done 2026-10-13, commit
+  `6a4f05e`.
