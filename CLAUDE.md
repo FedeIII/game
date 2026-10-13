@@ -159,7 +159,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   a world"),
   `speech-bubble.ts` (pages of text over a head, above the darkness; a short text wraps at 104 world
   pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
-  `wrapBubble()` in `text-layout.ts`), `marks.ts` (the marks at the
+  `wrapBubble()` in `text-layout.ts`; a bubble stays inside the screen, and its tail then moves along
+  its bottom edge to stay over the speaker: `placeBubble()`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
   of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back), `piles.ts` (the items on the

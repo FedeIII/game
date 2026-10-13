@@ -165,8 +165,8 @@ export class SpeechBubble {
     this.root.addChild(this.text);
     this.frame.width = this.width;
     this.frame.height = this.height;
-    // The tail's top row covers the bottom border, which opens the frame there.
-    this.tail.position.set(Math.floor((this.width - TAIL_WIDTH) / 2), this.height - 1);
+    // The tail's top row covers the bottom border, which opens the frame there. update() gives its x.
+    this.tail.y = this.height - 1;
     this.more.position.set(this.width - BORDER - MORE_WIDTH, this.height - BORDER - 4);
     this.more.visible = more;
   }
@@ -175,7 +175,7 @@ export class SpeechBubble {
    * Follows the anchor, fades the bubble in and out, and blinks the "more" triangle. With `view`
    * (the part of the world on the screen), the bubble stays inside it, 2 pixels from the edges:
    * an NPC at the top of the screen still shows its whole line. A long line is never wider than
-   * the screen either.
+   * the screen either. The tail then points at the anchor (placeBubble()).
    */
   update(now: number, view?: Rect): void {
     if (this.showing && now >= this.hideAt) this.pages = [];
@@ -196,14 +196,31 @@ export class SpeechBubble {
     }
     this.root.alpha = alpha;
     this.more.alpha = Math.floor(now / 400) % 2 === 0 ? 1 : 0.35;
-    // The frame goes on whole world pixels, so the letters stay on the pixel grid.
-    const { x, y } = this.anchor();
-    let left = x - this.width / 2;
-    let top = y - this.height - TAIL_HEIGHT + 1;
-    if (view) {
-      left = Math.max(view.x + EDGE, Math.min(view.x + view.width - this.width - EDGE, left));
-      top = Math.max(view.y + EDGE, Math.min(view.y + view.height - this.height - EDGE, top));
-    }
-    this.root.position.set(Math.round(left), Math.round(top));
+    const { left, top, tail } = placeBubble(this.anchor(), this.width, this.height, view);
+    this.root.position.set(left, top);
+    this.tail.x = tail;
   }
+}
+
+/**
+ * Where a bubble of `width` x `height` world pixels goes for the tip of its tail at `tip`: the
+ * left and top of its frame, and the left of its tail in the frame. The bubble stands centred over
+ * the tip, with the tail in the middle of its bottom edge. With `view`, the bubble stays inside
+ * it, EDGE pixels from the edges; when it moves to the side, the tail moves back by as much, so
+ * that it still points at the speaker. The tail stays on the straight part of the bottom edge,
+ * clear of the cut corners. All three are whole world pixels, so the letters stay on the pixel
+ * grid.
+ */
+export function placeBubble(tip: { x: number; y: number }, width: number, height: number, view?: Rect): { left: number; top: number; tail: number } {
+  const centred = Math.round(tip.x - width / 2);
+  let left = tip.x - width / 2;
+  let top = tip.y - height - TAIL_HEIGHT + 1;
+  if (view) {
+    left = Math.max(view.x + EDGE, Math.min(view.x + view.width - width - EDGE, left));
+    top = Math.max(view.y + EDGE, Math.min(view.y + view.height - height - EDGE, top));
+  }
+  left = Math.round(left);
+  const middle = Math.floor((width - TAIL_WIDTH) / 2);
+  const tail = Math.max(1, Math.min(width - TAIL_WIDTH - 1, middle + centred - left));
+  return { left, top: Math.round(top), tail };
 }
