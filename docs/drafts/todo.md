@@ -117,6 +117,16 @@
   Code: `SpeechBubble.update()` (where it keeps the bubble inside `view`) and `draw()` (the tail's
   position) in `packages/engine-client/src/render/speech-bubble.ts`.
 
+- **Music and sound effects in the main menu** (2026-10-13). The main menu (the menu before the game)
+  gets music and sound effects. Now it has none: the menu code does not use `audio`; only the sound
+  context starts there, on the first click, touch or key (`audio.listen()` in `run()`, `game.ts`).
+  Code: the menu in `packages/engine-client/src/menu/menu.ts` (`runMenu()`, its screens and buttons)
+  and `menu/builder.ts`; the music with `audio.playMusic(track, fade)` (`audio/audio.ts`; the prologue
+  does it in `ui/prologue.ts`), the themes in `audio/themes/` (`kandrax.ts`); the GUI effects in `FX`
+  (`audio/fx.ts`: `uiOpen`, `page`, `uiClick`, `uiSelect`). The menu's "Settings" has no "Sound"
+  section (`ui/sound-section.ts`, now only in the game's settings panel). Ask Fede: which music (the
+  theme of Kandrax or a new piece)? Does the game menu of Escape (`ui/game-menu.ts`) get them too?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
