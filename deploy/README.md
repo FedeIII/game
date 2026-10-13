@@ -66,10 +66,20 @@ mirror. Thus:
 
 ### Setup of world.kandrax.app
 
+**Done on 2026-10-13**, all from the VPS with the Cloudflare API: the zone was already in Full
+(strict), WebSockets on, Rocket Loader off. The DNS record has a comment ("keep proxied"). Fede
+added the redirect URI in Google. For a later change in the zone: `/root/.cf-token` is an
+**account** API token (Cloudflare: Manage Account, Account API Tokens), for the zones vest101.com
+and kandrax.app, usable only from the VPS addresses `46.224.16.48` and `2a01:4f8:1c1a:6643::1`
+(curl uses IPv6 by default). It has no access to the azyr.io zone.
+
+The steps, for a new setup or a rebuild:
+
 1. Cloudflare, zone kandrax.app: SSL/TLS mode **Full (strict)**. (With "Flexible", Cloudflare
    connects on port 80, nginx sends it to https, and the browser gets a redirect loop.)
 2. Cloudflare, zone kandrax.app: an Origin CA certificate for `*.kandrax.app` and `kandrax.app`,
-   15 years, from the CSR on the box. Install it, then the site:
+   15 years, from the CSR on the box (API: `POST /certificates` with `request_type`
+   `origin-rsa` and the CSR; dashboard: "Use my private key and CSR"). Install it, then the site:
 
    ```bash
    install -m 644 <the certificate> /etc/nginx/ssl/kandrax.app.pem
@@ -104,7 +114,7 @@ mirror. Thus:
 ## One-time setup (2026-10-07)
 
 All four steps are done. Step 1 was done in the Cloudflare dashboard, because the token on
-the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
+the box (`/root/.cf-token`) has no access to the `azyr.io` zone.
 
 1. DNS (Cloudflare, zone azyr.io): record `game`, type A, `46.224.16.48`, **Proxied**.
 2. nginx site, no `.conf` extension (the convention on this box):
