@@ -8,6 +8,7 @@ import type { ItemKind, LootTable } from './items.ts';
 import type { QuestDef, QuestEffect } from './quests.ts';
 import type { SceneDef } from './scenes.ts';
 import type { AmbushDef } from './ambushes.ts';
+import type { DayCycle } from './daytime.ts';
 import type { ConvoyDef } from './convoys.ts';
 import type { EscortDef } from './escorts.ts';
 
@@ -573,6 +574,11 @@ export interface WorldDefinition {
   readonly examine: Readonly<Record<string, string>>;
   /** How dark the night is, from 0 (no darkness) to 1 (full). */
   readonly darkness: number;
+  /**
+   * The day of the world (daytime.ts): the night goes and comes back, at the same hour for every
+   * visitor. Without it, it is always night.
+   */
+  readonly day?: DayCycle;
   /**
    * A line about each kind of item, for the pack panel: what it is, and what it is for in this
    * world (who buys it, what it goes into). The engine adds what a drink does.

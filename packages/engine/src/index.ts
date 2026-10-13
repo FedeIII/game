@@ -4,6 +4,7 @@ export * from './dice.ts';
 export * from './fixtures.ts';
 export * from './buildings.ts';
 export * from './world.ts';
+export * from './daytime.ts';
 export * from './player.ts';
 export * from './interact.ts';
 export * from './terrain.ts';

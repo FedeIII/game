@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -110,7 +110,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 Worlds are pure data and functions (no DOM), so a server can run them too.
 
 **To add a world:** a new package under `worlds/` that exports a `WorldDefinition` (`id`, `name`,
-`createSource(seed)`, `examine` lines, `darkness`, and `multiplayer: true` to share it), and add
+`createSource(seed)`, `examine` lines, `darkness`, `day` for a day cycle, and `multiplayer: true` to share it), and add
 it to the `worlds` list of an app.
 A world's source implements `WorldSource` (`packages/engine/src/world.ts`): `chunk()`,
 `buildingAt()`, `buildingsIn()`, `fixtureAt()`, `fixturesIn()`, `spawn()`; every method must give
@@ -154,7 +154,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
   `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
   visitor's own; without a chosen name, `skinName()` of the look; it shows only while its player is on
-  the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away), `lighting.ts` (the light map: darkness with a hole for each light),
+  the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away), `lighting.ts` (the light map: darkness with a hole for each light; the sky of the hour scales it each frame),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `place-titles.ts` (`PlaceArrivals` and `LandCrossings`: when the name of a place or a land shows over
@@ -1048,6 +1048,15 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **Lights:** a fixture's `light` (`radius` from `LIGHTING.radii`, `colour`, centre in pixels
   from its anchor corner). The player's torch is radius 150. A portal's glow takes the colour of
   its light. `WorldDefinition.darkness` (0..1) scales the night: the wilds are 1.
+- **Day and night** (`packages/engine/src/daytime.ts`, since 2026-10-13, Fede's decisions;
+  `docs/features/game/day-and-night.md`): a world with `WorldDefinition.day` (`DayCycle`: `length`
+  in real ms, `noon` the share of the night's darkness at noon) has a day. The Wilds: 48 minutes,
+  noon 0.25 (dim, overcast). The hour comes from the real clock (`hourOf(Date.now(), day)`, UTC), so
+  every page shows the same hour with no message from the server. `skyAt()` gives the `Sky`: the
+  darkness (1 at night) and `lights` (1 at night, 0 by day): night from 21 to 5, dawn 5 to 7, day 7
+  to 19, dusk 19 to 21 (`DAY_HOURS`). `Lighting.update(..., sky)` scales the darkness by it, and the
+  holes and glows of all lights fade out by day. Only the light changes now: mobs, NPCs and the
+  music do not follow the hour. The debug panel's `sky` line gives the hour; `?hour=<0-24>` stops it.
 
 ## Buildings
 
@@ -1371,7 +1380,7 @@ only on `localhost` or `127.0.0.1`: every visitor of game.azyr.io signs in, Fede
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` (the others in the world, the near ones and the names
 that show) and `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
 name, the node and the selected answer) and `intro` in a world with NPCs; `place` (the visit of a place
-with a title, and the phase of its title); `mobs` and
+with a title, and the phase of its title); `sky` (the hour, the darkness and the lights); `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
 Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
@@ -1395,7 +1404,8 @@ next to the player, which follows it; a world that the page runs), `?nomobs` (no
 direction, degrees clockwise from east: a screenshot of it),
 `?at=tx,ty`
 (start on that tile, or the nearest open one), `?seed=`, `?nocrt` (much faster under
-SwiftShader), `?nolight`. Read a dialog from the live region `.sr-only[data-speech=dialog]` (the
+SwiftShader), `?nolight`, `?hour=<0-24>` (the hour of the day stops there: `?hour=12` noon, `?hour=0`
+midnight). Read a dialog from the live region `.sr-only[data-speech=dialog]` (the
 welcome has `[data-speech=welcome]`), and the link from `#link-card a`. For touch, use a context
 with `hasTouch: true` and send
 `Input.dispatchTouchEvent` through a CDP session; a `touchEnd` releases the points that it

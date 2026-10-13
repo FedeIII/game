@@ -116,6 +116,9 @@ import {
   type WorldDefinition,
   soundAreaAt,
   type SoundArea,
+  hourOf,
+  skyAt,
+  type Sky,
 } from '@game/engine';
 import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
@@ -261,6 +264,14 @@ const CLOSE_CHASE = 3 * TILE_SIZE;
 const FIGHT_SIGN_MS = 1500;
 
 /** "a, b and c". */
+/** The sky for the debug panel: "13:24, darkness 0.25, lights 0.00". */
+function skyLine(sky: Sky, cycle: boolean, fixed: boolean): string {
+  const minutes = Math.floor(sky.hour * 60) % (24 * 60);
+  const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  const note = !cycle ? ' (always night)' : fixed ? ' (?hour)' : '';
+  return `${clock}, darkness ${sky.darkness.toFixed(2)}, lights ${sky.lights.toFixed(2)}${note}`;
+}
+
 function andList(parts: readonly string[]): string {
   return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} ${STRINGS.and} ${parts[parts.length - 1]}`;
 }
@@ -809,6 +820,14 @@ async function run(options: GameOptions): Promise<void> {
   // The night is less dark for a character with Wisdom (PlayerTraits.night).
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness * traits.night);
   if (lighting) scene.addChild(lighting.root);
+  // The hour of the world's day: from the real clock (UTC), so every page shows the same hour.
+  // ?hour=<0-24> stops the clock at that hour, for a screenshot.
+  const fixedHour = Number.parseFloat(params.get('hour') ?? '');
+  const skyNow = (): Sky => {
+    const day = definition.day;
+    const hour = Number.isFinite(fixedHour) ? ((fixedHour % 24) + 24) % 24 : day ? hourOf(Date.now(), day) : 0;
+    return skyAt(hour, day);
+  };
   scene.addChild(glowLayer);
   // Text in the world is above the darkness, so it is readable at night.
   const speech = new SpeechBubble(art, font, { name: 'dialog' });
@@ -1877,7 +1896,7 @@ async function run(options: GameOptions): Promise<void> {
     // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
-    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000);
+    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000, skyNow());
     edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());
@@ -2028,6 +2047,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}${shopPanel.state ? `, shop ${shopPanel.state.side} ${shopPanel.state.chosen ?? '-'}` : ''}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
+      `sky     ${skyLine(skyNow(), definition.day !== undefined, Number.isFinite(fixedHour))}`,
       `music   ${director.mood ?? '-'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,

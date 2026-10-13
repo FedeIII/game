@@ -15,6 +15,14 @@
   in `packages/engine-client/art/lights.ts` (`LIGHTING`, `meta.lighting`).
   Ask Fede: how long is one day in real minutes? Is the time of day the same for every player of the
   shared world? Do other things change with it (mobs, NPCs, the music, the lamps)?
+- **Things that follow the hour** (2026-10-13). The first version of the cycle of day and night
+  changes only the light (Fede's choice). Later, other things can follow the hour: the mobs (for
+  example, more mobs at night, or imps and brutes only at night; the server must own this), the NPCs
+  (they go home at night), the music and the ambience (a night mood, a piece at dawn and at dusk), and
+  the art of the lamps and the lit windows (unlit by day). Code: `skyAt()` and `hourOf()` in
+  `packages/engine/src/daytime.ts` (the server can use them with `Date.now()`); `skyNow()` in
+  `packages/engine-client/src/game.ts`; `docs/features/game/day-and-night.md`.
+  Ask Fede: which of these, and how?
 
 ## Done
 

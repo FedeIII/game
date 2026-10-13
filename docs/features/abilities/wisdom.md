@@ -161,8 +161,9 @@ choose my scores.
   are drawn at each angle, white with a dark outline, and tinted by the client. The home is the
   landmark of kind `home` (`WorldSource.landmarks()`); its gate is `HOMEWARD_GATE` in
   `packages/engine-client/src/ui/gates.ts`.
-- **The night:** `Lighting` takes `WorldDefinition.darkness × PlayerTraits.night` (at most full
-  darkness). Only the page changes; the server knows nothing of it.
+- **The night:** `Lighting` takes `WorldDefinition.darkness × PlayerTraits.night`, and each frame
+  the darkness of the hour (`Sky.darkness`, `docs/features/game/day-and-night.md`) multiplies it (at
+  most full darkness). Only the page changes; the server knows nothing of it.
 - **Hidden things:** `Fixture.hidden` (`packages/engine/src/fixtures.ts`). `Fixtures.update(view,
   seconds, seeker)` (`packages/engine-client/src/render/fixtures.ts`, `SEEK_FADE` 8 px) gives a
   hidden fixture an alpha from the distance to the player. The types `herbpatch` and `cache` have

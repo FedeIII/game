@@ -206,5 +206,7 @@ export const wilds: WorldDefinition = {
   // The texts in Spanish, with the Spanish names of Kandrax (Fede's decision, 2026-10-11).
   texts: { es: TEXTS_ES },
   darkness: 1,
+  // One day and one night in 48 real minutes, and a dim, overcast noon (Fede's decisions, 2026-10-13).
+  day: { length: 48 * 60_000, noon: 0.25 },
   multiplayer: true,
 };

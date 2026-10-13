@@ -1,4 +1,5 @@
 import { Container, RenderTexture, Sprite, Texture, type Renderer } from 'pixi.js';
+import { NIGHT_SKY, type Sky } from '@game/engine';
 import atlasData from '../generated/atlas.json';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
@@ -22,11 +23,21 @@ export interface LightSource {
 export const TORCH = { radius: 150, colour: 0xff8a3c } as const;
 
 /**
+ * The alpha of the darkness over the world: the alpha of the atlas (`meta.lighting.ambientAlpha`)
+ * times the darkness of the world and of the character, times the darkness of the hour; at most 1.
+ */
+export function ambientAlpha(base: number, darkness: number, sky: Sky): number {
+  return Math.min(1, base * darkness * sky.darkness);
+}
+
+/**
  * Diablo-style light: the world is dark, and each light erases a hole in the darkness and adds
  * a warm glow. Each frame, the darkness is drawn into a small texture with one texel per world
  * pixel (the ambient colour, minus a dithered hole for each light), and that texture is laid over
  * the world. So the light falls off in pixel-art steps on the world grid, at any zoom.
- * `darkness` (0..1) scales the ambient darkness: a world can be less dark than night.
+ * `darkness` (0..1) scales the ambient darkness: a world can be less dark than night. The sky of
+ * the hour (`Sky`, the day cycle of the world) scales it again each frame, and by day the holes and
+ * the glows of the lights fade out.
  */
 export class Lighting {
   readonly root = new Container();
@@ -35,6 +46,8 @@ export class Lighting {
   private readonly map = new Sprite();
   private readonly contents = new Container();
   private readonly ambient = new Sprite(Texture.WHITE);
+  private readonly ambientBase: number;
+  private readonly darkness: number;
   private readonly holeTextures: { radius: number; texture: Texture }[];
   private readonly glowTexture: Texture;
   private readonly holes: Sprite[] = [];
@@ -47,14 +60,16 @@ export class Lighting {
     this.holeTextures = settings.radii.map((radius) => ({ radius, texture: art.frame(`light/hole/${radius}`) }));
     this.glowTexture = art.frame('light/glow');
     this.ambient.tint = settings.ambient;
-    this.ambient.alpha = Math.min(1, settings.ambientAlpha * darkness);
+    this.ambientBase = settings.ambientAlpha;
+    this.darkness = darkness;
+    this.ambient.alpha = ambientAlpha(this.ambientBase, darkness, NIGHT_SKY);
     this.contents.addChild(this.ambient);
     // The glows go under the darkness, so the darkness also dims a glow at its rim.
     this.root.addChild(this.glows, this.map);
   }
 
-  /** Redraws the darkness for the view and the lights. `time` is in seconds. */
-  update(view: Rect, lights: readonly LightSource[], time: number): void {
+  /** Redraws the darkness for the view, the lights and the sky of the hour. `time` is in seconds. */
+  update(view: Rect, lights: readonly LightSource[], time: number, sky: Sky = NIGHT_SKY): void {
     // One texel per world pixel, a little larger than the view, on whole world pixels.
     const x0 = Math.floor(view.x) - 2;
     const y0 = Math.floor(view.y) - 2;
@@ -67,6 +82,7 @@ export class Lighting {
     }
     this.ambient.width = width;
     this.ambient.height = height;
+    this.ambient.alpha = ambientAlpha(this.ambientBase, this.darkness, sky);
 
     lights.forEach((light, i) => {
       const flicker = light.flicker ? 0.93 + 0.04 * Math.sin(time * 7.3 + light.seed) + 0.03 * Math.sin(time * 13.1 + light.seed * 1.7) : 1;
@@ -78,7 +94,7 @@ export class Lighting {
       });
       hole.texture = this.holeFor(light.radius);
       hole.position.set(Math.round(light.x) - x0, Math.round(light.y) - y0);
-      hole.alpha = flicker;
+      hole.alpha = flicker * sky.lights;
       const glow = this.pooled(this.glowSprites, i, this.glows, () => {
         const sprite = new Sprite(this.glowTexture);
         sprite.anchor.set(0.5);
@@ -89,7 +105,7 @@ export class Lighting {
       // The glow covers about two thirds of the light, in whole-pixel scale steps.
       glow.scale.set(Math.max(0.5, Math.round((light.radius / this.glowTexture.width) * 2 * 0.66 * 4) / 4));
       glow.tint = light.colour;
-      glow.alpha = flicker;
+      glow.alpha = flicker * sky.lights;
     });
     for (let i = lights.length; i < this.holes.length; i++) {
       this.holes[i]!.visible = false;
