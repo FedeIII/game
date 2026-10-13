@@ -6,17 +6,6 @@
 
 ## Open
 
-- **Sneak sprites and animations for players** (2026-10-13). A player that sneaks gets sprites and
-  animations of its own. Now a sneaking player uses the normal stand and walk frames, only a little
-  darker (`SNEAK_TINT`), with a smaller torch.
-  Code: the skin sheet in `packages/engine-client/art/skins.ts` (`renderSkinSheet()`: the columns of
-  stand, walk, attack, roll and fall; bump `SKIN_VERSION`); the poses in `art/figure.ts` (`figure()`,
-  `FigureAction`) and `art/attacks.ts` (as `rollParts()`, `fallParts()`); the atlas wanderer in
-  `art/characters.ts` (`player/<view>/roll/<i>`, `.../fall/<i>`); the choice of frame and `SNEAK_TINT`
-  in `packages/engine-client/src/render/player-view.ts` (`PlayerState.sneaking`); the other players in
-  `render/others.ts` (`isSneakWalk()`); the rule in `isSneaking()` (`packages/engine`).
-  Ask Fede: does a player that stands still and sneaks get a crouch too, or only the sneak walk?
-
 - **A title when the player changes dominion** (2026-10-13). When a player goes from one dominion into
   another, the name of the new land shows over the screen. For example, a player that goes north out
   of Ironhold (Ferrozar) enters the wildlands (las tierras salvajes). Now only a town with a title
@@ -121,3 +110,8 @@
   top (`art/menu-logo.ts`, `menu/logo.ts`), with a shine now and then; the sign-in and the main screen have
   their buttons at the bottom with no box, and the other screens keep their panel under a smaller logo.
   Done 2026-10-13, commit `ec1be5a`.
+
+- **Sneak sprites and animations for players** (2026-10-13). A player that sneaks on purpose now
+  crouches, with eight frames of a sneak walk in every skin and in the wanderer; it stays in the crouch
+  when it stops after a sneak walk (Fede's choice), until a walk, an attack, a roll, a hit or water.
+  Done 2026-10-13, commit `eeee5fe`.
