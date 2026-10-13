@@ -6,13 +6,6 @@
 
 ## Open
 
-- **The standard of Bronzehold shows the phoenix of the Seekers** (2026-10-13, a bug). The standard in
-  the street of Bronzehold (the thing `S`, `BRONZEHOLD_THINGS` in `worlds/wilds/src/hamlets.ts`) says
-  "The standard of the Iron Sovereignty: an anvil on wine red.", but it uses the one frame of the kind
-  `standard` (`standard()` in `packages/engine-client/art/fixtures.ts`): the grey cloth with the red
-  phoenix of the Ashen Seekers (their camp, story phase 8). The fix: a look for the Sovereignty, now that
-  `Fixture.look` gives the style of a thing (`fixture/standard/iron`: an anvil on wine red), and
-  `look: 'iron'` on the standard of Bronzehold.
 - **The signpost in the story documents** (2026-10-13). `docs/story/world.md` (the table of the
   northern edge of the Sovereignty) says that the signpost by the hut reads "IRONHOLD". The code
   (`signpost()` in `worlds/wilds/src/road.ts`) says "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow
@@ -118,3 +111,6 @@
   of the theme of Kandrax (the prologue goes on with it after "Create"), clicks, ticks and rustles, and
   has a speaker and the "Sound" settings; the game menu rustles, and the music steps back under it
   (`menu/sounds.ts`). Done 2026-10-13, commit `45cad0a`.
+- **The standard of Bronzehold shows the phoenix of the Seekers** (2026-10-13, a bug). The standard
+  has a look `iron` now (`fixture/standard/iron`: the anvil of pale iron on wine red, with a
+  swallowtail), and the standard of Bronzehold uses it. Done 2026-10-13, commit `f1eb82d`.
