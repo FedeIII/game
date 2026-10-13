@@ -193,7 +193,7 @@ export interface GameOptions {
   readonly worlds: readonly WorldDefinition[];
   /** The world when the URL names none. Default: the first. */
   readonly defaultWorld?: string;
-  /** The site, under the name in the menu ("game.azyr.io"); without `name`, also the page title: "<world name> · <title>". */
+  /** The site, under the name in the menu ("world.kandrax.app"); without `name`, also the page title: "<world name> · <title>". */
   readonly title?: string;
   /**
    * The name of the game ("World of Kandrax", Fede's choice of 2026-10-12): the page title, and the
@@ -209,7 +209,7 @@ export interface GameOptions {
   readonly accounts?: boolean;
 }
 
-/** The hosts where ?nomenu gives a guest: development and tests. On game.azyr.io every visitor signs in. */
+/** The hosts where ?nomenu gives a guest: development and tests. On world.kandrax.app and game.azyr.io every visitor signs in. */
 const GUEST_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1']);
 
 /** An attack (or a dodge) asked for this recently (ms) still starts when the player becomes able to. */

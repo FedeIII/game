@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -40,27 +41,49 @@ const sheet: CharacterSheet = {
   bonus: [],
 };
 
+/** One HTTP request, with node:http: fetch does not let a request set its Host header. */
+function send(port: number, method: string, path: string, headers: Record<string, string>, body?: string): Promise<{ status: number; headers: Headers; text: string }> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({ host: '127.0.0.1', port, method, path, headers }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('end', () => {
+        const out = new Headers();
+        for (let i = 0; i < response.rawHeaders.length; i += 2) out.append(response.rawHeaders[i]!, response.rawHeaders[i + 1]!);
+        resolve({ status: response.statusCode ?? 0, headers: out, text: Buffer.concat(chunks).toString('utf8') });
+      });
+      response.on('error', reject);
+    });
+    request.on('error', reject);
+    request.end(body);
+  });
+}
+
 /** A browser of one visitor: it keeps its cookies and sends the page's origin. */
 class Browser {
   readonly port: number;
+  /** The Host header that nginx would send (the address of the page), if not the server's own. */
+  readonly host: string | undefined;
   readonly cookies = new Map<string, string>();
-  constructor(port: number) {
+  constructor(port: number, host?: string) {
     this.port = port;
+    this.host = host;
   }
 
   async request(method: string, path: string, body?: unknown, origin: string | null = ORIGIN): Promise<{ status: number; json: any; headers: Headers }> {
     const headers: Record<string, string> = {};
     if (origin) headers.origin = origin;
+    if (this.host) headers.host = this.host;
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (this.cookies.size) headers.cookie = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ');
-    const response = await fetch(`http://127.0.0.1:${this.port}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
+    const response = await send(this.port, method, path, headers, body === undefined ? undefined : JSON.stringify(body));
     for (const line of response.headers.getSetCookie()) {
       const [pair] = line.split(';');
       const [name, value] = pair!.split('=');
       if (/Max-Age=0/.test(line)) this.cookies.delete(name!);
       else this.cookies.set(name!, value!);
     }
-    const text = await response.text();
+    const text = response.text;
     return { status: response.status, json: text ? JSON.parse(text) : null, headers: response.headers };
   }
 
@@ -266,6 +289,36 @@ describe('accounts: sign-in with Google', () => {
     // A state works once.
     const again = await new Browser(port).request('GET', `/auth/google/callback?state=${state}&code=the-code`);
     expect(again.headers.get('location')).toBe(`${ORIGIN}/?login=failed`);
+  });
+
+  it('comes back to the mirror where the sign-in started', async () => {
+    const calls: URLSearchParams[] = [];
+    const fakeFetch = (async (_url: string, init: RequestInit) => {
+      calls.push(init.body as URLSearchParams);
+      const exp = Math.floor(Date.now() / 1000) + 3600;
+      return new Response(JSON.stringify({ id_token: idToken({ iss: 'https://accounts.google.com', aud: google.clientId, exp, sub: '42' }) }));
+    }) as unknown as typeof fetch;
+    const { port } = await start({ google, fetch: fakeFetch, devLogin: false, mirrors: ['http://mirror.test:3019/'] });
+    const signIn = async (browser: Browser) => {
+      const to = new URL((await browser.request('GET', '/auth/google')).headers.get('location')!);
+      const state = to.searchParams.get('state')!;
+      const back = await browser.request('GET', `/auth/google/callback?state=${state}&code=c`);
+      return { redirect: to.searchParams.get('redirect_uri'), back: back.headers.get('location') };
+    };
+
+    expect(await signIn(new Browser(port, 'mirror.test:3019'))).toEqual({ redirect: 'http://mirror.test:3019/auth/google/callback', back: 'http://mirror.test:3019/' });
+    // The token request names the same redirect URI as the start, as Google wants.
+    expect(calls[0]!.get('redirect_uri')).toBe('http://mirror.test:3019/auth/google/callback');
+    // Any other host is the main address.
+    expect(await signIn(new Browser(port, 'elsewhere.test'))).toEqual({ redirect: `${ORIGIN}/auth/google/callback`, back: `${ORIGIN}/` });
+    expect(await signIn(new Browser(port))).toEqual({ redirect: `${ORIGIN}/auth/google/callback`, back: `${ORIGIN}/` });
+    // A failure goes back to the mirror too.
+    expect((await new Browser(port, 'mirror.test:3019').request('GET', '/auth/google/callback?error=access_denied')).headers.get('location')).toBe('http://mirror.test:3019/?login=cancelled');
+  });
+
+  it('refuses a mirror that is not an address, or that has another scheme', async () => {
+    await expect(start({ mirrors: ['mirror.test'] })).rejects.toThrow(/like https/);
+    await expect(start({ devLogin: false, mirrors: ['https://mirror.test'] })).rejects.toThrow(/scheme/);
   });
 
   it('refuses a state from another browser, a wrong audience, and a cancel', async () => {

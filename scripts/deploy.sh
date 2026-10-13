@@ -14,8 +14,11 @@ unset SHARED_WORLDS
 # Accounts (since 2026-10-09): the server does not start without its Google client, and the page
 # cannot sign in without the nginx routes. Check them before anything changes (deploy/README.md,
 # "Accounts").
+# Since 2026-10-13 the routes are in one nginx snippet, which the site of each address of the game
+# includes: world.kandrax.app (the main address) and game.azyr.io (its mirror).
 SECRETS="${SECRETS:-/etc/game/secret.env}"
-SITE="${SITE:-/etc/nginx/sites-available/game.azyr.io}"
+ROUTES="${ROUTES:-/etc/nginx/snippets/game-site.conf}"
+SITES="${SITES:-/etc/nginx/sites-enabled/world.kandrax.app /etc/nginx/sites-enabled/game.azyr.io}"
 echo "==> Preflight"
 for key in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
 	if ! grep -q "^$key=." "$SECRETS" 2> /dev/null; then
@@ -23,10 +26,17 @@ for key in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
 		exit 1
 	fi
 done
-if ! grep -q '(api|auth)' "$SITE" 2> /dev/null; then
-	echo "    ERROR: the nginx site $SITE does not send /api/ and /auth/ to the server (see deploy/README.md)"
+if ! grep -q '(api|auth)' "$ROUTES" 2> /dev/null; then
+	echo "    ERROR: the nginx snippet $ROUTES does not send /api/ and /auth/ to the server (see deploy/README.md)"
 	exit 1
 fi
+# A site that is not enabled yet is skipped; an enabled site must use the routes.
+for site in $SITES; do
+	if [ -e "$site" ] && ! grep -q 'snippets/game-site.conf' "$site"; then
+		echo "    ERROR: the nginx site $site does not include $ROUTES (see deploy/README.md)"
+		exit 1
+	fi
+done
 
 echo "==> Commit $(git describe --always --dirty)"
 if [ -n "$(git status --porcelain)" ]; then

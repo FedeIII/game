@@ -1,9 +1,13 @@
-# Deployment of game.azyr.io
+# Deployment of World of Kandrax (world.kandrax.app and game.azyr.io)
 
-Two parts: nginx serves the Vite build of `apps/game` from `/var/www/game.azyr.io`, and the
-game server runs under PM2 as `game-server` on 127.0.0.1:3008 (`deploy/pm2.config.cjs`). nginx
-sends `/api/` and `/auth/` (accounts and characters) and `wss://game.azyr.io/ws` (multiplayer) to
-it. See `docs/multiplayer.md`. The server keeps the accounts in a SQLite file,
+The game has two addresses (since 2026-10-13): **https://world.kandrax.app**, the main address,
+and **https://game.azyr.io**, its mirror. Both serve the same files and the same server; see
+"Two addresses" below.
+
+Two parts: nginx serves the Vite build of `apps/game` from `/var/www/game.azyr.io` (the name of the
+folder is older than the main address; both sites read it), and the game server runs under PM2 as
+`game-server` on 127.0.0.1:3008 (`deploy/pm2.config.cjs`). nginx sends `/api/` and `/auth/`
+(accounts and characters) and `/ws` (multiplayer) to it. See `docs/multiplayer.md`. The server keeps the accounts in a SQLite file,
 `/var/lib/game/game.db`, and reads the Google OAuth client from `/etc/game/secret.env`: see
 "Accounts" below. Do these one-time steps before the first deploy with accounts.
 
@@ -32,6 +36,71 @@ Do not run `pm2 update` or `pm2 flush` on this box (see /root/CLAUDE.md).
 
 No nginx reload is necessary for a deploy.
 
+## Two addresses: world.kandrax.app and game.azyr.io (since 2026-10-13)
+
+Fede's decision (2026-10-13): world.kandrax.app is the main address, and game.azyr.io stays as a
+mirror. Thus:
+
+- **nginx.** The routes (headers, web root, `/ws`, `/api/`, `/auth/`, `/assets/`, `/`) are in one
+  snippet, `deploy/nginx/game-site.conf`, installed as `/etc/nginx/snippets/game-site.conf`. Each
+  site (`deploy/nginx/world.kandrax.app`, `deploy/nginx/game.azyr.io`) has only its name, its
+  certificate, its mTLS snippet and its logs, and includes the routes. Change a route once, in the
+  snippet. `scripts/deploy.sh` checks that the snippet has the `/api/` route and that each enabled
+  site includes it.
+- **Certificates.** game.azyr.io uses the origin certificate of the azyr.io zone
+  (`/etc/nginx/ssl/azyr.io.pem`). world.kandrax.app uses its own, of the kandrax.app zone:
+  `/etc/nginx/ssl/kandrax.app.pem` (SANs `*.kandrax.app`, `kandrax.app`, 15 years). Its key,
+  `/etc/nginx/ssl/kandrax.app.key`, was made on this box; Cloudflare signed the CSR
+  `/etc/nginx/ssl/kandrax.app.csr`. To renew, send the same CSR again.
+- **mTLS.** Authenticated Origin Pulls is a setting of each Cloudflare zone, so each site has its
+  own snippet: `game-mtls*.conf` (azyr.io zone) and `kandrax-mtls*.conf` (kandrax.app zone).
+- **The server.** `ORIGINS` has both addresses (main first) and `PUBLIC_ORIGIN` is the main one
+  (`deploy/pm2.config.cjs`). The other origins are mirrors: a sign-in with Google that starts on a
+  mirror comes back to it (the server reads the `Host` header that nginx sends). The cookies of a
+  host stay on that host, so a visitor signs in on each address separately. One account is signed
+  in on one device at a time, and that rule counts the two addresses as two devices.
+- **The Google client** has one redirect URI for each address (see "Accounts", step 1).
+- **The page** shows the main address in the menu, and has a canonical link to it.
+- **kandrax.app** is a separate Cloudflare zone. Its apex and `www` are another app (Kandrax App,
+  on Vercel). Only the record `world` comes to this box.
+
+### Setup of world.kandrax.app
+
+1. Cloudflare, zone kandrax.app: SSL/TLS mode **Full (strict)**. (With "Flexible", Cloudflare
+   connects on port 80, nginx sends it to https, and the browser gets a redirect loop.)
+2. Cloudflare, zone kandrax.app: an Origin CA certificate for `*.kandrax.app` and `kandrax.app`,
+   15 years, from the CSR on the box. Install it, then the site:
+
+   ```bash
+   install -m 644 <the certificate> /etc/nginx/ssl/kandrax.app.pem
+   openssl x509 -in /etc/nginx/ssl/kandrax.app.pem -noout -pubkey | sha256sum   # these two
+   openssl pkey -in /etc/nginx/ssl/kandrax.app.key -pubout | sha256sum          # must agree
+   install -m 644 deploy/nginx/game-site.conf /etc/nginx/snippets/game-site.conf
+   install -m 644 deploy/nginx/world.kandrax.app /etc/nginx/sites-available/world.kandrax.app
+   ln -s /etc/nginx/sites-available/world.kandrax.app /etc/nginx/sites-enabled/world.kandrax.app
+   nginx -t && systemctl reload nginx
+   ```
+
+3. Cloudflare, zone kandrax.app: DNS record `world`, type A, `46.224.16.48`, **Proxied**.
+4. Google: the redirect URI `https://world.kandrax.app/auth/google/callback` (see "Accounts").
+5. Authenticated Origin Pulls: turn it on for the kandrax.app zone (SSL/TLS, Origin Server).
+   **Before** you install the snippet, make sure that Cloudflare sends its certificate (see the
+   memory note in /root about the two AOP APIs: the API can say "on" while nothing is sent).
+   Put a probe in the snippet first, then the real one:
+
+   ```bash
+   printf 'ssl_client_certificate /etc/nginx/ssl/cloudflare-origin-pull-ca.pem;\nssl_verify_client optional;\nadd_header X-Origin-Client-Verify $ssl_client_verify always;\n' > /etc/nginx/snippets/kandrax-mtls.conf
+   nginx -t && systemctl reload nginx
+   curl -s -D - -o /dev/null https://world.kandrax.app/api/me | grep -i x-origin-client-verify   # SUCCESS
+   install -m 644 deploy/nginx/kandrax-mtls.conf /etc/nginx/snippets/kandrax-mtls.conf
+   nginx -t && systemctl reload nginx
+   ```
+
+   Rollback: move the snippet out of `/etc/nginx/snippets/` and reload.
+6. The VPS monitor: add world.kandrax.app to `PUBLIC_ENDPOINTS` in
+   `/opt/activity-api/lib/vpsStats.js`. The certificate shows up there by itself (it reads every
+   `.pem` in `/etc/nginx/ssl`).
+
 ## One-time setup (2026-10-07)
 
 All four steps are done. Step 1 was done in the Cloudflare dashboard, because the token on
@@ -56,11 +125,12 @@ the box (`/root/.cf-token`) has access to the `vest101.com` zone only.
    Rollback: move the snippet out of `/etc/nginx/snippets/` and reload.
 
 4. The multiplayer server (2026-10-07): the `location = /ws` block is in
-   `deploy/nginx/game.azyr.io`. To change the live site: back it up, copy it, test, reload:
+   `deploy/nginx/game-site.conf` (since 2026-10-13; it was in the site file before). To change the
+   live routes: back up, copy, test, reload. One reload changes both addresses:
 
    ```bash
-   cp /etc/nginx/sites-available/game.azyr.io /etc/nginx/sites-available/game.azyr.io.backup.$(date +%Y%m%d_%H%M%S)
-   cp deploy/nginx/game.azyr.io /etc/nginx/sites-available/game.azyr.io
+   cp -p /etc/nginx/snippets/game-site.conf /root/game-site.conf.backup.$(date +%Y%m%d_%H%M%S)
+   install -m 644 deploy/nginx/game-site.conf /etc/nginx/snippets/game-site.conf
    nginx -t && systemctl reload nginx
    ```
 
@@ -81,7 +151,9 @@ characters. Do these steps once, in this order. `scripts/deploy.sh` refuses to d
      need to verify the app). **Publish the app** ("In production"): in "Testing", only the test
      users can sign in.
    - "Clients" (or "Credentials"), "Create client", type **Web application**. Authorized
-     redirect URIs:
+     redirect URIs (one for each address of the game; since 2026-10-13 the authorized domains
+     of the consent screen are `azyr.io` and `kandrax.app`):
+     - `https://world.kandrax.app/auth/google/callback`
      - `https://game.azyr.io/auth/google/callback`
      - `http://localhost:3019/auth/google/callback` (development on the laptop; optional)
 
@@ -163,8 +235,12 @@ site back (`nginx -t && systemctl reload nginx`). The database and the secrets c
 ## Checks
 
 ```bash
-# Through Cloudflare (the only way in when mTLS is on):
+# Through Cloudflare (the only way in when mTLS is on), for each address:
+curl -sI https://world.kandrax.app/ | grep -iE '^HTTP|cache-control' # 200, no-store
 curl -sI https://game.azyr.io/ | grep -iE '^HTTP|cache-control'      # 200, no-store
+# The sign-in comes back to the address where it started:
+curl -s -o /dev/null -w '%{redirect_url}\n' https://world.kandrax.app/auth/google | grep -o 'redirect_uri=[^&]*'
+curl -s -o /dev/null -w '%{redirect_url}\n' https://game.azyr.io/auth/google | grep -o 'redirect_uri=[^&]*'
 # A local curl gets 400 "No required SSL certificate was sent". That is correct.
 # The multiplayer server, locally:
 curl -s http://127.0.0.1:3008/healthz      # {"ok":true,"protocol":7,"players":{},"accounts":true}: no shared world now
@@ -179,8 +255,8 @@ From 2026-10-08 to 2026-10-09, azyr.io served this page from `/var/www/game.azyr
 game deploy changed azyr.io too. Now the Town of Azyr on azyr.io has its own checkout
 (`/opt/azyr-town`, branch `town`), PM2 process (`town-server`, port 3009) and web root
 (`/var/www/azyr.io/town`); see `deploy/README.md` on that branch. The azyr.io nginx site reads
-nothing from this repository's folders, and `game-server` accepts the origin
-`https://game.azyr.io` only.
+nothing from this repository's folders, and `game-server` accepts the origins
+`https://world.kandrax.app` and `https://game.azyr.io` only.
 
 ## Caching
 

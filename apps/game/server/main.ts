@@ -4,17 +4,21 @@ import { startServer, type AccountsOptions } from '@game/engine-server';
 import { WORLDS, shareWorlds } from '../src/worlds.ts';
 
 /**
- * The server of game.azyr.io: the accounts and the characters (/api/, /auth/), and the
- * multiplayer worlds (/ws). PM2 runs it with Node (deploy/pm2.config.cjs); nginx sends /api/,
- * /auth/ and /ws to it. It hosts the worlds with `multiplayer: true`; none in production now.
+ * The server of World of Kandrax (https://world.kandrax.app, and its mirror https://game.azyr.io):
+ * the accounts and the characters (/api/, /auth/), and the multiplayer worlds (/ws). PM2 runs it
+ * with Node (deploy/pm2.config.cjs); nginx sends /api/, /auth/ and /ws to it. It hosts the worlds
+ * with `multiplayer: true`.
  *
  * Settings come from the environment (the defaults are production's):
  *   ENV_FILE        a file of KEY=value lines to read first (production: /etc/game/secret.env;
  *                   development: .env.local, if it exists)
- *   PORT (3008), HOST (127.0.0.1), ORIGINS (comma-separated, default https://game.azyr.io)
+ *   PORT (3008), HOST (127.0.0.1)
+ *   ORIGINS         comma-separated addresses of the page (default https://world.kandrax.app,
+ *                   https://game.azyr.io): only they may connect and change something
  *   SHARED_WORLDS   comma-separated ids of worlds to share (default none; see worlds.ts)
  *   GAME_DB         the SQLite file of the accounts; without it, the server has no accounts
- *   PUBLIC_ORIGIN   the address of the page (default the first of ORIGINS)
+ *   PUBLIC_ORIGIN   the main address of the page (default the first of ORIGINS). The other ORIGINS
+ *                   are mirrors: a sign-in with Google that starts on one comes back to it
  *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   the OAuth client of the sign-in with Google
  *   AUTH_DEV_LOGIN=1   a sign-in with only a name, for development (refused in production)
  *   ADMIN_EMAILS    comma-separated emails of the admins (default none): they see the display
@@ -37,7 +41,7 @@ if (env.ENV_FILE) {
 
 const port = Number(env.PORT ?? 3008);
 const host = env.HOST ?? '127.0.0.1';
-const origins = (env.ORIGINS ?? 'https://game.azyr.io').split(',').map((o) => o.trim()).filter(Boolean);
+const origins = (env.ORIGINS ?? 'https://world.kandrax.app,https://game.azyr.io').split(',').map((o) => o.trim()).filter(Boolean);
 const worlds = shareWorlds(WORLDS, env.SHARED_WORLDS ?? '');
 
 let accounts: AccountsOptions | undefined;
@@ -48,7 +52,9 @@ if (env.GAME_DB) {
   if (production && devLogin) refuse('AUTH_DEV_LOGIN is for development only');
   if (env.GAME_DB !== ':memory:') mkdirSync(dirname(env.GAME_DB), { recursive: true, mode: 0o700 });
   const admins = (env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim()).filter(Boolean);
-  accounts = { db: env.GAME_DB, publicOrigin: env.PUBLIC_ORIGIN ?? origins[0] ?? 'https://game.azyr.io', google, devLogin, admins };
+  const publicOrigin = env.PUBLIC_ORIGIN ?? origins[0] ?? 'https://world.kandrax.app';
+  const mirrors = origins.filter((origin) => origin !== publicOrigin);
+  accounts = { db: env.GAME_DB, publicOrigin, mirrors, google, devLogin, admins };
 } else if (production) {
   refuse('NODE_ENV=production needs GAME_DB (the accounts database)');
 }

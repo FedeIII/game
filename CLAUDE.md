@@ -4,8 +4,10 @@ This file gives guidance to Claude Code when it works in this repository.
 
 ## What this is
 
-A pixel-art game **engine** for the browser, and the applications on it. It runs at
-https://game.azyr.io, which has one world: **the Wilds** (an endless dark forest with lonely
+A pixel-art game **engine** for the browser, and the applications on it. The game, **World of
+Kandrax**, runs at https://world.kandrax.app (the main address, since 2026-10-13) and at its mirror
+https://game.azyr.io (the same files and the same server; see `deploy/README.md`, "Two addresses").
+It has one world: **the Wilds** (an endless dark forest with lonely
 stone houses, mobs, two hamlets and the town of Ironhold north of the home). A visitor signs in with Google, makes a character (D&D 5e races,
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
@@ -1284,7 +1286,8 @@ Android viewport (412 x 915, `deviceScaleFactor: 2.625`).
 
 ## Deploy
 
-A deploy changes game.azyr.io only. azyr.io serves the town from its own checkout, server and
+A deploy changes the game's two addresses only (world.kandrax.app and its mirror game.azyr.io,
+one build and one server). azyr.io serves the town from its own checkout, server and
 folder (see "What this is"), so nothing here needs to keep azyr.io working.
 
 A deploy runs only on the VPS. See `deploy/README.md`; the accounts need a one-time setup there
@@ -1308,5 +1311,6 @@ On the VPS: Cloudflare Authenticated Origin Pulls is on, so a local `curl -k htt
 gets 400; that is correct. The server's health: `curl -s http://127.0.0.1:3008/healthz`.
 **Never run `pm2 update` or `pm2 flush` on the VPS** (see `/root/CLAUDE.md` there).
 
-From anywhere: `curl -sI https://game.azyr.io/` gives 200 and `cache-control: no-store`, and F3
+From anywhere: `curl -sI https://world.kandrax.app/` (and `https://game.azyr.io/`) gives 200 and
+`cache-control: no-store`, and F3
 in the game (or `/?debug`) shows the commit of the live build.

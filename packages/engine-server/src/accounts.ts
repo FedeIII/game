@@ -45,11 +45,19 @@ export interface AccountsOptions {
   /** The SQLite file (its folder must exist), or ':memory:' for a test. */
   readonly db: string;
   /**
-   * The address of the page, without a slash at the end: https://game.azyr.io, or
+   * The address of the page, without a slash at the end: https://world.kandrax.app, or
    * http://localhost:3019 in development. Google sends the visitor back to
    * <publicOrigin>/auth/google/callback, and an https origin makes the cookies Secure.
    */
   readonly publicOrigin: string;
+  /**
+   * Other addresses of the same page, in the same form and with the same scheme (a mirror:
+   * https://game.azyr.io beside https://world.kandrax.app). A request is on a mirror when its Host
+   * header names one (nginx sends the visitor's host). A sign-in that starts on a mirror comes back
+   * to it: Google sends the visitor to <mirror>/auth/google/callback, and the cookies of a host stay
+   * on that host. Each address needs its own redirect URI in the Google client. Default none.
+   */
+  readonly mirrors?: readonly string[];
   /** Without it, there is no sign-in with Google. */
   readonly google?: GoogleConfig | null;
   /** POST /auth/dev: a sign-in with only a name. Never in production: an https origin refuses it. */
@@ -115,6 +123,7 @@ export class Accounts {
   private readonly worlds: PlaceWorlds;
   private readonly signInListeners: ((user: User) => void)[] = [];
   private readonly admins: ReadonlySet<string>;
+  private readonly mirrors: ReadonlySet<string>;
 
   /** `origins`: the pages that may change something (null: any, for tests). */
   constructor(options: AccountsOptions, origins: readonly string[] | null, log: (line: string) => void, worlds: PlaceWorlds) {
@@ -122,6 +131,12 @@ export class Accounts {
     if (!/^https?:\/\/[^/]+$/.test(origin)) throw new Error(`accounts: publicOrigin must be like https://host[:port], not "${options.publicOrigin}"`);
     this.secure = origin.startsWith('https:');
     if (options.devLogin && this.secure) throw new Error('accounts: the dev sign-in is for development only, and this origin is https');
+    const mirrors = (options.mirrors ?? []).map((mirror) => mirror.replace(/\/+$/, '').toLowerCase());
+    for (const mirror of mirrors) {
+      if (!/^https?:\/\/[^/]+$/.test(mirror)) throw new Error(`accounts: a mirror must be like https://host[:port], not "${mirror}"`);
+      if (mirror.startsWith('https:') !== this.secure) throw new Error(`accounts: the mirror ${mirror} must have the scheme of ${origin}`);
+    }
+    this.mirrors = new Set(mirrors.filter((mirror) => mirror !== origin));
     this.options = { ...options, publicOrigin: origin };
     this.origins = origins;
     this.log = log;
@@ -229,7 +244,7 @@ export class Accounts {
 
     if (path === '/api/me' && method === 'GET') return this.me(request, response);
     if (path === '/api/me' && method === 'DELETE') return this.deleteAccount(request, response);
-    if (path === '/auth/google' && method === 'GET') return this.googleStart(response);
+    if (path === '/auth/google' && method === 'GET') return this.googleStart(request, response);
     if (path === '/auth/google/callback' && method === 'GET') return this.googleCallback(request, response, url);
     if (path === '/auth/dev' && method === 'POST') return this.devSignIn(request, response);
     if (path === '/auth/logout' && method === 'POST') return this.logout(request, response);
@@ -299,13 +314,13 @@ export class Accounts {
     );
   }
 
-  private googleStart(response: ServerResponse): void {
+  private googleStart(request: IncomingMessage, response: ServerResponse): void {
     const google = this.options.google;
     if (!google) throw new HttpError(404, 'no google sign-in');
     const login = newLogin();
     this.store.saveLoginState(login.state, login.verifier, this.now());
     response.writeHead(302, {
-      location: googleAuthUrl(google, this.redirectUri(), login.state, login.challenge),
+      location: googleAuthUrl(google, this.redirectUri(this.pageOrigin(request)), login.state, login.challenge),
       'set-cookie': this.cookie(LOGIN_COOKIE, login.state, '/auth', LOGIN_STATE_MS),
       'cache-control': 'no-store',
     });
@@ -315,9 +330,11 @@ export class Accounts {
   private async googleCallback(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
     const google = this.options.google;
     if (!google) throw new HttpError(404, 'no google sign-in');
+    // Google comes back to the address where the sign-in started (googleStart).
+    const origin = this.pageOrigin(request);
     const back = (result: string, extra: Record<string, string> = {}) => {
       response.writeHead(302, {
-        location: `${this.options.publicOrigin}/${result ? `?login=${result}` : ''}`,
+        location: `${origin}/${result ? `?login=${result}` : ''}`,
         'cache-control': 'no-store',
         ...extra,
       });
@@ -334,7 +351,7 @@ export class Accounts {
     if (!verifier) return back('failed', { 'set-cookie': clearLogin });
     let identity;
     try {
-      identity = await googleIdentity(google, this.redirectUri(), code, verifier, this.options.fetch ?? fetch, this.now());
+      identity = await googleIdentity(google, this.redirectUri(origin), code, verifier, this.options.fetch ?? fetch, this.now());
     } catch (error) {
       this.log(`accounts: google sign-in failed: ${(error as Error).message}`);
       return back('failed', { 'set-cookie': clearLogin });
@@ -342,7 +359,7 @@ export class Accounts {
     const user = this.store.signIn('google', identity.subject, this.now(), identity.email);
     const token = this.startSession(user);
     response.writeHead(302, {
-      location: `${this.options.publicOrigin}/`,
+      location: `${origin}/`,
       'cache-control': 'no-store',
       'set-cookie': [this.cookie(SESSION_COOKIE, token, '/', this.lifetimeMs), clearLogin],
     });
@@ -396,8 +413,14 @@ export class Accounts {
     if (this.origins && !this.origins.includes(String(request.headers.origin ?? ''))) throw new HttpError(403, 'origin');
   }
 
-  private redirectUri(): string {
-    return `${this.options.publicOrigin}/auth/google/callback`;
+  /** The address of the page of a request: the mirror that its Host header names, else publicOrigin. */
+  private pageOrigin(request: IncomingMessage): string {
+    const origin = `${this.secure ? 'https' : 'http'}://${String(request.headers.host ?? '').toLowerCase()}`;
+    return this.mirrors.has(origin) ? origin : this.options.publicOrigin;
+  }
+
+  private redirectUri(origin: string): string {
+    return `${origin}/auth/google/callback`;
   }
 
   private cookie(name: string, value: string, path: string, maxAgeMs: number): string {
