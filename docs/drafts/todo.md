@@ -6,16 +6,6 @@
 
 ## Open
 
-- **Redesign Ironhold: wooden walls, and closer to the Drive** (2026-10-13). Give Ironhold wooden
-  walls, and make the town match the documents of Kandrax on the Drive better. Code: the plan `MAP`
-  and `BUILDINGS` (each with `style: { walls, roof }`; now stone, gothic, brick, rubble, timber and
-  planks) in `worlds/wilds/src/town.ts`; the builder `worlds/wilds/src/towns.ts`; the wall styles
-  (`WALL_STYLES`: `timber`, `planks`) in `packages/engine-client/art/buildings.ts`; the town in
-  `docs/story/world.md` ("Ironhold"); the tests in `worlds/wilds/test/town.test.ts`. The Drive (read it
-  live): Ferrozar is in the chapters `1.5.1 - Pueblos Arrasados` and `1.4.1 - La Caza del Lobo`
-  (`Sagas/Dioses Olvidados/Capítulos/`), and the picture `Images/regions/central_dominions/ferrozar.png`.
-  Ask Fede: "wooden walls" means the walls of the buildings, a wooden palisade round the town, or both?
-
 - **Calmer music for the last card of the prologue** (2026-10-13). The last card of the prologue (Fede
   says "the intro": the card with the hut, the character's name and Thrain's letter) gets calmer music.
   Now the music of that card is the rise of the theme (`KANDRAX_RISE`: the choir and the violins), which
@@ -134,3 +124,10 @@
   while its player is on the screen or within 2 tiles of it, and fades out farther away; protocol 38
   sends only the other players within 30 tiles, and counts all of them in `o`. Done 2026-10-13, commit
   `6a4f05e`.
+
+- **Redesign Ironhold: wooden walls, and closer to the Drive** (2026-10-13). Ironhold has a palisade of
+  logs with a south gate and an east gate (Fede: both kinds of wooden walls), buildings of timber and
+  planks, and a square with the town hall in its middle, after Ferrozar in chapter 1.5.1 and its
+  picture; the town hall has two storeys (the hall and the reeve's archive), with a new engine feature
+  for buildings with any number of storeys (`docs/features/game/storeys.md`, protocol 39). Done
+  2026-10-13, commit `130b4a1`.
