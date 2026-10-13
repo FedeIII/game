@@ -6,11 +6,6 @@
 
 ## Open
 
-- **The signpost in the story documents** (2026-10-13). `docs/story/world.md` (the table of the
-  northern edge of the Sovereignty) says that the signpost by the hut reads "IRONHOLD". The code
-  (`signpost()` in `worlds/wilds/src/road.ts`) says "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow
-  points west, along the road." Correct the story document.
-
 - **New places for the action buttons on a phone** (2026-10-13). Fede wants the attack button at the
   bottom right, the action button (interact) on top of it, and the dodge button (roll) to its left.
   Now the action button is at the bottom right, the attack button left of it and the dodge button left
@@ -128,3 +123,6 @@
 - **The standard of Bronzehold shows the phoenix of the Seekers** (2026-10-13, a bug). The standard
   has a look `iron` now (`fixture/standard/iron`: the anvil of pale iron on wine red, with a
   swallowtail), and the standard of Bronzehold uses it. Done 2026-10-13, commit `f1eb82d`.
+- **The signpost in the story documents** (2026-10-13). `docs/story/world.md` and AC-LANG-005.1 now
+  give the text of the signpost as the code gives it: "WHITEGROVE, BRONZEHOLD, IRONHOLD", and the line
+  under it. Done 2026-10-13, commit `97cb9b9`.
