@@ -63,6 +63,10 @@ An inn (the Crooked Lantern; el Farol Torcido), a smithy, a chapel (a refuge), t
 reeve's house, and four houses that are shut for good (the chandler, a cottage, the granary, a house).
 The road from the hut comes in at the south edge (`TOWN_SOUTH`), where the watchman Brann stands on
 the lane. From the east gate (`TOWN_GATE`, `-7, 3`) a road goes north along the town to the north road.
+Its name sign (`-37..-35, 16`) stands west of the road from the hut, two rows south of the town: two
+posts and an iron plate with the name (IRONHOLD; FERROZAR) under the anvil of the Iron Sovereignty. It is
+the big town of the tutorial: its name shows over the screen when a character comes in (a title, once
+for each visit).
 
 What the people say of Ironhold:
 
@@ -100,7 +104,8 @@ a quarter of the houses with a chest are barred (STR 13), a third of the other c
 
 | Place | Where | What |
 |---|---|---|
-| **Silverspring** | `172..213, -189..-166`, at the end of the north road | The mithril village of the Mithril Enclave: the counterpart of Ironhold, the last village of the Enclave before the wildlands. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. |
+| **Silverspring** | `172..213, -189..-166`, at the end of the north road | The mithril village of the Mithril Enclave: the counterpart of Ironhold, the last village of the Enclave before the wildlands. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. Its name shows over the screen when a character comes in (a title). |
+| The name sign of Silverspring | `166..168, -181`, outside the west end of the main street, north of the road | Two pillars of pale stone with gold domes, a blue plate in a silver frame with the name (SILVERSPRING), and the silver peaks of the Mithril Enclave on a blue shield. |
 | **The Silvervein** (el río Vena de Plata) | from its spring (`205, -223`), through Silverspring, to a pool (`196, -115`) | The river of Silverspring. It brings mithril dust down from the hills. |
 | **The Wren homestead** (la granja de los Wren) | `176..188, -108..-98`, by the pool | A whole house. Mira Wren lives there with her two children. |
 | **The burned trail** | from the Wren homestead east into the hills | The trail of the Ashen Seekers. |

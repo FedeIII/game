@@ -149,6 +149,37 @@ villages, so that the first journey of the game teaches me the world and its peo
 
 ---
 
+### REQ-TWN-007: The name of each settlement
+
+**User Story:** As a player, I want to know where I am when I come to a settlement, so that the
+places that matter stand out and every place has its name (Fede's rule, 2026-10-13).
+
+**Acceptance Criteria:**
+- **AC-TWN-007.1:** When a player comes into a city, or a big town or a town that is important for the
+  story, its name shows over the screen, as the name of a world on arrival: on a dark band between two
+  red lines, in the pixel font at twice its size, a third of the way down the screen. It fades in,
+  stays and fades out (2.9 s). Screen readers hear the name. Now Ironhold (in Spanish FERROZAR) and
+  Silverspring have a title; Whitegrove and Bronzehold do not (AC-TWN-006.7).
+- **AC-TWN-007.2:** The title shows once for each visit. A visit ends when the player is more than 12
+  tiles out of the town; a walk to the edge of the town and back shows no title again.
+- **AC-TWN-007.3:** The page shows no title for the town where it starts (a character that was there
+  last, or a reload for a new build): the player did not arrive. A wake at a refuge in the town after a
+  defeat is an arrival. The title does not show while the name of the world shows. `?nointro` turns the
+  titles off.
+- **AC-TWN-007.4:** Ironhold has a name sign in the style of the Iron Sovereignty (as AC-TWN-006.6)
+  west of the road from the hut, two rows south of the town, so that its plate does not hang over the
+  lane where Brann walks. "Read the sign" says "It reads: IRONHOLD. Over the name, the anvil of the Iron
+  Sovereignty."
+- **AC-TWN-007.5:** Silverspring has a name sign in the style of the Mithril Enclave (Fede's choice,
+  2026-10-13): two pillars of pale stone with small gold domes, a plate of dark blue in a silver frame,
+  and over it a blue shield with the silver peaks of the Silver Columns. It stands outside the west end
+  of the main street, north of the road that comes in there. "Read the sign" says "It reads:
+  SILVERSPRING. Over the name, the silver peaks of the Mithril Enclave."
+- **AC-TWN-007.6:** No sign stands on a road, and no plate hangs over a road or over the walk of a
+  person of the town. No tree, rock or house stands next to a sign.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The builder** (`worlds/wilds/src/towns.ts`): `TownPlan` (name, north-west tile, map, building
@@ -177,8 +208,9 @@ villages, so that the first journey of the game teaches me the world and its peo
 - **The texts in Spanish** (`worlds/wilds/src/text-es.ts`): the Militia is "Milicia", the Silver Trout
   "La Trucha de Plata", the Jeweller "Joyería". Silverspring keeps its name.
 - **Tests**: `worlds/wilds/test/town.test.ts` (both towns: the walls, the doors, the reach, the
-  people, the safety; Silverspring: the gate, the buildings, the stream, Kasmut, the map; the hamlets:
-  the same, and their name signs).
+  people, the safety, the title and the name sign; Silverspring: the gate, the buildings, the stream,
+  Kasmut, the map; the hamlets: the same, their name signs, and no title);
+  `packages/engine-client/src/render/place-titles.test.ts` (when a title shows).
 - **The camp of the war band** (`camp.ts`) is a place of the builder too, but not a town: mobs go
   there (`PLACES` and `TOWNS` in `source.ts`).
 - **During the raid** (REQ-QST-015) its mobs may go into Silverspring, and its people take shelter
@@ -195,3 +227,16 @@ villages, so that the first journey of the game teaches me the world and its peo
   layer of the signs over doors (`Fixtures.plate()` in `render/fixtures.ts`: the small font with a
   shadow, the bottom 20 pixels over the south edge of the sign, the shield 4 pixels down over its
   top). The action is "Read the sign" (`STRINGS.readSign`).
+- **The signs of the towns** (REQ-TWN-007): `nameSign(town, look, tx, ty, pages)` in `towns.ts` makes
+  each one; `TOWN_NAME_SIGN` (`town.ts`: the anchor 5 columns west of `TOWN_SOUTH` and one row south of
+  it) and `SILVERSPRING_NAME_SIGN` (`silverspring.ts`: 6 columns west of the town, 2 rows north of the
+  row where the road comes in). `NAME_SIGNS` in `source.ts` lists all four: loose things of the woods,
+  and `inTheWay()` keeps the houses off them. The art of the Enclave: `fixture/namesign/mithril`
+  (`art/fixtures.ts`, the material `M.paleStone`), the plate `ui/namesign/mithril` and the shield
+  `ui/crest/mithril` (`art/font.ts`).
+- **The titles** (REQ-TWN-007): `TownPlan.title` (Ironhold and Silverspring); the source gives the towns
+  with a title in `placeTitles()` (`WorldSource.placeTitles`, `PlaceTitle` in
+  `packages/engine/src/world.ts`). The page: `PlaceArrivals` (`render/place-titles.ts`, `TITLE_AWAY` 12
+  tiles) chooses the moment, and `IntroTitle` (`render/intro.ts`) draws it, in the text layer; the live
+  region `.sr-only[data-speech=place]` repeats it. The debug panel's line `place` gives the visit and the
+  phase of the title.

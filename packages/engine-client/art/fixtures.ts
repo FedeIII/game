@@ -297,6 +297,22 @@ function namesignIron(): Part[] {
   ]);
 }
 
+/**
+ * The name sign of a settlement of the Mithril Enclave (2026-10-13, Silverspring): two square pillars of
+ * pale stone, 32 pixels apart, on footings of dark stone, each with a capital and a small onion dome of
+ * gold, after the white stone and the gold domes of the Enclave. The game hangs the plate and the shield
+ * between them (ui/namesign/mithril, ui/crest/mithril).
+ */
+function namesignMithril(): Part[] {
+  return [8, 40].flatMap((x): Part[] => [
+    { sdf: box([x - 2.8, 0, -10.8], [x + 2.8, 2.2, -5.2], 0.5), material: M.stoneB },
+    { sdf: box([x - 1.7, 0, -9.7], [x + 1.7, 27, -6.3], 0.3), material: M.paleStone },
+    { sdf: box([x - 2.2, 26.2, -10.2], [x + 2.2, 28.2, -5.8], 0.3), material: M.paleStone },
+    { sdf: sphere([x, 29.9, -8], 1.8), material: M.gold },
+    { sdf: roundCone([x, 30.6, -8], [x, 33.6, -8], 1.1, 0.2), material: M.gold },
+  ]);
+}
+
 /** A round stone fountain, 3 x 3 tiles, with a basin, a pillar, an upper bowl and still water. */
 function fountain(): Part[] {
   const c: Vec3 = [24, 0, -24];
@@ -684,5 +700,6 @@ export function fixtureFrames(): Frame[] {
     fixture('menhir', menhir(), 24, 48),
     fixture('altar', altar(), 40, 32),
     { ...fixture('namesign', namesignIron(), 56, 48), name: 'fixture/namesign/iron' },
+    { ...fixture('namesign', namesignMithril(), 56, 48), name: 'fixture/namesign/mithril' },
   ];
 }

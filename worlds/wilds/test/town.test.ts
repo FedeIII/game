@@ -35,6 +35,7 @@ import {
   Plot,
   SILVERSPRING,
   SILVERSPRING_NAME,
+  SILVERSPRING_NAME_SIGN,
   SILVERSPRING_NPCS,
   SILVERSPRING_SITE,
   SILVERVEIN,
@@ -42,6 +43,7 @@ import {
   TOWN_BUILDINGS,
   TOWN_GATE,
   TOWN_NAME,
+  TOWN_NAME_SIGN,
   TOWN_SOUTH,
   TOWN_NPCS,
   TOWN_STREET_FIXTURES,
@@ -262,11 +264,11 @@ describe('Silverspring', () => {
 
 /** What every town checks: Ironhold (its gate: the end of the road from the home) and Silverspring (the end of the north road). */
 const TOWNS = [
-  { town: IRONHOLD, gate: TOWN_GATE, people: TOWN_NPCS },
-  { town: SILVERSPRING, gate: SILVERSPRING_SITE, people: SILVERSPRING_NPCS },
+  { town: IRONHOLD, gate: TOWN_GATE, people: TOWN_NPCS, sign: TOWN_NAME_SIGN, look: 'iron' },
+  { town: SILVERSPRING, gate: SILVERSPRING_SITE, people: SILVERSPRING_NPCS, sign: SILVERSPRING_NAME_SIGN, look: 'mithril' },
 ];
 
-describe.each(TOWNS)('the town of $town.name', ({ town, gate, people }) => {
+describe.each(TOWNS)('the town of $town.name', ({ town, gate, people, sign, look }) => {
   it('builds each building with a wall ring and one door in the south wall, and a clear doorstep', () => {
     for (const b of town.buildings) {
       let doors = 0;
@@ -395,6 +397,51 @@ describe.each(TOWNS)('the town of $town.name', ({ town, gate, people }) => {
       expect(town.has(Math.floor(imp.x / TILE_SIZE), Math.floor(imp.y / TILE_SIZE))).toBe(false);
     }
     expect(hits).toBe(0);
+  });
+
+  it('shows its name over the screen when a player comes in (a big or important town)', () => {
+    expect(town.title).toBe(true);
+    expect(source.placeTitles()).toContainEqual({ id: town.name.toLowerCase(), title: town.name, x0: town.x0, y0: town.y0, x1: town.x1, y1: town.y1 });
+  });
+
+  it('has a name sign in the style of its dominion, beside the road where the road comes in', () => {
+    expect(sign).toMatchObject({ kind: 'namesign', look, label: town.name });
+    expect(sign.content?.pages?.join(' ')).toContain(`It reads: ${town.name.toUpperCase()}.`);
+    const tiles = fixtureTiles(sign);
+    const areas = new Set(people.flatMap((p) => p.area.map(([x, y]) => key(x, y))));
+    for (const seed of SEEDS) {
+      const s = new WildsSource(seed);
+      const w = new World(s);
+      const onRoad = (tx: number, ty: number) => [s.road, s.north, s.gate, s.trail].some((r) => r.on(tx, ty));
+      // Outside the town, never on a road, and near one.
+      for (const [tx, ty] of tiles) {
+        expect(town.has(tx, ty)).toBe(false);
+        expect(onRoad(tx, ty), `${seed}: ${tx},${ty}`).toBe(false);
+        expect(w.fixtureAt(tx, ty)).toBe(sign);
+      }
+      expect(tiles.some(([tx, ty]) => [-2, -1, 0, 1, 2].some((d) => onRoad(tx + d, ty + 1) || onRoad(tx + d, ty + 2)))).toBe(true);
+      expect(w.fixturesIn(sign.tx, sign.ty, sign.tx, sign.ty)).toContain(sign);
+      // Two posts, and nothing solid between them; no tree, rock or house round it.
+      expect(tiles.map(([x, y]) => w.solidBox(x, y) !== null)).toEqual([true, false, true]);
+      for (let ty = sign.ty - 1; ty <= sign.ty + 1; ty++) {
+        for (let tx = sign.tx - 1; tx <= sign.tx + 3; tx++) {
+          expect([Decor.Tree, Decor.Rock], `${seed}: ${tx},${ty}`).not.toContain(w.decor(tx, ty));
+          expect(w.buildingAt(tx, ty), `${seed}: ${tx},${ty}`).toBeNull();
+        }
+      }
+      // Its plate (at most 80 pixels wide, over its middle) hangs over the two rows north of it: no road
+      // there, and nobody of the town walks there.
+      for (let ty = sign.ty - 2; ty <= sign.ty - 1; ty++) {
+        for (let tx = sign.tx - 1; tx <= sign.tx + 3; tx++) {
+          expect(onRoad(tx, ty), `${seed}: ${tx},${ty}`).toBe(false);
+          expect(areas.has(key(tx, ty)), `${tx},${ty}`).toBe(false);
+        }
+      }
+    }
+    // A player next to its east post reads it.
+    const player = createPlayer((sign.tx + 3) * TILE_SIZE + 3, sign.ty * TILE_SIZE + 12);
+    player.facing = 'left';
+    expect(findInteraction(world, player)).toMatchObject({ kind: 'namesign', fixture: sign });
   });
 });
 
@@ -554,6 +601,11 @@ describe.each(HAMLETS)('the hamlet of $town.name', ({ town, entry }) => {
     const mark = source.landmarks().find((l) => l.name === town.name)!;
     expect(mark.kind).toBe('town');
     expect(town.has(Math.floor(mark.x / TILE_SIZE), Math.floor(mark.y / TILE_SIZE))).toBe(true);
+  });
+
+  it('is small: its name does not show over the screen when a player comes in', () => {
+    expect(town.title).toBe(false);
+    expect(source.placeTitles().map((p) => p.title)).not.toContain(town.name);
   });
 });
 

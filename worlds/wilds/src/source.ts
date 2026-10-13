@@ -27,6 +27,7 @@ import {
   type EscortDef,
   type GuardDef,
   type SceneDef,
+  type PlaceTitle,
   type SoundArea,
   type WorldSource,
 } from '@game/engine';
@@ -40,8 +41,8 @@ import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, ga
 import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
 import { RUINS, RUIN_NPCS } from './ruins.ts';
-import { SILVERSPRING, SILVERSPRING_NPCS } from './silverspring.ts';
-import { IRONHOLD, TOWN_CACHE, TOWN_NPCS, TOWN_SCENES } from './town.ts';
+import { SILVERSPRING, SILVERSPRING_NAME_SIGN, SILVERSPRING_NPCS } from './silverspring.ts';
+import { IRONHOLD, TOWN_CACHE, TOWN_NAME_SIGN, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
 import { SEEKER_CAMP } from './seekers.ts';
 import { ALTAR_TILE, SHRINE_FIXTURES, SHRINE_RECT } from './shrine.ts';
@@ -292,14 +293,16 @@ export const CART_SAFE = 4;
 /** The lantern of the cart: as a lamp of the town (the radius snaps to 48, 96 or 150). */
 const CART_LANTERN = { radius: 96, colour: 0xffb060, x: 4, y: -20 } as const;
 
-/** The loose things of the woods: the shrine of Tigris (shrine.ts) and the name signs of the hamlets (hamlets.ts). */
-const LOOSE_FIXTURE_LIST: readonly Fixture[] = [...SHRINE_FIXTURES, ...HAMLET_SIGNS];
+/** The name signs of the settlements, just outside them (Fede's rule, 2026-10-13: every settlement has one). */
+const NAME_SIGNS: readonly Fixture[] = [TOWN_NAME_SIGN, SILVERSPRING_NAME_SIGN, ...HAMLET_SIGNS];
+/** The loose things of the woods: the shrine of Tigris (shrine.ts) and the name signs. */
+const LOOSE_FIXTURE_LIST: readonly Fixture[] = [...SHRINE_FIXTURES, ...NAME_SIGNS];
 /** The same, by each tile of their footprint. */
 const LOOSE_FIXTURES = new Map<string, { fixture: Fixture; code: number }>();
 for (const fixture of LOOSE_FIXTURE_LIST) for (const [tx, ty, code] of fixtureTiles(fixture)) LOOSE_FIXTURES.set(`${tx},${ty}`, { fixture, code });
-/** The tiles of the name signs of the hamlets and the tiles next to them: no tree or rock grows there. */
+/** The tiles of the name signs and the tiles next to them: no tree or rock grows there, and no house stands there. */
 const NAME_SIGN_GROUND = new Set(
-  HAMLET_SIGNS.flatMap((sign) => fixtureTiles(sign).flatMap(([x, y]) => [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => `${x + dx},${y + dy}`)))),
+  NAME_SIGNS.flatMap((sign) => fixtureTiles(sign).flatMap(([x, y]) => [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => `${x + dx},${y + dy}`)))),
 );
 const nearNameSign = (tx: number, ty: number) => NAME_SIGN_GROUND.has(`${tx},${ty}`);
 /** Whether a tile is in or next to the rectangle of the shrine of Tigris: no tree, rock or herb grows there. */
@@ -423,7 +426,7 @@ export class WildsSource implements WorldSource {
     return house;
   }
 
-  /** Whether the ground of a house of the wilds would touch a town, a road, the grove, the river or the signpost. */
+  /** Whether the ground of a house of the wilds would touch a town, a road, the grove, the river, the signpost or a name sign. */
   private inTheWay(house: Building): boolean {
     const x0 = house.x0 - 1;
     const y0 = house.y0 - 1;
@@ -435,6 +438,7 @@ export class WildsSource implements WorldSource {
     if (PLACES.some((t) => overlaps(t, x0 - TOWN_MARGIN, y0 - TOWN_MARGIN, x1 + TOWN_MARGIN, y1 + TOWN_MARGIN))) return true;
     const sign = this.sign;
     if (sign.tx >= x0 - 1 && sign.tx <= x1 + 1 && sign.ty >= y0 - 1 && sign.ty <= y1 + 1) return true;
+    for (const named of NAME_SIGNS) if (named.tx + 3 >= x0 && named.tx - 1 <= x1 && named.ty + 1 >= y0 && named.ty - 1 <= y1) return true;
     for (const road of this.roads) {
       if (!overlaps(road, x0, y0, x1, y1)) continue;
       for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (road.clear(tx, ty)) return true;
@@ -736,6 +740,14 @@ export class WildsSource implements WorldSource {
       ];
     }
     return this.soundAreaList;
+  }
+
+  /**
+   * The places whose name shows over the screen when a player comes in (Fede's rule, 2026-10-13): the
+   * towns with a title (TownPlan.title: Ironhold and Silverspring). The hamlets are small: none.
+   */
+  placeTitles(): readonly PlaceTitle[] {
+    return TOWNS.filter((t) => t.title).map((t) => ({ id: t.name.toLowerCase(), title: t.name, x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 }));
   }
 
   /** The named places for the map: the home, Ironhold and its chapel, Silverspring, and the two hamlets with the shrine of Whitegrove. */

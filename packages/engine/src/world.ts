@@ -119,6 +119,24 @@ export interface WorldSource {
   landmarks?(): readonly Landmark[];
   /** The places with a sound of their own (the music of the client). Without it, the whole world has one. */
   soundAreas?(): readonly SoundArea[];
+  /** The places whose name shows over the screen when a player comes in (the page). Without it, none. */
+  placeTitles?(): readonly PlaceTitle[];
+}
+
+/**
+ * A place whose name shows over the screen when a player comes into it, as the name of a world on
+ * arrival (Fede's rule, 2026-10-13): a city, or a big town or a town that is important for the story.
+ * A small place has no title, only a name sign. The page shows the title once for each visit.
+ */
+export interface PlaceTitle {
+  readonly id: string;
+  /** The name, in the world's English: the page translates it. */
+  readonly title: string;
+  /** Tiles, inclusive. */
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
 }
 
 /**

@@ -129,6 +129,7 @@ import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
 import { BarkBubbles } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
+import { PlaceArrivals } from './render/place-titles.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
 import { ScenePlayer } from './render/scene.ts';
 import { MobViews, mobHead, type MobLook } from './render/mobs.ts';
@@ -813,6 +814,17 @@ async function run(options: GameOptions): Promise<void> {
   const introTitle = intro ? new IntroTitle(font, intro.title) : null;
   if (introTitle) textScene.addChild(introTitle.root);
   const hostIndex = intro?.speaker ? npcDefs.findIndex((def) => def.id === intro.speaker) : -1;
+  // The name of a place over the screen when the player comes in (a city, or a big or important town:
+  // WorldSource.placeTitles), once for each visit, as the name of the world on arrival. Screen readers
+  // hear it. ?nointro skips it too.
+  const placeArrivals = new PlaceArrivals(params.has('nointro') ? [] : (world.source.placeTitles?.() ?? []));
+  let placeTitle: IntroTitle | null = null;
+  const placeSpoken = document.createElement('div');
+  placeSpoken.className = 'sr-only';
+  placeSpoken.setAttribute('role', 'status');
+  placeSpoken.setAttribute('aria-live', 'polite');
+  placeSpoken.dataset.speech = 'place';
+  document.body.append(placeSpoken);
   const welcome = intro?.welcome?.length ? new WelcomeSpeech(art, font, textScene) : null;
   // Scenes (scenes.ts): talks that the character overhears when it comes into their area at their step.
   const scenes = world.source.scenes?.() ?? [];
@@ -1814,6 +1826,20 @@ async function run(options: GameOptions): Promise<void> {
     }
     const introNow = introClock(now);
     introTitle?.update(introNow, view);
+    // A place with a title: not over the name of the world.
+    const cameTo = placeArrivals.update(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE));
+    if (cameTo && !arriving(now)) {
+      placeTitle?.root.destroy({ children: true });
+      placeTitle = new IntroTitle(font, cameTo.title);
+      textScene.addChild(placeTitle.root);
+      placeTitle.start(now);
+      placeSpoken.textContent = tw(cameTo.title);
+    }
+    placeTitle?.update(now, view);
+    if (placeTitle?.phase(now) === 'done') {
+      placeTitle.root.destroy({ children: true });
+      placeTitle = null;
+    }
     banner.update(now, view);
     if (welcome && intro?.welcome && !welcomed && introNow - arrivedAt >= WELCOME_AT) {
       welcomed = true;
@@ -1860,6 +1886,7 @@ async function run(options: GameOptions): Promise<void> {
           ]
         : []),
       `inside  ${inside?.id ?? '-'}`,
+      `place   ${placeArrivals.current?.id ?? '-'}${placeTitle ? ` (title ${placeTitle.phase(now)})` : ''}`,
       `chunks  ${terrain.chunkCount} drawn, ${world.chunkCount} in memory`,
       `fixture ${fixtures.count} shown`,
       `npcs    ${npcDefs.length ? `${npcDefs.length}, ${net?.serverNpcs ? 'from the server' : 'local'}` : '-'}`,

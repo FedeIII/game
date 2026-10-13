@@ -152,6 +152,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   other players' and the visitor's own; without a chosen name, `skinName()` of the look), `lighting.ts` (the light map: darkness with a hole for each light),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
+  `place-titles.ts` (`PlaceArrivals`: when the name of a place shows over the screen; see "Arrival in
+  a world"),
   `speech-bubble.ts` (pages of text over a head, above the darkness; a short text wraps at 104 world
   pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
   `wrapBubble()` in `text-layout.ts`), `marks.ts` (the marks at the
@@ -290,8 +292,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   `signpost` points west only (do not mirror it); its post is on the east side of its tile.
   `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom). A thing with a `look`
   has the frame `fixture/<kind>/<look>`: the name sign of a settlement, `fixture/namesign/iron` (the
-  Iron Sovereignty: two posts of dark oak with iron caps; the page hangs the plate with the name
-  between them, see `font.ts`). A new dominion's style is a new look, with its plate and its shield.
+  Iron Sovereignty: two posts of dark oak with iron caps) and `fixture/namesign/mithril` (the Mithril
+  Enclave: two pillars of pale stone, `M.paleStone`, with small gold domes); the page hangs the plate
+  with the name between them, see `font.ts`. A new dominion's style is a new look, with its plate and
+  its shield.
 - `mobs.ts`: the mobs, SDF models in poses: the imp (small, horns, bat wings, claws, tail) and the
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
@@ -343,7 +347,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   one; it is for the names over other players. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
   (`ui/sign`), the plate of a name sign and the shield over it (`ui/namesign/<look>`,
-  `ui/crest/<look>`: `iron`, the iron plate in a wine-red frame and the anvil of the Sovereignty) and
+  `ui/crest/<look>`: `iron`, the iron plate in a wine-red frame and the anvil of the Sovereignty;
+  `mithril`, a dark blue plate in a silver frame and the silver peaks of the Silver Columns on blue,
+  Fede's choice of 2026-10-13) and
   the mouse cursor (`ui/cursor`: a short sword, 10 x 10, its tip on the hot spot
   at the top-left pixel).
 
@@ -788,6 +794,15 @@ the NPC ends it. No other NPC speaks during the arrival. Screen readers hear the
 Wilds have none now (the Town of Azyr has one: its crier explains the town). `?nointro` skips it;
 `?introat=<ms>` stops the title at that moment, for a screenshot on a slow machine.
 
+**The arrival in a place** (since 2026-10-13, Fede's rule; `docs/features/game/towns.md`,
+REQ-TWN-007): a city, or a big town or a town that is important for the story, shows its name in the
+same way when a player comes in (`WorldSource.placeTitles()`, `PlaceTitle`; in the Wilds
+`TownPlan.title`: Ironhold and Silverspring). A small place (Whitegrove, Bronzehold) has no title, only
+a name sign; every settlement has a name sign in the style of its dominion. `PlaceArrivals`
+(`render/place-titles.ts`) shows it once for each visit (a visit ends 12 tiles out of the place), never
+for the place where the page starts, and not over the world's title; `.sr-only[data-speech=place]`
+repeats it, and `?nointro` turns it off. The debug panel's line `place` gives the visit.
+
 ## Mobs and fights
 
 **The hobgoblin band** (since 2026-10-11, story phase 3; protocol 25): four more kinds, which do not
@@ -1059,7 +1074,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   by name (Charisma), and something to say: a conversation for the watchman, the innkeeper, the
   apothecary, the reeve, the peddler and the smith (`dialogs.ts`), three pages for the others. The inn has a
   bed by its east wall for a character with a room (Charisma).
-  Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
+  Ironhold has a title on arrival (`title: true`) and a name sign of the Sovereignty (`TOWN_NAME_SIGN`:
+  west of the road from the hut, two rows south of the town, so that its plate does not hang over
+  the lane). Nothing stands in the 5 x 3 tiles in front of a door. **The road** (see above): mud, also over
   water; nothing grows on it or close to it. **The signpost** stands outside the hut, two tiles below
   the door on the west side of its path, and points west, where the road leaves: "It reads:
   WHITEGROVE, BRONZEHOLD, IRONHOLD." Tests (`town.test.ts`): the sign and the road for five seeds, the
@@ -1077,7 +1094,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   10); four shut houses face the lane. Doran of the militia at the gate, a panner by the stream. Its
   NPCs come after the merchant in `npcs()` (wire codes). Mobs keep out of it as out of Ironhold
   (`TOWNS` in `source.ts`), except the war band during the raid. `?at=180,-179` starts in its main
-  street. **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
+  street. Silverspring has a title on arrival and a name sign of the Mithril Enclave
+  (`SILVERSPRING_NAME_SIGN`, `look: 'mithril'`: outside the west end of the main street, north of the
+  road). **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
   `PLACES`): off the north road at (91, -146), with a trail; `?at=92,-141` starts next to the post.
 - **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6, 2026-10-11): the Hale, the
   Marrow and the Tanner homestead, fixed, in the wildlands north of Ironhold (Hale north, Marrow north-east, Tanner north-west; 2026-10-13); roofless charred
@@ -1259,7 +1278,8 @@ only on `localhost` or `127.0.0.1`: every visitor of game.azyr.io signs in, Fede
 2026-10-11),
 `?world=<id>` (when an app has more than one world), `?debug` (read `#debug` for the world, the skin (race, class, gender), `char` (the character id, or guest), tile, target, building, and `net` and
 `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (the conversation: the dialog's
-name, the node and the selected answer) and `intro` in a world with NPCs; `mobs` and
+name, the node and the selected answer) and `intro` in a world with NPCs; `place` (the visit of a place
+with a title, and the phase of its title); `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
 Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map

@@ -1,7 +1,7 @@
 import { Ground, type Fixture, type NpcDef } from '@game/engine';
 import { HOST, JEWELLER, KASMUT, LORE_GATE, MILITIA } from './dialogs.ts';
 import { SILVERSPRING_SITE } from './road.ts';
-import { LAMP, Town, type Plan } from './towns.ts';
+import { LAMP, Town, nameSign, type Plan } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
 
 /**
@@ -212,7 +212,10 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
   x: { kind: 'crate', tx: 0, ty: 0 },
 };
 
-/** Silverspring, built from its plan: the north road comes in at the west end of its main street. */
+/**
+ * Silverspring, built from its plan: the north road comes in at the west end of its main street. It is
+ * important for the story: its name shows over the screen when a player comes in.
+ */
 export const SILVERSPRING = new Town({
   name: SILVERSPRING_NAME,
   x0: SILVERSPRING_SITE.tx + 1,
@@ -220,7 +223,19 @@ export const SILVERSPRING = new Town({
   map: MAP,
   buildings: BUILDINGS,
   things: STREET_THINGS,
+  title: true,
 });
+
+/**
+ * The name sign of Silverspring (nameSign(), towns.ts), in the style of the Mithril Enclave (`look:
+ * 'mithril'`: posts of white stone with gold caps, a plate of dark blue in a silver frame, and the silver
+ * peaks of the Silver Columns on blue; Fede's choice, 2026-10-13). It stands outside the west end of the
+ * main street, north of the road that comes in there from the west, with one tile between its east post
+ * and the edge of the road; its plate hangs north of it, never over the road.
+ */
+export const SILVERSPRING_NAME_SIGN: Fixture = nameSign(SILVERSPRING, 'mithril', SILVERSPRING.x0 - 6, SILVERSPRING.y0 + GATE_ROW - 2, [
+  'It reads: SILVERSPRING. Over the name, the silver peaks of the Mithril Enclave.',
+]);
 
 // ---------------------------------------------------------------- people in the streets
 

@@ -64,6 +64,7 @@ export const M = {
   herb: 46,
   herbFlower: 47,
   soil: 48,
+  paleStone: 49,
 } as const;
 
 export const MATERIALS: Material[] = [
@@ -116,4 +117,5 @@ export const MATERIALS: Material[] = [
   { ramp: ramp('#0f160d', '#172214', '#202f1b', '#2b3d23', '#374c2c', '#455c36'), dither: true }, // wild herbs, sage green
   { ramp: ramp('#3a3628', '#55503a', '#706a4e', '#8a8262') }, // pale buds of herbs
   { ramp: ramp('#120d09', '#1d150f', '#2a1f16', '#38291d', '#473425', '#56402e'), dither: true }, // dug earth
+  { ramp: ramp('#25272b', '#363940', '#4b4f56', '#62666e', '#7b8088', '#959aa2') }, // pale stone of the Mithril Enclave
 ];

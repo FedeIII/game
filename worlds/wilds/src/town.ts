@@ -1,7 +1,7 @@
 import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
 import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, KEEN_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
 import { CARAVAN_HEARD, RAID_HEARD, ROAD_ARRIVED } from './quests.ts';
-import { LAMP, Town, type Plan, type Tile } from './towns.ts';
+import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
 
 /**
@@ -354,8 +354,8 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
 };
 
 
-/** Ironhold, built from its plan (towns.ts). */
-export const IRONHOLD = new Town({ name: TOWN_NAME, x0: -52, y0: -8, map: MAP, buildings: BUILDINGS, things: STREET_THINGS });
+/** Ironhold, built from its plan (towns.ts). It is the big town of the tutorial: its name shows over the screen when a player comes in. */
+export const IRONHOLD = new Town({ name: TOWN_NAME, x0: -52, y0: -8, map: MAP, buildings: BUILDINGS, things: STREET_THINGS, title: true });
 
 /** The rectangle of the town, in tiles (inclusive). */
 export const TOWN = { x0: IRONHOLD.x0, y0: IRONHOLD.y0, x1: IRONHOLD.x1, y1: IRONHOLD.y1 } as const;
@@ -368,6 +368,15 @@ export const TOWN_GATE = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 11 } as const;
  * lane behind the houses of the south side above that.
  */
 export const TOWN_SOUTH = { tx: TOWN.x0 + 20, ty: TOWN.y1 + 1 } as const;
+
+/**
+ * The name sign of Ironhold (nameSign(), towns.ts), in the style of the Iron Sovereignty: by the road
+ * from the hut, west of it, as the signs of the hamlets, but two rows south of the town (not one), so
+ * that its plate does not hang over the lane, where Brann walks.
+ */
+export const TOWN_NAME_SIGN: Fixture = nameSign(IRONHOLD, 'iron', TOWN_SOUTH.tx - 5, TOWN_SOUTH.ty + 1, [
+  'It reads: IRONHOLD. Over the name, the anvil of the Iron Sovereignty.',
+]);
 
 export const TOWN_BUILDINGS: readonly Building[] = IRONHOLD.buildings;
 

@@ -100,6 +100,11 @@ export interface TownPlan {
   readonly buildings: readonly Plan[];
   /** The things of the streets by their character in the map: a template, without its place. */
   readonly things: Readonly<Record<string, Fixture>>;
+  /**
+   * Whether the name of the town shows over the screen when a player comes in (WorldSource.placeTitles;
+   * Fede's rule, 2026-10-13): only for a city, or a big town or a town that is important for the story.
+   */
+  readonly title?: boolean;
 }
 
 /** The tiles of each character of a plan whose north-west tile is (x0, y0). */
@@ -146,12 +151,25 @@ function anchors(kind: FixtureKind, tiles: readonly Tile[], where: string): Tile
   return out;
 }
 
+/**
+ * The name sign of a settlement (Fede's rule, 2026-10-13: every settlement has a sign with its name, in
+ * the style of its dominion): the fixture `namesign` with its west post on (tx, ty), in the style of a
+ * dominion (`look`: 'iron' for the Iron Sovereignty, 'mithril' for the Mithril Enclave), with the name of
+ * the town on its plate. Put it beside the road where the road comes in, never on the road: its plate
+ * hangs over the two rows north of it (in the text layer, over a player there).
+ */
+export function nameSign(town: Town, look: string, tx: number, ty: number, pages: readonly string[]): Fixture {
+  return { kind: 'namesign', look, tx, ty, label: town.name, content: { pages } };
+}
+
 /** The characters of the map that are ground, not things: gardens, trees, streets, the lane, water and bridges. */
 const GROUND_CHARACTERS = new Set(['.', 'T', '=', ':', '~', 'h']);
 
 /** A town, built from its plan: its rectangle (tiles, inclusive), its buildings, the people of the buildings and the things of its streets. */
 export class Town {
   readonly name: string;
+  /** Whether its name shows over the screen when a player comes in (TownPlan.title). */
+  readonly title: boolean;
   readonly x0: number;
   readonly y0: number;
   readonly x1: number;
@@ -167,6 +185,7 @@ export class Town {
 
   constructor(plan: TownPlan) {
     this.name = plan.name;
+    this.title = plan.title ?? false;
     this.map = plan.map;
     this.things = plan.things;
     this.x0 = plan.x0;

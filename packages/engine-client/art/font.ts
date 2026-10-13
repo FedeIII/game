@@ -245,6 +245,43 @@ const IRON_CREST = [
 ];
 const IRON_CREST_COLOURS = { '#': rgb('#0b0c0f'), w: rgb('#501a1d'), h: rgb('#662325'), a: rgb('#a0a8b2'), A: rgb('#6b7581') };
 
+/**
+ * The plate of a name sign of the Mithril Enclave: dark blue in a silver frame, with a gold rivet in
+ * each corner and a paler top edge. It stretches as a nine-slice, 3 pixels on each side.
+ */
+const MITHRIL_SIGN = ['.#####.', '#sssss#', '#sghgs#', '#sbbbs#', '#sgbgs#', '#sssss#', '.#####.'];
+const MITHRIL_SIGN_COLOURS = { '#': rgb('#0a0d12'), s: rgb('#4e6276'), g: rgb('#8a6e2e'), h: rgb('#22324a'), b: rgb('#141e2c') };
+/**
+ * The shield of the Mithril Enclave over the plate (Fede's choice, 2026-10-13): the silver peaks of the
+ * Silver Columns on blue, a tall peak between two lower ones, with snow on their tops. The light comes
+ * from the top left: the west slopes are lit, the east slopes are in shade.
+ */
+const MITHRIL_CREST = [
+  '###########',
+  '#hhbbbbbbb#',
+  '#hbbbWbbbb#',
+  '#bbbbWsbbb#',
+  '#bbbWLSbbb#',
+  '#bWbLLSbWb#',
+  '#WLsLLSWLs#',
+  '#LLSSSLLLS#',
+  '#LLSSSLLLS#',
+  '.#bbbbbbb#.',
+  '..#bbbbb#..',
+  '...#bbb#...',
+  '....#b#....',
+  '.....#.....',
+];
+const MITHRIL_CREST_COLOURS = {
+  '#': rgb('#0a0d12'),
+  b: rgb('#1b2a3a'),
+  h: rgb('#26394d'),
+  W: rgb('#d2d8de'),
+  s: rgb('#8e9aa8'),
+  L: rgb('#8ea4ba'),
+  S: rgb('#4e6276'),
+};
+
 // ---------------------------------------------------------------- mouse cursor
 
 /**
@@ -287,6 +324,8 @@ export function fontFrames(): Frame[] {
   frames.push({ name: 'ui/sign', image: grid(SIGN, SIGN_COLOURS) });
   frames.push({ name: 'ui/namesign/iron', image: grid(IRON_SIGN, IRON_SIGN_COLOURS) });
   frames.push({ name: 'ui/crest/iron', image: grid(IRON_CREST, IRON_CREST_COLOURS) });
+  frames.push({ name: 'ui/namesign/mithril', image: grid(MITHRIL_SIGN, MITHRIL_SIGN_COLOURS) });
+  frames.push({ name: 'ui/crest/mithril', image: grid(MITHRIL_CREST, MITHRIL_CREST_COLOURS) });
   // The hot spot is the centre of the top-left pixel.
   frames.push({ name: 'ui/cursor', image: grid(CURSOR, CURSOR_COLOURS), anchor: { x: 0.5 / CURSOR[0]!.length, y: 0.5 / CURSOR.length } });
   return frames;

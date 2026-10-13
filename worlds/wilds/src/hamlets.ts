@@ -1,6 +1,6 @@
 import { Ground, type Fixture, type NpcDef } from '@game/engine';
 import { BRONZEHOLD_GUARD, FARMER, LORE_GATE, SERGEANT } from './dialogs.ts';
-import { LAMP, Town, type Plan, type Tile } from './towns.ts';
+import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 
 /**
  * The two hamlets on the road from the hut to Ironhold (Fede, 2026-10-13: the tutorial; chapter 1.5.1
@@ -240,20 +240,19 @@ export const BRONZEHOLD_NORTH: Tile = [BRONZEHOLD.x0 + BRONZEHOLD_LANE, BRONZEHO
 // ---------------------------------------------------------------- name signs
 
 /**
- * The name sign of a hamlet (Fede's rule, 2026-10-13: every settlement has a sign with its name, in
- * the style of its dominion): right outside the south end of its lane, west of the road that comes in
- * there, in the style of the Iron Sovereignty (`look: 'iron'`). Its east post stands one tile west of
- * the road, so its plate never hangs over the road (a plate is in the text layer, over a player there).
- * A hamlet is small: no title over the screen.
+ * The name sign of a hamlet (nameSign(), towns.ts): right outside the south end of its lane, west of the
+ * road that comes in there, in the style of the Iron Sovereignty (`look: 'iron'`). Its east post stands
+ * one tile west of the road, so its plate never hangs over the road (a plate is in the text layer, over a
+ * player there). A hamlet is small: no title over the screen.
  */
-function nameSign(town: Town, lane: number, pages: readonly string[]): Fixture {
-  return { kind: 'namesign', look: 'iron', tx: town.x0 + lane - 5, ty: town.y1 + 1, label: town.name, content: { pages } };
+function hamletSign(town: Town, lane: number, pages: readonly string[]): Fixture {
+  return nameSign(town, 'iron', town.x0 + lane - 5, town.y1 + 1, pages);
 }
 
 /** The name signs of Whitegrove and Bronzehold, in the woods just outside them (source.ts). */
 export const HAMLET_SIGNS: readonly Fixture[] = [
-  nameSign(WHITEGROVE, WHITEGROVE_LANE, ['It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty.']),
-  nameSign(BRONZEHOLD, BRONZEHOLD_LANE, ['It reads: BRONZEHOLD. Over the name, the anvil of the Iron Sovereignty.']),
+  hamletSign(WHITEGROVE, WHITEGROVE_LANE, ['It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty.']),
+  hamletSign(BRONZEHOLD, BRONZEHOLD_LANE, ['It reads: BRONZEHOLD. Over the name, the anvil of the Iron Sovereignty.']),
 ];
 
 // ---------------------------------------------------------------- people in the streets

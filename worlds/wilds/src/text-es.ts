@@ -334,6 +334,8 @@ export const TEXTS_ES: Readonly<Record<string, string>> = {
   "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road.": "Pone: ARBOLEDA BLANCA, BRONZAL, FERROZAR. La flecha señala al oeste, a lo largo del camino.",
   "It reads: WHITEGROVE. Over the name, the anvil of the Iron Sovereignty.": "Pone: ARBOLEDA BLANCA. Sobre el nombre, el yunque de la Soberanía del Hierro.",
   "It reads: BRONZEHOLD. Over the name, the anvil of the Iron Sovereignty.": "Pone: BRONZAL. Sobre el nombre, el yunque de la Soberanía del Hierro.",
+  "It reads: IRONHOLD. Over the name, the anvil of the Iron Sovereignty.": "Pone: FERROZAR. Sobre el nombre, el yunque de la Soberanía del Hierro.",
+  "It reads: SILVERSPRING. Over the name, the silver peaks of the Mithril Enclave.": "Pone: SILVERSPRING. Sobre el nombre, los picos de plata del Enclave del Mithril.",
   "Under it, cut with a knife: KEEP TO THE ROAD.": "Debajo, grabado a cuchillo: NO TE SALGAS DEL CAMINO.",
   "Home": "Hogar",
   "Ironhold": "Ferrozar",
