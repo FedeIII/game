@@ -110,6 +110,13 @@
   `packages/engine-client/src/audio/themes/kandrax.ts`. Ask Fede: which music: the opening of the theme
   again (`KANDRAX_OPENING`), a quiet part of the theme, or a new piece?
 
+- **The tail of a bubble at the edge of the screen** (2026-10-13, a bug). A speech bubble stays inside
+  the screen: near an edge it moves to the side, but its tail stays in the middle of its bottom, so the
+  tail does not point at the head of the speaker. A wide bubble (the line of a long text) moves more,
+  so this shows more often. The fix: put the tail under the anchor, within the bubble's bottom edge.
+  Code: `SpeechBubble.update()` (where it keeps the bubble inside `view`) and `draw()` (the tail's
+  position) in `packages/engine-client/src/render/speech-bubble.ts`.
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
