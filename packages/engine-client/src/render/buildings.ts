@@ -43,7 +43,7 @@ interface BuildingView {
 
 /**
  * Shows the buildings near the camera: walls, the door, the roof and the sign. Walls and the door
- * are in the depth-sorted entity layer; the sign is text, so it goes in the text layer (its own
+ * are in the depth-sorted entity layer; the sign (a name or an emblem) goes in the text layer (its own
  * CRT settings, above the darkness). Fixtures inside buildings are drawn by Fixtures. While the
  * player is inside a building, its roof and its sign fade out and its front wall fades to
  * FRONT_WALL_INSIDE_ALPHA.
@@ -172,21 +172,34 @@ export class Buildings {
   }
 
   /**
-   * A wooden board with the building's name, centred over the door. The name is drawn as the
-   * names over heads are: the small font, the parchment ink and a 1-pixel shadow.
+   * A wooden board centred over the door, with the building's name or its emblem. The name is drawn
+   * as the names over heads are: the small font, the parchment ink and a 1-pixel shadow. The emblem
+   * (`ui/emblem/<name>`) has its shadow in its frame.
    */
-  private sign(building: Building, english: string): Container {
-    const lines = this.font.wrap(tw(english), 120);
-    // The shadow adds a pixel to the right and below the letters.
-    const width = Math.max(...lines.map((l) => this.font.measure(l))) + 1 + 8;
-    const height = (lines.length - 1) * this.font.lineHeight + this.font.height + 1 + 6;
+  private sign(building: Building): Container | null {
+    let content: Container;
+    let width: number;
+    let height: number;
+    if (building.emblem) {
+      content = new Sprite(this.art.frame(`ui/emblem/${building.emblem}`));
+      content.position.set(3, 3);
+      width = content.width + 5;
+      height = content.height + 5;
+    } else if (building.sign) {
+      const lines = this.font.wrap(tw(building.sign), 120);
+      // The shadow adds a pixel to the right and below the letters.
+      width = Math.max(...lines.map((l) => this.font.measure(l))) + 1 + 8;
+      height = (lines.length - 1) * this.font.lineHeight + this.font.height + 1 + 6;
+      content = shadowedText(this.font, lines);
+      content.position.set(4, 3);
+    } else {
+      return null;
+    }
     const sign = new Container();
     const board = new NineSliceSprite({ texture: this.art.frame('ui/sign'), leftWidth: 2, topHeight: 2, rightWidth: 2, bottomHeight: 2 });
     board.width = width;
     board.height = height;
-    const label = shadowedText(this.font, lines);
-    label.position.set(4, 3);
-    sign.addChild(board, label);
+    sign.addChild(board, content);
     sign.position.set(
       Math.round(building.doorX * TILE_SIZE + TILE_SIZE / 2 - width / 2),
       (building.y1 + 1) * TILE_SIZE - SIGN_BOTTOM - height,
@@ -217,7 +230,7 @@ export class Buildings {
         if (isDoor) door = sprite;
       }
     }
-    const sign = building.sign ? this.sign(building, building.sign) : null;
+    const sign = this.sign(building);
 
     // The roof sits on the wall tops: rows of slate tiles from the north eave to the south eave.
     // Seen from the south, the back slope shows above the ridge and the front slope below it.

@@ -73,7 +73,7 @@ const WHITEGROVE_BUILDINGS: readonly Plan[] = [
   },
   {
     id: 'whitegrove-shrine',
-    sign: 'Shrine',
+    emblem: 'chalice',
     style: { walls: 'stone', roof: 'slate' },
     floor: Ground.FloorStone,
     plan: ['#######', '#c.l.c#', '#.....#', '#.....#', '#+#D#+#'],

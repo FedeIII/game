@@ -152,7 +152,7 @@ const BUILDINGS: readonly Plan[] = [
   },
   {
     id: 'chapel',
-    sign: 'Chapel',
+    emblem: 'chalice',
     style: { walls: 'gothic', roof: 'slate' },
     floor: Ground.FloorStone,
     roofProps: [{ name: 'spire', column: 3 }],

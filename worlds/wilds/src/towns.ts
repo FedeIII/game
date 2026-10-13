@@ -80,6 +80,8 @@ export interface Plan {
   readonly id: string;
   /** The name on the sign over the door. */
   readonly sign?: string;
+  /** A symbol on the sign over the door in place of a name (Building.emblem): 'chalice' for a shrine or a chapel. */
+  readonly emblem?: string;
   readonly style: BuildingStyle;
   readonly floor: Ground;
   readonly plan: readonly string[];
@@ -307,6 +309,7 @@ export class Town {
     if (doorX === null) throw new Error(`${where}: a building needs a door`);
     if (plan.plan[plan.plan.length - 2]![doorX - x0] !== '.') throw new Error(`${where}: the tile inside the door must be free`);
     if (plan.locked && plan.people) throw new Error(`${where}: nobody lives in a building that is shut`);
+    if (plan.sign && plan.emblem) throw new Error(`${where}: a sign has a name or an emblem, not both`);
 
     // The people walk the open floor ('.', their own tiles, and things that do not collide, such
     // as rugs); with a doorstep, also the door and the 5 x 2 tiles in front of it.
@@ -341,6 +344,7 @@ export class Town {
       style: plan.style,
       windows,
       ...(plan.sign ? { sign: plan.sign } : {}),
+      ...(plan.emblem ? { emblem: plan.emblem } : {}),
       ...(plan.roofProps ? { roofProps: plan.roofProps.map(({ name, column }) => ({ name, tx: x0 + column })) } : {}),
       ...(plan.locked ? { locked: plan.locked } : {}),
     };

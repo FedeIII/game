@@ -36,6 +36,9 @@ is a plan and not new code.
 - **AC-TWN-001.6:** Each NPC of a town has a conversation or at least two pages, at least two lines
   that it says by itself, and an area of open tiles in one piece, which it never leaves.
 - **AC-TWN-001.7:** The NPC ids are unique in the world, and so are the building ids.
+- **AC-TWN-001.8:** A shrine or a chapel shows a chalice over its door, painted in pale gold on a
+  wooden sign board, and no word (Fede's decision, 2026-10-13): the shrine of Whitegrove and the
+  chapel of Ironhold. The other signs over doors show the name of the building.
 
 ---
 
@@ -215,6 +218,10 @@ places that matter stand out and every place has its name (Fede's rule, 2026-10-
   there (`PLACES` and `TOWNS` in `source.ts`).
 - **During the raid** (REQ-QST-015) its mobs may go into Silverspring, and its people take shelter
   (`NpcDef.shelter`: the panner at the crates by the inn; the others at their homes).
+- **Signs over doors**: `Plan.sign` (a name, translated by `tw()`) or `Plan.emblem` (a symbol, not
+  both; `Building.emblem`). The page draws either on the board `ui/sign` (`Buildings.sign()` in
+  `render/buildings.ts`); an emblem is the frame `ui/emblem/<emblem>` (`art/font.ts`: `chalice`).
+  `apps/game/test/art.test.ts` checks that each emblem of the towns has its frame.
 - **Barks**: `BARK_HEARING` (18 tiles) in `packages/engine-client/src/game.ts`.
 - **Name signs** (2026-10-13): the fixture `namesign` (`packages/engine/src/fixtures.ts`: three tiles,
   a post in the west tile and in the east tile, nothing solid in the middle one), with `Fixture.look`

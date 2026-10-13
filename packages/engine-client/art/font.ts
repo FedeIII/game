@@ -222,6 +222,43 @@ const SIGN = ['.#####.', '#lllll#', '#wwwww#', '#wWwww#', '#wwwWw#', '#wwwww#', 
 const SIGN_COLOURS = { '#': rgb('#140d09'), l: rgb('#5a3f2a'), w: rgb('#3d2a1c'), W: rgb('#33231a') };
 
 /**
+ * The emblems on a sign board in place of a name (Building.emblem, render/buildings.ts), each painted
+ * in pale gold with a 1-pixel shadow to the right and below, as the names are. The chalice is for a
+ * shrine or a chapel (Fede's decision, 2026-10-13): a wide bowl, a stem with a knot, a foot. The light
+ * comes from the top left: a lit rim and west edge, a dark east edge.
+ */
+const EMBLEMS: Readonly<Record<string, readonly string[]>> = {
+  chalice: [
+    'hhhhhhhhH',
+    'HHGGGGGGD',
+    'HGGGGGGGD',
+    '.HGGGGGD.',
+    '..HGGGD..',
+    '...HGD...',
+    '....G....',
+    '...HGD...',
+    '....G....',
+    '..HGGGD..',
+    '.HGGGGGD.',
+  ],
+};
+const EMBLEM_COLOURS: Readonly<Record<string, number>> = { h: rgb('#e6d6a4'), H: rgb('#c9ad6a'), G: rgb('#9c7c40'), D: rgb('#5e4626') };
+/** The shadow of an emblem: the dark edge of the sign board. */
+const EMBLEM_SHADOW = SIGN_COLOURS['#'];
+
+/** An emblem with its shadow: one pixel wider and taller than its grid. */
+function emblem(rows: readonly string[]): Image {
+  const image = new Image(rows[0]!.length + 1, rows.length + 1);
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '.') image.set(x + 1, y + 1, EMBLEM_SHADOW);
+  }));
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '.') image.set(x, y, EMBLEM_COLOURS[ch]!);
+  }));
+  return image;
+}
+
+/**
  * The plate of a name sign of the Iron Sovereignty (render/fixtures.ts): dark iron in a wine-red frame,
  * with a rivet in each corner and a pale top edge (the light comes from the top left). It stretches as
  * a nine-slice, 3 pixels on each side.
@@ -322,6 +359,7 @@ export function fontFrames(): Frame[] {
   frames.push({ name: 'ui/bubble-tail', image: grid(BUBBLE_TAIL, BUBBLE), anchor: { x: 0.5, y: 0 } });
   frames.push({ name: 'ui/more', image: grid(MORE, { '#': 0xd8ccb0ff }) });
   frames.push({ name: 'ui/sign', image: grid(SIGN, SIGN_COLOURS) });
+  for (const [name, rows] of Object.entries(EMBLEMS)) frames.push({ name: `ui/emblem/${name}`, image: emblem(rows) });
   frames.push({ name: 'ui/namesign/iron', image: grid(IRON_SIGN, IRON_SIGN_COLOURS) });
   frames.push({ name: 'ui/crest/iron', image: grid(IRON_CREST, IRON_CREST_COLOURS) });
   frames.push({ name: 'ui/namesign/mithril', image: grid(MITHRIL_SIGN, MITHRIL_SIGN_COLOURS) });

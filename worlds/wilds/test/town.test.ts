@@ -145,7 +145,11 @@ describe('Ironhold', () => {
   it('has a main street with nine buildings round it: five open and four shut for good', () => {
     expect(TOWN_BUILDINGS).toHaveLength(9);
     expect(TOWN_BUILDINGS.filter((b) => b.locked)).toHaveLength(4);
-    expect(TOWN_BUILDINGS.filter((b) => b.sign).map((b) => b.sign)).toEqual(expect.arrayContaining(['The Crooked Lantern', 'Smithy', 'Chapel', 'Apothecary']));
+    expect(TOWN_BUILDINGS.filter((b) => b.sign).map((b) => b.sign)).toEqual(expect.arrayContaining(['The Crooked Lantern', 'Smithy', 'Apothecary']));
+    // The chapel shows a chalice over its door, not a word (Fede's decision, 2026-10-13).
+    const chapel = TOWN_BUILDINGS.find((b) => b.id === 'chapel')!;
+    expect(chapel.emblem).toBe('chalice');
+    expect(chapel.sign).toBeUndefined();
     // The main street: cobblestones from the west edge of the town to the east edge.
     for (let tx = TOWN.x0; tx <= TOWN.x1; tx++) expect(world.ground(tx, TOWN_GATE.ty)).toBe(Ground.Cobble);
     for (const b of TOWN_BUILDINGS) expect(world.buildingAt(b.doorX, b.y1)).toBe(b);
@@ -642,6 +646,11 @@ describe('the shrine of Whitegrove', () => {
     expect(w.buildingAt(tx, ty)).toBe(WHITEGROVE_SHRINE);
     expect(w.solidBox(tx, ty)).toBeNull();
     expect(refugeAt(w, refuge.x, refuge.y)?.id).toBe('whitegrove');
+  });
+
+  it('shows a chalice over its door, not a word', () => {
+    expect(WHITEGROVE_SHRINE.emblem).toBe('chalice');
+    expect(WHITEGROVE_SHRINE.sign).toBeUndefined();
   });
 });
 

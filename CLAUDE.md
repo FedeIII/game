@@ -346,7 +346,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
   one; it is for the names over other players. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
-  (`ui/sign`), the plate of a name sign and the shield over it (`ui/namesign/<look>`,
+  (`ui/sign`), the emblems on a sign board in place of a name (`ui/emblem/<name>`: `chalice`, over
+  a shrine or a chapel; each with its shadow), the plate of a name sign and the shield over it (`ui/namesign/<look>`,
   `ui/crest/<look>`: `iron`, the iron plate in a wine-red frame and the anvil of the Sovereignty;
   `mithril`, a dark blue plate in a silver frame and the silver peaks of the Silver Columns on blue,
   Fede's choice of 2026-10-13) and
@@ -993,7 +994,9 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 
 - **The model** (engine): a rectangle of walls with one door in the south wall (never in a
   corner), a floor (`Ground.Floor`, `FloorStone` or `FloorEarth`, under the walls too; the world
-  source sets it), fixtures, and optional extras: a `sign` (the name over the door), a `style`
+  source sets it), fixtures, and optional extras: a `sign` (the name over the door) or an
+  `emblem` (a symbol on the board in place of the name, `ui/emblem/<emblem>`: the shrine of
+  Whitegrove and the chapel of Ironhold show a chalice, Fede's decision of 2026-10-13), a `style`
   (`{ walls, roof }`, the names of the art sets; default `DEFAULT_STYLE`, stone and slate),
   `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall)
   and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge), and `locked` (a

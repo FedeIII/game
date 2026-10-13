@@ -51,6 +51,11 @@ export interface Building {
   readonly fixtures: readonly Fixture[];
   /** A name on a sign over the door, drawn in the pixel font. */
   readonly sign?: string;
+  /**
+   * A symbol on the sign over the door, in place of a name: the art `ui/emblem/<emblem>` (a chalice
+   * over a shrine or a chapel). A building has a sign or an emblem, not both. The engine does not read it.
+   */
+  readonly emblem?: string;
   /** The look of the walls and the roof. Default: DEFAULT_STYLE. */
   readonly style?: BuildingStyle;
   /** Columns (tx) of the south wall that have a lit window. Never a corner or the door. */
