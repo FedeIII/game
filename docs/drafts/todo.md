@@ -78,6 +78,17 @@
   Ask Fede: is the title text (the pixel font, or a serif) or a painted logo in the art? Do the other
   screens of the menu (sign-in, builder, continue, settings) keep their panel?
 
+- **Sneak sprites and animations for players** (2026-10-13). A player that sneaks gets sprites and
+  animations of its own. Now a sneaking player uses the normal stand and walk frames, only a little
+  darker (`SNEAK_TINT`), with a smaller torch.
+  Code: the skin sheet in `packages/engine-client/art/skins.ts` (`renderSkinSheet()`: the columns of
+  stand, walk, attack, roll and fall; bump `SKIN_VERSION`); the poses in `art/figure.ts` (`figure()`,
+  `FigureAction`) and `art/attacks.ts` (as `rollParts()`, `fallParts()`); the atlas wanderer in
+  `art/characters.ts` (`player/<view>/roll/<i>`, `.../fall/<i>`); the choice of frame and `SNEAK_TINT`
+  in `packages/engine-client/src/render/player-view.ts` (`PlayerState.sneaking`); the other players in
+  `render/others.ts` (`isSneakWalk()`); the rule in `isSneaking()` (`packages/engine`).
+  Ask Fede: does a player that stands still and sneaks get a crouch too, or only the sneak walk?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
