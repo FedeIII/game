@@ -59,6 +59,22 @@ function patrol(seed: number, size = 3): { horde: Horde; members: Mob[] } {
   return { horde, members: horde.spawnPatrol('skirmisher', home.x, home.y, size) };
 }
 
+/**
+ * A patrol of three that startled at a player 6 tiles away, and the first one of it that flees: the
+ * first seed from `from` where one flees (in some patrols all fight).
+ */
+function runaway(from: number): { horde: Horde; members: Mob[]; player: HordePlayer; runner: Mob } {
+  for (let seed = from; ; seed++) {
+    const { horde, members } = patrol(seed);
+    const home = at(0, 0);
+    const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
+    startle(horde, members, player);
+    run(horde, [player], STARTLE_MS + 50);
+    const runner = members.find((m) => m.state === 'flee');
+    if (runner) return { horde, members, player, runner };
+  }
+}
+
 /** Runs until the patrol startles at `player` (it stands 6 tiles away, in sight); returns the time. */
 function startle(horde: Horde, members: Mob[], player: HordePlayer): number {
   let when = -1;
@@ -128,31 +144,28 @@ describe('the goblins of the forest (the tutorial)', () => {
     expect(ended + TICK_MS).toBeLessThanOrEqual(STARTLE_MS + 2 * TICK_MS);
   });
 
-  it('in a group, at least one flees and at least one fights; which ones, the dice decide', () => {
-    const counts = new Set<number>();
-    for (let seed = 1; seed <= 20; seed++) {
-      const { horde, members } = patrol(seed);
-      const home = at(0, 0);
-      const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
-      startle(horde, members, player);
-      run(horde, [player], STARTLE_MS + 100);
-      const fleeing = members.filter((m) => m.state === 'flee').length;
-      expect(fleeing, `seed ${seed}`).toBeGreaterThanOrEqual(1);
-      expect(fleeing, `seed ${seed}`).toBeLessThanOrEqual(2);
-      counts.add(fleeing);
+  it('flee in any number, from none to all; how many and which ones, the dice decide', () => {
+    for (const size of [2, 3]) {
+      const counts = new Map<number, number>();
+      for (let seed = 1; seed <= 60; seed++) {
+        const { horde, members } = patrol(seed, size);
+        const home = at(0, 0);
+        const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
+        startle(horde, members, player);
+        run(horde, [player], STARTLE_MS + 100);
+        const fleeing = members.filter((m) => m.state === 'flee').length;
+        // The others fight: none of them is still startled, walks or hides.
+        for (const m of members) expect(['flee', 'chase', 'windup', 'strike'], `seed ${seed}`).toContain(m.state);
+        counts.set(fleeing, (counts.get(fleeing) ?? 0) + 1);
+      }
+      // Every number happens: all fight, some flee, all flee; each one several times.
+      expect([...counts.keys()].sort(), `a group of ${size}`).toEqual(Array.from({ length: size + 1 }, (_, i) => i));
+      for (const [n, times] of counts) expect(times, `a group of ${size}, ${n} flee`).toBeGreaterThanOrEqual(5);
     }
-    // Both ways happen: one flees, or two flee.
-    expect([...counts].sort()).toEqual([1, 2]);
   });
 
   it('flee slower than a player runs: a player catches one, and it turns and fights', () => {
-    const { horde, members } = patrol(2);
-    const home = at(0, 0);
-    const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
-    startle(horde, members, player);
-    run(horde, [player], STARTLE_MS + 50);
-    const runner = members.find((m) => m.state === 'flee')!;
-    expect(runner).toBeDefined();
+    const { horde, player, runner } = runaway(2);
     // The player runs straight at it (80 px/s), tick by tick.
     let fastest = 0;
     let caught = -1;
@@ -174,13 +187,8 @@ describe('the goblins of the forest (the tutorial)', () => {
   });
 
   it('get away from a player that does not follow, hide for a while, and go back to their loop', () => {
-    const { horde, members } = patrol(2);
-    const home = at(0, 0);
-    const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
-    startle(horde, members, player);
-    run(horde, [player], STARTLE_MS + 50);
-    const runner = members.find((m) => m.state === 'flee')!;
-    // The others fight the player; the runner runs until it is far, then it hides.
+    const { horde, player, runner } = runaway(2);
+    // The runner runs until it is far, then it hides.
     let hidAt = -1;
     run(horde, [player], 10_000, (t) => {
       if (runner.state === 'idle') {
@@ -206,12 +214,7 @@ describe('the goblins of the forest (the tutorial)', () => {
   });
 
   it('fight when a blow reaches one that flees', () => {
-    const { horde, members } = patrol(2);
-    const home = at(0, 0);
-    const player: HordePlayer = { id: 9, state: tough(home.x + 6 * TILE_SIZE, home.y) };
-    startle(horde, members, player);
-    run(horde, [player], STARTLE_MS + 50);
-    const runner = members.find((m) => m.state === 'flee')!;
+    const { horde, player, runner } = runaway(2);
     const aim = Math.atan2(runner.y - player.state.y, runner.x - player.state.x);
     horde.strike({ x: runner.x - Math.cos(aim) * 10, y: runner.y - Math.sin(aim) * 10 }, aim, undefined, player.id, { toHit: 99, damage: dice(0, 0, 1), push: 1, stagger: 1 });
     expect(runner.state).toBe('hurt');

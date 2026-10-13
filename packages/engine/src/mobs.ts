@@ -137,9 +137,9 @@ export interface MobStats {
   /**
    * A patrol (the goblins of a forest, Horde.spawnPatrol): it walks a loop with its group, from
    * `group[0]` to `group[1]` mobs. The first one that sees a player startles the group (state
-   * 'startled', STARTLE_MS); then some flee (state 'flee', at `fleeSpeed`: slower than a player, so a
-   * player catches them) and the others fight. A caught or cornered one turns and fights; one that
-   * gets away hides for HIDE_MS and then goes back to its loop.
+   * 'startled', STARTLE_MS); then a random number of them, from none to all, flee (state 'flee', at
+   * `fleeSpeed`: slower than a player, so a player catches them) and the others fight. A caught or
+   * cornered one turns and fights; one that gets away hides for HIDE_MS and then goes back to its loop.
    */
   readonly patrol?: { readonly group: readonly [number, number]; readonly fleeSpeed: number };
 }
@@ -1493,8 +1493,8 @@ export class Horde {
   /**
    * A patrol saw `player`: the mob and the members of its group near it (that walk or stand, and do
    * not hide) stop short and look at the player (state 'startled'). Each one already knows what it
-   * does next: in a group at least one flees and at least one fights, the others as the dice fall; a
-   * mob alone flees or fights with one chance in two.
+   * does next: the number that flees is random, from none (all fight) to all, each number with the
+   * same chance; the dice also choose which ones.
    */
   private startle(first: Mob, player: HordePlayer): void {
     const group = this.brains.get(first.id)!.group;
@@ -1508,7 +1508,7 @@ export class Horde {
       const j = Math.floor(this.random() * (i + 1));
       [members[i], members[j]] = [members[j]!, members[i]!];
     }
-    const fleeing = members.length === 1 ? (this.random() < 0.5 ? 1 : 0) : 1 + Math.floor(this.random() * (members.length - 1));
+    const fleeing = Math.floor(this.random() * (members.length + 1));
     members.forEach((m, i) => {
       const b = this.brains.get(m.id)!;
       b.flee = i < fleeing;

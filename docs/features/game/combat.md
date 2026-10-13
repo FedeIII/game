@@ -179,9 +179,10 @@ beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial
 - **AC-CMB-009.3:** When one of them sees a character, the group (the members within 8 tiles) stops
   short and looks at the character for 0.6 s, with a "!" over each head (the pixel font, gold, above the
   darkness) and a yelp.
-- **AC-CMB-009.4:** Then some flee and the others fight: in a group, at least one flees and at least
-  one fights, the others as the dice of the horde fall; a goblin alone flees or fights with one chance
-  in two.
+- **AC-CMB-009.4:** Then some flee and the others fight. The dice of the horde choose how many flee,
+  from none (all fight) to all, each number with the same chance (a group of 3: none, 1, 2 or 3, one
+  chance in four each), and which ones. A goblin alone flees or fights with one chance in two (Fede,
+  2026-10-13).
 - **AC-CMB-009.5:** A goblin flees at 64 px/s, slower than a character (80 px/s). A character that
   runs after it catches it: within its reach and 8 pixels, or cornered (stuck), it turns and fights. A
   blow that hits it makes it fight too.

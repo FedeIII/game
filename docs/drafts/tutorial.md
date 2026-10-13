@@ -62,7 +62,8 @@ Bronzal is Bronzehold.
 
 - **Patrols.** Groups of 2 or 3 walk a loop of waypoints through the forest, not a random wander.
 - **Startled.** When one sees the player, the group stops, and a "!" shows over their heads for about
-  0.6 s. Then each decides: about half flee, the others attack.
+  0.6 s. Then the dice choose how many flee: none, some or all, each number with the same chance
+  (Fede, 2026-10-13); the others attack.
 - **Flee.** A goblin that flees runs away from the player at about 0.8 of the player's speed, so the
   player catches it. Caught (the player in reach), it turns and fights. Not caught, it hides and goes
   back to its patrol after about 10 s.

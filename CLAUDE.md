@@ -826,9 +826,10 @@ them in a world that the page runs. The atlas is 2048 px wide since then.
 small shield (7 HP, AC 15, +4, 1d6+2), in melee only, with a slow wind-up in which it stands. It
 **patrols** (`MobStats.patrol`, `Horde.spawnPatrol()`): a group of 2 or 3 walks a loop round the place
 where it came. The first one that sees a player **startles** the group (state `startled`,
-`STARTLE_MS` 0.6 s, a gold "!" over each head in the text layer, a yelp); then at least one **flees**
-(state `flee`, 64 px/s: slower than a player, so a player catches it; caught, cornered or hit, it turns
-and fights; away, it hides for `HIDE_MS` 10 s and goes back to its loop) and at least one fights. A
+`STARTLE_MS` 0.6 s, a gold "!" over each head in the text layer, a yelp); then a random number of them,
+from none to all (each number with the same chance), **flees** (state `flee`, 64 px/s: slower than a
+player, so a player catches it; caught, cornered or hit, it turns and fights; away, it hides for
+`HIDE_MS` 10 s and goes back to its loop), and the others fight. A
 world chooses where they live: `MobRules.populationAt(tx, ty)` (the population round a player on that
 tile, in place of `population`; a short population of patrols comes as one group) and
 `MobRules.roam(tx, ty, kind)`. `?mob=skirmisher,skirmisher,skirmisher` puts one group 8 tiles east.
