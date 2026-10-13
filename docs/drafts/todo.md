@@ -15,6 +15,18 @@
   `packages/engine-client/src/game.ts`; `docs/features/game/day-and-night.md`.
   Ask Fede: which of these, and how?
 
+- **Levels: players level up; mobs and NPCs have levels** (2026-10-13). A character can rise in
+  level (now every character is level 1, Fede's decision of 2026-10-13), and the mobs and the NPCs
+  have levels too. Code: `LEVEL`, `PROFICIENCY_BONUS` and `levelHp()` in
+  `packages/engine/src/traits.ts` (fixed constants now); `MobStats.xp` in
+  `packages/engine/src/mobs.ts` (every mob kind has the XP of its SRD stat block, but nobody gets it);
+  `sizeEncounter()` and the XP thresholds of level 1 in `packages/engine/src/encounters.ts`; the hit
+  points and AC of NPCs that fight in `packages/engine/src/guards.ts` (`hp`, `ac`) and
+  `packages/engine/src/companions.ts` (`hp`, `COMPANION_AC`); the sneak attack dice in `traits.ts`;
+  the store keeps no level or XP (`packages/engine-server/src/store.ts`); `docs/drafts/level-3.md`.
+  Ask Fede: how does a character get XP (kills, quests, both)? How does a level of a mob or an NPC
+  show and what does it change (the 5e challenge rating, or a level that scales its numbers)?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
