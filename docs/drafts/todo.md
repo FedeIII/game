@@ -6,19 +6,6 @@
 
 ## Open
 
-- **Sections in the journal: quests, hints, regions** (2026-10-14). The journal must have three
-  sections: the quests, the hints and the regions. Now it shows only the quests, in two parts: the open
-  quests and the finished quests.
-  Code: `JournalPanel` and `journalEntries()` in `packages/engine-client/src/ui/journal-panel.ts`; the
-  texts in `STRINGS.journal` (`ui/strings.ts`, `ui/strings-es.ts`); the styles `.journal-*` in
-  `packages/engine-client/src/style.css`. Possible sources: for the hints, the tips of the tutorial
-  (`ui/tips.ts`, `TipStore`) and the lore (`Interaction.lore`); for the regions, the lands
-  (`WorldSource.lands()`, `LandCrossings` in `render/place-titles.ts`), the places with a title
-  (`WorldSource.placeTitles()`) and the landmarks (`WorldSource.landmarks()`).
-  Ask Fede: what goes into "hints" (the tips already seen, clues from NPCs and books, or other)? What
-  goes into "regions" (the lands and places that the character found, with a line about each)? Does the
-  server keep them, as it keeps the quest book?
-
 - **Two changes to the brace** (2026-10-14). Two items of Fede for the brace:
   1. A held step back keeps the brace. While the player holds the step back (the "back" button) in a
      brace, the player stays in the brace stance. When the player releases it, the brace ends if more
@@ -228,3 +215,8 @@
   (AC, HP, attack, damage), then a card for each ability with its score and its rows (Fede's choice:
   by ability); a value is bright, dim or pale red as it compares with a score of 10, and the cards go
   in two columns where they fit. Done 2026-10-14, commit `9663416`.
+
+- **Sections in the journal: quests, hints, regions** (2026-10-14). The journal has three tabs:
+  "Quests", "Tips" (the tips that the player has seen; Fede chose "Tips" in place of "Hints") and
+  "Regions" (the lands and places that the character has seen, each with a line of lore). Done
+  2026-10-14, commit `32ec9e3`.
