@@ -6,27 +6,6 @@
 
 ## Open
 
-- **Two changes to the brace** (2026-10-14). Two items of Fede for the brace:
-  1. A held step back keeps the brace. While the player holds the step back (the "back" button) in a
-     brace, the player stays in the brace stance. When the player releases it, the brace ends if more
-     than the normal brace time (`BRACE_TICKS`, 0.3 s) passed since the brace started; else the brace
-     goes on until that time passed since its start. Now a brace always lasts `BRACE_TICKS`, and a step
-     back that is still held after it is a walk (AC-CMB-013.2).
-  2. No sure evade in a brace. The brace must not evade a blow by itself (or give any other sure
-     effect). In its place, a brace makes a miss of the mob more probable, in proportion to the DEX of
-     the player. Now a blow or an arrow that reaches a braced player gets no attack roll: the player
-     evades it where it stands (`evadeBlow()`, `EVADE_TICKS`), and no mob can hit it in the evade.
-  Code: `stepPlayer()` in `packages/engine/src/player.ts` (the brace after `movesBack(move,
-  player.aim)`; `BRACE_TICKS`, `BRACE_BACK`, `PlayerState.brace` and `evade`, `evadeBlow()`,
-  `canBeHit()`); the calls of `evadeBlow()` before the attack roll in `Horde.attack()`
-  (`packages/engine/src/mobs.ts`) and in the swing of a guard (`packages/engine/src/guards.ts`);
-  `attackRoll()` in `packages/engine/src/dice.ts`; the AC in `armourClass()` (`gear.ts`); the tests in
-  `packages/engine/test/brace.test.ts`; REQ-CMB-013 in `docs/features/game/combat.md`;
-  `docs/drafts/combat-melee.md`.
-  Ask Fede: how much more does a mob miss: for example the DEX modifier added to the AC in a brace, or
-  another scale? Does a blow that reaches the brace (a hit or a miss) end it? Do the evade pose, the
-  word "evade" and its sound go, or do they show on a miss in a brace?
-
 - **An attack ends the sneak** (2026-10-14). When a player attacks from the sneak stance, the player
   must leave the sneak. Now the crouch stops only for the attack: the sneak walk of C (`sneakWalk`)
   stays on, so after the attack the player crouches and walks at the sneak speed again.
@@ -234,3 +213,8 @@
   "Quests", "Tips" (the tips that the player has seen; Fede chose "Tips" in place of "Hints") and
   "Regions" (the lands and places that the character has seen, each with a line of lore). Done
   2026-10-14, commit `32ec9e3`.
+
+- **Two changes to the brace** (2026-10-14). A brace now goes on while the player holds the step back
+  (at least 0.3 s), and it gives no sure evade: a mob's attack in it rolls against AC + 2 + the DEX
+  modifier, at least + 1 (Fede's choice); a miss keeps the brace and shows the evade as a look only.
+  Done 2026-10-14, commit `ee9e054`.
