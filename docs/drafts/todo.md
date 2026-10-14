@@ -107,6 +107,27 @@
   "Dig here" at the cache and "Gather the herbs" (seek, WIS), the herbs of Medicine (WIS 13), the
   lift of the cart (STR 13), a lore page (INT 13))? Which colour for the tag?
 
+- **Rolls by encumbrance and Dexterity** (2026-10-14). The roll of a dodge must be different with the
+  encumbrance and the Dexterity of the character: the ticks in which no mob can hit it, the stamina
+  that it costs, how often it can roll, and other parameters. First make a list of all the parameters
+  that can change (a brainstorm), and show it to Fede before the build. Now every roll goes 32 px
+  in 15 ticks (`DODGE_DISTANCE`, `DODGE_TICKS`), no mob can hit it in all of those ticks, and it
+  costs 35 stamina (`DODGE_STAMINA`); only the time between rolls changes with DEX
+  (`dodgeCooldown`: `DODGE_COOLDOWN_TICKS` 96 - `DODGE_PER_MOD` 12 x mod). The game has no
+  encumbrance now: the items have no weight, and the pack has slots only. The armour has a weight
+  class (light, medium, heavy): heavy armour without its STR walks at 3/4 (`tooHeavy()`,
+  `HEAVY_SPEED`), and noisy armour lets mobs see a sneaking character from farther (`isNoisy()`).
+  Code: `stepPlayer()` (the dodge: `move.dodge`), `roll()`, `canBeHit()`, `canDodge()`, the constants
+  `DODGE_TICKS`, `DODGE_DISTANCE`, `DODGE_COOLDOWN_TICKS`,
+  `DODGE_STAMINA`, `STAMINA_REFILL`, `STAMINA_REST_TICKS` in `packages/engine/src/player.ts`;
+  `StepTraits`, `traitsOf()`, `dodgeCooldown`, `DODGE_PER_MOD` in `packages/engine/src/traits.ts`;
+  `tooHeavy()`, `isNoisy()`, `HEAVY_SPEED`, `NOISY_SIGHT`, the armours in
+  `packages/engine/src/gear.ts`; the roll frames (`rollPose()`, `rollParts()`) in
+  `packages/engine-client/art/attacks.ts`; the roll in `render/player-view.ts`; REQ-CMB of the dodge
+  in `docs/features/game/combat.md`; the traits list (`ui/traits-list.ts`).
+  Ask Fede: what is the encumbrance: the weight class of the armour, the items in the pack, a new
+  weight for each item, or a mix? Does a heavy roll also look different (new frames)?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
