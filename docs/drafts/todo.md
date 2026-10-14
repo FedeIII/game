@@ -6,23 +6,6 @@
 
 ## Open
 
-- **The ability tag before the line of a gated action** (2026-10-14). When an action uses an ability
-  (for example the player forces a barred door, or picks the lock of a chest), the line that the
-  player says starts with the tag of the gate: "[STR 13]", "[DEX 13]" or the equivalent. The tag has
-  a slightly smaller font and a slightly different colour. Now the line has no tag: "The boards
-  break.", "The lock clicks open. I find ...". A tag shows now only in a line of a clue, for a
-  character 1 or 2 under the gate (`shortOf()`, `gateView()` 'hint').
-  Code: `say()` (`speech.show([line], playerHead, now)`), the door (`result === 'forced'`,
-  `STRINGS.forced`) and `chestLine()` (`fixture?.lock`, `STRINGS.picked`) in
-  `packages/engine-client/src/game.ts`; `STRINGS.forced`, `picked` in `ui/strings.ts` and
-  `ui/strings-es.ts`; `gateTag()` in `ui/conversation.ts`; `FORCE_GATE`, `PICK_GATE` in the engine;
-  `SpeechBubble` and `wrapBubble()` in `render/speech-bubble.ts` and `render/text-layout.ts` (one font
-  and one colour in a bubble now); `PixelFont` (`'small'`) in `render/pixel-text.ts`; the small font
-  `SMALL_GLYPHS` in `packages/engine-client/art/font.ts` (it has no "[" and "]" now).
-  Ask Fede: which other actions get a tag (for example the wade through shallow water (STR 13),
-  "Dig here" at the cache and "Gather the herbs" (seek, WIS), the herbs of Medicine (WIS 13), the
-  lift of the cart (STR 13), a lore page (INT 13))? Which colour for the tag?
-
 - **Rolls by encumbrance and Dexterity** (2026-10-14). The roll of a dodge must be different with the
   encumbrance and the Dexterity of the character: the ticks in which no mob can hit it, the stamina
   that it costs, how often it can roll, and other parameters. First make a list of all the parameters
@@ -263,3 +246,9 @@
   (`MoveInput.face`, `facingToward()`; protocol 45, so the others see it); a player that walks faces its
   walk, and a roll in place goes towards the pointer (Fede's answers; REQ-CMB-014). Done 2026-10-14,
   commit `ac780a1`.
+
+- **The ability tag before the line of a gated action** (2026-10-14). A line that a gate lets the
+  player say or hear now starts with the tag of the gate, "[STR 13] The boards break.", in the small
+  font and in old gold: the forced door, a new wade line, the picked lock, lore pages, chewed herbs,
+  gated scene lines, greetings and clues; the conversation panel shows its tags in old gold too.
+  Done 2026-10-15, commit `be7d93a`.
