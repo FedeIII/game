@@ -90,6 +90,23 @@
   mouse), does the player face the way that it walks, as now? Do the other players see the facing
   of the mouse too?
 
+- **The ability tag before the line of a gated action** (2026-10-14). When an action uses an ability
+  (for example the player forces a barred door, or picks the lock of a chest), the line that the
+  player says starts with the tag of the gate: "[STR 13]", "[DEX 13]" or the equivalent. The tag has
+  a slightly smaller font and a slightly different colour. Now the line has no tag: "The boards
+  break.", "The lock clicks open. I find ...". A tag shows now only in a line of a clue, for a
+  character 1 or 2 under the gate (`shortOf()`, `gateView()` 'hint').
+  Code: `say()` (`speech.show([line], playerHead, now)`), the door (`result === 'forced'`,
+  `STRINGS.forced`) and `chestLine()` (`fixture?.lock`, `STRINGS.picked`) in
+  `packages/engine-client/src/game.ts`; `STRINGS.forced`, `picked` in `ui/strings.ts` and
+  `ui/strings-es.ts`; `gateTag()` in `ui/conversation.ts`; `FORCE_GATE`, `PICK_GATE` in the engine;
+  `SpeechBubble` and `wrapBubble()` in `render/speech-bubble.ts` and `render/text-layout.ts` (one font
+  and one colour in a bubble now); `PixelFont` (`'small'`) in `render/pixel-text.ts`; the small font
+  `SMALL_GLYPHS` in `packages/engine-client/art/font.ts` (it has no "[" and "]" now).
+  Ask Fede: which other actions get a tag (for example the wade through shallow water (STR 13),
+  "Dig here" at the cache and "Gather the herbs" (seek, WIS), the herbs of Medicine (WIS 13), the
+  lift of the cart (STR 13), a lore page (INT 13))? Which colour for the tag?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
