@@ -39,7 +39,7 @@ numbers of the levels 2 to 5 are).
   and STR 16 is 1d8+3. A cantrip at level 1: fire bolt and eldritch blast 1d10, produce flame 1d8. A
   monk's martial arts: 1d4 + DEX. An unarmed strike: 1 and the modifier of the attack ability.
 - **AC-CMB-001.4:** A rogue's sneak attack adds 1d6 (level 1) on a mob that does not hunt the rogue.
-- **AC-CMB-001.5:** The builder, the "You" section and the pack panel show the AC, the attack bonus
+- **AC-CMB-001.5:** The builder, the character panel and the pack panel show the AC, the attack bonus
   ("+5 to hit") and the dice of a blow ("1d8+3").
 
 ---

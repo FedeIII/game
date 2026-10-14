@@ -1,5 +1,4 @@
 import { CRT_DEFAULTS, type CrtFilter, type CrtSettings } from '../render/crt.ts';
-import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
 
 interface Slider {
@@ -85,7 +84,7 @@ export function crtQuery(values: CrtSettings): string {
 /**
  * The display settings: an on/off switch for the CRT effect, a slider for each setting, the ?crt=
  * value with "Copy link", and "Reset". Each change goes to `apply` and is saved in this browser. The
- * settings panel of the game shows it (to an admin), and so does the settings screen of the menu.
+ * settings of the game menu show it (to an admin), and so does the settings screen of the menu.
  */
 export class CrtControls {
   readonly element: HTMLElement;
@@ -188,83 +187,11 @@ export class CrtControls {
   }
 }
 
-const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`;
-
 /**
- * The settings: a button in the top-right corner opens a panel. It has the sections that the game
- * adds on top (addSection: the visitor's look and name), and for an admin the display settings
- * (CrtControls). Changes apply at once and are saved in this browser. The panel is outside the game
- * surface, so a touch on it never moves the player.
+ * The filters take the state: the switch for all of them, the values for the world's filter only
+ * (`linked`: the text filter, which has fixed settings).
  */
-export class SettingsPanel {
-  private readonly crt: CrtFilter;
-  /** Filters that follow the on/off switch only (the text filter has fixed settings). */
-  private readonly linked: readonly CrtFilter[];
-  private readonly panel: HTMLElement;
-  private readonly button: HTMLButtonElement;
-
-  /** `controls`: the display settings show (an admin). Without them, the filters keep `state`. */
-  constructor(crt: CrtFilter, state: CrtState, linked: readonly CrtFilter[] = [], controls = true) {
-    this.crt = crt;
-    this.linked = linked;
-
-    this.button = document.createElement('button');
-    this.button.id = 'settings-button';
-    this.button.type = 'button';
-    this.button.setAttribute('aria-label', STRINGS.settings.button);
-    this.button.setAttribute('aria-expanded', 'false');
-    this.button.setAttribute('aria-controls', 'settings');
-    this.button.innerHTML = ICON;
-
-    this.panel = document.createElement('section');
-    this.panel.id = 'settings';
-    this.panel.hidden = true;
-    this.panel.setAttribute('aria-label', STRINGS.settings.button);
-
-    // The display settings: in the panel only for an admin.
-    if (controls) this.panel.append(new CrtControls(state, (changed) => this.applyCrt(changed)).element);
-
-    this.button.addEventListener('click', () => this.show(this.panel.hidden !== false));
-    window.addEventListener('keydown', (event) => {
-      if (event.code === 'Escape') this.show(false);
-    });
-    onOtherPanelOpen('settings', () => this.show(false));
-    // Give the focus back after a click or a drag on a control, so WASD moves the player again
-    // at once: keyboard.ts ignores keys typed into a form field. The focus moves at the click
-    // (for a checkbox in a label, after pointerup), so blur after the click is done.
-    this.panel.addEventListener('click', () => {
-      setTimeout(() => {
-        const focused = document.activeElement;
-        // Not a field to type in (a text, a number): the visitor is about to type in it.
-        const typing = focused instanceof HTMLInputElement && (focused.type === 'text' || focused.type === 'number');
-        if (focused instanceof HTMLElement && this.panel.contains(focused) && !typing) focused.blur();
-      }, 0);
-    });
-
-    document.body.append(this.button, this.panel);
-    this.applyCrt(state);
-  }
-
-  /** Puts a section at the top of the panel, over the display settings. */
-  addSection(section: HTMLElement): void {
-    this.panel.prepend(section);
-  }
-
-  /** Puts a section at the end of the panel, under the display settings (the experience, for an admin). */
-  appendSection(section: HTMLElement): void {
-    this.panel.append(section);
-  }
-
-  /** The filters take the settings: the switch for all of them, the values for the world's. */
-  private applyCrt(state: CrtState): void {
-    for (const filter of [this.crt, ...this.linked]) filter.enabled = state.enabled;
-    this.crt.set(state.values);
-  }
-
-  private show(open: boolean): void {
-    this.panel.hidden = !open;
-    this.button.setAttribute('aria-expanded', String(open));
-    if (open) announceOpenPanel('settings');
-  }
+export function applyCrt(state: CrtState, crt: CrtFilter, linked: readonly CrtFilter[] = []): void {
+  for (const filter of [crt, ...linked]) filter.enabled = state.enabled;
+  crt.set(state.values);
 }

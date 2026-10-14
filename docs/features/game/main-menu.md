@@ -69,13 +69,13 @@ that I know how to play from the first step.
   only: no key changes.
 - **AC-MNU-003.3:** "Language" gives "English · Español" (`ui/language-choice.ts`); a choice reloads the
   page in that language.
-- **AC-MNU-003.4:** Only for an admin, "Display" gives the CRT settings of the game's settings panel
-  (`CrtControls`: the on/off switch, the sliders, the `?crt=` link, "Copy link", "Reset"). They are
+- **AC-MNU-003.4:** Only for an admin, "Display" gives the CRT settings, as the settings of the game
+  menu (`CrtControls`: the on/off switch, the sliders, the `?crt=` link, "Copy link", "Reset"). They are
   saved in this browser (`game.crt.v2`), and the game takes them when it starts.
 - **AC-MNU-003.5:** "Tips" (between "Sound" and "Display") gives "Show tips" and "Show all tips
   again" (`tipsControls()`; see [`tips.md`](tips.md), REQ-TIP-003).
 - **AC-MNU-003.6:** "Sound" (between "Language" and "Tips"; Spanish: "Sonido") gives the controls of
-  the "Sound" section of the game's settings panel: "Music", "Effects", "Mute all" and the credits of
+  the "Sound" section of the settings of the game menu: "Music", "Effects", "Mute all" and the credits of
   the recordings (`soundSection()`; see [`sound.md`](sound.md), REQ-SND-002).
 
 ---
@@ -148,10 +148,11 @@ out of the way at the bottom, so that the first screen looks like the title scre
   title.
 - **The prologue**: `MenuOptions.prologue` (`game.ts` gives it when the world has a prologue);
   `prologueSeen()` in `ui/prologue.ts`, which marks it when a prologue ends.
-- **The settings**: `settingsScreen` and `controlList()` in `menu/menu.ts`; the texts in
-  `STRINGS.menu` (`settings`, `controls`, `touch`, `or`, `display`, `controlList`); `CrtControls` in
-  `ui/settings-panel.ts` and `soundSection(false)` in `ui/sound-section.ts` (without its own heading),
-  which the game's settings panel uses too.
+- **The settings**: `settingsScreen` in `menu/menu.ts` and `controlList()` in `ui/control-list.ts`;
+  the texts in `STRINGS.menu` (`settings`, `controls`, `touch`, `or`, `display`, `controlList`);
+  `CrtControls` in `ui/crt-settings.ts` and `soundSection(false)` in `ui/sound-section.ts` (without
+  its own heading). The settings of the game menu use all of them too
+  ([`game-menu.md`](game-menu.md), REQ-GMN-005).
 - **The sound**: `MenuSounds` in `menu/sounds.ts` (`music()`: `KANDRAX_OPENING`; `screen()`: the rustle;
   the listeners of the clicks, the ticks and the keys on the menu's root); `runMenu()` calls `music()`
   after the sign-in check (not after a reload for a new build, which starts the game at once), and

@@ -1,6 +1,7 @@
 /**
- * The top-right panels (display settings, worlds) share one place on the screen: when one opens,
- * the others close. Each panel announces itself and listens for the others.
+ * The top-right panels (the character, the worlds, the pack, the map, the journal) share one place
+ * on the screen: when one opens, the others close. Each panel announces itself and listens for the
+ * others.
  */
 const EVENT = 'game:panel-open';
 

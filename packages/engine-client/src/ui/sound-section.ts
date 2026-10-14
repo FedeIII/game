@@ -3,7 +3,8 @@ import { SOUND_CREDITS } from '../audio/samples.ts';
 import { STRINGS } from './strings.ts';
 
 /**
- * The "Sound" section of the settings panel (2026-10-12) and of the menu's settings (2026-10-13): a
+ * The "Sound" section of the settings of the game menu (2026-10-12; in a settings panel until
+ * 2026-10-14) and of the menu's settings (2026-10-13): a
  * slider for the music, one for the effects (and the sounds of the places), and a box that mutes
  * everything. The engine keeps the values (audio/settings.ts, localStorage), and every control that
  * shows them follows a change. Without `heading`, the page gives the section its own heading.

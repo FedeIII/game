@@ -155,7 +155,7 @@ import { Discoveries, MusicDirector, PLACE_MOODS, type Mood } from './audio/dire
 import { GameMusic } from './audio/game-music.ts';
 import { GameSounds } from './audio/game-sounds.ts';
 import { soundSection } from './ui/sound-section.ts';
-import { GameMenu, escapeAction } from './ui/game-menu.ts';
+import { GameMenu, escapeAction, type SettingsSection } from './ui/game-menu.ts';
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
@@ -195,7 +195,9 @@ import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
 import { xpSection } from './ui/xp-section.ts';
-import { SettingsPanel, crtStateFrom, loadSavedCrt } from './ui/settings-panel.ts';
+import { CharacterPanel } from './ui/character-panel.ts';
+import { controlList } from './ui/control-list.ts';
+import { CrtControls, applyCrt, crtStateFrom, loadSavedCrt, type CrtState } from './ui/crt-settings.ts';
 import { STRINGS } from './ui/strings.ts';
 import { WorldMenu } from './ui/world-menu.ts';
 
@@ -346,9 +348,9 @@ async function run(options: GameOptions): Promise<void> {
   // the chosen look is ready when the game starts.
   const skins = new SkinStore();
   let character: Character | null = null;
-  // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings; a guest never.
+  // An admin (its email is in the server's ADMIN_EMAILS) sees the display settings (in the game menu); a guest never.
   let admin = false;
-  // The divisor of the XP of the kills of the character (experience.ts): an admin chooses its own in the settings.
+  // The divisor of the XP of the kills of the character (experience.ts): an admin chooses its own in the settings of the game menu.
   let xpDivisor = KILL_XP_DIVISOR;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
   let fresh = false;
@@ -557,7 +559,7 @@ async function run(options: GameOptions): Promise<void> {
   const fixtures = new Fixtures(world, art, entityLayer, signLayer, smallFont);
   // The visitor's own skin goes first; until it is ready (a moment, for a guest), the player is a
   // darker wanderer.
-  // The standing frame of the skin's sheet: the "You" section and the pack panel show it.
+  // The standing frame of the skin's sheet: the character panel and the pack panel show it.
   let lookSheet: HTMLCanvasElement | null = null;
   let showPackLook: ((sheet: HTMLCanvasElement | null) => void) | null = null;
   /** The look of the player now: its skin seed, and what shows of its gear (the weapon, the shield). */
@@ -595,25 +597,15 @@ async function run(options: GameOptions): Promise<void> {
   entityLayer.addChild(playerView.root);
   ghostLayer.addChild(playerView.ghost);
   glowLayer.addChild(playerView.overlay);
-  // The settings panel's "You" section: the character, and the way back to the menu.
+  // The character panel (top right): the character, its scores and what they give.
   const look = appearanceOf(skin);
-  const you = new YouSection(
-    {
-      name: name || skinName(skin),
-      kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}`,
-      ...(character ? { scores: finalScores(character.base, character.race, character.bonus) } : {}),
-      traits,
-      account: character !== null,
-    },
-    {
-      // The menu comes at the start of the page.
-      mainMenu: () => {
-        savePlace(true);
-        location.reload();
-      },
-      signOut: () => void savePlace().finally(() => api.signOut().finally(() => location.reload())),
-    },
-  );
+  const you = new YouSection({
+    name: name || skinName(skin),
+    kind: `${STRINGS.races[look.race].name} ${STRINGS.classes[look.class].name.toLowerCase()}`,
+    ...(character ? { scores: finalScores(character.base, character.race, character.bonus) } : {}),
+    traits,
+    account: character !== null,
+  });
   wearLook(ownLook());
   const others = net ? new OtherPlayers(art, skins, entityLayer, ghostLayer, tagLayer, glowLayer, smallFont) : null;
   // Walking NPCs: the server runs them in a shared world; this crowd runs them while the client
@@ -850,7 +842,7 @@ async function run(options: GameOptions): Promise<void> {
     return facingAngle(player.facing);
   };
 
-  // How many other visitors are here: an admin only, in the "You" section of the settings.
+  // How many other visitors are here: an admin only, in the character panel.
   if (net && admin) you.addLine(new PresenceLabel(net).element);
   you.setLevel(levelProgress(localXp));
   // ?nolight shows the world without the darkness, to look at the art.
@@ -935,36 +927,21 @@ async function run(options: GameOptions): Promise<void> {
   const introClock = (now: number) => (Number.isFinite(frozenAt) && arrivedAt !== null ? arrivedAt + frozenAt : now);
   /** Whether the arrival is under way: the title, the wait for the welcome, or the welcome. */
   const arriving = (now: number) => intro !== null && (introTitle!.phase(introClock(now)) !== 'done' || (welcome !== null && (!welcomed || welcome.active)));
-  // CRT diffusion. The world filter covers the whole screen; the display settings panel turns
-  // it on and off and changes it (an admin only: the others have the defaults, and nothing that
-  // this browser saved), and ?nocrt and ?crt=spread,mix,glow,scanline set it from the URL. The
-  // text filter has its own fixed settings and covers only the text (its bounds plus padding), so
-  // it costs little; the panel's switch turns it on and off too.
+  // CRT diffusion. The world filter covers the whole screen; the display settings (in the settings
+  // of the game menu) turn it on and off and change it (an admin only: the others have the
+  // defaults, and nothing that this browser saved), and ?nocrt and ?crt=spread,mix,glow,scanline
+  // set it from the URL. The text filter has its own fixed settings and covers only the text (its
+  // bounds plus padding), so it costs little; the switch turns it on and off too.
   const crt = new CrtFilter();
   worldLayer.filters = [crt];
   worldLayer.filterArea = app.screen;
   const crtText = new CrtFilter(CRT_TEXT, 8);
   textLayer.filters = [crtText];
-  const settings = new SettingsPanel(crt, crtStateFrom(params, admin ? loadSavedCrt() : null), [crtText], admin);
-  // The language (for every visitor): a new choice reloads the page, and the menu starts the same
-  // character again in the new language.
-  const language = document.createElement('div');
-  language.className = 'settings-language';
-  const languageHeading = document.createElement('p');
-  languageHeading.className = 'settings-heading';
-  languageHeading.textContent = STRINGS.settings.language;
-  language.append(
-    languageHeading,
-    languageChoice('settings-lang lang-choice', () => {
-      if (character) markResume(character.id);
-      void savePlace(true).finally(() => location.reload());
-    }),
-  );
-  settings.addSection(soundSection());
-  settings.addSection(language);
-  settings.addSection(you.element);
-  // An admin chooses the divisor of the XP of the kills of its own characters (ui/xp-section.ts): to test the levels.
-  if (admin && character) settings.appendSection(xpSection(xpDivisor, (divisor) => api.setXpDivisor(divisor), (divisor) => (xpDivisor = divisor)));
+  const crtState = crtStateFrom(params, admin ? loadSavedCrt() : null);
+  const setCrt = (state: CrtState) => applyCrt(state, crt, [crtText]);
+  setCrt(crtState);
+  // The character button and panel, top right (Fede, 2026-10-14). The settings are in the game menu.
+  new CharacterPanel(you.element);
   // The worlds menu only when there is another world to go to.
   if (options.worlds.length > 1) new WorldMenu(options.worlds, definition);
 
@@ -1003,14 +980,10 @@ async function run(options: GameOptions): Promise<void> {
     if (net.status !== 'online') buildWatch.soon();
   });
   // The tips of the tutorial (ui/tips.ts): the first time of each thing, once in this browser. Their
-  // switch is in the settings, under the language.
+  // switch is in the settings of the game menu.
   const tipStore = new TipStore();
   const tips = new TipQueue(tipStore);
   const tipView = new TipView();
-  const tipsHeading = document.createElement('p');
-  tipsHeading.className = 'settings-heading';
-  tipsHeading.textContent = STRINGS.tips.heading;
-  language.append(tipsHeading, tipsControls(tipStore));
   tips.request('walk');
 
   // ---------------------------------------------------------------- actions
@@ -1600,11 +1573,43 @@ async function run(options: GameOptions): Promise<void> {
     markMenuScreen(screen);
     void savePlace(true).finally(() => location.reload());
   };
+  // The settings of the game menu (Fede, 2026-10-14): as the settings of the menu, and for an admin
+  // the display and the experience. A new language reloads the page, and the menu starts the same
+  // character again in it.
+  const settingsSections: SettingsSection[] = [
+    { heading: STRINGS.menu.controls, body: controlList() },
+    {
+      heading: STRINGS.settings.language,
+      body: languageChoice('lang-choice menu-settings-lang', () => {
+        if (character) markResume(character.id);
+        void savePlace(true).finally(() => location.reload());
+      }),
+    },
+    { heading: STRINGS.sound.heading, body: soundSection(false) },
+    { heading: STRINGS.tips.heading, body: tipsControls(tipStore) },
+  ];
+  if (admin) settingsSections.push({ heading: STRINGS.menu.display, body: new CrtControls(crtState, setCrt).element });
+  // An admin chooses the divisor of the XP of the kills of its own characters (ui/xp-section.ts): to test the levels.
+  if (admin && character) {
+    settingsSections.push({
+      heading: STRINGS.experience.heading,
+      body: xpSection(xpDivisor, (divisor) => api.setXpDivisor(divisor), (divisor) => (xpDivisor = divisor)),
+    });
+  }
   const gameMenu = new GameMenu(
     options.name ?? tw(definition.name),
-    character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : null,
-    // "Prologue" plays it again, over the game (the character stands still meanwhile).
-    definition.prologue ? () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) : null,
+    {
+      ...(character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : {}),
+      // "Prologue" plays it again, over the game (the character stands still meanwhile).
+      ...(definition.prologue ? { prologue: () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) } : {}),
+      // The menu comes at the start of the page.
+      mainMenu: () => {
+        savePlace(true);
+        location.reload();
+      },
+      ...(character ? { signOut: () => void savePlace().finally(() => api.signOut().finally(() => location.reload())) } : {}),
+    },
+    settingsSections,
     // A rustle when it opens and closes, and the music steps back while it is open (Fede, 2026-10-13).
     (what) => {
       if (what === 'open' || what === 'close') {
@@ -1617,7 +1622,7 @@ async function run(options: GameOptions): Promise<void> {
   joystick.onTouchMode(() => gameMenu.showButton());
   /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
   const otherUiOpen = (): boolean =>
-    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'settings', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
+    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'character', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
   // Before the panels hear the key (the capture phase): while the menu is open, the game's keys stay out.
   window.addEventListener(
     'keydown',
@@ -1625,11 +1630,12 @@ async function run(options: GameOptions): Promise<void> {
       // The prologue has the keys while it plays.
       if (prologuePlaying()) return;
       if (event.code === 'Escape' && !event.repeat) {
-        const act = escapeAction({ menuOpen: gameMenu.shown, otherOpen: otherUiOpen(), inField: isFormField(event.target) });
+        const act = escapeAction({ menuOpen: gameMenu.shown, settingsOpen: gameMenu.settingsShown, otherOpen: otherUiOpen(), inField: isFormField(event.target) });
         if (act === 'none') return;
         event.preventDefault();
         event.stopImmediatePropagation();
         if (act === 'open') gameMenu.open();
+        else if (act === 'back') gameMenu.showSettings(false);
         else gameMenu.close();
         return;
       }
@@ -1863,7 +1869,7 @@ async function run(options: GameOptions): Promise<void> {
       tips.request('defeat');
     }
     // No tip over the prologue, a dream, the game menu, a panel, or the notice of a new build.
-    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'settings', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
+    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'character', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
     tipView.show(tips.update(now, paused), joystick.isTouchMode);
   };
 
@@ -2150,7 +2156,7 @@ async function run(options: GameOptions): Promise<void> {
 
 /**
  * Starts the game in the page: the world that ?world= names (or the default), with the world
- * menu, the display settings and the controls. The page must have the elements of the engine's
+ * menu, the game menu, the character panel and the controls. The page must have the elements of the engine's
  * index.html (#game, #stick, #stick-knob, #hint, #debug, #fatal).
  */
 export function startGame(options: GameOptions): void {

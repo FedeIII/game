@@ -14,7 +14,7 @@ again.
 - **Seen**: a tip that showed to its end, or whose thing the player did. A seen tip never shows again
   in that browser.
 - **Paused**: a moment with no tip: the prologue, a dream, the game menu, a panel over the screen (the
-  journal, the map, the pack, the settings, the worlds, a shop), or the notice of a new build.
+  journal, the map, the pack, the character, the worlds, a shop), or the notice of a new build.
 
 ## Requirements
 
@@ -77,8 +77,8 @@ so that I can do it at once.
 me only when I want them.
 
 **Acceptance Criteria:**
-- **AC-TIP-003.1:** "Settings" in the main menu, and the settings panel of the game under "Language",
-  have "Tips": "Show tips" (on or off) and "Show all tips again" (Spanish: "Consejos", "Mostrar
+- **AC-TIP-003.1:** "Settings" in the main menu, and "Settings" in the game menu (Escape), have
+  "Tips": "Show tips" (on or off) and "Show all tips again" (Spanish: "Consejos", "Mostrar
   consejos", "Mostrar otra vez todos los consejos").
 - **AC-TIP-003.2:** Off: no tip shows, and the waiting tips go. "Show all tips again": every tip counts
   as not seen, the tips are on, and a line says so. In the game, both apply at once.

@@ -222,7 +222,7 @@ only a part of the ranger.
 - **AC-EQ-012.1:** A blow of a rogue that hits does 2d6 more damage on a mob that does not hunt
   the rogue: a mob that wanders, or that hunts another player. A critical hit rolls the 2d6 two
   times too.
-- **AC-EQ-012.2:** The "You" section and the builder show "Sneak attack: +1d6 on a mob that does
+- **AC-EQ-012.2:** The character panel and the builder show "Sneak attack: +1d6 on a mob that does
   not hunt you" for a rogue.
 
 ---
@@ -318,8 +318,8 @@ it is there in my next session.
 **User Story:** As a player, I want to see what my gear gives, so that I can compare.
 
 **Acceptance Criteria:**
-- **AC-EQ-017.1:** The list of traits (the builder, with the kit of the class, and the "You"
-  section) starts with "Armour Class" ("18"), "Attack bonus" ("+5 (d20 against the AC of a mob)")
+- **AC-EQ-017.1:** The list of traits (the builder, with the kit of the class, and the character
+  panel) starts with "Armour Class" ("18"), "Attack bonus" ("+5 (d20 against the AC of a mob)")
   and "Damage of a blow" ("1d8+3 (STR)").
 - **AC-EQ-017.2:** It shows "Walk: 25% slower (heavy armour)" in a heavy armour without its STR.
 - **AC-EQ-017.3:** It shows how far mobs see a sneaking character with the share of the armour.
@@ -478,7 +478,7 @@ mob before it comes close.
   `Accounts.saveGear()`; the server saves it in `savePlace()` with the pack.
 - **The page** (`packages/engine-client/src/game.ts`): `gear`, `gearNow()`, `traitsFor()` and
   `followGear()` (each tick and each frame: when the gear changed, new traits for the session, the
-  drink belt (`setScores()`), the map (`setInt()`) and the "You" section (`setTraits()`)).
+  drink belt (`setScores()`), the map (`setInt()`) and the character panel (`setTraits()`)).
   `dropItems()` and `moveItems()` take addresses. The debug panel (`?debug`) has a line `gear`.
 - **The panel** (`packages/engine-client/src/ui/pack-panel.ts`): `PackPanel.show(pack, gear,
   traits)`, `showLook(sheet)`, `wearLines()`. The worn slots are `.gear-slot[data-gear=<slot>]`

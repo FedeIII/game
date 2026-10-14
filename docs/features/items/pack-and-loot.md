@@ -194,7 +194,7 @@ is the same without the server.
 choose what to keep, what to use and what to drop.
 
 **Acceptance Criteria:**
-- **AC-PK-008.1:** The pack button is at the top right, left of the settings button. A press on
+- **AC-PK-008.1:** The pack button is at the top right, left of the character button. A press on
   it, or the I key, opens and closes the panel. Esc closes it.
 - **AC-PK-008.2:** Only one panel at the top right is open at a time. The pack panel closes when
   another one opens.

@@ -565,7 +565,7 @@ effect of the blow in its direction.
   a shared world alone.
 - `render/others.ts` (`OtherPlayers`): the other players near the visitor in their skins, with a
   fade in and out, a smaller torch each, and their names while they are on the screen or near it.
-- `ui/presence.ts`: for an admin only, a line in the "You" section of the settings ("2 other
+- `ui/presence.ts`: for an admin only, a line in the character panel ("2 other
   visitors here", from `o`: near or far; or why the visitor is alone). The other visitors see no such line.
 - Skins (protocol 2, 2026-10-07; from the character since protocol 7): a skin is a 32-bit seed.
   A character's seed encodes its race, class, gender and variant (`appearanceSeed()`); a guest

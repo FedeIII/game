@@ -186,21 +186,24 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `#tip`, `tipsControls()`; the hooks are `updateTips()` in `game.ts`;
   `docs/features/game/tips.md`), `action-button.ts` (bottom right; E on a
   keyboard), `link-card.ts` (a real link for a fixture with one), `world-menu.ts` (top right,
-  map icon; only in an app with more than one world, so not now), `settings-panel.ts` (top right: CRT on/off and sliders, for an admin only, saved in localStorage
-  `game.crt.v2`; `?crt=` / `?nocrt` win over it; `addSection()` puts a section on top),
+  map icon; only in an app with more than one world, so not now), `crt-settings.ts` (the CRT on/off and sliders, `CrtControls`, for an admin only, in the
+  settings of the game menu and of the menu, saved in localStorage `game.crt.v2`; `?crt=` / `?nocrt` win over it; `applyCrt()`),
+  `character-panel.ts` (top right, the "Character" button, a head and shoulders: `#character`, the character panel, with the content of `you-section.ts`;
+  since 2026-10-14, Fede's request: it took the place of the settings panel, and the settings went into the game menu),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
-  `you-section.ts` (the "You" section of the settings: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder), "Main menu" and "Sign out"),
-  `xp-section.ts` (the "Experience" section of the settings, for an admin only: the divisor of the XP of the kills of its own characters),
-  `pack-panel.ts` (top right, left of the settings, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
+  `you-section.ts` (the content of the character panel: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder)),
+  `xp-section.ts` (the "Experience" section of the settings of the game menu, for an admin only: the divisor of the XP of the kills of its own characters),
+  `control-list.ts` (`controlList()`: the controls to read, in the settings of the menu and of the game menu),
+  `pack-panel.ts` (top right, left of the character button, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
   trader, in the place of the top-right panels, opened by an answer of a conversation: the trader's
   close-up and line, "Buy" and "Sell", the coins, the wares with the prices for the character, the
-  detail of the chosen ware with its trade, one item at a time, and the pack; `wareRows()`), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the settings and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
+  detail of the chosen ware with its trade, one item at a time, and the pack; `wareRows()`), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the character and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
   `new-build.ts` (`BuildWatch`: the page compares its main script, `/assets/main-<hash>.js`, with
   the one that the published page names: every 60 s while it is visible, when it shows again, and
   every 3 s for 2 minutes after a lost connection; nothing in development),
   `presence.ts` (shared worlds only, and for an admin only (Fede's decision, 2026-10-10): how many
-  other visitors are here, or why the visitor is alone; a line under the heading of the "You"
-  section, `#presence`; the others see no presence at all).
+  other visitors are here, or why the visitor is alone; a line under the heading of the
+  character panel, `#presence`; the others see no presence at all).
 - `audio/` (2026-10-12, `docs/features/game/sound.md`): music and sound effects. The music plays on
   **recorded instruments**: samples of the VSCO 2 CE orchestra (CC0) and the FluidR3 choir (CC BY 3.0,
   credited in the Sound settings), built by hand with `npm run sounds` (`sounds/catalog.ts` chooses the
@@ -212,7 +215,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   (`playNote()`; long notes by crossfaded copies of a loop), `music.ts` (`scoreTrack()`, the notation
   `line()`/`chord()`/`hits()`, `SEATING`, `LEVELS`), `themes/kandrax.ts` (the theme of the prologue and
   of the menu), `sounds.ts` (`EFFECTS`, `AMBIENCES`), `synth.ts` (synthesized effects), `settings.ts`
-  (localStorage `game.audio.v1`). The "Sound" section of the settings and the speaker that mutes all:
+  (localStorage `game.audio.v1`). The "Sound" section of the settings (in the game menu and the menu) and the speaker that mutes all:
   `ui/sound-section.ts` (`soundSection()`, `soundToggle()`). **The menus** (2026-10-13): the menu before
   the game plays the opening of the theme (`KANDRAX_OPENING`; after "Create" the prologue goes on with
   it) and clicks, ticks and rustles (`menu/sounds.ts`); the game menu rustles, and the music steps back
@@ -428,7 +431,7 @@ For the HTML GUI:
   in a world with mobs the attack button in the corner, the action button on top of it, and the
   dodge button left of the attack button; in a world without mobs the action button in the corner.
   Bottom centre, above them: the link card (on a screen narrower than 528 px, above the action
-  button). Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the pack button and the settings button. Bottom centre, over
+  button). Top left: the vitals, and the drink belt in their box. Top right: the worlds button, the journal, map and pack buttons, and the character button. Bottom centre, over
   everything there: the conversation panel; while it is open, the joystick, the action and
   attack buttons and the link card hide (`body.conversing`).
 - Every engine text the player reads goes in `src/ui/strings.ts` (English) and `src/ui/strings-es.ts`
@@ -453,8 +456,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   `?login=failed` or `cancelled` once.
 - **Main screen**: "New game", "Continue" (off without characters), "Prologue" (only once this
   browser saw it), "Settings" (the controls to read, the language, the sound (`soundSection()`), the
-  switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"; the game's settings panel has it
-  too), and for an admin the CRT settings),
+  switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"), and for an admin the CRT
+  settings; the settings of the game menu have the same sections),
   and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
   sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). **The logo and the layout**
   (Fede, 2026-10-13): the logo of the game, painted in pixel art (`art/menu-logo.ts`,
@@ -478,8 +481,9 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
 - **Continue**: the account's characters (the last played first), each with its picture; one
   plays it, "Delete" asks first. A character starts where it was last (below, "The place of a
   character").
-- In the game, the settings panel's "You" section shows the character, "Main menu" (a reload:
-  the menu comes again) and "Sign out".
+- In the game, the "Character" button (top right) opens the character panel: the character, its
+  level, its scores and what they give. "Main menu" (a reload: the menu comes again), "Sign out" and
+  the settings are in the game menu (Fede, 2026-10-14).
 - **The game is called World of Kandrax** (Fede, 2026-10-12): `GameOptions.name` (`apps/game/src/main.ts`)
   is the page title and the title of the menu and of the game menu; "The Wilds" stays the name of the
   world (the map). The name is the same in Spanish.
@@ -503,8 +507,11 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   Fede, 2026-10-13).
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
-  under the settings button opens it): "Resume", "Load game" (a reload
-  into the list of characters) and "New game" (a reload into the builder). The character stands
+  under the character button opens it): "Resume", "Load game" (a reload
+  into the list of characters), "New game" (a reload into the builder), "Prologue", "Main menu",
+  "Sign out", and "Settings" last (Fede, 2026-10-14: a second screen in the same panel with the
+  controls to read, the language, the sound, the tips, and for an admin the display and the
+  experience; "Back" or Escape goes back to the choices). The character stands
   still meanwhile; a world that the page runs stands still too, a shared world goes on. It rustles when
   it opens and closes, and the music steps back to 40 % under it (Fede, 2026-10-13).
 - **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page
@@ -561,10 +568,10 @@ gpg encrypts (`scripts/backup-db.ts`, passphrase in `/etc/game/backup.passphrase
 `Accounts.isAdmin()`). Now Fede is the only admin (Fede's decision). The list is in
 `/etc/game/secret.env` in production and in `.env.local` on the laptop, never in git: the
 repository is public. `/api/me` says `admin`, and the menu gives it to the game. Only an admin sees
-the display settings (the CRT switch and sliders); the others get `CRT_DEFAULTS`, and the game
+the display settings (the CRT switch and sliders, in the settings of the game menu and of the menu); the others get `CRT_DEFAULTS`, and the game
 ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). An admin also chooses the
 divisor of the XP of the kills of its own characters (2026-10-14, to test the levels: "Experience" in
-the settings, `ui/xp-section.ts`; `PUT /api/me/xp-divisor`, the column `xp_divisor` of `users`; the
+the settings of the game menu, `ui/xp-section.ts`; `PUT /api/me/xp-divisor`, the column `xp_divisor` of `users`; the
 server gives it to the Room at once, `Room.setXpDivisor()`); the others always have `KILL_XP_DIVISOR`. The dev sign-in takes
 an email as the name: it then signs in with that email, as Google would, so an admin email there
 is an admin.
@@ -602,7 +609,7 @@ roll of a die (the dice roll only in a fight and in a draught: see "Mobs and fig
 gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
 gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
 with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
-builder and the "You" section still name every gate.
+builder and the character panel still name every gate.
 
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,
@@ -800,7 +807,7 @@ builder and the "You" section still name every gate.
   the top left, the effects in words, a red flash at the screen edges on a hit, a dark veil on a
   defeat.
 
-In the client: the builder (step 2) and the "You" section show the traits in words and numbers
+In the client: the builder (step 2) and the character panel show the traits in words and numbers
 (`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
@@ -830,7 +837,7 @@ The server owns the XP (`RoomPlayer.xp`, `Room.gainXp()`): at a new level the tr
 the HP that the level adds come on top (5e). The store keeps it (column `xp`, saved with the quest book:
 `setQuests()`); the welcome and a snapshot carry it (`xp`) to its own player only. In a world that the
 page runs, the page has its own (not saved). The page: "Lv 2" and the gold bar in the vitals, "Level 2 ·
-450 / 900 XP" in the "You" section, a banner and the stinger `questEnd` at a new level, and the tip `xp`
+450 / 900 XP" in the character panel, a banner and the stinger `questEnd` at a new level, and the tip `xp`
 at the first XP. The encounters of the story size themselves for the levels there
 (`sizeEncounter(units, levels)`: the 5e deadly budget of each level, `XP_THRESHOLDS`).
 
@@ -839,7 +846,7 @@ at the first XP. The encounters of the story size themselves for the levels ther
 English and Spanish (Fede's decision, 2026-10-11; `docs/features/game/language.md`). The page
 chooses once, when it loads (`src/i18n.ts`, `LANG`): `?lang=en|es` (not kept), the kept choice
 (localStorage `game.lang.v1`), the browser's language (Spanish when it starts with `es`). The menu
-and the settings panel show "English · Español" (`ui/language-choice.ts`); a choice reloads the
+and the settings of the game menu show "English · Español" (`ui/language-choice.ts`); a choice reloads the
 page (the game resumes the same character). `STRINGS` is the table of `LANG`. A world's content is
 in English, and `tw()` translates it where it reaches the screen (bubbles, barks, welcome, the
 conversation panel, signs, map labels, item lines, the intro, the link card, the title). In Spanish
@@ -1485,7 +1492,9 @@ the menu: sign in with the dev sign-in (fill `#dev-name`, click `.dev-sign-in bu
 email of `ADMIN_EMAILS` to see the display settings: the server needs the list), "New
 game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-gender-<g>`,
 `#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
-`#builder-create`), and wait for `#menu` to go. A conversation: `#conversation` (hidden when
+`#builder-create`), and wait for `#menu` to go. The game menu: Escape, `#game-menu`,
+`button[data-choice=<choice>]` (`settings` shows `.game-menu-settings`); the character panel:
+`#character-button`, `#character`. A conversation: `#conversation` (hidden when
 closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.selected`). `?nomenu` skips it: a guest. URL switches:
 `?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it;
 only on `localhost` or `127.0.0.1`: every visitor of game.azyr.io signs in, Fede's decision of

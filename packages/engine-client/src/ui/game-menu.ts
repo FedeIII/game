@@ -2,31 +2,72 @@ import { STRINGS } from './strings.ts';
 
 /**
  * The game menu (Fede, 2026-10-12): Escape opens it over the game when no panel, conversation or
- * dream is open, with three choices: Resume, Load game and New game. Escape, Resume or a click on
- * the dark round the panel closes it. While it is open the character stands still; a world that the
- * page runs alone also stands still, but a shared world goes on (game.ts). "Load game" and "New
- * game" save the place and reload the page into the menu, at the list of characters or at the
- * builder (menu/resume.ts, markMenuScreen); a visitor without a character has only Resume. On a
- * touch screen a faint button under the settings button opens it too (showButton). It has sounds
- * (Fede, 2026-10-13): the page plays them for `sound` (game.ts: a rustle, the music steps back while
- * it is open; a click for a key press, a tick when the keys move between the choices).
+ * dream is open, with its choices: Resume, Load game, New game, Prologue, Main menu, Sign out and
+ * Settings (gameMenuChoices). Escape, Resume or a click on the dark round the panel closes it. While
+ * it is open the character stands still; a world that the page runs alone also stands still, but a
+ * shared world goes on (game.ts). "Load game", "New game" and "Main menu" save the place and reload
+ * the page into the menu, at the list of characters, at the builder or at the main screen
+ * (menu/resume.ts, markMenuScreen); a visitor without a character has no "Load game" and "New game".
+ * "Settings" (since 2026-10-14, Fede: the settings left the top-right panel, which shows the
+ * character now) shows the settings screen in the same panel: the sections that the page gives,
+ * and "Back" (or Escape) to the choices. On a touch screen a faint button under the character button
+ * opens the menu too (showButton). It has sounds (Fede, 2026-10-13): the page plays them for `sound`
+ * (game.ts: a rustle, the music steps back while it is open; a click for a key press, a tick when the
+ * keys move between the choices).
  */
 
-/** What "Load game" and "New game" do. */
+/** What the choices of the game menu do. A choice without its action is not in the menu. */
 export interface GameMenuActions {
-  readonly load: () => void;
-  readonly create: () => void;
+  /** "Load game": the list of characters of the menu of the page. A character of an account only. */
+  readonly load?: () => void;
+  /** "New game": the character builder of the menu of the page. A character of an account only. */
+  readonly create?: () => void;
+  /** "Prologue": plays the prologue again, over the game. */
+  readonly prologue?: () => void;
+  /** "Main menu": the main screen of the menu of the page. */
+  readonly mainMenu?: () => void;
+  /** "Sign out": an account only. */
+  readonly signOut?: () => void;
+}
+
+/** A choice of the game menu. */
+export type GameMenuChoice = 'resume' | keyof GameMenuActions | 'settings';
+
+/** The choices that leave the game: the page reloads, so the menu disables its buttons. */
+const LEAVES: ReadonlySet<GameMenuChoice> = new Set(['load', 'create', 'mainMenu', 'signOut']);
+
+/**
+ * The choices of the menu, in their order: "Resume" first, the choices that have an action, and
+ * "Settings" last (Fede, 2026-10-14).
+ */
+export function gameMenuChoices(actions: GameMenuActions): GameMenuChoice[] {
+  const middle = (['load', 'create', 'prologue', 'mainMenu', 'signOut'] as const).filter((choice) => actions[choice] !== undefined);
+  return ['resume', ...middle, 'settings'];
+}
+
+/** A section of the settings screen: a heading over its controls. */
+export interface SettingsSection {
+  readonly heading: string;
+  readonly body: HTMLElement;
 }
 
 /** What the game menu asks the page to sound: it opens or closes, a key presses a choice, the keys move between the choices. */
 export type GameMenuSound = 'open' | 'close' | 'press' | 'move';
 
-/** What a press of Escape does: close the game menu, open it, or nothing (another panel takes the key). */
-export type EscapeAction = 'close' | 'open' | 'none';
+/**
+ * What a press of Escape does: close the game menu, go back from its settings to its choices, open
+ * it, or nothing (another panel takes the key).
+ */
+export type EscapeAction = 'close' | 'back' | 'open' | 'none';
 
 /** What a press of Escape does, from what is open on the page. */
-export function escapeAction(state: { readonly menuOpen: boolean; readonly otherOpen: boolean; readonly inField: boolean }): EscapeAction {
-  if (state.menuOpen) return 'close';
+export function escapeAction(state: {
+  readonly menuOpen: boolean;
+  readonly settingsOpen: boolean;
+  readonly otherOpen: boolean;
+  readonly inField: boolean;
+}): EscapeAction {
+  if (state.menuOpen) return state.settingsOpen ? 'back' : 'close';
   return state.otherOpen || state.inField ? 'none' : 'open';
 }
 
@@ -34,20 +75,30 @@ export function escapeAction(state: { readonly menuOpen: boolean; readonly other
 const MENU_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
 <path d="M5 7h14M5 12h14M5 17h14"/></svg>`;
 
+/** What can have the focus in the settings screen. */
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]';
+
 export class GameMenu {
   private readonly root: HTMLDivElement;
-  /** On a touch screen (no Escape key): a faint button under the settings button opens the menu (showButton). */
+  private readonly panel: HTMLDivElement;
+  /** The choices (the first screen). */
+  private readonly choices: HTMLDivElement;
+  /** The settings screen. */
+  private readonly settings: HTMLElement;
+  private readonly settingsTitle: HTMLElement;
+  /** On a touch screen (no Escape key): a faint button under the character button opens the menu (showButton). */
   private readonly button: HTMLButtonElement;
   private readonly buttons: HTMLButtonElement[] = [];
+  private readonly settingsButton: HTMLButtonElement;
   /** What had the focus before the menu opened: it gets it back. */
   private before: Element | null = null;
   private readonly sound: (what: GameMenuSound) => void;
 
   /**
-   * `title`: the name of the world, over the choices. Without `actions`, no "Load game" and "New game".
-   * With `prologue`, a last choice plays the prologue again (ui/prologue.ts). `sound` plays its sounds.
+   * `title`: the name of the game, over the choices. `actions`: what the choices do (gameMenuChoices).
+   * `sections`: the settings screen. `sound` plays its sounds.
    */
-  constructor(title: string, actions: GameMenuActions | null, prologue: (() => void) | null = null, sound: (what: GameMenuSound) => void = () => {}) {
+  constructor(title: string, actions: GameMenuActions, sections: readonly SettingsSection[], sound: (what: GameMenuSound) => void = () => {}) {
     const T = STRINGS.gameMenu;
     this.sound = sound;
     this.root = document.createElement('div');
@@ -57,8 +108,10 @@ export class GameMenu {
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', T.label);
 
-    const panel = document.createElement('div');
-    panel.className = 'menu-panel game-menu-panel';
+    this.panel = document.createElement('div');
+    this.panel.className = 'menu-panel game-menu-panel';
+    this.choices = document.createElement('div');
+    this.choices.className = 'game-menu-choices';
     const head = document.createElement('header');
     head.className = 'menu-head';
     const name = document.createElement('h2');
@@ -68,37 +121,79 @@ export class GameMenu {
 
     const stack = document.createElement('div');
     stack.className = 'menu-actions menu-stack';
-    const button = (text: string, primary: boolean, act: () => void) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = primary ? 'menu-button menu-primary' : 'menu-button';
-      b.textContent = text;
-      b.addEventListener('click', (event) => {
+    const pressed = (button: HTMLButtonElement, act: () => void) =>
+      button.addEventListener('click', (event) => {
         // A press of a key (Enter, Space): a pointer has its click from the page (audio/game-sounds.ts).
         if (event.detail === 0) this.sound('press');
         act();
       });
+    const labels: Record<GameMenuChoice, string> = {
+      resume: T.resume,
+      load: T.load,
+      create: T.newGame,
+      prologue: T.prologue,
+      mainMenu: T.mainMenu,
+      signOut: T.signOut,
+      settings: T.settings,
+    };
+    let settingsButton: HTMLButtonElement | null = null;
+    for (const choice of gameMenuChoices(actions)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = choice === 'resume' ? 'menu-button menu-primary' : 'menu-button';
+      b.dataset.choice = choice;
+      b.textContent = labels[choice];
+      const act =
+        choice === 'resume'
+          ? () => this.close()
+          : choice === 'settings'
+            ? () => this.showSettings(true)
+            : choice === 'prologue'
+              ? () => {
+                  this.close();
+                  actions.prologue!();
+                }
+              : () => {
+                  // The page reloads into the menu: no second press meanwhile.
+                  if (LEAVES.has(choice)) for (const other of this.buttons) other.disabled = true;
+                  actions[choice]!();
+                };
+      pressed(b, act);
+      if (choice === 'settings') settingsButton = b;
       this.buttons.push(b);
       stack.append(b);
-    };
-    button(T.resume, true, () => this.close());
-    if (actions) {
-      // Each choice disables the menu: the page reloads into the menu.
-      const leave = (go: () => void) => () => {
-        for (const b of this.buttons) b.disabled = true;
-        go();
-      };
-      button(T.load, false, leave(actions.load));
-      button(T.newGame, false, leave(actions.create));
     }
-    if (prologue) {
-      button(T.prologue, false, () => {
-        this.close();
-        prologue();
-      });
+    this.settingsButton = settingsButton!;
+    this.choices.append(head, stack);
+
+    // The settings screen: a title, the sections, and "Back".
+    this.settings = document.createElement('section');
+    this.settings.className = 'game-menu-settings';
+    this.settings.hidden = true;
+    this.settings.setAttribute('aria-label', T.settings);
+    this.settingsTitle = document.createElement('h2');
+    this.settingsTitle.className = 'menu-title';
+    this.settingsTitle.tabIndex = -1;
+    this.settingsTitle.textContent = T.settings;
+    this.settings.append(this.settingsTitle);
+    for (const section of sections) {
+      const heading = document.createElement('h3');
+      heading.className = 'menu-subtitle';
+      heading.textContent = section.heading;
+      this.settings.append(heading, section.body);
     }
-    panel.append(head, stack);
-    this.root.append(panel);
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'menu-button';
+    back.textContent = T.back;
+    pressed(back, () => this.showSettings(false));
+    const backRow = document.createElement('div');
+    backRow.className = 'menu-actions';
+    backRow.append(back);
+    this.settings.append(backRow);
+
+    this.panel.append(this.choices, this.settings);
+    this.root.append(this.panel);
 
     // A click on the dark round the panel resumes the game.
     this.root.addEventListener('click', (event) => {
@@ -129,9 +224,15 @@ export class GameMenu {
     return !this.root.hidden;
   }
 
+  /** Whether the menu shows its settings screen. */
+  get settingsShown(): boolean {
+    return this.shown && !this.settings.hidden;
+  }
+
   open(): void {
     if (this.shown) return;
     this.before = document.activeElement;
+    this.showScreen(false);
     this.root.hidden = false;
     document.body.classList.add('game-menu-open');
     this.buttons[0]?.focus();
@@ -149,19 +250,45 @@ export class GameMenu {
     this.before = null;
   }
 
+  /** Shows the settings screen, or the choices again (the focus on "Settings"). */
+  showSettings(open: boolean): void {
+    this.showScreen(open);
+    if (open) this.settingsTitle.focus();
+    else this.settingsButton.focus();
+  }
+
+  private showScreen(settings: boolean): void {
+    this.choices.hidden = settings;
+    this.settings.hidden = !settings;
+    if (settings) this.panel.scrollTop = 0;
+  }
+
   /**
-   * A key while the menu is open: the arrows and Tab move between the choices (Tab stays in the
-   * menu). Returns whether the menu used the key. Enter and Space press the focused choice, as a
-   * button does.
+   * A key while the menu is open. In the choices the arrows and Tab move between them (Tab stays in
+   * the menu). In the settings Tab moves between the controls and stays in the menu, and the arrows
+   * are for the controls (a slider). Returns whether the menu used the key. Enter and Space press the
+   * focused button, as a button does.
    */
   key(event: KeyboardEvent): boolean {
+    if (this.settingsShown) {
+      if (event.code !== 'Tab') return false;
+      return this.cycle([...this.settings.querySelectorAll<HTMLElement>(FOCUSABLE)], event.shiftKey ? -1 : 1, false);
+    }
     const step = event.code === 'ArrowDown' || (event.code === 'Tab' && !event.shiftKey) ? 1 : event.code === 'ArrowUp' || (event.code === 'Tab' && event.shiftKey) ? -1 : 0;
     if (step === 0) return false;
-    const live = this.buttons.filter((b) => !b.disabled);
+    return this.cycle(
+      this.buttons.filter((b) => !b.disabled),
+      step,
+      true,
+    );
+  }
+
+  /** Moves the focus `step` along `live`, round from the end to the start. */
+  private cycle(live: readonly HTMLElement[], step: number, tick: boolean): boolean {
     if (live.length === 0) return true;
-    const at = live.indexOf(document.activeElement as HTMLButtonElement);
+    const at = live.indexOf(document.activeElement as HTMLElement);
     const next = at < 0 ? (step > 0 ? 0 : live.length - 1) : (at + step + live.length) % live.length;
-    if (live[next] !== document.activeElement) this.sound('move');
+    if (tick && live[next] !== document.activeElement) this.sound('move');
     live[next]!.focus();
     return true;
   }

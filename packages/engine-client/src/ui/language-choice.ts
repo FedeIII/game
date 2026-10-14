@@ -4,7 +4,7 @@ import { STRINGS } from './strings.ts';
 /**
  * The choice of the language: "English · Español", each in its own language. The language of the
  * page shows as text; a press on the other one keeps it (saveLang) and calls `chosen`, which
- * reloads the page. The menu shows it under its screens, the settings panel in a section.
+ * reloads the page. The menu shows it under its screens, the settings of both menus in a section.
  */
 export function languageChoice(className: string, chosen: (lang: Lang) => void): HTMLElement {
   const box = document.createElement('p');

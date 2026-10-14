@@ -240,7 +240,7 @@ that leaving the game does not heal it.
 I can choose my scores.
 
 **Acceptance Criteria:**
-- **AC-CON-012.1:** Step 2 of the builder and the "You" section list "Hit points" (for the class
+- **AC-CON-012.1:** Step 2 of the builder and the character panel list "Hit points" (for the class
   and the scores), "Stun from a hit", "Stamina" and "Poison and drink" with their values for the
   scores.
 - **AC-CON-012.2:** The values change at once when a score changes in the builder.

@@ -155,14 +155,14 @@ game, so that I can choose my scores with knowledge.
 
 ---
 
-### REQ-AS-006: The "You" section shows the traits
+### REQ-AS-006: The character panel shows the traits
 
 **User Story:** As a player in the game, I want to see what my scores give, so that I know what my
 character can do.
 
 **Acceptance Criteria:**
-- **AC-AS-006.1:** The "You" section of the settings panel shows the same list as the builder, for
-  the character in play.
+- **AC-AS-006.1:** The character panel (the "Character" button at the top right) shows the same
+  list as the builder, for the character in play.
 - **AC-AS-006.2:** For a character, the section also shows its six final scores.
 - **AC-AS-006.3:** For a guest, the section shows no scores, but it shows the list of the guest's
   traits.
@@ -183,7 +183,7 @@ which score to raise, without a list of everything that I cannot do.
 - **AC-AS-007.4:** The rule is the same for every ability and every gate in the world: dialog
   answers (lore, insight, persuasion), lore pages, barred doors, locked chests, the recipes of the
   cauldron and the herbs to chew in the pack.
-- **AC-AS-007.5:** The traits list of the builder and of the "You" section is the rule book: it
+- **AC-AS-007.5:** The traits list of the builder and of the character panel is the rule book: it
   names every gate, for every score.
 
 ## Feature Behavior & Rules
@@ -227,8 +227,8 @@ which score to raise, without a list of everything that I cannot do.
   the dice of a fight (`docs/multiplayer.md`).
 - **The list of traits** is `traitsList()` in `packages/engine-client/src/ui/traits-list.ts`, with
   its texts in `STRINGS.traits` (`ui/strings.ts`). The builder (`menu/builder.ts`) puts it in a
-  region with `aria-live="polite"`, so a screen reader hears a change. The "You" section is
-  `ui/you-section.ts`.
+  region with `aria-live="polite"`, so a screen reader hears a change. The character panel is
+  `ui/character-panel.ts`, with its content in `ui/you-section.ts`.
 - **Debug:** `?debug` shows the line `traits` (STR: damage, push, stagger, slots, wade) and the line
   `dex` (cooldown, guard, dodge, sight, range, the state of the roll and of sneaking).
 - **The plan and Fede's decisions** are in `docs/drafts/abilities.md`.

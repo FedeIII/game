@@ -11,7 +11,7 @@ export interface CrtSettings {
  * The default settings of the CRT look: soft pixels, as on the screens that pixel art was made
  * for. Fede selected these values on 2026-10-12 (?crt=0.25,1,1,0.1): a small spread, full blur
  * and glow, and light scanlines. Before, they were 0.6,1,1,0 (2026-10-07). The player can change
- * them in the display settings (settings-panel.ts).
+ * them in the display settings (ui/crt-settings.ts).
  */
 export const CRT_DEFAULTS: Readonly<CrtSettings> = {
   /** How far each game pixel bleeds into its neighbours, in game pixels (horizontal). */

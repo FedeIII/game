@@ -6,7 +6,7 @@ const MAP_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="t
 <path d="M3 6.5l5.5-2.5 7 2.5 5.5-2.5v13.5l-5.5 2.5-7-2.5-5.5 2.5z"/><path d="M8.5 4v13.5M15.5 6.5V20"/></svg>`;
 
 /**
- * The worlds menu: a button in the top-right corner (left of the display settings) opens a list
+ * The worlds menu: a button in the top-right corner (left of the character button) opens a list
  * of the worlds of the application. Each entry is a real link (?world=<id>), so a world has its
  * own address; the current world is marked.
  */

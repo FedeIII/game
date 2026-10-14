@@ -88,7 +88,7 @@ character grows.
 - **AC-LVL-004.1:** The vitals (top left) show the level ("Lv 2"; Spanish "Nv 2") and, beside it, a thin
   gold bar of the way from the XP of this level to the XP of the next one (full at level 5). A screen
   reader hears "Level 2, 450 of 900 XP".
-- **AC-LVL-004.2:** The "You" section of the settings shows "Level 2 · 450 / 900 XP" (Spanish "Nivel 2 ·
+- **AC-LVL-004.2:** The character panel (the "Character" button at the top right) shows "Level 2 · 450 / 900 XP" (Spanish "Nivel 2 ·
   450 / 900 PX").
 - **AC-LVL-004.3:** A new level shows a banner, as for a quest ("New level", "Level 2"), with the music
   of the end of a quest; a screen reader hears "New level: level 2."
@@ -104,7 +104,7 @@ character grows.
 the levels quickly.
 
 **Acceptance Criteria:**
-- **AC-LVL-005.1:** The settings of an admin have "Experience": "Kill XP: 5e XP ÷" and a number from 1
+- **AC-LVL-005.1:** The settings of the game menu (Escape, "Settings") of an admin have "Experience": "Kill XP: 5e XP ÷" and a number from 1
   to 100 (10 at first), with the line "For your own characters only; the other players have 10." The
   other players do not see it.
 - **AC-LVL-005.2:** A new number goes to the server (`PUT /api/me/xp-divisor`, an admin only, from a page

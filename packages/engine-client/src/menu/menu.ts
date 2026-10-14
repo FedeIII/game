@@ -2,7 +2,8 @@ import { MAX_CHARACTERS, NAME_MAX, type Character, type CharacterSheet } from '@
 import { LANG } from '../i18n.ts';
 import { languageChoice } from '../ui/language-choice.ts';
 import { prologueSeen } from '../ui/prologue.ts';
-import { CrtControls, crtStateFrom, loadSavedCrt } from '../ui/settings-panel.ts';
+import { CrtControls, crtStateFrom, loadSavedCrt } from '../ui/crt-settings.ts';
+import { controlList } from '../ui/control-list.ts';
 import { soundSection, soundToggle } from '../ui/sound-section.ts';
 import { tipsControls } from '../ui/tips.ts';
 import { characterLook } from '../skins/look.ts';
@@ -116,33 +117,6 @@ function googleMark(): SVGSVGElement {
     svg.append(path);
   }
   return svg;
-}
-
-/** A key or a button of the controls, as a small plate. */
-function key(name: string): HTMLElement {
-  return el('kbd', { class: 'menu-key' }, name);
-}
-
-/** The controls of the game, to read: what each one does, its keys, and what a touch screen has instead. */
-function controlList(): HTMLElement {
-  const list = el('dl', { class: 'control-list' });
-  for (const control of T.controlList) {
-    const keys = el('dd', { class: 'control-keys' });
-    control.keys.forEach((choice, i) => {
-      if (i > 0) keys.append(` ${T.or} `);
-      const group = el('span', { class: 'control-choice' });
-      choice.forEach((name, k) => {
-        if (k > 0) group.append(' ');
-        group.append(key(name));
-      });
-      keys.append(group);
-    });
-    const row = el('div', { class: 'control' }, el('dt', {}, control.action), keys);
-    if (control.note) row.append(el('dd', { class: 'control-note' }, control.note));
-    row.append(el('dd', { class: 'control-touch' }, `${T.touch}: ${control.touch}`));
-    list.append(row);
-  }
-  return list;
 }
 
 /** The privacy page (apps/game/public/privacy/), in a new tab: the menu stays as it is. */

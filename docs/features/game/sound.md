@@ -57,7 +57,8 @@ page, so that the game never surprises me with noise.
 game sounds as I like.
 
 **Acceptance Criteria:**
-- **AC-SND-002.1:** The settings panel has a section "Sound" (Spanish: "Sonido") with a slider "Music"
+- **AC-SND-002.1:** The settings of the game menu (Escape, "Settings"; until 2026-10-14 the settings
+  panel at the top right) have a section "Sound" (Spanish: "Sonido") with a slider "Music"
   ("Música") and a slider "Effects" ("Efectos"), from 0 to 100 % in steps of 5, and a box "Mute all"
   ("Silenciar todo"). The settings of the menu before the game have the same section (2026-10-13).
 - **AC-SND-002.2:** The defaults are music 60 %, effects 80 %, not muted. The effects slider also sets

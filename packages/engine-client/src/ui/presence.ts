@@ -2,7 +2,7 @@ import type { NetSession } from '../net/session.ts';
 import { STRINGS } from './strings.ts';
 
 /**
- * A line in the "You" section of the settings panel, for an admin only (Fede's decision,
+ * A line in the character panel (ui/you-section.ts), for an admin only (Fede's decision,
  * 2026-10-10): in a shared world, how many other visitors are here, or why the visitor is alone
  * (no connection, a new version of the game). Screen readers hear the changes. Single-player
  * worlds do not show it.

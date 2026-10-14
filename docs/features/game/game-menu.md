@@ -3,14 +3,21 @@
 ## Overview
 
 The game menu (Fede's request, 2026-10-12) opens over the game when the player presses Escape, or
-taps a faint icon on a touch screen: it gives three choices, "Resume", "Load game" and "New game". "Load game" and "New game" go back to the
-menu of the page (the menu before the game), at the list of characters or at the character builder.
+taps a faint icon on a touch screen: it gives the choices "Resume", "Load game", "New game",
+"Prologue", "Main menu", "Sign out" and "Settings". "Load game", "New game" and "Main menu" go back to
+the menu of the page (the menu before the game), at the list of characters, at the character builder
+or at the main screen. "Settings" (since 2026-10-14, Fede's request) shows the settings of the game in
+the same panel: until then they were in a panel at the top right, which now shows the character (the
+"Character" button).
 
 ## Terminology
 
 - **The game menu**: the panel over the game that Escape opens.
 - **The menu of the page**: the menu before the game (`runMenu()`): sign-in, main screen, the list of
   characters ("Continue") and the character builder ("New game").
+- **The settings screen**: the second screen of the game menu, which "Settings" shows.
+- **The character panel**: the panel of the "Character" button at the top right (`ui/character-panel.ts`):
+  the character, its level, its scores and what they give.
 - **A world that the page runs**: a world without a server (`?offline`). A **shared world**: a world
   that the server runs (the Wilds on game.azyr.io).
 
@@ -23,19 +30,21 @@ moment or change my game.
 
 **Acceptance Criteria:**
 - **AC-GMN-001.1:** Escape opens the game menu when no other panel is open (the journal, the map, the
-  pack, the settings, the worlds), no conversation and no dream is open, no stack of the pack is
+  pack, the character, the worlds), no conversation and no dream is open, no stack of the pack is
   dragged, and the focus is not in a text field. Else Escape does what it did before (it closes that
   panel or conversation), and the game menu stays shut.
-- **AC-GMN-001.2:** The game menu shows the name of the game ("World of Kandrax") over its buttons:
-  "Resume", "Load game", "New game" and "Prologue" (Spanish: "Reanudar", "Cargar partida", "Partida
-  nueva", "Prólogo"; the prologue: `docs/features/game/prologue.md`). "Resume" has the focus.
+- **AC-GMN-001.2:** The game menu shows the name of the game ("World of Kandrax") over its buttons, in
+  this order: "Resume", "Load game", "New game", "Prologue", "Main menu", "Sign out" and "Settings"
+  (Spanish: "Reanudar", "Cargar partida", "Partida nueva", "Prólogo", "Menú principal", "Cerrar
+  sesión", "Ajustes"; the prologue: `docs/features/game/prologue.md`). "Settings" is the last one
+  (Fede, 2026-10-14). "Resume" has the focus.
 - **AC-GMN-001.3:** Escape, "Resume", or a click on the dark round the panel closes it; the focus goes
-  back to where it was.
+  back to where it was. On the settings screen, Escape goes back to the choices (REQ-GMN-005).
 - **AC-GMN-001.4:** The arrow keys and Tab move between the buttons (Tab stays in the menu); Enter and
   Space press the button with the focus. No other key reaches the game while the menu is open.
 - **AC-GMN-001.5:** On a touch screen (from the first touch, or at once on a device whose pointer is
-  coarse, as the touch stick), a faint icon of three lines, with no frame, shows under the button of
-  the settings (32 x 32 px, 40% opacity). A tap on it opens the game menu. It hides while a panel, a
+  coarse, as the touch stick), a faint icon of three lines, with no frame, shows under the character
+  button (32 x 32 px, 40% opacity). A tap on it opens the game menu. It hides while a panel, a
   conversation, a dream or the game menu is open.
 
 ---
@@ -82,31 +91,72 @@ I do not have to go through the main screen.
 - **AC-GMN-003.3:** After either choice the buttons of the game menu are disabled until the page
   reloads.
 - **AC-GMN-003.4:** A visitor without a character (a guest on a page of the developer's machine) has
-  only "Resume".
+  no "Load game", "New game" and "Sign out": only "Resume", "Prologue", "Main menu" and "Settings".
+- **AC-GMN-003.5:** "Main menu" (since 2026-10-14; before, in the panel of the settings) saves the place
+  and reloads the page; the menu of the page then shows its main screen.
+- **AC-GMN-003.6:** "Sign out" (since 2026-10-14; a character of an account only) saves the place,
+  signs out and reloads the page; the menu of the page then shows the sign-in screen.
+
+---
+
+### REQ-GMN-005: The settings in the game menu
+
+**User Story:** As a player, I want the settings in the game menu and my character under its own
+button, so that each one is easy to find (Fede, 2026-10-14).
+
+**Acceptance Criteria:**
+- **AC-GMN-005.1:** "Settings" shows the settings screen in the panel of the game menu, in the place of
+  the choices: the title "Settings", then "Controls" (to read), "Language", "Sound", "Tips", and for an
+  admin "Display" (the CRT settings) and "Experience" (the divisor of the XP of a kill; only with a
+  character), as the settings of the menu of the page (`main-menu.md`, REQ-MNU-003), and "Back".
+- **AC-GMN-005.2:** "Back" or Escape shows the choices again, with the focus on "Settings". The next
+  time the game menu opens, it shows the choices.
+- **AC-GMN-005.3:** The title of the settings screen has the focus when it opens. Tab moves between
+  the controls and stays in the game menu; the arrow keys go to the control with the focus (a slider);
+  no key reaches the game. The panel scrolls when the screen is taller than the window.
+- **AC-GMN-005.4:** A change applies as before: the sound and the display at once, the tips at once, a
+  new language reloads the page (the same character starts again), a new divisor goes to the server.
+- **AC-GMN-005.5:** The button at the top right that opened the settings is now the "Character" button
+  (Spanish "Personaje"), with an icon of a head and shoulders. It opens the character panel: the
+  heading "Character", the presence of other visitors (an admin only), the picture, the name, race and
+  class, the level and the XP, the scores and what they give. The pack, the journal and the map keep
+  their buttons.
 
 ---
 
 ## Feature Behavior & Rules
 
 - **The panel** (`packages/engine-client/src/ui/game-menu.ts`): `GameMenu` (`open()`, `close()`,
-  `shown`, `key()`, `showButton()`: the icon `#game-menu-button`, which `game.ts` shows with
-  `TouchJoystick.onTouchMode()`; it goes into the page right after `#game`, under every panel), `GameMenuActions` (`load`, `create`), `escapeAction()` (`'open'`, `'close'` or
-  `'none'`, from what is open). The texts: `STRINGS.gameMenu` (`label`, `resume`, `load`, `newGame`).
+  `shown`, `settingsShown`, `showSettings()`, `key()`, `showButton()`: the icon `#game-menu-button`,
+  which `game.ts` shows with `TouchJoystick.onTouchMode()`; it goes into the page right after `#game`,
+  under every panel), `GameMenuActions` (`load`, `create`, `prologue`, `mainMenu`, `signOut`: a choice
+  without its action is not there), `gameMenuChoices()` (the choices in their order),
+  `SettingsSection` (a heading and its controls), `escapeAction()` (`'open'`, `'close'`, `'back'` or
+  `'none'`, from what is open). The choices are `button[data-choice=<choice>]` in
+  `.game-menu-choices`; the settings screen is `.game-menu-settings`. The texts: `STRINGS.gameMenu`
+  (`label`, `resume`, `load`, `newGame`, `prologue`, `mainMenu`, `signOut`, `settings`, `back`).
+- **The settings screen**: `game.ts` gives the sections: `controlList()` (`ui/control-list.ts`, also
+  in the menu of the page), `languageChoice()`, `soundSection(false)`, `tipsControls(tipStore)`, for an
+  admin `CrtControls` (`ui/crt-settings.ts`; `applyCrt()` sets the filters at the start and on each
+  change) and `xpSection()`. The headings are `.menu-subtitle`, as in the menu of the page.
+- **The character panel** (`ui/character-panel.ts`): `CharacterPanel` (`#character-button`,
+  `#character`; one of the top-right panels, `ui/panels.ts`), with the content of `YouSection`
+  (`ui/you-section.ts`, `.you-section`). The texts: `STRINGS.you` (`heading`: "Character").
   The look: `#game-menu` and `.game-menu-panel` in `style.css` (the classes of the menu of the page:
   `.menu-panel`, `.menu-name`, `.menu-stack`, `.menu-button`); `body.game-menu-open` hides the touch
   controls.
 - **The page** (`game.ts`): a `keydown` listener in the capture phase of `window` decides what Escape
-  does before the panels hear it (`otherUiOpen()`: `#journal`, `#worlds`, `#map`, `#pack`, `#settings`,
+  does before the panels hear it (`otherUiOpen()`: `#journal`, `#worlds`, `#map`, `#pack`, `#character`,
   the conversation, the dream, a drag of the pack); while the menu is open it stops every key from
   going on. The tick of the loop gives `NO_INPUT` while the menu is open, and `sim.advance(0)` in a
   world that the page runs.
 - **Back to the menu** (`menu/resume.ts`): `markMenuScreen('load' | 'new')` notes the screen in
   sessionStorage (`game.menu-screen.v1`), good for one start within 5 minutes; `takeMenuScreen()` in
   `runMenu()` (`menu/menu.ts`) shows that screen after the sign-in check. The place is saved with
-  `savePlace(true)` (`keepalive`) before the reload, as for "Main menu" in the "You" section.
+  `savePlace(true)` (`keepalive`) before the reload, as for "Main menu".
 - **The sounds**: `GameMenu` asks the page for them (`GameMenuSound`: `open`, `close`, `press` for a key
   press, `move`); `game.ts` plays `uiOpen`, `uiClick` and `uiSelect` and calls `audio.hushMusic()`
   (`HUSHED` in `audio/audio.ts`).
-- **Tests**: `packages/engine-client/src/ui/game-menu.test.ts` (`escapeAction()`),
+- **Tests**: `packages/engine-client/src/ui/game-menu.test.ts` (`escapeAction()`, `gameMenuChoices()`),
   `packages/engine-client/src/menu/resume.test.ts` (the screen note),
   `packages/engine-client/src/audio/audio.test.ts` (the music steps back).

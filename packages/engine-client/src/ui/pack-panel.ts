@@ -83,7 +83,7 @@ interface Drag {
 }
 
 /**
- * The pack: a button in the top-right corner (left of the settings), or I on a keyboard, opens a
+ * The pack: a button in the top-right corner (left of the character), or I on a keyboard, opens a
  * panel with what the character wears (the twelve slots of D&D 5e round its picture, with its
  * Armour Class and its damage), the coins, and the slots of the pack (Strength gives the slots),
  * each stack in its own slot. A press on a slot chooses it, and the detail under the slots says

@@ -16,16 +16,10 @@ export interface YouInfo {
   readonly account: boolean;
 }
 
-export interface YouCallbacks {
-  /** Back to the menu: another character, or a new game. */
-  mainMenu(): void;
-  signOut(): void;
-}
-
 /**
- * The "You" section of the settings panel: a picture of the character (standing, facing south),
- * its name, race and class, its level and XP, its ability scores, what they give in the game, and
- * the way back to the menu.
+ * The character panel (ui/character-panel.ts): a picture of the character (standing, facing south),
+ * its name, race and class, its level and XP, its ability scores and what they give in the game.
+ * "Main menu" and "Sign out" are in the game menu (ui/game-menu.ts) since 2026-10-14.
  */
 export class YouSection {
   readonly element: HTMLElement;
@@ -35,10 +29,10 @@ export class YouSection {
   private readonly level: HTMLElement;
   private shownLevel = '';
 
-  constructor(info: YouInfo, callbacks: YouCallbacks) {
+  constructor(info: YouInfo) {
     const text = STRINGS.you;
     this.element = document.createElement('div');
-    this.element.className = 'settings-you';
+    this.element.className = 'you-section';
 
     const heading = document.createElement('p');
     heading.className = 'settings-heading';
@@ -85,27 +79,7 @@ export class YouSection {
     this.traitsHeading.textContent = STRINGS.traits.heading;
     this.traits.append(this.traitsHeading, traitsList(info.traits));
 
-    const actions = document.createElement('div');
-    actions.className = 'you-actions';
-    const menu = document.createElement('button');
-    menu.type = 'button';
-    menu.className = 'settings-small';
-    menu.textContent = text.mainMenu;
-    menu.addEventListener('click', () => callbacks.mainMenu());
-    actions.append(menu);
-    if (info.account) {
-      const out = document.createElement('button');
-      out.type = 'button';
-      out.className = 'settings-small';
-      out.textContent = text.signOut;
-      out.addEventListener('click', () => {
-        out.disabled = true;
-        callbacks.signOut();
-      });
-      actions.append(out);
-    }
-
-    this.element.append(heading, row, this.traits, actions);
+    this.element.append(heading, row, this.traits);
   }
 
   /** Shows the level of the character and its XP. */

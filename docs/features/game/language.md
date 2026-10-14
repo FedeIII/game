@@ -3,7 +3,7 @@
 ## Overview
 
 The game speaks English and Spanish (Fede's decision, 2026-10-11). A visitor whose browser is in
-Spanish gets Spanish; anybody can change the language in the menu or in the settings. In Spanish
+Spanish gets Spanish; anybody can change the language in the settings of the menu or of the game menu. In Spanish
 the names are the names of Kandrax, Fede's D&D world: the town is Ferrozar (Ironhold in English),
 the world is las Tierras Salvajes, the reeve is Elama Rothenel, la alguacil. The terms of D&D are
 the terms of the Spanish books of 5e (Fuerza, FUE; Clase de Armadura, CA; Pícaro).
@@ -41,8 +41,8 @@ like.
 **Acceptance Criteria:**
 - **AC-LANG-002.1:** The sign-in screen and the main screen of the menu show "English · Español"
   under the other lines. The language of the page is in bold; the other one is a link.
-- **AC-LANG-002.2:** The settings panel has a section "Language" ("Idioma") with the same choice,
-  for every visitor.
+- **AC-LANG-002.2:** The settings of the game menu (Escape, "Settings") have a section "Language"
+  ("Idioma") with the same choice, for every visitor.
 - **AC-LANG-002.3:** A choice is kept in the browser, and the page loads again in that language.
   In the game, the same character starts again at once, where it was.
 

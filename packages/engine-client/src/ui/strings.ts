@@ -184,7 +184,7 @@ const EN = {
     title: (level: number): string => `Level ${level}`,
     spoken: (level: number): string => `New level: level ${level}.`,
   },
-  /** The experience section of the settings (ui/xp-section.ts), for an admin only. */
+  /** The experience section of the settings of the game menu (ui/xp-section.ts), for an admin only. */
   experience: {
     heading: 'Experience',
     divisor: 'Kill XP: 5e XP ÷',
@@ -310,7 +310,7 @@ const EN = {
     wearWhat: (what: string): string => `Wear ${what}`,
     takeOffWhat: (what: string): string => `Take off ${what}`,
   },
-  /** What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
+  /** What the scores give (ui/traits-list.ts): in the builder and in the character panel. */
   traits: {
     heading: 'What your scores give',
     ac: 'Armour Class',
@@ -477,13 +477,12 @@ const EN = {
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',
   linkKeyHint: 'or press E',
-  /** The "You" section of the settings: the character that the visitor plays. */
+  /** The character panel (ui/character-panel.ts, ui/you-section.ts): the character that the visitor plays. */
   you: {
-    heading: 'You',
+    /** The heading of the panel, and the name of its button. */
+    heading: 'Character',
     guest: 'A guest: nothing is saved',
     level: (level: number, xp: number, next: number | null): string => (next === null ? `Level ${level} · ${xp} XP` : `Level ${level} · ${xp} / ${next} XP`),
-    mainMenu: 'Main menu',
-    signOut: 'Sign out',
   },
   /** The menu before the game: sign-in, new game, continue, and the character builder. */
   /** The prologue (ui/prologue.ts). */
@@ -491,7 +490,7 @@ const EN = {
     label: 'Prologue',
     skip: 'Skip',
   },
-  /** The sound section of the settings (ui/sound-section.ts). */
+  /** The sound section of the settings (ui/sound-section.ts), in the game menu and in the menu. */
   sound: {
     heading: 'Sound',
     music: 'Music',
@@ -510,6 +509,10 @@ const EN = {
     load: 'Load game',
     newGame: 'New game',
     prologue: 'Prologue',
+    mainMenu: 'Main menu',
+    signOut: 'Sign out',
+    settings: 'Settings',
+    back: 'Back',
   },
   menu: {
     newGame: 'New game',
@@ -592,7 +595,7 @@ const EN = {
       { action: 'Choose an answer', keys: [['W', 'S'], ['↑', '↓']], touch: 'Tap the answer' },
       { action: 'Answer', keys: [['E'], ['Enter'], ['Space'], ['1–9']], touch: 'Tap the answer' },
       { action: 'End a conversation', keys: [['Esc']], touch: 'The close button' },
-      { action: 'Game menu', keys: [['Esc']], touch: 'The faint icon under the settings button' },
+      { action: 'Game menu', keys: [['Esc']], touch: 'The faint icon under the character button' },
     ] as readonly { readonly action: string; readonly keys: readonly (readonly string[])[]; readonly note?: string; readonly touch: string }[],
   },
   races: {
@@ -629,9 +632,8 @@ const EN = {
   } satisfies Record<Ability, { name: string; short: string }>,
   worlds: 'Worlds',
   worldsCurrent: 'you are here',
-  /** The settings panel (ui/settings-panel.ts): its name, the display settings of an admin, and the language. */
+  /** The settings of the game menu and of the menu: the display settings of an admin (ui/crt-settings.ts), and the language. */
   settings: {
-    button: 'Settings',
     crt: 'CRT effect',
     spread: 'Spread',
     mix: 'Blur',

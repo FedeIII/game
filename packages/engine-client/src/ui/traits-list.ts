@@ -5,7 +5,7 @@ import { STRINGS } from './strings.ts';
 /**
  * What the scores and the gear of a character give in the game (traits.ts), as a list of terms
  * and values: the character builder shows it under the scores (with the kit of the class), and the
- * "You" section of the settings under the character.
+ * character panel under the character.
  */
 export function traitsList(traits: PlayerTraits): HTMLElement {
   const t = STRINGS.traits;

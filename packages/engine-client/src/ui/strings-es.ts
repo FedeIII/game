@@ -419,11 +419,9 @@ export const ES: Strings = {
   linkClose: 'Cerrar',
   linkKeyHint: 'o pulsa E',
   you: {
-    heading: 'Tú',
+    heading: 'Personaje',
     guest: 'Partida de invitado: no se guarda nada',
     level: (level: number, xp: number, next: number | null): string => (next === null ? `Nivel ${level} · ${xp} PX` : `Nivel ${level} · ${xp} / ${next} PX`),
-    mainMenu: 'Menú principal',
-    signOut: 'Cerrar sesión',
   },
   prologue: {
     label: 'Prólogo',
@@ -444,6 +442,10 @@ export const ES: Strings = {
     load: 'Cargar partida',
     newGame: 'Partida nueva',
     prologue: 'Prólogo',
+    mainMenu: 'Menú principal',
+    signOut: 'Cerrar sesión',
+    settings: 'Ajustes',
+    back: 'Atrás',
   },
   menu: {
     newGame: 'Partida nueva',
@@ -522,7 +524,7 @@ export const ES: Strings = {
       { action: 'Elegir una respuesta', keys: [['W', 'S'], ['↑', '↓']], touch: 'Toca la respuesta' },
       { action: 'Responder', keys: [['E'], ['Intro'], ['Espacio'], ['1–9']], touch: 'Toca la respuesta' },
       { action: 'Terminar una conversación', keys: [['Esc']], touch: 'El botón de cerrar' },
-      { action: 'Menú del juego', keys: [['Esc']], touch: 'El icono tenue bajo el botón de ajustes' },
+      { action: 'Menú del juego', keys: [['Esc']], touch: 'El icono tenue bajo el botón del personaje' },
     ],
   },
   races: {
@@ -560,7 +562,6 @@ export const ES: Strings = {
   worlds: 'Mundos',
   worldsCurrent: 'estás aquí',
   settings: {
-    button: 'Ajustes',
     crt: 'Efecto CRT',
     spread: 'Dispersión',
     mix: 'Desenfoque',
