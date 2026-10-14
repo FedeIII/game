@@ -76,6 +76,20 @@
   Ask Fede: does the slow walk (a small push of the joystick) also leave the sneak after an attack, or
   only the sneak walk of C? Does the player stand up from the crouch after the attack?
 
+- **The player always faces the mouse** (2026-10-14). The player must always face in the direction of
+  the mouse pointer. Now the player faces the way that it walks (`facingFor()`), and it faces the mouse
+  only for an attack (a left click) and a brace (`facingOfAngle(move.attack)`, `player.aim`).
+  Code: `stepPlayer()`, `facingFor()`, `facingOfAngle()`, `MoveInput` (`x`, `y`, `attack`, `dodge`) and
+  `PlayerState.facing` and `aim` in `packages/engine/src/player.ts` (the facing is in the simulation:
+  the server repeats the step, and the snapshots send the facing to the other pages); `Mouse` (`at`) in
+  `packages/engine-client/src/input/mouse.ts`; `aimAt()` and the reading of the input in
+  `packages/engine-client/src/game.ts`; the walk frames for each facing in `render/player-view.ts`;
+  the protocol in `docs/multiplayer.md`.
+  Ask Fede: while the player walks away from the mouse, does it walk backwards (the walk frames of the
+  facing of the mouse)? Does the roll still go the way that the player walks? On a touch screen (no
+  mouse), does the player face the way that it walks, as now? Do the other players see the facing
+  of the mouse too?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
