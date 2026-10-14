@@ -6,6 +6,22 @@
 
 ## Open
 
+- **Separate the settings and the character in the game** (2026-10-14). In the game, the settings and
+  the character must have separate buttons. The settings go into the game menu (Escape). The settings
+  button at the top right becomes a "Character" button, which opens a character panel. Now one
+  settings panel at the top right has the sound, the language and the tips, the "You" section (the
+  character), the display settings and the "Experience" section of an admin.
+  Code: `SettingsPanel` (`#settings-button`, `#settings`, `addSection()`, `appendSection()`) in
+  `packages/engine-client/src/ui/settings-panel.ts`; the sections in `game.ts` (`soundSection()`,
+  `languageChoice()`, `tipsControls()`, `you.element`, `xpSection()`); `you-section.ts`;
+  `GameMenu` in `ui/game-menu.ts` (`#game-menu`; its touch button is under the settings button); the
+  panels in `ui/panels.ts`; `otherUiOpen()` in `game.ts`; `STRINGS.settings`, `STRINGS.controls` ("The
+  faint icon under the settings button") in `ui/strings.ts` and `ui/strings-es.ts`;
+  `docs/features/game/game-menu.md`.
+  Ask Fede: which sections go into the game menu, and which stay in the character panel (the "You"
+  section, "Main menu" and "Sign out", the "Experience" section of an admin)? Does the character
+  button get a new icon? Do the pack, the journal and the map stay separate buttons?
+
 - **The traits list is hard to read** (2026-10-14). The list of what the scores and the gear of a
   character give in each area of the game is difficult to understand: it is too long, and its layout
   does not help. It shows in the "You" section of the settings (the player profile) and in step 2 of
@@ -59,22 +75,6 @@
   (a player that stands still also sneaks for the mobs); `others.ts` (the crouch of the other players).
   Ask Fede: does the slow walk (a small push of the joystick) also leave the sneak after an attack, or
   only the sneak walk of C? Does the player stand up from the crouch after the attack?
-
-- **Separate the settings and the character in the game** (2026-10-14). In the game, the settings and
-  the character must have separate buttons. The settings go into the game menu (Escape). The settings
-  button at the top right becomes a "Character" button, which opens a character panel. Now one
-  settings panel at the top right has the sound, the language and the tips, the "You" section (the
-  character), the display settings and the "Experience" section of an admin.
-  Code: `SettingsPanel` (`#settings-button`, `#settings`, `addSection()`, `appendSection()`) in
-  `packages/engine-client/src/ui/settings-panel.ts`; the sections in `game.ts` (`soundSection()`,
-  `languageChoice()`, `tipsControls()`, `you.element`, `xpSection()`); `you-section.ts`;
-  `GameMenu` in `ui/game-menu.ts` (`#game-menu`; its touch button is under the settings button); the
-  panels in `ui/panels.ts`; `otherUiOpen()` in `game.ts`; `STRINGS.settings`, `STRINGS.controls` ("The
-  faint icon under the settings button") in `ui/strings.ts` and `ui/strings-es.ts`;
-  `docs/features/game/game-menu.md`.
-  Ask Fede: which sections go into the game menu, and which stay in the character panel (the "You"
-  section, "Main menu" and "Sign out", the "Experience" section of an admin)? Does the character
-  button get a new icon? Do the pack, the journal and the map stay separate buttons?
 
 ## Done
 
