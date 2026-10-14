@@ -38,7 +38,7 @@ a client of another version is refused, and its label tells the visitor to reloa
 | client to server | `hello` | protocol version, world id, the visitor's skin seed, optional start tile `at` (used if it is within 64 tiles of the character's stored place, or else of the spawn), optional `name`, optional `character` (the id of the account's character; protocol 7) |
 | client to server | `skin` | a new skin seed for the player (a server with accounts ignores it) |
 | client to server | `name` | a new name for the player (`''` for none; a server with accounts ignores it) |
-| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11), piles that it picks up `g: [seq, pile id]` (protocol 17), stairs that it uses `c: [seq, tx, ty]` (protocol 39) |
+| client to server | `in` | a batch of inputs (one per tick: each axis an integer from -100 to 100, and for an attack a third number, 1 + the code of its direction: 0 to 255, in steps of 1.4 degrees clockwise from east; protocol 8; for a dodge a fourth number, 1, protocol 12; for the direction to the mouse a fifth number, 1 + its code, with 0 for no dodge, protocol 45), the sequence number of the first, door wishes `[seq, tx, ty, open]`, attacks `k: [seq, view time]`, chests that the player opens `u: [seq, tx, ty]` (protocol 11), piles that it picks up `g: [seq, pile id]` (protocol 17), stairs that it uses `c: [seq, tx, ty]` (protocol 39) |
 | client to server | `ping` | the client's clock, for the round trip |
 | client to server | `deal` | a purchase from an NPC (`npc`: its index; protocol 13) or a brew at a fixture (`at`: its tile; protocol 14), and the id of the deal in its dialog: the deal of an answer, or a ware of a shop (one item) |
 | client to server | `drink` | the code of a drink in the pack (protocol 14) |
@@ -69,6 +69,20 @@ misses the line, which is harmless.
 **Protocol 10 (2026-10-10)** changes no message: the Wilds got the town of Ironhold, with its
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
+
+## The facing of the mouse (protocol 45, 2026-10-14)
+
+A player that stands faces the mouse (`docs/features/game/combat.md`, REQ-CMB-014). The facing is part of
+the state that the server owns, so the input carries the direction:
+
+- `MoveInput.face`: the direction from the player's chest to the mouse pointer (radians), while the
+  mouse is over the world. The page sends it with every input, also while the player walks.
+- On the wire, an input with it has five numbers: `[x, y, attack, dodge, face]`, the attack 0 for none,
+  the dodge 0 or 1, the face 1 + its code (`aimCode()`, as an attack's). An input without it is as
+  before. The server refuses another form.
+- `stepPlayer()` turns a player that stands to it (`facingToward()`), and a roll in place goes towards
+  it. The page predicts both from its inputs. No other message changes: the facing goes to the others in
+  `p`, as before.
 
 ## A new step back for each brace, and the stamina of an attack (protocol 44, 2026-10-14)
 

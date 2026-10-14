@@ -516,7 +516,7 @@ export const ES: Strings = {
     or: 'o',
     display: 'Pantalla',
     controlList: [
-      { action: 'Caminar', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']], touch: 'El joystick, abajo a la izquierda' },
+      { action: 'Caminar', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']], note: 'Sin moverte, miras hacia el puntero.', touch: 'El joystick, abajo a la izquierda' },
       { action: 'Caminar con sigilo, sí o no', keys: [['C']], touch: 'Un empujón pequeño del joystick' },
       { action: 'Hablar, abrir, leer, recoger', keys: [['E']], touch: 'El botón de acción, abajo a la derecha' },
       { action: 'Atacar', keys: [['Espacio'], ['J'], ['Clic izquierdo']], note: 'Un clic ataca hacia el puntero.', touch: 'El botón de ataque' },

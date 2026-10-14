@@ -65,8 +65,9 @@ blow of a mob with skill.
   the key "Shift" on it. The keyboard hint says "Shift to roll".
 - **AC-DEX-003.3:** A roll moves the player 32 px (2 tiles) in 0.25 s (15 ticks): faster than an
   imp runs.
-- **AC-DEX-003.4:** The roll goes the way that the input moves. Without input, it goes the way the
-  player faces. The player then faces the way of the roll.
+- **AC-DEX-003.4:** The roll goes the way that the input moves. Without input, it goes towards the
+  mouse pointer while the mouse is over the world ([Combat](../game/combat.md), REQ-CMB-014), else the
+  way the player faces. The player then faces the way of the roll.
 - **AC-DEX-003.5:** During the roll no mob can hit the player.
 - **AC-DEX-003.6:** The player cannot attack during a roll. A roll does not start during a stun or
   an attack.

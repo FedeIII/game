@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 44;
+export const PROTOCOL_VERSION = 45;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -95,26 +95,33 @@ export function aimFromCode(code: number): number {
 
 /**
  * An input on the wire: each axis as a whole number from -100 to 100; for an attack a third
- * number, 1 + the code of its direction (aimCode), or 0 for none; for a dodge a fourth number, 1.
+ * number, 1 + the code of its direction (aimCode), or 0 for none; for a dodge a fourth number, 1
+ * (0 for none); for a direction to face (MoveInput.face; protocol 45) a fifth number, 1 + its code.
  * The client applies the input that it sends, not the one that it read, so the server can repeat
  * the same step.
  */
-export type WireInput = readonly [number, number] | readonly [number, number, number] | readonly [number, number, number, number];
+export type WireInput =
+  | readonly [number, number]
+  | readonly [number, number, number]
+  | readonly [number, number, number, number]
+  | readonly [number, number, number, number, number];
 
 const INPUT_SCALE = 100;
 
 export function toWireInput(input: MoveInput): WireInput {
   const q = (v: number) => Math.max(-INPUT_SCALE, Math.min(INPUT_SCALE, Math.round(v * INPUT_SCALE)));
-  const { attack, dodge } = clampInput(input);
+  const { attack, dodge, face } = clampInput(input);
   const a = attack !== undefined ? 1 + aimCode(attack) : 0;
+  if (face !== undefined) return [q(input.x), q(input.y), a, dodge ? 1 : 0, 1 + aimCode(face)];
   if (dodge) return [q(input.x), q(input.y), a, 1];
   return a > 0 ? [q(input.x), q(input.y), a] : [q(input.x), q(input.y)];
 }
 
 export function fromWireInput(wire: WireInput): MoveInput {
-  const move: { x: number; y: number; attack?: number; dodge?: boolean } = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
+  const move: { x: number; y: number; attack?: number; dodge?: boolean; face?: number } = { x: wire[0] / INPUT_SCALE, y: wire[1] / INPUT_SCALE };
   if (wire.length >= 3 && wire[2]! > 0) move.attack = aimFromCode(wire[2]! - 1);
-  if (wire.length === 4 && wire[3] === 1) move.dodge = true;
+  if (wire.length >= 4 && wire[3] === 1) move.dodge = true;
+  if (wire.length === 5 && wire[4]! > 0) move.face = aimFromCode(wire[4]! - 1);
   return clampInput(move);
 }
 
@@ -652,7 +659,14 @@ export function parseClientMessage(raw: string): ClientMessage | null {
           isInt(v[0], -INPUT_SCALE, INPUT_SCALE) &&
           isInt(v[1], -INPUT_SCALE, INPUT_SCALE) &&
           isInt(v[2], 0, AIM_STEPS) &&
-          v[3] === 1);
+          v[3] === 1) ||
+        (Array.isArray(v) &&
+          v.length === 5 &&
+          isInt(v[0], -INPUT_SCALE, INPUT_SCALE) &&
+          isInt(v[1], -INPUT_SCALE, INPUT_SCALE) &&
+          isInt(v[2], 0, AIM_STEPS) &&
+          isInt(v[3], 0, 1) &&
+          isInt(v[4], 1, AIM_STEPS));
       if (!m.i.every(inputShaped)) return null;
       const inputs = m.i as WireInput[];
       let attacks: WireAttack[] | undefined;

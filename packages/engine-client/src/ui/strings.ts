@@ -589,7 +589,7 @@ const EN = {
      * (each list is one choice; the choices are joined by "or") and what a touch screen has instead.
      */
     controlList: [
-      { action: 'Walk', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']], touch: 'The stick, bottom left' },
+      { action: 'Walk', keys: [['W', 'A', 'S', 'D'], ['↑', '←', '↓', '→']], note: 'When you stand still, you face the pointer.', touch: 'The stick, bottom left' },
       { action: 'Sneak walk, on or off', keys: [['C']], touch: 'A small push of the stick' },
       { action: 'Talk, open, read, pick up', keys: [['E']], touch: 'The action button, bottom right' },
       { action: 'Attack', keys: [['Space'], ['J'], ['Left click']], note: 'A click attacks towards the pointer.', touch: 'The attack button' },

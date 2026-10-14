@@ -322,6 +322,35 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
 
 ---
 
+### REQ-CMB-014: The player faces the mouse
+
+**User Story:** As a player with a mouse, I want my character to face the mouse pointer when it stands,
+so that I can turn to a foe or a thing without a step (Fede, 2026-10-14).
+
+**Acceptance Criteria:**
+- **AC-CMB-014.1:** While the mouse is over the world, a character that stands faces the pointer: the
+  view (up, down, left or right) nearest to the way from its chest to the pointer. This is also true in a
+  conversation. Within 3 world pixels of the chest the pointer gives no way, and the facing stays.
+- **AC-CMB-014.2:** Near a diagonal the facing does not flicker: it changes only when the way to the
+  pointer is 6 degrees past the diagonal (`FACE_SLACK`).
+- **AC-CMB-014.3:** A character that walks faces the way that it walks, wherever the pointer is (Fede's
+  choice, 2026-10-14). When it stops, it faces the pointer again.
+- **AC-CMB-014.4:** An attack faces the way of the attack, and a brace faces the way that the character
+  struck. A roll faces the way of the roll. A stunned or defeated character does not turn.
+- **AC-CMB-014.5:** A character that stands and attacks with Space, J or the attack button, with no mob
+  in reach, strikes towards the pointer. A roll of a character that stands goes towards the pointer, at
+  its exact angle; a roll of a character that walks goes the way that it walks
+  ([Dexterity](../abilities/dexterity.md), AC-DEX-003.4).
+- **AC-CMB-014.6:** Without a mouse over the world (a touch screen, or the mouse over the GUI or out of
+  the window), the character faces the way that it walks, as before, and keeps its facing when it stops.
+  The game menu and the prologue do not turn it.
+- **AC-CMB-014.7:** The server owns the facing (protocol 45): the page sends the way to the pointer with
+  each input, predicts the facing, and the other players see it.
+- **AC-CMB-014.8:** The list of controls says it under "Walk": "When you stand still, you face the
+  pointer." ("Sin moverte, miras hacia el puntero.").
+
+---
+
 ## Feature Behavior & Rules
 
 - **Dice** (`packages/engine/src/dice.ts`): `Dice`, `dice()`, `plusDice()`, `formatDice()`,
@@ -411,3 +440,11 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
   `Horde.spawnAhead()` (`AHEAD_DISTANCE` [17, 21]); a quest condition with a flag (`When.flag`). The
   Wilds: `FIRST_GOBLINS` (`source.ts`), `GOBLINS_MET` (`quests.ts`). Tests:
   `packages/engine/test/confrontations.test.ts`, `worlds/wilds/test/first-goblins.test.ts`.
+- **The facing** (REQ-CMB-014): `MoveInput.face` (the way to the mouse, radians), `facingToward()` and
+  `FACE_SLACK` (`packages/engine/src/player.ts`); in `stepPlayer()` a player that stands (each axis of
+  the move under 0.01) faces `face`, else its walk (`facingFor()`), and a roll in place goes towards
+  `face`; `clampInput()` keeps it in (-PI, PI]. The wire: a fifth number of an input, 1 + `aimCode()`
+  (`toWireInput()`, `fromWireInput()`, `parseClientMessage()`; protocol 45). The page: `wayTo()` and the
+  input of each tick in `packages/engine-client/src/game.ts` (`Mouse.at`, `MOUSE_DEAD_ZONE` 3), and
+  `aim()` (the button and Space). The control list: `controlList` (`ui/strings.ts`, `ui/strings-es.ts`).
+  Tests: `packages/engine/test/facing.test.ts`.

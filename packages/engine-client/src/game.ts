@@ -239,7 +239,10 @@ const FIRE_SHOOTERS: ReadonlySet<MobKind> = new Set(['adept']);
 const SNEAK_TORCH = 96;
 /** The attack turns to a mob this much beyond the reach of the attack (world pixels). */
 const AIM_SLACK = 10;
-/** A click closer than this to the player's chest (world pixels) gives no direction: the attack goes the way the player faces. */
+/**
+ * The mouse closer than this to the player's chest (world pixels) gives no direction: a click attacks the
+ * way the player faces, and the player keeps its facing.
+ */
 const MOUSE_DEAD_ZONE = 3;
 /** An NPC with a dialog says its first line; the conversation panel opens this long after (ms). */
 const TALK_DELAY_MS = 700;
@@ -815,13 +818,14 @@ async function run(options: GameOptions): Promise<void> {
     });
     mouse.onAltPress(() => (dodgeAskedAt = performance.now()));
   }
-  /** The direction from the player's chest to a point of the screen: where the visitor sees it. */
-  const aimAt = (at: { readonly x: number; readonly y: number }): number => {
+  /** The direction from the player's chest to a point of the screen (where the visitor sees it), or undefined in the dead zone. */
+  const wayTo = (at: { readonly x: number; readonly y: number }): number | undefined => {
     const point = camera.toWorld(at.x, at.y);
     const dx = point.x - shown.x;
     const dy = point.y - (shown.y - playerView.chestHeight);
-    return Math.hypot(dx, dy) < MOUSE_DEAD_ZONE ? facingAngle(player.facing) : Math.atan2(dy, dx);
+    return Math.hypot(dx, dy) < MOUSE_DEAD_ZONE ? undefined : Math.atan2(dy, dx);
   };
+  const aimAt = (at: { readonly x: number; readonly y: number }): number => wayTo(at) ?? facingAngle(player.facing);
   const aim = (move: MoveInput): number => {
     let best: MobLook | null = null;
     let bestD = Infinity;
@@ -838,7 +842,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     if (best) return Math.atan2(best.y - player.y, best.x - player.x);
     if (Math.hypot(move.x, move.y) > 0.01) return Math.atan2(move.y, move.x);
-    return facingAngle(player.facing);
+    // A player that stands strikes towards the mouse, else the way it faces.
+    return move.face ?? facingAngle(player.facing);
   };
 
   // How many other visitors are here: an admin only, in the character panel.
@@ -1720,6 +1725,9 @@ async function run(options: GameOptions): Promise<void> {
     const still = conversation.open || gameMenu.shown || prologuePlaying();
     if (still) attackAskedAt = -Infinity;
     let input: MoveInput = still ? NO_INPUT : readInput();
+    // A player that stands faces the mouse over the world (stepPlayer), also in a conversation; not under the game menu or the prologue.
+    const face = mouse.at && !gameMenu.shown && !prologuePlaying() ? wayTo(mouse.at) : undefined;
+    if (face !== undefined) input = { ...input, face };
     if (still) dodgeAskedAt = -Infinity;
     if (performance.now() - dodgeAskedAt < ATTACK_BUFFER_MS && canDodge(player)) {
       input = { ...input, dodge: true };

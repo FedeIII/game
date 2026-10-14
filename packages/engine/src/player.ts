@@ -17,8 +17,13 @@ export interface MoveInput {
    * so the server repeats the same step.
    */
   readonly attack?: number;
-  /** A dodge (a roll) in this tick, the way the input moves (or the way the player faces). */
+  /** A dodge (a roll) in this tick, the way the input moves (or `face`, or the way the player faces). */
   readonly dodge?: boolean;
+  /**
+   * A direction to face (radians, as `attack`) while the player stands: the client gives the way to the
+   * mouse pointer when it is over the world (Fede, 2026-10-14). A player that walks faces its walk.
+   */
+  readonly face?: number;
 }
 
 export const NO_INPUT: MoveInput = { x: 0, y: 0 };
@@ -409,6 +414,17 @@ export function facingOfAngle(angle: number): Facing {
   return a > 0 ? 'down' : 'up';
 }
 
+/** A player that faces a direction (MoveInput.face) keeps its facing until the direction is this far past the diagonal (6 degrees). */
+export const FACE_SLACK = Math.PI / 30;
+
+/**
+ * The facing for a direction to face (MoveInput.face). The current facing stays while the direction is
+ * within 45 degrees + FACE_SLACK of it, so the sprite does not flicker when the mouse is near a diagonal.
+ */
+export function facingToward(current: Facing, angle: number): Facing {
+  return Math.abs(normalAngle(angle - facingAngle(current))) <= Math.PI / 4 + FACE_SLACK ? current : facingOfAngle(angle);
+}
+
 /**
  * Whether an attack from (px, py) in the direction `aim` (radians) hits a thing at (x, y) with
  * radius `radius`: close enough, and in front (or so close that the direction does not matter).
@@ -424,16 +440,17 @@ export function attackHits(px: number, py: number, aim: number, x: number, y: nu
 
 /**
  * Makes an input safe to use: it replaces values that are not finite with 0, limits the length
- * to 1, puts the direction of an attack in (-PI, PI], and drops an attack without a finite
- * direction. The server must apply this to every input from a client.
+ * to 1, puts the directions of an attack and of `face` in (-PI, PI], and drops a direction that is
+ * not finite. The server must apply this to every input from a client.
  */
 export function clampInput(input: MoveInput): MoveInput {
   const x = Number.isFinite(input.x) ? input.x : 0;
   const y = Number.isFinite(input.y) ? input.y : 0;
   const length = Math.hypot(x, y);
-  const move: { x: number; y: number; attack?: number; dodge?: boolean } = length > 1 ? { x: x / length, y: y / length } : { x, y };
+  const move: { x: number; y: number; attack?: number; dodge?: boolean; face?: number } = length > 1 ? { x: x / length, y: y / length } : { x, y };
   if (input.attack !== undefined && Number.isFinite(input.attack)) move.attack = normalAngle(input.attack);
   if (input.dodge === true) move.dodge = true;
+  if (input.face !== undefined && Number.isFinite(input.face)) move.face = normalAngle(input.face);
   return move;
 }
 
@@ -602,8 +619,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.evade = 0;
     player.stamina -= DODGE_STAMINA;
     player.rest = 0;
-    // A roll the way the input moves, or the way the player faces when it stands.
-    player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : facingAngle(player.facing);
+    // A roll the way the input moves; when it stands, towards `face` (the mouse), or the way it faces.
+    player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : (move.face ?? facingAngle(player.facing));
     player.facing = facingOfAngle(player.dodgeAim);
     player.dodge = DODGE_TICKS;
     player.dodgeCooldown = traits.dodgeCooldown ?? DODGE_COOLDOWN_TICKS;
@@ -651,7 +668,9 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   const speed = PLAYER_SPEED * (traits.speed ?? 1) * (wading ? WADE_SPEED : 1);
   player.vx = move.x * speed;
   player.vy = move.y * speed;
-  player.facing = facingFor(player.facing, move);
+  // It faces its walk; when it stands, the direction to face (the mouse), if the input gives one.
+  const stands = Math.abs(move.x) < 0.01 && Math.abs(move.y) < 0.01;
+  player.facing = stands && move.face !== undefined ? facingToward(player.facing, move.face) : facingFor(player.facing, move);
   // One axis at a time, so the player slides along a wall instead of a full stop.
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);

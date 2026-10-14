@@ -178,9 +178,9 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
   form field are ignored), `joystick.ts` (floating touch stick), `sneak-walk.ts` (`SneakWalk`: the
   sneak walk of C, which an attack ends) and `mouse.ts` (the mouse over
-  `#game`: where it points, a left click on the world, which attacks towards it, and a right
-  click, a dodge; over the world the system cursor hides (class `own-cursor`) and
-  `render/cursor.ts` draws the game's).
+  `#game`: where it points, which a player that stands faces (`MoveInput.face`), a left click on
+  the world, which attacks towards it, and a right click, a dodge; over the world the system cursor
+  hides (class `own-cursor`) and `render/cursor.ts` draws the game's).
 - `ui/`: the GUI, all HTML over the canvas: `strings.ts` (every engine text the player reads),
   `hud.ts` (hint, debug panel, fatal error), `tips.ts` (the tips of the tutorial, the first time
   of each thing, once in a browser, localStorage `game.tips.v1`: `TipStore`, `TipQueue`, `TipView`
@@ -690,7 +690,7 @@ builder and the character panel still name every gate.
   a ranger's arrows (`range`: 5 + mod tiles; `ranged` for a ranger only), and a gate of 13 for
   locked chests (`PICK_GATE`, `Fixture.lock`).
 - **The dodge** (`player.ts`): `MoveInput.dodge` starts a roll of 32 px in 15 ticks (0.25 s) the
-  way the input moves (or the way the player faces), in which no mob can hit (`canBeHit`); walls
+  way the input moves (or towards the mouse, or the way the player faces), in which no mob can hit (`canBeHit`); walls
   stop it, and it does not start in shallow water (it ends there). Shift, the right mouse button
   or the dodge button (`ui/dodge-button.ts`).
 - **The brace** (`player.ts`; 2026-10-14, Fede's idea: stay in melee as safe as a kite;
@@ -826,7 +826,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 44.
+protocol: `docs/multiplayer.md`, protocol 45.
 
 ## Levels and experience
 
@@ -1083,7 +1083,12 @@ the red flash of a hit, stars over the head while stunned, a blink while guarded
 dodge) and `ui/attack-button.ts` (in the bottom-right corner, under the action button; Space or J on a keyboard). A left click on the
 world attacks towards the mouse pointer, from the player's chest (`input/mouse.ts`). A press is
 kept for 150 ms. The button and Space aim at the nearest mob in reach (for a ranger, in the range of its arrows), else the way the player
-walks or faces. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
+walks, else towards the mouse, else the way it faces. **The facing** (Fede, 2026-10-14;
+`docs/features/game/combat.md`, REQ-CMB-014): a player that walks faces its walk (`facingFor()`); one
+that stands faces the mouse over the world (`MoveInput.face`, the way from its chest to the pointer:
+`facingToward()`, which keeps the facing up to `FACE_SLACK` past a diagonal); without a mouse over the
+world (a touch screen) it keeps its facing. An attack and a brace face the way of the attack, a roll
+the way of the roll. The server owns the facing (protocol 45), so the others see it. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
 player at the start (single-player worlds, so the Wilds with `?offline`); `?nomobs` turns them off.
 
 ## Fixtures, content and actions
