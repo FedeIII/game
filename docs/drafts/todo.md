@@ -21,6 +21,21 @@
   it), or must the release and the new press both come after the attack? Is the window of 0.15 s
   (`BRACE_WINDOW_TICKS` 9) long enough for a release and a new press? On a touch screen, is a release
   the joystick back to the centre, or also a move to the side?
+  **Stamina** (Fede, 2026-10-14, the same item): an attack costs a little stamina, and stamina does not
+  fill while the player holds the brace. Now an attack costs none, and only a roll (`DODGE_STAMINA` 35)
+  and the sneak walk (`SNEAK_STAMINA` 8 each second) use it; stamina fills again `STAMINA_REST_TICKS`
+  (1 s) after its last use (`player.rest`, `body()`), also in a brace.
+  Code: the attack branch of `stepPlayer()`, `body()`, `PlayerState.stamina` and `rest`, the constants
+  `PLAIN_STAMINA`, `STAMINA_REFILL`, `STAMINA_REST_TICKS`, `DODGE_STAMINA`, `SNEAK_STAMINA` and
+  `canAttack()` in `packages/engine/src/player.ts`; `maxStamina` and `staminaRefill` in
+  `packages/engine/src/traits.ts`; the guards (`guards.ts`) and the companions swing through
+  `stepPlayer()` too; the stamina bar in `ui/vitals.ts`; REQ-CON-009 in
+  `docs/features/abilities/constitution.md`; the traits list (`ui/traits-list.ts`).
+  Ask Fede: how much stamina does an attack cost (one number, or more for a heavy weapon and less for a
+  light one)? Does an arrow of a bow cost it too? Without enough stamina, can the player still attack
+  (as now), attack weaker, or not attack (a dim attack button, as the roll)? Does the brace only stop
+  the refill, or does it also use stamina each second? Do guards and companions pay stamina for their
+  attacks?
 
 - **The player always faces the mouse** (2026-10-14). The player must always face in the direction of
   the mouse pointer. Now the player faces the way that it walks (`facingFor()`), and it faces the mouse
