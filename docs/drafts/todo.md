@@ -111,6 +111,22 @@
   in a brace, or no hit, as in a roll)? Does the jump use the wait between dodges
   (`dodgeCooldown`)? Does the jump need new frames, or does it show the brace frames with a hop?
 
+- **Evaluate the combat mechanics of the melee draft** (2026-10-15). Evaluate the mechanics of
+  `docs/drafts/combat-melee.md`: step 1, the brace (built), and the twelve proposals that are not
+  built (the grades of the brace, the riposte, the front of a brace, the sidestep, the parry, the
+  guard stance and the shield block, the shove, the clash, the reactions of the classes, the shapes
+  of a mob's blow, the guards of the mobs, a price in stamina). The draft has its own list of what to
+  watch in a game, a recommended order and four questions for Fede. The item "A short jump from the
+  brace" (above) is near to proposal 4, the sidestep.
+  Code: the brace (`BRACE_WINDOW_TICKS`, `BRACE_TICKS`, `heldBack`), `armourNow()`, `missPlayer()`,
+  `glancePlayer()` and the dodge in `packages/engine/src/player.ts`; `BRACE_AC`, `braceAc`,
+  `ATTACK_STAMINA` in `packages/engine/src/traits.ts`; `rollBlow()`, the wind-ups and `MOB_STATS` in
+  `packages/engine/src/mobs.ts`; `attackRoll()` in `packages/engine/src/dice.ts`; REQ-CMB-013 in
+  `docs/features/game/combat.md`; Fede's rules in `docs/game-design.md`.
+  Ask Fede: what must the evaluation give: a play test of the brace against each mob (the three
+  questions of step 1), a simulation of the odds and the timing, or a ranked choice of the proposals
+  to build next?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
