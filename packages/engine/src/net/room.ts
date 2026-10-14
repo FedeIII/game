@@ -1063,6 +1063,7 @@ export class Room {
           s.braceWindow,
           s.brace,
           s.evade,
+          s.heldBack ? 1 : 0,
         ],
         p: others,
         o: packed.size - 1,

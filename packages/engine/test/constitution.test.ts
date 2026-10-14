@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   AVERAGE_DICE,
   ALE_TICKS,
+  ATTACK_COOLDOWN_TICKS,
+  ATTACK_STAMINA,
   DODGE_STAMINA,
   DOWN_TICKS,
   NO_INPUT,
@@ -12,11 +14,13 @@ import {
   STAMINA_REST_TICKS,
   TICK_RATE,
   TILE_SIZE,
+  TIRED_COOLDOWN,
   WAKE_GUARD_TICKS,
   World,
   checkDialog,
   createPlayer,
   hitPlayer,
+  kitOf,
   parseClientMessage,
   rest,
   stepPlayer,
@@ -138,6 +142,47 @@ describe('stamina', () => {
     expect(p.stamina).toBeCloseTo(traits.maxStamina - 8, 3);
     for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, NO_INPUT, open, traits);
     expect(p.stamina).toBeCloseTo(traits.maxStamina, 3);
+  });
+
+  it('pays for an attack by the weight of what it attacks with: light 4, plain 6, heavy 10 (an arrow of a longbow too)', () => {
+    const cost = (cls: Parameters<typeof kitOf>[0], gear = kitOf(cls)) => traitsOf(PLAIN_SCORES, cls, gear).attackStamina;
+    expect(ATTACK_STAMINA).toEqual({ light: 4, plain: 6, heavy: 10 });
+    expect(cost('rogue')).toBe(4); // a shortsword
+    expect(cost('monk')).toBe(4); // martial arts
+    expect(cost('fighter')).toBe(6); // a longsword
+    expect(cost('wizard')).toBe(6); // a cantrip
+    expect(cost('cleric', PLAIN_GEAR)).toBe(6); // an unarmed strike
+    expect(cost('barbarian')).toBe(10); // a greataxe
+    expect(cost('ranger')).toBe(10); // a longbow
+    const traits = traitsOf(PLAIN_SCORES, 'barbarian', kitOf('barbarian'));
+    const p = createPlayer(100, 100);
+    expect(stepPlayer(p, { x: 0, y: 0, attack: 0 }, open, traits)).toBe(true);
+    expect(p.stamina).toBe(traits.maxStamina - 10);
+    expect(p.cooldown).toBe(traits.cooldown);
+    // The attack is a use: stamina fills again a second after it.
+    expect(p.rest).toBe(0);
+  });
+
+  it('gives a slower attack without enough stamina: the attack comes, and the next one waits twice as long', () => {
+    const traits = traitsOf(PLAIN_SCORES, 'barbarian', kitOf('barbarian'));
+    const p = createPlayer(100, 100);
+    p.stamina = 7;
+    expect(stepPlayer(p, { x: 0, y: 0, attack: 0 }, open, traits)).toBe(true);
+    expect(p.stamina).toBe(0);
+    expect(p.cooldown).toBe(TIRED_COOLDOWN * traits.cooldown);
+    let ticks = 0;
+    while (!stepPlayer(p, { x: 0, y: 0, attack: 0 }, open, traits)) ticks++;
+    expect(ticks).toBe(TIRED_COOLDOWN * traits.cooldown - 1);
+  });
+
+  it('is not paid for the swing of a guard or a companion (traits without attackStamina)', () => {
+    const p = createPlayer(100, 100);
+    p.stamina = 0;
+    expect(stepPlayer(p, { x: 0, y: 0, attack: 0 }, open, { maxHp: 11, recover: 0 })).toBe(true);
+    // No cost, no slower attack, and the refill goes on.
+    expect(p.stamina).toBeGreaterThan(0);
+    expect(p.rest).toBe(STAMINA_REST_TICKS);
+    expect(p.cooldown).toBe(ATTACK_COOLDOWN_TICKS);
   });
 
   it('does not go in a slow walk in shallow water', () => {

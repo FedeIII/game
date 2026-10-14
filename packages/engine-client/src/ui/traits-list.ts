@@ -98,7 +98,13 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         gate(t.pick, PICK_GATE, t.pickYes),
       ];
     case 'con':
-      return [row(t.stun, t.share(traits.stun)), row(t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)), row(t.resist, t.share(traits.resist))];
+      return [
+        row(t.stun, t.share(traits.stun)),
+        row(t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)),
+        // The weapon decides it, not the score: plain.
+        row(t.attackStamina, t.attackStaminaValue(traits.attackStamina), 'plain'),
+        row(t.resist, t.share(traits.resist)),
+      ];
     case 'int':
       return [
         row(t.opening, t.openingValue(traits.opening), bonus),

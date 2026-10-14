@@ -227,6 +227,9 @@ The same moves for the mobs, so that a fight has two sides and the player must r
 - Why: a fight gets a rhythm (in melee while the stamina lasts, then out to breathe), and CON matters
   more for a fighter at the front.
 - Work: small, the engine only (the costs are in `player.ts`, as `DODGE_STAMINA`).
+- Built in part (2026-10-14, Fede's decisions): an attack costs 4, 6 or 10 stamina by the weight of
+  the weapon (`ATTACK_STAMINA`), and with too little the next attack waits twice as long; the brace
+  costs none, but stamina does not fill in it (`docs/features/abilities/constitution.md`, REQ-CON-009).
 
 ## All the proposals
 

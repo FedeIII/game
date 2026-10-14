@@ -280,6 +280,12 @@ export const HEAVY_SPEED = 0.75;
 export const NOISY_SIGHT = 0.75;
 /** With quiet steps (boots of elvenkind), from this share; quiet steps in a noisy armour: SNEAK_SIGHT (5e: advantage and disadvantage cancel). */
 export const QUIET_SIGHT = 0.35;
+/**
+ * The weight of an attack, for its stamina (player.ts, ATTACK_STAMINA): a light weapon or martial arts
+ * (as quick as a light weapon) is light, a heavy weapon (the longbow too) is heavy, and anything else
+ * (another weapon, a cantrip, an unarmed strike) is plain.
+ */
+export type AttackWeight = 'light' | 'plain' | 'heavy';
 /** How a character attacks with its gear: the base of its damage and the kind of its attack. */
 export interface AttackGear {
   /** The dice of its damage, before the mod of the attack ability (5e: the weapon's die). */
@@ -296,6 +302,8 @@ export interface AttackGear {
   readonly twoHands: boolean;
   /** How much further it hits than the usual reach (REACH_BONUS for a reach weapon, else 0). */
   readonly reach: number;
+  /** The weight of its attack: the stamina that each attack costs (AttackWeight). */
+  readonly weight: AttackWeight;
 }
 
 /** How a class attacks with this gear, at a level (the dice of a cantrip and of martial arts grow with it). */
@@ -305,19 +313,20 @@ export function attackGear(gear: Gear, cls: CharacterClass, level = 1): AttackGe
   const offQuicker = off?.weapon?.light ? LIGHT_TICKS : 0;
   const cantrip = CANTRIP_BASE[cls];
   if (cantrip !== undefined && (!main || (main.weapon?.focus && main.weapon.focus === CASTER_FOCUS[cls]))) {
-    return { base: cantripDice(cantrip, level), bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
+    return { base: cantripDice(cantrip, level), bonus: main?.bonus ?? 0, kind: 'cantrip', quicker: offQuicker, ranged: false, twoHands: false, reach: 0, weight: 'plain' };
   }
   if (!main?.weapon) {
     return cls === 'monk'
-      ? { base: martialArts(level), bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false, reach: 0 }
-      : { base: UNARMED_BASE, bonus: 0, kind: 'unarmed', quicker: offQuicker, ranged: false, twoHands: false, reach: 0 };
+      ? { base: martialArts(level), bonus: 0, kind: 'martial-arts', quicker: LIGHT_TICKS + offQuicker, ranged: false, twoHands: false, reach: 0, weight: 'light' }
+      : { base: UNARMED_BASE, bonus: 0, kind: 'unarmed', quicker: offQuicker, ranged: false, twoHands: false, reach: 0, weight: 'plain' };
   }
   const weapon = main.weapon;
   const twoHands = weapon.twoHanded === true || (weapon.versatile !== undefined && gear.off === null);
   const die = weapon.versatile !== undefined && gear.off === null ? weapon.versatile : weapon.die;
   const ranged = weapon.ranged === true;
   const quicker = (weapon.light ? LIGHT_TICKS : 0) - (weapon.heavy && !ranged ? HEAVY_TICKS : 0) + offQuicker;
-  return { base: dieBase(die), bonus: main.bonus ?? 0, kind: 'weapon', quicker, ranged, twoHands, reach: weapon.reach ? REACH_BONUS : 0 };
+  const weight: AttackWeight = weapon.heavy ? 'heavy' : weapon.light ? 'light' : 'plain';
+  return { base: dieBase(die), bonus: main.bonus ?? 0, kind: 'weapon', quicker, ranged, twoHands, reach: weapon.reach ? REACH_BONUS : 0, weight };
 }
 
 /** The Armour Class of a character (5e): its armour and DEX, its shield, the defence of its class, magic. */

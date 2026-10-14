@@ -23,7 +23,14 @@ describe('the traits list', () => {
       ['wis', 10, 0],
       ['cha', 10, 0],
     ]);
-    expect(sheet.groups.map((g) => g.rows.length)).toEqual([5, 6, 3, 4, 6, 6]);
+    expect(sheet.groups.map((g) => g.rows.length)).toEqual([5, 6, 4, 4, 6, 6]);
+  });
+
+  it('shows the stamina of each attack under Constitution, by the weapon', () => {
+    const rogue = traitSheet(traitsOf(scores({ con: 14 }), 'rogue', kitOf('rogue')));
+    expect(row(group(rogue, 'con'), 'Each attack')).toEqual({ term: 'Each attack', value: '4 stamina', tone: 'plain' });
+    const barbarian = traitSheet(traitsOf(PLAIN_SCORES, 'barbarian', kitOf('barbarian')));
+    expect(row(group(barbarian, 'con'), 'Each attack')?.value).toBe('10 stamina');
   });
 
   it('shows what a brace adds to the AC under Dexterity, for a melee attack only', () => {

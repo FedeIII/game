@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 43;
+export const PROTOCOL_VERSION = 44;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -307,12 +307,12 @@ export type WirePlayer = readonly [number, number, number, number, number, numbe
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
  * dodge, dodge cooldown, dodge direction (radians, exact), hp, recover, stamina (exact), rest,
  * down, poison, poison clock, drunk, wading (0 or 1), inspired, glance, storey (protocol 39), brace
- * window, brace, evade (protocol 42)].
+ * window, brace, evade (protocol 42), held back (0 or 1: PlayerState.heldBack, protocol 44)].
  */
 export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number, number, number,
   number, number, number, number, number, number, number, number, number, number, number, number,
-  number, number, number,
+  number, number, number, number,
 ];
 
 /**

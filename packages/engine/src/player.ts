@@ -1,4 +1,5 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
+import type { AttackWeight } from './gear.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -54,6 +55,12 @@ export interface PlayerState {
    */
   braceWindow: number;
   /**
+   * Whether the step back is held with no release since the start of the last attack: a step back held
+   * into an attack does not brace after it. A move that is not back (none, or to the side) is a release,
+   * in the attack or in the brace window; a new step back then braces (Fede, 2026-10-14).
+   */
+  heldBack: boolean;
+  /**
    * Ticks left of a brace (0: none): the player stands, faces the way it struck, and a mob's attack on
    * it rolls against more AC (PlayerTraits.braceAc). It stays at 1 while the step back is held.
    */
@@ -67,9 +74,9 @@ export interface PlayerState {
   hp: number;
   /** Ticks until a hit point comes back (while it has fewer than its most). */
   recover: number;
-  /** Stamina (CON): a roll and the sneak walk use it. */
+  /** Stamina (CON): a roll, an attack and the sneak walk use it. */
   stamina: number;
-  /** Ticks since stamina was last used (it fills again after STAMINA_REST_TICKS). */
+  /** Ticks since stamina was last used or the last tick of a brace (it fills again after STAMINA_REST_TICKS). */
   rest: number;
   /** Ticks left of a defeat (0: none): the player lies still; then the caller wakes it (wakePlayer). */
   down: number;
@@ -115,7 +122,9 @@ export const DODGE_COOLDOWN_TICKS = 96;
  * in the brace rolls against more AC (PlayerTraits.braceAc: BRACE_AC and DEX; armourNow). A miss
  * keeps the brace, and the player sways out of the blow (an evade of EVADE_TICKS, 0.25 s: only a
  * look); a hit stuns it, and the brace ends. Then the player walks again (a step back later than the
- * window is a walk: the kite). An attack or a roll breaks a brace.
+ * window is a walk: the kite). An attack or a roll breaks a brace. Each brace needs a new step back: a
+ * step back held into the attack does not brace, until a release (heldBack; Fede, 2026-10-14). A brace
+ * costs no stamina, but stamina does not fill in it.
  */
 export const BRACE_WINDOW_TICKS = 9;
 export const BRACE_TICKS = 18;
@@ -136,6 +145,14 @@ export const STAMINA_REST_TICKS = 60;
 /** A roll costs this much stamina; the sneak walk this much each second. */
 export const DODGE_STAMINA = 35;
 export const SNEAK_STAMINA = 8;
+/**
+ * An attack costs this much stamina, by the weight of what it attacks with (gear.ts, AttackWeight; an
+ * arrow of a longbow is heavy). Only a character pays (PlayerTraits.attackStamina): guards and
+ * companions do not (Fede's decisions, 2026-10-14).
+ */
+export const ATTACK_STAMINA: Readonly<Record<AttackWeight, number>> = { light: 4, plain: 6, heavy: 10 };
+/** With less stamina than its attack costs, the attack still comes, but the next one waits this many times as long. */
+export const TIRED_COOLDOWN = 2;
 /** After a hit, the first HP comes back this many ticks later (8 s), then one every RECOVER_TICKS (CON 10). */
 export const RECOVER_DELAY_TICKS = 480;
 export const RECOVER_TICKS = 480;
@@ -166,9 +183,9 @@ export interface PlayerMap extends SolidMap {
 /**
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
  * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS, and no brace
- * (a guard or a companion: only a character braces).
+ * and no stamina for an attack (a guard or a companion: only a character braces and pays).
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace'>>;
+export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina'>>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -238,6 +255,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     dodgeCooldown: 0,
     dodgeAim: 0,
     braceWindow: 0,
+    heldBack: false,
     brace: 0,
     evade: 0,
     hp: PLAIN_HP,
@@ -318,6 +336,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.attack = 0;
   player.dodge = 0;
   player.braceWindow = 0;
+  player.heldBack = false;
   player.brace = 0;
   player.evade = 0;
   player.poison = 0;
@@ -560,6 +579,12 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     roll(player, world, solid, dt);
     return false;
   }
+  const input0 = clampInput(input);
+  // After an ale the walk sways: the direction turns to and fro, slowly.
+  const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
+  // A move that is not back releases a step back that was held into the attack: a new one braces.
+  const back = movesBack(move, player.aim);
+  if (!back) player.heldBack = false;
   if (player.attack > 0) {
     player.attack--;
     player.vx = 0;
@@ -568,10 +593,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     if (player.attack === 0 && traits.brace) player.braceWindow = BRACE_WINDOW_TICKS;
     return false;
   }
-  const input0 = clampInput(input);
   const wading = wadingAt(world, player.x, player.y, traits);
-  // After an ale the walk sways: the direction turns to and fro, slowly.
-  const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
   const window = player.braceWindow;
   if (player.braceWindow > 0) player.braceWindow--;
   if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
@@ -593,23 +615,34 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.brace = 0;
     player.evade = 0;
     player.attack = ATTACK_TICKS;
-    player.cooldown = traits.cooldown ?? ATTACK_COOLDOWN_TICKS;
+    // A step back that is held into the attack does not brace after it (heldBack).
+    player.heldBack = movesBack(move, move.attack);
+    // The attack costs stamina (a character); with too little, the next attack waits longer.
+    const cost = traits.attackStamina ?? 0;
+    const tired = cost > 0 && player.stamina < cost;
+    if (cost > 0) {
+      player.stamina = Math.max(0, player.stamina - cost);
+      player.rest = 0;
+    }
+    player.cooldown = (traits.cooldown ?? ATTACK_COOLDOWN_TICKS) * (tired ? TIRED_COOLDOWN : 1);
     player.aim = move.attack;
     player.facing = facingOfAngle(move.attack);
     player.vx = 0;
     player.vy = 0;
     return true;
   }
-  if (player.brace === 0 && window > 0 && !wading && movesBack(move, player.aim)) {
+  if (player.brace === 0 && window > 0 && !wading && back && !player.heldBack) {
     player.braceWindow = 0;
     player.brace = BRACE_TICKS;
   }
   if (player.brace > 0) {
     // A brace: it stands and faces the way it struck. It lasts BRACE_TICKS, and stays at its last
     // tick while the step back is held. An evade (a miss in the brace) sways it, and ends with it.
-    if (player.brace > 1 || !movesBack(move, player.aim)) player.brace--;
+    if (player.brace > 1 || !back) player.brace--;
     if (player.evade > 0) player.evade--;
     if (player.brace === 0) player.evade = 0;
+    // Stamina does not fill in a brace: it fills again STAMINA_REST_TICKS after its end.
+    player.rest = 0;
     player.facing = facingOfAngle(player.aim);
     player.vx = 0;
     player.vy = 0;

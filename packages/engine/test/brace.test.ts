@@ -12,6 +12,7 @@ import {
   PLAIN_SCORES,
   PLAYER_SPEED,
   Prediction,
+  STAMINA_REST_TICKS,
   Remotes,
   Room,
   TICK_SECONDS,
@@ -132,13 +133,16 @@ describe('a brace', () => {
     expect(late.x).toBeLessThan(100);
   });
 
-  it('starts at the end of the attack when the step back was held through it', () => {
+  it('does not start at the end of the attack when the step back was held into it', () => {
     const p = createPlayer(100, 100);
     stepPlayer(p, { ...BACK, attack: EAST }, open, MELEE);
+    expect(p.heldBack).toBe(true);
     for (let i = 0; i < ATTACK_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
+    expect(p.braceWindow).toBe(BRACE_WINDOW_TICKS);
     stepPlayer(p, BACK, open, MELEE);
-    expect(p.brace).toBeGreaterThan(0);
-    expect(p.x).toBe(100);
+    expect(p.brace).toBe(0);
+    // The held step back walks away: the kite.
+    expect(p.x).toBeLessThan(100);
   });
 
   it('is only for a melee attack of a character: not after an arrow, not for a guard or a companion', () => {
@@ -176,6 +180,24 @@ describe('a brace', () => {
     expect(strikes.attack).toBe(ATTACK_TICKS);
   });
 
+  it('stops the refill of stamina while it lasts; stamina fills again a second after its end', () => {
+    const p = createPlayer(100, 100);
+    strike(p);
+    const after = p.stamina;
+    expect(after).toBe(MELEE.maxStamina - MELEE.attackStamina);
+    // Held for three seconds: no stamina comes back.
+    for (let i = 0; i < 3 * STAMINA_REST_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
+    expect(p.brace).toBe(1);
+    expect(p.stamina).toBe(after);
+    // Let go: the brace ends, and stamina fills again after STAMINA_REST_TICKS.
+    stepPlayer(p, NO_INPUT, open, MELEE);
+    expect(p.brace).toBe(0);
+    for (let i = 0; i < STAMINA_REST_TICKS; i++) stepPlayer(p, NO_INPUT, open, MELEE);
+    expect(p.stamina).toBe(after);
+    stepPlayer(p, NO_INPUT, open, MELEE);
+    expect(p.stamina).toBeGreaterThan(after);
+  });
+
   it('does not start in shallow water', () => {
     const water = new World(textSource([',,,,,,,,', ',,,,,,,,']));
     const p = createPlayer(4 * TILE_SIZE, 8);
@@ -185,6 +207,67 @@ describe('a brace', () => {
     p.aim = EAST;
     stepPlayer(p, BACK, water, { ...MELEE, wade: true });
     expect(p.brace).toBe(0);
+  });
+});
+
+describe('a new step back for each brace', () => {
+  it('braces after a release in the attack and a new press, in the attack or in the window', () => {
+    // Held into the attack, let go in it, and pressed again in it.
+    const again = createPlayer(100, 100);
+    stepPlayer(again, { ...BACK, attack: EAST }, open, MELEE);
+    for (let i = 0; i < 5; i++) stepPlayer(again, BACK, open, MELEE);
+    stepPlayer(again, NO_INPUT, open, MELEE);
+    expect(again.heldBack).toBe(false);
+    for (let i = 6; i < ATTACK_TICKS; i++) stepPlayer(again, BACK, open, MELEE);
+    stepPlayer(again, BACK, open, MELEE);
+    expect(again.brace).toBeGreaterThan(0);
+    expect(again.x).toBe(100);
+
+    // Held through the attack, let go in the window, and pressed again in it.
+    const late = createPlayer(100, 100);
+    stepPlayer(late, { ...BACK, attack: EAST }, open, MELEE);
+    for (let i = 0; i < ATTACK_TICKS; i++) stepPlayer(late, BACK, open, MELEE);
+    stepPlayer(late, NO_INPUT, open, MELEE);
+    stepPlayer(late, BACK, open, MELEE);
+    expect(late.brace).toBeGreaterThan(0);
+    expect(late.x).toBe(100);
+  });
+
+  it('counts a move to the side as a release', () => {
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { ...BACK, attack: EAST }, open, MELEE);
+    for (let i = 0; i < 4; i++) stepPlayer(p, BACK, open, MELEE);
+    stepPlayer(p, { x: 0, y: 1 }, open, MELEE);
+    expect(p.heldBack).toBe(false);
+    for (let i = 5; i < ATTACK_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
+    stepPlayer(p, BACK, open, MELEE);
+    expect(p.brace).toBeGreaterThan(0);
+  });
+
+  it('does not brace a player who holds the step back and attacks again and again', () => {
+    const p = tough(400, 100);
+    let attacks = 0;
+    for (let tick = 0; tick < 10 * MELEE.cooldown; tick++) {
+      if (stepPlayer(p, { ...BACK, attack: EAST }, open, MELEE)) attacks++;
+      expect(p.brace).toBe(0);
+    }
+    expect(attacks).toBeGreaterThanOrEqual(9);
+    // It walked back between the attacks: the kite.
+    expect(p.x).toBeLessThan(400);
+  });
+
+  it('needs a new step back after a held brace: the next attack in it, with the step back held, does not brace again', () => {
+    const p = createPlayer(100, 100);
+    strike(p);
+    for (let i = 0; i < BRACE_TICKS + 20; i++) stepPlayer(p, BACK, open, MELEE);
+    expect(p.brace).toBe(1);
+    // The next attack, with the step back held: it breaks the brace, and no brace comes after it.
+    expect(stepPlayer(p, { ...BACK, attack: EAST }, open, MELEE)).toBe(true);
+    expect(p.brace).toBe(0);
+    for (let i = 0; i < ATTACK_TICKS + BRACE_WINDOW_TICKS; i++) {
+      stepPlayer(p, BACK, open, MELEE);
+      expect(p.brace).toBe(0);
+    }
   });
 });
 
@@ -329,5 +412,36 @@ describe('a brace in a shared world', () => {
     const remotes = new Remotes();
     remotes.apply(theirs!, 1000);
     expect(remotes.at(2000).find((r) => r.id === joined.id)!.brace).toBe(1);
+  });
+
+  it('predicts a step back held into the attack exactly: no brace on the server or on the page', () => {
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
+    const joined = room.join(0, 1, [5, 10], '', undefined, { traits: MELEE })!;
+    const world = new World(mobHouseSource());
+    const prediction = new Prediction();
+    prediction.traits = MELEE;
+    const player = createPlayer(0, 0);
+    prediction.reset(player, world, room.welcome(joined));
+    const inputs: MoveInput[] = [{ ...BACK, attack: EAST }, ...Array.from({ length: ATTACK_TICKS - 3 }, () => BACK)];
+    let seq = 1;
+    for (const input of inputs) {
+      prediction.step(player, world, input);
+      const batch = prediction.takeBatch();
+      if (batch) room.input(joined.id, batch, seq++ * 50);
+    }
+    let mine: SnapshotMessage | undefined;
+    room.broadcast(0, (id, message) => {
+      if (id === joined.id) mine = message;
+    });
+    const truth = joined.state;
+    expect(truth.heldBack).toBe(true);
+    expect(mine!.you[28]).toBe(1);
+    const before = { x: player.x, held: player.heldBack, stamina: player.stamina };
+    const { dx, dy } = prediction.reconcile(player, world, mine!, []);
+    expect(Math.hypot(dx, dy)).toBeLessThan(1e-9);
+    expect({ x: player.x, held: player.heldBack, stamina: player.stamina }).toEqual(before);
+    // The rest of the attack and the window, with the step back still held: no brace.
+    for (let i = 0; i < 3 + BRACE_WINDOW_TICKS; i++) prediction.step(player, world, BACK);
+    expect(player.brace).toBe(0);
   });
 });

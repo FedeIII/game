@@ -106,6 +106,7 @@ export class Prediction {
     player.dodge = 0;
     player.dodgeCooldown = 0;
     player.braceWindow = 0;
+    player.heldBack = false;
     player.brace = 0;
     player.evade = 0;
     player.hp = welcome.hp;
@@ -196,7 +197,7 @@ export class Prediction {
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
     world.setForcedDoors(this.serverForced);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance, storey, braceWindow, brace, evade] =
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance, storey, braceWindow, brace, evade, heldBack] =
       snapshot.you;
     player.x = x;
     player.y = y;
@@ -213,6 +214,7 @@ export class Prediction {
     player.dodgeCooldown = dodgeCooldown;
     player.dodgeAim = dodgeAim;
     player.braceWindow = braceWindow;
+    player.heldBack = heldBack === 1;
     player.brace = brace;
     player.evade = evade;
     player.hp = hp;

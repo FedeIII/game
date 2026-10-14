@@ -602,7 +602,7 @@ describe('mobs in a shared world', () => {
     let snap: SnapshotMessage | null = null;
     room.broadcast(100, (_id, message) => (snap = message));
     expect(snap!.m!.map((m) => m[1])).toEqual([0]);
-    expect(snap!.you).toHaveLength(28);
+    expect(snap!.you).toHaveLength(29);
   });
 
   it('kill a brute with the third blow when it has three blows of hit points, and send what it has left', () => {

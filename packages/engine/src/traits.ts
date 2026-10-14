@@ -22,6 +22,7 @@ import {
 import {
   ATTACK_COOLDOWN_TICKS,
   ATTACK_REACH,
+  ATTACK_STAMINA,
   ATTACK_TICKS,
   DODGE_COOLDOWN_TICKS,
   GUARD_TICKS,
@@ -105,6 +106,11 @@ export interface PlayerTraits {
   /** Its most stamina, and the stamina that comes back each second (CON). */
   readonly maxStamina: number;
   readonly staminaRefill: number;
+  /**
+   * The stamina that each attack costs (ATTACK_STAMINA: the weight of what it attacks with). With less,
+   * the attack still comes, but the next one waits twice as long (player.ts).
+   */
+  readonly attackStamina: number;
   /** The length of a poison or of a drink, as a share (CON). */
   readonly resist: number;
   /** The damage that a blow adds on a mob in its wind-up (INT; never less than 0). */
@@ -299,6 +305,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
     recover: 0,
     maxStamina: Math.max(10, PLAIN_STAMINA + STAMINA_PER_MOD * con),
     staminaRefill: Math.max(1, STAMINA_REFILL + REFILL_PER_MOD * con),
+    attackStamina: ATTACK_STAMINA[strike.weight],
     resist: Math.max(0.1, 1 - RESIST_PER_MOD * con),
     opening: Math.max(0, int),
     sense: (SENSE_TILES + SENSE_PER_MOD * wis) * TILE_SIZE,

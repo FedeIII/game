@@ -3,7 +3,7 @@
 ## Overview
 
 Constitution (CON) is the health of the body. With the hit die of the class, it gives the hit
-points of a character (5e, at its level: [Levels](../game/levels.md)). It also gives how long a mob's hit stuns it, its stamina, and
+points of a character (5e, at its level: [Levels](../game/levels.md)). It also gives how long a mob's hit stuns it, its stamina (for a roll, an attack and the sneak walk), and
 how long a poison or a drink lasts. No hit points come back by themselves: a rest in a bed, a
 draught or a defeat heals. At 0 hit points a character is defeated: it falls, and it wakes at home or in a
 refuge that it found, with half of its coins gone. A rest in the bed of the home, and an ale at
@@ -176,8 +176,8 @@ home does not send me all the way back.
 
 ### REQ-CON-009: Stamina
 
-**User Story:** As a player, I want my energy to limit my rolls and my sneak walk, so that I use
-them with care.
+**User Story:** As a player, I want my energy to limit my rolls, my attacks and my sneak walk, so
+that I use them with care.
 
 **Acceptance Criteria:**
 - **AC-CON-009.1:** A character has 100 + 10 × CON modifier stamina, at least 10: 90 at CON 8, 100
@@ -189,7 +189,18 @@ them with care.
 - **AC-CON-009.4:** Without stamina the sneak walk does not hide the character from mobs. Standing
   still hides it with no stamina.
 - **AC-CON-009.5:** Stamina comes back 1 s after its last use, at 20 + 4 × CON modifier each
-  second (16 at CON 8, 32 at CON 17), up to the most.
+  second (16 at CON 8, 32 at CON 17), up to the most. In a brace it does not fill: it fills again 1 s
+  after the brace ends ([Combat](../game/combat.md), REQ-CMB-013).
+- **AC-CON-009.5a:** An attack costs stamina by the weight of what the character attacks with (Fede,
+  2026-10-14; `ATTACK_STAMINA`): a light weapon (the shortsword) or martial arts 4; another weapon, a
+  cantrip or an unarmed strike 6; a heavy weapon (the greataxe, the glaive) 10. An arrow of a longbow
+  (a heavy weapon) costs 10 too. An attack is a use: the refill waits 1 s after it.
+- **AC-CON-009.5b:** With less stamina than its attack costs, the attack still comes, and the stamina
+  goes to 0, but the next attack waits twice as long (`TIRED_COOLDOWN`). The attack button does not
+  go dim.
+- **AC-CON-009.5c:** Guards and companions pay no stamina for their attacks.
+- **AC-CON-009.5d:** The character panel and the builder show the cost under Constitution: "Each
+  attack: 6 stamina" ("Cada ataque: 6 de aguante").
 - **AC-CON-009.6:** The vitals show the stamina as a thin bar under the hit points.
 - **AC-CON-009.7:** There is no sprint: no stamina makes a character faster than its walk.
 
@@ -248,12 +259,15 @@ I can choose my scores.
 
 ## Feature Behavior & Rules
 
-- The traits: `maxHp`, `stun`, `recover`, `maxStamina`, `staminaRefill` and `resist` of
-  `PlayerTraits` (`packages/engine/src/traits.ts`, `STUN_PER_MOD`, `STAMINA_PER_MOD`,
+- The traits: `maxHp`, `stun`, `recover`, `maxStamina`, `staminaRefill`, `attackStamina` and
+  `resist` of `PlayerTraits` (`packages/engine/src/traits.ts`, `STUN_PER_MOD`, `STAMINA_PER_MOD`,
   `REFILL_PER_MOD`, `RESIST_PER_MOD`). `maxHp` is `levelHp(class, CON modifier, level)`, with
   `HIT_DIE`; the level comes from the XP (`experience.ts`). `recover` is 0 for every character. The plain values are in
   `packages/engine/src/player.ts`: `PLAIN_HP` (18: a d8 class with CON 10, for a player without
-  traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`.
+  traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`. `attackStamina` is
+  `ATTACK_STAMINA[strike.weight]` (`player.ts`; `AttackGear.weight` in `gear.ts`: `light`, `plain`
+  or `heavy`); a guard or a companion steps without it (no cost). With too little, `stepPlayer()`
+  multiplies the cooldown of the attack by `TIRED_COOLDOWN` (2).
 - The state is in `PlayerState`: `hp`, `recover`, `stamina`, `rest`, `down`, `poison`,
   `poisonClock`, `drunk`, `wading`. `stepPlayer()` runs the stamina, the poison and the drink each
   tick (`body()`), on the page and on the server alike. `body()` gives hit points back only with a

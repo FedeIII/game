@@ -702,7 +702,10 @@ builder and the character panel still name every gate.
   DEX modifier, at least + 1 (`PlayerTraits.braceAc`, `BRACE_AC`, `armourNow()`). A hit stuns and ends
   the brace; a miss keeps it, and the player sways out of the blow (`missPlayer()`: an evade of
   `EVADE_TICKS` 15, a look only, "evade" over it, in place of the spark of a glance). A roll or an attack
-  breaks a brace; it costs nothing. Guards and companions never brace.
+  breaks a brace. Each brace needs a new step back (Fede, 2026-10-14): a step back held into the attack
+  does not brace (`PlayerState.heldBack`), until a release (any move that is not back) in the attack or
+  in the window, and a new press. A brace costs no stamina, but stamina does not fill in it. Guards and
+  companions never brace.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off, and an attack turns it off: `SneakWalk` in `input/sneak-walk.ts`,
   Fede's decision of 2026-10-14; a small push of the joystick). Mobs notice the player only
@@ -728,8 +731,11 @@ builder and the character panel still name every gate.
   its most and the mod at level 1, then half the die + 1 and the mod for each level; a fighter with CON
   10 has 10 at level 1, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
-  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use; a roll costs 35, the sneak walk 8 per second; no stamina: no
-  roll, and the sneak walk does not hide), and the length of a poison or a drink (`resist`:
+  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use, not in a brace; a roll costs 35, the sneak walk 8 per second; no stamina: no
+  roll, and the sneak walk does not hide; an attack costs `attackStamina`, `ATTACK_STAMINA` by
+  `AttackGear.weight`: light 4, plain 6, heavy 10, an arrow of the longbow too; with too little, the
+  attack comes, and the next one waits twice as long, `TIRED_COOLDOWN`; guards and companions do not
+  pay; Fede, 2026-10-14), and the length of a poison or a drink (`resist`:
   x (1 - 0.15 x mod)).
 - **A hit** (`hitPlayer()`, when the mob's attack roll hits): the rolled `MobStats.damage` and a
   stun; an imp's claws also poison (`poisonTicks` 360: `POISON_DAMAGE` 2 HP every 3 s, never the
@@ -820,7 +826,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 43.
+protocol: `docs/multiplayer.md`, protocol 44.
 
 ## Levels and experience
 

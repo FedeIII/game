@@ -70,6 +70,18 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## A new step back for each brace, and the stamina of an attack (protocol 44, 2026-10-14)
+
+The rules of `stepPlayer()` change, so a page of protocol 43 would predict them wrongly
+(`docs/features/game/combat.md`, REQ-CMB-013; `docs/features/abilities/constitution.md`, REQ-CON-009):
+
+- A step back that is held into an attack does not brace at its end: only a new one, after a release
+  (any move that is not back). `PlayerState.heldBack` keeps it; `you` has one more number at its end:
+  the held step back (0 or 1). The page predicts it from its inputs.
+- An attack of a character costs stamina (`PlayerTraits.attackStamina`: 4, 6 or 10 by the weight of its
+  weapon); with too little, the next attack waits twice as long. Stamina does not fill in a brace. No
+  message changes for it: the server and the page make the same traits from the same character.
+
 ## The held brace (protocol 43, 2026-10-14)
 
 No message changes. The rule of the brace in `stepPlayer()` changes, so a page of protocol 42 would
