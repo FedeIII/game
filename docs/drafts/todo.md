@@ -29,6 +29,18 @@
   goes into "regions" (the lands and places that the character found, with a line about each)? Does the
   server keep them, as it keeps the quest book?
 
+- **A held step back keeps the brace** (2026-10-14). While the player holds the step back (the
+  "back" button) in a brace, the player stays in the brace stance. When the player releases it, the
+  brace ends if more than the normal brace time (`BRACE_TICKS`, 0.3 s) passed since the brace started;
+  else the brace goes on until that time passed since its start. Now a brace always lasts
+  `BRACE_TICKS`, and a step back that is still held after it is a walk (AC-CMB-013.2).
+  Code: `stepPlayer()` in `packages/engine/src/player.ts` (the brace after `movesBack(move,
+  player.aim)`; `BRACE_TICKS`, `BRACE_BACK`, `PlayerState.brace`, `evadeBlow()`); the tests in
+  `packages/engine/test/brace.test.ts`; REQ-CMB-013 in `docs/features/game/combat.md`;
+  `docs/drafts/combat-melee.md`.
+  Ask Fede: a brace ends when it evades a blow (`evadeBlow()`); if the step back is still held after
+  the evade, does a new brace start?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
