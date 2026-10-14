@@ -95,6 +95,22 @@
   Ask Fede: do the other NPCs keep quiet while a conversation is open, or does a bubble move up
   when it covers another bubble?
 
+- **A short jump from the brace** (2026-10-15). In a brace, the dodge (the roll button, Shift or the
+  right mouse button) does not roll: the player makes a short jump in the direction of the input. The
+  player keeps the brace through the jump, but the jump costs the stamina of a roll. Now a dodge in a
+  brace ends the brace (`player.brace = 0`) and starts a roll of 32 px in 15 ticks
+  (`DODGE_DISTANCE`, `DODGE_TICKS`) that costs 35 stamina (`DODGE_STAMINA`).
+  Code: the start of a dodge in `stepPlayer()` (`move.dodge`, `player.dodgeAim`, `player.dodge`),
+  `canDodge()`, `canBeHit()`, `PlayerState.brace`, `heldBack`, `BRACE_TICKS`, `BRACE_AC` and the dodge
+  constants in `packages/engine/src/player.ts`; `PlayerTraits.braceAc` and `dodgeCooldown` in
+  `packages/engine/src/traits.ts`; the brace and roll frames (`braceParts()`, `rollParts()`) in
+  `packages/engine-client/art/attacks.ts`; the brace and the roll in `render/player-view.ts`;
+  `ui/dodge-button.ts`; REQ-CMB-013 in `docs/features/game/combat.md`; the next ideas of the melee in
+  `docs/drafts/combat-melee.md`.
+  Ask Fede: how far and how long is the jump? Can a mob hit the player in the jump (the brace AC, as
+  in a brace, or no hit, as in a roll)? Does the jump use the wait between dodges
+  (`dodgeCooldown`)? Does the jump need new frames, or does it show the brace frames with a hop?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
