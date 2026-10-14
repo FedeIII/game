@@ -50,6 +50,16 @@
   another scale? Does a blow that reaches the brace (a hit or a miss) end it? Do the evade pose, the
   word "evade" and its sound go, or do they show on a miss in a brace?
 
+- **An attack ends the sneak** (2026-10-14). When a player attacks from the sneak stance, the player
+  must leave the sneak. Now the crouch stops only for the attack: the sneak walk of C (`sneakWalk`)
+  stays on, so after the attack the player crouches and walks at the sneak speed again.
+  Code: `sneakWalk`, the C key, `readInput()` and `sneakingShown()` in
+  `packages/engine-client/src/game.ts`; `PlayerView.crouched` and the crouch in `update()` in
+  `packages/engine-client/src/render/player-view.ts`; `isSneaking()` in `packages/engine/src/player.ts`
+  (a player that stands still also sneaks for the mobs); `others.ts` (the crouch of the other players).
+  Ask Fede: does the slow walk (a small push of the joystick) also leave the sneak after an attack, or
+  only the sneak walk of C? Does the player stand up from the crouch after the attack?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
