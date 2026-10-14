@@ -90,6 +90,18 @@
   keep the scores and give each difficulty a score, or roll a d20 against the DC? Which actions are
   easy, medium or hard?
 
+- **Slower stamina refill while the player moves** (2026-10-15). Stamina must come back slower while
+  the player moves. Now stamina comes back at the same rate whether the player walks or stands:
+  `staminaRefill` per second (`STAMINA_REFILL` 20 + `REFILL_PER_MOD` 4 x the CON modifier), from
+  `STAMINA_REST_TICKS` (60) after the last use (an attack, a roll, the sneak walk, a brace).
+  Code: `body()` (`player.rest`, `player.stamina`) and `stepPlayer()` in
+  `packages/engine/src/player.ts`, with `STAMINA_REFILL`, `STAMINA_REST_TICKS`, `SNEAK_STAMINA`;
+  `staminaRefill`, `REFILL_PER_MOD` in `traitsOf()` in `packages/engine/src/traits.ts`; the stamina in
+  `docs/features/game/combat.md` (REQ-CMB-013); the `con` line of the debug panel and the traits list
+  (`ui/traits-list.ts`).
+  Ask Fede: how much slower (for example half the rate)? Does a slow walk or the sneak walk count as a
+  move? Does a companion follow the same rule?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
