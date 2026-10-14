@@ -6,22 +6,6 @@
 
 ## Open
 
-- **Separate the settings and the character in the game** (2026-10-14). In the game, the settings and
-  the character must have separate buttons. The settings go into the game menu (Escape). The settings
-  button at the top right becomes a "Character" button, which opens a character panel. Now one
-  settings panel at the top right has the sound, the language and the tips, the "You" section (the
-  character), the display settings and the "Experience" section of an admin.
-  Code: `SettingsPanel` (`#settings-button`, `#settings`, `addSection()`, `appendSection()`) in
-  `packages/engine-client/src/ui/settings-panel.ts`; the sections in `game.ts` (`soundSection()`,
-  `languageChoice()`, `tipsControls()`, `you.element`, `xpSection()`); `you-section.ts`;
-  `GameMenu` in `ui/game-menu.ts` (`#game-menu`; its touch button is under the settings button); the
-  panels in `ui/panels.ts`; `otherUiOpen()` in `game.ts`; `STRINGS.settings`, `STRINGS.controls` ("The
-  faint icon under the settings button") in `ui/strings.ts` and `ui/strings-es.ts`;
-  `docs/features/game/game-menu.md`.
-  Ask Fede: which sections go into the game menu, and which stay in the character panel (the "You"
-  section, "Main menu" and "Sign out", the "Experience" section of an admin)? Does the character
-  button get a new icon? Do the pack, the journal and the map stay separate buttons?
-
 - **The traits list is hard to read** (2026-10-14). The list of what the scores and the gear of a
   character give in each area of the game is difficult to understand: it is too long, and its layout
   does not help. It shows in the "You" section of the settings (the player profile) and in step 2 of
@@ -243,3 +227,9 @@
   character that hit it) and quests (more than half of the XP); the level of a mob or a guard is its CR,
   only for the calculations; the vitals show the level and a gold bar, and an admin can change the
   divisor for its own characters (`docs/features/game/levels.md`). Done 2026-10-14, commit `8a8f177`.
+
+- **Separate the settings and the character in the game** (2026-10-14). The settings button at the top
+  right is now a "Character" button (a head and shoulders) that opens the character panel; the settings
+  are a second screen of the game menu ("Settings", its last choice, with the admin's display and
+  experience), and "Main menu" and "Sign out" are choices of the game menu. Done 2026-10-14, commit
+  `21a0e43`.
