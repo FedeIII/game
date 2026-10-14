@@ -70,13 +70,26 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## The held brace (protocol 43, 2026-10-14)
+
+No message changes. The rule of the brace in `stepPlayer()` changes, so a page of protocol 42 would
+predict a held brace wrongly, and the version went up (`docs/features/game/combat.md`, REQ-CMB-013):
+
+- A brace goes on while the step back is held: `PlayerState.brace` stays at 1. The page predicts it
+  from its inputs, as before.
+- A blow in a brace rolls against more AC (`armourNow()`, `PlayerTraits.braceAc`), and a miss there is
+  an evade (`missPlayer()`): only a look, which ends with the brace. The evade no longer stops a hit.
+- `Remotes.at()` shows the brace of another player as the last snapshot gave it, not counted down
+  between snapshots: a held brace at 1 would else go out between them. The evade is still counted down.
+
 ## The brace (protocol 42, 2026-10-14)
 
 A step back right after a melee attack braces, and a blow in the brace is evaded where the player
-stands (`docs/features/game/combat.md`, REQ-CMB-013).
+stands (`docs/features/game/combat.md`, REQ-CMB-013; since protocol 43, a blow in the brace rolls
+against more AC, and the evade is the look of a miss).
 
 - `stepPlayer()` starts the brace from the input and the state (`braceWindow`, `aim`), so the page
-  predicts it exactly. The evade comes from the server: the Room's horde (`evadeBlow()`, before the
+  predicts it exactly. The evade comes from the server: the Room's horde (`missPlayer()`, after the
   roll of a mob's blow). The page gets it in its own state and replays its inputs on it.
 - `you` has three more numbers at its end: the brace window, the brace and the evade (ticks).
 - Each entry of `p` has two more numbers at its end: the brace and the evade (ticks), so the others

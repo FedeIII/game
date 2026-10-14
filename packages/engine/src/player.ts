@@ -53,9 +53,15 @@ export interface PlayerState {
    * attack (PlayerTraits.brace).
    */
   braceWindow: number;
-  /** Ticks left of a brace (0: none): the player stands, faces the way it struck, and evades a blow that reaches it. */
+  /**
+   * Ticks left of a brace (0: none): the player stands, faces the way it struck, and a mob's attack on
+   * it rolls against more AC (PlayerTraits.braceAc). It stays at 1 while the step back is held.
+   */
   brace: number;
-  /** Ticks left of an evade (0: none): the player sways out of a blow where it stands, and no mob can hit it. */
+  /**
+   * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
+   * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
+   */
   evade: number;
   /** Hit points (CON): a mob's hit takes some; at 0 the player is defeated (`down`). */
   hp: number;
@@ -105,10 +111,11 @@ export const DODGE_COOLDOWN_TICKS = 96;
  * The brace (2026-10-14, Fede's idea): a step back right after a melee attack does not walk away. In
  * the first BRACE_WINDOW_TICKS after the attack (0.15 s) a move away from the way of the attack
  * (BRACE_BACK) starts a brace: the player stands where it is, faces the way it struck, and tenses for
- * BRACE_TICKS (0.3 s). A mob's blow or arrow that reaches it in the brace gets no attack roll: the
- * player evades it where it stands (evadeBlow), and no mob can hit it for EVADE_TICKS (0.25 s). A
- * brace with no blow ends, and the player walks again (a step back later than the window is a walk:
- * the kite). An attack or a roll breaks a brace.
+ * BRACE_TICKS (0.3 s), and longer while it holds the step back. A mob's blow or arrow that reaches it
+ * in the brace rolls against more AC (PlayerTraits.braceAc: BRACE_AC and DEX; armourNow). A miss
+ * keeps the brace, and the player sways out of the blow (an evade of EVADE_TICKS, 0.25 s: only a
+ * look); a hit stuns it, and the brace ends. Then the player walks again (a step back later than the
+ * window is a walk: the kite). An attack or a roll breaks a brace.
  */
 export const BRACE_WINDOW_TICKS = 9;
 export const BRACE_TICKS = 18;
@@ -280,17 +287,18 @@ export function glancePlayer(player: PlayerState): void {
 }
 
 /**
- * A mob's blow (or arrow) that reaches the player: if the player braces, it evades the blow where it
- * stands (EVADE_TICKS), and the blow gets no attack roll. Returns whether it evaded. The caller calls
- * it before the roll.
+ * A mob's attack (a blow, an arrow, a guard's swing on a robber) that its roll missed. In a brace the
+ * player sways out of it where it stands (an evade: a look only), and the brace goes on; else the
+ * attack glances off its armour (glancePlayer).
  */
-export function evadeBlow(player: PlayerState): boolean {
-  if (player.brace === 0 || player.down > 0 || player.stun > 0) return false;
-  player.brace = 0;
-  player.evade = EVADE_TICKS;
-  player.vx = 0;
-  player.vy = 0;
-  return true;
+export function missPlayer(player: PlayerState): void {
+  if (player.brace > 0) player.evade = EVADE_TICKS;
+  else glancePlayer(player);
+}
+
+/** The Armour Class that a mob's attack roll must reach now: `ac`, and `braceAc` more in a brace (PlayerTraits.braceAc). */
+export function armourNow(player: PlayerState, ac: number, braceAc = 0): number {
+  return player.brace > 0 ? ac + braceAc : ac;
 }
 
 /** A defeated player wakes at (x, y) on the ground storey with all its HP and stamina, a guard, and no poison or drink. */
@@ -319,20 +327,20 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.evade === 0;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
 }
 
 /** Whether the player can start a dodge in its next tick: it has the stamina (and it is not in shallow water: see stepPlayer). */
 export function canDodge(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.evade === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
 }
 
 /**
  * Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in a
- * dodge or an evade. A player that braces can be reached: it then evades (evadeBlow).
+ * dodge. A brace and its evade do not stop a hit: in a brace the attack rolls against more AC (armourNow).
  */
 export function canBeHit(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0 && player.evade === 0;
+  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0;
 }
 
 /** Whether a velocity is a sneak walk: slower than SNEAK_SPEED, but not standing. */
@@ -358,6 +366,7 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.attack = 0;
   player.braceWindow = 0;
   player.brace = 0;
+  player.evade = 0;
   player.vx = 0;
   player.vy = 0;
 }
@@ -519,9 +528,9 @@ export function resumePlace(
  * prediction and the server runs it to decide the true state. A stunned player and a player
  * that strikes stand still. A player who can wade (`traits`) walks in shallow water, slowly, and
  * does not attack there; one who can swim (the Tear of Tigris) does the same in deep water. A step
- * back right after a melee attack braces (BRACE_TICKS), and a brace that a blow reached evades it
- * (EVADE_TICKS): both stand still. Returns true if an attack starts in this tick: the caller finds what
- * it hits (a client alone, or the server).
+ * back right after a melee attack braces: the player stands for BRACE_TICKS, and longer while it holds
+ * the step back. Returns true if an attack starts in this tick: the caller finds what it hits (a
+ * client alone, or the server).
  */
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
@@ -551,13 +560,6 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     roll(player, world, solid, dt);
     return false;
   }
-  if (player.evade > 0) {
-    // It sways out of the blow and back, where it stands.
-    player.evade--;
-    player.vx = 0;
-    player.vy = 0;
-    return false;
-  }
   if (player.attack > 0) {
     player.attack--;
     player.vx = 0;
@@ -575,6 +577,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
     player.braceWindow = 0;
     player.brace = 0;
+    player.evade = 0;
     player.stamina -= DODGE_STAMINA;
     player.rest = 0;
     // A roll the way the input moves, or the way the player faces when it stands.
@@ -588,6 +591,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (move.attack !== undefined && player.cooldown === 0 && !wading) {
     player.braceWindow = 0;
     player.brace = 0;
+    player.evade = 0;
     player.attack = ATTACK_TICKS;
     player.cooldown = traits.cooldown ?? ATTACK_COOLDOWN_TICKS;
     player.aim = move.attack;
@@ -601,8 +605,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.brace = BRACE_TICKS;
   }
   if (player.brace > 0) {
-    // A brace: it stands, faces the way it struck, and evades a blow that reaches it (evadeBlow).
-    player.brace--;
+    // A brace: it stands and faces the way it struck. It lasts BRACE_TICKS, and stays at its last
+    // tick while the step back is held. An evade (a miss in the brace) sways it, and ends with it.
+    if (player.brace > 1 || !movesBack(move, player.aim)) player.brace--;
+    if (player.evade > 0) player.evade--;
+    if (player.brace === 0) player.evade = 0;
     player.facing = facingOfAngle(player.aim);
     player.vx = 0;
     player.vy = 0;

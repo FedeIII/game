@@ -92,6 +92,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         row(t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)),
         row(t.guard, t.seconds(traits.guard * TICK_SECONDS)),
         row(t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)),
+        ...(traits.brace ? [row(t.brace, t.braceValue(traits.braceAc))] : []),
         row(t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)),
         ...(traits.ranged ? [row(t.range, t.rangeValue(traits.range / TILE_SIZE))] : []),
         gate(t.pick, PICK_GATE, t.pickYes),

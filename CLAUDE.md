@@ -695,10 +695,13 @@ builder and the character panel still name every gate.
 - **The brace** (`player.ts`; 2026-10-14, Fede's idea: stay in melee as safe as a kite;
   `docs/features/game/combat.md`, REQ-CMB-013; the next ideas: `docs/drafts/combat-melee.md`): a step
   back (120 degrees or more from the attack, `BRACE_BACK`) in the first 9 ticks after a melee attack
-  (`BRACE_WINDOW_TICKS`; `PlayerTraits.brace`: not with a bow) braces for 18 ticks (`BRACE_TICKS`): the
-  player stands, faces the way it struck. A mob's blow or arrow that reaches it then gets no roll: it
-  evades where it stands (`evadeBlow()`, `EVADE_TICKS` 15, `canBeHit` false; "evade" over it). A roll or
-  an attack breaks a brace; it costs nothing. Guards and companions never brace.
+  (`BRACE_WINDOW_TICKS`; `PlayerTraits.brace`: not with a bow) braces for 18 ticks (`BRACE_TICKS`), and
+  longer while the step back is held (`PlayerState.brace` stays at 1): the player stands, faces the way
+  it struck. No sure evade (Fede, 2026-10-14): a mob's blow or arrow then rolls against the AC + 2 + the
+  DEX modifier, at least + 1 (`PlayerTraits.braceAc`, `BRACE_AC`, `armourNow()`). A hit stuns and ends
+  the brace; a miss keeps it, and the player sways out of the blow (`missPlayer()`: an evade of
+  `EVADE_TICKS` 15, a look only, "evade" over it, in place of the spark of a glance). A roll or an attack
+  breaks a brace; it costs nothing. Guards and companions never brace.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
   within their sight times `HordePlayer.sight`. On purpose (the sneak walk of C, or a slow walk; not
@@ -815,7 +818,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 42.
+protocol: `docs/multiplayer.md`, protocol 43.
 
 ## Levels and experience
 

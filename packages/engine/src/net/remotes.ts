@@ -402,7 +402,8 @@ export class Remotes {
         guard: ticksAt(since.c, since, t),
         dodge: ticksAt(since.e, since, t),
         down: ticksAt(since.f, since, t),
-        brace: ticksAt(since.h, since, t),
+        // A held brace stays at 1 (player.ts): its ticks show as they came, not counted down.
+        brace: since.h ?? 0,
         evade: ticksAt(since.i, since, t),
         storey: since.g ?? 0,
       });

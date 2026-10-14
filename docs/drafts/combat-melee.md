@@ -24,17 +24,27 @@ comes only after a hit, and the last is luck. So a fight is a cycle: in, one blo
 ## Step 1: the brace (built)
 
 A step back in the first 0.15 s after a melee attack does not walk away. The player stays where it
-is, faces the way it struck, and braces for 0.3 s (the knees bent, the weapon up). A mob's blow that
-comes in the brace gets no roll: the player sways out of it where it stands ("evade"). A brace with
-no blow ends, and the player walks again. A roll or the next attack breaks a brace. It costs nothing.
+is, faces the way it struck, and braces for 0.3 s (the knees bent, the weapon up), and longer while it
+holds the step back. A mob's blow that comes in the brace rolls against the AC + 2 + the DEX modifier
+(at least + 1). A miss keeps the brace, and the player sways out of the blow ("evade"); a hit stuns it
+and ends the brace. Then the player walks again. A roll or the next attack breaks a brace. It costs
+nothing.
+
+**The change of 2026-10-14** (Fede's decisions): at first, a blow in the brace got no roll at all (a sure
+evade, and no mob could hit the player for 0.25 s), and the brace always ended after 0.3 s. Fede asked
+for no sure effect and a held brace. The brace now changes the odds only (the first question below).
 
 | What | Ticks | Seconds |
 |---|---|---|
 | An attack (the player stands) | 18 | 0.3 |
 | The window for the step back, after the attack | 9 | 0.15 |
-| The brace | 18 | 0.3 |
-| The evade (no mob can hit) | 15 | 0.25 |
+| The brace (at least; longer while the step back is held) | 18 | 0.3 |
+| The evade (a look of a miss in the brace) | 15 | 0.25 |
 | From an attack to the next one (DEX 10) | 27 | 0.45 |
+
+The odds, for a brute (+5) against AC 16 (chain mail): out of a brace it hits on 11 or more (50%). In a
+brace with DEX 10 (+2) it hits on 13 (40%), with DEX 14 (+4) on 15 (30%), with DEX 16 (+5) on 16
+(25%).
 
 The wind-ups of the mobs: imp 280 ms (it runs during it), worg 380, hobgoblin 460, bugbear 600, bandit
 600, brute 650, skirmisher 700.
@@ -42,21 +52,22 @@ The wind-ups of the mobs: imp 280 ms (it runs during it), worg 380, hobgoblin 46
 How it plays:
 
 - The attack and the brace cover 0.6 s from the start of the attack, and the next attack can start in
-  the brace (at 0.45 s). A player that strikes, braces and strikes again is open only in its own
-  attacks.
+  the brace (at 0.45 s). A player that strikes, braces and strikes again has the AC of the brace in
+  all of that time except its own attacks.
 - Against a brute (650 ms), strike 0.2 to 0.35 s into its wind-up, then step back. A blow that hits
   makes the brute reel (no blow comes); a blow that misses leaves its blow to the brace.
 - Against an imp (280 ms), the blow comes in the brace only when the imp starts its wind-up during the
   attack of the player. Against an imp, the brace is a hard timing.
 - The glint of INT 15 on a wind-up (reading a mob) helps to time it.
 
-A test in the browser (a fighter of level 1 with 10 hit points, against a brute): nine blows killed the
-brute, and the fighter took no hit.
+A test in the browser with the first, sure evade (a fighter of level 1 with 10 hit points, against a
+brute): nine blows killed the brute, and the fighter took no hit. Fede then took the sure evade away.
 
 ### What to watch in a game
 
-1. **Is it too strong?** It is free. Two ways to give it a price: a cost of stamina for each evade
-   (proposal 12), or an evade only from the front (proposal 3).
+1. **Is it too strong, or too weak?** A held brace gives its AC for as long as the player holds it, but
+   the player does not attack meanwhile. The AC can grow or shrink (`BRACE_AC`), or apply only from the
+   front (proposal 3).
 2. **Does it take the kite away?** Next to a mob, a step back right after a blow now braces. A kite
    must wait 0.15 s, or roll. If that feels slow, a brace can start only after an attack that touched
    a mob. The page and the Room know the touch; `stepPlayer()` does not, so the caller must tell it.
@@ -76,8 +87,8 @@ answers it, and the work.
   - **Clean** (ticks 7 to 12): an evade, as now.
   - **Late** (ticks 13 to 18): the tension goes. No evade, but the mob rolls with disadvantage.
 - Why: the exact timing gets more than the safe timing, and the dice stay in play at the edge.
-- Work: small, the engine only. `evadeBlow()` reads the ticks of the brace; `attackRoll()` gets a
-  second d20 for the disadvantage.
+- Work: small, the engine only. `missPlayer()` and `armourNow()` read the ticks of the brace;
+  `attackRoll()` gets a second d20 for the disadvantage.
 
 ### 2. The riposte
 
@@ -94,7 +105,7 @@ answers it, and the work.
   blow from the side or from the back rolls, as now.
 - With one mob nothing changes. With two or three, the player must put them in front of it: a step to
   the side, a wall or a tree at its back, a doorway. That is positioning (Fede's rule).
-- Work: small, the engine only: `evadeBlow(player, from)` gets the place of the mob.
+- Work: small, the engine only: `armourNow(player, ac, braceAc, from)` gets the place of the mob.
 - **Recommended for the next game test**, with proposal 1.
 
 ### 4. The sidestep
@@ -247,7 +258,8 @@ The same moves for the mobs, so that a fight has two sides and the player must r
 
 ## Questions for Fede
 
-1. Does the brace need a price: stamina, or the front only?
+1. Does the brace need a price: stamina, or the front only? (Fede, 2026-10-14: no sure evade; the
+   brace gives AC + 2 + DEX instead.)
 2. Next to no mob, must a step back right after a blow still kite (a brace only after a blow that
    touched a mob)?
 3. The parry: the attack input at the end of a wind-up (proposal 5), or a key of its own?

@@ -3,7 +3,7 @@ import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
 import { crXp } from './experience.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, evadeBlow, glancePlayer, hitPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, armourNow, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -797,7 +797,7 @@ export interface HordePlayer {
    * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
    * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -825,7 +825,7 @@ export interface ShotResult extends BlowResult {
   readonly owner: number;
 }
 
-/** A mob's attack on a player: [mob id, player id, damage]; damage 0 is a miss (it glanced off). */
+/** A mob's attack on a player: [mob id, player id, damage]; damage 0 is a miss (it glanced off, or a brace evaded it). */
 export type MobHit = [number, number, number];
 
 /**
@@ -1579,17 +1579,16 @@ export class Horde {
    * A mob's attack that reached player `id`: its roll against the player's AC (5e). A hit takes its
    * damage (with the martial advantage of a hobgoblin that has an ally next to the player), stuns and
    * poisons; a miss glances off. A player with Charisma close by gives a player that was hurt more
-   * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit. A
-   * player that braces evades it where it stands, with no roll (evadeBlow): not a hit, not in `hits`.
+   * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit. In a
+   * brace the roll is against more AC (armourNow), and a miss is an evade (missPlayer).
    */
   private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
-    if (evadeBlow(target)) return false;
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
-    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), body?.ac ?? 10, this.dice);
+    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), armourNow(target, body?.ac ?? 10, body?.braceAc), this.dice);
     if (!roll.hit) {
-      glancePlayer(target);
+      missPlayer(target);
       hits.push([mob.id, id, 0]);
       return false;
     }

@@ -282,7 +282,7 @@ goblins for new players if they are there during the day").
 
 ### REQ-CMB-013: The brace
 
-**User Story:** As a player in melee, I want to stay in front of a foe after my blow and still be safe
+**User Story:** As a player in melee, I want to stay in front of a foe after my blow and still be safer
 from its answer, so that a fight is not only a kite (Fede's idea, 2026-10-14: "the same as kiting, but
 without losing the melee situation"). The next steps are in `docs/drafts/combat-melee.md`.
 
@@ -290,20 +290,27 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
 - **AC-CMB-013.1:** A step back in the first 0.15 s after a melee attack (`BRACE_WINDOW_TICKS` 9) starts
   a brace: a move of 120 degrees or more from the way of the attack (`BRACE_BACK`). A step back that
   was held through the attack counts at its end. A step to the side, or a step back later, is a walk.
-- **AC-CMB-013.2:** In a brace (`BRACE_TICKS` 18: 0.3 s) the character stands where it is, faces the way
-  it struck, and shows the brace pose: the knees bent, the weapon up in front. After it, the character
-  walks again: a held step back is then a walk.
-- **AC-CMB-013.3:** A mob's blow (or a mob's arrow, or a guard's swing on a robber) that reaches a
-  character in its brace gets no attack roll: the character evades it where it stands (`EVADE_TICKS`
-  15: 0.25 s, three frames of a sway out of the blow and back), and no mob can hit it meanwhile. The
-  word "evade" rises over it ("esquiva" in Spanish), with a swish. The mob goes on as after a miss: to
-  the end of the line, not away.
+- **AC-CMB-013.2:** In a brace the character stands where it is, faces the way it struck, and shows the
+  brace pose: the knees bent, the weapon up in front. While the player holds the step back, the brace
+  goes on. When the player lets it go, the brace ends at once if 0.3 s (`BRACE_TICKS` 18) passed since
+  its start; else it goes on until then (Fede, 2026-10-14). After it, the character walks again. A held
+  move that turns to the side counts as a release.
+- **AC-CMB-013.3:** A brace gives no sure evade (Fede, 2026-10-14). A mob's blow (or a mob's arrow, or a
+  guard's swing on a robber) that reaches a character in its brace rolls as usual, against the AC + 2 +
+  the DEX modifier, at least AC + 1 (`PlayerTraits.braceAc`; [Dexterity](../abilities/dexterity.md),
+  REQ-DEX-008). A hit is a hit: damage, a stun, and the brace ends.
+- **AC-CMB-013.3a:** A miss in a brace does not end it: the character sways out of the blow where it
+  stands (an evade: `EVADE_TICKS` 15, 0.25 s, three frames of a sway out of the blow and back), and the
+  word "evade" rises over it ("esquiva" in Spanish), with a swish, in place of the spark and "miss". The
+  evade is only a look: a mob can hit the character in it, the character can attack or roll in it, and
+  it ends with the brace. The mob goes on as after a miss: to the end of the line, not away.
 - **AC-CMB-013.4:** A roll or the next attack breaks a brace. A brace does not start in water, and not
   after an arrow (a bow: `PlayerTraits.brace` is false). Guards and companions never brace.
-- **AC-CMB-013.5:** A brace and an evade cost nothing. The hit-and-miss rolls do not change: a blow
-  that comes during the attack itself, or after the brace, rolls as before.
-- **AC-CMB-013.6:** The server owns it. The page predicts the brace from its inputs; the evade comes
-  from the server (the mob's blow). The other players see both (protocol 42).
+- **AC-CMB-013.5:** A brace and an evade cost nothing. A blow that comes during the attack itself, or
+  after the brace, rolls against the plain AC.
+- **AC-CMB-013.6:** The server owns it. The page predicts the brace from its inputs, also while the step
+  back is held; the evade comes from the server (the mob's miss). The other players see both (protocol
+  42; a held brace stays at its last tick, protocol 43).
 - **AC-CMB-013.7:** A tip (`brace`) tells it the first time that a melee blow ends next to a foe.
 
 ---
@@ -376,10 +383,13 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
   `chase`; `VOICE_OF.bandit`). Tests: `packages/engine/test/ambush.test.ts`,
   `packages/engine-client/src/render/mobs.test.ts`. Protocol 40.
 - **The brace** (`packages/engine/src/player.ts`, REQ-CMB-013): `BRACE_WINDOW_TICKS`, `BRACE_TICKS`,
-  `EVADE_TICKS`, `BRACE_BACK`, `PlayerState.braceWindow`, `brace` and `evade`, `evadeBlow()` (called by
-  `Horde.attack()` before the roll, and by a guard's swing), `canBeHit()` (false in an evade),
-  `PlayerTraits.brace` (`!strike.ranged`). The wire: `WireSelf` (the brace window, the brace, the
-  evade) and `WirePlayer` (the brace and the evade), protocol 42. The art: `braceParts()`,
+  `EVADE_TICKS`, `BRACE_BACK`, `PlayerState.braceWindow`, `brace` (it stays at 1 while the step back is
+  held) and `evade` (a look: it ends with the brace), `armourNow()` (the AC of the roll: + `braceAc` in a
+  brace) and `missPlayer()` (a miss: an evade in a brace, else a glance), both used by `Horde.attack()`
+  (blows and arrows) and by a guard's swing; `PlayerTraits.brace` (`!strike.ranged`) and `braceAc`
+  (`BRACE_AC` 2 + DEX, at least 1; `traits.ts`). The wire: `WireSelf` (the brace window, the brace, the
+  evade) and `WirePlayer` (the brace and the evade), protocol 42; protocol 43 for the held brace
+  (`Remotes.at()` shows the brace of the last snapshot, not counted down). The art: `braceParts()`,
   `evadeParts()`, `GUARDS` (`art/attacks.ts`), `sway()` (`art/figure.ts`), the sheet columns
   `SKIN_COLUMNS.brace` and `evade` (`SKIN_VERSION` 10), the wanderer's `player/<view>/brace` and
   `player/<view>/evade/<i>`. The page: `PlayerView` (the frames, and a sway of 2 px back,

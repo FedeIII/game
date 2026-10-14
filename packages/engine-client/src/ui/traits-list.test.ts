@@ -23,7 +23,16 @@ describe('the traits list', () => {
       ['wis', 10, 0],
       ['cha', 10, 0],
     ]);
-    expect(sheet.groups.map((g) => g.rows.length)).toEqual([5, 5, 3, 4, 6, 6]);
+    expect(sheet.groups.map((g) => g.rows.length)).toEqual([5, 6, 3, 4, 6, 6]);
+  });
+
+  it('shows what a brace adds to the AC under Dexterity, for a melee attack only', () => {
+    const rogue = traitSheet(traitsOf(scores({ dex: 15 }), 'rogue', kitOf('rogue')));
+    expect(row(group(rogue, 'dex'), 'Brace')).toEqual({ term: 'Brace', value: 'AC +4', tone: 'better' });
+    const fighter = traitSheet(traitsOf(PLAIN_SCORES, 'fighter', kitOf('fighter')));
+    expect(row(group(fighter, 'dex'), 'Brace')).toEqual({ term: 'Brace', value: 'AC +2', tone: 'plain' });
+    const ranger = traitSheet(traitsOf(scores({ dex: 14 }), 'ranger', kitOf('ranger')));
+    expect(row(group(ranger, 'dex'), 'Brace')).toBeUndefined();
   });
 
   it('shows a scale better or worse with the modifier of its ability, and plain at 10', () => {

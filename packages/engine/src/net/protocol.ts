@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 42;
+export const PROTOCOL_VERSION = 43;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -299,7 +299,7 @@ export const SKIN_CHANGE_GAP_MS = 2000;
  * code, dodge, down, storey, brace, evade]: attack, stun, guard, dodge, down, brace and evade are
  * the ticks left, as in PlayerState; the aim code is the direction of its attack (aimCode); the
  * storey is the storey of a building that it is on (0: the ground; protocol 39). The brace and the
- * evade: protocol 42. Positions to 0.1 px.
+ * evade: protocol 42 (a held brace stays at 1: protocol 43). Positions to 0.1 px.
  */
 export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
 

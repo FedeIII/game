@@ -3,8 +3,8 @@
 ## Overview
 
 Dexterity (DEX) is the speed and the skill of the hands and the feet. For every class it gives the
-time between attacks and the guard after a hit. It also gives the time between dodge rolls, and
-how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
+time between attacks and the guard after a hit. It also gives the time between dodge rolls, the
+AC of a brace, and how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
 picks the locks of chests, for every class. For the bard, the monk, the ranger and the rogue, DEX
 also gives the attack bonus and the damage of a blow ([Ability Scores](ability-scores.md),
 REQ-AS-002).
@@ -23,6 +23,8 @@ REQ-AS-002).
   look of the player.
 - **Arrow**: the attack of a ranger: a shot that flies straight until it hits a mob or a thing.
 - **Lock**: a gate on a chest (`Fixture.lock`). DEX 13 picks it.
+- **Brace**: the stance after a step back right after a melee blow ([Combat](../game/combat.md),
+  REQ-CMB-013). In it, a mob's attack rolls against more AC.
 - **Tick**: one step of the simulation: 1/60 s.
 
 ## Requirements
@@ -191,12 +193,27 @@ loot in them.
 - **AC-DEX-007.7:** In a shared world the server checks the gate again with the scores of the
   stored character.
 
+---
+
+### REQ-DEX-008: A harder target in a brace
+
+**User Story:** As a nimble fighter in melee, I want my brace to turn more blows aside, so that
+Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
+
+**Acceptance Criteria:**
+- **AC-DEX-008.1:** In a brace, a mob's attack roll (a blow, an arrow, a guard's swing on a robber)
+  must reach the AC of the character + 2 + the DEX modifier, but at least AC + 1 (`BRACE_AC` 2,
+  `PlayerTraits.braceAc`). DEX 10 gives +2, DEX 16 gives +5, DEX 8 gives +1.
+- **AC-DEX-008.2:** A character with a bow has no brace, and no brace AC (0).
+- **AC-DEX-008.3:** The character panel and the builder show it in the card of DEX: "Brace: AC +2"
+  ("Guardia: CA +2" in Spanish), bright above a score of 10.
+
 ## Feature Behavior & Rules
 
 - **Constants** (`packages/engine/src/traits.ts`): `COOLDOWN_PER_MOD` (2), `GUARD_PER_MOD` (9),
-  `DODGE_PER_MOD` (12), `SIGHT_PER_MOD` (0.08), `RANGE_TILES` (5), `SNEAK_SIGHT` (0.5) and
-  `PICK_GATE` (DEX 13). The traits are `PlayerTraits.cooldown`, `guard`, `dodgeCooldown` (ticks),
-  `sight` (a share), `ranged` (a ranger only) and `range` (world pixels).
+  `DODGE_PER_MOD` (12), `SIGHT_PER_MOD` (0.08), `RANGE_TILES` (5), `BRACE_AC` (2), `SNEAK_SIGHT`
+  (0.5) and `PICK_GATE` (DEX 13). The traits are `PlayerTraits.cooldown`, `guard`, `dodgeCooldown`
+  (ticks), `sight` (a share), `ranged` (a ranger only), `range` (world pixels) and `braceAc`.
 - **Constants** (`packages/engine/src/player.ts`): `ATTACK_TICKS` (18), `ATTACK_COOLDOWN_TICKS`
   (27), `GUARD_TICKS` (60), `DODGE_TICKS` (15), `DODGE_DISTANCE` (32), `DODGE_COOLDOWN_TICKS` (96),
   `SNEAK_SPEED` (0.5) and `PLAYER_SPEED` (80). The functions are `canAttack()`, `canDodge()`,

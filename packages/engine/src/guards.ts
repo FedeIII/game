@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { attackRoll, rollDice, type DiceSource } from './dice.ts';
 import { MOB_STATS, type Blow, type Horde, type HordePlayer, type Mob } from './mobs.ts';
-import { ATTACK_REACH, DOWN_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, createPlayer, evadeBlow, facingFor, glancePlayer, hitPlayer, resumePoint, stepPlayer, type MoveInput, type PlayerState } from './player.ts';
+import { ATTACK_REACH, DOWN_TICKS, PLAYER_HALF_WIDTH, armourNow, attackHits, canBeHit, createPlayer, facingFor, hitPlayer, missPlayer, resumePoint, stepPlayer, type MoveInput, type PlayerState } from './player.ts';
 import type { Interaction } from './fixtures.ts';
 import type { World } from './world.ts';
 
@@ -81,7 +81,7 @@ export interface GuardPlayer {
   readonly id: number;
   readonly state: PlayerState;
   readonly outlaw?: readonly string[];
-  readonly traits?: { readonly ac?: number; readonly stun?: number };
+  readonly traits?: { readonly ac?: number; readonly braceAc?: number; readonly stun?: number };
 }
 
 /** What happened to a guard: it fell (its hit points came to 0), and then it is gone. */
@@ -259,11 +259,10 @@ export class Guards {
     }
     const p = players.find((x) => x.id === target!.id);
     if (!p || !canBeHit(p.state) || !attackHits(state.x, state.y, state.aim, p.state.x, p.state.y, PLAYER_HALF_WIDTH, blow.reach)) return;
-    // A character that braces evades the swing where it stands (player.ts).
-    if (evadeBlow(p.state)) return;
-    const roll = attackRoll(blow.toHit, p.traits?.ac ?? 10, dice);
+    // A character that braces is harder to hit, and sways out of a miss (player.ts).
+    const roll = attackRoll(blow.toHit, armourNow(p.state, p.traits?.ac ?? 10, p.traits?.braceAc), dice);
     if (!roll.hit) {
-      glancePlayer(p.state);
+      missPlayer(p.state);
       return;
     }
     hitPlayer(p.state, Math.max(1, rollDice(blow.damage, dice, roll.crit)), GUARD_STUN_TICKS, 0, p.traits);
