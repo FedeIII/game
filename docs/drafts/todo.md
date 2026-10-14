@@ -6,20 +6,6 @@
 
 ## Open
 
-- **The player always faces the mouse** (2026-10-14). The player must always face in the direction of
-  the mouse pointer. Now the player faces the way that it walks (`facingFor()`), and it faces the mouse
-  only for an attack (a left click) and a brace (`facingOfAngle(move.attack)`, `player.aim`).
-  Code: `stepPlayer()`, `facingFor()`, `facingOfAngle()`, `MoveInput` (`x`, `y`, `attack`, `dodge`) and
-  `PlayerState.facing` and `aim` in `packages/engine/src/player.ts` (the facing is in the simulation:
-  the server repeats the step, and the snapshots send the facing to the other pages); `Mouse` (`at`) in
-  `packages/engine-client/src/input/mouse.ts`; `aimAt()` and the reading of the input in
-  `packages/engine-client/src/game.ts`; the walk frames for each facing in `render/player-view.ts`;
-  the protocol in `docs/multiplayer.md`.
-  Ask Fede: while the player walks away from the mouse, does it walk backwards (the walk frames of the
-  facing of the mouse)? Does the roll still go the way that the player walks? On a touch screen (no
-  mouse), does the player face the way that it walks, as now? Do the other players see the facing
-  of the mouse too?
-
 - **The ability tag before the line of a gated action** (2026-10-14). When an action uses an ability
   (for example the player forces a barred door, or picks the lock of a chest), the line that the
   player says starts with the tag of the gate: "[STR 13]", "[DEX 13]" or the equivalent. The tag has
@@ -218,3 +204,8 @@
   the 0.15 s after it. An attack costs stamina by its weapon (light 4, plain 6, heavy 10, the longbow
   too; with too little, the next attack waits twice as long), stamina does not fill in a brace, and
   guards and companions do not pay (Fede's choices). Done 2026-10-14, commit `6a652fe`.
+
+- **The player always faces the mouse** (2026-10-14). A player that stands faces the mouse pointer
+  (`MoveInput.face`, `facingToward()`; protocol 45, so the others see it); a player that walks faces its
+  walk, and a roll in place goes towards the pointer (Fede's answers; REQ-CMB-014). Done 2026-10-14,
+  commit `ac780a1`.
