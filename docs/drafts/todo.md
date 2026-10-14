@@ -6,6 +6,16 @@
 
 ## Open
 
+- **The traits list is hard to read** (2026-10-14). The list of what the scores and the gear of a
+  character give in each area of the game is difficult to understand: it is too long, and its layout
+  does not help. It shows in the "You" section of the settings (the player profile) and in step 2 of
+  the character builder. Now it is one flat list of about 38 terms and values, with no groups by
+  ability or by area of the game.
+  Code: `traitsList()` in `packages/engine-client/src/ui/traits-list.ts`; the texts in
+  `STRINGS.traits` (`ui/strings.ts`, `ui/strings-es.ts`); the styles `.traits` in
+  `packages/engine-client/src/style.css`; used in `ui/you-section.ts` and `menu/builder.ts`
+  (`.builder-traits`).
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
