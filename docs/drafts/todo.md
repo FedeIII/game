@@ -6,27 +6,6 @@
 
 ## Open
 
-- **Rolls by encumbrance and Dexterity** (2026-10-14). The roll of a dodge must be different with the
-  encumbrance and the Dexterity of the character: the ticks in which no mob can hit it, the stamina
-  that it costs, how often it can roll, and other parameters. First make a list of all the parameters
-  that can change (a brainstorm), and show it to Fede before the build. Now every roll goes 32 px
-  in 15 ticks (`DODGE_DISTANCE`, `DODGE_TICKS`), no mob can hit it in all of those ticks, and it
-  costs 35 stamina (`DODGE_STAMINA`); only the time between rolls changes with DEX
-  (`dodgeCooldown`: `DODGE_COOLDOWN_TICKS` 96 - `DODGE_PER_MOD` 12 x mod). The game has no
-  encumbrance now: the items have no weight, and the pack has slots only. The armour has a weight
-  class (light, medium, heavy): heavy armour without its STR walks at 3/4 (`tooHeavy()`,
-  `HEAVY_SPEED`), and noisy armour lets mobs see a sneaking character from farther (`isNoisy()`).
-  Code: `stepPlayer()` (the dodge: `move.dodge`), `roll()`, `canBeHit()`, `canDodge()`, the constants
-  `DODGE_TICKS`, `DODGE_DISTANCE`, `DODGE_COOLDOWN_TICKS`,
-  `DODGE_STAMINA`, `STAMINA_REFILL`, `STAMINA_REST_TICKS` in `packages/engine/src/player.ts`;
-  `StepTraits`, `traitsOf()`, `dodgeCooldown`, `DODGE_PER_MOD` in `packages/engine/src/traits.ts`;
-  `tooHeavy()`, `isNoisy()`, `HEAVY_SPEED`, `NOISY_SIGHT`, the armours in
-  `packages/engine/src/gear.ts`; the roll frames (`rollPose()`, `rollParts()`) in
-  `packages/engine-client/art/attacks.ts`; the roll in `render/player-view.ts`; REQ-CMB of the dodge
-  in `docs/features/game/combat.md`; the traits list (`ui/traits-list.ts`).
-  Ask Fede: what is the encumbrance: the weight class of the armour, the items in the pack, a new
-  weight for each item, or a mix? Does a heavy roll also look different (new frames)?
-
 - **Variants for the random huts of the Wilds** (2026-10-14). The random houses of the Wilds must
   have variants. Now every random house has the same look: no `style` (so `DEFAULT_STYLE`, stone
   walls and a slate roof), a wood floor (`Ground.Floor`), no windows and no roof props. Only the size
@@ -284,3 +263,9 @@
   font and in old gold: the forced door, a new wade line, the picked lock, lore pages, chewed herbs,
   gated scene lines, greetings and clues; the conversation panel shows its tags in old gold too.
   Done 2026-10-15, commit `be7d93a`.
+
+- **Rolls by encumbrance and Dexterity** (2026-10-14). Each item now has a weight in pounds (5e), and
+  the load of a character (worn items, pack and coins against 15 x STR lb) chooses one of four rolls:
+  light, medium, heavy (new frames: a low roll over one shoulder to one knee) and overloaded (a step
+  aside); they differ in distance and speed, safe ticks and stamina, and DEX adds distance and safe
+  ticks. Done 2026-10-15, commit `0f73005`.
