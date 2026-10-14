@@ -6,16 +6,6 @@
 
 ## Open
 
-- **The traits list is hard to read** (2026-10-14). The list of what the scores and the gear of a
-  character give in each area of the game is difficult to understand: it is too long, and its layout
-  does not help. It shows in the "You" section of the settings (the player profile) and in step 2 of
-  the character builder. Now it is one flat list of about 38 terms and values, with no groups by
-  ability or by area of the game.
-  Code: `traitsList()` in `packages/engine-client/src/ui/traits-list.ts`; the texts in
-  `STRINGS.traits` (`ui/strings.ts`, `ui/strings-es.ts`); the styles `.traits` in
-  `packages/engine-client/src/style.css`; used in `ui/you-section.ts` and `menu/builder.ts`
-  (`.builder-traits`).
-
 - **Sections in the journal: quests, hints, regions** (2026-10-14). The journal must have three
   sections: the quests, the hints and the regions. Now it shows only the quests, in two parts: the open
   quests and the finished quests.
@@ -233,3 +223,8 @@
   are a second screen of the game menu ("Settings", its last choice, with the admin's display and
   experience), and "Main menu" and "Sign out" are choices of the game menu. Done 2026-10-14, commit
   `21a0e43`.
+
+- **The traits list is hard to read** (2026-10-14). The list now starts with the key numbers in tiles
+  (AC, HP, attack, damage), then a card for each ability with its score and its rows (Fede's choice:
+  by ability); a value is bright, dim or pale red as it compares with a score of 10, and the cards go
+  in two columns where they fit. Done 2026-10-14, commit `9663416`.
