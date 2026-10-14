@@ -105,6 +105,10 @@
   Ask Fede: what must the evaluation give: a play test of the brace against each mob (the three
   questions of step 1), a simulation of the odds and the timing, or a ranked choice of the proposals
   to build next?
+- **Free all the frames of a skin that the store drops** (2026-10-15). When the skin store drops the
+  sheet of a skin that nobody wears, it destroys its textures, but not the brace frame and the evade
+  frames (`textures.brace`, `textures.evade`): a small leak of Texture objects.
+  Code: `SkinStore.retain()` in `packages/engine-client/src/skins/skin-store.ts`.
 
 ## Done
 
