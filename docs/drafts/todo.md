@@ -58,6 +58,26 @@
   (not only a rectangle), the furniture? Do the variants follow the land (the forest of the
   Sovereignty, the wildlands)?
 
+- **Different DCs for ability gates by the difficulty of the action** (2026-10-15). Each ability gate
+  must have its own DC (difficulty class), from the difficulty that the design gives to its action.
+  Now nearly every gate needs a score of 13 (`GATE_SCORE`): the wade and the barred doors (STR), the
+  locked chests (DEX), lore (INT), insight and Medicine (WIS), athletics (STR), persuasion and
+  reputation (CHA). Only a few have another number: the map (INT 11, 13, 15), the glint of a wind-up
+  (INT 15) and the keen ear (WIS 15). The type `Gate` already has its own `min`, and a barred door, a
+  lock, an answer, a lore page and a line of a scene each take a `Gate`. The tags of the clues
+  ("[STR 13]", `gateTag()`) show the number.
+  Code: `Gate`, `GATE_SCORE`, `WADE_GATE`, `FORCE_GATE`, `PICK_GATE`, `meetsGate()`, `gateView()`,
+  `GATE_HINT` in `packages/engine/src/traits.ts`; `MEDICINE_GATE` in `packages/engine/src/items.ts`;
+  `Building.barred` (`buildings.ts`), `Fixture.lock` (`fixtures.ts`), `DialogAnswer.gate`
+  (`dialog.ts`) and the gate of a scene line (`scenes.ts`) in the engine; the barred houses and the
+  locked chests (`FORCE_GATE`, `PICK_GATE`) in `worlds/wilds/src/houses.ts`; `LORE_GATE`,
+  `INSIGHT_GATE`, `KEEN_GATE`, `ATHLETICS_GATE`, `PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`;
+  `READ_FOE_GATE`, `READ_OPENING_GATE`, `HOMEWARD_GATE`, `REPUTATION_GATE` and the map gates in
+  `packages/engine-client/src/ui/gates.ts`; the plan in `docs/drafts/abilities.md`.
+  Ask Fede: is a DC still a fixed score with no die (Fede's rule now), or a roll of d20 + the
+  modifier against the DC, as in 5e? Which scale of difficulty (for example easy 11, medium 13, hard
+  15), and which actions are easy or hard?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
