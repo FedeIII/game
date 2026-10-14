@@ -89,6 +89,20 @@
   Ask Fede: what is the encumbrance: the weight class of the armour, the items in the pack, a new
   weight for each item, or a mix? Does a heavy roll also look different (new frames)?
 
+- **Variants for the random huts of the Wilds** (2026-10-14). The random houses of the Wilds must
+  have variants. Now every random house has the same look: no `style` (so `DEFAULT_STYLE`, stone
+  walls and a slate roof), a wood floor (`Ground.Floor`), no windows and no roof props. Only the size
+  (7-11 x 6-9 tiles), the door column and the furniture change.
+  Code: `generateHouse()` and `furnish()` in `worlds/wilds/src/houses.ts`; the floor of a house in
+  `worlds/wilds/src/source.ts` (`house.id === HOME_ID ? Ground.FloorEarth : Ground.Floor`); the home
+  as an example of a style (`style: { walls: 'timber', roof: 'thatch' }`, a window, a chimney) in
+  `worlds/wilds/src/home.ts`; `Building.style`, `windows`, `roofProps` and `DEFAULT_STYLE` in
+  `packages/engine/src/buildings.ts`; `WALL_STYLES`, `ROOF_STYLES`, `ROOF_PROPS` in
+  `packages/engine-client/art/buildings.ts`; the tests of the houses in `worlds/wilds/test/`.
+  Ask Fede: which variants: the wall and roof styles, the floors, windows and chimneys, other shapes
+  (not only a rectangle), the furniture? Do the variants follow the land (the forest of the
+  Sovereignty, the wildlands)?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
