@@ -23,6 +23,8 @@
   --ui-portrait-light: #34302b; /* the faint light behind a figure in the menu, so a dark look reads */
   --ui-hurt: rgb(150 20 18 / 0.55); /* the red at the screen edges when the player is hit */
   --ui-xp: #c9a64a; /* the old gold of experience: the level bar (the gold of a banner, render/quest-banner.ts) */
+  --ui-card: rgb(216 204 176 / 0.04); /* the faint ground of a card in a panel (the traits list) */
+  --ui-worse: #c98473; /* a value worse than for a score of 10 (the traits list): a pale rust */
   /* Google's dark "Sign in with Google" button (its branding guidelines). */
   --google-fill: #131314;
   --google-stroke: #8e918f;
@@ -483,7 +485,7 @@ body:has(#character:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #
 @media (min-width: 720px) {
   #character {
     display: grid;
-    grid-template-columns: minmax(0, 340px) minmax(0, 460px);
+    grid-template-columns: minmax(0, 300px) minmax(0, 760px);
     grid-template-rows: repeat(3, auto) 1fr;
     grid-template-areas:
       'heading traits'
@@ -492,7 +494,7 @@ body:has(#character:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #
       '. traits';
     justify-content: center;
     align-items: start;
-    column-gap: 56px;
+    column-gap: 40px;
   }
 
   #character .you-section {
@@ -1199,27 +1201,130 @@ body.pack-dragging * {
   text-shadow: 1px 1px 0 var(--ui-backdrop);
 }
 
-/* What the scores give (ui/traits-list.ts): in the builder and in the "You" section. */
+/*
+ * What the scores and the gear give (ui/traits-list.ts): in the builder and in the character panel.
+ * The key numbers in a row of tiles, then a card for each ability, in two columns where they fit.
+ */
 .traits {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 10px;
   margin: 4px 0 0;
   font-size: 13px;
 }
 
-.traits dt {
+.traits-key {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.traits-tile {
+  padding: 6px 4px 7px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: var(--ui-card);
+  text-align: center;
+}
+
+.traits-tile dt {
+  font-size: 11px;
+  line-height: 1.2;
+  opacity: 0.7;
+}
+
+.traits-tile dd {
+  margin: 4px 0 0;
+  font: 18px/1.1 var(--ui-mono);
+}
+
+/* The ability of the attacks, a sneak attack. */
+.traits-note {
+  display: block;
+  margin-top: 3px;
+  font: 11px/1.2 var(--ui-mono);
+  opacity: 0.6;
+}
+
+.traits-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 8px;
+  container-type: inline-size;
+}
+
+.traits-group {
+  padding: 5px 10px 7px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: var(--ui-card);
+}
+
+/* The card of the score that the player changed in the builder glows for a moment. */
+.traits-group.lit {
+  animation: traits-lit 0.9s ease-out;
+}
+
+@keyframes traits-lit {
+  from {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 10px var(--ui-accent-glow);
+  }
+}
+
+.traits-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--ui-border);
+  font: italic 14px/1.4 var(--ui-serif);
+  letter-spacing: 0.04em;
+}
+
+/* The score and its modifier: what the scales of the card use. */
+.traits-score {
+  font: 12px var(--ui-mono);
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+
+.traits-rows {
+  display: grid;
+  /* A long term wraps: it does not push the values into a narrow column. */
+  grid-template-columns: fit-content(45%) 1fr;
+  gap: 1px 10px;
+  margin: 0;
+}
+
+.traits-rows dt {
   opacity: 0.75;
 }
 
-.traits dd {
+.traits-rows dd {
   margin: 0;
   font: 12px/1.6 var(--ui-mono);
 }
 
+/* One column of cards (not room for two): the values of all the cards start at the same place. */
+@container (max-width: 607px) {
+  .traits-rows {
+    grid-template-columns: clamp(10.5em, 40%, 15em) 1fr;
+  }
+}
+
+/* As for a score of 10: dim. A gate that the score does not pass: the whole row dim. */
+.traits-rows dd.plain,
+.traits-rows .closed {
+  opacity: 0.45;
+}
+
+.traits-rows dd.worse {
+  color: var(--ui-worse);
+}
+
 .builder-traits {
-  margin: 10px auto 0;
-  max-width: 340px;
+  margin: 12px 0 0;
 }
 
 .builder-traits .settings-heading {

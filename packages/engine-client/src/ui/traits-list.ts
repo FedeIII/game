@@ -1,61 +1,195 @@
-import { FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, formatDice, meetsGate, type Gate, type PlayerTraits } from '@game/engine';
+import { ABILITIES, FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, type Ability, type Gate, type PlayerTraits } from '@game/engine';
 import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
- * What the scores and the gear of a character give in the game (traits.ts), as a list of terms
- * and values: the character builder shows it under the scores (with the kit of the class), and the
- * character panel under the character.
+ * How a value shows: `better` and `worse` than for a score of 10 (a scale with the modifier above or
+ * under 0, or a gate that the score passes: `better`), `plain` (as for a score of 10: dim) and
+ * `closed` (a gate that the score does not pass: dim, with the gate).
  */
-export function traitsList(traits: PlayerTraits): HTMLElement {
+export type TraitTone = 'better' | 'plain' | 'worse' | 'closed';
+
+export interface TraitRow {
+  readonly term: string;
+  readonly value: string;
+  readonly tone: TraitTone;
+}
+
+/** One of the key numbers at the top: Armour Class, hit points, attack bonus, damage. */
+export interface TraitKey {
+  readonly term: string;
+  readonly value: string;
+  /** A short line under the value: the ability of the attacks, a sneak attack. */
+  readonly note?: string;
+  /** What the number means, for a mouse over it. */
+  readonly title?: string;
+}
+
+/** What one ability gives: its score and modifier for the scales, and its rows. */
+export interface TraitGroup {
+  readonly ability: Ability;
+  readonly score: number;
+  readonly modifier: number;
+  readonly rows: readonly TraitRow[];
+}
+
+export interface TraitSheet {
+  readonly key: readonly TraitKey[];
+  readonly groups: readonly TraitGroup[];
+}
+
+const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`;
+
+/**
+ * What the scores and the gear of a character give in the game (traits.ts): the key numbers, and a
+ * group for each ability with what it gives (Fede's choice of 2026-10-14: groups by ability). The
+ * scales use the scores without the luck of the worn items, the gates the scores with it.
+ */
+export function traitSheet(traits: PlayerTraits): TraitSheet {
   const t = STRINGS.traits;
-  const gate = (gate: Gate, yes: string) => (meetsGate(traits.scores, gate) ? yes : t.from(STRINGS.abilities[gate.ability].short, gate.min));
-  const rows: [string, string][] = [
-    [t.ac, String(traits.ac)],
-    [t.toHit, t.toHitValue(traits.toHit)],
-    [t.damage, t.damageValue(formatDice(traits.damage), STRINGS.abilities[traits.attack].short)],
-    ...(traits.sneak.count > 0 ? ([[t.sneak, t.sneakValue(formatDice(traits.sneak))]] as [string, string][]) : []),
-    ...(traits.speed < 1 ? ([[t.walk, t.walkValue(traits.speed)]] as [string, string][]) : []),
-    [t.push, t.share(traits.push)],
-    [t.stagger, t.share(traits.stagger)],
-    [t.slots, t.slotsValue(traits.slots)],
-    [t.wade, gate(WADE_GATE, t.wadeYes)],
-    [t.force, gate(FORCE_GATE, t.forceYes)],
-    [t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)],
-    [t.guard, t.seconds(traits.guard * TICK_SECONDS)],
-    [t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)],
-    [t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)],
-    ...(traits.ranged ? ([[t.range, t.rangeValue(traits.range / TILE_SIZE)]] as [string, string][]) : []),
-    [t.pick, gate(PICK_GATE, t.pickYes)],
-    [t.hp, String(traits.maxHp)],
-    [t.stun, t.share(traits.stun)],
-    [t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)],
-    [t.resist, t.share(traits.resist)],
-    [t.opening, t.openingValue(traits.opening)],
-    [t.readFoe, meetsGate(traits.scores, READ_OPENING_GATE) ? t.readFoeOpening : meetsGate(traits.scores, READ_FOE_GATE) ? t.readFoeHealth : t.from(STRINGS.abilities.int.short, READ_FOE_GATE.min)],
-    [t.map, t.mapValue(traits.scores.int)],
-    [t.lore, gate(LORE_GATE, t.loreYes)],
-    [t.sense, t.tiles(traits.sense / TILE_SIZE)],
-    [t.seek, t.tiles(traits.seek / TILE_SIZE)],
-    [t.night, t.nightValue(traits.night)],
-    [t.insight, gate(INSIGHT_GATE, t.insightYes)],
-    [t.medicine, gate(MEDICINE_GATE, t.medicineYes)],
-    [t.homeward, gate(HOMEWARD_GATE, t.homewardYes)],
-    [t.prices, t.pricesValue(traits.buyShare, traits.sellShare)],
-    [t.presence, t.presenceValue(traits.presence)],
-    [t.daunt, t.dauntValue(traits.daunt)],
-    [t.inspire, t.inspireValue(traits.inspire * TICK_SECONDS)],
-    [t.persuasion, gate(PERSUASION_GATE, t.persuasionYes)],
-    [t.reputation, gate(REPUTATION_GATE, t.reputationYes)],
+  const short = (ability: Ability) => STRINGS.abilities[ability].short;
+  const key: TraitKey[] = [
+    { term: t.ac, value: String(traits.ac) },
+    { term: t.hp, value: String(traits.maxHp) },
+    { term: t.toHit, value: signed(traits.toHit), note: t.attackWith(short(traits.attack)), title: t.toHitTitle(traits.toHit) },
+    {
+      term: t.damage,
+      value: formatDice(traits.damage),
+      ...(traits.sneak.count > 0 ? { note: t.sneakNote(formatDice(traits.sneak)), title: t.sneakTitle(formatDice(traits.sneak)) } : {}),
+    },
   ];
-  const list = document.createElement('dl');
-  list.className = 'traits';
-  for (const [term, value] of rows) {
-    const dt = document.createElement('dt');
-    dt.textContent = term;
-    const dd = document.createElement('dd');
-    dd.textContent = value;
-    list.append(dt, dd);
+
+  const groups = ABILITIES.map((ability): TraitGroup => {
+    const score = traits.scores[ability] - traits.luck;
+    const modifier = abilityModifier(score);
+    return { ability, score, modifier, rows: groupRows(ability, modifier, traits) };
+  });
+  return { key, groups };
+}
+
+/** The rows of one ability: its scales (tone from its modifier) and its gates (from the scores with the luck). */
+function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): TraitRow[] {
+  const t = STRINGS.traits;
+  const short = (ability: Ability) => STRINGS.abilities[ability].short;
+  const scale: TraitTone = modifier > 0 ? 'better' : modifier < 0 ? 'worse' : 'plain';
+  // A bonus that a low score does not take away (the opening, the inspire).
+  const bonus: TraitTone = modifier > 0 ? 'better' : 'plain';
+  const row = (term: string, value: string, tone: TraitTone = scale): TraitRow => ({ term, value, tone });
+  const gate = (term: string, gate: Gate, yes: string): TraitRow =>
+    meetsGate(traits.scores, gate) ? row(term, yes, 'better') : row(term, t.from(short(gate.ability), gate.min), 'closed');
+  switch (ability) {
+    case 'str':
+      return [
+        ...(traits.speed < 1 ? [row(t.walk, t.walkValue(traits.speed), 'worse')] : []),
+        row(t.push, t.share(traits.push)),
+        row(t.stagger, t.share(traits.stagger)),
+        row(t.slots, t.slotsValue(traits.slots)),
+        gate(t.wade, WADE_GATE, t.wadeYes),
+        gate(t.force, FORCE_GATE, t.forceYes),
+      ];
+    case 'dex':
+      return [
+        row(t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)),
+        row(t.guard, t.seconds(traits.guard * TICK_SECONDS)),
+        row(t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)),
+        row(t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)),
+        ...(traits.ranged ? [row(t.range, t.rangeValue(traits.range / TILE_SIZE))] : []),
+        gate(t.pick, PICK_GATE, t.pickYes),
+      ];
+    case 'con':
+      return [row(t.stun, t.share(traits.stun)), row(t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)), row(t.resist, t.share(traits.resist))];
+    case 'int':
+      return [
+        row(t.opening, t.openingValue(traits.opening), bonus),
+        meetsGate(traits.scores, READ_OPENING_GATE)
+          ? row(t.readFoe, t.readFoeOpening, 'better')
+          : meetsGate(traits.scores, READ_FOE_GATE)
+            ? row(t.readFoe, t.readFoeHealth, 'better')
+            : row(t.readFoe, t.from(short('int'), READ_FOE_GATE.min), 'closed'),
+        row(t.map, t.mapValue(traits.scores.int), traits.scores.int >= 11 ? 'better' : 'plain'),
+        gate(t.lore, LORE_GATE, t.loreYes),
+      ];
+    case 'wis':
+      return [
+        row(t.sense, t.tiles(traits.sense / TILE_SIZE)),
+        row(t.seek, t.tiles(traits.seek / TILE_SIZE)),
+        row(t.night, t.nightValue(traits.night)),
+        gate(t.insight, INSIGHT_GATE, t.insightYes),
+        gate(t.medicine, MEDICINE_GATE, t.medicineYes),
+        gate(t.homeward, HOMEWARD_GATE, t.homewardYes),
+      ];
+    case 'cha':
+      return [
+        row(t.prices, t.pricesValue(traits.buyShare, traits.sellShare)),
+        row(t.presence, t.presenceValue(traits.presence)),
+        row(t.daunt, t.dauntValue(traits.daunt)),
+        row(t.inspire, t.inspireValue(traits.inspire * TICK_SECONDS), bonus),
+        gate(t.persuasion, PERSUASION_GATE, t.persuasionYes),
+        gate(t.reputation, REPUTATION_GATE, t.reputationYes),
+      ];
   }
-  return list;
+}
+
+/**
+ * The traits as HTML: the key numbers in a row of tiles, then a card for each ability (two columns
+ * on a wide screen). The character builder shows it under the scores (with the kit of the class),
+ * and the character panel beside the character. `lit` makes the card of that ability glow once: the
+ * builder gives the ability that the player changed.
+ */
+export function traitsList(traits: PlayerTraits, lit?: Ability): HTMLElement {
+  const sheet = traitSheet(traits);
+  const root = document.createElement('div');
+  root.className = 'traits';
+
+  const key = document.createElement('dl');
+  key.className = 'traits-key';
+  for (const item of sheet.key) {
+    const tile = document.createElement('div');
+    tile.className = 'traits-tile';
+    if (item.title) tile.title = item.title;
+    const dt = document.createElement('dt');
+    dt.textContent = item.term;
+    const dd = document.createElement('dd');
+    dd.textContent = item.value;
+    if (item.note) {
+      const note = document.createElement('span');
+      note.className = 'traits-note';
+      note.textContent = item.note;
+      dd.append(note);
+    }
+    tile.append(dt, dd);
+    key.append(tile);
+  }
+
+  const groups = document.createElement('div');
+  groups.className = 'traits-groups';
+  for (const group of sheet.groups) {
+    const card = document.createElement('section');
+    card.className = group.ability === lit ? 'traits-group lit' : 'traits-group';
+    card.dataset.ability = group.ability;
+    const head = document.createElement('h3');
+    head.className = 'traits-head';
+    const name = document.createElement('span');
+    name.textContent = STRINGS.abilities[group.ability].name;
+    const score = document.createElement('span');
+    score.className = 'traits-score';
+    score.textContent = `${group.score} (${signed(group.modifier)})`;
+    head.append(name, score);
+    const rows = document.createElement('dl');
+    rows.className = 'traits-rows';
+    for (const row of group.rows) {
+      const dt = document.createElement('dt');
+      dt.textContent = row.term;
+      const dd = document.createElement('dd');
+      dd.textContent = row.value;
+      // The tone on both: a closed gate dims the whole row, the other tones only the value.
+      dt.className = dd.className = row.tone;
+      rows.append(dt, dd);
+    }
+    card.append(head, rows);
+    groups.append(card);
+  }
+
+  root.append(key, groups);
+  return root;
 }

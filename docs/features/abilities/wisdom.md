@@ -143,10 +143,11 @@ the dark forest.
 choose my scores.
 
 **Acceptance Criteria:**
-- **AC-WIS-008.1:** Step 2 of the builder and the character panel list "Sense a mob that hunts you"
-  (N tiles), "See hidden things" (N tiles), "The night" ("8% lighter", "normal", "8% darker"),
-  "Insight" ("you see what people hide", or "from WIS 13"), "Medicine" ("chew herbs for a hit
-  point", or "from WIS 13") and "The way home" ("an arrow points to it", or "from WIS 13").
+- **AC-WIS-008.1:** Step 2 of the builder and the character panel list in the card "Wisdom": "Sense
+  a mob that hunts you" (N tiles), "See hidden things" (N tiles), "The night" ("8% lighter",
+  "normal", "8% darker"), "Insight" ("see what people hide", or "from WIS 13"), "Medicine" ("chew
+  herbs for 1d4 HP", or "from WIS 13") and "The way home" ("an arrow points to it", or "from WIS
+  13").
 
 ## Feature Behavior & Rules
 

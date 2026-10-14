@@ -191,7 +191,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `character-panel.ts` (top right, the "Character" button, a head and shoulders: `#character`, the character panel, with the content of `you-section.ts`;
   since 2026-10-14, Fede's request: it took the place of the settings panel, and the settings went into the game menu),
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
-  `you-section.ts` (the content of the character panel: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder)),
+  `you-section.ts` (the content of the character panel: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder: a card for each ability)),
   `xp-section.ts` (the "Experience" section of the settings of the game menu, for an admin only: the divisor of the XP of the kills of its own characters),
   `control-list.ts` (`controlList()`: the controls to read, in the settings of the menu and of the game menu),
   `pack-panel.ts` (top right, left of the character button, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
@@ -810,7 +810,9 @@ builder and the character panel still name every gate.
   defeat.
 
 In the client: the builder (step 2) and the character panel show the traits in words and numbers
-(`ui/traits-list.ts`); the pack panel shows the pack; a chest says "Open the chest", and the
+(`ui/traits-list.ts`: the key numbers AC, HP, attack and damage in tiles, then a card for each
+ability with its score and its rows, Fede's choice of 2026-10-14; a value is bright, dim or pale red
+as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
 protocol: `docs/multiplayer.md`, protocol 42.

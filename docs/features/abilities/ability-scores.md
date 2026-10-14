@@ -133,25 +133,31 @@ game, so that I can choose my scores with knowledge.
 - **AC-AS-005.1:** Step 2 of the builder ("Abilities") shows the list "What your scores give"
   under the table of scores.
 - **AC-AS-005.2:** The list changes at once when the player raises or lowers a score, or changes
-  the choices of a half-elf. The rows of the attack bonus and the damage use the class that the
-  player chose in step 1.
-- **AC-AS-005.3:** The list has these rows for STR and DEX, in this order (the value for a
-  fighter with every score 10 in brackets):
-  - "Attack bonus" ("+2 (d20 against the AC of a mob)").
-  - "Damage of a blow" ("1d8 (STR)": the damage dice and the attack ability).
-  - "Knockback" ("normal", or for example "+15%" and "−15%").
-  - "Stagger" ("normal", or for example "+20%" and "−20%").
-  - "Pack" ("6 slots").
-  - "Shallow water" ("you wade through it", or "from STR 13").
-  - "Barred doors" ("you break them", or "from STR 13").
-  - "Attacks" ("one every 0.45 s").
-  - "Guard after a hit" ("1.00 s").
-  - "Roll" ("every 1.60 s").
-  - "Mobs see you from" ("100% (sneaking 50%)").
-  - "Arrows fly" ("5 tiles"), only for a ranger.
-  - "Locked chests" ("you pick them", or "from DEX 13").
-- **AC-AS-005.4:** A gate row shows its "yes" text when the score passes the gate. Else it shows
-  the gate, for example "from STR 13".
+  the choices of a half-elf. The key numbers use the class that the player chose in step 1, and
+  its kit. The card of the ability that the player changed glows for a moment.
+- **AC-AS-005.3:** The list starts with four key numbers, each in a tile: "Armour Class", "Hit
+  points", "Attack bonus" (with the attack ability under it: "with DEX") and "Damage" (for a rogue,
+  the sneak attack under it: "+1d6 sneak attack").
+- **AC-AS-005.4:** Then the list has a card for each ability, in the order STR, DEX, CON, INT,
+  WIS, CHA (Fede's choice, 2026-10-14: groups by ability). The heading of a card gives the name of
+  the ability, its score and its modifier, for example "Strength 13 (+1)". The rows of STR and
+  DEX, in this order (in brackets, the value for a fighter with every score 10 and no gear):
+  - Strength: "Walk" ("25% slower (armour)", only in a heavy armour without its STR),
+    "Knockback" ("normal", or for example "+15%" and "−15%"), "Stagger" ("normal", "+20%"),
+    "Pack" ("6 slots"), "Shallow water" ("you wade through it", or "from STR 13") and "Barred
+    doors" ("you break them", or "from STR 13").
+  - Dexterity: "Attacks" ("one every 0.45 s"), "Guard after a hit" ("1.00 s"), "Roll" ("every
+    1.60 s"), "Mobs see you from" ("100% (sneaking 50%)"), "Arrows fly" ("5 tiles", only with a
+    bow) and "Locked chests" ("you pick them", or "from DEX 13").
+  The rows of CON, INT, WIS and CHA are in the documents of those abilities.
+- **AC-AS-005.5:** A gate row shows its "yes" text when the score passes the gate. Else it shows
+  the gate, for example "from STR 13", and the whole row is dim.
+- **AC-AS-005.6:** A value shows how it compares with a score of 10: brighter when the modifier
+  of its ability is above 0 (or its gate is open), dim when it is 0 ("normal"), and in a pale red
+  when it is under 0 (and the slow walk of a heavy armour). A bonus that a low score does not take away ("A blow on a wind-up",
+  "Others hit near you") is dim, not red, under 0.
+- **AC-AS-005.7:** On a wide screen the cards go in two columns, where two fit. In one column, the
+  values of all the cards start at the same place.
 
 ---
 
@@ -162,7 +168,8 @@ character can do.
 
 **Acceptance Criteria:**
 - **AC-AS-006.1:** The character panel (the "Character" button at the top right) shows the same
-  list as the builder, for the character in play.
+  list as the builder, for the character in play: its level and the gear that it wears. On a wide
+  screen the character is at the left, and the list at the right.
 - **AC-AS-006.2:** For a character, the section also shows its six final scores.
 - **AC-AS-006.3:** For a guest, the section shows no scores, but it shows the list of the guest's
   traits.
@@ -226,8 +233,13 @@ which score to raise, without a list of everything that I cannot do.
 - **The protocol versions:** 11 brought the traits and STR, 12 brought DEX, and 26 the results of
   the dice of a fight (`docs/multiplayer.md`).
 - **The list of traits** is `traitsList()` in `packages/engine-client/src/ui/traits-list.ts`, with
-  its texts in `STRINGS.traits` (`ui/strings.ts`). The builder (`menu/builder.ts`) puts it in a
-  region with `aria-live="polite"`, so a screen reader hears a change. The character panel is
+  its texts in `STRINGS.traits` (`ui/strings.ts`, `ui/strings-es.ts`) and its styles `.traits-*`
+  (`style.css`; the theme variables `--ui-card` and `--ui-worse`). `traitSheet()` gives the key
+  numbers and the groups with the tone of each row (`better`, `plain`, `worse`, `closed`), without
+  the DOM, for the tests. The score of a group is the score without the luck of the worn items (the
+  scales use it), and the gates use the score with the luck. The builder (`menu/builder.ts`) puts
+  the list in a region with `aria-live="polite"`, so a screen reader hears a change, and gives
+  `traitsList()` the ability that the player changed (`lit`). The character panel is
   `ui/character-panel.ts`, with its content in `ui/you-section.ts`.
 - **Debug:** `?debug` shows the line `traits` (STR: damage, push, stagger, slots, wade) and the line
   `dex` (cooldown, guard, dodge, sight, range, the state of the roll and of sneaking).

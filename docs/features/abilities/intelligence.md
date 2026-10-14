@@ -156,9 +156,10 @@ find my way back.
 can choose my scores.
 
 **Acceptance Criteria:**
-- **AC-INT-008.1:** Step 2 of the builder and the character panel list "A blow on a wind-up" (+N
-  damage, or "no bonus"), "Read a mob" ("its health", "its health and its wind-up", or "from INT
-  13"), "The map" (the detail for the score) and "Old writing" ("you read it", or "from INT 13").
+- **AC-INT-008.1:** Step 2 of the builder and the character panel list in the card "Intelligence":
+  "A blow on a wind-up" (+N damage, or "no bonus"), "Read a mob" ("its health", "its health and
+  wind-up", or "from INT 13"), "The map" (the detail for the score) and "Old writing" ("you read
+  it", or "from INT 13").
 
 ## Feature Behavior & Rules
 

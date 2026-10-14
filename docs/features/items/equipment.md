@@ -222,8 +222,9 @@ only a part of the ranger.
 - **AC-EQ-012.1:** A blow of a rogue that hits does 2d6 more damage on a mob that does not hunt
   the rogue: a mob that wanders, or that hunts another player. A critical hit rolls the 2d6 two
   times too.
-- **AC-EQ-012.2:** The character panel and the builder show "Sneak attack: +1d6 on a mob that does
-  not hunt you" for a rogue.
+- **AC-EQ-012.2:** For a rogue, the character panel and the builder show "+1d6 sneak attack" under
+  the damage in the key numbers; a mouse over it says "Sneak attack: +1d6 on a mob that does not
+  hunt you".
 
 ---
 
@@ -319,9 +320,10 @@ it is there in my next session.
 
 **Acceptance Criteria:**
 - **AC-EQ-017.1:** The list of traits (the builder, with the kit of the class, and the character
-  panel) starts with "Armour Class" ("18"), "Attack bonus" ("+5 (d20 against the AC of a mob)")
-  and "Damage of a blow" ("1d8+3 (STR)").
-- **AC-EQ-017.2:** It shows "Walk: 25% slower (heavy armour)" in a heavy armour without its STR.
+  panel) starts with the key numbers: "Armour Class" ("18"), "Attack bonus" ("+5", "with STR"
+  under it; a mouse over it says "d20 + 5 against the AC of a mob") and "Damage" ("1d8+3").
+- **AC-EQ-017.2:** The card "Strength" shows "Walk: 25% slower (armour)" in a heavy armour without
+  its STR.
 - **AC-EQ-017.3:** It shows how far mobs see a sneaking character with the share of the armour.
 - **AC-EQ-017.4:** The traits change at once when the gear changes.
 

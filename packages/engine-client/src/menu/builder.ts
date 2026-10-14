@@ -90,6 +90,8 @@ export class CharacterBuilder {
   private base: Record<Ability, number> = { ...BASE_SCORES };
   private bonus: Ability[] = [];
   private step: 1 | 2 = 1;
+  /** The ability that the player changed last: its card in the traits list glows once (traitsList). */
+  private changed: Ability | null = null;
   private readonly portrait: SkinPortrait;
   private busy: string | null = null;
 
@@ -279,6 +281,7 @@ export class CharacterBuilder {
         (race as HTMLButtonElement).disabled = !chosen && this.bonus.length >= choosing;
         race.addEventListener('click', () => {
           this.bonus = chosen ? this.bonus.filter((a) => a !== ability) : [...this.bonus, ability];
+          this.changed = ability;
           this.render();
         });
       } else {
@@ -321,7 +324,14 @@ export class CharacterBuilder {
       this.bonus = [];
       this.render();
     });
-    const traits = el('section', { class: 'builder-traits', 'aria-live': 'polite' }, el('p', { class: 'settings-heading' }, STRINGS.traits.heading), traitsList(traitsOf(final, this.cls, kitOf(this.cls))));
+    const lit = this.changed ?? undefined;
+    this.changed = null;
+    const traits = el(
+      'section',
+      { class: 'builder-traits', 'aria-live': 'polite' },
+      el('p', { class: 'settings-heading' }, STRINGS.traits.heading),
+      traitsList(traitsOf(final, this.cls, kitOf(this.cls)), lit),
+    );
     const missing = choosing > 0 && this.bonus.length < choosing;
     const create = el('button', { type: 'button', id: 'builder-create', class: 'menu-button menu-primary' }, this.busy ?? T.create);
     create.disabled = missing || this.busy !== null;
@@ -344,6 +354,7 @@ export class CharacterBuilder {
     const next: Scores = { ...this.base, [ability]: score };
     if (score < POINT_BUY.min || score > POINT_BUY.max || pointsSpent(next) > POINT_BUY.budget) return;
     this.base = { ...next };
+    this.changed = ability;
     this.render();
   }
 }

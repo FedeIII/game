@@ -160,9 +160,9 @@ mine.
 can choose my scores.
 
 **Acceptance Criteria:**
-- **AC-CHA-009.1:** Step 2 of the builder and the character panel list "Prices" ("you pay 90%, you
-  get 110%"), "A pack round you" ("its attacks overlap 5% less", or "normal"), "A mob after its
-  hit" ("runs off 10% longer"), "Others near you" ("+0.1 s of guard after a hit", or "nothing"),
+- **AC-CHA-009.1:** Step 2 of the builder and the character panel list in the card "Charisma":
+  "Prices" ("pay 90%, get 110%"), "Attacks of a pack" ("overlap 5% less", or "normal"), "A mob
+  after its hit" ("runs off 10% longer"), "Others hit near you" ("+0.1 s of guard", or "nothing"),
   "Persuasion" ("you win people over", or "from CHA 13") and "Reputation" ("people greet you by
   name", or "from CHA 13").
 
