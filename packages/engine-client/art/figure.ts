@@ -104,6 +104,11 @@ export interface FigureAction {
    * come forward and swing less. Default 0.
    */
   readonly crouch?: number;
+  /**
+   * 0 to 1: a kneel, at the end of a heavy roll: the right leg (+x) steps forward with its shin
+   * upright, and the left knee goes down to the ground with its shin back along it. Default 0.
+   */
+  readonly kneel?: number;
 }
 
 /**
@@ -198,6 +203,11 @@ const CROUCH_KNEE_OUT = 1.0;
 /** In a full crouch the arms come forward by this much (radians), and the elbows bend by this much more. */
 const CROUCH_ARM = 0.5;
 const CROUCH_ELBOW = 0.25;
+/** A full kneel: the turn of the thigh and the bend of the knee of the front leg (+x) and of the back leg (radians). */
+const KNEEL_FRONT_THIGH = 1.35;
+const KNEEL_FRONT_KNEE = 1.35;
+const KNEEL_BACK_THIGH = 0.15;
+const KNEEL_BACK_KNEE = 1.75;
 
 function add(a: Vec3, b: Vec3): Vec3 {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -320,23 +330,27 @@ export function figure(spec: FigureSpec, phase: number, amount: number, action?:
   const hipY = HIP_Y * h;
 
   const tuck = action?.tuck ?? 0;
+  const kneel = action?.kneel ?? 0;
   const legs = [-1, 1].map((side) => {
     const p = phase + (side < 0 ? 0 : Math.PI);
     // A tuck folds the thighs up to the front and the shins back under them; a crouch does the
-    // same, less.
-    const theta = swing * Math.sin(p) + 2.0 * tuck + CROUCH_THIGH * crouch;
+    // same, less. A kneel puts the right leg forward and the left knee down.
+    const front = side > 0;
+    const theta = swing * Math.sin(p) + 2.0 * tuck + CROUCH_THIGH * crouch + kneel * (front ? KNEEL_FRONT_THIGH : KNEEL_BACK_THIGH);
     // The knee bends most while the leg swings forward, under the body.
-    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p)) + 2.7 * tuck + CROUCH_KNEE * crouch;
+    const knee = 0.1 + kneeBend * Math.max(0, Math.cos(p)) + 2.7 * tuck + CROUCH_KNEE * crouch + kneel * (front ? KNEEL_FRONT_KNEE : KNEEL_BACK_KNEE);
     const hip: Vec3 = [side * HIP_HALF_WIDTH * w, hipY, 0];
     const out = side * CROUCH_KNEE_OUT * crouch * w;
     const kneeAt = add(hip, [out, -THIGH * h * Math.cos(theta), THIGH * h * Math.sin(theta)]);
     const shin = theta - knee;
     const ankle = add(kneeAt, [-0.5 * out, -SHIN * h * Math.cos(shin), SHIN * h * Math.sin(shin)]);
-    const toe = add(ankle, [0, -0.45, 2.1]);
+    // The foot of a knee on the ground stands on its toes, behind the shin.
+    const back = front ? 0 : kneel;
+    const toe = add(ankle, [0, -0.45 - 1.05 * back, 2.1 - 2.6 * back]);
     return { hip, knee: kneeAt, ankle, toe };
   });
-  // Put the lower foot on the ground. This also gives the body its up-and-down bob.
-  const lift = -Math.min(...legs.map((leg) => Math.min(leg.ankle[1] - 0.9, leg.toe[1] - 0.7)));
+  // Put the lower foot on the ground (or the knee of a kneel). This also gives the body its up-and-down bob.
+  const lift = -Math.min(...legs.map((leg) => Math.min(leg.ankle[1] - 0.9, leg.toe[1] - 0.7, kneel > 0 ? leg.knee[1] - 1.3 : Infinity)));
   const up = (v: Vec3): Vec3 => [v[0], v[1] + lift, v[2]];
   // The lean moves points above the hips forward, more for higher points.
   const upper = (v: Vec3): Vec3 => up([v[0], v[1], v[2] + Math.max(0, v[1] - hipY) * lean]);

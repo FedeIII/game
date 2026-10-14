@@ -291,6 +291,47 @@ export function rollParts(spec: FigureSpec, frame: number): Part[] {
   return tumble(figure(spec, 0, 0, action), angle, [0, ROLL_PIVOT_Y * spec.height, ROLL_PIVOT_Z]);
 }
 
+/** Frames of a heavy roll in a sheet (a character with a heavy load: load.ts in the engine). */
+export const HEAVY_ROLL_FRAMES = 4;
+/**
+ * In each frame of a heavy roll: the crouch, the tuck, the kneel, the lean forward, the turn of the
+ * figure forward (radians, tumble()) and to its right (sway()), and how far down it goes (model
+ * pixels). It drops low, rolls over its right shoulder and its back, and comes up on one knee.
+ */
+const HEAVY_ROLL = [
+  { crouch: 1, tuck: 0, kneel: 0, lean: 0.9, angle: 0.55, side: 0.3, drop: 0 },
+  { crouch: 0, tuck: 0.55, kneel: 0, lean: 0.8, angle: 2.0, side: 0.55, drop: 0 },
+  { crouch: 0, tuck: 0.6, kneel: 0, lean: 0.8, angle: 3.8, side: 0.35, drop: 0 },
+  { crouch: 0, tuck: 0, kneel: 1, lean: 0.2, angle: 0, side: 0, drop: 0 },
+] as const;
+/** A heavy roll turns round this point (model space; y at the scale of the figure's height): lower than a roll. */
+const HEAVY_PIVOT_Y = 8;
+
+/**
+ * The parts of frame `frame` of the heavy roll of a figure (a low roll over one shoulder that ends on
+ * one knee; Fede's choice, 2026-10-15): slower and lower than a roll, with less of a tuck.
+ */
+export function heavyRollParts(spec: FigureSpec, frame: number): Part[] {
+  const pose = HEAVY_ROLL[frame]!;
+  // The arms forward and down, to take the fall; on one knee, the right forearm over the knee.
+  const right: ArmPose =
+    pose.kneel > 0
+      ? [
+          [0.25, -0.75, 0.6],
+          [0.1, -0.2, 1],
+        ]
+      : [
+          [0.3, -0.5, 0.8],
+          [-0.2, -0.6, 0.75],
+        ];
+  const left: ArmPose = pose.kneel > 0 ? [[-0.3, -0.85, 0.4], [-0.1, -0.5, 0.85]] : mirror(right);
+  const action: FigureAction = { right, left, lean: pose.lean, crouch: pose.crouch, tuck: pose.tuck, kneel: pose.kneel };
+  const parts = figure(spec, 0, 0, action);
+  if (pose.angle === 0 && pose.side === 0) return parts;
+  const pivot: Vec3 = [0, HEAVY_PIVOT_Y * spec.height, ROLL_PIVOT_Z];
+  return tumble(sway(parts, pose.side, pivot), pose.angle, pivot, pose.drop * spec.height);
+}
+
 /** Frames of the sneak walk in a sheet: as many as the walk has. */
 export const SNEAK_FRAMES = 8;
 /** A player that sneaks: how far it crouches (FigureAction.crouch), how far it leans forward, and how long its strides are (a walk amount; 1 is a walk). */

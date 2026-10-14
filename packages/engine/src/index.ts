@@ -15,6 +15,7 @@ export * from './traits.ts';
 export * from './experience.ts';
 export * from './items.ts';
 export * from './gear.ts';
+export * from './load.ts';
 export * from './inventory.ts';
 export * from './loot.ts';
 export * from './piles.ts';

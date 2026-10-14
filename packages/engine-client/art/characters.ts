@@ -4,7 +4,23 @@
  * figure (skins.ts). Change the proportions in figure.ts, not in the frames.
  */
 import { ramp } from './raster.ts';
-import { ATTACK_FRAMES, ATTACK_STANCE, EVADE_FRAMES, FALL_FRAMES, ROLL_FRAMES, SNEAK_FRAMES, attackAction, braceParts, evadeParts, fallParts, rollParts, sneakParts, type AttackStyle } from './attacks.ts';
+import {
+  ATTACK_FRAMES,
+  ATTACK_STANCE,
+  EVADE_FRAMES,
+  FALL_FRAMES,
+  HEAVY_ROLL_FRAMES,
+  ROLL_FRAMES,
+  SNEAK_FRAMES,
+  attackAction,
+  braceParts,
+  evadeParts,
+  fallParts,
+  heavyRollParts,
+  rollParts,
+  sneakParts,
+  type AttackStyle,
+} from './attacks.ts';
 import { WANDERER, figure, figureMaterials, type FigureAction, type FigureSpec, type Palette } from './figure.ts';
 import type { Image } from './image.ts';
 import { renderModel, type Material, type Part } from './sdf.ts';
@@ -249,8 +265,8 @@ export function boundFigure(name: string): Image {
 
 /**
  * Frames `player/<view>/stand`, `player/<view>/walk/<i>`, `player/<view>/attack/<i>` (a punch),
- * `.../roll/<i>`, `.../fall/<i>`, `.../crouch`, `.../sneak/<i>` (the sneak walk), `.../brace` and
- * `.../evade/<i>`: the wanderer, the default player.
+ * `.../roll/<i>`, `.../heavyroll/<i>`, `.../fall/<i>`, `.../crouch`, `.../sneak/<i>` (the sneak walk),
+ * `.../brace` and `.../evade/<i>`: the wanderer, the default player.
  */
 export function playerFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
@@ -267,6 +283,7 @@ export function playerFrames(): Frame[] {
       frames.push({ name: `player/${view.name}/attack/${i}`, image: render(figure(WANDERER, phase, amount, attackAction('punch', i, WANDERER))), anchor });
     }
     for (let i = 0; i < ROLL_FRAMES; i++) frames.push({ name: `player/${view.name}/roll/${i}`, image: render(rollParts(WANDERER, i)), anchor });
+    for (let i = 0; i < HEAVY_ROLL_FRAMES; i++) frames.push({ name: `player/${view.name}/heavyroll/${i}`, image: render(heavyRollParts(WANDERER, i)), anchor });
     for (let i = 0; i < FALL_FRAMES; i++) frames.push({ name: `player/${view.name}/fall/${i}`, image: render(fallParts(WANDERER, i)), anchor });
     frames.push({ name: `player/${view.name}/crouch`, image: render(sneakParts(WANDERER, null)), anchor });
     for (let i = 0; i < SNEAK_FRAMES; i++) frames.push({ name: `player/${view.name}/sneak/${i}`, image: render(sneakParts(WANDERER, i)), anchor });

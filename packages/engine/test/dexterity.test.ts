@@ -4,14 +4,13 @@ import {
   dice,
   ATTACK_COOLDOWN_TICKS,
   DODGE_COOLDOWN_TICKS,
-  DODGE_DISTANCE,
-  DODGE_TICKS,
   EMPTY_PACK,
   GUARD_TICKS,
   Horde,
   MOB_STATS,
   NO_INPUT,
   PLAIN_SCORES,
+  ROLLS,
   Room,
   Spoils,
   TICK_SECONDS,
@@ -19,7 +18,9 @@ import {
   World,
   appearanceSeed,
   canBeHit,
+  canDodge,
   createPlayer,
+  inSafeRoll,
   fromWireInput,
   guestTraits,
   isSneaking,
@@ -75,15 +76,21 @@ describe('the Dexterity traits', () => {
 
 describe('a dodge', () => {
   const open = new World(textSource([]));
+  const light = ROLLS.light;
 
-  it('rolls DODGE_DISTANCE the way the player walks, and no mob can hit it meanwhile', () => {
+  it('rolls the distance of a light roll the way the player walks, and no mob can hit it in its safe ticks', () => {
     const p = createPlayer(100, 100);
     stepPlayer(p, { x: 1, y: 0, dodge: true }, open);
-    expect(canBeHit(p)).toBe(false);
-    for (let i = 1; i < DODGE_TICKS; i++) stepPlayer(p, NO_INPUT, open);
+    expect(p.dodgeKind).toBe('light');
+    const open_: boolean[] = [canBeHit(p)];
+    for (let i = 1; i < light.ticks; i++) {
+      stepPlayer(p, NO_INPUT, open);
+      open_.push(canBeHit(p));
+    }
     expect(p.dodge).toBe(0);
-    expect(p.x).toBeCloseTo(100 + DODGE_DISTANCE, 6);
-    expect(canBeHit(p)).toBe(true);
+    expect(p.x).toBeCloseTo(100 + light.distance, 6);
+    // Safe in its first `safe` ticks, open in the last ones and after it.
+    expect(open_).toEqual(Array.from({ length: light.ticks }, (_, i) => i + 1 > light.safe));
   });
 
   it('goes the way the player faces when it stands, and the next waits for the cooldown of its Dexterity', () => {
@@ -91,14 +98,81 @@ describe('a dodge', () => {
     const p = createPlayer(100, 100);
     p.facing = 'up';
     stepPlayer(p, { x: 0, y: 0, dodge: true }, open, traits);
-    for (let i = 1; i < DODGE_TICKS; i++) stepPlayer(p, NO_INPUT, open, traits);
-    expect(p.y).toBeCloseTo(100 - DODGE_DISTANCE, 6);
-    let ticks = DODGE_TICKS;
+    for (let i = 1; i < light.ticks; i++) stepPlayer(p, NO_INPUT, open, traits);
+    expect(p.y).toBeCloseTo(100 - light.distance - traits.rollReach, 6);
+    let ticks = light.ticks;
     while (p.dodge === 0) {
       stepPlayer(p, { x: 0, y: 1, dodge: true }, open, traits);
       ticks++;
     }
     expect(ticks).toBe(traits.dodgeCooldown + 1);
+  });
+
+  it('goes further and is safe longer with Dexterity, up to the whole roll', () => {
+    expect([withDex(8).rollReach, withDex(10).rollReach, withDex(17).rollReach]).toEqual([-2, 0, 6]);
+    expect([withDex(8).rollSafe, withDex(10).rollSafe, withDex(17).rollSafe]).toEqual([-1, 0, 3]);
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 1, y: 0, dodge: true }, open, withDex(17));
+    expect(p.dodgeSafe).toBe(light.ticks);
+    const q = createPlayer(100, 100);
+    stepPlayer(q, { x: 1, y: 0, dodge: true }, open, withDex(8));
+    expect(q.dodgeSafe).toBe(light.safe - 1);
+  });
+
+  it('is shorter, slower, safe less long and dearer with a heavier load', () => {
+    for (const load of ['medium', 'heavy'] as const) {
+      const roll = ROLLS[load];
+      const p = createPlayer(100, 100);
+      p.load = load;
+      stepPlayer(p, { x: 1, y: 0, dodge: true }, open);
+      expect(p.dodgeKind).toBe(load);
+      expect(p.stamina).toBe(100 - roll.stamina);
+      let safe = inSafeRoll(p) ? 1 : 0;
+      let ticks = 1;
+      while (p.dodge > 0) {
+        stepPlayer(p, NO_INPUT, open);
+        if (inSafeRoll(p)) safe++;
+        ticks++;
+      }
+      expect([ticks, safe]).toEqual([roll.ticks, roll.safe]);
+      expect(p.x).toBeCloseTo(100 + roll.distance, 6);
+    }
+    expect(ROLLS.light.distance).toBeGreaterThan(ROLLS.medium.distance);
+    expect(ROLLS.medium.distance).toBeGreaterThan(ROLLS.heavy.distance);
+    expect(ROLLS.light.stamina).toBeLessThan(ROLLS.medium.stamina);
+    expect(ROLLS.medium.stamina).toBeLessThan(ROLLS.heavy.stamina);
+  });
+
+  it('is only a short step aside with no safe tick for an overloaded character, even with Dexterity', () => {
+    const p = createPlayer(100, 100);
+    p.load = 'over';
+    stepPlayer(p, { x: 1, y: 0, dodge: true }, open, withDex(17));
+    expect([p.dodgeKind, p.dodgeSafe]).toEqual(['over', 0]);
+    expect(canBeHit(p)).toBe(true);
+    while (p.dodge > 0) stepPlayer(p, NO_INPUT, open, withDex(17));
+    expect(p.x).toBeCloseTo(100 + ROLLS.over.distance + 6, 6);
+  });
+
+  it('needs the stamina of the roll of the load', () => {
+    const p = createPlayer(100, 100);
+    p.load = 'heavy';
+    p.stamina = ROLLS.heavy.stamina - 1;
+    expect(canDodge(p)).toBe(false);
+    stepPlayer(p, { x: 1, y: 0, dodge: true }, open);
+    expect(p.dodge).toBe(0);
+    p.load = 'light';
+    expect(canDodge(p)).toBe(true);
+  });
+
+  it('ends when a mob hits the player after its safe ticks', () => {
+    const p = createPlayer(100, 100);
+    p.load = 'heavy';
+    stepPlayer(p, { x: 1, y: 0, dodge: true }, open);
+    while (inSafeRoll(p)) stepPlayer(p, NO_INPUT, open);
+    expect(p.dodge).toBeGreaterThan(0);
+    expect(canBeHit(p)).toBe(true);
+    stunPlayer(p, 10);
+    expect(p.dodge).toBe(0);
   });
 
   it('is not possible in a stun, and does not start in shallow water', () => {
@@ -116,7 +190,7 @@ describe('a dodge', () => {
     const p = createPlayer(5 * TILE_SIZE - 10, 8);
     const wall = new World(textSource(['.....R']));
     stepPlayer(p, { x: 1, y: 0, dodge: true }, wall);
-    for (let i = 1; i < DODGE_TICKS; i++) stepPlayer(p, NO_INPUT, wall);
+    for (let i = 1; i < light.ticks; i++) stepPlayer(p, NO_INPUT, wall);
     expect(p.x).toBeLessThan(5 * TILE_SIZE + 2 + 1);
   });
 });
@@ -257,6 +331,7 @@ describe('Dexterity in a shared world', () => {
     room.broadcast(0, (id, message) => {
       if (id === b.id) seen = message;
     });
-    expect(seen!.p.find((w) => w[0] === a.id)![11]).toBe(DODGE_TICKS - 1);
+    const wire = seen!.p.find((w) => w[0] === a.id)!;
+    expect([wire[11], wire[16]]).toEqual([ROLLS.light.ticks - 1, 0]);
   });
 });

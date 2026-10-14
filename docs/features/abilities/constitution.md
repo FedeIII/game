@@ -182,8 +182,9 @@ that I use them with care.
 **Acceptance Criteria:**
 - **AC-CON-009.1:** A character has 100 + 10 × CON modifier stamina, at least 10: 90 at CON 8, 100
   at CON 10, 130 at CON 17.
-- **AC-CON-009.2:** A roll costs 35 stamina. With less than 35, there is no roll, and the roll
-  button is dim.
+- **AC-CON-009.2:** A roll costs the stamina of its kind, by the load of the character
+  ([Load](../items/load.md), REQ-LD-003): light 30, medium 40, heavy 50, a step aside 50. With less,
+  there is no roll, and the roll button is dim.
 - **AC-CON-009.3:** The sneak walk (a walk at half speed or slower) uses 8 stamina each second. A
   slow walk in shallow water uses none.
 - **AC-CON-009.4:** Without stamina the sneak walk does not hide the character from mobs. Standing

@@ -212,7 +212,8 @@ choose what to keep, what to use and what to drop.
   saved."
 - **AC-PK-008.9:** A press on a used cell chooses it, and the cell gets a red border. Under the
   cells, the detail shows the icon at 3x, the name and the count ("Healing draught × 3"), what a
-  drink does, the line of the world about the item, and the stack ("Up to 5 in a slot."). Before a
+  drink does, the line of the world about the item, its weight ([Load](load.md), REQ-LD-001), and the
+  stack ("Up to 5 in a slot."). Before a
   choice, the detail says "Choose a thing to see what it does. Drag it to another slot, or out
   onto the ground."
 - **AC-PK-008.10:** What a drink does: "Drink it: 2d4+2 hit points back." (a healing draught),
@@ -232,6 +233,8 @@ choose what to keep, what to use and what to drop.
 - **AC-PK-008.15:** When every slot is in use, the pack button shows a small red mark, and its
   name for a screen reader is "Pack, full". When something comes into the pack, the button shines
   for 0.7 s.
+- **AC-PK-008.16:** Under the Armour Class, the panel shows the load and the kind of roll that it
+  gives ([Load](load.md), REQ-LD-002).
 
 ---
 

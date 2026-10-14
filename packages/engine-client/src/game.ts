@@ -45,6 +45,8 @@ import {
   ITEM_KINDS,
   DRINKS,
   canDodge,
+  loadOf,
+  loadTier,
   canMakeDeal,
   dealPay,
   dealPrice,
@@ -1753,6 +1755,8 @@ async function run(options: GameOptions): Promise<void> {
     }
     // The last tick of a defeat: after it, the player wakes. The server wakes it in a shared world.
     const waking = player.down === 1 && (!net || net.status !== 'online');
+    // In a world that the page runs, its pack and its gear give the load: the kind of its next roll (the server's comes with its state).
+    if (!net) player.load = loadTier(loadOf(pack, gear), traits.carry);
     if (net) {
       if (net.tick(input)) {
         sneakWalk.attack();
@@ -2158,8 +2162,8 @@ async function run(options: GameOptions): Promise<void> {
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina} (attack ${traits.attackStamina}), stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
-      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, brace ${player.braceWindow}/${player.brace}${player.heldBack ? ' held' : ''}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk.on ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
-      `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
+      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown} ${player.dodgeKind} safe ${player.dodgeSafe}, load ${player.load}, brace ${player.braceWindow}/${player.brace}${player.heldBack ? ' held' : ''}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk.on ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
+      `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}; load ${loadOf(packNow(), gearNow())} of ${traits.carry} lb`,
       `xp      ${xpNow()} (level ${traits.level}${traits.level < MAX_LEVEL ? `, next at ${LEVEL_XP[traits.level]}` : ''}), a kill gives its XP / ${xpDivisor}${net?.xp !== null && net?.xp !== undefined ? ' (server)' : ''}`,
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,
       `piles   ${pilesNow().length} here${net ? ' (server)' : ''}; ${pilesNow().slice(0, 4).map((p) => `${p.kind} ${p.count} at ${p.x},${p.y}`).join(', ') || 'none'}`,

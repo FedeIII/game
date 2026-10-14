@@ -125,6 +125,69 @@ export const ITEM_STACK: Readonly<Record<ItemKind, number>> = {
 };
 
 /**
+ * The weight of one item, in pounds (lb), from the SRD 5.1 where it gives one (Fede's decision,
+ * 2026-10-15: a weight for each item, for the load of a character, load.ts). Each weight is a
+ * multiple of 0.5, so a sum is exact. A ring, an amulet, a candle and a paper weigh nothing.
+ */
+export const ITEM_WEIGHT: Readonly<Record<ItemKind, number>> = {
+  'imp-horn': 0.5,
+  'brute-tusk': 2,
+  candle: 0,
+  ring: 0,
+  cup: 1,
+  herbs: 0.5,
+  draught: 0.5,
+  antidote: 0.5,
+  'strong-draught': 0.5,
+  'leather-armour': 10,
+  'scale-mail': 45,
+  'chain-mail': 55,
+  'splint-armour': 60,
+  shield: 6,
+  longsword: 3,
+  shortsword: 2,
+  rapier: 2,
+  greataxe: 7,
+  mace: 4,
+  longbow: 2,
+  'arcane-staff': 4,
+  'druid-staff': 4,
+  'luck-amulet': 0,
+  'studded-leather': 13,
+  'plate-armour': 65,
+  'longsword-plus-1': 3,
+  'cloak-of-protection': 1,
+  'ring-of-protection': 0,
+  'bracers-of-defence': 1,
+  'gauntlets-of-ogre-power': 1,
+  'headband-of-intellect': 0,
+  'amulet-of-health': 0,
+  'belt-of-dwarvenkind': 1,
+  'boots-of-elvenkind': 1,
+  glaive: 6,
+  crowbar: 5,
+  'badger-fur': 2,
+  mithril: 1,
+  'mithril-permit': 0,
+  'wave-stone': 2,
+  'tear-of-tigris': 0,
+  'warden-orders': 0,
+  // A sack of lentils for a guard post; the water makes it heavier.
+  lentils: 10,
+  'wet-lentils': 12,
+};
+
+/** This many coins weigh one pound (5e). */
+export const COINS_PER_POUND = 50;
+
+/** The weight of what a pack holds (lb): its items, and its coins in whole pounds. */
+export function packWeight(pack: Pack): number {
+  let weight = Math.floor(pack.coins / COINS_PER_POUND);
+  for (const slot of pack.items) if (slot) weight += ITEM_WEIGHT[slot.kind] * slot.count;
+  return weight;
+}
+
+/**
  * A character with this chews a bundle of herbs for 1d4 hit points (Medicine). It is here, not in
  * traits.ts with the other gates, because traits.ts imports this module through player.ts.
  */

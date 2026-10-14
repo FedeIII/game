@@ -88,6 +88,11 @@ export interface PlayerTraits {
   readonly guard: number;
   /** Ticks from the start of a dodge to the start of the next (DEX). */
   readonly dodgeCooldown: number;
+  /** What its Dexterity adds to the distance of a roll (world pixels) and to its safe ticks (player.ts, rollOf). */
+  readonly rollReach: number;
+  readonly rollSafe: number;
+  /** How much it can carry (lb, 5e: 15 x STR): the tiers of its load come from it (load.ts). */
+  readonly carry: number;
   /** How far mobs see it, as a share of their sight (DEX); half of that while it sneaks. */
   readonly sight: number;
   /** Whether its attacks are arrows (a bow in its hands), and how far an arrow flies (world pixels; DEX). */
@@ -181,10 +186,15 @@ export const STAGGER_PER_MOD = 0.2;
 /** The pack has this many slots, and this many more for each point of the STR modifier. */
 export const PACK_SLOTS = 6;
 export const SLOTS_PER_MOD = 2;
+/** A character carries this many pounds for each point of Strength (5e, the carrying capacity; load.ts). */
+export const CARRY_PER_STR = 15;
 /** Each point of the DEX modifier: this many ticks less between attacks, more of the guard, less between dodges. */
 export const COOLDOWN_PER_MOD = 2;
 export const GUARD_PER_MOD = 9;
 export const DODGE_PER_MOD = 12;
+/** Each point of the DEX modifier: a roll goes this many world pixels further, and has this many more safe ticks (player.ts, rollOf). */
+export const ROLL_REACH_PER_MOD = 2;
+export const ROLL_SAFE_PER_MOD = 1;
 /** Each point of the DEX modifier: mobs see this share less far. */
 export const SIGHT_PER_MOD = 0.08;
 /** An arrow flies this many tiles, and one more for each point of the DEX modifier. */
@@ -295,6 +305,9 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
     cooldown: Math.max(ATTACK_TICKS + 1, ATTACK_COOLDOWN_TICKS - COOLDOWN_PER_MOD * dex - strike.quicker),
     guard: Math.max(0, GUARD_TICKS + GUARD_PER_MOD * dex),
     dodgeCooldown: Math.max(1, DODGE_COOLDOWN_TICKS - DODGE_PER_MOD * dex),
+    rollReach: ROLL_REACH_PER_MOD * dex,
+    rollSafe: ROLL_SAFE_PER_MOD * dex,
+    carry: CARRY_PER_STR * scores.str,
     sight: Math.max(0.1, 1 - SIGHT_PER_MOD * dex),
     ranged: strike.ranged,
     range: (RANGE_TILES + dex) * TILE_SIZE,

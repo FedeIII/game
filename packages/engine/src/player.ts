@@ -1,5 +1,6 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import type { AttackWeight } from './gear.ts';
+import type { LoadTier } from './load.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -48,12 +49,21 @@ export interface PlayerState {
   stun: number;
   /** Ticks left after a stun in which no mob can hit the player again. */
   guard: number;
-  /** Ticks left of a dodge (0: none): the player rolls, and no mob can hit it. */
+  /** Ticks left of a dodge (0: none): the player rolls; in its safe ticks no mob can hit it (inSafeRoll). */
   dodge: number;
   /** Ticks before the player can dodge again. */
   dodgeCooldown: number;
   /** The direction of the dodge in progress or of the last one (radians). */
   dodgeAim: number;
+  /** The kind of the roll in progress or of the last one: the tier of the load at its start (ROLLS). */
+  dodgeKind: LoadTier;
+  /** The safe ticks of the roll in progress or of the last one: its first ticks, in which no mob can hit (inSafeRoll). */
+  dodgeSafe: number;
+  /**
+   * The tier of what it carries now (load.ts): the kind of its next roll. Its owner sets it from the
+   * pack and the gear before each step (the Room, or the page in a world that it runs).
+   */
+  load: LoadTier;
   /**
    * Ticks left in which a step back braces (0: none): BRACE_WINDOW_TICKS from the end of a melee
    * attack (PlayerTraits.brace).
@@ -112,12 +122,33 @@ export const ATTACK_COOLDOWN_TICKS = 27;
 /** After a stun, mobs cannot hit the player for this many ticks (1 s). Dexterity changes it (traits.ts). */
 export const GUARD_TICKS = 60;
 /**
- * A dodge is a roll of DODGE_DISTANCE world pixels in DODGE_TICKS ticks (2 tiles in 0.25 s:
- * faster than an imp), in which no mob can hit the player. The next can start DODGE_COOLDOWN_TICKS
- * after it starts (1.6 s; Dexterity changes it).
+ * A dodge is a roll the way the input moves. Its kind comes from the load of the character (load.ts;
+ * Fede's decisions, 2026-10-15): `distance` world pixels in `ticks` ticks, safe in its first `safe`
+ * ticks (no mob can hit it then), for `stamina`. Dexterity adds to the distance and to the safe ticks
+ * (PlayerTraits.rollReach, rollSafe), but an overloaded character only steps aside, with no safe tick.
+ * The next roll can start DODGE_COOLDOWN_TICKS after the start of the last (1.6 s; Dexterity changes
+ * it).
  */
-export const DODGE_TICKS = 15;
-export const DODGE_DISTANCE = 32;
+export interface RollDef {
+  /** How far it goes (world pixels; Dexterity adds to it). */
+  readonly distance: number;
+  /** How long it lasts. */
+  readonly ticks: number;
+  /** Its first ticks, in which no mob can hit (Dexterity adds to them, up to `ticks`). */
+  readonly safe: number;
+  /** What it costs. */
+  readonly stamina: number;
+}
+
+export const ROLLS: Readonly<Record<LoadTier, RollDef>> = {
+  // 2.25 tiles in 0.25 s.
+  light: { distance: 36, ticks: 15, safe: 12, stamina: 30 },
+  medium: { distance: 30, ticks: 15, safe: 9, stamina: 40 },
+  // A low shoulder roll that ends on one knee: 1.5 tiles in 0.3 s, as fast as a walk.
+  heavy: { distance: 24, ticks: 18, safe: 6, stamina: 50 },
+  // A short step aside.
+  over: { distance: 12, ticks: 10, safe: 0, stamina: 50 },
+};
 export const DODGE_COOLDOWN_TICKS = 96;
 /**
  * The brace (2026-10-14, Fede's idea): a step back right after a melee attack does not walk away. In
@@ -147,8 +178,7 @@ export const PLAIN_STAMINA = 100;
 /** Stamina that comes back each second (CON 10), STAMINA_REST_TICKS after it was last used. */
 export const STAMINA_REFILL = 20;
 export const STAMINA_REST_TICKS = 60;
-/** A roll costs this much stamina; the sneak walk this much each second. */
-export const DODGE_STAMINA = 35;
+/** The sneak walk costs this much stamina each second (a roll: ROLLS). */
 export const SNEAK_STAMINA = 8;
 /**
  * An attack costs this much stamina, by the weight of what it attacks with (gear.ts, AttackWeight; an
@@ -187,10 +217,13 @@ export interface PlayerMap extends SolidMap {
 
 /**
  * What stepPlayer() needs of the traits of a player. A trait that is not given has its plain value
- * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS, and no brace
- * and no stamina for an attack (a guard or a companion: only a character braces and pays).
+ * (every score 10): no wading, ATTACK_COOLDOWN_TICKS, GUARD_TICKS, DODGE_COOLDOWN_TICKS, the roll of
+ * ROLLS with no Dexterity, and no brace and no stamina for an attack (a guard or a companion: only a
+ * character braces and pays).
  */
-export type StepTraits = Partial<Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina'>>;
+export type StepTraits = Partial<
+  Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina'>
+>;
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */
@@ -259,6 +292,9 @@ export function createPlayer(x: number, y: number): PlayerState {
     dodge: 0,
     dodgeCooldown: 0,
     dodgeAim: 0,
+    dodgeKind: 'light',
+    dodgeSafe: 0,
+    load: 'light',
     braceWindow: 0,
     heldBack: false,
     brace: 0,
@@ -354,17 +390,37 @@ export function canAttack(player: PlayerState): boolean {
   return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
 }
 
-/** Whether the player can start a dodge in its next tick: it has the stamina (and it is not in shallow water: see stepPlayer). */
+/** Whether the player can start a dodge in its next tick: it has the stamina of the roll of its load (and it is not in shallow water: see stepPlayer). */
 export function canDodge(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= ROLLS[player.load].stamina;
+}
+
+/** Whether the player is in the safe ticks of a roll (the first PlayerState.dodgeSafe ticks of it). */
+export function inSafeRoll(player: Pick<PlayerState, 'dodge' | 'dodgeKind' | 'dodgeSafe'>): boolean {
+  return player.dodge > 0 && ROLLS[player.dodgeKind].ticks - player.dodge <= player.dodgeSafe;
 }
 
 /**
- * Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in a
- * dodge. A brace and its evade do not stop a hit: in a brace the attack rolls against more AC (armourNow).
+ * Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in
+ * the safe ticks of a roll. A brace and its evade do not stop a hit: in a brace the attack rolls
+ * against more AC (armourNow).
  */
 export function canBeHit(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.guard === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.guard === 0 && !inSafeRoll(player);
+}
+
+/**
+ * The roll of a character with these traits and this load: the distance and the safe ticks with its
+ * Dexterity (an overloaded character steps aside with no safe tick).
+ */
+export function rollOf(load: LoadTier, traits: Pick<StepTraits, 'rollReach' | 'rollSafe'> = PLAIN): RollDef {
+  const roll = ROLLS[load];
+  return {
+    distance: Math.max(1, roll.distance + (traits.rollReach ?? 0)),
+    ticks: roll.ticks,
+    safe: roll.safe === 0 ? 0 : Math.min(roll.ticks, Math.max(0, roll.safe + (traits.rollSafe ?? 0))),
+    stamina: roll.stamina,
+  };
 }
 
 /** Whether a velocity is a sneak walk: slower than SNEAK_SPEED, but not standing. */
@@ -388,6 +444,8 @@ export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'd
 export function stunPlayer(player: PlayerState, ticks: number): void {
   player.stun = Math.max(player.stun, ticks);
   player.attack = 0;
+  // A hit after the safe ticks of a roll ends the roll.
+  player.dodge = 0;
   player.braceWindow = 0;
   player.brace = 0;
   player.evade = 0;
@@ -593,7 +651,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (player.guard > 0) player.guard--;
   const solid = traits.swim ? swimMap(world) : traits.wade ? wadeMap(world) : world;
   if (player.dodge > 0) {
-    roll(player, world, solid, dt);
+    roll(player, world, solid, traits, dt);
     return false;
   }
   const input0 = clampInput(input);
@@ -613,18 +671,21 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   const wading = wadingAt(world, player.x, player.y, traits);
   const window = player.braceWindow;
   if (player.braceWindow > 0) player.braceWindow--;
-  if (move.dodge && player.dodgeCooldown === 0 && player.stamina >= DODGE_STAMINA && !wading) {
+  const kind = move.dodge ? rollOf(player.load, traits) : null;
+  if (kind && player.dodgeCooldown === 0 && player.stamina >= kind.stamina && !wading) {
     player.braceWindow = 0;
     player.brace = 0;
     player.evade = 0;
-    player.stamina -= DODGE_STAMINA;
+    player.stamina -= kind.stamina;
     player.rest = 0;
     // A roll the way the input moves; when it stands, towards `face` (the mouse), or the way it faces.
     player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : (move.face ?? facingAngle(player.facing));
     player.facing = facingOfAngle(player.dodgeAim);
-    player.dodge = DODGE_TICKS;
+    player.dodge = kind.ticks;
+    player.dodgeKind = player.load;
+    player.dodgeSafe = kind.safe;
     player.dodgeCooldown = traits.dodgeCooldown ?? DODGE_COOLDOWN_TICKS;
-    roll(player, world, solid, dt);
+    roll(player, world, solid, traits, dt);
     return false;
   }
   if (move.attack !== undefined && player.cooldown === 0 && !wading) {
@@ -729,10 +790,11 @@ function swayed(move: MoveInput, drunk: number): MoveInput {
   return { ...move, x: move.x * cos - move.y * sin, y: move.x * sin + move.y * cos };
 }
 
-/** One tick of a dodge: fast along its direction; walls stop it, and shallow water ends it. */
-function roll(player: PlayerState, world: PlayerMap, solid: SolidMap, dt: number): void {
+/** One tick of a dodge: fast along its direction (the roll of its kind: rollOf); walls stop it, and shallow water ends it. */
+function roll(player: PlayerState, world: PlayerMap, solid: SolidMap, traits: StepTraits, dt: number): void {
   player.dodge--;
-  const speed = DODGE_DISTANCE / (DODGE_TICKS * TICK_SECONDS);
+  const kind = ROLLS[player.dodgeKind];
+  const speed = Math.max(1, kind.distance + (traits.rollReach ?? 0)) / (kind.ticks * TICK_SECONDS);
   player.vx = Math.cos(player.dodgeAim) * speed;
   player.vy = Math.sin(player.dodgeAim) * speed;
   moveAxis(player, solid, player.vx * dt, 0);

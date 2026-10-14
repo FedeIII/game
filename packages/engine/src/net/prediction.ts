@@ -1,5 +1,6 @@
 import { Structure } from '../buildings.ts';
 import { useDoor, useStairs, type DoorResult, type Feet, type StairsResult } from '../interact.ts';
+import { loadFromCode } from '../load.ts';
 import { stepPlayer, type MoveInput, type PlayerState } from '../player.ts';
 import { GUEST_TRAITS, type PlayerTraits } from '../traits.ts';
 import type { World } from '../world.ts';
@@ -197,7 +198,7 @@ export class Prediction {
     this.pending = this.pending.filter((p) => p.seq > snapshot.a);
     world.setOpenDoors(this.serverDoors);
     world.setForcedDoors(this.serverForced);
-    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance, storey, braceWindow, brace, evade, heldBack] =
+    const [x, y, vx, vy, facing, attack, cooldown, stun, guard, aim, dodge, dodgeCooldown, dodgeAim, hp, recover, stamina, rest, down, poison, poisonClock, drunk, wading, inspired, glance, storey, braceWindow, brace, evade, heldBack, load, dodgeKind, dodgeSafe] =
       snapshot.you;
     player.x = x;
     player.y = y;
@@ -213,6 +214,9 @@ export class Prediction {
     player.dodge = dodge;
     player.dodgeCooldown = dodgeCooldown;
     player.dodgeAim = dodgeAim;
+    player.dodgeKind = loadFromCode(dodgeKind);
+    player.dodgeSafe = dodgeSafe;
+    player.load = loadFromCode(load);
     player.braceWindow = braceWindow;
     player.heldBack = heldBack === 1;
     player.brace = brace;

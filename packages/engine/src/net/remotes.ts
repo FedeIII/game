@@ -3,6 +3,7 @@ import { MOB_KINDS, MOB_STATES, type MobKind, type MobState } from '../mobs.ts';
 import type { Facing } from '../player.ts';
 import type { NpcPose } from '../npc.ts';
 import type { ShownGear } from '../gear.ts';
+import { loadFromCode, type LoadTier } from '../load.ts';
 import { aimFromCode, facingFromCode, fromWireLook, type SnapshotMessage } from './protocol.ts';
 
 /**
@@ -39,6 +40,8 @@ export interface RemotePlayer {
   readonly down: number;
   readonly brace: number;
   readonly evade: number;
+  /** The kind of its roll (PlayerState.dodgeKind). */
+  readonly dodgeKind: LoadTier;
   /** The storey of a building that it is on (PlayerState.storey). */
   readonly storey: number;
 }
@@ -116,6 +119,8 @@ interface Sample {
   /** A player's brace and evade (ticks). */
   readonly h?: number;
   readonly i?: number;
+  /** A player's roll kind (loadCode). */
+  readonly j?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -202,7 +207,7 @@ export class Remotes {
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     this.everyone = snapshot.o;
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey, brace, evade] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey, brace, evade, roll] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -212,7 +217,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey, h: brace, i: evade });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey, h: brace, i: evade, j: roll });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // The companions near the player; one that is not in the snapshot went (or is far).
@@ -405,6 +410,7 @@ export class Remotes {
         // A held brace stays at 1 (player.ts): its ticks show as they came, not counted down.
         brace: since.h ?? 0,
         evade: ticksAt(since.i, since, t),
+        dodgeKind: loadFromCode(since.j ?? 0),
         storey: since.g ?? 0,
       });
     }

@@ -4,7 +4,7 @@ import {
   ALE_TICKS,
   ATTACK_COOLDOWN_TICKS,
   ATTACK_STAMINA,
-  DODGE_STAMINA,
+  ROLLS,
   DOWN_TICKS,
   NO_INPUT,
   PLAIN_SCORES,
@@ -123,12 +123,12 @@ describe('recovery', () => {
 describe('stamina', () => {
   it('pays for a roll, and without enough there is no roll', () => {
     const p = createPlayer(100, 100);
-    p.stamina = DODGE_STAMINA + 1;
+    p.stamina = ROLLS.light.stamina + 1;
     stepPlayer(p, { x: 1, y: 0, dodge: true }, open);
     expect(p.dodge).toBeGreaterThan(0);
     expect(p.stamina).toBeLessThan(2);
     const q = createPlayer(100, 100);
-    q.stamina = DODGE_STAMINA - 1;
+    q.stamina = ROLLS.light.stamina - 1;
     stepPlayer(q, { x: 1, y: 0, dodge: true }, open);
     expect(q.dodge).toBe(0);
   });

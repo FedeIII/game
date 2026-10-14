@@ -3,6 +3,7 @@ import { canReachDoor, canReachPile, reachableFixture, useDoor, useStairs, type 
 import { EMPTY_GEAR, gearSlotAt, sameShown, shownGear, type Gear } from '../gear.ts';
 import { dropWorn, moveItem, ownedPack, unwearFor } from '../inventory.ts';
 import { EMPTY_PACK, ITEM_KINDS, addToPack, drinkFrom, lootIsEmpty, removeFromSlot, type Loot, type Pack } from '../items.ts';
+import { loadCode, loadOf, loadTier } from '../load.ts';
 import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, pileStorey, tossPoint } from '../piles.ts';
 import { createPlayer, resumePlace, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
@@ -169,6 +170,11 @@ export interface RoomPlayer {
   newlyExplored: [number, number][];
   /** The piles near it that its client has, as a key (ids and counts): a snapshot carries them when they change. */
   pileKey: string;
+}
+
+/** Sets the load of a player's state from its pack and its gear (load.ts): the kind of its next roll. */
+function weigh(player: RoomPlayer): void {
+  player.state.load = loadTier(loadOf(player.pack, player.gear), player.traits.carry);
 }
 
 /** A key for a list of piles on the wire: their ids and counts, so a snapshot carries the piles only when they change. */
@@ -677,6 +683,7 @@ export class Room {
       player.tokens -= 1;
       // The last tick of a defeat: after it the player wakes at a safe place.
       const waking = player.state.down === 1;
+      weigh(player);
       const struckNow = stepPlayer(player.state, fromWireInput(wire), this.world.level(player.state.storey), player.traits);
       if (waking) this.wake(player);
       // The room sees each tick of a wade: water ruins what the story says (the lentils of Whitegrove).
@@ -954,8 +961,27 @@ export class Room {
     const packed = new Map<number, WirePlayer>();
     for (const p of this.players.values()) {
       this.applySkin(p, nowMs);
+      weigh(p);
       const s = p.state;
-      packed.set(p.id, [p.id, round(s.x), round(s.y), Math.round(s.vx), Math.round(s.vy), facingCode(s.facing), p.skin, s.attack, s.stun, s.guard, aimCode(s.aim), s.dodge, s.down, s.storey, s.brace, s.evade]);
+      packed.set(p.id, [
+        p.id,
+        round(s.x),
+        round(s.y),
+        Math.round(s.vx),
+        Math.round(s.vy),
+        facingCode(s.facing),
+        p.skin,
+        s.attack,
+        s.stun,
+        s.guard,
+        aimCode(s.aim),
+        s.dodge,
+        s.down,
+        s.storey,
+        s.brace,
+        s.evade,
+        loadCode(s.dodgeKind),
+      ]);
     }
     const doors = this.world.openDoorList();
     const forced = this.world.forcedDoorList();
@@ -1064,6 +1090,9 @@ export class Room {
           s.brace,
           s.evade,
           s.heldBack ? 1 : 0,
+          loadCode(s.load),
+          loadCode(s.dodgeKind),
+          s.dodgeSafe,
         ],
         p: others,
         o: packed.size - 1,

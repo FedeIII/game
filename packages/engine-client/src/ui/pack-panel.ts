@@ -6,12 +6,15 @@ import {
   GEAR_SLOTS,
   GUEST_TRAITS,
   ITEM_STACK,
+  ITEM_WEIGHT,
   WEARABLES,
   canUse,
   formatDice,
   fitsSlot,
   gearAddress,
   gearSlotAt,
+  loadOf,
+  loadTier,
   takeOffSlotFor,
   usedSlots,
   wearProblem,
@@ -19,6 +22,7 @@ import {
   type Ability,
   type Gear,
   type ItemKind,
+  type LoadTier,
   type Pack,
   type PackSlot,
   type PlayerTraits,
@@ -32,6 +36,24 @@ import { drawIcon } from './icons.ts';
 import { announceOpenPanel, onOtherPanelOpen } from './panels.ts';
 import { STRINGS } from './strings.ts';
 import { tw } from '../i18n.ts';
+
+/** A weight in pounds: whole, or to one decimal. */
+function pounds(weight: number): string {
+  return Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
+}
+
+/** The line of the load under the worn slots (load.ts): what the character carries, and the roll that it gives. */
+export function loadLine(pack: Pack, gear: Gear, traits: Pick<PlayerTraits, 'carry'>): { readonly text: string; readonly tier: LoadTier } {
+  const load = loadOf(pack, gear);
+  const tier = loadTier(load, traits.carry);
+  return { text: `${STRINGS.gear.load(pounds(load), traits.carry)} · ${STRINGS.gear.rolls[tier]}`, tier };
+}
+
+/** The weight of `count` items of a kind, in the detail of the chosen place. */
+export function weightLine(kind: ItemKind, count: number): string {
+  const each = ITEM_WEIGHT[kind];
+  return each === 0 ? STRINGS.pack.weightless : STRINGS.pack.weight(pounds(each), count > 1 ? pounds(each * count) : null);
+}
 
 const ICON = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
 <path d="M8 8V6.5a4 4 0 0 1 8 0V8"/><path d="M5 9.5h14l-1.2 10.5H6.2z"/><path d="M9.5 13.5h5"/></svg>`;
@@ -277,7 +299,8 @@ export class PackPanel {
     this.empty.hidden = used > 0 || pack.coins > 0;
     const g = STRINGS.gear;
     const numbers = this.line('gear-numbers', `${g.ac(traits.ac)} · ${g.toHit(traits.toHit)} · ${g.damage(formatDice(traits.damage))}`);
-    this.stats.replaceChildren(numbers);
+    const load = loadLine(pack, gear, traits);
+    this.stats.replaceChildren(numbers, this.line(`gear-load ${load.tier}`, load.text));
     // Not during a press or a drag: the slots under the pointer stay as they are until it ends.
     if (this.drag) this.stale = true;
     else this.render();
@@ -415,6 +438,7 @@ export class PackPanel {
     if (problem === 'attuned') words.append(this.line('pack-detail-use dim', STRINGS.gear.attuned));
     const about = this.lines[kind];
     if (about) words.append(this.line('pack-detail-about', tw(about)));
+    words.append(this.line('pack-detail-stack', weightLine(kind, count)));
     if (!wornIn) words.append(this.line('pack-detail-stack', STRINGS.pack.stackOf(ITEM_STACK[kind])));
     top.append(icon, words);
 

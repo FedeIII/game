@@ -3,7 +3,7 @@
 ## Overview
 
 Strength (STR) is the force of the body. For every class it gives the push and the stagger of a
-blow and the slots of the pack. Its gate of 13 lets a character wade through shallow water and
+blow, the slots of the pack and the load that it can carry ([Load](../items/load.md)). Its gate of 13 lets a character wade through shallow water and
 force a barred door. For the barbarian, the fighter and the paladin, STR also gives the attack
 bonus and the damage of a blow ([Ability Scores](ability-scores.md), REQ-AS-002).
 
@@ -67,6 +67,10 @@ things.
 - **AC-STR-003.2:** Coins go into a purse and use no slot.
 - **AC-STR-003.3:** The pack panel shows the slots that are in use and all the slots, for example
   "2 of 8 slots".
+- **AC-STR-003.4:** A character can carry 15 × STR lb (5e, the carrying capacity: 150 lb at STR 10,
+  with the STR that its worn items give). The load against it chooses the kind of its roll
+  ([Load](../items/load.md), REQ-LD-002). The character panel and the builder show it in the card of
+  STR: "Carry: 150 lb (a light roll up to 50)".
 
 ---
 
@@ -157,7 +161,8 @@ STR opens places that weaker characters cannot open.
 
 - **Constants** (`packages/engine/src/traits.ts`): `PUSH_PER_MOD` (0.15), `STAGGER_PER_MOD` (0.2),
   `PACK_SLOTS` (6), `SLOTS_PER_MOD` (2), and the gates `WADE_GATE` and `FORCE_GATE` (STR 13, from
-  `GATE_SCORE`). The traits are `PlayerTraits.push`, `stagger`, `slots` and `wade`.
+  `GATE_SCORE`), and `CARRY_PER_STR` (15). The traits are `PlayerTraits.push`, `stagger`, `slots`,
+  `carry` and `wade`.
 - **Push and reel** (`packages/engine/src/mobs.ts`): a `Blow` is `{ toHit, damage, push, stagger }`
   (and `opening`, `sneak`, `reach`), and `PlayerTraits` passes as one. After a hit (`rollBlow()`),
   `Horde.hit()` keeps `MobStats.knockback × blow.push` and `MobStats.hurtMs × blow.stagger` in the

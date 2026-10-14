@@ -3,8 +3,8 @@
 ## Overview
 
 Dexterity (DEX) is the speed and the skill of the hands and the feet. For every class it gives the
-time between attacks and the guard after a hit. It also gives the time between dodge rolls, the
-AC of a brace, and how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
+time between attacks and the guard after a hit. It also gives the time between dodge rolls, their
+distance and their safe ticks, the AC of a brace, and how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
 picks the locks of chests, for every class. For the bard, the monk, the ranger and the rogue, DEX
 also gives the attack bonus and the damage of a blow ([Ability Scores](ability-scores.md),
 REQ-AS-002).
@@ -13,7 +13,8 @@ REQ-AS-002).
 
 - **Cooldown**: the time from the start of an attack to the start of the next attack.
 - **Guard**: the time after a stun in which no mob can hit the player.
-- **Dodge (roll)**: a fast roll of 2 tiles in which no mob can hit the player.
+- **Dodge (roll)**: a fast roll of about 2 tiles; in its first ticks (the safe ticks) no mob can hit
+  the player. The load of the character chooses its kind ([Load](../items/load.md)).
 - **Sight**: the distance at which a mob notices a player. It is 112 px for an imp and 100 px for
   a brute, times the share of the player.
 - **Sneaking**: the player stands still or walks at half speed or slower. Mobs see a player that
@@ -63,12 +64,18 @@ blow of a mob with skill.
   asks for a roll. These controls are only in a world with mobs.
 - **AC-DEX-003.2:** The dodge button is round, left of the attack button, with the name "Roll" and
   the key "Shift" on it. The keyboard hint says "Shift to roll".
-- **AC-DEX-003.3:** A roll moves the player 32 px (2 tiles) in 0.25 s (15 ticks): faster than an
-  imp runs.
+- **AC-DEX-003.3:** The load of the character chooses the kind of roll ([Load](../items/load.md),
+  REQ-LD-003; Fede's decisions, 2026-10-15). A light roll moves the player 36 px (2.25 tiles) in
+  0.25 s (15 ticks), a medium roll 30 px in 15 ticks, a heavy roll 24 px in 0.3 s (18 ticks: as fast
+  as a walk), and an overloaded character only steps aside: 12 px in 10 ticks. Each point of the DEX
+  modifier adds 2 px (the same time: a faster roll).
 - **AC-DEX-003.4:** The roll goes the way that the input moves. Without input, it goes towards the
   mouse pointer while the mouse is over the world ([Combat](../game/combat.md), REQ-CMB-014), else the
   way the player faces. The player then faces the way of the roll.
-- **AC-DEX-003.5:** During the roll no mob can hit the player.
+- **AC-DEX-003.5:** No mob can hit the player in the safe ticks of a roll: its first 12 ticks (light),
+  9 (medium) or 6 (heavy), and one more for each point of the DEX modifier, up to the whole roll. A
+  step aside has no safe tick. After the safe ticks a mob can hit the player, and a hit ends the
+  roll.
 - **AC-DEX-003.6:** The player cannot attack during a roll. A roll does not start during a stun or
   an attack.
 - **AC-DEX-003.7:** The next roll can start 96 − 12 × DEX modifier ticks after the start of the
@@ -78,11 +85,17 @@ blow of a mob with skill.
 - **AC-DEX-003.9:** The game keeps a press for 150 ms. The roll starts at the first tick in that
   time in which the player can roll. A roll goes before an attack that the player asks for at the
   same moment.
-- **AC-DEX-003.10:** The figure shows the roll frames of its skin: 4 frames for each view. The
-  other players of a shared world see the roll too.
+- **AC-DEX-003.10:** The figure shows the roll frames of its skin: 4 frames for each view. A heavy
+  roll has 4 frames of its own: a low roll over the right shoulder that ends on one knee (Fede's
+  choice, 2026-10-15). A step aside shows the frames of an evade. The other players of a shared
+  world see the roll and its kind too.
 - **AC-DEX-003.11:** The dodge button dims while the player cannot roll.
-- **AC-DEX-003.12:** A roll costs 35 stamina. With less than 35 stamina, no roll starts
-  ([Constitution](constitution.md), REQ-CON-009). A defeated player cannot roll.
+- **AC-DEX-003.12:** A roll costs the stamina of its kind: light 30, medium 40, heavy 50, and a step
+  aside 50. With less, no roll starts ([Constitution](constitution.md), REQ-CON-009). A defeated
+  player cannot roll.
+- **AC-DEX-003.13:** The character panel and the builder show the light roll in the card of DEX:
+  "Light roll: 2.3 tiles, 0.20 s safe" ("Voltereta ligera: 2.3 casillas, 0.20 s a salvo" in Spanish).
+  The pack panel shows the kind of roll of the load now.
 
 ---
 
@@ -218,17 +231,21 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
 ## Feature Behavior & Rules
 
 - **Constants** (`packages/engine/src/traits.ts`): `COOLDOWN_PER_MOD` (2), `GUARD_PER_MOD` (9),
-  `DODGE_PER_MOD` (12), `SIGHT_PER_MOD` (0.08), `RANGE_TILES` (5), `BRACE_AC` (2), `SNEAK_SIGHT`
-  (0.5) and `PICK_GATE` (DEX 13). The traits are `PlayerTraits.cooldown`, `guard`, `dodgeCooldown`
-  (ticks), `sight` (a share), `ranged` (a ranger only), `range` (world pixels) and `braceAc`.
+  `DODGE_PER_MOD` (12), `ROLL_REACH_PER_MOD` (2 px), `ROLL_SAFE_PER_MOD` (1 tick), `SIGHT_PER_MOD`
+  (0.08), `RANGE_TILES` (5), `BRACE_AC` (2), `SNEAK_SIGHT` (0.5) and `PICK_GATE` (DEX 13). The traits
+  are `PlayerTraits.cooldown`, `guard`, `dodgeCooldown` (ticks), `rollReach` (world pixels),
+  `rollSafe` (ticks), `sight` (a share), `ranged` (a ranger only), `range` (world pixels) and
+  `braceAc`.
 - **Constants** (`packages/engine/src/player.ts`): `ATTACK_TICKS` (18), `ATTACK_COOLDOWN_TICKS`
-  (27), `GUARD_TICKS` (60), `DODGE_TICKS` (15), `DODGE_DISTANCE` (32), `DODGE_COOLDOWN_TICKS` (96),
-  `SNEAK_SPEED` (0.5) and `PLAYER_SPEED` (80). The functions are `canAttack()`, `canDodge()`,
-  `canBeHit()` and `isSneaking()`.
+  (27), `GUARD_TICKS` (60), `ROLLS` (the roll of each load: `distance`, `ticks`, `safe`, `stamina`),
+  `DODGE_COOLDOWN_TICKS` (96), `SNEAK_SPEED` (0.5) and `PLAYER_SPEED` (80). The functions are
+  `canAttack()`, `canDodge()`, `rollOf()` (the roll of a load with the DEX of the traits),
+  `inSafeRoll()`, `canBeHit()` and `isSneaking()`.
 - **Both cooldowns count from the start** of the attack or the roll, not from its end.
 - **The roll in `stepPlayer()`:** the input `MoveInput.dodge` starts it, before an attack in the
-  same tick. `roll()` moves at 128 px/s (`DODGE_DISTANCE` / 0.25 s). `PlayerState.dodge`,
-  `dodgeCooldown` and `dodgeAim` keep the roll.
+  same tick, with the kind of `PlayerState.load`. `roll()` moves at the distance of its kind over its
+  ticks (a light roll at DEX 10: 144 px/s). `PlayerState.dodge`, `dodgeCooldown`, `dodgeAim`,
+  `dodgeKind` and `dodgeSafe` keep the roll. `stunPlayer()` ends a roll.
 - **The mobs and the guard:** `Horde.waitFor()` times the next attack of a mob. While the player is
   stunned, it counts with the guard of that player (`HordePlayer.traits.guard`; `GUARD_TICKS`
   without traits). After the stun, it counts with the true guard ticks of the player.
@@ -237,10 +254,15 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
   `game.ts`. The hint is `STRINGS.hintKeyboardFight`. While a conversation is open, the dodge
   button hides (`body.conversing`) and the game drops a request for a roll.
 - **The roll frames:** `ROLL_FRAMES` (4) in `art/attacks.ts`. They are in every skin sheet
-  (`SKIN_VERSION` 5) and in the atlas wanderer (`player/<view>/roll/<i>`).
+  (`SKIN_VERSION` 5) and in the atlas wanderer (`player/<view>/roll/<i>`). The heavy roll:
+  `HEAVY_ROLL_FRAMES` (4) and `heavyRollParts()` (a tumble and a `sway()` round a low point, and
+  `FigureAction.kneel` at its end), the columns `SKIN_COLUMNS.heavyRoll` (`SKIN_VERSION` 11) and
+  `player/<view>/heavyroll/<i>`; `PlayerTextures.heavyRoll` in `render/player-view.ts`, which picks the
+  frames by `dodgeKind` (a step aside: `PlayerTextures.evade`).
 - **Protocol 12:** the input of a roll is `[x, y, attack, 1]`. `WireSelf` carries the dodge ticks,
   the dodge cooldown and the exact direction of the roll, so the prediction repeats a roll
-  exactly. `WirePlayer` carries the dodge ticks.
+  exactly. `WirePlayer` carries the dodge ticks. **Protocol 46:** `WireSelf` also carries the load,
+  the kind of the roll and its safe ticks, and `WirePlayer` the kind of the roll.
 - **Stealth:** `sightOf(traits, state)` (`traits.ts`) gives `HordePlayer.sight`. `Horde.notice()`
   multiplies `MobStats.sight` by it; `Horde.chase()` keeps a target within `MobStats.forget`. A mob
   also needs a clear line to the player, with no building between. The Room calls `sightOf()` in
@@ -248,7 +270,7 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
 - **Sneaking in shallow water:** the wade speed (`WADE_SPEED`, 0.5) is the same as
   `SNEAK_SPEED`. Without the rule of AC-DEX-004.5, every walk in shallow water hides the player.
   `stepPlayer()` sets `PlayerState.wading`, and `isSneaking()` is false while it is true.
-- **Stamina:** `canDodge()` needs `DODGE_STAMINA` (35). `isSneaking()` counts a sneak walk
+- **Stamina:** `canDodge()` needs the stamina of the roll of `PlayerState.load` (`ROLLS`). `isSneaking()` counts a sneak walk
   (`isSneakWalk()`) only while `PlayerState.stamina` is above 0; the sneak walk uses
   `SNEAK_STAMINA` (8) each second (see the Constitution document).
 - **The look of sneaking:** `SNEAK_TORCH` (96) and `sneakingShown()` in `game.ts` (`SneakWalk.shown()`), `OTHER_TORCH`

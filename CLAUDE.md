@@ -101,7 +101,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`), the load of a character (`load.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -196,7 +196,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `you-section.ts` (the content of the character panel: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder: a card for each ability)),
   `xp-section.ts` (the "Experience" section of the settings of the game menu, for an admin only: the divisor of the XP of the kills of its own characters),
   `control-list.ts` (`controlList()`: the controls to read, in the settings of the menu and of the game menu),
-  `pack-panel.ts` (top right, left of the character button, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does and the world's line about it (`WorldDefinition.items`), with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
+  `pack-panel.ts` (top right, left of the character button, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them, and its load and the kind of roll that it gives (`loadLine()`; see "The load") ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does, the world's line about it (`WorldDefinition.items`) and its weight, with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
   trader, in the place of the top-right panels, opened by an answer of a conversation: the trader's
   close-up and line, "Buy" and "Sell", the coins, the wares with the prices for the character, the
   detail of the chosen ware with its trade, one item at a time, and the pack; `wareRows()`), `belt.ts` (the drink belt under the vitals: a button for each drink that the character can use; keys 1 healing draught, 2 strong draught, 3 antidote, 4 herbs, at any time), `icons.ts` (`drawIcon()`: an item icon into a canvas), `map-panel.ts` (left of the pack, or M: the map of the seen land), `gates.ts` (the gates that only the page uses: reading a mob, the map), `panels.ts` (one top-right panel at a time; each panel covers most of the screen, from under the buttons to a margin where the game shows (`--panel-margin-x`, `--panel-margin-y`), and the controls at the bottom and the drink belt hide meanwhile; from 720 px wide the character and the pack have two columns; the pack's slots grow on a big screen: `--pack-slot`, `--pack-icon`, `--pack-portrait`),
@@ -298,7 +298,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
-  walk + brace + 3 evade; the first column of each: `SKIN_COLUMNS`) frames of 56 x 56
+  walk + brace + 3 evade + 4 heavy roll; the first column of each: `SKIN_COLUMNS`; 2016 px wide, keep
+  it at most 2048) frames of 56 x 56
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -359,7 +360,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   and as `player/<view>/attack/<i>` (a punch) for the atlas wanderer. All melee attacks reach as
   far: only the look differs. The roll of a dodge: `rollPose()` and `rollParts()` (four frames: the
   figure tucked, `FigureAction.tuck`, and turned forward round its middle by `tumble()` in
-  `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer. The fall of
+  `figure.ts`), in every skin sheet and as `player/<view>/roll/<i>` for the wanderer. The heavy roll
+  (a heavy load): `heavyRollParts()` (four frames: the figure drops low, rolls over its right shoulder,
+  `tumble()` and `sway()`, and ends on one knee, `FigureAction.kneel`), in every skin sheet and as
+  `player/<view>/heavyroll/<i>` for the wanderer. The fall of
   a defeat: `fallParts()` (two frames: the figure turns back round its hips, then lies on its
   back), as `player/<view>/fall/<i>` for the wanderer. The sneak: `sneakParts()` (the crouch at
   rest, and eight frames of the sneak walk with short strides: `FigureAction.crouch` bends the
@@ -633,7 +637,7 @@ gets its tag with `gated()`.
   traits)`: half speed, no attack there) and forcing a barred door (`FORCE_GATE`,
   `Building.barred`).
 - **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
-  stack (`ITEM_STACK`). `Pack.items` is the slots in order, null for a free slot (never at the
+  stack (`ITEM_STACK`), and each kind with a weight in pounds (`ITEM_WEIGHT`, 5e; see "The load"). `Pack.items` is the slots in order, null for a free slot (never at the
   end): a stack keeps its slot until it goes, a new one takes the first free slot (`addToPack`),
   and the player moves stacks (`moveInPack`: onto a free slot, a swap, or onto a stack of its kind,
   which it fills; the message `move`). Items: imp horn, brute tusk, candle stub, silver ring, pewter cup, bundle
@@ -692,14 +696,26 @@ gets its tag with `gated()`.
   nobody within 30 tiles, and the chest of its house fills again then (only then).
 
 - **Dexterity**: the time between attacks (`cooldown`: 27 - 2 x mod ticks), the guard after a hit
-  (`guard`: 60 + 9 x mod), the time between dodges (`dodgeCooldown`: 96 - 12 x mod), how far mobs
+  (`guard`: 60 + 9 x mod), the time between dodges (`dodgeCooldown`: 96 - 12 x mod), the distance and
+  the safe ticks of a roll (`rollReach`: 2 px x mod, `rollSafe`: 1 tick x mod), how far mobs
   see the player (`sight`: 1 - 0.08 x mod, half of that while it sneaks: `sightOf()`), the range of
   a ranger's arrows (`range`: 5 + mod tiles; `ranged` for a ranger only), and a gate of 13 for
   locked chests (`PICK_GATE`, `Fixture.lock`).
-- **The dodge** (`player.ts`): `MoveInput.dodge` starts a roll of 32 px in 15 ticks (0.25 s) the
-  way the input moves (or towards the mouse, or the way the player faces), in which no mob can hit (`canBeHit`); walls
-  stop it, and it does not start in shallow water (it ends there). Shift, the right mouse button
-  or the dodge button (`ui/dodge-button.ts`).
+- **The dodge** (`player.ts`): `MoveInput.dodge` starts a roll the way the input moves (or towards
+  the mouse, or the way the player faces), of the kind of the load (`ROLLS`, `rollOf()`; see "The
+  load"): a light roll 36 px in 15 ticks (0.25 s), safe in its first 12 (`inSafeRoll()`: no mob can
+  hit then, `canBeHit`), for 30 stamina; walls stop it, a hit after the safe ticks ends it, and it does
+  not start in shallow water (it ends there). Shift, the right mouse button or the dodge button
+  (`ui/dodge-button.ts`).
+- **The load** (`load.ts`; 2026-10-15, Fede's decisions; `docs/features/items/load.md`): what the worn
+  items, the pack and the coins weigh (`loadOf()`), against `PlayerTraits.carry` (15 x STR lb, 5e).
+  Four tiers (`loadTier()`): light up to 5 x STR, medium up to 10 x STR, heavy up to 15 x STR,
+  overloaded above. The tier chooses the roll (`ROLLS`: distance, ticks, safe ticks, stamina): light
+  36 px, 15 ticks, 12 safe, 30; medium 30, 15, 9, 40; heavy 24, 18, 6, 50 (its own frames); overloaded
+  a step aside of 12 px, 10 ticks, no safe tick, 50 (the evade frames). DEX adds 2 px and a safe tick
+  for each point of its modifier. The load changes nothing else (the walk, the slots). The server owns
+  it: `PlayerState.load` (the Room's `weigh()` before each step; the page in its own world), and a roll
+  keeps `dodgeKind` and `dodgeSafe` (protocol 46).
 - **The brace** (`player.ts`; 2026-10-14, Fede's idea: stay in melee as safe as a kite;
   `docs/features/game/combat.md`, REQ-CMB-013; the next ideas: `docs/drafts/combat-melee.md`): a step
   back (120 degrees or more from the attack, `BRACE_BACK`) in the first 9 ticks after a melee attack
@@ -738,7 +754,7 @@ gets its tag with `gated()`.
   its most and the mod at level 1, then half the die + 1 and the mod for each level; a fighter with CON
   10 has 10 at level 1, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
-  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use, not in a brace; a roll costs 35, the sneak walk 8 per second; no stamina: no
+  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use, not in a brace; a roll costs 30 to 50 by the load, the sneak walk 8 per second; no stamina: no
   roll, and the sneak walk does not hide; an attack costs `attackStamina`, `ATTACK_STAMINA` by
   `AttackGear.weight`: light 4, plain 6, heavy 10, an arrow of the longbow too; with too little, the
   attack comes, and the next one waits twice as long, `TIRED_COOLDOWN`; guards and companions do not
@@ -833,7 +849,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 45.
+protocol: `docs/multiplayer.md`, protocol 46.
 
 ## Levels and experience
 
@@ -1534,12 +1550,12 @@ that show) and `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (
 name, the node and the selected answer) and `intro` in a world with NPCs; `place` (the visit of a place
 with a title, and the phase of its title); `sky` (the hour, the darkness and the lights); `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
-Dexterity traits, the dodge ticks, sneaking, the arrows in flight), `con` (HP, recovery,
+Dexterity traits, the dodge ticks, the kind and the safe ticks of the roll and the load, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and
 `cmp` (each companion, its tile, a stun or a defeat; and its mode and HP in a world that the page
-runs), `xp` (the XP, the level, the next level and the divisor of a kill), `pack`, `gear` (the worn items, AC, the attack with its bonus and its dice, the walk) and
+runs), `xp` (the XP, the level, the next level and the divisor of a kill), `pack` (with the load in pounds), `gear` (the worn items, AC, the attack with its bonus and its dice, the walk) and
 `piles`; `doors`
 lists the forced doors too), `#pack-button` and `#pack` (the pack panel: `.pack-slot[data-slot=<i>]`
 for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-slot`, with

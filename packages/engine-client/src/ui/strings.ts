@@ -1,4 +1,4 @@
-import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, Race } from '@game/engine';
+import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, LoadTier, Race } from '@game/engine';
 import { LANG } from '../i18n.ts';
 import { ES } from './strings-es.ts';
 
@@ -234,6 +234,9 @@ const EN = {
     hp: (dice: string): string => `${dice} hit points back`,
     cure: 'a poison ends',
     stackOf: (n: number): string => `Up to ${n} in a slot.`,
+    /** The weight of the chosen item (items.ts, ITEM_WEIGHT): of one, and of the stack when it has more. */
+    weight: (one: string, all: string | null): string => (all === null ? `Weight: ${one} lb.` : `Weight: ${one} lb each, ${all} lb in all.`),
+    weightless: 'It weighs nothing.',
     /** Put items on the ground, where the player stands (piles.ts), or where the player drags them. */
     drop: 'Drop',
     dropOne: 'Drop one',
@@ -282,6 +285,9 @@ const EN = {
     ac: (ac: number): string => `AC ${ac}`,
     toHit: (n: number): string => `${n >= 0 ? '+' : ''}${n} to hit`,
     damage: (dice: string): string => `Damage ${dice}`,
+    /** The line of the load (load.ts): what the character carries and can carry, and the roll that it gives. */
+    load: (pounds: string, carry: number): string => `Load ${pounds} / ${carry} lb`,
+    rolls: { light: 'light roll', medium: 'medium roll', heavy: 'heavy roll', over: 'overloaded: no roll' } satisfies Record<LoadTier, string>,
     /** Where the chosen item is: "Worn: main hand." */
     wornIn: (slot: string): string => `Worn: ${slot.toLowerCase()}.`,
     armour: (type: ArmourType, ac: number): string =>
@@ -336,6 +342,8 @@ const EN = {
     share: (share: number): string => (Math.abs(share - 1) < 0.005 ? 'normal' : `${share > 1 ? '+' : '−'}${Math.round(Math.abs(share - 1) * 100)}%`),
     slots: 'Pack',
     slotsValue: (n: number): string => `${n} slots`,
+    carry: 'Carry',
+    carryValue: (carry: number): string => `${carry} lb (a light roll up to ${carry / 3})`,
     wade: 'Shallow water',
     wadeYes: 'you wade through it',
     force: 'Barred doors',
@@ -346,6 +354,8 @@ const EN = {
     seconds: (seconds: number): string => `${seconds.toFixed(2)} s`,
     dodge: 'Roll',
     dodgeValue: (seconds: number): string => `every ${seconds.toFixed(2)} s`,
+    roll: 'Light roll',
+    rollValue: (tiles: number, safe: number): string => `${tiles.toFixed(1)} tiles, ${safe.toFixed(2)} s safe`,
     brace: 'Brace',
     braceValue: (ac: number): string => `AC +${ac}`,
     sight: 'Mobs see you from',

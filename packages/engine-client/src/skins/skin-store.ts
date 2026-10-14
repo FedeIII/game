@@ -5,6 +5,7 @@ import {
   SKIN_ATTACK_FRAMES,
   SKIN_COLUMNS,
   SKIN_EVADE_FRAMES,
+  SKIN_HEAVY_ROLL_FRAMES,
   SKIN_FALL_FRAMES,
   SKIN_FRAME,
   SKIN_ROLL_FRAMES,
@@ -234,7 +235,7 @@ export class SkinStore {
       for (const facing of Object.keys(textures.stand) as Facing[]) {
         textures.stand[facing].destroy(false);
         textures.crouch[facing].destroy(false);
-        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing], ...textures.fall[facing], ...textures.sneak[facing]]) frame.destroy(false);
+        for (const frame of [...textures.walk[facing], ...textures.attack[facing], ...textures.roll[facing], ...textures.heavyRoll[facing], ...textures.fall[facing], ...textures.sneak[facing]]) frame.destroy(false);
       }
       this.sheets.get(key)?.base.destroy(true);
       this.sheets.delete(key);
@@ -243,7 +244,7 @@ export class SkinStore {
     }
   }
 
-  /** The frames of a sheet: one row per view, the stand, the walk, the attack, the roll, the fall, the crouch and the sneak walk. */
+  /** The frames of a sheet: one row per view, the stand, the walk, the attack, the roll, the fall, the crouch, the sneak walk, the brace, the evade and the heavy roll. */
   private textures(key: string, canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
     const base = Texture.from(canvas);
     base.source.scaleMode = 'nearest';
@@ -256,6 +257,7 @@ export class SkinStore {
     const walk = {} as Record<Facing, Texture[]>;
     const attack = {} as Record<Facing, Texture[]>;
     const roll = {} as Record<Facing, Texture[]>;
+    const heavyRoll = {} as Record<Facing, Texture[]>;
     const fall = {} as Record<Facing, Texture[]>;
     const crouch = {} as Record<Facing, Texture>;
     const sneak = {} as Record<Facing, Texture[]>;
@@ -267,12 +269,13 @@ export class SkinStore {
       walk[view.name] = frames(SKIN_COLUMNS.walk, SKIN_WALK_FRAMES, row);
       attack[view.name] = frames(SKIN_COLUMNS.attack, SKIN_ATTACK_FRAMES, row);
       roll[view.name] = frames(SKIN_COLUMNS.roll, SKIN_ROLL_FRAMES, row);
+      heavyRoll[view.name] = frames(SKIN_COLUMNS.heavyRoll, SKIN_HEAVY_ROLL_FRAMES, row);
       fall[view.name] = frames(SKIN_COLUMNS.fall, SKIN_FALL_FRAMES, row);
       crouch[view.name] = frame(SKIN_COLUMNS.crouch, row);
       sneak[view.name] = frames(SKIN_COLUMNS.sneak, SKIN_SNEAK_FRAMES, row);
       brace[view.name] = frame(SKIN_COLUMNS.brace, row);
       evade[view.name] = frames(SKIN_COLUMNS.evade, SKIN_EVADE_FRAMES, row);
     });
-    return { stand, walk, attack, roll, fall, crouch, sneak, brace, evade, headHeight };
+    return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, headHeight };
   }
 }

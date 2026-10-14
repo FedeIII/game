@@ -959,7 +959,7 @@ body:has(#pack-button):has(#map-button):has(#journal-button) #worlds-button {
   image-rendering: pixelated;
 }
 
-/* Under the worn slots: the Armour Class and the damage, and the share of glancing blows. */
+/* Under the worn slots: the Armour Class and the damage, the load, and the share of glancing blows. */
 .gear-stats {
   margin: -2px 0 10px;
   text-align: center;
@@ -971,6 +971,18 @@ body:has(#pack-button):has(#map-button):has(#journal-button) #worlds-button {
 
 .gear-numbers {
   font: 14px var(--ui-mono);
+}
+
+.gear-load {
+  font: 12px var(--ui-mono);
+  opacity: 0.8;
+}
+
+/* A heavy load rolls worse, and an overloaded character does not roll at all. */
+.gear-load.heavy,
+.gear-load.over {
+  color: var(--ui-worse);
+  opacity: 1;
 }
 
 .gear-glance {

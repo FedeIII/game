@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, DODGE_TICKS, DOWN_TICKS, EVADE_TICKS, facingAngle, type Facing } from '@game/engine';
+import { ATTACK_TICKS, DOWN_TICKS, EVADE_TICKS, ROLLS, facingAngle, type Facing, type LoadTier } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -76,8 +76,9 @@ export interface PlayerPose {
   readonly guard?: number;
   /** Whether it stands in shallow water (inShallows). */
   readonly wading?: boolean;
-  /** Ticks left of a dodge (a roll), as in PlayerState. */
+  /** Ticks left of a dodge (a roll), and the kind of the roll (the tier of the load), as in PlayerState. */
   readonly dodge?: number;
+  readonly dodgeKind?: LoadTier;
   /** Ticks left of a brace and of an evade, as in PlayerState. */
   readonly brace?: number;
   readonly evade?: number;
@@ -91,13 +92,14 @@ export interface PlayerPose {
   readonly glance?: number;
 }
 
-/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a fall, a crouch, a sneak walk, a brace and an evade. */
+/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a heavy roll, a fall, a crouch, a sneak walk, a brace and an evade. */
 export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
   readonly attack: Readonly<Record<Facing, readonly Texture[]>>;
-  /** The frames of a roll (a dodge). */
+  /** The frames of a roll (a dodge), and of a heavy roll (a low roll over one shoulder that ends on one knee). */
   readonly roll: Readonly<Record<Facing, readonly Texture[]>>;
+  readonly heavyRoll: Readonly<Record<Facing, readonly Texture[]>>;
   /** The frames of a defeat: it falls, and it lies. */
   readonly fall: Readonly<Record<Facing, readonly Texture[]>>;
   /** A player that sneaks: the crouch at rest, and the frames of the sneak walk. */
@@ -116,6 +118,7 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const walk = {} as Record<Facing, Texture[]>;
   const attack = {} as Record<Facing, Texture[]>;
   const roll = {} as Record<Facing, Texture[]>;
+  const heavyRoll = {} as Record<Facing, Texture[]>;
   const fall = {} as Record<Facing, Texture[]>;
   const crouch = {} as Record<Facing, Texture>;
   const sneak = {} as Record<Facing, Texture[]>;
@@ -126,13 +129,14 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
     walk[facing] = art.animation(`walk/${facing}`);
     attack[facing] = art.variants(`player/${facing}/attack`);
     roll[facing] = art.variants(`player/${facing}/roll`);
+    heavyRoll[facing] = art.variants(`player/${facing}/heavyroll`);
     fall[facing] = art.variants(`player/${facing}/fall`);
     crouch[facing] = art.frame(`player/${facing}/crouch`);
     sneak[facing] = art.variants(`player/${facing}/sneak`);
     brace[facing] = art.frame(`player/${facing}/brace`);
     evade[facing] = art.variants(`player/${facing}/evade`);
   }
-  return { stand, walk, attack, roll, fall, crouch, sneak, brace, evade, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -285,9 +289,12 @@ export class PlayerView {
       texture = frames[DOWN_TICKS - down < FALL_SWITCH ? 0 : frames.length - 1]!;
       this.travelled = 0;
     } else if (dodge > 0) {
-      // The roll, by the ticks since the dodge started.
-      const frames = this.textures.roll[state.facing];
-      texture = frames[Math.min(frames.length - 1, Math.floor(((DODGE_TICKS - 1 - dodge) * frames.length) / (DODGE_TICKS - 1)))]!;
+      // The roll of its load, by the ticks since the dodge started: a roll, a heavy roll, or a step
+      // aside (an overloaded character: the frames of an evade).
+      const kind = state.dodgeKind ?? 'light';
+      const frames = (kind === 'heavy' ? this.textures.heavyRoll : kind === 'over' ? this.textures.evade : this.textures.roll)[state.facing];
+      const ticks = ROLLS[kind].ticks;
+      texture = frames[Math.min(frames.length - 1, Math.floor(((ticks - 1 - dodge) * frames.length) / (ticks - 1)))]!;
       this.travelled = 0;
     } else if (evade > 0) {
       // The evade, by the ticks since it started: out of the blow, and back.

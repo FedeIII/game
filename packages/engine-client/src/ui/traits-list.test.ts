@@ -23,7 +23,14 @@ describe('the traits list', () => {
       ['wis', 10, 0],
       ['cha', 10, 0],
     ]);
-    expect(sheet.groups.map((g) => g.rows.length)).toEqual([5, 6, 4, 4, 6, 6]);
+    expect(sheet.groups.map((g) => g.rows.length)).toEqual([6, 7, 4, 4, 6, 6]);
+  });
+
+  it('shows what a character carries under Strength, and its light roll under Dexterity', () => {
+    const sheet = traitSheet(traitsOf(scores({ str: 8, dex: 16 }), 'wizard', kitOf('wizard')));
+    expect(row(group(sheet, 'str'), 'Carry')).toEqual({ term: 'Carry', value: '120 lb (a light roll up to 40)', tone: 'worse' });
+    // DEX 16: 36 + 6 px (2.6 tiles), and safe in all 15 ticks.
+    expect(row(group(sheet, 'dex'), 'Light roll')).toEqual({ term: 'Light roll', value: '2.6 tiles, 0.25 s safe', tone: 'better' });
   });
 
   it('shows the stamina of each attack under Constitution, by the weapon', () => {

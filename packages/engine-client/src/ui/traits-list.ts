@@ -1,4 +1,4 @@
-import { ABILITIES, FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, type Ability, type Gate, type PlayerTraits } from '@game/engine';
+import { ABILITIES, FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, rollOf, type Ability, type Gate, type PlayerTraits } from '@game/engine';
 import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
@@ -84,6 +84,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         row(t.push, t.share(traits.push)),
         row(t.stagger, t.share(traits.stagger)),
         row(t.slots, t.slotsValue(traits.slots)),
+        row(t.carry, t.carryValue(traits.carry)),
         gate(t.wade, WADE_GATE, t.wadeYes),
         gate(t.force, FORCE_GATE, t.forceYes),
       ];
@@ -92,6 +93,8 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         row(t.attacks, t.attacksValue(traits.cooldown * TICK_SECONDS)),
         row(t.guard, t.seconds(traits.guard * TICK_SECONDS)),
         row(t.dodge, t.dodgeValue(traits.dodgeCooldown * TICK_SECONDS)),
+        // The roll of a light load (load.ts): the pack panel shows the load of now.
+        row(t.roll, t.rollValue(rollOf('light', traits).distance / TILE_SIZE, rollOf('light', traits).safe * TICK_SECONDS)),
         ...(traits.brace ? [row(t.brace, t.braceValue(traits.braceAc))] : []),
         row(t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)),
         ...(traits.ranged ? [row(t.range, t.rangeValue(traits.range / TILE_SIZE))] : []),
