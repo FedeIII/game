@@ -1566,8 +1566,9 @@ async function run(options: GameOptions): Promise<void> {
   // ---------------------------------------------------------------- the game menu
 
   /**
-   * The game menu (ui/game-menu.ts): Escape opens it when nothing else is open. "Load game" and "New
-   * game" save the place, and the page reloads into the menu at that screen (menu/resume.ts).
+   * The game menu (ui/game-menu.ts): Escape opens it when nothing else is open. "Main menu" and "Load
+   * game" save the place, and the page reloads into the menu (at the list of characters for "Load
+   * game": menu/resume.ts).
    */
   const leaveFor = (screen: MenuScreen): void => {
     markMenuScreen(screen);
@@ -1599,15 +1600,14 @@ async function run(options: GameOptions): Promise<void> {
   const gameMenu = new GameMenu(
     options.name ?? tw(definition.name),
     {
-      ...(character ? { load: () => leaveFor('load'), create: () => leaveFor('new') } : {}),
-      // "Prologue" plays it again, over the game (the character stands still meanwhile).
-      ...(definition.prologue ? { prologue: () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) } : {}),
       // The menu comes at the start of the page.
       mainMenu: () => {
         savePlace(true);
         location.reload();
       },
-      ...(character ? { signOut: () => void savePlace().finally(() => api.signOut().finally(() => location.reload())) } : {}),
+      ...(character ? { load: () => leaveFor('load') } : {}),
+      // "Prologue" plays it again, over the game (the character stands still meanwhile).
+      ...(definition.prologue ? { prologue: () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) } : {}),
     },
     settingsSections,
     // A rustle when it opens and closes, and the music steps back while it is open (Fede, 2026-10-13).

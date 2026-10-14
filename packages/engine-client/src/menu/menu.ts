@@ -276,13 +276,15 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       const settings = el('button', { type: 'button', class: 'menu-button' }, T.settings);
       settings.addEventListener('click', settingsScreen);
       buttons.push(settings);
-      const out = el('button', { type: 'button', class: 'menu-link' }, T.signOut);
+      // "Sign out" is the last button (Fede, 2026-10-14; before, a link in the line of the account).
+      const out = el('button', { type: 'button', class: 'menu-button', id: 'menu-sign-out' }, T.signOut);
       out.addEventListener('click', () => {
         out.disabled = true;
         api.signOut().then(home, (error: unknown) => fail(error, () => void home()));
       });
+      buttons.push(out);
       const remove = el('button', { type: 'button', class: 'menu-link' }, T.deleteAccount);
-      const account = el('p', { class: 'menu-account' }, T.signedIn(me?.user?.via ?? 'google'), ' · ', out, ' · ', remove, ' · ', privacyLink());
+      const account = el('p', { class: 'menu-account' }, T.signedIn(me?.user?.via ?? 'google'), ' · ', remove, ' · ', privacyLink());
       remove.addEventListener('click', () => {
         // Ask first: the account and every character go at once.
         const yes = el('button', { type: 'button', class: 'menu-small danger' }, T.deleteAccountYes);

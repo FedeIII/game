@@ -2,13 +2,13 @@ import { STRINGS } from './strings.ts';
 
 /**
  * The game menu (Fede, 2026-10-12): Escape opens it over the game when no panel, conversation or
- * dream is open, with its choices: Resume, Load game, New game, Prologue, Main menu, Sign out and
- * Settings (gameMenuChoices). Escape, Resume or a click on the dark round the panel closes it. While
- * it is open the character stands still; a world that the page runs alone also stands still, but a
- * shared world goes on (game.ts). "Load game", "New game" and "Main menu" save the place and reload
- * the page into the menu, at the list of characters, at the builder or at the main screen
- * (menu/resume.ts, markMenuScreen); a visitor without a character has no "Load game" and "New game".
- * "Settings" (since 2026-10-14, Fede: the settings left the top-right panel, which shows the
+ * dream is open, with its choices: Main menu, Load game, Settings and Prologue (gameMenuChoices; Fede,
+ * 2026-10-14). Escape or a click on the dark round the panel closes it. While it is open the character
+ * stands still; a world that the page runs alone also stands still, but a shared world goes on
+ * (game.ts). "Main menu" and "Load game" save the place and reload the page into the menu, at the main
+ * screen or at the list of characters (menu/resume.ts, markMenuScreen); a visitor without a character
+ * has no "Load game". No choice has the focus when the menu opens, so Enter does not leave the game by
+ * mistake. "Settings" (since 2026-10-14, Fede: the settings left the top-right panel, which shows the
  * character now) shows the settings screen in the same panel: the sections that the page gives,
  * and "Back" (or Escape) to the choices. On a touch screen a faint button under the character button
  * opens the menu too (showButton). It has sounds (Fede, 2026-10-13): the page plays them for `sound`
@@ -18,31 +18,27 @@ import { STRINGS } from './strings.ts';
 
 /** What the choices of the game menu do. A choice without its action is not in the menu. */
 export interface GameMenuActions {
-  /** "Load game": the list of characters of the menu of the page. A character of an account only. */
-  readonly load?: () => void;
-  /** "New game": the character builder of the menu of the page. A character of an account only. */
-  readonly create?: () => void;
-  /** "Prologue": plays the prologue again, over the game. */
-  readonly prologue?: () => void;
   /** "Main menu": the main screen of the menu of the page. */
   readonly mainMenu?: () => void;
-  /** "Sign out": an account only. */
-  readonly signOut?: () => void;
+  /** "Load game": the list of characters of the menu of the page. A character of an account only. */
+  readonly load?: () => void;
+  /** "Prologue": plays the prologue again, over the game. */
+  readonly prologue?: () => void;
 }
 
 /** A choice of the game menu. */
-export type GameMenuChoice = 'resume' | keyof GameMenuActions | 'settings';
+export type GameMenuChoice = keyof GameMenuActions | 'settings';
 
 /** The choices that leave the game: the page reloads, so the menu disables its buttons. */
-const LEAVES: ReadonlySet<GameMenuChoice> = new Set(['load', 'create', 'mainMenu', 'signOut']);
+const LEAVES: ReadonlySet<GameMenuChoice> = new Set(['mainMenu', 'load']);
 
 /**
- * The choices of the menu, in their order: "Resume" first, the choices that have an action, and
- * "Settings" last (Fede, 2026-10-14).
+ * The choices of the menu, in their order (Fede, 2026-10-14): "Main menu", "Load game", "Settings" and
+ * "Prologue". A choice without its action is not there; "Settings" is always there.
  */
 export function gameMenuChoices(actions: GameMenuActions): GameMenuChoice[] {
-  const middle = (['load', 'create', 'prologue', 'mainMenu', 'signOut'] as const).filter((choice) => actions[choice] !== undefined);
-  return ['resume', ...middle, 'settings'];
+  const order = ['mainMenu', 'load', 'settings', 'prologue'] as const;
+  return order.filter((choice) => choice === 'settings' || actions[choice] !== undefined);
 }
 
 /** A section of the settings screen: a heading over its controls. */
@@ -110,6 +106,8 @@ export class GameMenu {
 
     this.panel = document.createElement('div');
     this.panel.className = 'menu-panel game-menu-panel';
+    // It takes the focus when the menu opens (no choice has it): the keys stay in the menu.
+    this.panel.tabIndex = -1;
     this.choices = document.createElement('div');
     this.choices.className = 'game-menu-choices';
     const head = document.createElement('header');
@@ -128,36 +126,31 @@ export class GameMenu {
         act();
       });
     const labels: Record<GameMenuChoice, string> = {
-      resume: T.resume,
-      load: T.load,
-      create: T.newGame,
-      prologue: T.prologue,
       mainMenu: T.mainMenu,
-      signOut: T.signOut,
+      load: T.load,
       settings: T.settings,
+      prologue: T.prologue,
     };
     let settingsButton: HTMLButtonElement | null = null;
     for (const choice of gameMenuChoices(actions)) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = choice === 'resume' ? 'menu-button menu-primary' : 'menu-button';
+      b.className = 'menu-button';
       b.dataset.choice = choice;
       b.textContent = labels[choice];
       const act =
-        choice === 'resume'
-          ? () => this.close()
-          : choice === 'settings'
-            ? () => this.showSettings(true)
-            : choice === 'prologue'
-              ? () => {
-                  this.close();
-                  actions.prologue!();
-                }
-              : () => {
-                  // The page reloads into the menu: no second press meanwhile.
-                  if (LEAVES.has(choice)) for (const other of this.buttons) other.disabled = true;
-                  actions[choice]!();
-                };
+        choice === 'settings'
+          ? () => this.showSettings(true)
+          : choice === 'prologue'
+            ? () => {
+                this.close();
+                actions.prologue!();
+              }
+            : () => {
+                // The page reloads into the menu: no second press meanwhile.
+                if (LEAVES.has(choice)) for (const other of this.buttons) other.disabled = true;
+                actions[choice]!();
+              };
       pressed(b, act);
       if (choice === 'settings') settingsButton = b;
       this.buttons.push(b);
@@ -235,7 +228,9 @@ export class GameMenu {
     this.showScreen(false);
     this.root.hidden = false;
     document.body.classList.add('game-menu-open');
-    this.buttons[0]?.focus();
+    // No choice has the focus: Enter or Space must not leave the game by mistake. An arrow key or
+    // Tab goes to the first choice.
+    this.panel.focus();
     this.sound('open');
   }
 

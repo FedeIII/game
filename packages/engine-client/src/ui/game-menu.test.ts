@@ -25,20 +25,12 @@ describe('the Escape key', () => {
 describe('the choices of the game menu', () => {
   const act = () => {};
 
-  it('has every choice for a character of an account, with Settings last', () => {
-    expect(gameMenuChoices({ load: act, create: act, prologue: act, mainMenu: act, signOut: act })).toEqual([
-      'resume',
-      'load',
-      'create',
-      'prologue',
-      'mainMenu',
-      'signOut',
-      'settings',
-    ]);
+  it('has Main menu, Load game, Settings and Prologue, in that order (Fede, 2026-10-14)', () => {
+    expect(gameMenuChoices({ mainMenu: act, load: act, prologue: act })).toEqual(['mainMenu', 'load', 'settings', 'prologue']);
   });
 
-  it('leaves out a choice without its action (a guest: no character, no account)', () => {
-    expect(gameMenuChoices({ mainMenu: act })).toEqual(['resume', 'mainMenu', 'settings']);
-    expect(gameMenuChoices({})).toEqual(['resume', 'settings']);
+  it('leaves out a choice without its action (a guest: no character)', () => {
+    expect(gameMenuChoices({ mainMenu: act, prologue: act })).toEqual(['mainMenu', 'settings', 'prologue']);
+    expect(gameMenuChoices({})).toEqual(['settings']);
   });
 });

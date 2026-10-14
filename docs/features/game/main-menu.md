@@ -131,6 +131,21 @@ out of the way at the bottom, so that the first screen looks like the title scre
 
 ---
 
+### REQ-MNU-006: Sign out on the main screen
+
+**User Story:** As a player, I want to sign out from the main screen, so that I find it with the other
+choices (Fede, 2026-10-14: the game menu has no "Sign out" now).
+
+**Acceptance Criteria:**
+- **AC-MNU-006.1:** The last button of the main screen is "Sign out" (Spanish "Cerrar sesión", id
+  `menu-sign-out`): after "New game", "Continue", "Prologue" (when it shows) and "Settings".
+- **AC-MNU-006.2:** A press signs out (the button is disabled meanwhile), and the menu shows the
+  sign-in screen.
+- **AC-MNU-006.3:** The account line under the buttons has no "Sign out" now: "Signed in with Google ·
+  Delete account · Privacy".
+
+---
+
 ## Feature Behavior & Rules
 
 - **The picture**: `art/menu-art.ts` (`menuBackground()`, painted by code; the picture's pixels are not

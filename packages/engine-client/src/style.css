@@ -1658,6 +1658,11 @@ body.pack-dragging * {
   margin-bottom: 4px;
 }
 
+/* The panel has the focus when the menu opens (no choice has it): no ring round it. */
+.game-menu-panel:focus {
+  outline: none;
+}
+
 /* The settings screen of the game menu (Fede, 2026-10-14): as the settings screen of the menu. */
 .game-menu-settings {
   font-size: 14px;

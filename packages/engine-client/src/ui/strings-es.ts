@@ -438,13 +438,10 @@ export const ES: Strings = {
   },
   gameMenu: {
     label: 'Menú de la partida',
-    resume: 'Reanudar',
-    load: 'Cargar partida',
-    newGame: 'Partida nueva',
-    prologue: 'Prólogo',
     mainMenu: 'Menú principal',
-    signOut: 'Cerrar sesión',
+    load: 'Cargar partida',
     settings: 'Ajustes',
+    prologue: 'Prólogo',
     back: 'Atrás',
   },
   menu: {

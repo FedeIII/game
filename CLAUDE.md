@@ -458,7 +458,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   browser saw it), "Settings" (the controls to read, the language, the sound (`soundSection()`), the
   switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"), and for an admin the CRT
   settings; the settings of the game menu have the same sections),
-  and "Signed in with Google · Sign out · Delete account · Privacy". Behind the menu: Nivalia at
+  "Sign out" (the last button, Fede, 2026-10-14), and "Signed in with Google · Delete account ·
+  Privacy". Behind the menu: Nivalia at
   sunset in pixel art (`art/menu-art.ts`, `src/generated/menu.png`). **The logo and the layout**
   (Fede, 2026-10-13): the logo of the game, painted in pixel art (`art/menu-logo.ts`,
   `src/generated/menu-logo.png`; `menu/logo.ts`), is at the top; on the sign-in and the main screen
@@ -482,8 +483,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   plays it, "Delete" asks first. A character starts where it was last (below, "The place of a
   character").
 - In the game, the "Character" button (top right) opens the character panel: the character, its
-  level, its scores and what they give. "Main menu" (a reload: the menu comes again), "Sign out" and
-  the settings are in the game menu (Fede, 2026-10-14).
+  level, its scores and what they give. "Main menu" (a reload: the menu comes again) and the settings
+  are in the game menu, and "Sign out" is on the main screen of the menu (Fede, 2026-10-14).
 - **The game is called World of Kandrax** (Fede, 2026-10-12): `GameOptions.name` (`apps/game/src/main.ts`)
   is the page title and the title of the menu and of the game menu; "The Wilds" stays the name of the
   world (the map). The name is the same in Spanish.
@@ -507,11 +508,12 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   Fede, 2026-10-13).
 - **The game menu** (2026-10-12, `ui/game-menu.ts`, `docs/features/game/game-menu.md`): Escape opens it
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
-  under the character button opens it): "Resume", "Load game" (a reload
-  into the list of characters), "New game" (a reload into the builder), "Prologue", "Main menu",
-  "Sign out", and "Settings" last (Fede, 2026-10-14: a second screen in the same panel with the
-  controls to read, the language, the sound, the tips, and for an admin the display and the
-  experience; "Back" or Escape goes back to the choices). The character stands
+  under the character button opens it), with these choices only, in this order (Fede, 2026-10-14):
+  "Main menu" (a reload into the main screen), "Load game" (a reload into the list of characters),
+  "Settings" (a second screen in the same panel with the controls to read, the language, the sound,
+  the tips, and for an admin the display and the experience; "Back" or Escape goes back to the
+  choices) and "Prologue". No button has the focus when it opens: Enter does not leave the game by
+  mistake. Escape or a click outside the panel closes it. The character stands
   still meanwhile; a world that the page runs stands still too, a shared world goes on. It rustles when
   it opens and closes, and the music steps back to 40 % under it (Fede, 2026-10-13).
 - **A new build reloads the page (Fede's decision, 2026-10-10).** After a deploy, an open page
@@ -535,7 +537,7 @@ nearest open tile, for example when a door that was open is closed now); `?at=` 
 Who keeps it:
 - In a world that the page runs (none now; `?offline`), the page sends it with `PUT
   /api/characters/<id>/place`: every 10 s if the player moved, when the page hides or closes
-  (`keepalive`), and before "Main menu" and "Sign out". A guest has no place.
+  (`keepalive`), and before "Main menu" and "Load game". A guest has no place.
 - In a world that the server shares, the server keeps it: when the player leaves, and at each
   heartbeat (25 s). The route refuses such a world (409), so a page cannot move a character there.
 

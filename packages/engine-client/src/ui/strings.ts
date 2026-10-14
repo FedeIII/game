@@ -505,13 +505,10 @@ const EN = {
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
   gameMenu: {
     label: 'Game menu',
-    resume: 'Resume',
-    load: 'Load game',
-    newGame: 'New game',
-    prologue: 'Prologue',
     mainMenu: 'Main menu',
-    signOut: 'Sign out',
+    load: 'Load game',
     settings: 'Settings',
+    prologue: 'Prologue',
     back: 'Back',
   },
   menu: {
