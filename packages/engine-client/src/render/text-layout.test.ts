@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { measureLine, wrapBubble, wrapText } from './text-layout.ts';
+import { TAG_MARK, measureLine, splitTag, taggedMeasure, untagged, wrapBubble, wrapText } from './text-layout.ts';
 
 // Every character is 4 pixels wide, with 1 pixel between characters: n characters = 5n - 1.
 const measure = (line: string) => measureLine(line, () => 4, 1);
@@ -84,5 +84,39 @@ describe('wrapBubble', () => {
     expect(wrapBubble('Hello there.', widths, measure)).toEqual(['Hello there.']);
     expect(wrapBubble('a'.repeat(60), widths, measure)).toEqual(['a'.repeat(60)]);
     expect(wrapBubble('   ', widths, measure)).toEqual([]);
+  });
+});
+
+describe('the tag of a gate', () => {
+  it('splits a line that starts with the tag of a gate', () => {
+    expect(splitTag('[STR 13] The boards break.')).toEqual({ tag: '[STR 13]', text: 'The boards break.' });
+    expect(splitTag('[FUE 13] Las tablas se rompen.')).toEqual({ tag: '[FUE 13]', text: 'Las tablas se rompen.' });
+    expect(splitTag('[WIS 13] ...')).toEqual({ tag: '[WIS 13]', text: '...' });
+    expect(splitTag('[CHA 13]')).toEqual({ tag: '[CHA 13]', text: '' });
+  });
+
+  it('leaves a line without a tag as it is', () => {
+    for (const line of ['The boards break.', 'It reads: [north].', '[note] A word.', '[STR 13]x', ' [STR 13] late']) {
+      expect(splitTag(line)).toEqual({ tag: null, text: line });
+    }
+  });
+
+  it('wraps the tag as the first word of the first line, in its own width', () => {
+    // The tag is 30 pixels wide in its font, then a gap of 6 before the words.
+    const tagged = taggedMeasure(measure, 30, 6);
+    const text = `${TAG_MARK} ${'abcd '.repeat(12).trim()}`;
+    const lines = wrapBubble(text, { base: 104, widest: 208, lineHeight: 11 }, tagged);
+    expect(lines[0]!.startsWith(TAG_MARK)).toBe(true);
+    expect(lines.slice(1).some((line) => line.includes(TAG_MARK))).toBe(false);
+    expect(tagged(lines[0]!)).toBe(30 + 6 + measure(untagged(lines[0]!)));
+    expect(Math.max(...lines.map(tagged))).toBeLessThanOrEqual(208);
+    expect(lines.map(untagged).join(' ')).toBe('abcd '.repeat(12).trim());
+  });
+
+  it('gives a tag alone its own width', () => {
+    const tagged = taggedMeasure(measure, 30, 6);
+    expect(tagged(TAG_MARK)).toBe(30);
+    expect(untagged(TAG_MARK)).toBe('');
+    expect(tagged('abc')).toBe(measure('abc'));
   });
 });

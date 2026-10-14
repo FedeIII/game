@@ -68,11 +68,14 @@ export class PixelFont {
     return wrapText(text, maxWidth, (line) => this.measure(line));
   }
 
-  /** Makes one sprite for each glyph, with the first line's top-left corner at (0, 0). */
-  layout(lines: readonly string[], tint: number): Container {
+  /**
+   * Makes one sprite for each glyph, with the first line's top-left corner at (0, 0), or at
+   * (`indent`, 0): the first line of a bubble starts after the tag of a gate.
+   */
+  layout(lines: readonly string[], tint: number, indent = 0): Container {
     const container = new Container();
     lines.forEach((line, row) => {
-      let x = 0;
+      let x = row === 0 ? indent : 0;
       for (const ch of line) {
         const texture = this.glyph(ch.codePointAt(0)!);
         const sprite = new Sprite(texture);

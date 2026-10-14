@@ -1,8 +1,8 @@
 import { Container, NineSliceSprite, Sprite } from 'pixi.js';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
-import type { PixelFont } from './pixel-text.ts';
-import { wrapBubble } from './text-layout.ts';
+import { PixelFont } from './pixel-text.ts';
+import { TAG_MARK, splitTag, taggedMeasure, untagged, wrapBubble } from './text-layout.ts';
 import { tw } from '../i18n.ts';
 
 /** How long a single short line stays, and how long it takes to appear and to fade, in milliseconds. */
@@ -29,6 +29,10 @@ const EDGE = 2;
 
 /** The colour of the text: the parchment of the GUI theme (--ui-ink in style.css). */
 const INK = 0xd8ccb0;
+/** The colour of the tag of a gate, "[STR 13]": the old gold of the GUI theme (--ui-gate-tag in style.css). */
+const TAG_INK = 0xc9a64a;
+/** The small capitals of a tag (5 px) stand on the line of the capitals of the font (7 px). */
+const TAG_TOP = 2;
 
 export interface SpeechOptions {
   /**
@@ -52,11 +56,14 @@ export type Anchor = () => { x: number; y: number };
  * DURATION, unless the game asks it to stay (the line of a conversation); a longer one stays
  * until `next()` closes it or the game calls `hide()`. It lives in
  * the world (one letter pixel is one game pixel), above the darkness. A hidden HTML live region
- * repeats each page for screen readers.
+ * repeats each page for screen readers. A page that starts with the tag of a gate, "[STR 13] The
+ * boards break.", shows the tag in the small font and in old gold (splitTag()).
  */
 export class SpeechBubble {
   readonly root = new Container();
   private readonly font: PixelFont;
+  /** The font of the tag of a gate: the small capitals. */
+  private readonly tagFont: PixelFont;
   private readonly frame: NineSliceSprite;
   private readonly tail: Sprite;
   private readonly more: Sprite;
@@ -77,6 +84,7 @@ export class SpeechBubble {
 
   constructor(art: Art, font: PixelFont, options: SpeechOptions = {}) {
     this.font = font;
+    this.tagFont = new PixelFont(art, 'small');
     this.duration = options.duration ?? (() => DURATION);
     this.frame = new NineSliceSprite({ texture: art.frame('ui/bubble'), leftWidth: 2, topHeight: 2, rightWidth: 2, bottomHeight: 2 });
     this.tail = new Sprite(art.frame('ui/bubble-tail'));
@@ -116,8 +124,11 @@ export class SpeechBubble {
     // Do not fade in again when a dialog replaces one that is still on screen.
     if (!this.root.visible) this.shownAt = now;
     this.stay = stay;
-    // The world's texts in the language of the page (a text of the engine is in it already).
-    this.pages = pages.map(tw);
+    // The world's texts in the language of the page (a text of the engine is in it already); the tag of a gate stays as it is.
+    this.pages = pages.map((page) => {
+      const { tag, text } = splitTag(page);
+      return tag ? `${tag} ${tw(text)}`.trimEnd() : tw(page);
+    });
     this.page = 0;
     this.anchor = anchor;
     this.layout(now);
@@ -152,15 +163,25 @@ export class SpeechBubble {
   /** Wraps the page on screen and sizes the frame round it. */
   private draw(): void {
     const widths = { base: MAX_TEXT_WIDTH, widest: this.widest, lineHeight: this.font.lineHeight };
-    const lines = wrapBubble(this.pages[this.page]!, widths, (l) => this.font.measure(l));
-    const textWidth = Math.max(...lines.map((l) => this.font.measure(l)));
+    // The tag of a gate is the first word, in its own font; then a space of the font, as between two words.
+    const { tag, text } = splitTag(this.pages[this.page]!);
+    const tagWidth = tag ? this.tagFont.measure(tag) : 0;
+    const gap = this.font.measure(' ') + 2 * this.font.spacing;
+    const measure = taggedMeasure((l) => this.font.measure(l), tagWidth, gap);
+    const lines = wrapBubble(tag ? `${TAG_MARK} ${text}` : text, widths, measure);
+    const textWidth = Math.max(...lines.map(measure));
     const textHeight = (lines.length - 1) * this.font.lineHeight + this.font.height;
     const more = this.hasMore;
     this.width = textWidth + 2 * (BORDER + PAD_X) + (more ? MORE_WIDTH : 0);
     this.height = textHeight + 2 * BORDER + PAD_TOP + PAD_BOTTOM;
 
     this.text?.destroy({ children: true });
-    this.text = this.font.layout(lines, INK);
+    this.text = this.font.layout(lines.map(untagged), INK, tag ? tagWidth + gap : 0);
+    if (tag) {
+      const tagText = this.tagFont.layout([tag], TAG_INK);
+      tagText.y = TAG_TOP;
+      this.text.addChild(tagText);
+    }
     this.text.position.set(BORDER + PAD_X, BORDER + PAD_TOP);
     this.root.addChild(this.text);
     this.frame.width = this.width;

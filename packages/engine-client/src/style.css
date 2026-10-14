@@ -23,6 +23,7 @@
   --ui-portrait-light: #34302b; /* the faint light behind a figure in the menu, so a dark look reads */
   --ui-hurt: rgb(150 20 18 / 0.55); /* the red at the screen edges when the player is hit */
   --ui-xp: #c9a64a; /* the old gold of experience: the level bar (the gold of a banner, render/quest-banner.ts) */
+  --ui-gate-tag: #c9a64a; /* the tag of a gate, "[STR 13]": the same old gold (TAG_INK in render/speech-bubble.ts) */
   --ui-card: rgb(216 204 176 / 0.04); /* the faint ground of a card in a panel (the traits list) */
   --ui-worse: #c98473; /* a value worse than for a score of 10 (the traits list): a pale rust */
   /* Google's dark "Sign in with Google" button (its branding guidelines). */
@@ -2078,6 +2079,12 @@ body.conversing #link-card {
 .conversation-answer.dim {
   opacity: 0.38;
   cursor: default;
+}
+
+/* The tag of a gate before an answer, "[CHA 13]": old gold, a little smaller (gateTagElement()). */
+.gate-tag {
+  color: var(--ui-gate-tag);
+  font: normal 0.8em var(--ui-mono);
 }
 
 .conversation-key {

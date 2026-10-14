@@ -139,7 +139,7 @@ const EN = {
   /** Lore that the player cannot read yet (Interaction.lore, a score 1 or 2 under the gate). */
   loreHint: (tag: string): string => `${tag} There is more here, but I cannot make sense of it.`,
   /** A line of a scene said low (scenes.ts): what a character that does not pass its gate hears; with the gate when it is 1 or 2 short. */
-  murmur: (tag: string | null): string => (tag ? `... ${tag}` : '...'),
+  murmur: (tag: string | null): string => (tag ? `${tag} ...` : '...'),
   /** A barred door or a locked chest without the score: with a clue of the gate, or without (gateView). */
   barredPlain: 'Boards are nailed across it.',
   lockedPlain: 'It is locked.',
@@ -204,6 +204,8 @@ const EN = {
   wokeLost: (coins: number): string => `I wake up, sore and alive. ${coins === 1 ? 'A coin is' : `${coins} coins are`} gone.`,
   /** The player comes into a refuge (WorldSource.refuges) for the first time. */
   refuge: 'This place feels safe. If I fall, I can wake here.',
+  /** The player steps into shallow water (Strength: WADE_GATE); the tag of the gate shows before it. */
+  waded: 'I wade into the shallow water.',
   /** The pack panel (ui/pack-panel.ts) and the drink belt (ui/belt.ts). */
   pack: {
     button: 'Pack',

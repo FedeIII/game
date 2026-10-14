@@ -165,7 +165,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `speech-bubble.ts` (pages of text over a head, above the darkness; a short text wraps at 104 world
   pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
   `wrapBubble()` in `text-layout.ts`; a bubble stays inside the screen, and its tail then moves along
-  its bottom edge to stay over the speaker: `placeBubble()`), `marks.ts` (the marks at the
+  its bottom edge to stay over the speaker: `placeBubble()`; a line that starts with the tag of a gate,
+  "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
   of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back), `piles.ts` (the items on the
@@ -397,9 +398,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
 - `font.ts`: the pixel font (capitals 7 px, descenders 2 px, white glyphs that the client
   tints; frames `font/<char code>`; metrics in `meta.font`), with Spanish lowercase accents,
   ñ, ¿, ¡, ·, dashes. Accented capitals and curly quotes draw as plain ones. The small font
-  (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _ +`; frames `smallfont/<char code>`;
+  (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _ + [ ]`; frames `smallfont/<char code>`;
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
-  one; it is for the names over other players. Also the bubble
+  one; it is for the names over other players, the numbers of a fight and the tag of a gate in a bubble. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
   (`ui/sign`), the emblems on a sign board in place of a name (`ui/emblem/<name>`: `chalice`, over
   a shrine or a chapel; each with its shadow), the plate of a name sign and the shield over it (`ui/namesign/<look>`,
@@ -612,7 +613,13 @@ roll of a die (the dice roll only in a fight and in a draught: see "Mobs and fig
 gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
 gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
 with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
-builder and the character panel still name every gate.
+builder and the character panel still name every gate. **A line of a gate starts with its tag**
+(Fede's request, 2026-10-14; `docs/features/abilities/ability-scores.md`, REQ-AS-008): `gated(gate,
+line)` in `ui/conversation.ts`, "[STR 13] The boards break.": the forced door, the first wade (at most
+every 2 minutes, `WADE_LINE_MS`), the picked lock, each lore page, the chewed herbs, a line of a scene
+behind a gate, the greeting by name, and a clue; a bubble draws the tag in the small font and in old
+gold, and the conversation panel in old gold (`gateTagElement()`, `.gate-tag`). A new line of a gate
+gets its tag with `gated()`.
 
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,

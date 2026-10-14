@@ -93,6 +93,10 @@ that a lake becomes a shortcut and a refuge from mobs.
   while the wader walks. Other players see the same look on a wader.
 - **AC-STR-004.9:** Every lake of the Wilds has a band of shallow water at its shore, and a small
   pond is all shallow water. No house stands on shallow water.
+- **AC-STR-004.10:** When a wader with STR 13 steps into shallow water, it says "[STR 13] I wade
+  into the shallow water." It says it again only after 2 minutes (`WADE_LINE_MS` in `game.ts`), and
+  not while another line of the player shows. A character that wades only by a worn item says
+  nothing. See [Ability Scores](ability-scores.md), REQ-AS-008.
 
 ---
 

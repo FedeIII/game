@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PACK, PLAIN_SCORES, applyEffect, type Dialog, type Pack, type QuestBook, type QuestEffect } from '@game/engine';
-import { Conversation } from './conversation.ts';
+import { splitTag } from '../render/text-layout.ts';
+import { Conversation, gated } from './conversation.ts';
 
 const dialog: Dialog = {
   name: 'The watchman',
@@ -45,6 +46,32 @@ describe('a conversation', () => {
     expect(talk.id).toBe('halt');
     expect(talk.choose(2)).toBeNull();
     expect(talk.answered).toBe('Goodbye.');
+  });
+
+  it('keeps the gate of the answer that the player gave, for its tag', () => {
+    const strong = { ...PLAIN_SCORES, str: 14 };
+    const cart: Dialog = {
+      name: 'The merchant',
+      start: 'stuck',
+      nodes: {
+        stuck: { say: 'The wheel is stuck.', answers: [{ text: 'I lift it.', next: 'up', gate: { ability: 'str', min: 13 } }, { text: 'Goodbye.' }] },
+        up: { say: 'Thank you!', answers: [{ text: 'Goodbye.' }] },
+      },
+    };
+    const talk = new Conversation(cart, strong);
+    expect(talk.answeredGate).toBeNull();
+    talk.choose(0);
+    expect([talk.answered, talk.answeredGate]).toEqual(['I lift it.', { ability: 'str', min: 13 }]);
+    talk.choose(0);
+    expect(talk.answeredGate).toBeNull();
+  });
+});
+
+describe('a line of a gate', () => {
+  it('starts with the tag of the gate, which a speech bubble finds again', () => {
+    const line = gated({ ability: 'dex', min: 13 }, 'The lock clicks open.');
+    expect(line).toBe('[DEX 13] The lock clicks open.');
+    expect(splitTag(line)).toEqual({ tag: '[DEX 13]', text: 'The lock clicks open.' });
   });
 });
 

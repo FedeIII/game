@@ -102,6 +102,16 @@
   Ask Fede: how much slower (for example half the rate)? Does a slow walk or the sneak walk count as a
   move? Does a companion follow the same rule?
 
+- **Bubbles of two NPCs overlap** (2026-10-15). In a conversation with Brann, the watchman at the
+  south gate of Ironhold, the child came close and greeted the player by name (CHA 13): her bubble
+  covered the line of the watchman. Two NPCs that stand close can show their bubbles one on top of
+  the other: a greeting or a line of one NPC over the line of a conversation with another NPC.
+  Code: `greet()` and `sayLines()` in `packages/engine-client/src/game.ts` (`talkWith`,
+  `barkBubbles.say()`), `BarkBubbles` in `render/barks.ts`, `placeBubble()` in
+  `render/speech-bubble.ts`.
+  Ask Fede: do the other NPCs keep quiet while a conversation is open, or does a bubble move up
+  when it covers another bubble?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;

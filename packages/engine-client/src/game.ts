@@ -60,6 +60,7 @@ import {
   guestGear,
   guestTraits,
   inShallows,
+  WADE_GATE,
   isSneaking,
   newArrow,
   refugeAt,
@@ -166,7 +167,7 @@ import { OtherPlayers } from './render/others.ts';
 import { PixelFont } from './render/pixel-text.ts';
 import { PlayerView, atlasPlayerTextures, type PlayerTextures } from './render/player-view.ts';
 import { SpeechBubble } from './render/speech-bubble.ts';
-import { ConversationPanel, gateTag } from './ui/conversation.ts';
+import { ConversationPanel, gateTag, gated } from './ui/conversation.ts';
 import { JournalPanel, questMarks } from './ui/journal-panel.ts';
 import { QuestBanner } from './render/quest-banner.ts';
 import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './ui/gates.ts';
@@ -266,6 +267,8 @@ const LOCAL_DICE = rollingDice(Math.random);
 const RELOAD_DELAY_MS = 1200;
 /** An NPC greets a player with a good name (Charisma) when it comes this close (world pixels). */
 const GREET_RANGE = 2 * TILE_SIZE;
+/** The player says that it wades (Strength) at most once in this time (ms), so that a walk along a shore is not a chatter. */
+const WADE_LINE_MS = 120_000;
 /** The great foes: a fight with one of them has the music of a battle. */
 const BOSS_KINDS: ReadonlySet<MobKind> = new Set(['warden', 'devastator']);
 /** A mob this close (world pixels) that winds up, strikes or reels is a fight, for the music. */
@@ -300,12 +303,12 @@ function chestLine(taken: Loot, full: boolean): string {
   return `${STRINGS.found(andList(parts))}${full ? ` ${STRINGS.packFull}` : ''}`;
 }
 
-/** What the player says when it opens a source of loot: a chest (picked, if it has a lock), a patch of herbs, a buried cache. */
+/** What the player says when it opens a source of loot: a chest (picked, with the tag of its lock, if it has one), a patch of herbs, a buried cache. */
 function sourceLine(fixture: Fixture | null, taken: Loot, full: boolean): string {
   const gone = lootIsEmpty(taken) && !full;
   if (fixture?.kind === 'herbpatch') return gone ? STRINGS.herbsGone : chestLine(taken, full);
   if (fixture?.kind === 'cache') return gone ? STRINGS.cacheGone : `${STRINGS.dug} ${chestLine(taken, full)}`;
-  return `${fixture?.lock ? `${STRINGS.picked} ` : ''}${chestLine(taken, full)}`;
+  return fixture?.lock ? gated(fixture.lock, `${STRINGS.picked} ${chestLine(taken, full)}`) : chestLine(taken, full);
 }
 
 /** The lines that rise over the player for a drop: "+3 coins", "+1 imp horn" (the small font draws them in capitals). */
@@ -672,7 +675,7 @@ async function run(options: GameOptions): Promise<void> {
       if (world.insideOf(...tileOf(pose)) !== here || npcStorey(def) !== player.storey) return;
       greeted.add(def.id);
       if (talkWith === npcFixture(def)) return;
-      barkBubbles.say(index, tw(def.greeting).replace('{name}', name), () => npcViews!.headOf(index), now);
+      barkBubbles.say(index, gated(REPUTATION_GATE, tw(def.greeting).replace('{name}', name)), () => npcViews!.headOf(index), now);
     });
   };
 
@@ -912,7 +915,7 @@ async function run(options: GameOptions): Promise<void> {
       const index = npcDefs.findIndex((def) => def.id === line.npc);
       const view = line.gate ? gateView(traits.scores, line.gate) : 'open';
       return {
-        text: view === 'open' ? tw(line.text) : STRINGS.murmur(view === 'hint' ? gateTag(line.gate!) : null),
+        text: view !== 'open' ? STRINGS.murmur(view === 'hint' ? gateTag(line.gate!) : null) : line.gate ? gated(line.gate, tw(line.text)) : tw(line.text),
         anchor: () => (index >= 0 && npcViews ? npcViews.headOf(index) : { x: shown.x, y: shown.y - playerView.headHeight }),
         started: (now: number) => {
           if (index >= 0) barkBubbles?.hush(index, now);
@@ -1001,7 +1004,7 @@ async function run(options: GameOptions): Promise<void> {
       // Pages behind a gate (lore): read with the score, a clue with 1 or 2 less, nothing with less (gateView).
       const extra = content.lore.flatMap((lore) => {
         const view = gateView(traits.scores, lore.gate);
-        return view === 'open' ? lore.pages : view === 'hint' ? [STRINGS.loreHint(gateTag(lore.gate))] : [];
+        return view === 'open' ? lore.pages.map((page) => gated(lore.gate, page)) : view === 'hint' ? [STRINGS.loreHint(gateTag(lore.gate))] : [];
       });
       return { ...content, pages: [...(content.pages ?? []), ...extra] };
     }
@@ -1015,7 +1018,7 @@ async function run(options: GameOptions): Promise<void> {
     return !restFor || (net?.refuges ?? localRefuges).includes(restFor);
   };
   /** A line of a gate that the player does not pass: with a clue of the gate when it is 1 or 2 short (gateView), else the plain line. */
-  const shortOf = (gate: Gate, clue: string, plain: string): string => (gateView(traits.scores, gate) === 'hint' ? `${clue} ${gateTag(gate)}` : plain);
+  const shortOf = (gate: Gate, clue: string, plain: string): string => (gateView(traits.scores, gate) === 'hint' ? gated(gate, clue) : plain);
   const accept = (kind: InteractionTarget['kind'], fixture: Fixture | null) =>
     Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture)) || kind === 'stairs' || kind === 'stairwell';
   /** Over the player's head: where it speaks. */
@@ -1024,6 +1027,18 @@ async function run(options: GameOptions): Promise<void> {
   const say = (line: string, now: number) => {
     speech.show([line], playerHead, now);
     speaking = true;
+  };
+  /** Whether the player was in shallow water at the last step, and when it last said that it wades. */
+  let wasWading = false;
+  let wadeSaidAt = -Infinity;
+  /** A step into shallow water: the player says that it wades, with the tag of the gate (WADE_GATE), not more often than WADE_LINE_MS. */
+  const sayWade = (now: number) => {
+    const wading = inShallows(world.level(player.storey), player.x, player.y);
+    if (wading && !wasWading && now - wadeSaidAt > WADE_LINE_MS && meetsGate(traits.scores, WADE_GATE) && !speech.showing) {
+      say(gated(WADE_GATE, STRINGS.waded), now);
+      wadeSaidAt = now;
+    }
+    wasWading = wading;
   };
   // What the player finds: drops rise over its head; a chest's contents it says. In a shared world
   // the server's word comes a moment after the kill or the press.
@@ -1079,7 +1094,7 @@ async function run(options: GameOptions): Promise<void> {
       pack = next;
     }
     const line = STRINGS.drank[kind];
-    if (line) say(line, now);
+    if (line) say(gate ? gated(gate, line) : line, now);
     gameSounds.fx.play(kind === 'herbs' ? 'chew' : 'drink');
     if (DRINKS[kind]?.hp) gameSounds.fx.play('heal', { delay: 0.6 });
   };
@@ -1410,7 +1425,7 @@ async function run(options: GameOptions): Promise<void> {
       if (result === 'barred' || result === 'forced') {
         // Boards across the door: they hold, or they break (and the view shakes a little).
         const bar = world.buildingAt(target.tx, target.ty)?.barred;
-        say(result === 'forced' ? STRINGS.forced : bar ? shortOf(bar, STRINGS.barred, STRINGS.barredPlain) : STRINGS.barred, now);
+        say(result === 'forced' ? (bar ? gated(bar, STRINGS.forced) : STRINGS.forced) : bar ? shortOf(bar, STRINGS.barred, STRINGS.barredPlain) : STRINGS.barred, now);
         if (result === 'forced') shakeUntil = now + SHAKE.ms;
       } else if (locked) {
         // A door that never opens: the player says the building's line.
@@ -1765,6 +1780,7 @@ async function run(options: GameOptions): Promise<void> {
       }
     }
     if (waking) wakeHere();
+    sayWade(performance.now());
     if (!net) {
       // A wade ruins what the story says (the lentils of Whitegrove).
       if (player.wading) for (const effect of localWadeEffects) applyQuest(effect, { scene: 'wade' });

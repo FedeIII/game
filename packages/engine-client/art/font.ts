@@ -152,6 +152,9 @@ export const SMALL_GLYPHS: Record<string, string> = {
   '+': '... .#. ### .#. ...',
   '.': '. . . . #',
   _: '... ... ... ... ###',
+  // The brackets of the tag of a gate, "[STR 13]", before a line of a speech bubble.
+  '[': '## #. #. #. ##',
+  ']': '## .# .# .# ##',
   A: '.#. #.# ### #.# #.#',
   B: '##. #.# ##. #.# ##.',
   C: '.## #.. #.. #.. .##',

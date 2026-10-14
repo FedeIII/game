@@ -44,8 +44,8 @@ export class Conversation {
   private nodeId: string;
   /** The index of the selected answer. */
   selected = 0;
-  /** What the player answered last (it shows over the NPC's reply), or null at the start. */
-  answered: string | null = null;
+  /** The answer that the player gave last (it shows over the NPC's reply), or null at the start. */
+  private last: DialogAnswer | null = null;
 
   constructor(dialog: Dialog, scores: Scores = PLAIN_SCORES, facts: ConversationFacts = NO_FACTS) {
     this.dialog = dialog;
@@ -61,6 +61,16 @@ export class Conversation {
 
   get node(): DialogNode {
     return this.dialog.nodes[this.nodeId]!;
+  }
+
+  /** What the player answered last, or null at the start. */
+  get answered(): string | null {
+    return this.last?.text ?? null;
+  }
+
+  /** The gate of the answer that the player gave last, if it had one: its tag shows before it. */
+  get answeredGate(): Gate | null {
+    return this.last?.gate ?? null;
   }
 
   /**
@@ -114,11 +124,11 @@ export class Conversation {
    */
   give(answer: DialogAnswer, paid = false): DialogNode | null {
     if (answer.next === undefined) {
-      this.answered = answer.text;
+      this.last = answer;
       return null;
     }
     this.nodeId = answer.deal && !paid ? (answer.deal.poor ?? answer.next) : answer.next;
-    this.answered = answer.text;
+    this.last = answer;
     this.selected = this.firstOpen();
     return this.node;
   }
@@ -132,6 +142,23 @@ export class Conversation {
 /** A gate as the player reads it: "[INT 13]". */
 export function gateTag(gate: Gate): string {
   return `[${STRINGS.abilities[gate.ability].short} ${gate.min}]`;
+}
+
+/**
+ * A line that a gate lets the player say or hear: the tag of the gate, then the line, "[STR 13]
+ * The boards break." A speech bubble draws the tag in the small font and in old gold (splitTag()
+ * in render/text-layout.ts).
+ */
+export function gated(gate: Gate, line: string): string {
+  return `${gateTag(gate)} ${line}`;
+}
+
+/** The tag of a gate in the GUI: "[CHA 13]" in old gold and a little smaller (.gate-tag in style.css). */
+export function gateTagElement(gate: Gate): HTMLElement {
+  const tag = document.createElement('span');
+  tag.className = 'gate-tag';
+  tag.textContent = gateTag(gate);
+  return tag;
 }
 
 /** The close-up of an NPC: this many pixels of its frame, a square from the top of its head (CSS scales it up). */
@@ -359,7 +386,8 @@ export class ConversationPanel {
   private render(): void {
     const talk = this.talk!;
     this.said.hidden = talk.answered === null;
-    this.said.textContent = talk.answered === null ? '' : `${STRINGS.conversation.you}: ${tw(talk.answered)}`;
+    const gate = talk.answeredGate;
+    this.said.replaceChildren(...(talk.answered === null ? [] : [`${STRINGS.conversation.you}: `, ...(gate ? [gateTagElement(gate), ' '] : []), tw(talk.answered)]));
     this.text.textContent = tw(talk.node.say);
     this.list.replaceChildren(
       ...talk.answers.map((answer, i) => {
@@ -373,9 +401,11 @@ export class ConversationPanel {
         key.setAttribute('aria-hidden', 'true');
         key.textContent = String(i + 1);
         // An answer behind a gate shows the gate: open, or as a dim clue that the player cannot give.
-        const tag = answer.gate ? `${gateTag(answer.gate)} ` : '';
+        const words = document.createElement('span');
+        if (answer.gate) words.append(gateTagElement(answer.gate), ' ');
         const price = answer.deal ? this.priceOf(answer.deal) : null;
-        button.append(key, tag + tw(answer.text) + (price ? ` ${price}` : ''));
+        words.append(tw(answer.text) + (price ? ` ${price}` : ''));
+        button.append(key, words);
         if (talk.dim(i)) {
           button.classList.add('dim');
           button.setAttribute('aria-disabled', 'true');

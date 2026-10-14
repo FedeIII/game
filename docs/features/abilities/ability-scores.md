@@ -193,11 +193,44 @@ which score to raise, without a list of everything that I cannot do.
 - **AC-AS-007.5:** The traits list of the builder and of the character panel is the rule book: it
   names every gate, for every score.
 
+---
+
+### REQ-AS-008: The tag of a gate before a line of a gate
+
+**User Story:** As a player, I want to see which score lets me do a thing when I do it, so that I
+know what my character is good at.
+
+**Acceptance Criteria:**
+- **AC-AS-008.1:** A line that a gate lets the player say or hear starts with the tag of the gate,
+  for example "[STR 13] The boards break." (Fede's request, 2026-10-14).
+- **AC-AS-008.2:** In a speech bubble, the tag is in the small font (capitals of 5 px, on the line
+  of the capitals of the text) and in old gold (#c9a64a, the gold of the XP bar); the rest of the
+  line is in the font and the parchment of a bubble. The tag is the first word of the first line.
+- **AC-AS-008.3:** The lines with a tag: the forced door (STR), the first wade into shallow water
+  (STR), the picked lock (DEX), each lore page (INT), the herbs that the player chews (WIS), the
+  lines of a scene that only a character with the gate hears (WIS), and the greeting of an NPC by
+  name (CHA).
+- **AC-AS-008.4:** A clue (a score 1 or 2 under the gate, REQ-AS-007) has the tag at the start too,
+  in the same look: "[STR 13] Boards are nailed across it. ...", "[WIS 13] ..." for a murmur.
+- **AC-AS-008.5:** In the conversation panel, the tag before an answer behind a gate, and before
+  that answer in the line "You: ..." after it, is in old gold and a little smaller, in the
+  monospace font of the GUI.
+- **AC-AS-008.6:** A screen reader hears the tag as text, before the line.
+- **AC-AS-008.7:** Without a tag: the things that are not lines (the map, the reading of a mob, the
+  arrow home) and the scales without a gate (the seek of a patch of herbs or of a cache).
+
 ## Feature Behavior & Rules
 
 - **The display of a gate** is `gateView(scores, gate)` (`traits.ts`): `'open'`, `'hint'` (1 or
   `GATE_HINT` (2) under it) or `'hidden'` (Fede's rule, 2026-10-10). The page writes the clue
   with `gateTag()` (`packages/engine-client/src/ui/conversation.ts`).
+- **The tag of a gate** (REQ-AS-008): `gated(gate, line)` (`ui/conversation.ts`) puts the tag
+  before a line. `SpeechBubble` (`render/speech-bubble.ts`) finds it again with `splitTag()`
+  (`render/text-layout.ts`: a tag is `[`, capitals, digits and spaces, `]`, at the start of a line),
+  translates only the rest of the line (`tw()`), and wraps the tag as one word (`TAG_MARK`,
+  `taggedMeasure()`). It draws the tag with the small font (`PixelFont(art, 'small')`; the glyphs
+  `[` and `]` of `SMALL_GLYPHS` in `art/font.ts`) in `TAG_INK`, `TAG_TOP` (2 px) lower than the text.
+  The HTML GUI uses `gateTagElement()` (`.gate-tag` in `style.css`, colour `--ui-gate-tag`).
 - **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class, gear, level)`,
   `sheetTraits(sheet, gear)` (a stored character), `guestTraits(skin, gear)` (a guest; its gear
   is `guestGear(skin)`), `GUEST_TRAITS` (every score 10, a fighter and `PLAIN_GEAR`, a rapier: for

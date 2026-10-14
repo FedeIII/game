@@ -31,6 +31,39 @@ export function wrapText(text: string, maxWidth: number, measure: (line: string)
   return lines;
 }
 
+/** The tag of a gate at the start of a line: "[STR 13]", "[FUE 13]" (gateTag() in ui/conversation.ts makes it). */
+const TAG = /^\[[\p{Lu}\d ]+\](?= |$)/u;
+
+/**
+ * A line that starts with the tag of a gate, "[STR 13] The boards break.": the tag and the rest of
+ * the line. A line without a tag gives a null tag.
+ */
+export function splitTag(line: string): { readonly tag: string | null; readonly text: string } {
+  const match = TAG.exec(line);
+  return match ? { tag: match[0], text: line.slice(match[0].length).trimStart() } : { tag: null, text: line };
+}
+
+/** Stands for the tag of a gate while the text of a bubble wraps: one word, in the small font (taggedMeasure()). */
+export const TAG_MARK = '';
+
+/**
+ * The width of a line of a bubble whose text starts with a tag: a line that starts with TAG_MARK
+ * has the tag (`tagWidth` pixels, in its own font), then `gap` pixels, then its words. Other lines
+ * are as `measure` gives them.
+ */
+export function taggedMeasure(measure: (line: string) => number, tagWidth: number, gap: number): (line: string) => number {
+  return (line) => {
+    if (!line.startsWith(TAG_MARK)) return measure(line);
+    const rest = untagged(line);
+    return rest ? tagWidth + gap + measure(rest) : tagWidth;
+  };
+}
+
+/** A line of a bubble without its TAG_MARK: the words that the normal font draws. */
+export function untagged(line: string): string {
+  return line.startsWith(TAG_MARK) ? line.slice(TAG_MARK.length).trimStart() : line;
+}
+
 /** The width of a bubble's text, in world pixels: the usual width, the widest, and the height of a line. */
 export interface BubbleWidths {
   /** A short text wraps at this width, as it always did. */
