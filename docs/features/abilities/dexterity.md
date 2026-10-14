@@ -106,6 +106,9 @@ round them.
 - **AC-DEX-004.6:** The C key turns the sneak walk on and off. While it is on, the keys and the
   joystick walk at half speed. A push of the joystick to half or less is a slow walk too. The
   keyboard hint says "C to sneak".
+- **AC-DEX-004.9:** An attack turns the sneak walk off (Fede's decision, 2026-10-14). After the
+  attack the keys walk at full speed again, until C turns the sneak walk on again. A push of the
+  joystick to half or less is still a slow walk after an attack, and it still sneaks.
 - **AC-DEX-004.7:** The share applies when a mob looks for a player to hunt. A mob that hunts the
   player already keeps it in view up to its forget distance, also while the player sneaks. The
   forget distance is 200 px for an imp and 180 px for a brute.
@@ -134,6 +137,9 @@ less.
   crouch at rest (the knees bent, the body low and forward, the arms ready) and eight frames of the
   sneak walk, with short strides. A walk without a sneak, an attack, a roll, a defeat, a hit or
   shallow water ends the crouch (Fede's decision, 2026-10-13).
+- **AC-DEX-005.6:** After an attack the player stands up (Fede's decision, 2026-10-14): the attack
+  ends the sneak walk (AC-DEX-004.9), so a player that stands still after it shows no crouch and the
+  full torch. A slow walk after the attack crouches again.
 
 ---
 
@@ -244,7 +250,7 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
 - **Stamina:** `canDodge()` needs `DODGE_STAMINA` (35). `isSneaking()` counts a sneak walk
   (`isSneakWalk()`) only while `PlayerState.stamina` is above 0; the sneak walk uses
   `SNEAK_STAMINA` (8) each second (see the Constitution document).
-- **The look of sneaking:** `SNEAK_TORCH` (96) and `sneakingShown()` in `game.ts`, `OTHER_TORCH`
+- **The look of sneaking:** `SNEAK_TORCH` (96) and `sneakingShown()` in `game.ts` (`SneakWalk.shown()`), `OTHER_TORCH`
   (`radius` 96, `sneaking` 48) in `render/others.ts`, and `SNEAK_TINT` in
   `render/player-view.ts`. The page does not know the sneak walk of another player, so it shows
   only a slow walk. `PlayerView.crouched` keeps the crouch after a sneak walk; the frames are
@@ -254,6 +260,9 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
   `player/<view>/crouch` and `player/<view>/sneak/<i>` of the atlas wanderer.
 - **The C key** is `KeyC` (`KeyboardEvent.code`). The page ignores it in a form field and with
   Ctrl, Meta or Alt. Nothing in the GUI shows that the sneak walk is on; `?debug` shows "(walk)".
+  `SneakWalk` (`input/sneak-walk.ts`) keeps it: `toggle()` for C, `attack()` when an attack starts
+  (the tick in which `stepPlayer()` or `NetSession.tick()` gives true), and `input()` scales the keys
+  and the joystick. Only the page knows the sneak walk: the server sees the speed of the input.
 - **Arrows** (`packages/engine/src/arrows.ts`): `ARROW_SPEED` (240), `ARROW_START` (6),
   `ARROW_RADIUS` (1.5: an arrow hits a mob whose centre is this close, plus the radius of the mob),
   steps of 4 px. `newArrow()` and `flyArrow()`. `World.shotBox()` is the solid part of a tile

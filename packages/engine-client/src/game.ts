@@ -6,7 +6,6 @@ import {
   Companions,
   PLAIN_HP,
   Horde,
-  SNEAK_SPEED,
   MOB_STATS,
   NpcCrowd,
   Spoils,
@@ -32,7 +31,6 @@ import {
   npcFixture,
   attackHits,
   canAttack,
-  clampInput,
   createPlayer,
   facingAngle,
   resumePlace,
@@ -133,6 +131,7 @@ import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard, isFormField } from './input/keyboard.ts';
 import { Mouse } from './input/mouse.ts';
+import { SneakWalk } from './input/sneak-walk.ts';
 import { FixedStep } from './loop.ts';
 import { Buildings } from './render/buildings.ts';
 import { Camera } from './render/camera.ts';
@@ -951,23 +950,16 @@ async function run(options: GameOptions): Promise<void> {
     document.getElementById('stick')!,
     document.getElementById('stick-knob')!,
   );
-  // C turns the sneak walk on and off: the keys walk at SNEAK_SPEED (a small push of the joystick is slow anyway).
-  let sneakWalk = false;
+  // C turns the sneak walk on and off: the keys walk at SNEAK_SPEED (a small push of the joystick is slow
+  // anyway). An attack turns it off (input/sneak-walk.ts).
+  const sneakWalk = new SneakWalk();
   window.addEventListener('keydown', (event) => {
     if (event.code !== 'KeyC' || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
-    sneakWalk = !sneakWalk;
+    sneakWalk.toggle();
   });
-  const readInput = () => {
-    const keys = keyboard.vector();
-    const stick = joystick.vector();
-    const scale = sneakWalk ? SNEAK_SPEED : 1;
-    return clampInput({ x: (keys.x + stick.x) * scale, y: (keys.y + stick.y) * scale });
-  };
-  /**
-   * Whether the player sneaks on purpose: the sneak walk, a slow walk, or the crouch after one
-   * (PlayerView.crouched). Standing still also hides it from mobs, but not on purpose.
-   */
-  const sneakingShown = () => isSneaking(player) && (sneakWalk || Math.hypot(player.vx, player.vy) > 1 || playerView.crouched);
+  const readInput = () => sneakWalk.input(keyboard.vector(), joystick.vector());
+  /** Whether the player sneaks on purpose (SneakWalk.shown()). */
+  const sneakingShown = () => sneakWalk.shown(player, playerView.crouched);
 
   const hud = new Hud(params.has('debug'));
   // A deploy publishes a new build: the page reloads itself at a calm moment (in the loop below),
@@ -1740,13 +1732,15 @@ async function run(options: GameOptions): Promise<void> {
     const waking = player.down === 1 && (!net || net.status !== 'online');
     if (net) {
       if (net.tick(input)) {
+        sneakWalk.attack();
         gameSounds.swing(traits.strike, traits.strike.twoHands);
         if (traits.ranged) ownArrows.push(newArrow(nextOwnArrow--, net.id ?? 0, player.x, player.y, player.aim, traits.range, traits));
         else touchMobs();
       }
       flyOwnArrows(TICK_SECONDS);
     } else if (stepPlayer(player, input, world.level(player.storey), traits)) {
-      // An attack starts: the sound of the weapon, and its blows on the horde.
+      // An attack starts: the end of the sneak walk, the sound of the weapon, and its blows on the horde.
+      sneakWalk.attack();
       gameSounds.swing(traits.strike, traits.strike.twoHands);
       if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
       else if (horde) {
@@ -2140,7 +2134,7 @@ async function run(options: GameOptions): Promise<void> {
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina}, stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
-      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, brace ${player.braceWindow}/${player.brace}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
+      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown}, brace ${player.braceWindow}/${player.brace}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk.on ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}`,
       `xp      ${xpNow()} (level ${traits.level}${traits.level < MAX_LEVEL ? `, next at ${LEVEL_XP[traits.level]}` : ''}), a kill gives its XP / ${xpDivisor}${net?.xp !== null && net?.xp !== undefined ? ' (server)' : ''}`,
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,

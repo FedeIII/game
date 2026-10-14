@@ -176,7 +176,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   cursor `ui/cursor` at the size of a world pixel, in its own layer above the text, without a
   filter).
 - `input/`: `keyboard.ts` (KeyboardEvent.code, so WASD works on any layout; keys typed into a
-  form field are ignored), `joystick.ts` (floating touch stick) and `mouse.ts` (the mouse over
+  form field are ignored), `joystick.ts` (floating touch stick), `sneak-walk.ts` (`SneakWalk`: the
+  sneak walk of C, which an attack ends) and `mouse.ts` (the mouse over
   `#game`: where it points, a left click on the world, which attacks towards it, and a right
   click, a dodge; over the world the system cursor hides (class `own-cursor`) and
   `render/cursor.ts` draws the game's).
@@ -703,7 +704,8 @@ builder and the character panel still name every gate.
   `EVADE_TICKS` 15, a look only, "evade" over it, in place of the spark of a glance). A roll or an attack
   breaks a brace; it costs nothing. Guards and companions never brace.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
-  turns the sneak walk on and off; a small push of the joystick). Mobs notice the player only
+  turns the sneak walk on and off, and an attack turns it off: `SneakWalk` in `input/sneak-walk.ts`,
+  Fede's decision of 2026-10-14; a small push of the joystick). Mobs notice the player only
   within their sight times `HordePlayer.sight`. On purpose (the sneak walk of C, or a slow walk; not
   just standing still) the figure crouches (the crouch and the sneak walk frames), the torch is
   smaller (96, others' 48) and the figure a little darker. A player that stops after a sneak walk
