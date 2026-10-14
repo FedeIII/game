@@ -6,16 +6,6 @@
 
 ## Open
 
-- **An attack ends the sneak** (2026-10-14). When a player attacks from the sneak stance, the player
-  must leave the sneak. Now the crouch stops only for the attack: the sneak walk of C (`sneakWalk`)
-  stays on, so after the attack the player crouches and walks at the sneak speed again.
-  Code: `sneakWalk`, the C key, `readInput()` and `sneakingShown()` in
-  `packages/engine-client/src/game.ts`; `PlayerView.crouched` and the crouch in `update()` in
-  `packages/engine-client/src/render/player-view.ts`; `isSneaking()` in `packages/engine/src/player.ts`
-  (a player that stands still also sneaks for the mobs); `others.ts` (the crouch of the other players).
-  Ask Fede: does the slow walk (a small push of the joystick) also leave the sneak after an attack, or
-  only the sneak walk of C? Does the player stand up from the crouch after the attack?
-
 - **The player always faces the mouse** (2026-10-14). The player must always face in the direction of
   the mouse pointer. Now the player faces the way that it walks (`facingFor()`), and it faces the mouse
   only for an attack (a left click) and a brace (`facingOfAngle(move.attack)`, `player.aim`).
@@ -218,3 +208,7 @@
   (at least 0.3 s), and it gives no sure evade: a mob's attack in it rolls against AC + 2 + the DEX
   modifier, at least + 1 (Fede's choice); a miss keeps the brace and shows the evade as a look only.
   Done 2026-10-14, commit `ee9e054`.
+
+- **An attack ends the sneak** (2026-10-14). An attack now turns the sneak walk of C off, and the
+  player stands up after it; a small push of the joystick still sneaks (Fede's choices). Done
+  2026-10-14, commit `20a3f97`.
