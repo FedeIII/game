@@ -74,9 +74,21 @@
   `INSIGHT_GATE`, `KEEN_GATE`, `ATHLETICS_GATE`, `PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`;
   `READ_FOE_GATE`, `READ_OPENING_GATE`, `HOMEWARD_GATE`, `REPUTATION_GATE` and the map gates in
   `packages/engine-client/src/ui/gates.ts`; the plan in `docs/drafts/abilities.md`.
-  Ask Fede: is a DC still a fixed score with no die (Fede's rule now), or a roll of d20 + the
-  modifier against the DC, as in 5e? Which scale of difficulty (for example easy 11, medium 13, hard
-  15), and which actions are easy or hard?
+  Fede's reference (2026-10-15), the DCs of 5e:
+
+  | DC | Difficulty        | Typical use                                                |
+  | -- | ----------------- | ---------------------------------------------------------- |
+  | 5  | Very easy         | Almost anyone succeeds; often don’t roll                   |
+  | 10 | Easy              | Routine for a trained character                            |
+  | 15 | Medium            | Requires focus or competence; the default meaningful check |
+  | 20 | Hard              | Skilled characters can still fail                          |
+  | 25 | Very hard         | Requires exceptional skill, luck, or help                  |
+  | 30 | Nearly impossible | Legendary feat; use sparingly                              |
+
+  Ask Fede, when the work on this item starts: how does this table go into the game? The DCs of the
+  table are for a roll of d20 + the modifier, and a gate now is a score with no die (Fede's rule):
+  keep the scores and give each difficulty a score, or roll a d20 against the DC? Which actions are
+  easy, medium or hard?
 
 ## Done
 
