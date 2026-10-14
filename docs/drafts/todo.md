@@ -6,6 +6,22 @@
 
 ## Open
 
+- **A new step back for each brace** (2026-10-14). An attack ends the brace (as now), and only a new
+  step back braces again: the player must let the step back go and press it again after the attack. A
+  step back that the player holds through the attack must not brace at its end. Now it does
+  (AC-CMB-013.1: "A step back that was held through the attack counts at its end."), so a player who
+  holds the step back and attacks again and again braces after each attack.
+  Code: `stepPlayer()` (the attack branch sets `braceWindow` at the end of a melee attack; `window`,
+  `movesBack()`, `player.brace = BRACE_TICKS`), `BRACE_WINDOW_TICKS`, `BRACE_TICKS`, `BRACE_BACK` and
+  `PlayerState.braceWindow` in `packages/engine/src/player.ts` (the server repeats the step, so a new
+  state for "released" goes into `WireSelf` for the prediction: a protocol change,
+  `docs/multiplayer.md`); `packages/engine/test/brace.test.ts`; REQ-CMB-013 in
+  `docs/features/game/combat.md`; the tip `brace` in `ui/strings.ts` and `ui/strings-es.ts`.
+  Ask Fede: can the release come during the attack (and then the new press in the 0.15 s window after
+  it), or must the release and the new press both come after the attack? Is the window of 0.15 s
+  (`BRACE_WINDOW_TICKS` 9) long enough for a release and a new press? On a touch screen, is a release
+  the joystick back to the centre, or also a move to the side?
+
 - **The player always faces the mouse** (2026-10-14). The player must always face in the direction of
   the mouse pointer. Now the player faces the way that it walks (`facingFor()`), and it faces the mouse
   only for an attack (a left click) and a brace (`facingOfAngle(move.attack)`, `player.aim`).
@@ -71,22 +87,6 @@
   Ask Fede: which variants: the wall and roof styles, the floors, windows and chimneys, other shapes
   (not only a rectangle), the furniture? Do the variants follow the land (the forest of the
   Sovereignty, the wildlands)?
-
-- **A new step back for each brace** (2026-10-14). An attack ends the brace (as now), and only a new
-  step back braces again: the player must let the step back go and press it again after the attack. A
-  step back that the player holds through the attack must not brace at its end. Now it does
-  (AC-CMB-013.1: "A step back that was held through the attack counts at its end."), so a player who
-  holds the step back and attacks again and again braces after each attack.
-  Code: `stepPlayer()` (the attack branch sets `braceWindow` at the end of a melee attack; `window`,
-  `movesBack()`, `player.brace = BRACE_TICKS`), `BRACE_WINDOW_TICKS`, `BRACE_TICKS`, `BRACE_BACK` and
-  `PlayerState.braceWindow` in `packages/engine/src/player.ts` (the server repeats the step, so a new
-  state for "released" goes into `WireSelf` for the prediction: a protocol change,
-  `docs/multiplayer.md`); `packages/engine/test/brace.test.ts`; REQ-CMB-013 in
-  `docs/features/game/combat.md`; the tip `brace` in `ui/strings.ts` and `ui/strings-es.ts`.
-  Ask Fede: can the release come during the attack (and then the new press in the 0.15 s window after
-  it), or must the release and the new press both come after the attack? Is the window of 0.15 s
-  (`BRACE_WINDOW_TICKS` 9) long enough for a release and a new press? On a touch screen, is a release
-  the joystick back to the centre, or also a move to the side?
 
 ## Done
 
