@@ -16,6 +16,19 @@
   `packages/engine-client/src/style.css`; used in `ui/you-section.ts` and `menu/builder.ts`
   (`.builder-traits`).
 
+- **Sections in the journal: quests, hints, regions** (2026-10-14). The journal must have three
+  sections: the quests, the hints and the regions. Now it shows only the quests, in two parts: the open
+  quests and the finished quests.
+  Code: `JournalPanel` and `journalEntries()` in `packages/engine-client/src/ui/journal-panel.ts`; the
+  texts in `STRINGS.journal` (`ui/strings.ts`, `ui/strings-es.ts`); the styles `.journal-*` in
+  `packages/engine-client/src/style.css`. Possible sources: for the hints, the tips of the tutorial
+  (`ui/tips.ts`, `TipStore`) and the lore (`Interaction.lore`); for the regions, the lands
+  (`WorldSource.lands()`, `LandCrossings` in `render/place-titles.ts`), the places with a title
+  (`WorldSource.placeTitles()`) and the landmarks (`WorldSource.landmarks()`).
+  Ask Fede: what goes into "hints" (the tips already seen, clues from NPCs and books, or other)? What
+  goes into "regions" (the lands and places that the character found, with a line about each)? Does the
+  server keep them, as it keeps the quest book?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
