@@ -30,6 +30,7 @@ import {
   type GuardDef,
   type SceneDef,
   type Land,
+  type NamedPlace,
   type PlaceTitle,
   type QuestEffect,
   type SoundArea,
@@ -45,7 +46,7 @@ import { GOBLINS_MET, ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_L
 import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
 import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
-import { RUINS, RUIN_NPCS } from './ruins.ts';
+import { HALE, MARROW, RUINS, RUIN_NPCS, TANNER } from './ruins.ts';
 import { SILVERSPRING, SILVERSPRING_NAME_SIGN, SILVERSPRING_NPCS } from './silverspring.ts';
 import { IRONHOLD, TOWN_CACHE, TOWN_NAME_SIGN, TOWN_NPCS, TOWN_SCENES } from './town.ts';
 import { Plot, type Town } from './towns.ts';
@@ -243,13 +244,30 @@ export const LANDS: readonly Land[] = [
   {
     id: 'mithril-enclave',
     title: 'Mithril Enclave',
+    line: 'The northernmost of the Central Dominions, under the mountains. Its capital, Great Bwini, is ruled from a great temple, and its people know arcane and divine magic.',
     x0: SILVERSPRING.x0 - ENCLAVE_REACH,
     y0: SILVERSPRING.y0 - ENCLAVE_REACH,
     x1: SILVERSPRING.x1 + ENCLAVE_REACH,
     y1: SILVERSPRING.y1 + ENCLAVE_REACH,
   },
-  { id: 'iron-sovereignty', title: 'Iron Sovereignty', x0: -Infinity, y0: FOREST_EDGE_Y, x1: Infinity, y1: Infinity },
-  { id: 'wildlands', title: 'The Wildlands', x0: -Infinity, y0: -Infinity, x1: Infinity, y1: Infinity },
+  {
+    id: 'iron-sovereignty',
+    title: 'Iron Sovereignty',
+    line: 'The Central Dominion of the south-west, on the shore of the Great Sea Ápeiron. Its capital is Iron Bay, a port and a republic of guilds. It knows mining, metalwork and engineering.',
+    x0: -Infinity,
+    y0: FOREST_EDGE_Y,
+    x1: Infinity,
+    y1: Infinity,
+  },
+  {
+    id: 'wildlands',
+    title: 'The Wildlands',
+    line: 'The land between the Iron Sovereignty and the Mithril Enclave. Nobody rules it. Both dominions want it, and neither plays fair.',
+    x0: -Infinity,
+    y0: -Infinity,
+    x1: Infinity,
+    y1: Infinity,
+  },
 ];
 
 /** No house of the wilds stands this close to a town (tiles), and mobs do not live this close to it. */
@@ -827,6 +845,39 @@ export class WildsSource implements WorldSource {
   /** The lands whose names show over the screen at each crossing: LANDS. */
   lands(): readonly Land[] {
     return LANDS;
+  }
+
+  /**
+   * The places of the journal's regions (Fede's request, 2026-10-14), from the south to the north, each
+   * with a line: what a character of Kandrax knows of it (docs/story/world.md).
+   */
+  places(): readonly NamedPlace[] {
+    const home = this.home();
+    const at = (r: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }) => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 });
+    return [
+      { id: 'home', name: 'Home', line: 'My hut in the forest, at the northern edge of the Iron Sovereignty. My bed is here: I rest in it.', ...at(home) },
+      { id: 'whitegrove', name: WHITEGROVE.name, line: 'A hamlet of the Iron Sovereignty on the road north: a farm with a stall at the market, and a small shrine.', ...at(WHITEGROVE) },
+      { id: 'bronzehold', name: BRONZEHOLD.name, line: 'A village of the Iron Sovereignty, west of a lake. Soldiers of the Sovereignty keep a guard post on its lane.', ...at(BRONZEHOLD) },
+      {
+        id: 'ironhold',
+        name: IRONHOLD.name,
+        line: 'The last town of the Iron Sovereignty before the wildlands, inside a palisade of logs. The reeve keeps the town hall, and the town has no soldiers of its own.',
+        ...at(IRONHOLD),
+      },
+      { id: 'hale', name: 'The Hale homestead', line: 'A homestead north of Ironhold, burned to the ground.', ...at(HALE) },
+      { id: 'tanner', name: 'The Tanner homestead', line: 'A homestead north-west of Ironhold, burned to the ground.', ...at(TANNER) },
+      { id: 'marrow', name: 'The Marrow homestead', line: 'A homestead east of the Hale homestead, burned to the ground.', ...at(MARROW) },
+      { id: 'camp', name: 'The camp of the war band', line: 'Tents and a fire in the hills off the north road. It stinks of wet fur and smoke.', ...at(CAMP) },
+      { id: 'wren', name: 'The Wren homestead', line: 'A farmhouse by the pool of the Silvervein, whole and lived in.', ...at(WREN) },
+      { id: 'shrine', name: 'The shrine of Tigris', line: 'Standing stones and an altar at the pool of the Silvervein. Tigris is the goddess of the rivers.', ...at(SHRINE_RECT) },
+      { id: 'seekers', name: 'The camp of the Seekers', line: 'A camp in the hills, at the east end of a burned trail.', ...at(SEEKER_CAMP) },
+      {
+        id: 'silverspring',
+        name: SILVERSPRING.name,
+        line: 'The mithril village of the Mithril Enclave, its last village before the wildlands. Its people pan mithril from the Silvervein.',
+        ...at(SILVERSPRING),
+      },
+    ];
   }
 
   /** The named places for the map: the home, Ironhold and its chapel, Silverspring, and the two hamlets with the shrine of Whitegrove. */

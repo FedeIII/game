@@ -150,13 +150,17 @@ const EN = {
     note: 'What you have seen of the land.',
     alone: 'Played alone: the map is not saved.',
   },
-  /** The journal (ui/journal-panel.ts): the quests of the character, and the banner when one changes. */
+  /** The journal (ui/journal-panel.ts): the quests, the tips and the regions of the character, and the banner when a quest changes. */
   journal: {
     button: 'Journal',
     heading: 'Journal',
-    open: 'Quests',
+    tabsLabel: 'Parts of the journal',
+    tabs: { quests: 'Quests', tips: 'Tips', regions: 'Regions' },
+    open: 'To do',
     done: 'Done',
     empty: 'Nothing to do yet. Read what lies about, and talk to people.',
+    noTips: 'No tips yet. A tip shows the first time that you can do a thing.',
+    noRegions: 'You have not found a land or a place yet.',
     alone: 'Played alone: the journal is not saved.',
     started: 'New quest',
     moved: 'Quest updated',

@@ -708,18 +708,28 @@ body:has(#pack-button):has(#map-button):has(#journal-button) #worlds-button {
   box-shadow: 0 0 12px var(--ui-accent-glow);
 }
 
-/* The title, the quests, and the line under them at the bottom (as for the map). */
+/* The title, the tabs, the content of a tab, and the line under them at the bottom (as for the map). */
 #journal {
   display: flex;
   flex-direction: column;
 }
 
-/* The open quests and the done quests: side by side on a wide screen, in the middle of the panel. */
+/* Quests, Tips, Regions: in the middle, under the title. */
+.journal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+
+/* The parts of a tab (the open and the done quests, the lands): side by side on a wide screen, in the middle of the panel; at the top, one under the other, on a narrow one. */
 .journal-list {
   flex: 1 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 420px));
   justify-content: center;
+  align-content: start;
   align-items: start;
   column-gap: 56px;
 }
@@ -747,6 +757,23 @@ body:has(#pack-button):has(#map-button):has(#journal-button) #worlds-button {
 
 .journal-entry.done {
   color: var(--ui-ink-faint);
+}
+
+/* The line about a land, under its name (the regions): softer than the places, but easy to read. */
+.journal-about {
+  margin: 0 0 10px;
+  font-style: italic;
+  color: var(--ui-ink);
+  opacity: 0.72;
+}
+
+/* The tips: one column, a little air between them. */
+.journal-list[data-tab='tips'] {
+  grid-template-columns: minmax(min(100%, 280px), 560px);
+}
+
+.journal-entry.tip .journal-line {
+  margin: 0;
 }
 
 .journal-empty {
@@ -2138,7 +2165,9 @@ body.conversing #link-card {
   display: none;
 }
 
-.shop-tab {
+/* The tabs of a shop and of the journal (ui/journal-panel.ts). */
+.shop-tab,
+.journal-tab {
   min-width: 84px;
   min-height: 34px;
   padding: 5px 14px;
@@ -2151,11 +2180,14 @@ body.conversing #link-card {
 }
 
 .shop-tab:hover,
-.shop-tab:focus-visible {
+.shop-tab:focus-visible,
+.journal-tab:hover,
+.journal-tab:focus-visible {
   border-color: var(--ui-accent);
 }
 
-.shop-tab[aria-selected='true'] {
+.shop-tab[aria-selected='true'],
+.journal-tab[aria-selected='true'] {
   border-color: var(--ui-accent);
   background: rgb(154 58 54 / 0.18);
   box-shadow: 0 0 10px var(--ui-accent-glow);

@@ -85,11 +85,27 @@ me only when I want them.
 
 ---
 
+### REQ-TIP-004: The tips in the journal
+
+**User Story:** As a player, I want to read a tip again after it went, so that I can learn a control
+that I forgot.
+
+**Acceptance Criteria:**
+- **AC-TIP-004.1:** The tab "Tips" of the journal (`docs/features/game/quests.md`, AC-QST-004.4) shows
+  every seen tip, in the order of the table of AC-TIP-001.1, with its text for a keyboard or for a touch
+  screen, and its keys as plates (as on the screen).
+- **AC-TIP-004.2:** A tip that becomes seen shows in the tab at once. "Show all tips again" empties
+  the tab.
+
+---
+
 ## Feature Behavior & Rules
 
 - **The code**: `packages/engine-client/src/ui/tips.ts`: `TIP_IDS`, `TIP_TIMING`, `TipStore` (the
   browser's store), `TipQueue` (one at a time, `request`, `done`, `update`), `tipText()`,
-  `tipParts()`, `TipView` (`#tip`), `tipsControls()` (the switch). The texts: `STRINGS.tips`.
+  `tipParts()`, `tipNodes()` (the keys as plates, also for the journal), `TipView` (`#tip`),
+  `tipsControls()` (the switch). The texts: `STRINGS.tips`. The journal's tab: `journalTips()` in
+  `ui/journal-panel.ts`.
 - **The hooks** (`game.ts`): `updateTips()` in the frame loop (after the target), the start of a quest
   (`questsChanged`), and the actions (`act`, `pickup`, `rest`).
 - **The look**: `#tip`, `.tip-label`, `.tip-key`, `.tips-controls` in `style.css`.

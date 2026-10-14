@@ -876,7 +876,10 @@ can apply. **The server owns the book**: `Room.quest()` checks the nearness, the
 conditions and the effect, then changes the book and the pack; the store saves both at once
 (`setQuests()`, column `quests`). The book goes to its own player only (`qs`, protocol 23). In a
 world that the page runs, the page keeps its own book (not saved). The page: the journal
-(`ui/journal-panel.ts`, a button left of the map and the key L), a banner when a quest starts,
+(`ui/journal-panel.ts`, a button left of the map and the key L; three tabs since 2026-10-14, Fede's
+request: "Quests", "Tips" (the tips that this browser showed, `TipStore`) and "Regions" (the lands and
+places that the character has seen, from its seen chunks: `Land.line` and `WorldSource.places()`, a
+`NamedPlace` with a line; `docs/features/game/quests.md`, REQ-QST-004)), a banner when a quest starts,
 moves on or ends (`render/quest-banner.ts`), and gold marks on the map. **When you add a quest:**
 its effects and conditions must name its steps (`worlds/wilds/test/story.test.ts` checks every
 effect and condition of the content), its texts need Spanish forms (title and journal lines too),

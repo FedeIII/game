@@ -133,6 +133,30 @@ a quarter of the houses with a chest are barred (STR 13), a third of the other c
 | **The camp of the Seekers** | `228..243, -106..-95`, at the east end of the trail | The camp of the Ashen Seekers. Sela is tied to its post (`240, -98`). |
 | **The shrine of Tigris** | `189..202, -119..-110`, at the pool | Standing stones and an altar (`195, -110`). The wave stone opens the altar. |
 
+### The regions of the journal
+
+The tab "Regions" of the journal (since 2026-10-14) shows each land and place that a character has
+seen, with a line: what a character of Kandrax knows of it (`LANDS` and `WildsSource.places()` in
+`worlds/wilds/src/source.ts`; the Spanish forms in `text-es.ts`).
+
+| Land or place | The line |
+|---|---|
+| The Iron Sovereignty | The Central Dominion of the south-west, on the shore of the Great Sea Ápeiron. Its capital is Iron Bay, a port and a republic of guilds. It knows mining, metalwork and engineering. |
+| Home | My hut in the forest, at the northern edge of the Iron Sovereignty. My bed is here: I rest in it. |
+| Whitegrove | A hamlet of the Iron Sovereignty on the road north: a farm with a stall at the market, and a small shrine. |
+| Bronzehold | A village of the Iron Sovereignty, west of a lake. Soldiers of the Sovereignty keep a guard post on its lane. |
+| Ironhold | The last town of the Iron Sovereignty before the wildlands, inside a palisade of logs. The reeve keeps the town hall, and the town has no soldiers of its own. |
+| The Wildlands | The land between the Iron Sovereignty and the Mithril Enclave. Nobody rules it. Both dominions want it, and neither plays fair. |
+| The Hale homestead | A homestead north of Ironhold, burned to the ground. |
+| The Tanner homestead | A homestead north-west of Ironhold, burned to the ground. |
+| The Marrow homestead | A homestead east of the Hale homestead, burned to the ground. |
+| The camp of the war band | Tents and a fire in the hills off the north road. It stinks of wet fur and smoke. |
+| The Wren homestead | A farmhouse by the pool of the Silvervein, whole and lived in. |
+| The shrine of Tigris | Standing stones and an altar at the pool of the Silvervein. Tigris is the goddess of the rivers. |
+| The camp of the Seekers | A camp in the hills, at the east end of a burned trail. |
+| The Mithril Enclave | The northernmost of the Central Dominions, under the mountains. Its capital, Great Bwini, is ruled from a great temple, and its people know arcane and divine magic. |
+| Silverspring | The mithril village of the Mithril Enclave, its last village before the wildlands. Its people pan mithril from the Silvervein. |
+
 ### Refuges
 
 A character that falls (0 HP) wakes at its home, or at the nearest refuge that it has entered:

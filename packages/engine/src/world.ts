@@ -134,6 +134,8 @@ export interface WorldSource {
   placeTitles?(): readonly PlaceTitle[];
   /** The lands of the world, whose name shows over the screen when a player crosses into one (the page). Without it, none. */
   lands?(): readonly Land[];
+  /** The places of the journal's regions, with a line about each (the page). Without it, none. */
+  places?(): readonly NamedPlace[];
 }
 
 /**
@@ -145,6 +147,8 @@ export interface Land {
   readonly id: string;
   /** The name, in the world's English: the page translates it. */
   readonly title: string;
+  /** A line about the land for the journal's regions (the page), in the world's English. Without it, the journal shows only its name. */
+  readonly line?: string;
   /** Tiles, inclusive. A side can be infinite (-Infinity or Infinity): a land without an end there. */
   readonly x0: number;
   readonly y0: number;
@@ -155,6 +159,23 @@ export interface Land {
 /** The land that holds a tile: the first of the list, or null. */
 export function landAt(lands: readonly Land[], tx: number, ty: number): Land | null {
   return lands.find((land) => tx >= land.x0 && tx <= land.x1 && ty >= land.y0 && ty <= land.y1) ?? null;
+}
+
+/**
+ * A place of the journal's regions (Fede's request, 2026-10-14): a settlement, the home, a ruin, a camp.
+ * A character finds it when it has seen a tile of it (a seen chunk, as on the map). The journal shows it
+ * under the land of its middle tile.
+ */
+export interface NamedPlace {
+  readonly id: string;
+  /** The name and a line about the place, in the world's English: the page translates them. */
+  readonly name: string;
+  readonly line: string;
+  /** Tiles, inclusive. */
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
 }
 
 /**

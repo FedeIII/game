@@ -89,17 +89,33 @@ that a conversation follows the story.
 
 ### REQ-QST-004: The journal
 
-**User Story:** As a player, I want to read what my character must do, so that I know where to go.
+**User Story:** As a player, I want to read what my character must do, the tips that I saw, and what I
+know of the lands that I found, so that I know where to go and how to play.
 
 **Acceptance Criteria:**
 - **AC-QST-004.1:** A button at the top right, left of the map, and the key L open the journal
   ("Diario" in Spanish). Esc closes it.
-- **AC-QST-004.2:** The journal shows the open quests under "Quests" and the done quests under
-  "Done", the last changed first: the title of each quest, and the line of its step. Without
-  quests: "Nothing to do yet. Read what lies about, and talk to people."
-- **AC-QST-004.3:** When a quest starts, moves on or ends, the journal's button shines until the
-  journal opens.
-- **AC-QST-004.4:** The journal button shows only in a world with quests.
+- **AC-QST-004.2:** The journal has three tabs (Fede's request, 2026-10-14): "Quests", "Tips" and
+  "Regions" ("Misiones", "Consejos", "Regiones"). One tab shows at a time; the first is "Quests". A
+  click or a tap on a tab shows it, and the focus goes back to the game.
+- **AC-QST-004.3:** "Quests" shows the open quests under "To do" and the done quests under "Done", the
+  last changed first: the title of each quest, and the line of its step. Without quests: "Nothing to do
+  yet. Read what lies about, and talk to people."
+- **AC-QST-004.4:** "Tips" shows the tips of the tutorial that the player has seen (REQ-TIP-004 of
+  `tips.md`), in the order of a new player's first minutes, with the keys on a keyboard and with the
+  buttons on a touch screen. A tip counts as seen when it showed, or when the player did its thing
+  first. The browser keeps them (as the tips), so "Show all tips again" empties the tab until the tips
+  show again. Without one: "No tips yet. A tip shows the first time that you can do a thing."
+- **AC-QST-004.5:** "Regions" shows the lands and the places that the character has seen: a land or a
+  place is found when a chunk that the character has seen (as on the map,
+  `docs/features/abilities/intelligence.md`, REQ-INT-007) holds a tile of it. Each land shows its name
+  and a line about it, then its found places, each with its name and a line; a place goes under the
+  land of its middle tile. The lands come in the order of their first place (from the south to the
+  north). The server keeps the seen chunks, so no new data is kept. Without one: "You have not found a
+  land or a place yet."
+- **AC-QST-004.6:** When a quest starts, moves on or ends, the journal's button shines until the
+  journal opens; then the journal shows "Quests".
+- **AC-QST-004.7:** The journal button shows only in a world with quests.
 
 ---
 
@@ -608,10 +624,17 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
 - **The page** (`packages/engine-client/src`): `game.ts` (`questsNow()`, `holdsNow()`, `applyQuest()`;
   `PENDING_QUEST_MS` 3000: the book as it will be after an effect that went to the server),
   `net/session.ts` (`quests`, `onQuests()`, `quest()`), `ui/conversation.ts` (`ConversationFacts`,
-  `Conversation.give()`, `ConversationPanel.refresh()`), `ui/journal-panel.ts` (`JournalPanel`,
-  `journalEntries()`, `questMarks()`), `render/quest-banner.ts` (`QuestBanner`, `BANNER_TIMING`),
+  `Conversation.give()`, `ConversationPanel.refresh()`), `ui/journal-panel.ts` (`JournalPanel` with
+  `JOURNAL_TABS`, `update()` for the book and `follow()` for the seen chunks and the touch screen;
+  `journalEntries()`, `journalTips()`, `chunkLands()`, `regionEntries()`, `questMarks()`), `render/quest-banner.ts` (`QuestBanner`, `BANNER_TIMING`),
   `ui/map-panel.ts` (`setMarks()`), `STRINGS.journal`. The debug panel (`?debug`) has a line
   `quests`.
+- **The regions** (since 2026-10-14): `Land.line` and `WorldSource.places()` (`NamedPlace`: `id`, `name`,
+  `line` and a rectangle of tiles) in `packages/engine/src/world.ts`; the Wilds give a line to each land
+  of `LANDS` and the places in `WildsSource.places()` (`worlds/wilds/src/source.ts`): the home,
+  Whitegrove, Bronzehold, Ironhold, the Hale, Tanner and Marrow homesteads, the camp of the war band,
+  the Wren homestead, the shrine of Tigris, the camp of the Seekers and Silverspring, with their Spanish
+  forms in `text-es.ts`. The page: `.journal-tabs`, `.journal-tab`, `.journal-about` in `style.css`.
 - **The Wilds** (`worlds/wilds/src/quests.ts`): `ASHES` (steps `letter`, `reeve`, `ruin1`, `ruin2`,
   `ruins`, `symbol`, and the later steps of phases 7 to 10, which end at `gave`, `refused` or `lied`), `CART` (`met`, `lever`, `lent`, `done`),
   `ROAD`, `LENTILS`, `QUESTS`, the effects `READ_LETTER`, `ROAD_ARRIVED`, `START_ASHES`, `TELL_REEVE`,
@@ -731,6 +754,8 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `gave`, `refused`, `lied` (the old step `found` is gone); the effects `DREAM_GIVE`, `DREAM_REFUSE`,
   `DREAM_LIE`; `ownedPack()` and `unwearFor()` (`inventory.ts`) in `Room.quest()` and in the page.
 - **Tests**: `packages/engine/test/quests.test.ts`, `packages/engine/test/dialog.test.ts`,
-  `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`,
+  `packages/engine-client/src/ui/conversation.test.ts`, `packages/engine-client/src/ui/journal-panel.test.ts`
+  (the quests, the tips and the regions of the journal), `worlds/wilds/test/lands.test.ts` (the lines
+  of the lands, and the places of the regions in their lands),
   `packages/engine-server/test/accounts.test.ts`, `worlds/wilds/test/story.test.ts` (every effect and
   condition of the content, the cart, the letter, both ways to fix the cart, the book on the wire).

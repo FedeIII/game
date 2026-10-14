@@ -1225,7 +1225,10 @@ async function run(options: GameOptions): Promise<void> {
   let talkFace: Texture | null = null;
   let talkAnchor = (): { x: number; y: number } => ({ x: shown.x, y: shown.y });
   // The journal (a panel of the quests), the banner when a quest changes, and the marks of the map.
-  const journal = quests.length > 0 ? new JournalPanel(quests, net && character ? null : STRINGS.journal.alone) : null;
+  const journal =
+    quests.length > 0
+      ? new JournalPanel(quests, net && character ? null : STRINGS.journal.alone, { tips: tipStore, lands: world.source.lands?.() ?? [], places: world.source.places?.() ?? [] })
+      : null;
   const banner = new QuestBanner(font);
   textScene.addChild(banner.root);
   fixtures.setHolds(holdsNow);
@@ -2029,7 +2032,9 @@ async function run(options: GameOptions): Promise<void> {
       mapPanel.setMarks(questMarks(book, quests, (id) => npcDefs.find((def) => def.id === id)?.home ?? null));
       conversation.refresh();
     }
-    mapPanel.update(now, player.x, player.y, net && net.explored.size > 0 ? net.explored : localExplored);
+    const explored = net && net.explored.size > 0 ? net.explored : localExplored;
+    mapPanel.update(now, player.x, player.y, explored);
+    journal?.follow(explored, joystick.isTouchMode);
     packPanel.show(packNow(), gearNow(), traits);
     shopPanel.update();
     belt.show(packNow());

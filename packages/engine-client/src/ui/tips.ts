@@ -184,8 +184,8 @@ export function tipParts(text: string): { readonly key: boolean; readonly text: 
   return parts;
 }
 
-/** A tip's text as nodes: a key as a small plate, the rest as text. */
-function tipNodes(text: string): (string | HTMLElement)[] {
+/** A tip's text as nodes: a key as a small plate, the rest as text (the tip on the screen, and the journal). */
+export function tipNodes(text: string): (string | HTMLElement)[] {
   return tipParts(text).map((part) => {
     if (!part.key) return part.text;
     const key = document.createElement('kbd');

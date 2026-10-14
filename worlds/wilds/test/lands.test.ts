@@ -76,4 +76,24 @@ describe('the lands of the Wilds', () => {
     }
     expect(seen).toEqual(['iron-sovereignty', 'wildlands', 'mithril-enclave']);
   });
+
+  it("give the journal's regions a line for each land, and the places from the south to the north, each inside one land", () => {
+    for (const land of lands) expect(land.line, land.id).toBeTruthy();
+    const places = source.places();
+    const landOfPlace = Object.fromEntries(places.map((place) => [place.id, cornerLands(place)]));
+    const sovereignty = ['home', 'whitegrove', 'bronzehold', 'ironhold'];
+    const wildlands = ['hale', 'tanner', 'marrow', 'camp', 'wren', 'shrine', 'seekers'];
+    expect(places.map((place) => place.id)).toEqual([...sovereignty, ...wildlands, 'silverspring']);
+    for (const id of sovereignty) expect(landOfPlace[id], id).toEqual(Array(4).fill('iron-sovereignty'));
+    for (const id of wildlands) expect(landOfPlace[id], id).toEqual(Array(4).fill('wildlands'));
+    expect(landOfPlace.silverspring).toEqual(Array(4).fill('mithril-enclave'));
+    // The home is the hut of the character.
+    const hut = source.home();
+    expect(places[0]).toMatchObject({ x0: hut.x0, y0: hut.y0, x1: hut.x1, y1: hut.y1 });
+    for (const place of places) {
+      expect(TEXTS_ES[place.name], place.name).toBeTruthy();
+      expect(TEXTS_ES[place.line], place.line).toBeTruthy();
+    }
+  });
 });
+
