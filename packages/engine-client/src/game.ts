@@ -1970,6 +1970,7 @@ async function run(options: GameOptions): Promise<void> {
     // No attack from shallow water (stepPlayer).
     attackButton?.setReady(player.stun === 0 && !inShallows(world, player.x, player.y));
     dodgeButton?.setReady(canDodge(player) && !inShallows(world, player.x, player.y));
+    dodgeButton?.setBraced(player.brace > 0);
     textScene.position.copyFrom(scene.position);
     textScene.scale.copyFrom(scene.scale);
     // While the player drags a stack from the pack, the icon under the pointer is the cursor.

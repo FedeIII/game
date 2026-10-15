@@ -66,7 +66,8 @@ blow of a mob with skill.
 - **AC-DEX-003.1:** Shift (left or right), the right mouse button on the world, or the dodge button
   asks for a roll. These controls are only in a world with mobs.
 - **AC-DEX-003.2:** The dodge button is round, left of the attack button, with the name "Roll" and
-  the key "Shift" on it. The keyboard hint says "Shift to roll".
+  the key "Shift" on it. The keyboard hint says "Shift to roll". In a brace its name is "Dodge"
+  ("Esquivar" in Spanish): there a dodge is a jump (AC-DEX-003.11a).
 - **AC-DEX-003.3:** The load of the character chooses the kind of roll ([Load](../items/load.md),
   REQ-LD-003; Fede's decisions, 2026-10-15). A light roll moves the player 36 px (2.25 tiles) in
   0.25 s (15 ticks), a medium roll 30 px in 15 ticks, a heavy roll 24 px in 0.3 s (18 ticks: as fast

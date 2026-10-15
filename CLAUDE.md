@@ -723,7 +723,8 @@ gets its tag with `gated()`.
   load"): a light roll 36 px in 15 ticks (0.25 s), safe in its first 12 (`inSafeRoll()`: no mob can
   hit then, `canBeHit`), for 30 stamina; walls stop it, a hit after the safe ticks ends it, and it does
   not start in shallow water (it ends there). Shift, the right mouse button or the dodge button
-  (`ui/dodge-button.ts`). In a brace a dodge is a jump (see "The brace").
+  (`ui/dodge-button.ts`; its name is "Roll", and "Dodge" in a brace: `setBraced()`). In a brace a dodge
+  is a jump (see "The brace").
 - **The load** (`load.ts`; 2026-10-15, Fede's decisions; `docs/features/items/load.md`): what the worn
   items, the pack and the coins weigh (`loadOf()`), against `PlayerTraits.carry` (15 x STR lb, 5e).
   Four tiers (`loadTier()`): light up to 5 x STR, medium up to 10 x STR, heavy up to 15 x STR,

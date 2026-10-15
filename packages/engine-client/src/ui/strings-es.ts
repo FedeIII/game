@@ -11,6 +11,7 @@ import type { Strings } from './strings.ts';
 export const ES: Strings = {
   attack: 'Atacar',
   dodge: 'Rodar',
+  dodgeInBrace: 'Esquivar',
   tips: {
     label: 'Consejo',
     heading: 'Consejos',

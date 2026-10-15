@@ -12,6 +12,8 @@ import { ES } from './strings-es.ts';
 const EN = {
   attack: 'Attack',
   dodge: 'Roll',
+  /** The name of the dodge button in a brace: there a dodge is a short jump (player.ts, JUMPS). */
+  dodgeInBrace: 'Dodge',
   /**
    * The tips of the tutorial (ui/tips.ts): "[E]" draws a key plate. `keys` is for a keyboard and a
    * mouse, `touch` for a touch screen.

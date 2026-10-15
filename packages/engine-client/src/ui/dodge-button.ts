@@ -6,13 +6,14 @@ const ROLL_ICON = `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="
 
 /**
  * The dodge button, left of the attack button, for a world with mobs: a roll the way the player
- * walks (or faces). Shift does the same on a keyboard, and the right mouse button on the world
- * (input/mouse.ts). A press asks for a dodge; the game starts it at the next tick in which the
- * player can dodge.
+ * walks (or faces); in a brace, a short jump. Shift does the same on a keyboard, and the right mouse
+ * button on the world (input/mouse.ts). A press asks for a dodge; the game starts it at the next tick
+ * in which the player can dodge. Its name is "Roll", and "Dodge" in a brace (setBraced).
  */
 export class DodgeButton {
   private readonly button: HTMLButtonElement;
   private readonly listeners: (() => void)[] = [];
+  private braced = false;
 
   constructor() {
     this.button = document.createElement('button');
@@ -34,6 +35,13 @@ export class DodgeButton {
 
   onPress(listener: () => void): void {
     this.listeners.push(listener);
+  }
+
+  /** Names the button for a brace ("Dodge": a dodge there is a jump) or out of one ("Roll"). */
+  setBraced(braced: boolean): void {
+    if (braced === this.braced) return;
+    this.braced = braced;
+    this.button.setAttribute('aria-label', braced ? STRINGS.dodgeInBrace : STRINGS.dodge);
   }
 
   /** Dims the button while the player cannot dodge (a stun, an attack, the time after a dodge, shallow water). */

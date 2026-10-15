@@ -387,6 +387,10 @@ I can move out of a blow and still stay in melee (Fede, 2026-10-15; near proposa
   other players see it.
 - **AC-CMB-015.9:** The list of controls says it under "Dodge": "In a brace: a short jump, and the brace
   goes on." ("En guardia: un salto corto, y la guardia sigue.").
+- **AC-CMB-015.10:** The name of the dodge button is "Dodge" ("Esquivar") while the character is in a
+  brace, and "Roll" ("Rodar") out of a brace (Fede, 2026-10-15; `DodgeButton.setBraced()`,
+  `STRINGS.dodgeInBrace`). The name is the label that a screen reader reads: the button shows an icon
+  and the key "Shift".
 
 ---
 
