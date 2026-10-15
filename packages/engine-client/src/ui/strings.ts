@@ -168,11 +168,10 @@ const EN = {
     moved: 'Quest updated',
     ended: 'Quest done',
   },
-  /** What the dice of a fight did (render/fight-numbers.ts): a miss, and a critical hit. */
+  /** The words of a fight (render/fight-numbers.ts). */
   fight: {
     /** A mob's attack that missed the player in its brace: the player evaded it (player.ts, missPlayer). */
     evade: 'evade',
-    crit: (n: number): string => `${n}!`,
   },
   /** The vitals (ui/vitals.ts): hit points, stamina, effects. */
   vitals: {

@@ -25,7 +25,7 @@ interface Number_ {
 
 /**
  * What the dice of a fight did (docs/drafts/level-3.md), as numbers that rise from a head and fade:
- * the damage of the player's blow over a mob ("7", "14!" for a critical hit), and the damage that the
+ * the damage of the player's blow over a mob ("7"; a critical hit in green, with no mark), and the damage that the
  * player takes (a miss shows no word: Fede, 2026-10-15); and the words of the mechanics of the sandbox. In the tiny font (Fede,
  * 2026-10-15: every text of a fight is smaller than a name), in the text layer (above the darkness).
  */

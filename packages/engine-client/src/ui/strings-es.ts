@@ -146,7 +146,6 @@ export const ES: Strings = {
   },
   fight: {
     evade: 'esquiva',
-    crit: (n: number): string => `${n}!`,
   },
   vitals: {
     hp: (hp: number, max: number): string => `${hp} de ${max} puntos de golpe`,

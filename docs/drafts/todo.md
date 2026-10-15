@@ -223,4 +223,5 @@
 
 - **A critical hit shows a box after its number** (2026-10-15). The texts of a fight now use a new tiny
   font (Fede's request of the same day), and it has a "!": a critical hit shows "14!". Done 2026-10-15,
-  commit `33df876`.
+  commit `33df876`. Later the same day the "!" went (Fede): the box and the "!" both looked like a third
+  digit ("140", "141"), so a critical hit seemed to do more than 100 damage. A critical hit is now its number in green.

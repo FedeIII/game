@@ -115,7 +115,8 @@ armour protects me.
 
 **Acceptance Criteria:**
 - **AC-CMB-006.1:** Over a mob that the player's blow hit, a number rises and fades in 0.9 s: the damage
-  ("7"), or a critical hit in green ("14!"). A blow that misses shows no word (Fede, 2026-10-15; before,
+  ("7"), or a critical hit in green ("14"), with no mark after it: a "!" looked like a third digit, "14!"
+  as "141" (Fede, 2026-10-15). A blow that misses shows no word (Fede, 2026-10-15; before,
   "miss", "fallo" in Spanish).
 - **AC-CMB-006.2:** Over the player: the damage that it takes in red, and the hit points that come back in
   green ("+7"). A mob's attack that glances off shows its spark and its sound, and no word.
@@ -126,7 +127,7 @@ armour protects me.
 - **AC-CMB-006.3:** The hit points show as a red bar with the numbers ("7 / 11").
 - **AC-CMB-006.4:** Every text of a fight over a player or a mob (the numbers, "evade", and the
   words of the mechanics of the sandbox) is in the tiny font: capitals and digits 4 px tall, smaller
-  than the names over the heads (5 px) (Fede, 2026-10-15). The "!" of a critical hit draws ("14!").
+  than the names over the heads (5 px) (Fede, 2026-10-15).
 
 ---
 

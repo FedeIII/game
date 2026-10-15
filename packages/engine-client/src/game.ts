@@ -1152,8 +1152,9 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     fightSignAt = now;
     gameSounds.blow(mob, damage, crit, player.x, player.y);
-    // A miss shows no word (Fede, 2026-10-15); a critical hit is green, as every good moment of the player.
-    if (damage > 0) fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.good : FIGHT_INK.blow, mob.x, mob.y - mobHead(mob.kind) - 4, now);
+    // A miss shows no word (Fede, 2026-10-15). A critical hit is green, as every good moment of the player, with
+    // no mark after it: a mark looked like a third digit ("14!" as "141"; Fede, 2026-10-15).
+    if (damage > 0) fightNumbers.show(String(damage), crit ? FIGHT_INK.good : FIGHT_INK.blow, mob.x, mob.y - mobHead(mob.kind) - 4, now);
   };
   net?.onBlows((list) => {
     for (const [id, damage, crit] of list) showBlow(id, damage, crit === 1);

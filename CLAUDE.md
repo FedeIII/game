@@ -177,7 +177,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
-  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "+7" for hit points back, no word for a miss; in the tiny font, as every text of a fight; green for a good moment of the player, red for what goes against it: `FIGHT_INK`), `piles.ts` (the items on the
+  of a fight did, as numbers that rise over a mob or the player: the damage, a critical hit in green with no mark, "+7" for hit points back, no word for a miss; in the tiny font, as every text of a fight; green for a good moment of the player, red for what goes against it: `FIGHT_INK`), `piles.ts` (the items on the
   ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, a gold spark now and then
   above the darkness, and a very faint shine now and then; a toss shows the items fly from the hands, or out of a
   mob, on an arc to their pile, with one small hop: `pile/<kind>/bare` depth-sorted in `entityLayer`, `pile/shadow`
@@ -424,7 +424,7 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _ + [ ]`; frames `smallfont/<char code>`;
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
   one; it is for the names over other players and the tag of a gate in a bubble. The tiny font
-  (`TINY_GLYPHS`: capitals and digits 4 px, space and `' - . + !`; frames `tinyfont/<char code>`; metrics
+  (`TINY_GLYPHS`: capitals and digits 4 px, space and `' - . +`; frames `tinyfont/<char code>`; metrics
   in `meta.tinyFont`; Fede, 2026-10-15) is for every text of a fight over a player or a mob. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
   (`ui/sign`), the emblems on a sign board in place of a name (`ui/emblem/<name>`: `chalice`, over
