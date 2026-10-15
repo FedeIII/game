@@ -180,6 +180,24 @@ player must put the foes in front of it (the draft, proposal 3: positioning).
 
 ---
 
+### REQ-SBX-010: 4. The flank
+
+**User Story:** As an admin, I want a jump to the side of a blow to give me the flank of the mob, so
+that I can test the rest of the sidestep (the draft, proposal 4: the jump from a brace is its move).
+
+**Acceptance Criteria:**
+- **AC-SBX-010.1:** With the switch "4. The flank", a mob aims its blow when its wind-up starts. When
+  the blow does not hit (a miss, or the character out of its reach) and the character is then more than
+  40 degrees off that aim, the character is at its flank: the word "flank" (Spanish "flanco") rises over
+  the mob in gold.
+- **AC-SBX-010.2:** A mob that a character flanks does not wind up again in its blow and for 0.4 s after
+  it (`TURN_MS`): it stands, and then faces the character.
+- **AC-SBX-010.3:** The next blow of a player on it in that time rolls with advantage and adds the INT
+  opening (as the riposte).
+- **AC-SBX-010.4:** A character in front of the mob (40 degrees or less off its aim) gives no flank.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -208,6 +226,9 @@ player must put the foes in front of it (the draft, proposal 3: positioning).
   `hurt` with no push), `RIPOSTE_MS` 400. The page draws no flash for a reel with an opening
   (`MobLook.exposed`).
 - **3. The front.** `inFront()` (`FRONT_ANGLE` 90 degrees from `PlayerState.aim`) in `Horde.defence()`.
+- **4. The flank.** The brain's `aim` (set when a wind-up starts) and `turnMs`; `atFlank()`
+  (`FLANK_ANGLE` 40 degrees), `TURN_MS` 400. The turn and the opening last the blow (`strikeMs`) and
+  `TURN_MS`.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

@@ -11,7 +11,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -24,9 +24,10 @@ export const NO_MECHANICS: Mechanics = new Set();
 /**
  * Something that a mechanic did in a fight, for the page to show (a word over the player or a mob):
  * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
- * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace).
+ * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
+ * mob that must turn to a player at its side (the flank).
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -87,4 +88,21 @@ export function inFront(px: number, py: number, aim: number, x: number, y: numbe
   const d = Math.hypot(dx, dy);
   if (d < 1) return true;
   return (dx * Math.cos(aim) + dy * Math.sin(aim)) / d >= Math.cos(angle) - 1e-9;
+}
+
+// ---------------------------------------------------------------- 4. the flank
+
+/**
+ * The flank (proposal 4, the sidestep: the jump from a brace is its move; this is the rest of it). A mob
+ * aims its blow when its wind-up starts. When its blow does not hit, and the player is then more than
+ * FLANK_ANGLE off that aim (a jump to the side in the wind-up), the player is at its flank: the mob must
+ * turn for TURN_MS before its next wind-up, and the next blow of the player on it, in its blow and its
+ * turn, rolls with advantage (the optional rule of 5e for flanking; Mob.exposed).
+ */
+export const FLANK_ANGLE = (40 * Math.PI) / 180;
+export const TURN_MS = 400;
+
+/** Whether a player at (x, y) is at the flank of a mob at (mx, my) that aims its blow at `aim` (radians). */
+export function atFlank(mx: number, my: number, aim: number, x: number, y: number): boolean {
+  return !inFront(mx, my, aim, x, y, FLANK_ANGLE);
 }

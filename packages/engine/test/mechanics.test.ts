@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   BRACE_TICKS,
   Horde,
+  MOB_STATS,
   NO_INPUT,
   RIPOSTE_MS,
   TICK_SECONDS,
+  TURN_MS,
   World,
+  atFlank,
   braceGrade,
   createPlayer,
   inFront,
@@ -229,5 +232,44 @@ describe('3. the front of a brace', () => {
     expect(inFront(0, 0, 0, 0, 10)).toBe(true);
     expect(inFront(0, 0, 0, -1, 10)).toBe(false);
     expect(inFront(0, 0, Math.PI, -10, 1)).toBe(true);
+  });
+});
+
+describe('4. the flank', () => {
+  it('a mob whose blow misses a player that jumped to its side must turn, and the next blow on it rolls with advantage', () => {
+    // The d20 of the mob shows 5: a miss.
+    const { horde, player, state, mob } = duel(['flank'], faces(5));
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    // A jump to the side in its wind-up: 16 px south, about 49 degrees off its aim.
+    state.y += 16;
+    const { hit, events } = blow(horde, player, mob);
+    expect(hit?.[2]).toBe(0);
+    expect(events).toEqual([{ kind: 'flank', mob: mob.id, player: 1 }]);
+    expect(mob.exposed).toBeGreaterThan(0);
+    // It does not wind up in its blow and its turn.
+    for (let t = 0; t < MOB_STATS.skirmisher.strikeMs + TURN_MS - 2 * TICK_MS; t += TICK_MS) {
+      horde.step(TICK_MS, [player]);
+      expect(mob.state).not.toBe('windup');
+    }
+  });
+
+  it('a player in front of the mob, or a mob without the switch, gives no flank', () => {
+    for (const [on, dy] of [
+      [['flank'], 0],
+      [[], 16],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(5));
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      state.y += dy;
+      expect(blow(horde, player, mob).events).toEqual([]);
+      expect(mob.exposed).toBeUndefined();
+    }
+  });
+
+  it('the flank is more than 40 degrees off the aim of the blow', () => {
+    expect(atFlank(0, 0, 0, 10, 0)).toBe(false);
+    expect(atFlank(0, 0, 0, 10, 8)).toBe(false);
+    expect(atFlank(0, 0, 0, 10, 9)).toBe(true);
+    expect(atFlank(0, 0, Math.PI, -14, 16)).toBe(true);
   });
 });

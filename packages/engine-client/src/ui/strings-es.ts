@@ -468,8 +468,12 @@ export const ES: Strings = {
         name: '3. El frente de la guardia',
         line: 'Una guardia solo cuenta contra un golpe que viene a menos de 90 grados de la dirección de tu golpe. Un golpe por el lado o por la espalda ("por detrás") tira contra tu CA normal.',
       },
+      flank: {
+        name: '4. El flanco',
+        line: 'Un enemigo apunta su golpe cuando empieza a cargarlo. Si su golpe no te da y estás a más de 40 grados de ese punto (un salto a un lado), tiene que girarse 0,4 s tras su golpe ("flanco"), y tu siguiente golpe contra él tira con ventaja.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

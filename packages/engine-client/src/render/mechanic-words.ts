@@ -16,4 +16,5 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   sharp: { over: 'player', ink: FIGHT_INK.crit },
   riposte: { over: 'mob', ink: FIGHT_INK.crit },
   behind: { over: 'player', ink: FIGHT_INK.miss },
+  flank: { over: 'mob', ink: FIGHT_INK.crit },
 };

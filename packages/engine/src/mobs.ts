@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, RIPOSTE_MS, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { NO_MECHANICS, RIPOSTE_MS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
@@ -1026,6 +1026,10 @@ interface Brain {
   steady: boolean;
   /** After its blow: it reels this long in place (ms), off balance, in place of its blow (the riposte, mechanics.ts); 0: no. */
   offBalanceMs: number;
+  /** The way of its blow (radians), from the start of its wind-up (the flank, mechanics.ts). */
+  aim: number;
+  /** The ms left in which it turns to a player at its flank: it does not wind up (the flank, mechanics.ts). */
+  turnMs: number;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1249,6 +1253,8 @@ export class Horde {
       holdMs: 0,
       steady: options.steady === true,
       offBalanceMs: 0,
+      aim: 0,
+      turnMs: 0,
     });
     return mob;
   }
@@ -1417,6 +1423,7 @@ export class Horde {
       if (brain.riteMs > 0) brain.riteMs -= dt;
       if (mob.burning !== undefined && (mob.burning -= dt) <= 0) delete mob.burning;
       if (mob.exposed !== undefined && (mob.exposed -= dt) <= 0) delete mob.exposed;
+      if (brain.turnMs > 0) brain.turnMs -= dt;
       switch (mob.state) {
         case 'idle':
         case 'walk':
@@ -1470,6 +1477,12 @@ export class Horde {
           // after a stun. Then its attack roll: a hit stuns and hurts; a miss glances off.
           const reached = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           brain.hit = reached && this.attack(mob, brain.target!, target!, players, hits);
+          // The flank: a blow that did not hit a player at its side; it must turn first.
+          if (!brain.hit && target && this.mechanics.has('flank') && atFlank(mob.x, mob.y, brain.aim, target.x, target.y)) {
+            brain.turnMs = stats.strikeMs + TURN_MS;
+            mob.exposed = Math.max(mob.exposed ?? 0, stats.strikeMs + TURN_MS);
+            this.event('flank', mob, brain.target!);
+          }
           if (brain.offBalanceMs > 0) {
             // Off balance (a riposte): it reels in place, and its blow is over.
             this.stagger(mob, brain, brain.offBalanceMs);
@@ -2115,10 +2128,19 @@ export class Horde {
         brain.anchorX = mob.x;
         brain.anchorY = mob.y;
       }
-      if (wait <= 0 && d <= stats.reach) {
+      if (wait <= 0 && d <= stats.reach && brain.turnMs <= 0) {
         this.enter(mob, 'windup');
         mob.facing = facingTo(dx, dy, mob.facing);
         brain.timerMs = stats.windupMs;
+        // It aims its blow now (the flank).
+        brain.aim = Math.atan2(dy, dx);
+        return;
+      }
+      if (brain.turnMs > 0 && d <= stats.harass[1]) {
+        // It turns to a player at its flank: it stands, and then faces it.
+        mob.vx = 0;
+        mob.vy = 0;
+        if (brain.turnMs <= TICK_MS) mob.facing = facingTo(dx, dy, mob.facing);
         return;
       }
       if (wait > 0 && d <= stats.harass[1] + HOUND_MARGIN) {
