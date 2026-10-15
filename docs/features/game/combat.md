@@ -309,8 +309,9 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
   word "evade" rises over it ("esquiva" in Spanish), with a swish, in place of the spark and "miss". The
   evade is only a look: a mob can hit the character in it, the character can attack or roll in it, and
   it ends with the brace. The mob goes on as after a miss: to the end of the line, not away.
-- **AC-CMB-013.4:** A roll or the next attack breaks a brace. A brace does not start in water, and not
-  after an arrow (a bow: `PlayerTraits.brace` is false). Guards and companions never brace.
+- **AC-CMB-013.4:** The next attack breaks a brace. A dodge in a brace does not break it: it is a jump
+  (REQ-CMB-015). A brace does not start in water, and not after an arrow (a bow: `PlayerTraits.brace` is
+  false). Guards and companions never brace.
 - **AC-CMB-013.5:** A brace and an evade cost no stamina, but stamina does not fill in a brace: it fills
   again 1 s after the brace ends, as after a use ([Constitution](../abilities/constitution.md),
   REQ-CON-009). A blow that comes during the attack itself, or after the brace, rolls against the plain
@@ -348,6 +349,44 @@ so that I can turn to a foe or a thing without a step (Fede, 2026-10-14).
   each input, predicts the facing, and the other players see it.
 - **AC-CMB-014.8:** The list of controls says it under "Walk": "When you stand still, you face the
   pointer." ("Sin moverte, miras hacia el puntero.").
+
+---
+
+### REQ-CMB-015: The jump from a brace
+
+**User Story:** As a player in a brace, I want a dodge to make a short jump and keep my brace, so that
+I can move out of a blow and still stay in melee (Fede, 2026-10-15; near proposal 4 of
+`docs/drafts/combat-melee.md`, the sidestep).
+
+**Acceptance Criteria:**
+- **AC-CMB-015.1:** In a brace (REQ-CMB-013), the dodge (Shift, the right mouse button or the dodge
+  button) does not roll: the character makes a short jump the way that the input moves. With no input,
+  the jump goes back, away from the way that the character struck (the mouse is usually at the foe).
+- **AC-CMB-015.2:** The jump is 1 tile in 0.15 s (16 px in 9 ticks) with a light load. The load and DEX
+  change it a little, as they change the roll (Fede's decision, 2026-10-15; `JUMPS`, `jumpOf()`): medium
+  14 px in 9 ticks, heavy 12 px in 11 ticks, overloaded 8 px in 8 ticks, and the DEX modifier adds 1 px
+  for each point (half of what it adds to a roll). Walls stop it.
+- **AC-CMB-015.3:** The brace goes on through the jump: it does not count down in it, the character faces
+  the way that it struck, and after the landing the brace goes on as before (it holds while the step back
+  is held). A jump to the side is a release of the step back: after the landing the brace ends when its
+  0.3 s end.
+- **AC-CMB-015.4:** The jump has no safe tick (Fede's decision): a mob's blow or arrow in the jump rolls
+  against the AC of the brace. A miss is an evade, and the jump goes on; a hit stuns the character and
+  ends the jump and the brace.
+- **AC-CMB-015.5:** The jump costs the stamina of the roll of the load (30 to 50), and it uses the wait
+  between dodges (Fede's decision): it starts the wait, and it needs it, as a roll. Without the stamina
+  or before the end of the wait, a dodge in a brace does nothing, and the brace stays. The character
+  cannot attack in the jump.
+- **AC-CMB-015.6:** A jump that comes into water ends, and the brace with it (a brace does not stay in
+  water).
+- **AC-CMB-015.7:** The jump has frames of its own (Fede's decision): three frames in the guard of the
+  brace (the spring with the legs nearly straight, the knees up in the air, the knees bent to land), in
+  every skin and for the wanderer. The figure rises over its shadow on an arc of at most 5 px, and lands.
+  A short swish of cloth and a soft landing sound with it (`jump`).
+- **AC-CMB-015.8:** The server owns the jump (protocol 48): the page predicts it from its inputs, and the
+  other players see it.
+- **AC-CMB-015.9:** The list of controls says it under "Dodge": "In a brace: a short jump, and the brace
+  goes on." ("En guardia: un salto corto, y la guardia sigue.").
 
 ---
 
@@ -440,6 +479,18 @@ so that I can turn to a foe or a thing without a step (Fede, 2026-10-14).
   `Horde.spawnAhead()` (`AHEAD_DISTANCE` [17, 21]); a quest condition with a flag (`When.flag`). The
   Wilds: `FIRST_GOBLINS` (`source.ts`), `GOBLINS_MET` (`quests.ts`). Tests:
   `packages/engine/test/confrontations.test.ts`, `worlds/wilds/test/first-goblins.test.ts`.
+- **The jump from a brace** (`packages/engine/src/player.ts`, REQ-CMB-015): `PlayerState.jump` (the
+  ticks left), `JUMPS` and `JumpDef` (by the load), `JUMP_REACH_SHARE` 0.5 (of `PlayerTraits.rollReach`),
+  `jumpOf()`, `hop()` (one tick: the brace and `rest` wait, an evade runs on, water ends it); in
+  `stepPlayer()` a dodge with `player.brace > 0` starts it, with `dodgeAim`, `dodgeKind` (the load) and
+  `dodgeSafe` 0, the stamina of `ROLLS` and the wait of `dodgeCooldown`. `canAttack()` and `canDodge()`
+  are false in it; `stunPlayer()` and `wakePlayer()` end it. The wire: the last number of `WireSelf` and
+  of `WirePlayer` (protocol 48), `Remotes` (`RemotePlayer.jump`). The art: `jumpParts()`, `JUMP_FRAMES`
+  (`art/attacks.ts`), the sheet columns `SKIN_COLUMNS.jump` (`SKIN_VERSION` 12; the sheet layout of
+  `skinCell()`, `SKIN_ROW_CELLS` 20, `SKIN_VIEW_ROWS` 2), the wanderer's `player/<view>/jump/<i>`. The
+  page: `PlayerView` (`PlayerTextures.jump`, `JUMP_LIFT` 5), the sound `jump` (`audio/fx.ts`), `jump J`
+  in the debug line `dex`. Tests: `packages/engine/test/brace.test.ts` ("a jump from a brace"),
+  `packages/engine-client/art/skins.test.ts`.
 - **The facing** (REQ-CMB-014): `MoveInput.face` (the way to the mouse, radians), `facingToward()` and
   `FACE_SLACK` (`packages/engine/src/player.ts`); in `stepPlayer()` a player that stands (each axis of
   the move under 0.01) faces `face`, else its walk (`facingFor()`), and a roll in place goes towards

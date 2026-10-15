@@ -18,7 +18,10 @@ export interface MoveInput {
    * so the server repeats the same step.
    */
   readonly attack?: number;
-  /** A dodge (a roll) in this tick, the way the input moves (or `face`, or the way the player faces). */
+  /**
+   * A dodge in this tick: a roll the way the input moves (or `face`, or the way the player faces); in a
+   * brace, a short jump the way the input moves (or back from the way it struck).
+   */
   readonly dodge?: boolean;
   /**
    * A direction to face (radians, as `attack`) while the player stands: the client gives the way to the
@@ -55,7 +58,7 @@ export interface PlayerState {
   dodgeCooldown: number;
   /** The direction of the dodge in progress or of the last one (radians). */
   dodgeAim: number;
-  /** The kind of the roll in progress or of the last one: the tier of the load at its start (ROLLS). */
+  /** The kind of the roll (or the jump) in progress or of the last one: the tier of the load at its start (ROLLS, JUMPS). */
   dodgeKind: LoadTier;
   /** The safe ticks of the roll in progress or of the last one: its first ticks, in which no mob can hit (inSafeRoll). */
   dodgeSafe: number;
@@ -85,6 +88,12 @@ export interface PlayerState {
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
    */
   evade: number;
+  /**
+   * Ticks left of a jump (0: none): a dodge in a brace. The player hops along `dodgeAim` (JUMPS), and
+   * the brace goes on: it does not count down in the jump, and a mob's attack rolls against the AC of
+   * the brace.
+   */
+  jump: number;
   /** Hit points (CON): a mob's hit takes some; at 0 the player is defeated (`down`). */
   hp: number;
   /** Ticks until a hit point comes back (while it has fewer than its most). */
@@ -150,6 +159,30 @@ export const ROLLS: Readonly<Record<LoadTier, RollDef>> = {
   over: { distance: 12, ticks: 10, safe: 0, stamina: 50 },
 };
 export const DODGE_COOLDOWN_TICKS = 96;
+/**
+ * The jump from a brace (2026-10-15, Fede's decisions): a dodge in a brace does not roll. The player
+ * hops `distance` world pixels in `ticks` ticks the way of the input (with no input, back from the way
+ * it struck), and keeps the brace and its face to the foe. It has no safe tick: a mob's attack in it
+ * rolls against the AC of the brace (armourNow). It costs the stamina of the roll of the load (ROLLS)
+ * and uses the wait between dodges (DODGE_COOLDOWN_TICKS). The load changes it a little, as it changes
+ * the roll, and Dexterity adds JUMP_REACH_SHARE of what it adds to a roll (PlayerTraits.rollReach).
+ */
+export interface JumpDef {
+  /** How far it goes (world pixels; Dexterity adds to it). */
+  readonly distance: number;
+  /** How long it lasts. */
+  readonly ticks: number;
+}
+
+export const JUMPS: Readonly<Record<LoadTier, JumpDef>> = {
+  // 1 tile in 0.15 s.
+  light: { distance: 16, ticks: 9 },
+  medium: { distance: 14, ticks: 9 },
+  heavy: { distance: 12, ticks: 11 },
+  over: { distance: 8, ticks: 8 },
+};
+/** A jump gets this share of the distance that Dexterity adds to a roll: 1 px for each point of the modifier. */
+export const JUMP_REACH_SHARE = 0.5;
 /**
  * The brace (2026-10-14, Fede's idea): a step back right after a melee attack does not walk away. In
  * the first BRACE_WINDOW_TICKS after the attack (0.15 s) a move away from the way of the attack
@@ -301,6 +334,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     heldBack: false,
     brace: 0,
     evade: 0,
+    jump: 0,
     hp: PLAIN_HP,
     recover: 0,
     stamina: PLAIN_STAMINA,
@@ -382,6 +416,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.heldBack = false;
   player.brace = 0;
   player.evade = 0;
+  player.jump = 0;
   player.poison = 0;
   player.poisonClock = 0;
   player.drunk = 0;
@@ -389,12 +424,23 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0;
+  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
 }
 
-/** Whether the player can start a dodge in its next tick: it has the stamina of the roll of its load (and it is not in shallow water: see stepPlayer). */
+/**
+ * Whether the player can start a dodge (a roll, or a jump in a brace) in its next tick: it has the
+ * stamina of the roll of its load (and it is not in shallow water: see stepPlayer).
+ */
 export function canDodge(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.dodge === 0 && player.dodgeCooldown === 0 && player.stamina >= ROLLS[player.load].stamina;
+  return (
+    player.down === 0 &&
+    player.stun === 0 &&
+    player.attack === 0 &&
+    player.dodge === 0 &&
+    player.jump === 0 &&
+    player.dodgeCooldown === 0 &&
+    player.stamina >= ROLLS[player.load].stamina
+  );
 }
 
 /** Whether the player is in the safe ticks of a roll (the first PlayerState.dodgeSafe ticks of it). */
@@ -404,8 +450,8 @@ export function inSafeRoll(player: Pick<PlayerState, 'dodge' | 'dodgeKind' | 'do
 
 /**
  * Whether a mob can hit the player now: not defeated, not stunned, not just after a stun, and not in
- * the safe ticks of a roll. A brace and its evade do not stop a hit: in a brace the attack rolls
- * against more AC (armourNow).
+ * the safe ticks of a roll. A brace, its evade and a jump do not stop a hit: in a brace (and in a jump,
+ * which keeps the brace) the attack rolls against more AC (armourNow).
  */
 export function canBeHit(player: PlayerState): boolean {
   return player.down === 0 && player.stun === 0 && player.guard === 0 && !inSafeRoll(player);
@@ -425,6 +471,12 @@ export function rollOf(load: LoadTier, traits: Pick<StepTraits, 'rollReach' | 'r
   };
 }
 
+/** The jump from a brace of a character with these traits and this load: its distance with its Dexterity (JUMP_REACH_SHARE). */
+export function jumpOf(load: LoadTier, traits: Pick<StepTraits, 'rollReach'> = PLAIN): JumpDef {
+  const jump = JUMPS[load];
+  return { distance: Math.max(1, jump.distance + Math.round((traits.rollReach ?? 0) * JUMP_REACH_SHARE)), ticks: jump.ticks };
+}
+
 /** Whether a velocity is a sneak walk: slower than SNEAK_SPEED, but not standing. */
 export function isSneakWalk(vx: number, vy: number): boolean {
   const speed = Math.hypot(vx, vy);
@@ -433,16 +485,16 @@ export function isSneakWalk(vx: number, vy: number): boolean {
 
 /**
  * Whether the player sneaks: it stands, or it walks slowly (SNEAK_SPEED) with stamina left; not in
- * shallow water (the water makes it slow, not the player), not while it strikes, braces, evades, rolls
- * or lies.
+ * shallow water (the water makes it slow, not the player), not while it strikes, braces, evades, rolls,
+ * jumps or lies.
  */
-export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'> & Partial<Pick<PlayerState, 'brace' | 'evade'>>): boolean {
-  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading || (player.brace ?? 0) > 0 || (player.evade ?? 0) > 0) return false;
+export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'> & Partial<Pick<PlayerState, 'brace' | 'evade' | 'jump'>>): boolean {
+  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading || (player.brace ?? 0) > 0 || (player.evade ?? 0) > 0 || (player.jump ?? 0) > 0) return false;
   if (Math.hypot(player.vx, player.vy) <= 1) return true;
   return isSneakWalk(player.vx, player.vy) && player.stamina > 0;
 }
 
-/** A hit: the player stops, its attack (and a brace) ends, and it cannot act for `ticks` ticks. */
+/** A hit: the player stops, its attack (and a brace, and a jump) ends, and it cannot act for `ticks` ticks. */
 export function stunPlayer(player: PlayerState, ticks: number): void {
   player.stun = Math.max(player.stun, ticks);
   player.attack = 0;
@@ -451,6 +503,7 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.braceWindow = 0;
   player.brace = 0;
   player.evade = 0;
+  player.jump = 0;
   player.vx = 0;
   player.vy = 0;
 }
@@ -625,8 +678,8 @@ export function resumePlace(
  * that strikes stand still. A player who can wade (`traits`) walks in shallow water, slowly, and
  * does not attack there; one who can swim (the Tear of Tigris) does the same in deep water. A step
  * back right after a melee attack braces: the player stands for BRACE_TICKS, and longer while it holds
- * the step back. Returns true if an attack starts in this tick: the caller finds what it hits (a
- * client alone, or the server).
+ * the step back. A dodge in a brace is a short jump (JUMPS): the brace goes on. Returns true if an
+ * attack starts in this tick: the caller finds what it hits (a client alone, or the server).
  */
 export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerMap, traits: StepTraits = PLAIN, dt = TICK_SECONDS): boolean {
   if (player.cooldown > 0) player.cooldown--;
@@ -656,6 +709,10 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     roll(player, world, solid, traits, dt);
     return false;
   }
+  if (player.jump > 0) {
+    hop(player, world, solid, traits, dt);
+    return false;
+  }
   const input0 = clampInput(input);
   // After an ale the walk sways: the direction turns to and fro, slowly.
   const move = player.drunk > 0 ? swayed(input0, player.drunk) : input0;
@@ -674,7 +731,21 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   const window = player.braceWindow;
   if (player.braceWindow > 0) player.braceWindow--;
   const kind = move.dodge ? rollOf(player.load, traits) : null;
-  if (kind && player.dodgeCooldown === 0 && player.stamina >= kind.stamina && !wading) {
+  const dodges = kind !== null && player.dodgeCooldown === 0 && player.stamina >= kind.stamina && !wading;
+  if (dodges && player.brace > 0) {
+    // A dodge in a brace: a short jump the way the input moves (with no input, back from the way it
+    // struck). The brace goes on, and the player keeps its face to the foe.
+    player.stamina -= kind.stamina;
+    player.rest = 0;
+    player.dodgeAim = Math.hypot(move.x, move.y) > 0.1 ? Math.atan2(move.y, move.x) : normalAngle(player.aim + Math.PI);
+    player.dodgeKind = player.load;
+    player.dodgeSafe = 0;
+    player.jump = jumpOf(player.load, traits).ticks;
+    player.dodgeCooldown = traits.dodgeCooldown ?? DODGE_COOLDOWN_TICKS;
+    hop(player, world, solid, traits, dt);
+    return false;
+  }
+  if (dodges) {
     player.braceWindow = 0;
     player.brace = 0;
     player.evade = 0;
@@ -802,6 +873,29 @@ function swayed(move: MoveInput, drunk: number): MoveInput {
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
   return { ...move, x: move.x * cos - move.y * sin, y: move.x * sin + move.y * cos };
+}
+
+/**
+ * One tick of a jump from a brace: along its direction (the jump of its kind: jumpOf), the face to the
+ * way it struck. The brace waits (it does not count down), stamina does not fill, and an evade runs on.
+ * Walls stop it; water ends it, and the brace with it (a brace does not stay in water).
+ */
+function hop(player: PlayerState, world: PlayerMap, solid: SolidMap, traits: StepTraits, dt: number): void {
+  player.jump--;
+  const kind = jumpOf(player.dodgeKind, traits);
+  const speed = kind.distance / (kind.ticks * TICK_SECONDS);
+  player.vx = Math.cos(player.dodgeAim) * speed;
+  player.vy = Math.sin(player.dodgeAim) * speed;
+  moveAxis(player, solid, player.vx * dt, 0);
+  moveAxis(player, solid, 0, player.vy * dt);
+  player.facing = facingOfAngle(player.aim);
+  player.rest = 0;
+  if (player.evade > 0) player.evade--;
+  if (wadingAt(world, player.x, player.y, traits)) {
+    player.jump = 0;
+    player.brace = 0;
+    player.evade = 0;
+  }
 }
 
 /** One tick of a dodge: fast along its direction (the roll of its kind: rollOf); walls stop it, and shallow water ends it. */

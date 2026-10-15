@@ -6,12 +6,16 @@ import {
   SKIN_ATTACK_FRAMES,
   SKIN_COLUMNS,
   SKIN_FRAME,
+  SKIN_JUMP_FRAMES,
+  SKIN_ROW_CELLS,
   SKIN_SNEAK_FRAMES,
   SKIN_VIEWS,
+  SKIN_VIEW_ROWS,
   SKIN_WALK_FRAMES,
   dressSkin,
   renderSkinSheet,
   skinAttack,
+  skinCell,
   skinFromSeed,
   skinKey,
   skinName,
@@ -139,15 +143,15 @@ describe('player skins', () => {
     ];
     for (const seed of seeds) {
       const sheet = renderSkinSheet(skinFromSeed(seed));
-      // The stand, the walk, the attack, the crouch and the sneak walk.
+      // The stand, the walk, the attack, the crouch, the sneak walk and the jump.
       const columns = [
         ...Array.from({ length: 1 + SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES }, (_, i) => i),
         ...Array.from({ length: 1 + SKIN_SNEAK_FRAMES }, (_, i) => SKIN_COLUMNS.crouch + i),
+        ...Array.from({ length: SKIN_JUMP_FRAMES }, (_, i) => SKIN_COLUMNS.jump + i),
       ];
       for (let row = 0; row < SKIN_VIEWS.length; row++) {
         for (const column of columns) {
-          const x0 = column * width;
-          const y0 = row * height;
+          const { x: x0, y: y0 } = skinCell(column, row);
           for (let i = 0; i < width; i++) {
             expect(sheet.image.get(x0 + i, y0) & 0xff, `seed ${seed} top`).toBe(0);
             expect(sheet.image.get(x0 + i, y0 + height - 1) & 0xff, `seed ${seed} bottom`).toBe(0);
@@ -167,7 +171,8 @@ describe('player skins', () => {
     const { width, height } = SKIN_FRAME;
     /** The first row of a frame with an opaque pixel. */
     const top = (sheet: ReturnType<typeof renderSkinSheet>, column: number, row: number): number => {
-      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (sheet.image.get(column * width + x, row * height + y) & 0xff) return y;
+      const cell = skinCell(column, row);
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (sheet.image.get(cell.x + x, cell.y + y) & 0xff) return y;
       return height;
     };
     const seeds = [
@@ -184,9 +189,53 @@ describe('player skins', () => {
         expect(top(sheet, SKIN_COLUMNS.crouch, row), `${seed} crouch`).toBeGreaterThanOrEqual(stand + 2);
         for (let f = 0; f < SKIN_SNEAK_FRAMES; f++) expect(top(sheet, SKIN_COLUMNS.sneak + f, row), `${seed} sneak ${f}`).toBeGreaterThanOrEqual(stand + 1);
       }
-      expect(SKIN_COLUMNS.count * width).toBe(sheet.image.width);
+      expect(sheet.image.width).toBe(SKIN_ROW_CELLS * width);
+      expect(sheet.image.height).toBe(SKIN_VIEW_ROWS * SKIN_VIEWS.length * height);
     }
   }, 60_000);
+
+  it('puts every frame of every view in a cell of its own, inside a sheet at most 2048 px wide', () => {
+    const { width, height } = SKIN_FRAME;
+    const sheetWidth = SKIN_ROW_CELLS * width;
+    const sheetHeight = SKIN_VIEW_ROWS * SKIN_VIEWS.length * height;
+    expect(sheetWidth).toBeLessThanOrEqual(2048);
+    expect(sheetHeight).toBeLessThanOrEqual(2048);
+    const cells = new Set<string>();
+    for (let view = 0; view < SKIN_VIEWS.length; view++) {
+      for (let column = 0; column < SKIN_COLUMNS.count; column++) {
+        const { x, y } = skinCell(column, view);
+        expect(x + width).toBeLessThanOrEqual(sheetWidth);
+        expect(y + height).toBeLessThanOrEqual(sheetHeight);
+        cells.add(`${x},${y}`);
+      }
+    }
+    expect(cells.size).toBe(SKIN_VIEWS.length * SKIN_COLUMNS.count);
+    // The stand of the first view is at the top left: the portraits crop it there (SKIN_PORTRAIT).
+    expect(skinCell(SKIN_COLUMNS.stand, 0)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('draws a jump from a brace: three frames of their own, the knees up in the air', () => {
+    const { width, height } = SKIN_FRAME;
+    const sheet = renderSkinSheet(skinOfLook({ seed: appearanceSeed({ race: 'human', class: 'fighter', gender: 'male', variant: 3 }), shown: { main: 'longsword', off: 'shield', armour: 'chain-mail' } }));
+    const pixels = (column: number, view: number): string => {
+      const cell = skinCell(column, view);
+      const out: number[] = [];
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) out.push(sheet.image.get(cell.x + x, cell.y + y));
+      return out.join();
+    };
+    /** The opaque pixels of a frame: a figure is in it. */
+    const opaque = (column: number, view: number): number => {
+      const cell = skinCell(column, view);
+      let count = 0;
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (sheet.image.get(cell.x + x, cell.y + y) & 0xff) count++;
+      return count;
+    };
+    for (let view = 0; view < SKIN_VIEWS.length; view++) {
+      const frames = Array.from({ length: SKIN_JUMP_FRAMES }, (_, f) => pixels(SKIN_COLUMNS.jump + f, view));
+      expect(new Set([pixels(SKIN_COLUMNS.brace, view), ...frames]).size, SKIN_VIEWS[view]!.name).toBe(1 + SKIN_JUMP_FRAMES);
+      for (let f = 0; f < SKIN_JUMP_FRAMES; f++) expect(opaque(SKIN_COLUMNS.jump + f, view)).toBeGreaterThan(100);
+    }
+  }, 30_000);
 
   it('gives every skin a name for its class: the same every time, short, and drawn by the small font', () => {
     expect(skinName(4242)).toBe(skinName(4242));
@@ -274,8 +323,7 @@ describe('player skins', () => {
         const sheet = renderSkinSheet(skinOfLook({ seed, shown }));
         for (let row = 0; row < SKIN_VIEWS.length; row++) {
           for (let column = 1 + SKIN_WALK_FRAMES; column <= SKIN_WALK_FRAMES + SKIN_ATTACK_FRAMES; column++) {
-            const x0 = column * width;
-            const y0 = row * height;
+            const { x: x0, y: y0 } = skinCell(column, row);
             for (let i = 0; i < width; i++) {
               expect(sheet.image.get(x0 + i, y0) & 0xff, `${seed} ${shown.main} top`).toBe(0);
               expect(sheet.image.get(x0 + i, y0 + height - 1) & 0xff, `${seed} ${shown.main} bottom`).toBe(0);

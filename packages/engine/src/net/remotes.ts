@@ -32,7 +32,7 @@ export interface RemotePlayer {
   readonly facing: Facing;
   /** The direction of its attack (radians, as PlayerState.aim). */
   readonly aim: number;
-  /** Ticks left of its attack, its stun, its guard, its dodge, its defeat, its brace and its evade (as in PlayerState), at the time shown. */
+  /** Ticks left of its attack, its stun, its guard, its dodge, its defeat, its brace, its evade and its jump (as in PlayerState), at the time shown. */
   readonly attack: number;
   readonly stun: number;
   readonly guard: number;
@@ -40,7 +40,8 @@ export interface RemotePlayer {
   readonly down: number;
   readonly brace: number;
   readonly evade: number;
-  /** The kind of its roll (PlayerState.dodgeKind). */
+  readonly jump: number;
+  /** The kind of its roll or its jump (PlayerState.dodgeKind). */
   readonly dodgeKind: LoadTier;
   /** The storey of a building that it is on (PlayerState.storey). */
   readonly storey: number;
@@ -119,8 +120,9 @@ interface Sample {
   /** A player's brace and evade (ticks). */
   readonly h?: number;
   readonly i?: number;
-  /** A player's roll kind (loadCode). */
+  /** A player's roll kind (loadCode), and its jump (ticks). */
   readonly j?: number;
+  readonly k?: number;
 }
 
 const TICK_MS = TICK_SECONDS * 1000;
@@ -207,7 +209,7 @@ export class Remotes {
     this.offsets = this.offsets.filter((o) => o.localMs > localMs - CLOCK_WINDOW_MS);
     this.everyone = snapshot.o;
     const seen = new Set<number>();
-    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey, brace, evade, roll] of snapshot.p) {
+    for (const [id, x, y, vx, vy, facing, skin, attack, stun, guard, aim, dodge, down, storey, brace, evade, roll, jump] of snapshot.p) {
       seen.add(id);
       let player = this.players.get(id);
       if (!player) {
@@ -217,7 +219,7 @@ export class Remotes {
       player.skin = skin;
       const samples = player.samples;
       if (samples.length > 0 && samples[samples.length - 1]!.ms >= snapshot.ms) continue;
-      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey, h: brace, i: evade, j: roll });
+      samples.push({ ms: snapshot.ms, x, y, vx, vy, facing, a: attack, b: stun, c: guard, d: aim, e: dodge, f: down, g: storey, h: brace, i: evade, j: roll, k: jump });
       while (samples.length > 2 && samples[1]!.ms < snapshot.ms - HISTORY_MS) samples.shift();
     }
     // The companions near the player; one that is not in the snapshot went (or is far).
@@ -410,6 +412,7 @@ export class Remotes {
         // A held brace stays at 1 (player.ts): its ticks show as they came, not counted down.
         brace: since.h ?? 0,
         evade: ticksAt(since.i, since, t),
+        jump: ticksAt(since.k, since, t),
         dodgeKind: loadFromCode(since.j ?? 0),
         storey: since.g ?? 0,
       });

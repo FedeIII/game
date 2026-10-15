@@ -7,11 +7,13 @@ import {
   BRACE_WINDOW_TICKS,
   EVADE_TICKS,
   Horde,
+  JUMPS,
   NO_INPUT,
   PLAIN_GEAR,
   PLAIN_SCORES,
   PLAYER_SPEED,
   Prediction,
+  ROLLS,
   STAMINA_REST_TICKS,
   Remotes,
   Room,
@@ -21,7 +23,10 @@ import {
   armourNow,
   canAttack,
   canBeHit,
+  canDodge,
   createPlayer,
+  hitPlayer,
+  jumpOf,
   kitOf,
   missPlayer,
   rollingDice,
@@ -160,15 +165,7 @@ describe('a brace', () => {
     expect(guard.brace).toBe(0);
   });
 
-  it('breaks for a roll, or for the next attack', () => {
-    const rolls = createPlayer(100, 100);
-    strike(rolls);
-    stepPlayer(rolls, BACK, open, MELEE);
-    stepPlayer(rolls, { ...BACK, dodge: true }, open, MELEE);
-    expect(rolls.brace).toBe(0);
-    expect(rolls.dodge).toBeGreaterThan(0);
-    expect(rolls.x).toBeLessThan(100);
-
+  it('breaks for the next attack', () => {
     const strikes = createPlayer(100, 100);
     strike(strikes);
     stepPlayer(strikes, BACK, open, MELEE);
@@ -207,6 +204,158 @@ describe('a brace', () => {
     p.aim = EAST;
     stepPlayer(p, BACK, water, { ...MELEE, wade: true });
     expect(p.brace).toBe(0);
+  });
+});
+
+describe('a jump from a brace', () => {
+  it('is a dodge in a brace: a short hop the way of the input, and the brace goes on with the face to the foe', () => {
+    const p = createPlayer(100, 100);
+    strike(p);
+    stepPlayer(p, BACK, open, MELEE);
+    const stamina = p.stamina;
+    stepPlayer(p, { ...BACK, dodge: true }, open, MELEE);
+    // No roll: a jump, in the brace.
+    expect(p.dodge).toBe(0);
+    expect(p.jump).toBe(JUMPS.light.ticks - 1);
+    expect(p.brace).toBeGreaterThan(0);
+    expect(p.dodgeKind).toBe('light');
+    expect(p.dodgeSafe).toBe(0);
+    // It costs the stamina of the roll of the load, and it starts the wait between dodges.
+    expect(p.stamina).toBe(stamina - ROLLS.light.stamina);
+    expect(p.dodgeCooldown).toBe(MELEE.dodgeCooldown);
+    expect(canAttack(p)).toBe(false);
+    expect(canDodge(p)).toBe(false);
+    const brace = p.brace;
+    for (let i = 1; i < JUMPS.light.ticks; i++) {
+      expect(p.jump).toBeGreaterThan(0);
+      stepPlayer(p, BACK, open, MELEE);
+      // The brace waits in the jump; the player faces the way it struck.
+      expect(p.brace).toBe(brace);
+      expect(p.facing).toBe('right');
+    }
+    expect(p.jump).toBe(0);
+    // One tile back in 0.15 s.
+    expect(p.x).toBeCloseTo(100 - JUMPS.light.distance, 6);
+    expect(p.y).toBe(100);
+    // The step back is still held: the brace goes on where it landed.
+    for (let i = 0; i < BRACE_TICKS; i++) {
+      stepPlayer(p, BACK, open, MELEE);
+      expect(p.brace).toBeGreaterThan(0);
+    }
+    expect(p.x).toBeCloseTo(100 - JUMPS.light.distance, 6);
+  });
+
+  it('goes to the side with a move to the side, and back from the way it struck with no move', () => {
+    const side = createPlayer(100, 100);
+    strike(side);
+    stepPlayer(side, BACK, open, MELEE);
+    stepPlayer(side, { x: 0, y: 1, dodge: true }, open, MELEE);
+    for (let i = 1; i < JUMPS.light.ticks; i++) stepPlayer(side, NO_INPUT, open, MELEE);
+    expect(side.x).toBeCloseTo(100, 6);
+    expect(side.y).toBeCloseTo(100 + JUMPS.light.distance, 6);
+    expect(side.facing).toBe('right');
+    // The move to the side was a release: after the landing the brace ends when its ticks end.
+    expect(side.brace).toBeGreaterThan(0);
+    for (let i = 0; i < BRACE_TICKS; i++) stepPlayer(side, NO_INPUT, open, MELEE);
+    expect(side.brace).toBe(0);
+
+    const still = createPlayer(100, 100);
+    strike(still);
+    stepPlayer(still, BACK, open, MELEE);
+    // A dodge with no move, and the mouse at the foe: the jump goes back, away from the way it struck.
+    stepPlayer(still, { x: 0, y: 0, dodge: true, face: EAST }, open, MELEE);
+    for (let i = 1; i < JUMPS.light.ticks; i++) stepPlayer(still, NO_INPUT, open, MELEE);
+    expect(still.x).toBeCloseTo(100 - JUMPS.light.distance, 6);
+    expect(still.y).toBeCloseTo(100, 6);
+  });
+
+  it('is shorter and slower with more load, and longer with more Dexterity, as the roll', () => {
+    expect(jumpOf('light', MELEE)).toEqual({ distance: 16, ticks: 9 });
+    expect(jumpOf('medium', MELEE).distance).toBeLessThan(16);
+    expect(jumpOf('heavy', MELEE).distance).toBeLessThan(jumpOf('medium', MELEE).distance);
+    expect(jumpOf('heavy', MELEE).ticks).toBeGreaterThan(9);
+    expect(jumpOf('over', MELEE).distance).toBeLessThan(jumpOf('heavy', MELEE).distance);
+    const quick = traitsOf({ ...PLAIN_SCORES, dex: 16 } as Scores, 'fighter', PLAIN_GEAR);
+    const slow = traitsOf({ ...PLAIN_SCORES, dex: 6 } as Scores, 'fighter', PLAIN_GEAR);
+    // 1 px for each point of the DEX modifier: half of what it adds to a roll.
+    expect(jumpOf('light', quick).distance).toBe(16 + 3);
+    expect(jumpOf('light', slow).distance).toBe(16 - 2);
+    // A heavy load: the heavy jump, and the stamina of the heavy roll.
+    const p = createPlayer(100, 100);
+    p.load = 'heavy';
+    strike(p);
+    stepPlayer(p, BACK, open, quick);
+    const stamina = p.stamina;
+    stepPlayer(p, { ...BACK, dodge: true }, open, quick);
+    expect(p.dodgeKind).toBe('heavy');
+    expect(p.stamina).toBe(stamina - ROLLS.heavy.stamina);
+    for (let i = 1; i < JUMPS.heavy.ticks; i++) stepPlayer(p, BACK, open, quick);
+    expect(p.jump).toBe(0);
+    expect(p.x).toBeCloseTo(100 - jumpOf('heavy', quick).distance, 6);
+  });
+
+  it('keeps the AC of the brace: a mob can hit the player in it, and a hit ends the jump and the brace', () => {
+    const p = tough(100, 100);
+    strike(p);
+    stepPlayer(p, BACK, open, MELEE);
+    stepPlayer(p, { ...BACK, dodge: true }, open, MELEE);
+    expect(canBeHit(p)).toBe(true);
+    expect(armourNow(p, 10, MELEE.braceAc)).toBe(10 + MELEE.braceAc);
+    // A miss in the jump is an evade.
+    missPlayer(p);
+    expect(p.evade).toBe(EVADE_TICKS);
+    expect(p.glance).toBe(0);
+    hitPlayer(p, 3, 30, 0, MELEE);
+    expect(p.jump).toBe(0);
+    expect(p.brace).toBe(0);
+    expect(p.stun).toBeGreaterThan(0);
+    const x = p.x;
+    stepPlayer(p, BACK, open, MELEE);
+    expect(p.x).toBe(x);
+  });
+
+  it('needs the wait between dodges and the stamina of a roll; without them the brace stays', () => {
+    const waits = createPlayer(100, 100);
+    waits.dodgeCooldown = 50;
+    strike(waits);
+    stepPlayer(waits, BACK, open, MELEE);
+    stepPlayer(waits, { ...BACK, dodge: true }, open, MELEE);
+    expect(waits.jump).toBe(0);
+    expect(waits.dodge).toBe(0);
+    expect(waits.brace).toBeGreaterThan(0);
+    expect(waits.x).toBe(100);
+
+    const tired = createPlayer(100, 100);
+    strike(tired);
+    stepPlayer(tired, BACK, open, MELEE);
+    tired.stamina = ROLLS.light.stamina - 1;
+    stepPlayer(tired, { ...BACK, dodge: true }, open, MELEE);
+    expect(tired.jump).toBe(0);
+    expect(tired.brace).toBeGreaterThan(0);
+    expect(tired.stamina).toBe(ROLLS.light.stamina - 1);
+  });
+
+  it('is still a roll out of a brace: in the window before the step back, and after the brace', () => {
+    const early = createPlayer(100, 100);
+    strike(early);
+    stepPlayer(early, { ...BACK, dodge: true }, open, MELEE);
+    expect(early.dodge).toBeGreaterThan(0);
+    expect(early.jump).toBe(0);
+    expect(early.brace).toBe(0);
+  });
+
+  it('ends in shallow water, and the brace with it', () => {
+    // A wader braces on dry ground, one tile from the shallows to its west.
+    const water = new World(textSource([',,,,....']));
+    const p = createPlayer(4 * TILE_SIZE + 6, 8);
+    const wader = { ...MELEE, wade: true };
+    strike(p, water, wader);
+    stepPlayer(p, BACK, water, wader);
+    stepPlayer(p, { ...BACK, dodge: true }, water, wader);
+    for (let i = 1; i < JUMPS.light.ticks && p.jump > 0; i++) stepPlayer(p, BACK, water, wader);
+    expect(p.jump).toBe(0);
+    expect(p.brace).toBe(0);
+    expect(p.x).toBeGreaterThan(4 * TILE_SIZE + 6 - JUMPS.light.distance);
   });
 });
 
@@ -412,6 +561,43 @@ describe('a brace in a shared world', () => {
     const remotes = new Remotes();
     remotes.apply(theirs!, 1000);
     expect(remotes.at(2000).find((r) => r.id === joined.id)!.brace).toBe(1);
+  });
+
+  it('predicts a jump from a brace exactly, and the others see it', () => {
+    const room = new Room(new World(mobHouseSource()), { dice: AVERAGE_DICE });
+    const joined = room.join(0, 1, [5, 10], '', undefined, { traits: MELEE })!;
+    const other = room.join(0, 2, [8, 10])!;
+    const world = new World(mobHouseSource());
+    const prediction = new Prediction();
+    prediction.traits = MELEE;
+    const player = createPlayer(0, 0);
+    prediction.reset(player, world, room.welcome(joined));
+    const inputs: MoveInput[] = [{ x: 0, y: 0, attack: EAST }, ...Array.from({ length: ATTACK_TICKS }, () => NO_INPUT), BACK, BACK, { ...BACK, dodge: true }, BACK, BACK];
+    let seq = 1;
+    for (const input of inputs) {
+      prediction.step(player, world, input);
+      const batch = prediction.takeBatch();
+      if (batch) room.input(joined.id, batch, seq++ * 50);
+    }
+    let mine: SnapshotMessage | undefined;
+    let theirs: SnapshotMessage | undefined;
+    room.broadcast(0, (id, message) => {
+      if (id === joined.id) mine = message;
+      if (id === other.id) theirs = message;
+    });
+    const truth = joined.state;
+    expect(truth.jump).toBe(JUMPS.light.ticks - 3);
+    expect(truth.brace).toBeGreaterThan(0);
+    expect(mine!.you[32]).toBe(truth.jump);
+    const before = { x: player.x, jump: player.jump, brace: player.brace, stamina: player.stamina };
+    const { dx, dy } = prediction.reconcile(player, world, mine!, []);
+    expect(Math.hypot(dx, dy)).toBeLessThan(1e-9);
+    expect({ x: player.x, jump: player.jump, brace: player.brace, stamina: player.stamina }).toEqual(before);
+    const seen = theirs!.p.find((w) => w[0] === joined.id)!;
+    expect(seen[17]).toBe(truth.jump);
+    const remotes = new Remotes();
+    remotes.apply(theirs!, 1000);
+    expect(remotes.at(1000).find((r) => r.id === joined.id)!.jump).toBeGreaterThan(0);
   });
 
   it('predicts a step back held into the attack exactly: no brace on the server or on the page', () => {

@@ -10,6 +10,7 @@ import {
   EVADE_FRAMES,
   FALL_FRAMES,
   HEAVY_ROLL_FRAMES,
+  JUMP_FRAMES,
   ROLL_FRAMES,
   SNEAK_FRAMES,
   attackAction,
@@ -17,6 +18,7 @@ import {
   evadeParts,
   fallParts,
   heavyRollParts,
+  jumpParts,
   rollParts,
   sneakParts,
   type AttackStyle,
@@ -266,7 +268,7 @@ export function boundFigure(name: string): Image {
 /**
  * Frames `player/<view>/stand`, `player/<view>/walk/<i>`, `player/<view>/attack/<i>` (a punch),
  * `.../roll/<i>`, `.../heavyroll/<i>`, `.../fall/<i>`, `.../crouch`, `.../sneak/<i>` (the sneak walk),
- * `.../brace` and `.../evade/<i>`: the wanderer, the default player.
+ * `.../brace`, `.../evade/<i>` and `.../jump/<i>`: the wanderer, the default player.
  */
 export function playerFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
@@ -289,6 +291,7 @@ export function playerFrames(): Frame[] {
     for (let i = 0; i < SNEAK_FRAMES; i++) frames.push({ name: `player/${view.name}/sneak/${i}`, image: render(sneakParts(WANDERER, i)), anchor });
     frames.push({ name: `player/${view.name}/brace`, image: render(braceParts(WANDERER, 'punch')), anchor });
     for (let i = 0; i < EVADE_FRAMES; i++) frames.push({ name: `player/${view.name}/evade/${i}`, image: render(evadeParts(WANDERER, 'punch', i)), anchor });
+    for (let i = 0; i < JUMP_FRAMES; i++) frames.push({ name: `player/${view.name}/jump/${i}`, image: render(jumpParts(WANDERER, 'punch', i)), anchor });
   }
   return frames;
 }

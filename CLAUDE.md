@@ -153,7 +153,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   which shows with the alpha `litAlpha()` of the sky's lights; `dayFrames()`),
   `player-view.ts` (8-frame walk in a set of player textures, a skin or the atlas wanderer, the crouch and
   the sneak walk of a player that sneaks (`PlayerView.crouched`), the brace and the evade (the frames,
-  and a sway of 2 px back from the way of the attack), and a faint copy above the props
+  and a sway of 2 px back from the way of the attack), the jump from a brace (its frames, lifted over
+  the shadow on an arc of at most 5 px, `JUMP_LIFT`), and a faint copy above the props
   that shows the player through trees), `others.ts` (the other players of a shared world, with
   their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
   `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
@@ -299,8 +300,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
-  walk + brace + 3 evade + 4 heavy roll; the first column of each: `SKIN_COLUMNS`; 2016 px wide, keep
-  it at most 2048) frames of 56 x 56
+  walk + brace + 3 evade + 4 heavy roll + 3 jump; the first column of each: `SKIN_COLUMNS`) frames of
+  56 x 56. The columns of a view go on `SKIN_VIEW_ROWS` rows of `SKIN_ROW_CELLS` (20) frames: find a
+  frame with `skinCell(column, view)`, never with `column * width`; the sheet is 1120 x 448 px (keep
+  it at most 2048 on a side)
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
   `raster.ts` and `image.ts` must not import Node modules (`png.ts` does; that is why `Image`
@@ -374,7 +377,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   The brace: `braceParts()` (the knees bent, one foot back, the weapon up in front: the guard of its
   style, `GUARDS`) and the evade: `evadeParts()` (three frames: the braced figure sways to its side
   round its feet, `sway()` in `figure.ts`, and leans back), in every skin sheet and as
-  `player/<view>/brace` and `player/<view>/evade/<i>` for the wanderer.
+  `player/<view>/brace` and `player/<view>/evade/<i>` for the wanderer. The jump from a brace:
+  `jumpParts()` (three frames in the guard of the brace: the legs push off nearly straight, the knees
+  come up, the knees bend to land; the page lifts them), in every skin sheet and as
+  `player/<view>/jump/<i>` for the wanderer.
 - `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
@@ -717,7 +723,7 @@ gets its tag with `gated()`.
   load"): a light roll 36 px in 15 ticks (0.25 s), safe in its first 12 (`inSafeRoll()`: no mob can
   hit then, `canBeHit`), for 30 stamina; walls stop it, a hit after the safe ticks ends it, and it does
   not start in shallow water (it ends there). Shift, the right mouse button or the dodge button
-  (`ui/dodge-button.ts`).
+  (`ui/dodge-button.ts`). In a brace a dodge is a jump (see "The brace").
 - **The load** (`load.ts`; 2026-10-15, Fede's decisions; `docs/features/items/load.md`): what the worn
   items, the pack and the coins weigh (`loadOf()`), against `PlayerTraits.carry` (15 x STR lb, 5e).
   Four tiers (`loadTier()`): light up to 5 x STR, medium up to 10 x STR, heavy up to 15 x STR,
@@ -735,8 +741,14 @@ gets its tag with `gated()`.
   it struck. No sure evade (Fede, 2026-10-14): a mob's blow or arrow then rolls against the AC + 2 + the
   DEX modifier, at least + 1 (`PlayerTraits.braceAc`, `BRACE_AC`, `armourNow()`). A hit stuns and ends
   the brace; a miss keeps it, and the player sways out of the blow (`missPlayer()`: an evade of
-  `EVADE_TICKS` 15, a look only, "evade" over it, in place of the spark of a glance). A roll or an attack
-  breaks a brace. Each brace needs a new step back (Fede, 2026-10-14): a step back held into the attack
+  `EVADE_TICKS` 15, a look only, "evade" over it, in place of the spark of a glance). An attack breaks a
+  brace. **A dodge in a brace is a jump** (2026-10-15, Fede's decisions; REQ-CMB-015): a short hop the
+  way of the input (with no input, back from the way it struck), `PlayerState.jump`, `JUMPS` by the
+  load (light 16 px in 9 ticks, medium 14 in 9, heavy 12 in 11, overloaded 8 in 8; DEX adds 1 px for
+  each point of its modifier, `JUMP_REACH_SHARE`; `jumpOf()`), for the stamina of the roll of the load
+  and with the wait between dodges. The brace goes on: it does not count down in the jump, the player
+  faces the way it struck, a blow rolls against the AC of the brace (no safe tick), a hit ends both, and
+  water ends both. Its own frames (`jumpParts()`) and sound (`jump`). Each brace needs a new step back (Fede, 2026-10-14): a step back held into the attack
   does not brace (`PlayerState.heldBack`), until a release (any move that is not back) in the attack or
   in the window, and a new press. A brace costs no stamina, but stamina does not fill in it. Guards and
   companions never brace.
@@ -868,7 +880,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 47.
+protocol: `docs/multiplayer.md`, protocol 48.
 
 ## Levels and experience
 
@@ -1589,7 +1601,7 @@ that show) and `others` in a shared world; `walkers`, `doors`, `lines`, `talk` (
 name, the node and the selected answer) and `intro` in a world with NPCs; `place` (the visit of a place
 with a title, and the phase of its title); `sky` (the hour, the darkness and the lights); `mobs` and
 `fight` in a world with mobs; `traits` (what the scores give, and `(wading)`), `dex` (the
-Dexterity traits, the dodge ticks, the kind and the safe ticks of the roll and the load, sneaking, the arrows in flight), `con` (HP, recovery,
+Dexterity traits, the dodge ticks, the kind and the safe ticks of the roll and the load, the brace, the evade and the jump, sneaking, the arrows in flight), `con` (HP, recovery,
 stamina and its refill of now, a defeat, poison, drink, refuges), `int` (the opening, the reading of a mob, the map
 detail, the seen chunks), `wis` (the sense, the seek, the night, the arrow, the hunters and the
 marks), `cha` (the shares of prices, the presence, the daunt, the inspire and the greetings) and

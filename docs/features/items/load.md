@@ -88,6 +88,18 @@ and Dexterity have a value in a fight.
   medium roll show the roll of before. The other players see the kind of roll.
 - **AC-LD-003.6:** The wait between two rolls does not change with the load: 96 − 12 × DEX modifier
   ticks.
+- **AC-LD-003.7:** In a brace, a dodge is a short jump ([Combat](../game/combat.md), REQ-CMB-015). The
+  load changes it a little, as it changes the roll, and it costs the stamina of the roll of the load:
+
+  | Tier | Distance | Time | Stamina |
+  |---|---|---|---|
+  | Light | 16 px (1 tile) | 9 ticks (0.15 s) | 30 |
+  | Medium | 14 px | 9 ticks | 40 |
+  | Heavy | 12 px | 11 ticks | 50 |
+  | Overloaded | 8 px | 8 ticks | 50 |
+
+  Each point of the DEX modifier adds 1 px to the distance. A jump has no safe tick: in it, a mob's
+  attack rolls against the AC of the brace.
 
 ## Feature Behavior & Rules
 

@@ -981,6 +981,7 @@ export class Room {
         s.brace,
         s.evade,
         loadCode(s.dodgeKind),
+        s.jump,
       ]);
     }
     const doors = this.world.openDoorList();
@@ -1093,6 +1094,7 @@ export class Room {
           loadCode(s.load),
           loadCode(s.dodgeKind),
           s.dodgeSafe,
+          s.jump,
         ],
         p: others,
         o: packed.size - 1,

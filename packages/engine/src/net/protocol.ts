@@ -14,7 +14,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 47;
+export const PROTOCOL_VERSION = 48;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -303,13 +303,17 @@ export const SKIN_CHANGE_GAP_MS = 2000;
 
 /**
  * A player as others see it: [id, x, y, vx, vy, facing code, skin, attack, stun, guard, aim
- * code, dodge, down, storey, brace, evade, roll kind]: attack, stun, guard, dodge, down, brace and
- * evade are the ticks left, as in PlayerState; the aim code is the direction of its attack
+ * code, dodge, down, storey, brace, evade, roll kind, jump]: attack, stun, guard, dodge, down, brace,
+ * evade and jump are the ticks left, as in PlayerState; the aim code is the direction of its attack
  * (aimCode); the storey is the storey of a building that it is on (0: the ground; protocol 39). The
  * brace and the evade: protocol 42 (a held brace stays at 1: protocol 43). The roll kind is the code
- * of PlayerState.dodgeKind (loadCode; protocol 46). Positions to 0.1 px.
+ * of PlayerState.dodgeKind (loadCode; protocol 46). The jump from a brace: protocol 48. Positions to
+ * 0.1 px.
  */
-export type WirePlayer = readonly [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
+export type WirePlayer = readonly [
+  number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number,
+  number,
+];
 
 /**
  * A player's own true state: [x, y, vx, vy, facing code, attack, cooldown, stun, guard, aim code,
@@ -317,12 +321,12 @@ export type WirePlayer = readonly [number, number, number, number, number, numbe
  * down, poison, poison clock, drunk, wading (0 or 1), inspired, glance, storey (protocol 39), brace
  * window, brace, evade (protocol 42), held back (0 or 1: PlayerState.heldBack, protocol 44), load,
  * roll kind (the codes of PlayerState.load and dodgeKind: loadCode), safe ticks of the roll (protocol
- * 46)].
+ * 46), jump (the ticks left of a jump from a brace, protocol 48)].
  */
 export type WireSelf = readonly [
   number, number, number, number, number, number, number, number, number, number, number, number, number,
   number, number, number, number, number, number, number, number, number, number, number, number,
-  number, number, number, number, number, number, number,
+  number, number, number, number, number, number, number, number,
 ];
 
 /**

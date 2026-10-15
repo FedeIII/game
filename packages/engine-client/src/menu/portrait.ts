@@ -1,4 +1,4 @@
-import { SKIN_FRAME, SKIN_PORTRAIT, SKIN_WALK_FRAMES, skinKey, type SkinLook } from '../../art/skins.ts';
+import { SKIN_PORTRAIT, SKIN_WALK_FRAMES, skinCell, skinKey, type SkinLook } from '../../art/skins.ts';
 import type { SkinStore } from '../skins/skin-store.ts';
 
 /**
@@ -94,16 +94,16 @@ export class SkinPortrait {
     context.imageSmoothingEnabled = false;
     if (!this.sheet) return;
     context.clearRect(0, 0, this.element.width, this.element.height);
-    const { width, height } = SKIN_FRAME;
     if (!this.walk) {
       const { x, y } = SKIN_PORTRAIT;
       context.drawImage(this.sheet, x, y, this.element.width, this.element.height, 0, 0, this.element.width, this.element.height);
       return;
     }
     const t = now - this.started;
-    const row = TURN[Math.floor(t / TURN_MS) % TURN.length]!;
+    const view = TURN[Math.floor(t / TURN_MS) % TURN.length]!;
     const column = 1 + (Math.floor((t / 1000) * WALK_FPS) % SKIN_WALK_FRAMES);
     const { x, y, width: w, height: h } = WALK_CROP;
-    context.drawImage(this.sheet, column * width + x, row * height + y, w, h, 0, 0, w, h);
+    const cell = skinCell(column, view);
+    context.drawImage(this.sheet, cell.x + x, cell.y + y, w, h, 0, 0, w, h);
   }
 }

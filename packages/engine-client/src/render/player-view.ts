@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, DOWN_TICKS, EVADE_TICKS, ROLLS, facingAngle, type Facing, type LoadTier } from '@game/engine';
+import { ATTACK_TICKS, DOWN_TICKS, EVADE_TICKS, JUMPS, ROLLS, facingAngle, type Facing, type LoadTier } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -43,6 +43,8 @@ const POISON_TINT = 0x9cc48a;
 const FALL_SWITCH = 10;
 /** In an evade the figure also sways back from the way it struck, by at most this (world pixels). */
 const EVADE_BACK = 2;
+/** In a jump from a brace the figure rises over its shadow on an arc, at most this high (world pixels). */
+const JUMP_LIFT = 5;
 /** Effects that glow (added to what is under them), and give a little light. */
 const GLOWING: ReadonlySet<AttackStyle> = new Set(['spell', 'flame', 'palm']);
 /** A hit: the body flashes red for this long (ms); then it is a little grey while stunned. */
@@ -76,12 +78,13 @@ export interface PlayerPose {
   readonly guard?: number;
   /** Whether it stands in shallow water (inShallows). */
   readonly wading?: boolean;
-  /** Ticks left of a dodge (a roll), and the kind of the roll (the tier of the load), as in PlayerState. */
+  /** Ticks left of a dodge (a roll), and the kind of the roll or the jump (the tier of the load), as in PlayerState. */
   readonly dodge?: number;
   readonly dodgeKind?: LoadTier;
-  /** Ticks left of a brace and of an evade, as in PlayerState. */
+  /** Ticks left of a brace, of an evade and of a jump from a brace, as in PlayerState. */
   readonly brace?: number;
   readonly evade?: number;
+  readonly jump?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
   readonly sneaking?: boolean;
   /** Ticks left of a defeat, as in PlayerState: it falls and lies. */
@@ -92,7 +95,10 @@ export interface PlayerPose {
   readonly glance?: number;
 }
 
-/** The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a heavy roll, a fall, a crouch, a sneak walk, a brace and an evade. */
+/**
+ * The frames of one look of the player for each facing: a stand, a walk, an attack, a roll, a heavy
+ * roll, a fall, a crouch, a sneak walk, a brace, an evade and a jump.
+ */
 export interface PlayerTextures {
   readonly stand: Readonly<Record<Facing, Texture>>;
   readonly walk: Readonly<Record<Facing, readonly Texture[]>>;
@@ -108,6 +114,8 @@ export interface PlayerTextures {
   /** A player that braces after its blow, and the frames of an evade (player.ts, BRACE_TICKS). */
   readonly brace: Readonly<Record<Facing, Texture>>;
   readonly evade: Readonly<Record<Facing, readonly Texture[]>>;
+  /** The frames of a jump from a brace (player.ts, JUMPS): the spring, the hop, the reach for the ground. */
+  readonly jump: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -124,6 +132,7 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const sneak = {} as Record<Facing, Texture[]>;
   const brace = {} as Record<Facing, Texture>;
   const evade = {} as Record<Facing, Texture[]>;
+  const jump = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
@@ -135,8 +144,9 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
     sneak[facing] = art.variants(`player/${facing}/sneak`);
     brace[facing] = art.frame(`player/${facing}/brace`);
     evade[facing] = art.variants(`player/${facing}/evade`);
+    jump[facing] = art.variants(`player/${facing}/jump`);
   }
-  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -185,6 +195,8 @@ export class PlayerView {
   private readonly wadeFrames = new Map<Texture, Texture>();
   private wading = false;
   private crouch = false;
+  /** How high a jump lifts the figure now (world pixels). */
+  private lift = 0;
 
   constructor(art: Art, textures: PlayerTextures, pending = false) {
     this.textures = textures;
@@ -269,7 +281,11 @@ export class PlayerView {
     this.root.position.set(x, y);
     this.root.zIndex = y;
     this.wading = state.wading === true;
-    this.ghost.position.set(x, y + (this.wading ? WADE_DEPTH : 0));
+    const jump = state.jump ?? 0;
+    const jumpTicks = JUMPS[state.dodgeKind ?? 'light'].ticks;
+    // A jump rises over the shadow on an arc, and lands.
+    this.lift = jump > 0 ? Math.round(JUMP_LIFT * Math.sin((Math.PI * (jumpTicks - jump)) / jumpTicks)) : 0;
+    this.ghost.position.set(x, y + (this.wading ? WADE_DEPTH : 0) - this.lift);
     const now = performance.now();
     const speed = Math.hypot(state.vx, state.vy);
     const attack = state.attack ?? 0;
@@ -277,7 +293,7 @@ export class PlayerView {
     const down = state.down ?? 0;
     const brace = state.brace ?? 0;
     const evade = state.evade ?? 0;
-    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
+    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
     else if (state.sneaking) this.crouch = true;
     else if (speed >= 1) this.crouch = false;
     this.fight(state, now);
@@ -295,6 +311,11 @@ export class PlayerView {
       const frames = (kind === 'heavy' ? this.textures.heavyRoll : kind === 'over' ? this.textures.evade : this.textures.roll)[state.facing];
       const ticks = ROLLS[kind].ticks;
       texture = frames[Math.min(frames.length - 1, Math.floor(((ticks - 1 - dodge) * frames.length) / (ticks - 1)))]!;
+      this.travelled = 0;
+    } else if (jump > 0) {
+      // A jump from a brace, by the ticks since it started: the spring, the hop, the reach for the ground.
+      const frames = this.textures.jump[state.facing];
+      texture = frames[Math.min(frames.length - 1, Math.floor(((jumpTicks - 1 - jump) * frames.length) / (jumpTicks - 1)))]!;
       this.travelled = 0;
     } else if (evade > 0) {
       // The evade, by the ticks since it started: out of the blow, and back.
@@ -386,7 +407,7 @@ export class PlayerView {
     const evade = state.evade ?? 0;
     const back = evade > 0 ? -EVADE_BACK * Math.sin((Math.PI * (EVADE_TICKS - evade + 1)) / (EVADE_TICKS + 1)) : 0;
     const aim = state.aim ?? facingAngle(state.facing);
-    this.body.position.set(Math.round(fx * lunge + Math.cos(aim) * back) + sway, Math.round(fy * lunge + Math.sin(aim) * back) + (this.wading ? WADE_DEPTH : 0));
+    this.body.position.set(Math.round(fx * lunge + Math.cos(aim) * back) + sway, Math.round(fy * lunge + Math.sin(aim) * back) + (this.wading ? WADE_DEPTH : 0) - this.lift);
     if (!this.pending) {
       const sick = state.poisoned && Math.floor(now / 400) % 3 === 0;
       this.body.tint =

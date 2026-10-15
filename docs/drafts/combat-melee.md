@@ -27,8 +27,8 @@ A step back in the first 0.15 s after a melee attack does not walk away. The pla
 is, faces the way it struck, and braces for 0.3 s (the knees bent, the weapon up), and longer while it
 holds the step back. A mob's blow that comes in the brace rolls against the AC + 2 + the DEX modifier
 (at least + 1). A miss keeps the brace, and the player sways out of the blow ("evade"); a hit stuns it
-and ends the brace. Then the player walks again. A roll or the next attack breaks a brace. It costs
-nothing.
+and ends the brace. Then the player walks again. The next attack breaks a brace; a dodge in it is a
+short jump, and the brace goes on (built 2026-10-15: REQ-CMB-015). The brace costs nothing.
 
 **The change of 2026-10-14** (Fede's decisions): at first, a blow in the brace got no roll at all (a sure
 evade, and no mob could hit the player for 0.25 s), and the brace always ended after 0.3 s. Fede asked
@@ -109,6 +109,11 @@ answers it, and the work.
 - **Recommended for the next game test**, with proposal 1.
 
 ### 4. The sidestep
+
+Near to it, built (2026-10-15, Fede's decisions; REQ-CMB-015): the jump from a brace. A dodge in a brace
+hops 1 tile the way of the input (to the side, or back) in 0.15 s, for the stamina of a roll, and the
+brace goes on with its AC. It gives no advantage and no turn time for the mob: those parts of the
+sidestep are not built.
 
 - A step to the side (60 to 120 degrees from the attack) in the same window: a quick step of 10 px to
   that side, then a brace there.

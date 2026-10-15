@@ -158,6 +158,16 @@ export const FX = {
       thud(c, o, t + 0.3, 80, 0.2, 0.08);
     },
   },
+  // A jump from a brace: a short swish of cloth, and the feet land 0.15 s later.
+  jump: {
+    seconds: 0.35,
+    variants: 3,
+    render: (c, o, t) => {
+      whoosh(c, o, t, 0.16, 0.12, 300, 1400);
+      rustle(c, o, t, 0.12, 2000, 0.06);
+      thud(c, o, t + 0.15, 70, 0.12, 0.07);
+    },
+  },
   // A brace that a blow reached: a short swish of cloth, where the player stands.
   evade: {
     seconds: 0.35,

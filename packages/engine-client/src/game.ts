@@ -1696,6 +1696,7 @@ async function run(options: GameOptions): Promise<void> {
   let musicWaits = false;
   /** The dodge and the defeat that the sounds have heard. */
   let dodgeHeard = false;
+  let jumpHeard = false;
   let downHeard = false;
   let lastPlace: string | null = startArea.area?.id ?? null;
   let nextNear = 0;
@@ -1719,9 +1720,11 @@ async function run(options: GameOptions): Promise<void> {
     const indoors = world.insideOf(Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE)) !== null;
     gameSounds.place(world, place, indoors, night, player.x, player.y, now);
     gameSounds.mobsNow(mobsNow(), player.x, player.y, now);
-    if (player.down === 0 && player.dodge === 0) gameSounds.steps(world, shown.x, shown.y, sneakingShown());
+    if (player.down === 0 && player.dodge === 0 && player.jump === 0) gameSounds.steps(world, shown.x, shown.y, sneakingShown());
     if (player.dodge > 0 && !dodgeHeard) gameSounds.dodge();
     dodgeHeard = player.dodge > 0;
+    if (player.jump > 0 && !jumpHeard) gameSounds.jump();
+    jumpHeard = player.jump > 0;
     if (player.down > 0 && !downHeard) gameSounds.down();
     downHeard = player.down > 0;
     // A place seen for the first time: the music of discovery.
@@ -2179,7 +2182,7 @@ async function run(options: GameOptions): Promise<void> {
       `wis     ${traits.scores.wis}: sense ${traits.sense / TILE_SIZE} tiles, seek ${traits.seek / TILE_SIZE} tiles, night ${traits.night.toFixed(2)}, home ${meetsGate(traits.scores, HOMEWARD_GATE) ? 'arrow' : '-'}; hunters ${huntersNow().length}, marks ${edgeMarks.count}`,
       `cha     ${traits.scores.cha}: buy ${traits.buyShare.toFixed(2)}, sell ${traits.sellShare.toFixed(2)}, presence ${traits.presence.toFixed(2)}, daunt ${traits.daunt.toFixed(2)}, inspire ${traits.inspire} ticks (inspired ${player.inspired}), greeted ${greeted.size}`,
       `con     ${traits.scores.con}: hp ${player.hp}/${traits.maxHp} (back in ${player.recover}), stamina ${player.stamina.toFixed(1)}/${traits.maxStamina} (+${staminaRefillNow(player, traits)}/s, attack ${traits.attackStamina}), stun ${traits.stun.toFixed(2)}, down ${player.down}, poison ${player.poison}, drunk ${player.drunk}, refuges ${(net?.refuges ?? localRefuges).join(' ') || '-'}`,
-      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown} ${player.dodgeKind} safe ${player.dodgeSafe}, load ${player.load}, brace ${player.braceWindow}/${player.brace}${player.heldBack ? ' held' : ''}, evade ${player.evade}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk.on ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
+      `dex     ${traits.scores.dex}: cooldown ${traits.cooldown}, guard ${traits.guard}, dodge ${traits.dodgeCooldown}, sight ${traits.sight.toFixed(2)}${traits.ranged ? `, range ${traits.range}` : ''}; dodge ${player.dodge}/${player.dodgeCooldown} ${player.dodgeKind} safe ${player.dodgeSafe}, load ${player.load}, brace ${player.braceWindow}/${player.brace}${player.heldBack ? ' held' : ''}, evade ${player.evade}, jump ${player.jump}, sneak ${isSneaking(player) ? 'yes' : 'no'}${sneakWalk.on ? ' (walk)' : ''}, arrows ${(horde?.arrows.length ?? 0) + ownArrows.length + (net?.arrowsAt(now).length ?? 0)}`,
       `pack    ${packNow().coins} coins; ${packNow().items.map((s) => (s ? `${s.kind} ${s.count}` : '-')).join(', ') || 'no items'}${net?.pack ? ' (server)' : ''}; load ${loadOf(packNow(), gearNow())} of ${traits.carry} lb`,
       `xp      ${xpNow()} (level ${traits.level}${traits.level < MAX_LEVEL ? `, next at ${LEVEL_XP[traits.level]}` : ''}), a kill gives its XP / ${xpDivisor}${net?.xp !== null && net?.xp !== undefined ? ' (server)' : ''}`,
       `gear    ${GEAR_SLOTS.filter((slot) => gearNow()[slot] !== null).map((slot) => `${slot} ${gearNow()[slot]}`).join(', ') || 'nothing'}${net?.gear ? ' (server)' : ''}; ac ${traits.ac}, ${traits.strike.kind} +${traits.toHit} ${formatDice(traits.damage)}${traits.sneak.count > 0 ? ` (+${formatDice(traits.sneak)} sneak)` : ''}, walk ${traits.speed}`,

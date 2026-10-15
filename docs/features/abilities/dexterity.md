@@ -27,6 +27,8 @@ REQ-AS-002).
 - **Lock**: a gate on a chest (`Fixture.lock`). A DEX of its DC or more picks it.
 - **Brace**: the stance after a step back right after a melee blow ([Combat](../game/combat.md),
   REQ-CMB-013). In it, a mob's attack rolls against more AC.
+- **Jump**: a dodge in a brace: a short hop of about 1 tile, and the brace goes on
+  ([Combat](../game/combat.md), REQ-CMB-015).
 - **Tick**: one step of the simulation: 1/60 s.
 
 ## Requirements
@@ -91,6 +93,9 @@ blow of a mob with skill.
   choice, 2026-10-15). A step aside shows the frames of an evade. The other players of a shared
   world see the roll and its kind too.
 - **AC-DEX-003.11:** The dodge button dims while the player cannot roll.
+- **AC-DEX-003.11a:** In a brace the dodge is a jump, not a roll ([Combat](../game/combat.md),
+  REQ-CMB-015): 1 tile in 0.15 s with a light load, and the DEX modifier adds 1 px to it for each point.
+  It costs the stamina of the roll and uses the same wait.
 - **AC-DEX-003.12:** A roll costs the stamina of its kind: light 30, medium 40, heavy 50, and a step
   aside 50. With less, no roll starts ([Constitution](constitution.md), REQ-CON-009). A defeated
   player cannot roll.

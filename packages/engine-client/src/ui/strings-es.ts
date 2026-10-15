@@ -525,7 +525,7 @@ export const ES: Strings = {
       { action: 'Caminar con sigilo, sí o no', keys: [['C']], touch: 'Un empujón pequeño del joystick' },
       { action: 'Hablar, abrir, leer, recoger', keys: [['E']], touch: 'El botón de acción, abajo a la derecha' },
       { action: 'Atacar', keys: [['Espacio'], ['J'], ['Clic izquierdo']], note: 'Un clic ataca hacia el puntero.', touch: 'El botón de ataque' },
-      { action: 'Esquivar', keys: [['Mayús'], ['Clic derecho']], touch: 'El botón de esquivar' },
+      { action: 'Esquivar', keys: [['Mayús'], ['Clic derecho']], note: 'En guardia: un salto corto, y la guardia sigue.', touch: 'El botón de esquivar' },
       { action: 'Beber', keys: [['1', '2', '3', '4']], note: 'Brebaje curativo, brebaje fuerte, antídoto, hierbas.', touch: 'El cinturón de bebidas, arriba a la izquierda' },
       { action: 'Mochila', keys: [['I']], touch: 'El botón de la bolsa, arriba a la derecha' },
       { action: 'Mapa', keys: [['M']], touch: 'El botón del mapa, arriba a la derecha' },

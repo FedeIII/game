@@ -601,7 +601,7 @@ const EN = {
       { action: 'Sneak walk, on or off', keys: [['C']], touch: 'A small push of the stick' },
       { action: 'Talk, open, read, pick up', keys: [['E']], touch: 'The action button, bottom right' },
       { action: 'Attack', keys: [['Space'], ['J'], ['Left click']], note: 'A click attacks towards the pointer.', touch: 'The attack button' },
-      { action: 'Dodge', keys: [['Shift'], ['Right click']], touch: 'The dodge button' },
+      { action: 'Dodge', keys: [['Shift'], ['Right click']], note: 'In a brace: a short jump, and the brace goes on.', touch: 'The dodge button' },
       { action: 'Drink', keys: [['1', '2', '3', '4']], note: 'Healing draught, strong draught, antidote, herbs.', touch: 'The drink belt, top left' },
       { action: 'Pack', keys: [['I']], touch: 'The bag button, top right' },
       { action: 'Map', keys: [['M']], touch: 'The map button, top right' },

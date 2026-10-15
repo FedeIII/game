@@ -404,3 +404,27 @@ export function evadeParts(spec: FigureSpec, style: AttackStyle, frame: number):
   const action: FigureAction = { ...braceAction(style, spec), lean, crouch };
   return sway(figure(spec, Math.PI * 0.5, BRACE.stride, action), angle, [0, 0, 0]);
 }
+
+/** Frames of a jump from a brace in a sheet (player.ts, JUMPS): the spring, the hop with the knees up, the reach for the ground. */
+export const JUMP_FRAMES = 3;
+/**
+ * In each frame of a jump: the crouch, the tuck (the knees come up), the lean and the stride of the
+ * feet. The figure keeps the guard of its brace, its weapon at the foe. The page lifts the frames
+ * over the shadow on an arc (PlayerView), so the poses stand on the ground of the frame.
+ */
+const JUMP = [
+  { crouch: 0.15, tuck: 0, lean: -0.04, stride: 0.15 },
+  { crouch: 0.45, tuck: 0.32, lean: -0.08, stride: 0 },
+  { crouch: 0.4, tuck: 0.08, lean: -0.06, stride: 0.4 },
+] as const;
+
+/**
+ * The parts of frame `frame` of a jump from a brace (Fede's choice, 2026-10-15: frames of its own): the
+ * legs push off nearly straight, fold up in the air, and reach for the ground with the knees bent. The
+ * arms and the weapon stay in the guard of the brace (GUARDS).
+ */
+export function jumpParts(spec: FigureSpec, style: AttackStyle, frame: number): Part[] {
+  const pose = JUMP[frame]!;
+  const action: FigureAction = { ...braceAction(style, spec), lean: pose.lean, crouch: pose.crouch, tuck: pose.tuck };
+  return figure(spec, Math.PI * 0.5, pose.stride, action);
+}
