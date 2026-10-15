@@ -1,5 +1,5 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
-import { ATTACK_TICKS, DOWN_TICKS, EVADE_TICKS, JUMPS, ROLLS, facingAngle, type Facing, type LoadTier } from '@game/engine';
+import { ATTACK_TICKS, DOWN_TICKS, EVADE_TICKS, GRAB_HOLD_TICKS, GRAB_REACH_TICKS, GRAB_TICKS, JUMPS, ROLLS, facingAngle, type Facing, type LoadTier } from '@game/engine';
 import { FX_TURNS, fxPlacement, type AttackStyle } from '../../art/attacks.ts';
 import type { Art } from '../assets.ts';
 import type { LightSource } from './lighting.ts';
@@ -91,6 +91,8 @@ export interface PlayerPose {
   readonly guarding?: boolean;
   /** Ticks left of a shove (the shove of the sandbox), as in PlayerState: it struggles with the mob. */
   readonly shove?: number;
+  /** Ticks left of a grab (the shove of the sandbox), as in PlayerState: it reaches out. */
+  readonly grab?: number;
   readonly evade?: number;
   readonly jump?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
@@ -126,6 +128,8 @@ export interface PlayerTextures {
   readonly jump: Readonly<Record<Facing, readonly Texture[]>>;
   /** The frames of a struggle (a shove of the sandbox): a push, and a harder one. */
   readonly struggle: Readonly<Record<Facing, readonly Texture[]>>;
+  /** The frames of a grab (a shove of the sandbox): the reach, the hand out, the hand back. */
+  readonly grab: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -144,6 +148,7 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const evade = {} as Record<Facing, Texture[]>;
   const jump = {} as Record<Facing, Texture[]>;
   const struggle = {} as Record<Facing, Texture[]>;
+  const grab = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
@@ -157,8 +162,9 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
     evade[facing] = art.variants(`player/${facing}/evade`);
     jump[facing] = art.variants(`player/${facing}/jump`);
     struggle[facing] = art.variants(`player/${facing}/struggle`);
+    grab[facing] = art.variants(`player/${facing}/grab`);
   }
-  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, struggle, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, struggle, grab, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -305,7 +311,7 @@ export class PlayerView {
     const down = state.down ?? 0;
     const brace = state.brace ?? 0;
     const evade = state.evade ?? 0;
-    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading || state.guarding || (state.shove ?? 0) > 0) this.crouch = false;
+    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading || state.guarding || (state.shove ?? 0) > 0 || (state.grab ?? 0) > 0) this.crouch = false;
     else if (state.sneaking) this.crouch = true;
     else if (speed >= 1) this.crouch = false;
     this.fight(state, now);
@@ -336,6 +342,12 @@ export class PlayerView {
       this.travelled = 0;
     } else if (brace > 0 || (state.parry ?? 0) > 0 || (state.guarding && speed < 1)) {
       texture = this.textures.brace[state.facing];
+      this.travelled = 0;
+    } else if ((state.grab ?? 0) > 0) {
+      // A grab, by the ticks since it started: the reach, the hand out, the hand back on nothing.
+      const out = GRAB_TICKS - state.grab!;
+      const frames = this.textures.grab[state.facing];
+      texture = frames[out < GRAB_REACH_TICKS ? 0 : out <= GRAB_HOLD_TICKS ? 1 : 2]!;
       this.travelled = 0;
     } else if ((state.shove ?? 0) > 0) {
       // A struggle: a push and a harder one, by turns.

@@ -205,9 +205,13 @@ export const GUARD_BREAK_TICKS = 30;
 // ---------------------------------------------------------------- 7. the shove
 
 /**
- * The shove (proposal 7; the Shove of 5e): a roll forward into a mob in reach (the way of the roll
- * within SHOVE_ARC of the way to the mob) is a shove, not a roll. It costs the stamina of the roll.
- * The player and the mob struggle for STRUGGLE_MS (Fede, 2026-10-15): the mob steps in to STRUGGLE_GAP
+ * The shove (proposal 7; the Shove of 5e; Fede's rules of 2026-10-15). A dodge with a direction always
+ * rolls (or jumps, in a brace). A dodge with no direction (the player stands) is a grab
+ * (PlayerState.grab, GRAB_TICKS): the player reaches out the way it faces, and cannot move or attack
+ * until the grab ends. It costs the stamina of the roll and the wait between dodges. While the hands are
+ * out (from GRAB_REACH_TICKS to GRAB_HOLD_TICKS), the first living mob in its reach within SHOVE_ARC of
+ * that way is caught (Horde.step), and the grab becomes a struggle; with none, the grab ends on nothing.
+ * The player and the mob struggle for STRUGGLE_MS: the mob steps in to STRUGGLE_GAP
  * (state 'struggle'), and both push; the player stands (PlayerState.shove). Then the dice: d20 + the
  * player's STR modifier and proficiency bonus (PlayerTraits.athletics) against d20 + the better of the
  * mob's STR and DEX modifiers (MOB_BODY); a tie goes to the mob. A win knocks the mob back SHOVE_PUSH as
@@ -218,6 +222,10 @@ export const GUARD_BREAK_TICKS = 30;
  * on the player in the struggle ends it.
  */
 export const SHOVE_ARC = Math.PI / 4;
+/** A grab lasts this many ticks (0.4 s); the hands are out from GRAB_REACH_TICKS to GRAB_HOLD_TICKS of it. */
+export const GRAB_TICKS = 24;
+export const GRAB_REACH_TICKS = 6;
+export const GRAB_HOLD_TICKS = 14;
 export const STRUGGLE_MS = 500;
 /** The player stands this many ticks in a struggle: STRUGGLE_MS, and 2 more, so that the dice come first. */
 export const SHOVE_TICKS = 32;

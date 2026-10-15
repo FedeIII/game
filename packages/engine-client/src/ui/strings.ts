@@ -557,7 +557,7 @@ const EN = {
       },
       shove: {
         name: '7. Shove',
-        line: 'A roll towards a mob in your reach shoves it, for the stamina of the roll: you both struggle for 0.5 s, then d20 + STR + proficiency against d20 + its STR or DEX. A win throws it back on the ground ("down"): it lies 0.8 s and gets up, it cannot wind up, and your blows roll with advantage. A halfling or a gnome cannot shove a brute or a worg ("too big").',
+        line: 'A dodge with no direction is a grab (with a direction it still rolls, or jumps in a brace): you reach out the way you face for 0.4 s, for the stamina of a roll, and cannot move or attack. A mob in your reach within 45 degrees is caught: you both struggle for 0.5 s, then d20 + STR + proficiency against d20 + its STR or DEX. A win throws it back on the ground ("down"): it lies 0.8 s and gets up, it cannot wind up, and your blows roll with advantage. A halfling or a gnome cannot shove a brute or a worg ("too big").',
       },
       clash: {
         name: '8. Clash',

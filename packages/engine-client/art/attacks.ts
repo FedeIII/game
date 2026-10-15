@@ -459,3 +459,25 @@ export function struggleParts(spec: FigureSpec, style: AttackStyle, frame: numbe
   const action: FigureAction = { right: staff ? PUSH : HOLD_UP, left: mirror(PUSH), lean: pose.lean, crouch: pose.crouch, ...(guard.weapon ? { weapon: guard.weapon } : {}) };
   return figure(spec, Math.PI * 0.5, pose.stride, action);
 }
+
+/** Frames of a grab in a sheet (a shove of the sandbox: mechanics.ts): the reach, the hand out, the hand back. */
+export const GRAB_FRAMES = 3;
+/** In each frame of a grab: the arm that reaches (upper arm, forearm), the lean, the crouch and the stride. */
+const GRAB: readonly { readonly arm: ArmPose; readonly lean: number; readonly crouch: number; readonly stride: number }[] = [
+  { arm: [[-0.3, -0.25, 0.92], [0.05, 0.2, 0.98]], lean: 0.14, crouch: 0.25, stride: 0.45 },
+  { arm: [[-0.15, -0.05, 0.99], [0.05, 0.08, 1]], lean: 0.26, crouch: 0.35, stride: 0.65 },
+  { arm: [[-0.3, -0.6, 0.75], [0.2, 0.45, 0.85]], lean: 0.08, crouch: 0.2, stride: 0.3 },
+];
+
+/**
+ * The parts of frame `frame` of a grab (a shove of the sandbox; Fede, 2026-10-15): the figure reaches
+ * out with its free hand, leans in on a long step, and draws the hand back when it closes on nothing.
+ * The weapon is up by the shoulder, as in a struggle; with a staff (both hands on it), both arms reach.
+ */
+export function grabParts(spec: FigureSpec, style: AttackStyle, frame: number): Part[] {
+  const pose = GRAB[frame]!;
+  const guard = braceAction(style, spec);
+  const staff = guard.weapon?.kind === 'staff' && GUARDS[style].left === 'mirror';
+  const action: FigureAction = { right: staff ? mirror(pose.arm) : HOLD_UP, left: pose.arm, lean: pose.lean, crouch: pose.crouch, ...(guard.weapon ? { weapon: guard.weapon } : {}) };
+  return figure(spec, Math.PI * 0.5, pose.stride, action);
+}

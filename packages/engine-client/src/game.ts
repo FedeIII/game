@@ -1860,11 +1860,6 @@ async function run(options: GameOptions): Promise<void> {
     // A barbarian's rage (the reactions of the sandbox): its word when it starts.
     if (sandboxFight && player.rage > 0 && !raging) mechanicEvents.push({ kind: 'rage', mob: 0, player: 0 });
     raging = player.rage > 0;
-    // The shove of the sandbox (mechanics.ts): a roll into a mob in reach shoves it, and does not roll.
-    if (input.dodge && sandboxFight && player.brace === 0) {
-      const way = Math.hypot(input.x, input.y) > 0.1 ? Math.atan2(input.y, input.x) : (input.face ?? facingAngle(player.facing));
-      if (horde!.shove(player, 0, way, traits)) input = { ...input, dodge: false };
-    }
     // The last tick of a defeat: after it, the player wakes. The server wakes it in a shared world.
     const waking = player.down === 1 && (!net || net.status !== 'online');
     // In a world that the page runs, its pack and its gear give the load: the kind of its next roll (the server's comes with its state).

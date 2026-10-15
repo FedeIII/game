@@ -305,8 +305,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
-  walk + brace + 3 evade + 4 heavy roll + 3 jump + 2 struggle (a shove of the sandbox:
-  `struggleParts()`); the first column of each: `SKIN_COLUMNS`) frames of
+  walk + brace + 3 evade + 4 heavy roll + 3 jump + 2 struggle + 3 grab (a shove of the sandbox:
+  `struggleParts()`, `grabParts()`); the first column of each: `SKIN_COLUMNS`) frames of
   56 x 56. The columns of a view go on `SKIN_VIEW_ROWS` rows of `SKIN_ROW_CELLS` (20) frames: find a
   frame with `skinCell(column, view)`, never with `column * width`; the sheet is 1120 x 672 px (keep
   it at most 2048 on a side)

@@ -14,6 +14,7 @@ import {
   ROLL_FRAMES,
   SNEAK_FRAMES,
   STRUGGLE_FRAMES,
+  GRAB_FRAMES,
   attackAction,
   braceParts,
   evadeParts,
@@ -23,6 +24,7 @@ import {
   rollParts,
   sneakParts,
   struggleParts,
+  grabParts,
   type AttackStyle,
 } from './attacks.ts';
 import { WANDERER, figure, figureMaterials, type FigureAction, type FigureSpec, type Palette } from './figure.ts';
@@ -270,7 +272,7 @@ export function boundFigure(name: string): Image {
 /**
  * Frames `player/<view>/stand`, `player/<view>/walk/<i>`, `player/<view>/attack/<i>` (a punch),
  * `.../roll/<i>`, `.../heavyroll/<i>`, `.../fall/<i>`, `.../crouch`, `.../sneak/<i>` (the sneak walk),
- * `.../brace`, `.../evade/<i>`, `.../jump/<i>` and `.../struggle/<i>`: the wanderer, the default player.
+ * `.../brace`, `.../evade/<i>`, `.../jump/<i>`, `.../struggle/<i>` and `.../grab/<i>`: the wanderer, the default player.
  */
 export function playerFrames(): Frame[] {
   const anchor = { x: PLAYER_FRAME.pivotX / PLAYER_FRAME.width, y: PLAYER_FRAME.pivotY / PLAYER_FRAME.height };
@@ -295,6 +297,7 @@ export function playerFrames(): Frame[] {
     for (let i = 0; i < EVADE_FRAMES; i++) frames.push({ name: `player/${view.name}/evade/${i}`, image: render(evadeParts(WANDERER, 'punch', i)), anchor });
     for (let i = 0; i < JUMP_FRAMES; i++) frames.push({ name: `player/${view.name}/jump/${i}`, image: render(jumpParts(WANDERER, 'punch', i)), anchor });
     for (let i = 0; i < STRUGGLE_FRAMES; i++) frames.push({ name: `player/${view.name}/struggle/${i}`, image: render(struggleParts(WANDERER, 'punch', i)), anchor });
+    for (let i = 0; i < GRAB_FRAMES; i++) frames.push({ name: `player/${view.name}/grab/${i}`, image: render(grabParts(WANDERER, 'punch', i)), anchor });
   }
   return frames;
 }

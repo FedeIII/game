@@ -257,16 +257,20 @@ the timing of a blow, and what a shield gives in it (the draft, proposal 6).
 
 ### REQ-SBX-013: 7. The shove
 
-**User Story:** As an admin, I want a roll into a mob to shove it, so that I can test a way to make room
-in melee without a retreat, and one more use of Strength (the draft, proposal 7).
+**User Story:** As an admin, I want to grab a mob and shove it, so that I can test a way to make room in
+melee without a retreat, and one more use of Strength (the draft, proposal 7).
 
 **Acceptance Criteria:**
-- **AC-SBX-013.1:** With the switch "7. Shove", a roll (not the jump from a brace) whose way is within 45
-  degrees of the way to a living mob in the reach of the character is a shove, not a roll: it costs the
-  stamina of the roll and the wait between dodges.
-- **AC-SBX-013.2:** The character and the mob struggle for 0.5 s (Fede, 2026-10-15): the mob steps in to
-  13 px and stops its blow, both face each other, and both push, a push and a harder one by turns. The
-  character cannot act meanwhile. A hit on the character (by another mob) ends the struggle at once.
+- **AC-SBX-013.1:** With the switch "7. Shove", a dodge input with a direction always rolls, or jumps
+  in a brace (Fede, 2026-10-15). A dodge input with no direction (the character stands) is a grab: the
+  character reaches out the way it faces (the mouse, or its facing) for 0.4 s (24 ticks), for the stamina
+  of a roll and the wait between dodges, and cannot move, attack or dodge meanwhile. It shows three frames
+  of its own: the reach, the hand out, the hand back.
+- **AC-SBX-013.2:** While the hand is out (ticks 6 to 14 of the grab), the nearest living mob in the reach
+  of the character within 45 degrees of the way it faces is caught, and the grab becomes a struggle of
+  0.5 s: the mob steps in to 13 px and stops its blow, both face each other, and both push, a push and a
+  harder one by turns. The character cannot act meanwhile. A hit on the character (by another mob) ends
+  the struggle at once. A grab that catches nothing ends at its 24th tick.
 - **AC-SBX-013.3:** At the end of the struggle, the dice: d20 + the STR modifier and the proficiency
   bonus of the character against d20 + the better of the STR and DEX modifiers of the mob (its SRD stat
   block); a tie goes to the mob.
@@ -423,13 +427,16 @@ with a rhythm: in melee while the stamina lasts, then out to breathe (the draft,
   `GUARD_STAMINA` 12, `BLOCK_STAMINA` 15, `GUARD_BREAK_TICKS` 30; `Horde.breaksGuard()` (a bugbear; the
   slam of the shapes of the blows too). The page: `input/dodge-hold.ts` (`DodgeHold`, `GUARD_HOLD_MS`
   200), `DodgeButton.onRelease()`, `Mouse.onAltRelease()`.
-- **7. The shove.** `Horde.shove()` (the page calls it when a roll starts, out of a brace; true: no
-  roll) puts the mob in the state `struggle` (`Horde.struggle()`: the dice at its end) and the player in
-  `PlayerState.shove` (ticks); a win puts the mob in the state `floored` (`Horde.floored()`: the push,
-  the lie and the rise). `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics`; `MOB_BODY`,
+- **7. The shove.** `stepPlayer()` starts a grab on a dodge with no direction (`PlayerState.grab`,
+  `GRAB_TICKS` 24, `GRAB_REACH_TICKS` 6, `GRAB_HOLD_TICKS` 14); `Horde.step()` (`grabFor()`) catches a mob
+  in it, which puts the mob in the state `struggle` (`Horde.struggle()`: the dice at its end) and the
+  player in `PlayerState.shove` (ticks); a win puts the mob in the state `floored` (`Horde.floored()`: the
+  push, the lie and the rise). `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics` (also in
+  `HordePlayer.traits`, with `reach`); `MOB_BODY`,
   `canShove()`, `SHOVE_ARC` 45 degrees, `STRUGGLE_MS` 500, `SHOVE_TICKS` 32, `STRUGGLE_GAP` 13,
-  `FALL_MS` 250, `SHOVE_KNOCK_MS` 800, `RISE_MS` 450, `SHOVE_PUSH` 16. The art: `struggleParts()`
-  (`art/attacks.ts`; `SKIN_COLUMNS.struggle`, `player/<view>/struggle/<i>`), the poses `grapple`,
+  `FALL_MS` 250, `SHOVE_KNOCK_MS` 800, `RISE_MS` 450, `SHOVE_PUSH` 16. The art: `struggleParts()` and
+  `grabParts()` (`art/attacks.ts`; `SKIN_COLUMNS.struggle` and `.grab`, `player/<view>/struggle/<i>` and
+  `player/<view>/grab/<i>`), the poses `grapple`,
   `floored` and `rise` of `MobPose` and `SHOVE_ANIMATED` (`art/mobs.ts`); the page: `PlayerView` (the
   struggle frames by turns, `STRUGGLE_BEAT_MS` 110), `MobViews` (the frames by the time of the state).
 - **8. The clash.** `Horde.strike(..., player)` calls `Horde.clash()` for each mob that the blow

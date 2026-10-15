@@ -24,6 +24,7 @@ import {
   ROLL_FRAMES,
   SNEAK_FRAMES,
   STRUGGLE_FRAMES,
+  GRAB_FRAMES,
   attackAction,
   attackStyle,
   braceParts,
@@ -34,6 +35,7 @@ import {
   rollParts,
   sneakParts,
   struggleParts,
+  grabParts,
   type AttackStyle,
 } from './attacks.ts';
 import {
@@ -52,7 +54,7 @@ import {
 import { Image } from './image.ts';
 import { HEIGHT_SCALE, renderModel, type Part } from './sdf.ts';
 
-export const SKIN_VERSION = 13;
+export const SKIN_VERSION = 14;
 
 /**
  * A skin frame is larger than the atlas's player frame: room for tall figures and hats, and for a
@@ -72,7 +74,7 @@ export const SKIN_VIEWS = [
  * Columns of a view of a sheet: the stand, then the walk frames, the attack frames, the roll frames,
  * the fall frames, the crouch (a player that sneaks, at rest), the frames of the sneak walk, the brace
  * (after a blow), the frames of an evade, the frames of a heavy roll, the frames of a jump from a
- * brace and the frames of a struggle (a shove of the sandbox). The columns of a view go on
+ * brace and the frames of a struggle and of a grab (a shove of the sandbox). The columns of a view go on
  * SKIN_VIEW_ROWS rows of SKIN_ROW_CELLS frames (skinCell): the
  * sheet is 20 x 56 = 1120 px wide. Keep it at most 2048 px (a GPU with 16-bit floats; see "Art" in
  * CLAUDE.md).
@@ -86,6 +88,7 @@ export const SKIN_EVADE_FRAMES = EVADE_FRAMES;
 export const SKIN_HEAVY_ROLL_FRAMES = HEAVY_ROLL_FRAMES;
 export const SKIN_JUMP_FRAMES = JUMP_FRAMES;
 export const SKIN_STRUGGLE_FRAMES = STRUGGLE_FRAMES;
+export const SKIN_GRAB_FRAMES = GRAB_FRAMES;
 const ATTACK_COLUMN = 1 + SKIN_WALK_FRAMES;
 const ROLL_COLUMN = ATTACK_COLUMN + SKIN_ATTACK_FRAMES;
 const FALL_COLUMN = ROLL_COLUMN + SKIN_ROLL_FRAMES;
@@ -94,6 +97,7 @@ const BRACE_COLUMN = CROUCH_COLUMN + 1 + SKIN_SNEAK_FRAMES;
 const HEAVY_ROLL_COLUMN = BRACE_COLUMN + 1 + SKIN_EVADE_FRAMES;
 const JUMP_COLUMN = HEAVY_ROLL_COLUMN + SKIN_HEAVY_ROLL_FRAMES;
 const STRUGGLE_COLUMN = JUMP_COLUMN + SKIN_JUMP_FRAMES;
+const GRAB_COLUMN = STRUGGLE_COLUMN + SKIN_STRUGGLE_FRAMES;
 /** The first column of each kind of frame in a sheet, and the number of columns (`count`). */
 export const SKIN_COLUMNS = {
   stand: 0,
@@ -108,7 +112,8 @@ export const SKIN_COLUMNS = {
   heavyRoll: HEAVY_ROLL_COLUMN,
   jump: JUMP_COLUMN,
   struggle: STRUGGLE_COLUMN,
-  count: STRUGGLE_COLUMN + SKIN_STRUGGLE_FRAMES,
+  grab: GRAB_COLUMN,
+  count: GRAB_COLUMN + SKIN_GRAB_FRAMES,
 } as const;
 /** The frames in one row of a sheet. */
 export const SKIN_ROW_CELLS = 20;
@@ -944,7 +949,7 @@ export function skinAttack(skin: Skin): AttackStyle {
 
 /**
  * Renders the sheet of a skin: every view, the stand, the walk, the attack, the roll, the fall, the
- * crouch, the sneak walk, the brace, the evade, the heavy roll, the jump and the struggle.
+ * crouch, the sneak walk, the brace, the evade, the heavy roll, the jump, the struggle and the grab.
  */
 export function renderSkinSheet(skin: Skin): SkinSheet {
   const { width, height } = SKIN_FRAME;
@@ -971,6 +976,7 @@ export function renderSkinSheet(skin: Skin): SkinSheet {
     for (let f = 0; f < SKIN_HEAVY_ROLL_FRAMES; f++) draw(heavyRollParts(skin.spec, f), SKIN_COLUMNS.heavyRoll + f);
     for (let f = 0; f < SKIN_JUMP_FRAMES; f++) draw(jumpParts(skin.spec, style, f), SKIN_COLUMNS.jump + f);
     for (let f = 0; f < SKIN_STRUGGLE_FRAMES; f++) draw(struggleParts(skin.spec, style, f), SKIN_COLUMNS.struggle + f);
+    for (let f = 0; f < SKIN_GRAB_FRAMES; f++) draw(grabParts(skin.spec, style, f), SKIN_COLUMNS.grab + f);
   });
   return { image, headHeight: Math.round(figureTop(skin.spec) * HEIGHT_SCALE) + 4 };
 }

@@ -2,9 +2,9 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FALL_MS, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_BIND_MS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, RISE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, STRUGGLE_GAP, STRUGGLE_MS, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape, type Size } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FALL_MS, FEINT_MS, GRAB_HOLD_TICKS, GRAB_REACH_TICKS, GRAB_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_BIND_MS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, RISE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, STRUGGLE_GAP, STRUGGLE_MS, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape, type Size } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
+import { ATTACK_REACH, GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -815,7 +815,7 @@ export interface HordePlayer {
    * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
    * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'shield' | 'class' | 'level' | 'deflect' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'shield' | 'class' | 'level' | 'deflect' | 'reach' | 'size' | 'athletics' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -1455,6 +1455,8 @@ export class Horde {
     const bodies = new Map(players.map((p) => [p.id, p.traits ?? {}]));
     this.bodies = bodies;
     this.guards = new Map(players.map((p) => [p.id, p.traits?.guard ?? GUARD_TICKS]));
+    // The grabs of a shove (mechanics.ts): a player whose hands are out catches a mob in front of it.
+    if (this.mechanics.has('shove')) for (const p of players) this.grabFor(p);
     for (const id of this.nextMob.keys()) if (!byId.has(id)) this.nextMob.delete(id);
     this.flyArrows(dt, players, hits);
     for (const mob of [...this.mobs]) {
@@ -1936,14 +1938,16 @@ export class Horde {
   }
 
   /**
-   * The shove (mechanics.ts): a roll of player `id` (at `player`) the way `aim` (radians) into a living
-   * mob in its reach, within SHOVE_ARC of that way, is a shove: it costs the stamina of the roll and the
-   * wait between dodges. The player and the mob struggle for STRUGGLE_MS (the mob in state 'struggle',
-   * the player in PlayerState.shove); then the dice (struggle()). Returns whether it is a shove: then
-   * the caller does not roll.
+   * The grab of a shove (mechanics.ts): while the hands of player `p` are out (PlayerState.grab, from
+   * GRAB_REACH_TICKS to GRAB_HOLD_TICKS), the nearest living mob in its reach, within SHOVE_ARC of the
+   * way that it faces (PlayerState.aim), is caught: the grab becomes a struggle (the mob in the state
+   * 'struggle', the player in PlayerState.shove; the dice at its end: struggle()).
    */
-  shove(player: PlayerState, id: number, aim: number, traits: Pick<PlayerTraits, 'reach' | 'size' | 'athletics' | 'dodgeCooldown' | 'rollReach' | 'rollSafe'>): boolean {
-    if (!this.mechanics.has('shove')) return false;
+  private grabFor(p: HordePlayer): void {
+    const player = p.state;
+    const out = GRAB_TICKS - player.grab;
+    if (player.grab === 0 || out < GRAB_REACH_TICKS || out > GRAB_HOLD_TICKS) return;
+    const reach = p.traits?.reach ?? ATTACK_REACH;
     let best: Mob | null = null;
     let bestD = Infinity;
     for (const mob of this.mobs) {
@@ -1951,30 +1955,23 @@ export class Horde {
       const dx = mob.x - player.x;
       const dy = mob.y - player.y;
       const d = Math.hypot(dx, dy);
-      if (d > traits.reach + MOB_STATS[mob.kind].radius || d >= bestD) continue;
-      if (Math.abs(normalAngle(Math.atan2(dy, dx) - aim)) > SHOVE_ARC) continue;
+      if (d > reach + MOB_STATS[mob.kind].radius || d >= bestD) continue;
+      if (Math.abs(normalAngle(Math.atan2(dy, dx) - player.aim)) > SHOVE_ARC) continue;
       best = mob;
       bestD = d;
     }
-    if (!best) return false;
-    // A price in stamina: a shove costs its own, else the stamina of the roll.
-    player.stamina = Math.max(0, player.stamina - (this.mechanics.has('stamina') ? SHOVE_STAMINA : rollOf(player.load, traits).stamina));
-    player.rest = 0;
-    player.dodgeCooldown = traits.dodgeCooldown;
+    if (!best) return;
+    // Caught: both struggle. Its blow (a wind-up) is over, and it turns to the player.
+    player.grab = 0;
     player.shove = SHOVE_TICKS;
-    player.braceWindow = 0;
     player.aim = Math.atan2(best.y - player.y, best.x - player.x);
     player.facing = facingOfAngle(player.aim);
-    player.vx = 0;
-    player.vy = 0;
-    // Both struggle: the mob's blow (a wind-up) is over, and it turns to the player.
     const brain = this.brains.get(best.id)!;
-    brain.target = id;
+    brain.target = p.id;
     brain.lostMs = 0;
-    brain.shover = { athletics: traits.athletics, size: traits.size };
+    brain.shover = { athletics: p.traits?.athletics ?? 0, size: p.traits?.size ?? 'medium' };
     this.enter(best, 'struggle');
     best.facing = facingTo(player.x - best.x, player.y - best.y, best.facing);
-    return true;
   }
 
   /**

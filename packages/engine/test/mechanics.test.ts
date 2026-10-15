@@ -6,6 +6,8 @@ import {
   CLASH_REEL_TICKS,
   EMPTY_GEAR,
   EVADE_STAMINA,
+  GRAB_HOLD_TICKS,
+  GRAB_TICKS,
   GUARD_BREAK_TICKS,
   GUARD_SPEED,
   GUARD_STAMINA,
@@ -40,6 +42,7 @@ import {
   atFlank,
   braceGrade,
   braceSector,
+  canAttack,
   canDodge,
   canShove,
   hitPlayer,
@@ -489,13 +492,10 @@ describe('6. the guard stance and the shield block', () => {
 
 describe('7. the shove', () => {
   const FIGHTER = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);
-  /** A goblin 1 tile east, and a player that rolls to the east: the d20s show `ours`, then `theirs`. */
-  function shove(on: readonly Mechanic[], ours: number, theirs: number, kind: MobKind = 'skirmisher', traits = FIGHTER) {
-    const { horde, player, state, mob } = duel(on, faces(ours, theirs), kind, { ac: 10 }, 14);
-    const shoved = horde.shove(state, 1, 0, traits);
-    return { horde, player, state, mob, shoved };
-  }
-  /** Runs the player (standing) and the horde for `ms`; returns the events and each state of the mob. */
+  /** The horde's view of a fighter with STR 10 at level 1: a shove adds 2 (the proficiency bonus). */
+  const BODY: HordePlayer['traits'] = { ac: 10, athletics: 2, size: 'medium', reach: FIGHTER.reach };
+  const DODGE: MoveInput = { x: 0, y: 0, dodge: true, face: 0 };
+  /** Runs the player and the horde for `ms`; returns the events and each state of the mob. */
   function run(horde: Horde, player: HordePlayer, mob: Mob, ms: number) {
     const events: MechanicEvent[] = [];
     const states: string[] = [];
@@ -507,24 +507,78 @@ describe('7. the shove', () => {
     }
     return { events: events.map((e) => e.kind), states };
   }
+  /** A goblin `dx` east (and `dy` south), and a player that grabs to the east: the d20s show `ours`, then `theirs`. */
+  function grab(on: readonly Mechanic[], ours: number, theirs: number, kind: MobKind = 'skirmisher', body: HordePlayer['traits'] = BODY, dx = 14, dy = 0) {
+    const { horde, player, state, mob } = duel(on, faces(ours, theirs), kind, body, dx, dy);
+    stepPlayer(state, DODGE, world, { ...FIGHTER, mechanics: new Set(on) });
+    return { horde, player, state, mob };
+  }
+  /** Runs until the struggle starts (the hands catch the mob), at most the whole grab. */
+  function untilCaught(horde: Horde, player: HordePlayer, mob: Mob) {
+    for (let t = 0; t < GRAB_TICKS * TICK_MS && mob.state !== 'struggle'; t += TICK_MS) {
+      stepPlayer(player.state, NO_INPUT, world);
+      horde.step(TICK_MS, [player]);
+    }
+  }
 
-  it('a roll into a mob in reach is a shove: both struggle for 0.5 s, the mob steps in, and the player stands', () => {
-    const { horde, player, state, mob, shoved } = shove(['shove'], 15, 5);
-    expect(shoved).toBe(true);
-    expect(mob.state).toBe('struggle');
-    // It costs the stamina of a light roll, and the player stands.
+  it('a dodge with no direction is a grab: the player stands and reaches out, for the stamina of a roll', () => {
+    const { state } = grab(['shove'], 15, 5);
+    expect(state.grab).toBe(GRAB_TICKS);
+    expect(state.dodge).toBe(0);
     expect(state.stamina).toBe(100 - ROLLS.light.stamina);
-    expect(state.shove).toBe(SHOVE_TICKS);
+    expect(canAttack(state)).toBe(false);
     expect(canDodge(state)).toBe(false);
+  });
+
+  it('a dodge with a direction rolls, and in a brace it jumps, also with the shove on', () => {
+    const on = new Set<Mechanic>(['shove']);
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 1, y: 0, dodge: true }, world, { ...FIGHTER, mechanics: on });
+    expect(p.dodge).toBeGreaterThan(0);
+    expect(p.grab).toBe(0);
+    const q = createPlayer(100, 100);
+    q.brace = 10;
+    stepPlayer(q, { x: -1, y: 0, dodge: true }, world, { ...FIGHTER, mechanics: on });
+    expect(q.jump).toBeGreaterThan(0);
+    expect(q.grab).toBe(0);
+  });
+
+  it('a grab that reaches no mob in front ends on nothing; the player can act again after it', () => {
+    // The goblin behind the player: out of the 45 degrees of the grab.
+    const { horde, player, state, mob } = grab(['shove'], 15, 5, 'skirmisher', BODY, -14);
+    const { events, states } = run(horde, player, mob, GRAB_TICKS * TICK_MS);
+    expect(events).toEqual([]);
+    expect(states).not.toContain('struggle');
+    expect(state.grab).toBe(0);
+    expect(state.shove).toBe(0);
+  });
+
+  it('a grab that reaches a mob in front becomes a struggle: the mob steps in, both push for 0.5 s', () => {
+    const { horde, player, state, mob } = grab(['shove'], 15, 5);
+    untilCaught(horde, player, mob);
+    expect(mob.state).toBe('struggle');
+    expect(state.grab).toBe(0);
+    expect(state.shove).toBe(SHOVE_TICKS);
     const { events, states } = run(horde, player, mob, STRUGGLE_MS - 2 * TICK_MS);
     expect(events).toEqual([]);
     expect(states).toEqual(['struggle']);
     expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeCloseTo(STRUGGLE_GAP, 0);
   });
 
+  it('the hands are out only in the middle of the grab: a mob that comes later is not caught', () => {
+    const { horde, player, state, mob } = grab(['shove'], 15, 5, 'skirmisher', BODY, 0, 60);
+    run(horde, player, mob, (GRAB_HOLD_TICKS + 1) * TICK_MS);
+    // It comes in front of the player now: too late.
+    mob.x = state.x + 14;
+    mob.y = state.y;
+    const { states } = run(horde, player, mob, (GRAB_TICKS - GRAB_HOLD_TICKS) * TICK_MS);
+    expect(states).not.toContain('struggle');
+  });
+
   it('a win throws the mob back and down: it falls, lies, stands up, and blows on it roll with advantage', () => {
-    // 15 + 2 (STR 10, proficiency 2) against 5 + 2 (a goblin's DEX).
-    const { horde, player, state, mob } = shove(['shove'], 15, 5);
+    // 15 + 2 against 5 + 2 (a goblin's DEX).
+    const { horde, player, state, mob } = grab(['shove'], 15, 5);
+    untilCaught(horde, player, mob);
     const struggle = run(horde, player, mob, STRUGGLE_MS + TICK_MS);
     expect(struggle.events).toEqual(['shoved']);
     expect(mob.state).toBe('floored');
@@ -544,7 +598,8 @@ describe('7. the shove', () => {
       [5, 15],
       [10, 10],
     ] as const) {
-      const { horde, player, state, mob } = shove(['shove'], ours, theirs);
+      const { horde, player, state, mob } = grab(['shove'], ours, theirs);
+      untilCaught(horde, player, mob);
       const { events, states } = run(horde, player, mob, STRUGGLE_MS + 3 * TICK_MS);
       expect(events).toEqual(['held']);
       // Then it hunts again (and winds up at once, chest to chest).
@@ -554,8 +609,8 @@ describe('7. the shove', () => {
   });
 
   it('a small character cannot shove a large mob (5e): it struggles, then "too big"', () => {
-    const halfling = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR, 1, 'small');
-    const { horde, player, mob } = shove(['shove'], 20, 1, 'brute', halfling);
+    const { horde, player, mob } = grab(['shove'], 20, 1, 'brute', { ...BODY, size: 'small' }, 18);
+    untilCaught(horde, player, mob);
     const { events, states } = run(horde, player, mob, STRUGGLE_MS + 3 * TICK_MS);
     expect(events).toEqual(['tooBig']);
     expect(states.slice(0, 2)).toEqual(['struggle', 'chase']);
@@ -564,7 +619,8 @@ describe('7. the shove', () => {
   });
 
   it('a hit on the player ends the struggle at once', () => {
-    const { horde, player, state, mob } = shove(['shove'], 15, 5);
+    const { horde, player, state, mob } = grab(['shove'], 15, 5);
+    untilCaught(horde, player, mob);
     run(horde, player, mob, 100);
     hitPlayer(state, 1, 30, 0);
     const { events, states } = run(horde, player, mob, 50);
@@ -572,11 +628,11 @@ describe('7. the shove', () => {
     expect(states).toEqual(['chase']);
   });
 
-  it('is no shove without its switch, or away from the mob', () => {
-    expect(shove([], 15, 5).shoved).toBe(false);
-    const { horde, state } = duel(['shove'], faces(15, 5), 'skirmisher', { ac: 10 }, 14);
-    expect(horde.shove(state, 1, Math.PI, FIGHTER)).toBe(false);
-    expect(state.shove).toBe(0);
+  it('without its switch a dodge with no direction rolls, as before', () => {
+    const p = createPlayer(100, 100);
+    stepPlayer(p, DODGE, world, FIGHTER);
+    expect(p.dodge).toBeGreaterThan(0);
+    expect(p.grab).toBe(0);
   });
 
   it('a character gets its size from its race, and its athletics from STR and its proficiency', () => {
@@ -876,10 +932,11 @@ describe('12. a price in stamina', () => {
     }
   });
 
-  it('a shove costs 20 in place of the roll', () => {
-    const { horde, state } = duel(['shove', 'stamina'], faces(15, 5));
-    horde.shove(state, 1, 0, traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR));
-    expect(state.stamina).toBe(100 - SHOVE_STAMINA);
+  it('a grab costs 20 in place of the roll', () => {
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 0, y: 0, dodge: true }, world, { ...traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR), mechanics: new Set<Mechanic>(['shove', 'stamina']) });
+    expect(p.grab).toBe(GRAB_TICKS);
+    expect(p.stamina).toBe(100 - SHOVE_STAMINA);
   });
 
   it('with no stamina a step back does not brace, and a brace drops', () => {

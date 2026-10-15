@@ -23,7 +23,7 @@ export function npcTextures(art: Art, look: string): PlayerTextures {
   const still = Object.fromEntries(FACINGS.map((facing) => [facing, [stand[facing]]])) as Record<Facing, Texture[]>;
   const fights = art.tryFrame(`npc/${look}/down/attack/0`) !== null;
   const attack = fights ? (Object.fromEntries(FACINGS.map((facing) => [facing, art.variants(`npc/${look}/${facing}/attack`)])) as Record<Facing, Texture[]>) : still;
-  return { stand, walk, attack, roll: still, heavyRoll: still, fall: still, crouch: stand, sneak: walk, brace: stand, evade: still, jump: still, struggle: still, headHeight: NPC_HEAD_HEIGHT };
+  return { stand, walk, attack, roll: still, heavyRoll: still, fall: still, crouch: stand, sneak: walk, brace: stand, evade: still, jump: still, struggle: still, grab: still, headHeight: NPC_HEAD_HEIGHT };
 }
 
 /**

@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import type { AttackWeight } from './gear.ts';
 import type { LoadTier } from './load.ts';
-import { BLOCK_STAMINA, GUARD_SPEED, GUARD_STAMINA, RAGE_REST_TICKS, RAGE_TICKS, SHIELD_AFTER_TICKS, shieldCaster, type Mechanics } from './mechanics.ts';
+import { BLOCK_STAMINA, GRAB_TICKS, GUARD_SPEED, GUARD_STAMINA, RAGE_REST_TICKS, RAGE_TICKS, SHIELD_AFTER_TICKS, SHOVE_STAMINA, shieldCaster, type Mechanics } from './mechanics.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -105,6 +105,11 @@ export interface PlayerState {
   reel: number;
   /** Ticks left of a shove (0: none): it stands, its hands on the mob (the shove, mechanics.ts). */
   shove: number;
+  /**
+   * Ticks left of a grab (0: none): a dodge with no direction, with the shove on (mechanics.ts). It
+   * reaches out the way of its aim and stands; the horde turns it into a struggle when it catches a mob.
+   */
+  grab: number;
   /** The reactions of the classes (mechanics.ts): the ticks left of a Shield after a brace, of the wait of an Uncanny Dodge, of a rage and of the wait after it. */
   ward: number;
   uncanny: number;
@@ -368,6 +373,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     guarding: false,
     reel: 0,
     shove: 0,
+    grab: 0,
     ward: 0,
     uncanny: 0,
     rage: 0,
@@ -460,6 +466,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.guarding = false;
   player.reel = 0;
   player.shove = 0;
+  player.grab = 0;
   player.ward = 0;
   player.uncanny = 0;
   player.rage = 0;
@@ -473,7 +480,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.reel === 0 && player.shove === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
+  return player.down === 0 && player.stun === 0 && player.reel === 0 && player.shove === 0 && player.grab === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
 }
 
 /**
@@ -486,6 +493,7 @@ export function canDodge(player: PlayerState): boolean {
     player.stun === 0 &&
     player.reel === 0 &&
     player.shove === 0 &&
+    player.grab === 0 &&
     player.attack === 0 &&
     player.dodge === 0 &&
     player.jump === 0 &&
@@ -552,6 +560,7 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.parry = 0;
   player.guarding = false;
   player.shove = 0;
+  player.grab = 0;
   // A hit after the safe ticks of a roll ends the roll.
   player.dodge = 0;
   player.braceWindow = 0;
@@ -759,10 +768,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return false;
   }
-  if (player.reel > 0 || player.shove > 0) {
-    // A reel (a broken guard): it stands, and no guard follows. A shove: it stands, its hands on the mob.
+  if (player.reel > 0 || player.shove > 0 || player.grab > 0) {
+    // A reel (a broken guard): it stands, and no guard follows. A shove: it stands, its hands on the mob. A grab: it reaches out.
     if (player.reel > 0) player.reel--;
-    else player.shove--;
+    else if (player.shove > 0) player.shove--;
+    else player.grab--;
     player.guarding = false;
     player.vx = 0;
     player.vy = 0;
@@ -803,6 +813,22 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (player.braceWindow > 0) player.braceWindow--;
   const kind = move.dodge ? rollOf(player.load, traits) : null;
   const dodges = kind !== null && player.dodgeCooldown === 0 && player.stamina >= kind.stamina && !wading;
+  if (dodges && traits.mechanics?.has('shove') && Math.hypot(move.x, move.y) <= 0.1) {
+    // The shove of the sandbox: a dodge with no direction is a grab, the way it faces (the mouse, or its facing).
+    player.braceWindow = 0;
+    player.brace = 0;
+    player.evade = 0;
+    player.parry = 0;
+    player.stamina = Math.max(0, player.stamina - (traits.mechanics.has('stamina') ? SHOVE_STAMINA : kind.stamina));
+    player.rest = 0;
+    player.dodgeCooldown = traits.dodgeCooldown ?? DODGE_COOLDOWN_TICKS;
+    player.aim = move.face ?? facingAngle(player.facing);
+    player.facing = facingOfAngle(player.aim);
+    player.grab = GRAB_TICKS;
+    player.vx = 0;
+    player.vy = 0;
+    return false;
+  }
   if (dodges && player.brace > 0) {
     // A dodge in a brace: a short jump the way the input moves (with no input, back from the way it
     // struck). The brace goes on, and the player keeps its face to the foe.
