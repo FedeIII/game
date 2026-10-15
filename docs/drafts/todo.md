@@ -6,38 +6,6 @@
 
 ## Open
 
-- **Different DCs for ability gates by the difficulty of the action** (2026-10-15). Each ability gate
-  must have its own DC (difficulty class), from the difficulty that the design gives to its action.
-  Now nearly every gate needs a score of 13 (`GATE_SCORE`): the wade and the barred doors (STR), the
-  locked chests (DEX), lore (INT), insight and Medicine (WIS), athletics (STR), persuasion and
-  reputation (CHA). Only a few have another number: the map (INT 11, 13, 15), the glint of a wind-up
-  (INT 15) and the keen ear (WIS 15). The type `Gate` already has its own `min`, and a barred door, a
-  lock, an answer, a lore page and a line of a scene each take a `Gate`. The tags of the clues
-  ("[STR 13]", `gateTag()`) show the number.
-  Code: `Gate`, `GATE_SCORE`, `WADE_GATE`, `FORCE_GATE`, `PICK_GATE`, `meetsGate()`, `gateView()`,
-  `GATE_HINT` in `packages/engine/src/traits.ts`; `MEDICINE_GATE` in `packages/engine/src/items.ts`;
-  `Building.barred` (`buildings.ts`), `Fixture.lock` (`fixtures.ts`), `DialogAnswer.gate`
-  (`dialog.ts`) and the gate of a scene line (`scenes.ts`) in the engine; the barred houses and the
-  locked chests (`FORCE_GATE`, `PICK_GATE`) in `worlds/wilds/src/houses.ts`; `LORE_GATE`,
-  `INSIGHT_GATE`, `KEEN_GATE`, `ATHLETICS_GATE`, `PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`;
-  `READ_FOE_GATE`, `READ_OPENING_GATE`, `HOMEWARD_GATE`, `REPUTATION_GATE` and the map gates in
-  `packages/engine-client/src/ui/gates.ts`; the plan in `docs/drafts/abilities.md`.
-  Fede's reference (2026-10-15), the DCs of 5e:
-
-  | DC | Difficulty        | Typical use                                                |
-  | -- | ----------------- | ---------------------------------------------------------- |
-  | 5  | Very easy         | Almost anyone succeeds; often don’t roll                   |
-  | 10 | Easy              | Routine for a trained character                            |
-  | 15 | Medium            | Requires focus or competence; the default meaningful check |
-  | 20 | Hard              | Skilled characters can still fail                          |
-  | 25 | Very hard         | Requires exceptional skill, luck, or help                  |
-  | 30 | Nearly impossible | Legendary feat; use sparingly                              |
-
-  Ask Fede, when the work on this item starts: how does this table go into the game? The DCs of the
-  table are for a roll of d20 + the modifier, and a gate now is a score with no die (Fede's rule):
-  keep the scores and give each difficulty a score, or roll a d20 against the DC? Which actions are
-  easy, medium or hard?
-
 - **Slower stamina refill while the player moves** (2026-10-15). Stamina must come back slower while
   the player moves. Now stamina comes back at the same rate whether the player walks or stands:
   `staminaRefill` per second (`STAMINA_REFILL` 20 + `REFILL_PER_MOD` 4 x the CON modifier), from
@@ -264,3 +232,8 @@
   and a chimney now and then, and a kind with its own things (cottage, farmhouse, hunter's lodge with a
   pelt, hermit's hut with a lectern, store room); most are dark with a cold candle, about one in five is
   lit. Done 2026-10-15, commit `b87f54d`.
+- **Different DCs for ability gates by the difficulty of the action** (2026-10-15). Each check now has
+  its own DC from its context, and a DC is the score that it needs (Fede's answer): the rubric is in
+  `docs/features/abilities/checks.md`, `npm run checks` prints the register of every check, the locks
+  and barred doors of the houses go from DC 10 to 13 by what the chest holds, and the other checks of
+  the Wilds go from 10 to 16. Done 2026-10-15, commit `fb0f14d`.
