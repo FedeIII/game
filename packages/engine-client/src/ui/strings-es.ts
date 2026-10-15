@@ -464,8 +464,12 @@ export const ES: Strings = {
         name: '2. Réplica',
         line: 'Una esquiva (con los grados, solo una precisa) desequilibra al enemigo 0,4 s ("expuesto"): no puede cargar su golpe, y tu siguiente golpe contra él tira con ventaja y suma tu bonificación de INT a un golpe mientras carga.',
       },
+      front: {
+        name: '3. El frente de la guardia',
+        line: 'Una guardia solo cuenta contra un golpe que viene a menos de 90 grados de la dirección de tu golpe. Un golpe por el lado o por la espalda ("por detrás") tira contra tu CA normal.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

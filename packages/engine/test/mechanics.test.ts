@@ -8,6 +8,7 @@ import {
   World,
   braceGrade,
   createPlayer,
+  inFront,
   lateBraceAc,
   stepPlayer,
   type DiceSource,
@@ -43,13 +44,13 @@ function tough(x: number, y: number): PlayerState {
   return p;
 }
 
-/** A horde with the mechanics `on`, one steady mob of `kind` 1 tile east of a player that it hunts. */
-function duel(on: readonly Mechanic[], dice: DiceSource, kind: MobKind = 'skirmisher', traits: HordePlayer['traits'] = { ac: 10, braceAc: 4 }) {
+/** A horde with the mechanics `on`, one steady mob of `kind` 1 tile east of a player that it hunts (or `dx` east). */
+function duel(on: readonly Mechanic[], dice: DiceSource, kind: MobKind = 'skirmisher', traits: HordePlayer['traits'] = { ac: 10, braceAc: 4 }, dx = 14) {
   const horde = new Horde(world, open, 1, dice);
   horde.mechanics = new Set(on);
   const state = tough(100, 100);
   const player: HordePlayer = { id: 1, state, traits };
-  const mob = horde.spawn(kind, 114, 100, { steady: true });
+  const mob = horde.spawn(kind, 100 + dx, 100, { steady: true });
   horde.provoke(mob, 1, state);
   return { horde, player, state, mob };
 }
@@ -165,7 +166,7 @@ describe('2. the riposte', () => {
       [['riposte'], true],
       [[], false],
     ] as const) {
-      const { horde, player, state, mob } = duel(on as Mechanic[], faces(5, 5, 15));
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(5, 5, 15));
       expect(untilWindup(horde, player, mob, 20)).toBe(true);
       brace(state, 9);
       blow(horde, player, mob);
@@ -192,5 +193,41 @@ describe('2. the riposte', () => {
     blow(horde, player, mob);
     expect(mob.state).toBe('strike');
     expect(mob.exposed).toBeUndefined();
+  });
+});
+
+describe('3. the front of a brace', () => {
+  // The d20 of the mob shows 9: 13 hits the plain AC 10, and misses the AC of the brace, 14.
+  it('a brace counts against a blow from its front, and not from its back', () => {
+    for (const [dx, hits] of [
+      [14, false],
+      [-14, true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(['front'], faces(9), 'skirmisher', { ac: 10, braceAc: 4 }, dx);
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      // It struck to the east, and braces.
+      state.aim = 0;
+      state.brace = 10;
+      state.braceAge = 9;
+      const { hit, events } = blow(horde, player, mob);
+      expect((hit?.[2] ?? 0) > 0).toBe(hits);
+      expect(events).toEqual(hits ? [{ kind: 'behind', mob: mob.id, player: 1 }] : []);
+    }
+  });
+
+  it('without its switch a brace counts from every side', () => {
+    const { horde, player, state, mob } = duel([], faces(9), 'skirmisher', { ac: 10, braceAc: 4 }, -14);
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.aim = 0;
+    state.brace = 10;
+    state.braceAge = 9;
+    expect(blow(horde, player, mob).hit?.[2]).toBe(0);
+  });
+
+  it('the front is the half of the circle round the way that the player struck', () => {
+    expect(inFront(0, 0, 0, 10, 0)).toBe(true);
+    expect(inFront(0, 0, 0, 0, 10)).toBe(true);
+    expect(inFront(0, 0, 0, -1, 10)).toBe(false);
+    expect(inFront(0, 0, Math.PI, -10, 1)).toBe(true);
   });
 });

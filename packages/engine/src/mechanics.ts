@@ -11,7 +11,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -24,9 +24,9 @@ export const NO_MECHANICS: Mechanics = new Set();
 /**
  * Something that a mechanic did in a fight, for the page to show (a word over the player or a mob):
  * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
- * riposte).
+ * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace).
  */
-export type MechanicEventKind = 'sharp' | 'riposte';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -69,3 +69,22 @@ export function lateBraceAc(braceAc: number): number {
  * mob in its wind-up (Mob.exposed). With the grades of a brace, only a sharp evade gives it.
  */
 export const RIPOSTE_MS = 400;
+
+// ---------------------------------------------------------------- 3. the front of a brace
+
+/**
+ * The front of a brace (proposal 3): a brace counts only against a blow from its front, from a mob
+ * within FRONT_ANGLE of the way that the player struck (PlayerState.aim). A blow from the side or the
+ * back rolls against the plain AC, and a miss glances off. With one mob nothing changes; with two or
+ * three the player must keep them in front of it (positioning).
+ */
+export const FRONT_ANGLE = Math.PI / 2;
+
+/** Whether (x, y) is in front of a player at (px, py) that faces `aim` (radians): within `angle` of it. */
+export function inFront(px: number, py: number, aim: number, x: number, y: number, angle = FRONT_ANGLE): boolean {
+  const dx = x - px;
+  const dy = y - py;
+  const d = Math.hypot(dx, dy);
+  if (d < 1) return true;
+  return (dx * Math.cos(aim) + dy * Math.sin(aim)) / d >= Math.cos(angle) - 1e-9;
+}

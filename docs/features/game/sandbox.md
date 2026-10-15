@@ -166,6 +166,20 @@ that attacks as well as it defends (the draft, proposal 2).
 
 ---
 
+### REQ-SBX-009: 3. The front of a brace
+
+**User Story:** As an admin, I want a brace that guards only its front, so that I can test if the
+player must put the foes in front of it (the draft, proposal 3: positioning).
+
+**Acceptance Criteria:**
+- **AC-SBX-009.1:** With the switch "3. The front of a brace", a brace counts only against a blow from a
+  mob within 90 degrees of the way that the character struck. Against a blow from the side or the back,
+  the AC of the brace, its grade and its riposte do not count: the blow rolls against the plain AC, a
+  miss glances off ("miss"), and the word "behind" (Spanish "por detrás") rises over the character.
+- **AC-SBX-009.2:** Without the switch a brace counts against a blow from every side.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -193,6 +207,7 @@ that attacks as well as it defends (the draft, proposal 2).
   `Blow.opening`; `Horde.hit()` takes it away), the brain's `offBalanceMs` (`Horde.stagger()`: the state
   `hurt` with no push), `RIPOSTE_MS` 400. The page draws no flash for a reel with an opening
   (`MobLook.exposed`).
+- **3. The front.** `inFront()` (`FRONT_ANGLE` 90 degrees from `PlayerState.aim`) in `Horde.defence()`.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

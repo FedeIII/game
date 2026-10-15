@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, RIPOSTE_MS, braceGrade, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { NO_MECHANICS, RIPOSTE_MS, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
@@ -1667,7 +1667,7 @@ export class Horde {
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
-    const defence = this.defence(target, body);
+    const defence = this.defence(mob, id, target, body);
     const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), defence.ac, this.dice, defence.edge);
     if (!roll.hit) {
       missPlayer(target, defence.braced);
@@ -1696,12 +1696,17 @@ export class Horde {
   /**
    * How a player stands against a mob's blow now: its AC, and in a brace the AC of the brace
    * (PlayerTraits.braceAc). With the grades of a brace (mechanics.ts), a sharp brace also gives the mob
-   * disadvantage, and a late one only a part of the AC of the brace.
+   * disadvantage, and a late one only a part of the AC of the brace. With the front of a brace, a brace
+   * does not count against a blow from its side or its back.
    */
-  private defence(target: PlayerState, body: HordePlayer['traits']): Defence {
+  private defence(mob: Mob, id: number, target: PlayerState, body: HordePlayer['traits']): Defence {
     const ac = body?.ac ?? 10;
     const braceAc = body?.braceAc ?? 0;
     if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null };
+    if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
+      this.event('behind', mob, id);
+      return { ac, edge: 0, braced: false, grade: null };
+    }
     if (!this.mechanics.has('grades') || braceAc === 0) return { ac: ac + braceAc, edge: 0, braced: true, grade: null };
     const grade = braceGrade(target.braceAge);
     return { ac: ac + (grade === 'late' ? lateBraceAc(braceAc) : braceAc), edge: grade === 'sharp' ? -1 : 0, braced: true, grade };
