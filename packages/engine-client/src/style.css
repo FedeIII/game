@@ -3316,3 +3316,145 @@ a.menu-link {
   max-width: 220px;
   font-size: 13px;
 }
+
+/* ---------------------------------------------------------------- sandbox (ui/sandbox-panel.ts) */
+
+/*
+ * The sandbox of an admin (sandbox.ts): a button at the bottom left opens its panel over the bottom
+ * left of the screen. On a touch screen the button goes above the place of the joystick at rest.
+ */
+#sandbox-button {
+  position: fixed;
+  left: calc(var(--ui-margin) + env(safe-area-inset-left));
+  bottom: calc(var(--ui-margin) + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 50%;
+  background: var(--ui-panel-light);
+  color: var(--ui-ink);
+  opacity: 0.75;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body:has(#stick:not([hidden])) #sandbox-button {
+  bottom: calc(var(--ui-margin) + 2 * var(--stick-radius) + 14px + env(safe-area-inset-bottom));
+}
+
+#sandbox-button[aria-expanded='true'],
+#sandbox-button:focus-visible {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 12px var(--ui-accent-glow);
+  opacity: 1;
+}
+
+#sandbox {
+  position: fixed;
+  z-index: 2;
+  left: calc(var(--ui-margin) + env(safe-area-inset-left));
+  bottom: calc(var(--ui-margin) + 44px + 10px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 2 * var(--ui-margin)));
+  max-height: calc(100vh - 2 * var(--ui-margin) - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-panel-solid);
+  font: 14px/1.4 var(--ui-serif);
+}
+
+body:has(#stick:not([hidden])) #sandbox {
+  bottom: calc(var(--ui-margin) + 2 * var(--stick-radius) + 14px + 44px + 10px + env(safe-area-inset-bottom));
+}
+
+#sandbox[hidden] {
+  display: none;
+}
+
+#sandbox .menu-title {
+  margin: 0 0 4px;
+}
+
+.sandbox-record,
+.sandbox-last {
+  margin: 0 0 4px;
+  font: 12px/1.4 var(--ui-mono);
+}
+
+.sandbox-last {
+  color: var(--ui-ink-faint);
+}
+
+#sandbox fieldset {
+  margin: 10px 0 0;
+  padding: 0;
+  border: none;
+}
+
+#sandbox legend {
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-ink-faint);
+}
+
+.sandbox-foes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.sandbox-foes label,
+.sandbox-mechanic {
+  cursor: pointer;
+}
+
+#sandbox input {
+  accent-color: var(--ui-accent);
+}
+
+.sandbox-mechanic {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+  margin: 0 0 8px;
+}
+
+.sandbox-mechanic input {
+  margin: 3px 0 0;
+}
+
+.sandbox-mechanic strong {
+  display: block;
+  font-weight: bold;
+}
+
+.sandbox-line,
+.sandbox-none {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ui-ink-faint);
+}
+
+.sandbox-restart {
+  margin-top: 10px;
+}
+
+/* The sandbox button hides with the other controls under a conversation, a dream, the game menu or a top-right panel. */
+body.game-menu-open #sandbox-button,
+body.conversing #sandbox-button,
+body.dreaming #sandbox-button,
+body:has(#character:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #map:not([hidden]), #journal:not([hidden]), #shop:not([hidden])) #sandbox-button {
+  visibility: hidden;
+}

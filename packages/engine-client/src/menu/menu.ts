@@ -72,13 +72,15 @@ export interface MenuOptions {
 
 /**
  * The chosen character, if the account is an admin (and then the divisor of the XP of its kills,
- * experience.ts), and if the character was just made (its prologue plays).
+ * experience.ts), if the character was just made (its prologue plays), and if it goes into the
+ * sandbox of an admin (sandbox.ts) and not into the world.
  */
 export interface MenuChoice {
   readonly character: Character;
   readonly admin: boolean;
   readonly xpDivisor?: number;
   readonly fresh: boolean;
+  readonly sandbox: boolean;
 }
 
 /** "3 days ago", "yesterday". */
@@ -200,7 +202,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       notice = waiting;
     };
 
-    const start = async (character: Character, fresh = false) => {
+    const start = async (character: Character, fresh = false, sandbox = false) => {
       loading(T.starting);
       try {
         const played = await api.play(character.id);
@@ -213,9 +215,10 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         logo.stop();
         speaker.stop();
         setTimeout(() => root.remove(), 400);
-        resolve({ character: played, admin: me?.user?.admin === true, ...(me?.user?.xpDivisor !== undefined ? { xpDivisor: me.user.xpDivisor } : {}), fresh });
+        const admin = me?.user?.admin === true;
+        resolve({ character: played, admin, ...(me?.user?.xpDivisor !== undefined ? { xpDivisor: me.user.xpDivisor } : {}), fresh, sandbox: sandbox && admin });
       } catch (error) {
-        fail(error, () => void start(character, fresh));
+        fail(error, () => void start(character, fresh, sandbox));
       }
     };
 
@@ -255,7 +258,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       newGame.addEventListener('click', create);
       const resume = el('button', { type: 'button', class: 'menu-button' }, T.continue);
       resume.disabled = characters.length === 0;
-      resume.addEventListener('click', pickCharacter);
+      resume.addEventListener('click', () => pickCharacter());
       const buttons = [newGame, resume];
       // The prologue again, once this browser saw it (it plays first after "Create").
       const prologue = options.prologue;
@@ -272,6 +275,13 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           });
         });
         buttons.push(again);
+      }
+      // The sandbox of an admin (sandbox.ts; Fede, 2026-10-15): a fight to test the mechanics of combat.
+      if (me?.user?.admin === true) {
+        const sandbox = el('button', { type: 'button', class: 'menu-button', id: 'menu-sandbox' }, T.sandbox);
+        sandbox.disabled = characters.length === 0;
+        sandbox.addEventListener('click', () => pickCharacter(true));
+        buttons.push(sandbox);
       }
       const settings = el('button', { type: 'button', class: 'menu-button' }, T.settings);
       settings.addEventListener('click', settingsScreen);
@@ -372,7 +382,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
       made.focusTitle();
     };
 
-    const pickCharacter = () => {
+    /** The list of the characters: one plays (in the sandbox of an admin, if `sandbox`), one is deleted. */
+    const pickCharacter = (sandbox = false) => {
       const back = el('button', { type: 'button', class: 'menu-button' }, T.back);
       back.addEventListener('click', main);
       const list = el('ul', { class: 'character-list' });
@@ -389,9 +400,10 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
           portrait.element,
           el('span', { class: 'character-text' }, el('span', { class: 'character-name' }, character.name), el('span', { class: 'character-kind' }, `${race} ${cls.toLowerCase()}`), el('span', { class: 'character-when' }, when)),
         );
-        play.addEventListener('click', () => void start(character));
+        play.addEventListener('click', () => void start(character, false, sandbox));
         const remove = el('button', { type: 'button', class: 'menu-small character-delete', 'aria-label': `${T.delete} ${character.name}` }, T.delete);
-        const item = el('li', { class: 'character' }, play, remove);
+        // The list of the sandbox only chooses: no "Delete" there.
+        const item = el('li', { class: 'character' }, ...(sandbox ? [play] : [play, remove]));
         remove.addEventListener('click', () => {
           const yes = el('button', { type: 'button', class: 'menu-small danger' }, T.delete);
           const no = el('button', { type: 'button', class: 'menu-small' }, T.keep);
@@ -408,7 +420,7 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
                 if (characters.length) pickCharacter();
                 else main();
               },
-              (error: unknown) => fail(error, pickCharacter),
+              (error: unknown) => fail(error, () => pickCharacter()),
             );
           });
           remove.replaceWith(ask);
@@ -421,7 +433,8 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         el(
           'section',
           { class: 'menu-screen' },
-          el('h2', { class: 'menu-title', tabindex: '-1' }, T.continueTitle),
+          el('h2', { class: 'menu-title', tabindex: '-1' }, sandbox ? T.sandboxTitle : T.continueTitle),
+          ...(sandbox ? [el('p', { class: 'menu-hint' }, T.sandboxHint)] : []),
           characters.length ? list : el('p', { class: 'menu-hint' }, T.noCharacters),
           el('div', { class: 'menu-actions' }, back),
         ),
@@ -443,14 +456,15 @@ export function runMenu(options: MenuOptions): Promise<MenuChoice> {
         }
         characters = await api.characters();
         const resume = takeResume();
-        const again = resume ? characters.find((c) => c.id === resume) : undefined;
-        if (again) return void start(again);
+        const again = resume ? characters.find((c) => c.id === resume.character) : undefined;
+        if (again) return void start(again, false, resume?.sandbox === true);
         // The music of the menu (not after a reload for a new build: the game goes on at once).
         sounds.music();
-        // The game menu asked for a screen: "Load game" (the list) or "New game" (the builder).
+        // The game menu asked for a screen: "Load game" (the list), "New game" (the builder) or "Sandbox" (the list for it).
         const screen = takeMenuScreen();
         if (screen === 'new') return create();
         if (screen === 'load' && characters.length > 0) return pickCharacter();
+        if (screen === 'sandbox' && characters.length > 0 && me.user.admin === true) return pickCharacter(true);
         main();
       } catch (error) {
         fail(error, () => void home());

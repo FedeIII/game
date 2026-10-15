@@ -36,6 +36,7 @@ moment or change my game.
 - **AC-GMN-001.2:** The game menu shows the name of the game ("World of Kandrax") over its buttons, in
   this order (Fede, 2026-10-14): "Main menu", "Load game", "Settings" and "Prologue" (Spanish: "Menú
   principal", "Cargar partida", "Ajustes", "Prólogo"; the prologue: `docs/features/game/prologue.md`).
+  For an admin, "Sandbox" (Spanish "Zona de pruebas") comes after "Load game" (`sandbox.md`, REQ-SBX-001).
   When it opens, no button has the focus (the panel has it), so Enter or Space does not leave the game
   by mistake; an arrow key or Tab goes to the first button.
 - **AC-GMN-001.3:** Escape or a click on the dark round the panel closes it; the focus goes

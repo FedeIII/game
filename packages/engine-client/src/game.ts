@@ -85,6 +85,7 @@ import {
   EMPTY_BOOK,
   Ambushes,
   Confrontations,
+  MECHANICS,
   MOB_KINDS,
   formatDice,
   rollingDice,
@@ -110,11 +111,13 @@ import {
   type Interaction,
   type InteractionTarget,
   type Loot,
+  type Mechanics,
   type MoveInput,
   type Gear,
   type ItemKind,
   type Pack,
   type PlayerTraits,
+  type StepTraits,
   type Pile,
   type WorldDefinition,
   soundAreaAt,
@@ -180,6 +183,8 @@ import { skinKey, skinName, type SkinLook } from '../art/skins.ts';
 import { api, backToSignIn } from './menu/api.ts';
 import { runMenu } from './menu/menu.ts';
 import { markMenuScreen, markResume, type MenuScreen } from './menu/resume.ts';
+import { SandboxFight, loadSandbox, sandboxRules, sandboxTraits, saveSandbox, type SandboxSettings } from './sandbox.ts';
+import { SandboxPanel } from './ui/sandbox-panel.ts';
 import { languageChoice } from './ui/language-choice.ts';
 import { LANG, setWorldTexts, tw } from './i18n.ts';
 import { skinSeed } from './skins/seed.ts';
@@ -362,6 +367,8 @@ async function run(options: GameOptions): Promise<void> {
   let xpDivisor = KILL_XP_DIVISOR;
   const guest = params.has('nomenu') && GUEST_HOSTS.has(location.hostname);
   let fresh = false;
+  // The sandbox of an admin (sandbox.ts): a fight to test the mechanics of combat, in a world that the page runs, with nothing saved.
+  let inSandbox = false;
   // The prologue (ui/prologue.ts): once for a new character, before it enters the world (?prologue
   // plays it for any visitor, for tests). The game menu plays it again, and so does the menu before
   // the game once this browser saw it (with the character played last, or a guest's name).
@@ -371,7 +378,7 @@ async function run(options: GameOptions): Promise<void> {
   };
   const cards = definition.prologue;
   if (options.accounts && !guest) {
-    ({ character, admin, fresh, xpDivisor = KILL_XP_DIVISOR } = await runMenu({
+    ({ character, admin, fresh, xpDivisor = KILL_XP_DIVISOR, sandbox: inSandbox } = await runMenu({
       title: options.name ?? tw(definition.name),
       site: options.title ?? location.host,
       skins,
@@ -406,13 +413,17 @@ async function run(options: GameOptions): Promise<void> {
   // ?at=tx,ty starts on (or next to) that tile, for tests and for a look at one place. Else a
   // character starts where it was last in this world, and a new one at the world's spawn.
   const at = (params.get('at') ?? '').split(',').map((v) => Number.parseInt(v, 10));
-  const place = character?.place?.world === definition.id ? character.place : null;
+  const place = character?.place?.world === definition.id && !inSandbox ? character.place : null;
+  // The sandbox has its glade (WorldDefinition.sandbox; ?at= moves it).
+  const sandboxAt = definition.sandbox?.at;
   const spawn =
     at.length === 2 && at.every(Number.isFinite)
       ? { ...world.findSpawn(at[0], at[1], 0), storey: 0 }
       : place
         ? resumePlace(world, place.x, place.y, place.storey ?? 0)
-        : { ...world.spawn(), storey: 0 };
+        : inSandbox && sandboxAt
+          ? { ...world.findSpawn(sandboxAt[0], sandboxAt[1], 0), storey: 0 }
+          : { ...world.spawn(), storey: 0 };
   const player = createPlayer(spawn.x, spawn.y);
   player.storey = spawn.storey;
   const previous = { x: player.x, y: player.y };
@@ -426,8 +437,11 @@ async function run(options: GameOptions): Promise<void> {
   // world that the page runs, the page has its own, which it does not save. A guest wears the 5e
   // kit of the class of its look.
   let gear: Gear = character?.gear ?? guestGear(skin);
-  /** What the scores, some gear and the level give in the game (traits.ts): a guest has every score at 10, and the class of its look. */
-  const traitsFor = (worn: Gear, level: number): PlayerTraits => (character ? sheetTraits(character, worn, level) : guestTraits(skin, worn, level));
+  /** What the scores, some gear and the level give in the game (traits.ts): a guest has every score at 10, and the class of its look. In the sandbox, more hit points. */
+  const traitsFor = (worn: Gear, level: number): PlayerTraits => {
+    const t = character ? sheetTraits(character, worn, level) : guestTraits(skin, worn, level);
+    return inSandbox ? sandboxTraits(t) : t;
+  };
   // The XP of the character (experience.ts): its level comes from it. In a shared world the server
   // keeps it (net.xp); in a world that the page runs, the page has its own, which it does not save.
   let localXp = character?.xp ?? 0;
@@ -437,14 +451,14 @@ async function run(options: GameOptions): Promise<void> {
   let traitsLevel = traits.level;
   // The hit points of the character from its last visit (all of them for a new one), and all its stamina.
   // In a shared world the welcome gives the server's word.
-  const storedHp = character?.hp ?? null;
+  const storedHp = inSandbox ? null : (character?.hp ?? null);
   player.hp = storedHp === null || storedHp <= 0 ? traits.maxHp : Math.min(storedHp, traits.maxHp);
   if (player.hp < traits.maxHp) player.recover = traits.recover;
   player.stamina = traits.maxStamina;
   // The refuges that the character has entered, in a world that the page runs (the server keeps them in a shared world).
   const localRefuges = [...(character?.refuges ?? [])];
   // A shared world goes through the multiplayer server; ?offline plays it alone.
-  const net = definition.multiplayer && !params.has('offline') ? new NetSession(definition.id, skin, name, player, world, traits, character?.id ?? null) : null;
+  const net = definition.multiplayer && !params.has('offline') && !inSandbox ? new NetSession(definition.id, skin, name, player, world, traits, character?.id ?? null) : null;
   // What the player carries. In a shared world the server keeps it (net.pack); in a world that
   // the page runs, the page has its own, which it does not save.
   let pack: Pack = character?.pack ?? EMPTY_PACK;
@@ -453,7 +467,8 @@ async function run(options: GameOptions): Promise<void> {
   const xpNow = (): number => net?.xp ?? localXp;
   /** XP for the character in a world that the page runs (a kill, a quest): its level follows (followGear). */
   const gainXp = (xp: number): void => {
-    if (xp > 0) localXp = Math.min(MAX_XP, localXp + xp);
+    // The sandbox gives no XP: its fights would change the level of the character in the middle of a test.
+    if (xp > 0 && !inSandbox) localXp = Math.min(MAX_XP, localXp + xp);
   };
   // The quest book of the character (quests.ts). In a shared world the server keeps it (net.quests);
   // in a world that the page runs, the page has its own, which it does not save.
@@ -492,7 +507,7 @@ async function run(options: GameOptions): Promise<void> {
   const smoothing = { x: 0, y: 0 };
   // Where the character is: in a world that the page runs, the page tells the server now and then
   // and when it closes; in a shared world the server knows it. A guest has no place.
-  const placeOf = character && !definition.multiplayer ? character.id : null;
+  const placeOf = character && !definition.multiplayer && !inSandbox ? character.id : null;
   let placeSent = { x: player.x, y: player.y, storey: player.storey };
   let placeSaveAt = performance.now() + PLACE_SAVE_MS;
   /** Sends the place (and the storey) if the player moved since the last one. `keepalive` while the page closes. */
@@ -698,7 +713,9 @@ async function run(options: GameOptions): Promise<void> {
   // Mobs: in a world with mob rules. A single-player world runs its own horde (its seed differs
   // per page); a shared world gets them from the server.
   // ?nomobs: none (for tests that walk about, and for a quiet look).
-  const mobRules = params.has('nomobs') ? null : (world.source.mobs?.() ?? null);
+  const worldMobs = world.source.mobs?.() ?? null;
+  // The sandbox: the world's ground for the mobs, but no other mob than its foes.
+  const mobRules = inSandbox && worldMobs ? sandboxRules(worldMobs) : params.has('nomobs') ? null : worldMobs;
   const horde = mobRules && !net ? new Horde(world, mobRules, Math.floor(Math.random() * 0xffffffff)) : null;
   const mobViews = mobRules ? new MobViews(art, entityLayer, glowLayer, { font, layer: tagLayer }) : null;
   const arrowViews = mobRules ? new ArrowViews(art, entityLayer, glowLayer) : null;
@@ -710,7 +727,7 @@ async function run(options: GameOptions): Promise<void> {
   const patrolling = new Map<MobKind, number>();
   const ambushing = new Map<MobKind, number>();
   (params.get('mob') ?? '').split(',').forEach((kind, i) => {
-    if (!horde || !(MOB_KINDS as readonly string[]).includes(kind)) return;
+    if (!horde || inSandbox || !(MOB_KINDS as readonly string[]).includes(kind)) return;
     if (MOB_STATS[kind as MobKind].patrol) {
       patrolling.set(kind as MobKind, (patrolling.get(kind as MobKind) ?? 0) + 1);
       return;
@@ -730,19 +747,57 @@ async function run(options: GameOptions): Promise<void> {
     const spot = world.findSpawn(Math.floor(player.x / TILE_SIZE) + 3, Math.floor(player.y / TILE_SIZE), 0);
     horde!.spawnAmbush(kind, spot.x, spot.y, count);
   }
+  // The sandbox of an admin (sandbox.ts): its fight, the mechanics of the melee draft that are on, and
+  // its panel at the bottom left. This browser keeps the choice of the panel.
+  let sandboxSettings: SandboxSettings = loadSandbox();
+  let mechanics: Mechanics = new Set(sandboxSettings.mechanics);
+  const sandboxFight = inSandbox && horde ? new SandboxFight(horde, world, { x: player.x, y: player.y }, sandboxSettings.foe) : null;
+  if (sandboxFight) {
+    horde!.mechanics = mechanics;
+    sandboxFight.start(player, traits, performance.now());
+  }
+  /** The traits for stepPlayer: in the sandbox, with the mechanics that are on. */
+  const stepTraits = (): StepTraits => (sandboxFight ? { ...traits, mechanics } : traits);
+  /** The fight of the sandbox starts again: the character at the glade, new foes. */
+  const restartSandbox = (): void => {
+    if (!sandboxFight) return;
+    sandboxFight.start(player, traits, performance.now());
+    previous.x = player.x;
+    previous.y = player.y;
+  };
+  const changeSandbox = (next: SandboxSettings): void => {
+    sandboxSettings = next;
+    saveSandbox(next);
+    mechanics = new Set(next.mechanics);
+    if (horde) horde.mechanics = mechanics;
+  };
+  const sandboxPanel = sandboxFight
+    ? new SandboxPanel(sandboxSettings, {
+        foe: (kind) => {
+          changeSandbox({ ...sandboxSettings, foe: kind });
+          sandboxFight.foe = kind;
+          restartSandbox();
+        },
+        mechanic: (id, on) => changeSandbox({ ...sandboxSettings, mechanics: MECHANICS.filter((m) => (m === id ? on : sandboxSettings.mechanics.includes(m))) }),
+        restart: restartSandbox,
+      })
+    : null;
+  /** The fights that the panel of the sandbox shows (it changes when one ends). */
+  let sandboxShown = -1;
   // The companions (NPCs that follow a player) of a world that the page runs; a shared world gets
   // the server's. ?companion=<look> puts one of that NPC look next to the player at the start,
   // following it (for tests). Single-player worlds only, as ?mob.
   const localCompanions = net ? null : new Companions(world);
   // The ambushes of the story (ambushes.ts) in a world that the page runs; the server runs them in a shared world.
-  const localAmbushes = horde ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
+  // The sandbox has none of the story.
+  const localAmbushes = horde && !inSandbox ? new Ambushes(world, world.source.ambushes?.() ?? []) : null;
   // The sure confrontations (confrontations.ts: the goblins that a new character meets once by day) in a world that the page runs.
-  const localConfrontations = horde ? new Confrontations(world.source.confrontations?.() ?? []) : null;
+  const localConfrontations = horde && !inSandbox ? new Confrontations(world.source.confrontations?.() ?? []) : null;
   // The escorts of the story (escorts.ts: Himo) in a world that the page runs, with its companions.
-  const localEscorts = localCompanions ? new Escorts(world.source.escorts?.() ?? []) : null;
+  const localEscorts = localCompanions && !inSandbox ? new Escorts(world.source.escorts?.() ?? []) : null;
   // The NPCs that fight and the convoys that they walk in (guards.ts, convoys.ts: the caravan), in a world that the page runs.
   const localGuards = net ? null : new Guards(world);
-  const localConvoys = horde && localGuards ? new Convoys(world, world.source.convoys?.() ?? []) : null;
+  const localConvoys = horde && localGuards && !inSandbox ? new Convoys(world, world.source.convoys?.() ?? []) : null;
   // The effects of the story that water applies (the lentils of Whitegrove), in a world that the page runs; the server sees the wade in a shared world.
   const localWadeEffects = net ? [] : (world.source.wadeEffects?.() ?? []);
   if (horde && localGuards && localConvoys) {
@@ -1210,9 +1265,9 @@ async function run(options: GameOptions): Promise<void> {
     }
     lootSound(taken, fixture?.lock ? 0.9 : 0.35);
   };
-  /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). */
+  /** Puts what a kill dropped into the pack of a world that the page runs; what does not fit falls on the ground at the mob (`at`). The foes of the sandbox drop nothing. */
   const takeDrop = (drop: Loot, now: number, at: { readonly x: number; readonly y: number }) => {
-    if (lootIsEmpty(drop)) return;
+    if (lootIsEmpty(drop) || inSandbox) return;
     const result = addToPack(pack, drop, traits.slots);
     pack = result.pack;
     lootText.add(dropLines(result.taken), now);
@@ -1616,7 +1671,7 @@ async function run(options: GameOptions): Promise<void> {
     {
       heading: STRINGS.settings.language,
       body: languageChoice('lang-choice menu-settings-lang', () => {
-        if (character) markResume(character.id);
+        if (character) markResume(character.id, inSandbox);
         void savePlace(true).finally(() => location.reload());
       }),
     },
@@ -1640,6 +1695,8 @@ async function run(options: GameOptions): Promise<void> {
         location.reload();
       },
       ...(character ? { load: () => leaveFor('load') } : {}),
+      // The sandbox of an admin (sandbox.ts): the list of characters for it.
+      ...(character && admin ? { sandbox: () => leaveFor('sandbox') } : {}),
       // "Prologue" plays it again, over the game (the character stands still meanwhile).
       ...(definition.prologue ? { prologue: () => void playPrologue({ cards: definition.prologue!, ...prologueFor() }) } : {}),
     },
@@ -1656,7 +1713,7 @@ async function run(options: GameOptions): Promise<void> {
   joystick.onTouchMode(() => gameMenu.showButton());
   /** Whether another panel, a conversation or a dream is open: then Escape is theirs (each closes itself). */
   const otherUiOpen = (): boolean =>
-    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'character', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
+    conversation.open || dreamVeil.shown || packPanel.dragging || ['journal', 'worlds', 'map', 'pack', 'character', 'shop', 'sandbox'].some((id) => document.getElementById(id)?.hidden === false);
   // Before the panels hear the key (the capture phase): while the menu is open, the game's keys stay out.
   window.addEventListener(
     'keydown',
@@ -1785,13 +1842,15 @@ async function run(options: GameOptions): Promise<void> {
         else touchMobs();
       }
       flyOwnArrows(TICK_SECONDS);
-    } else if (stepPlayer(player, input, world.level(player.storey), traits)) {
+    } else if (stepPlayer(player, input, world.level(player.storey), stepTraits())) {
       // An attack starts: the end of the sneak walk, the sound of the weapon, and its blows on the horde.
       sneakWalk.attack();
       gameSounds.swing(traits.strike, traits.strike.twoHands);
       if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
       else if (horde) {
-        for (const result of horde.strike(player, player.aim, undefined, 0, traits)) {
+        const results = horde.strike(player, player.aim, undefined, 0, traits);
+        sandboxFight?.blows(results);
+        for (const result of results) {
           showBlow(result.mob.id, result.damage, result.crit);
           if (result.mob.state !== 'dying') continue;
           kills++;
@@ -1803,7 +1862,11 @@ async function run(options: GameOptions): Promise<void> {
         if (outlaw.length > 0) localGuards?.strike(player, player.aim, 0, traits, outlaw, LOCAL_DICE);
       }
     }
-    if (waking) wakeHere();
+    // In the sandbox a defeat starts the fight again (sandbox.ts).
+    if (waking) {
+      if (sandboxFight) restartSandbox();
+      else wakeHere();
+    }
     sayWade(performance.now());
     if (!net) {
       // A wade ruins what the story says (the lentils of Whitegrove).
@@ -1837,7 +1900,19 @@ async function run(options: GameOptions): Promise<void> {
     if (localGuards && localConvoys && localGuards.list.length > 0) {
       guardEvents = localGuards.step(TICK_SECONDS * 1000, horde, [{ id: 0, state: player, outlaw: localConvoys.outlawOf({ quests: localQuests, pack }), traits }], LOCAL_DICE, localConvoys.anchors());
     }
-    horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? []), ...(localGuards?.targets() ?? [])]);
+    const mobHits = horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? []), ...(localGuards?.targets() ?? [])]) ?? [];
+    if (sandboxFight) {
+      sandboxFight.attacks(mobHits);
+      // A victory: the fight starts again a moment later.
+      if (sandboxFight.tick(player, traits, performance.now())) {
+        previous.x = player.x;
+        previous.y = player.y;
+      }
+      if (sandboxFight.wins + sandboxFight.losses !== sandboxShown) {
+        sandboxShown = sandboxFight.wins + sandboxFight.losses;
+        sandboxPanel?.setRecord(sandboxFight.wins, sandboxFight.losses, sandboxFight.last);
+      }
+    }
     // An ambush that ends moves the quest on (here the page applies it: where does not matter).
     if (horde && localAmbushes) {
       for (const { effect } of localAmbushes.step(horde, [{ id: 0, state: player, quests: localQuests, pack, level: traits.level }])) applyQuest(effect, { scene: 'ambush' });
@@ -1914,7 +1989,7 @@ async function run(options: GameOptions): Promise<void> {
       tips.request('defeat');
     }
     // No tip over the prologue, a dream, the game menu, a panel, or the notice of a new build.
-    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'character', 'shop'].some((id) => document.getElementById(id)?.hidden === false);
+    const paused = prologuePlaying() || dreamVeil.shown || gameMenu.shown || newBuild || ['journal', 'worlds', 'map', 'pack', 'character', 'shop', 'sandbox'].some((id) => document.getElementById(id)?.hidden === false);
     tipView.show(tips.update(now, paused), joystick.isTouchMode);
   };
 
@@ -1922,7 +1997,8 @@ async function run(options: GameOptions): Promise<void> {
     const seconds = ticker.deltaMS / 1000;
     const now = performance.now();
     // A world that the page runs alone stands still while the game menu is open; a shared world goes on.
-    sim.advance((gameMenu.shown || prologuePlaying()) && !net ? 0 : seconds);
+    // The fight of the sandbox stands still while its panel is open.
+    sim.advance((gameMenu.shown || prologuePlaying() || sandboxPanel?.isOpen === true) && !net ? 0 : seconds);
     followGear();
     if (now >= placeSaveAt) {
       placeSaveAt = now + PLACE_SAVE_MS;
@@ -2040,7 +2116,12 @@ async function run(options: GameOptions): Promise<void> {
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);
     // The player's arrows in a world that the page runs: what each one did.
-    if (horde) for (const result of horde.takeShotResults()) showBlow(result.mob.id, result.damage, result.crit);
+    if (horde) {
+      for (const result of horde.takeShotResults()) {
+        showBlow(result.mob.id, result.damage, result.crit);
+        sandboxFight?.blows([result]);
+      }
+    }
     // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; one that a brace evaded, "evade"; a draught, what it gave back.
     if (player.down === 0 && player.hp !== numbersHp) {
       const change = player.hp - numbersHp;
@@ -2085,7 +2166,7 @@ async function run(options: GameOptions): Promise<void> {
     if (newBuild && !reloading && !conversation.open && player.down === 0 && huntersNow().length === 0) {
       reloading = true;
       hud.showHint(STRINGS.newBuild);
-      if (character) markResume(character.id);
+      if (character) markResume(character.id, inSandbox);
       setTimeout(() => location.reload(), RELOAD_DELAY_MS);
     }
     if (arrivedAt === null) {
@@ -2172,7 +2253,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(mobRules
         ? [
             `mobs    ${mobsNow()
-              .map((m) => `${m.kind}${m.health !== undefined ? ` ${m.health}/${MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
+              .map((m) => `${m.kind}${m.health !== undefined ? ` ${m.health}/${m.maxHealth ?? MOB_STATS[m.kind].health}` : ''} ${m.state} ${Math.floor(m.x / TILE_SIZE)},${Math.floor(m.y / TILE_SIZE)}`)
               .join('; ') || '-'}`,
             `fight   blows ${blows}, kills ${kills}${net ? ' (local only)' : ''}, hits ${hitsTaken}, attack ${player.attack}, stun ${player.stun}, guard ${player.guard}`,
           ]
@@ -2194,6 +2275,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
       `sky     ${skyLine(skyNow(), definition.day !== undefined, Number.isFinite(fixedHour))}`,
       `music   ${director.mood ?? '-'} by ${isDaytime(skyNow()) ? 'day' : 'night'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}, ambience ${audio.ambienceId ?? '-'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
+      ...(sandboxFight ? [`sandbox ${sandboxFight.foe}, mechanics ${[...mechanics].join(' ') || '-'}; won ${sandboxFight.wins}, lost ${sandboxFight.losses}; this fight ${sandboxFight.log.hits}/${sandboxFight.log.blows} blows, ${sandboxFight.log.struck}/${sandboxFight.log.attacks} attacks (${sandboxFight.log.damage} hp)`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,
       `render  ${app.renderer.name}${crt.enabled ? ' + crt' : ''}`,
       `seed    ${world.seed}`,

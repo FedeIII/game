@@ -1,6 +1,7 @@
 export * from './constants.ts';
 export * from './noise.ts';
 export * from './dice.ts';
+export * from './mechanics.ts';
 export * from './fixtures.ts';
 export * from './buildings.ts';
 export * from './world.ts';

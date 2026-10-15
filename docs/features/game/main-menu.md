@@ -138,7 +138,8 @@ choices (Fede, 2026-10-14: the game menu has no "Sign out" now).
 
 **Acceptance Criteria:**
 - **AC-MNU-006.1:** The last button of the main screen is "Sign out" (Spanish "Cerrar sesión", id
-  `menu-sign-out`): after "New game", "Continue", "Prologue" (when it shows) and "Settings".
+  `menu-sign-out`): after "New game", "Continue", "Prologue" (when it shows), "Sandbox" (an admin only:
+  `sandbox.md`, REQ-SBX-001) and "Settings".
 - **AC-MNU-006.2:** A press signs out (the button is disabled meanwhile), and the menu shows the
   sign-in screen.
 - **AC-MNU-006.3:** The account line under the buttons has no "Sign out" now: "Signed in with Google ·

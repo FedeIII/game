@@ -1,4 +1,4 @@
-import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, LoadTier, Race } from '@game/engine';
+import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, LoadTier, Mechanic, Race } from '@game/engine';
 import { LANG } from '../i18n.ts';
 import { ES } from './strings-es.ts';
 
@@ -522,10 +522,31 @@ const EN = {
     off: 'Sound off',
   },
   /** The game menu (ui/game-menu.ts): Escape opens it over the game. */
+  /** The sandbox of an admin (sandbox.ts, ui/sandbox-panel.ts): a fight to test the mechanics of the melee draft. */
+  sandbox: {
+    title: 'Sandbox',
+    note: 'Nothing here is saved.',
+    foes: 'Foes (three, with five times their hit points)',
+    foe: { skirmisher: 'Goblins', brute: 'Brutes', bugbear: 'Bugbears', hobgoblin: 'Hobgoblins', worg: 'Worgs', bandit: 'Bandits' },
+    mechanicsTitle: 'Mechanics of the melee draft',
+    noMechanics: 'No mechanic is built yet.',
+    /** Each mechanic (mechanics.ts): its name, and what it does in one line. */
+    mechanics: {} satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
+    restart: 'Start again',
+    record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
+    noFight: 'No fight has ended yet.',
+    won: (time: string): string => `Won in ${time}`,
+    lost: (time: string): string => `Lost after ${time}`,
+    blows: (hits: number, blows: number): string => `${hits} of your ${blows} blows hit`,
+    attacks: (struck: number, attacks: number, damage: number): string => `${struck} of their ${attacks} attacks hit (${damage} HP)`,
+    seconds: (n: number): string => `${n} s`,
+    minutes: (m: number, s: number): string => `${m} min ${s} s`,
+  },
   gameMenu: {
     label: 'Game menu',
     mainMenu: 'Main menu',
     load: 'Load game',
+    sandbox: 'Sandbox',
     settings: 'Settings',
     prologue: 'Prologue',
     back: 'Back',
@@ -558,6 +579,10 @@ const EN = {
     starting: 'Into the wilds…',
     continueTitle: 'Choose a character',
     noCharacters: 'You have no characters yet.',
+    /** The sandbox of an admin (sandbox.ts): a fight to test the mechanics of combat. */
+    sandbox: 'Sandbox',
+    sandboxTitle: 'Sandbox: choose a character',
+    sandboxHint: 'The character fights three foes with ten times its hit points. Nothing that happens there is saved.',
     lastPlayed: (when: string): string => `Last played ${when}`,
     created: (when: string): string => `Created ${when}`,
     delete: 'Delete',

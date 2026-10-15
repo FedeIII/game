@@ -14,14 +14,20 @@ function memory() {
 describe('the character to start again after a reload', () => {
   it('is good for one start', () => {
     const storage = memory();
-    markResume('abc12345', storage, 1000);
-    expect(takeResume(storage, 2000)).toBe('abc12345');
+    markResume('abc12345', false, storage, 1000);
+    expect(takeResume(storage, 2000)).toEqual({ character: 'abc12345', sandbox: false });
     expect(takeResume(storage, 2000)).toBeNull();
+  });
+
+  it('keeps the sandbox of an admin', () => {
+    const storage = memory();
+    markResume('abc12345', true, storage, 1000);
+    expect(takeResume(storage, 2000)).toEqual({ character: 'abc12345', sandbox: true });
   });
 
   it('is not used after 5 minutes, nor from storage that holds garbage', () => {
     const storage = memory();
-    markResume('abc12345', storage, 0);
+    markResume('abc12345', false, storage, 0);
     expect(takeResume(storage, 5 * 60_000 + 1)).toBeNull();
     storage.setItem('game.resume.v1', '{not json');
     expect(takeResume(storage, 0)).toBeNull();
@@ -30,13 +36,15 @@ describe('the character to start again after a reload', () => {
 });
 
 describe('the screen that the game menu asks for', () => {
-  it('opens once: the list of characters ("Load game") or the builder ("New game")', () => {
+  it('opens once: the list of characters ("Load game"), the builder ("New game") or the list for the sandbox', () => {
     const storage = memory();
     markMenuScreen('load', storage, 1000);
     expect(takeMenuScreen(storage, 2000)).toBe('load');
     expect(takeMenuScreen(storage, 2000)).toBeNull();
     markMenuScreen('new', storage, 1000);
     expect(takeMenuScreen(storage, 2000)).toBe('new');
+    markMenuScreen('sandbox', storage, 1000);
+    expect(takeMenuScreen(storage, 2000)).toBe('sandbox');
   });
 
   it('is not used when it is old, or not a screen', () => {

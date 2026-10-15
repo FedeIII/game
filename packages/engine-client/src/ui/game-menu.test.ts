@@ -29,6 +29,10 @@ describe('the choices of the game menu', () => {
     expect(gameMenuChoices({ mainMenu: act, load: act, prologue: act })).toEqual(['mainMenu', 'load', 'settings', 'prologue']);
   });
 
+  it('has Sandbox after Load game for an admin (Fede, 2026-10-15)', () => {
+    expect(gameMenuChoices({ mainMenu: act, load: act, sandbox: act, prologue: act })).toEqual(['mainMenu', 'load', 'sandbox', 'settings', 'prologue']);
+  });
+
   it('leaves out a choice without its action (a guest: no character)', () => {
     expect(gameMenuChoices({ mainMenu: act, prologue: act })).toEqual(['mainMenu', 'settings', 'prologue']);
     expect(gameMenuChoices({})).toEqual(['settings']);

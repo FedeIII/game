@@ -1,6 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import type { AttackWeight } from './gear.ts';
 import type { LoadTier } from './load.ts';
+import type { Mechanics } from './mechanics.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -258,7 +259,10 @@ export interface PlayerMap extends SolidMap {
  */
 export type StepTraits = Partial<
   Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina'>
->;
+> & {
+  /** The mechanics of the melee draft that are on (mechanics.ts): none, but in the sandbox of an admin. */
+  readonly mechanics?: Mechanics;
+};
 const PLAIN: StepTraits = {};
 
 /** Whether the centre of a player's feet is in shallow water. */

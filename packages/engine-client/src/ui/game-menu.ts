@@ -3,7 +3,7 @@ import { STRINGS } from './strings.ts';
 /**
  * The game menu (Fede, 2026-10-12): Escape opens it over the game when no panel, conversation or
  * dream is open, with its choices: Main menu, Load game, Settings and Prologue (gameMenuChoices; Fede,
- * 2026-10-14). Escape or a click on the dark round the panel closes it. While it is open the character
+ * 2026-10-14), and Sandbox for an admin (sandbox.ts; Fede, 2026-10-15). Escape or a click on the dark round the panel closes it. While it is open the character
  * stands still; a world that the page runs alone also stands still, but a shared world goes on
  * (game.ts). "Main menu" and "Load game" save the place and reload the page into the menu, at the main
  * screen or at the list of characters (menu/resume.ts, markMenuScreen); a visitor without a character
@@ -22,6 +22,8 @@ export interface GameMenuActions {
   readonly mainMenu?: () => void;
   /** "Load game": the list of characters of the menu of the page. A character of an account only. */
   readonly load?: () => void;
+  /** "Sandbox": the list of characters for the sandbox of an admin (sandbox.ts). An admin only. */
+  readonly sandbox?: () => void;
   /** "Prologue": plays the prologue again, over the game. */
   readonly prologue?: () => void;
 }
@@ -30,14 +32,15 @@ export interface GameMenuActions {
 export type GameMenuChoice = keyof GameMenuActions | 'settings';
 
 /** The choices that leave the game: the page reloads, so the menu disables its buttons. */
-const LEAVES: ReadonlySet<GameMenuChoice> = new Set(['mainMenu', 'load']);
+const LEAVES: ReadonlySet<GameMenuChoice> = new Set(['mainMenu', 'load', 'sandbox']);
 
 /**
  * The choices of the menu, in their order (Fede, 2026-10-14): "Main menu", "Load game", "Settings" and
- * "Prologue". A choice without its action is not there; "Settings" is always there.
+ * "Prologue"; "Sandbox" after "Load game" for an admin. A choice without its action is not there;
+ * "Settings" is always there.
  */
 export function gameMenuChoices(actions: GameMenuActions): GameMenuChoice[] {
-  const order = ['mainMenu', 'load', 'settings', 'prologue'] as const;
+  const order = ['mainMenu', 'load', 'sandbox', 'settings', 'prologue'] as const;
   return order.filter((choice) => choice === 'settings' || actions[choice] !== undefined);
 }
 
@@ -128,6 +131,7 @@ export class GameMenu {
     const labels: Record<GameMenuChoice, string> = {
       mainMenu: T.mainMenu,
       load: T.load,
+      sandbox: T.sandbox,
       settings: T.settings,
       prologue: T.prologue,
     };

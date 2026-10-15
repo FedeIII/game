@@ -73,6 +73,7 @@ streaming-platform project):
 | Game: Buildings with Storeys | `STY` | [`game/storeys.md`](game/storeys.md) |
 | Game: The Houses of the Wilds | `HSE` | [`game/houses.md`](game/houses.md) |
 | Game: Day and Night | `DAY` | [`game/day-and-night.md`](game/day-and-night.md) |
+| Game: The Sandbox | `SBX` | [`game/sandbox.md`](game/sandbox.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 

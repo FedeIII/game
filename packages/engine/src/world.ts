@@ -642,6 +642,11 @@ export interface WorldDefinition {
    * once for a new character and again from the game menu. Without it, there is no prologue.
    */
   readonly prologue?: readonly PrologueCard[];
+  /**
+   * The sandbox of an admin (the page's sandbox.ts): the tile where its fight takes place, in an open
+   * place where mobs may hunt, with a few trees round it. Without it, the world's spawn.
+   */
+  readonly sandbox?: { readonly at: readonly [number, number] };
 }
 
 /**

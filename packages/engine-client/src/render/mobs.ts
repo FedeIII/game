@@ -17,6 +17,8 @@ export interface MobLook {
   readonly stateMs: number;
   /** The health points that it has left (the debug panel; the health bar of INT 13). */
   readonly health?: number;
+  /** Its most health points, when they are not MobStats.health (a foe of the sandbox). */
+  readonly maxHealth?: number;
   /** In a rite (state 'rite'): the runes that it has left. */
   readonly runes?: number;
   /** While its weapon burns (a Devastator's rite). */
@@ -378,7 +380,7 @@ export class MobViews {
     view.bar.visible = this.readHealth && living && alpha > 0;
     if (view.bar.visible) {
       view.bar.position.set(x - Math.floor(BAR.width / 2) - 1, top - BAR.gap - 3);
-      view.barFill.width = Math.max(0, Math.round((BAR.width * mob.health!) / stats.health));
+      view.barFill.width = Math.max(0, Math.round((BAR.width * mob.health!) / (mob.maxHealth ?? stats.health)));
     }
     view.glint.visible = this.readOpening && mob.state === 'windup' && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
     if (view.glint.visible) view.glint.position.set(x + 6, top + 3);

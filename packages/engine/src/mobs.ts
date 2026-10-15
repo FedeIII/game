@@ -2,6 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
 import { crXp } from './experience.ts';
+import { NO_MECHANICS, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, armourNow, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
@@ -636,8 +637,10 @@ export interface Mob {
   state: MobState;
   /** Milliseconds since the state began: the animations need it. */
   stateMs: number;
-  /** The health points that it has left (MobStats.health at first). */
+  /** The health points that it has left (MobStats.health at first, or Mob.maxHealth). */
   health: number;
+  /** Its most health points, when they are not MobStats.health (SpawnOptions.health: a foe of the sandbox). */
+  maxHealth?: number;
   /** The mob that it rides, while it rides (state 'ride'): its id. */
   mount?: number;
   /** Where it sits: 0 on the back of its mount, 1 behind (a goblin behind the hobgoblin). */
@@ -1000,6 +1003,19 @@ interface Brain {
   holdMs: number;
   /** The attackers (players, guards) whose blows hit it: a kill gives each character among them its XP. */
   readonly hitters: Set<number>;
+  /** A foe that never flees, never lurks and never startles (SpawnOptions.steady: the sandbox). */
+  steady: boolean;
+}
+
+/** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
+export interface SpawnOptions {
+  /** Its hit points (Mob.maxHealth); without it, MobStats.health. */
+  readonly health?: number;
+  /**
+   * A steady foe (the sandbox of an admin): it hunts the players that it sees at once, and it never
+   * startles, flees, hides or lurks, whatever its kind does (MobStats.patrol, MobStats.ambush).
+   */
+  readonly steady?: boolean;
 }
 
 /** mulberry32: small and the same in every JavaScript engine. */
@@ -1089,6 +1105,8 @@ export class Horde {
   private readonly nextMob = new Map<number, number>();
   /** Whether it is day (the Room and the page set it from the hour: daytime.ts, isDaytime): the areas give their mobs of that hour (MobArea). */
   daytime = false;
+  /** The mechanics of the melee draft that are on (mechanics.ts): none, but in the sandbox of an admin. */
+  mechanics: Mechanics = NO_MECHANICS;
   /** The mobs of a world without MobRules.areaAt: its population, by day and at night. */
   private readonly plainArea: MobArea;
   /** For each player, when the next group of each rare spawn (MobSpawn.every) may come (horde ms). */
@@ -1162,9 +1180,10 @@ export class Horde {
     } else this.enter(rider, 'idle');
   }
 
-  /** Puts a new mob at (x, y), which is also its home. */
-  spawn(kind: MobKind, x: number, y: number): Mob {
-    const mob: Mob = { id: this.nextId++, kind, x, y, vx: 0, vy: 0, facing: 'down', state: 'idle', stateMs: 0, health: MOB_STATS[kind].health };
+  /** Puts a new mob at (x, y), which is also its home (`options`: its hit points, and whether it is steady). */
+  spawn(kind: MobKind, x: number, y: number, options: SpawnOptions = {}): Mob {
+    const mob: Mob = { id: this.nextId++, kind, x, y, vx: 0, vy: 0, facing: 'down', state: 'idle', stateMs: 0, health: options.health ?? MOB_STATS[kind].health };
+    if (options.health !== undefined) mob.maxHealth = options.health;
     this.mobs.push(mob);
     this.brains.set(mob.id, {
       home: { x, y },
@@ -1202,11 +1221,30 @@ export class Horde {
       slotY: 0,
       flee: false,
       hideMs: 0,
-      behaviour: kindBehaviour(kind),
+      behaviour: options.steady ? 'wander' : kindBehaviour(kind),
       native: false,
       holdMs: 0,
+      steady: options.steady === true,
     });
     return mob;
+  }
+
+  /**
+   * A mob hunts player `id` (at `at`) now, as if it had seen it: it joins the line of the mobs that
+   * hunt the player (the foes of the sandbox start their fight so).
+   */
+  provoke(mob: Mob, id: number, at: PlayerState): void {
+    const brain = this.brains.get(mob.id);
+    if (!brain || mob.state === 'dying') return;
+    brain.target = id;
+    brain.seenX = at.x;
+    brain.seenY = at.y;
+    brain.lostMs = 0;
+    brain.restMs = 0;
+    brain.curve = this.newCurve();
+    brain.queuedMs = this.clockMs;
+    this.enter(mob, 'chase');
+    mob.facing = facingTo(at.x - mob.x, at.y - mob.y, mob.facing);
   }
 
   /**
@@ -1715,7 +1753,7 @@ export class Horde {
       }
     }
     if (!best) return false;
-    if (MOB_STATS[mob.kind].patrol) {
+    if (MOB_STATS[mob.kind].patrol && !brain.steady) {
       this.startle(mob, best);
       return true;
     }
