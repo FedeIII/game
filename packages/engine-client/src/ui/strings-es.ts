@@ -496,8 +496,12 @@ export const ES: Strings = {
         name: '10. Formas de los golpes',
         line: 'Una palabra sobre el enemigo anuncia su golpe cuando empieza a cargarlo. Una estocada (goblin, bandido, hobgoblin) es estrecha: un salto a un lado te saca de ella. Un barrido (bruto, osgo) es ancho: sigue al salto. Un mazazo (un bruto de vez en cuando) carga mucho y cae donde estabas: rueda o salta fuera; ni la guardia, ni la postura defensiva, ni la parada lo detienen. Un mordisco (huargo) es rápido y estrecho.',
       },
+      mobGuards: {
+        name: '11. Defensas de los enemigos',
+        line: 'Tras su golpe, un hobgoblin alza su escudo 0,5 s ("escudo alzado"): tus golpes tiran con desventaja. Un goblin se aparta a un lado tras su golpe, en lugar de huir. Un bandido para tu primer golpe tras el suyo (+2 a la CA, "parado"). Un osgo retiene su golpe mientras estás en guardia, hasta 0,4 s, y golpea cuando acaba la guardia; INT 15 no muestra entonces el destello. Un bruto no se defiende.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia', thrust: 'estocada', sweep: 'barrido', slam: 'mazazo', bite: 'mordisco' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia', thrust: 'estocada', sweep: 'barrido', slam: 'mazazo', bite: 'mordisco', raise: 'escudo alzado', mobParry: 'parado' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

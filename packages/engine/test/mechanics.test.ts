@@ -10,6 +10,7 @@ import {
   GUARD_STAMINA,
   Horde,
   MOB_STATS,
+  NIMBLE_MS,
   NO_INPUT,
   PARRY_PUSH,
   PARRY_TICKS,
@@ -671,5 +672,67 @@ describe('10. the shapes of the blows', () => {
       return;
     }
     throw new Error('no slam');
+  });
+});
+
+describe('11. the guards of the mobs', () => {
+  const blowOn = (horde: Horde, state: PlayerState, mob: Mob, toHit: number) =>
+    horde.strike(state, Math.atan2(mob.y - state.y, mob.x - state.x), undefined, 1, { toHit, damage: { count: 1, sides: 8, plus: 0 }, push: 1, stagger: 1 })[0]!;
+
+  it('a hobgoblin raises its shield after its blow: the next blow on it rolls with disadvantage', () => {
+    // The hobgoblin's d20 shows 1 (a miss); then the player's show 15 and 5: +10 hits AC 18 with 15 only.
+    for (const [on, hits] of [
+      [['mobGuards'], false],
+      [[], true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(1, 15, 5), 'hobgoblin', { ac: 10 }, 16);
+      const { events } = blow(horde, player, mob);
+      expect(events.map((e) => e.kind)).toEqual(on.length ? ['raise'] : []);
+      expect(blowOn(horde, state, mob, 10).damage > 0).toBe(hits);
+    }
+  });
+
+  it('a goblin steps aside after its blow, and comes back at once', () => {
+    const { horde, player, state, mob } = duel(['mobGuards'], faces(1));
+    blow(horde, player, mob);
+    const at = { x: mob.x, y: mob.y };
+    const states = new Set<string>();
+    for (let t = 0; t < MOB_STATS.skirmisher.strikeMs + NIMBLE_MS + 50; t += TICK_MS) {
+      horde.step(TICK_MS, [player]);
+      states.add(mob.state);
+    }
+    expect(states.has('retreat')).toBe(true);
+    expect(['chase', 'windup']).toContain(mob.state);
+    // Aside, not away: about as far from the player as before.
+    expect(Math.abs(mob.y - at.y)).toBeGreaterThan(8);
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeLessThan(40);
+  });
+
+  it('a bandit parries the first blow after its own: +2 AC, and the page hears "parried"', () => {
+    // The bandit's d20 shows 1 (a miss); then the player's shows 11: 13 hits AC 12, not AC 14.
+    for (const [on, hits] of [
+      [['mobGuards'], false],
+      [[], true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(1, 11), 'bandit', { ac: 10 }, 16);
+      blow(horde, player, mob);
+      horde.takeEvents();
+      expect(blowOn(horde, state, mob, 2).damage > 0).toBe(hits);
+      expect(horde.takeEvents().map((e) => e.kind)).toEqual(on.length ? ['mobParry'] : []);
+    }
+  });
+
+  it('a bugbear holds its blow while its target braces, up to 0.4 s, with no glint', () => {
+    const { horde, player, state, mob } = duel(['mobGuards'], faces(19), 'bugbear', { ac: 10, braceAc: 4 }, 18);
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.brace = 100;
+    state.braceAge = 9;
+    for (let t = 0; t < 300; t += TICK_MS) expect(horde.step(TICK_MS, [player])).toEqual([]);
+    expect(mob.state).toBe('windup');
+    expect(mob.feint).toBe(true);
+    // The brace ends: the blow comes.
+    state.brace = 0;
+    expect(horde.step(TICK_MS, [player]).find(([m]) => m === mob.id)?.[2]).toBeGreaterThan(0);
+    expect(mob.feint).toBeUndefined();
   });
 });

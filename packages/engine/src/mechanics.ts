@@ -14,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions', 'shapes'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions', 'shapes', 'mobGuards'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -34,7 +34,8 @@ export const NO_MECHANICS: Mechanics = new Set();
  * `tooBig`, a mob too big to shove (the shove); `clash`, `clashWon` and `clashLost`, two blows that met:
  * a tie, a win and a loss of the player (the clash); `shield`, `deflect`, `caught`, `uncanny`, `protect`
  * and `rage`, the reactions of the classes; `thrust`, `sweep`, `slam` and `bite`, the tell of a wind-up
- * (the shapes of the blows).
+ * (the shapes of the blows); `raise`, a hobgoblin that raises its shield, and `mobParry`, a bandit that
+ * parried a blow (the guards of the mobs).
  */
 export type MechanicEventKind =
   | 'sharp'
@@ -56,6 +57,8 @@ export type MechanicEventKind =
   | 'uncanny'
   | 'protect'
   | 'rage'
+  | 'raise'
+  | 'mobParry'
   | Shape;
 
 export interface MechanicEvent {
@@ -328,3 +331,24 @@ export function inShape(shape: Shape, mx: number, my: number, aim: number, hitRa
   if (shape === 'thrust') return d <= hitRange + THRUST_REACH && (d <= 8 || inFront(mx, my, aim, x, y, THRUST_ARC));
   return d <= hitRange && inFront(mx, my, aim, x, y, shape === 'sweep' ? SWEEP_ARC : BITE_ARC);
 }
+
+// ---------------------------------------------------------------- 11. the guards of the mobs
+
+/**
+ * The guards of the mobs (proposal 11): the same moves for the mobs, so that a fight has two sides.
+ * - The hobgoblin (SRD: a shield, AC 18) raises its shield after its blow for SHIELD_UP_MS: a blow of a
+ *   player on it rolls with disadvantage (Mob.guardUp).
+ * - The goblin of the forest (the SRD goblin: Nimble Escape) steps aside after its blow, NIMBLE_DISTANCE
+ *   in NIMBLE_MS, in place of a run away: it stays in melee, out of the reach of a riposte.
+ * - The bandit (in the place of the bandit captain of the draft, which needs art: SRD Parry) parries the
+ *   first blow after its own: BANDIT_PARRY_AC on its AC against that blow (Mob.parryReady).
+ * - The bugbear waits out a brace: when its wind-up ends with its target in a brace, it holds the blow up
+ *   to FEINT_MS more, and strikes when the brace ends (Mob.feint: no glint of INT 15 meanwhile, so the
+ *   reader knows).
+ * - The brute keeps no guard: the plain foe, to learn on.
+ */
+export const SHIELD_UP_MS = 500;
+export const NIMBLE_DISTANCE = 16;
+export const NIMBLE_MS = 250;
+export const BANDIT_PARRY_AC = 2;
+export const FEINT_MS = 400;

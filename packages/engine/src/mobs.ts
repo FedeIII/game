@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -658,6 +658,10 @@ export interface Mob {
    * blow of a player on it rolls with advantage and adds the INT opening (Blow.opening).
    */
   exposed?: number;
+  /** The guards of the mobs of the sandbox (mechanics.ts): the ms left of a raised shield (a hobgoblin), a parry ready for the next blow (a bandit), and a feint (a bugbear that holds its blow). */
+  guardUp?: number;
+  parryReady?: boolean;
+  feint?: boolean;
 }
 
 /** A rider sits this far behind the middle of its mount for each seat (world pixels). */
@@ -697,9 +701,9 @@ export interface BlowResult {
  * the attacker (`unaware`: the dice of Blow.sneak). A critical hit rolls all the dice twice. Damage 0: a
  * miss. A mob with an opening (Mob.exposed) gives the roll advantage.
  */
-export function rollBlow(blow: Blow, mob: Pick<Mob, 'kind' | 'state' | 'exposed'>, unaware: boolean, source: DiceSource): { damage: number; crit: boolean } {
+export function rollBlow(blow: Blow, mob: Pick<Mob, 'kind' | 'state' | 'exposed' | 'guardUp'>, unaware: boolean, source: DiceSource, acBonus = 0): { damage: number; crit: boolean } {
   const exposed = (mob.exposed ?? 0) > 0;
-  const roll = attackRoll(blow.toHit, MOB_STATS[mob.kind].ac, source, edgeOf(exposed, false));
+  const roll = attackRoll(blow.toHit, MOB_STATS[mob.kind].ac + acBonus, source, edgeOf(exposed, (mob.guardUp ?? 0) > 0));
   if (!roll.hit) return { damage: 0, crit: false };
   let damage = rollDice(blow.damage, source, roll.crit) + (mob.state === 'windup' || exposed ? (blow.opening ?? 0) : 0);
   if (unaware && blow.sneak && blow.sneak.count > 0) damage += rollDice(blow.sneak, source, roll.crit);
@@ -1046,6 +1050,9 @@ interface Brain {
   shape: Shape | null;
   spotX: number;
   spotY: number;
+  /** How long a bugbear has held its blow for a brace (ms), and the side of a goblin's step aside after its blow (+1, -1; 0: none) (the guards of the mobs). */
+  feintMs: number;
+  nimble: number;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1276,6 +1283,8 @@ export class Horde {
       shape: null,
       spotX: 0,
       spotY: 0,
+      feintMs: 0,
+      nimble: 0,
     });
     return mob;
   }
@@ -1444,6 +1453,7 @@ export class Horde {
       if (brain.riteMs > 0) brain.riteMs -= dt;
       if (mob.burning !== undefined && (mob.burning -= dt) <= 0) delete mob.burning;
       if (mob.exposed !== undefined && (mob.exposed -= dt) <= 0) delete mob.exposed;
+      if (mob.guardUp !== undefined && (mob.guardUp -= dt) <= 0) delete mob.guardUp;
       if (brain.turnMs > 0) brain.turnMs -= dt;
       switch (mob.state) {
         case 'idle':
@@ -1486,6 +1496,14 @@ export class Horde {
           }
           brain.timerMs -= dt;
           if (brain.timerMs > 0) break;
+          // A bugbear waits out a brace (the guards of the mobs): it holds its blow a moment, and the glint of INT 15 does not come.
+          if (target && mob.kind === 'bugbear' && this.mechanics.has('mobGuards') && target.brace > 0 && brain.feintMs < FEINT_MS) {
+            brain.feintMs += dt;
+            mob.feint = true;
+            break;
+          }
+          brain.feintMs = 0;
+          delete mob.feint;
           if (stats.arrowRange !== undefined) {
             // An archer looses its arrow at the player; the arrow decides the hit. Then it runs off.
             if (target) this.shootAt(mob, Math.atan2(target.y - mob.y, target.x - mob.x), stats.arrowRange);
@@ -1500,6 +1518,14 @@ export class Horde {
           const inReach = target !== undefined && (brain.shape ? inShape(brain.shape, mob.x, mob.y, brain.aim, stats.hitRange, target.x, target.y, brain.spotX, brain.spotY) : Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange);
           const reached = inReach && canBeHit(target!);
           brain.hit = reached && this.attack(mob, brain.target!, target!, players, hits);
+          if (this.mechanics.has('mobGuards')) {
+            // After its blow, a hobgoblin raises its shield, and a bandit is ready to parry.
+            if (mob.kind === 'hobgoblin') {
+              mob.guardUp = SHIELD_UP_MS;
+              this.event('raise', mob, brain.target!);
+            }
+            if (mob.kind === 'bandit') mob.parryReady = true;
+          }
           // The flank: a blow that did not hit a player at its side; it must turn first.
           if (!brain.hit && target && this.mechanics.has('flank') && atFlank(mob.x, mob.y, brain.aim, target.x, target.y)) {
             brain.turnMs = stats.strikeMs + TURN_MS;
@@ -1658,7 +1684,7 @@ export class Horde {
    * it reel (`hurt`). A miss glances off. Either way the mob turns on the attacker. Returns what the
    * blow did.
    */
-  private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number): BlowResult {
+  private hit(mob: Mob, dx: number, dy: number, blow: Blow, attackerId?: number, melee = true): BlowResult {
     const brain = this.brains.get(mob.id)!;
     // A rider that a blow reaches is off its mount, hit or not.
     if (mob.state === 'ride') {
@@ -1677,9 +1703,13 @@ export class Horde {
     const unaware = attackerId !== undefined && !this.hunts(mob, attackerId);
     // A blow on a lurker: its ambush springs at the attacker (the blow still takes it unaware).
     if (mob.state === 'lurk' && attackerId !== undefined) this.spring(mob, attackerId, null);
-    const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
+    // A bandit's parry (the guards of the mobs): the first blow after its own, not an arrow.
+    const parried = melee && mob.parryReady === true;
+    delete mob.parryReady;
+    const { damage, crit } = rollBlow(blow, mob, unaware, this.dice, parried ? BANDIT_PARRY_AC : 0);
     // An opening (a riposte) is for one blow.
     delete mob.exposed;
+    if (parried && damage === 0 && attackerId !== undefined) this.event('mobParry', mob, attackerId);
     if (damage === 0) {
       // A miss: the mob does not reel, but it knows who attacked it.
       if (attackerId !== undefined && mob.state !== 'hurt') {
@@ -1975,7 +2005,7 @@ export class Horde {
       }
       const mob = living[hit]!;
       if (mob.state === 'dying') continue;
-      const result = this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner);
+      const result = this.hit(mob, Math.cos(arrow.aim), Math.sin(arrow.aim), arrow.blow, arrow.owner, false);
       this.shotResults.push({ ...result, owner: arrow.owner });
       if (mob.health <= 0) this.shotKills.push({ mob, owner: arrow.owner });
     }
@@ -2391,6 +2421,13 @@ export class Horde {
     }
     brain.timerMs -= dt;
     if (brain.timerMs > 0) return;
+    // A goblin's Nimble Escape (the guards of the mobs): a step aside, in place of a run away.
+    if (mob.kind === 'skirmisher' && this.mechanics.has('mobGuards') && brain.target !== null && players.has(brain.target)) {
+      this.enter(mob, 'retreat');
+      brain.timerMs = NIMBLE_MS;
+      brain.nimble = this.random() < 0.5 ? 1 : -1;
+      return;
+    }
     if (brain.hit) {
       this.enter(mob, 'retreat');
       // A player with Charisma daunts it: it runs off longer.
@@ -2421,7 +2458,14 @@ export class Horde {
       brain.curve = this.newCurve();
       brain.lostMs = 0;
       brain.queuedMs = this.clockMs;
+      brain.nimble = 0;
       this.enter(mob, 'chase');
+      return;
+    }
+    if (brain.nimble !== 0) {
+      // A step aside, across the way to the player.
+      const across = Math.atan2(target.y - mob.y, target.x - mob.x) + (brain.nimble * Math.PI) / 2;
+      this.steer(mob, brain, across, NIMBLE_DISTANCE / (NIMBLE_MS / 1000), dt);
       return;
     }
     const away = Math.atan2(mob.y - target.y, mob.x - target.x);

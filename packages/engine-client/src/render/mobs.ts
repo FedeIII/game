@@ -21,6 +21,8 @@ export interface MobLook {
   readonly maxHealth?: number;
   /** The ms left of an opening (a mechanic of the sandbox: the riposte): it reels with no flash. */
   readonly exposed?: number;
+  /** A bugbear that holds its blow for a brace (the guards of the mobs of the sandbox): no glint of its wind-up. */
+  readonly feint?: boolean;
   /** In a rite (state 'rite'): the runes that it has left. */
   readonly runes?: number;
   /** While its weapon burns (a Devastator's rite). */
@@ -385,7 +387,7 @@ export class MobViews {
       view.bar.position.set(x - Math.floor(BAR.width / 2) - 1, top - BAR.gap - 3);
       view.barFill.width = Math.max(0, Math.round((BAR.width * mob.health!) / (mob.maxHealth ?? stats.health)));
     }
-    view.glint.visible = this.readOpening && mob.state === 'windup' && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
+    view.glint.visible = this.readOpening && mob.state === 'windup' && !mob.feint && Math.floor(now / GLINT_BLINK_MS) % 2 === 0;
     if (view.glint.visible) view.glint.position.set(x + 6, top + 3);
     this.placeAlert(view, mob, x, top);
     this.placeRing(view, mob, x, Math.round(mob.y), now);

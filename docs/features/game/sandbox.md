@@ -324,6 +324,26 @@ test a fight where the right defence depends on the tell (the draft, proposal 10
 
 ---
 
+### REQ-SBX-017: 11. The guards of the mobs
+
+**User Story:** As an admin, I want the mobs to keep a guard too, so that I can test a fight with two
+sides, where the player must read the mob (the draft, proposal 11).
+
+**Acceptance Criteria:**
+- **AC-SBX-017.1:** With the switch "11. Guards of the mobs", a hobgoblin raises its shield after its blow
+  (hit or miss) for 0.5 s ("shield up", Spanish "escudo alzado"): a blow of a player on it then rolls with
+  disadvantage.
+- **AC-SBX-017.2:** A goblin steps aside after its blow (hit or miss), 16 px across the way to the
+  character in 0.25 s, in place of a run away, and then hunts again.
+- **AC-SBX-017.3:** A bandit parries the first melee blow of a player after its own blow: +2 on its AC
+  against that blow; a miss shows "parried" (Spanish "parado") over it. The draft asked for a new mob, the
+  bandit captain; it needs art, so the bandit has its parry in the sandbox.
+- **AC-SBX-017.4:** A bugbear whose wind-up ends while its target braces holds the blow up to 0.4 s more,
+  and strikes when the brace ends; meanwhile the glint of a wind-up (INT 15) does not show.
+- **AC-SBX-017.5:** A brute keeps no guard.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -377,6 +397,10 @@ test a fight where the right defence depends on the tell (the draft, proposal 10
 - **10. The shapes.** The brain's `shape`, `spotX` and `spotY` (set when a wind-up starts); `shapeOf()`,
   `inShape()`, `MOB_SHAPES`, `THRUST_ARC` 30 degrees, `THRUST_REACH` 4, `SWEEP_ARC` 100 degrees,
   `BITE_ARC` 60 degrees, `SLAM_RADIUS` 14, `SLAM_WINDUP` 1.5, `SLAM_SHARE` 1/3.
+- **11. The guards of the mobs.** `Mob.guardUp` (ms), `Mob.parryReady`, `Mob.feint` (`MobLook.feint`:
+  no glint), the brain's `feintMs` and `nimble`; `rollBlow(..., acBonus)` (`Horde.hit(..., melee)`: an
+  arrow is not parried); `SHIELD_UP_MS` 500, `NIMBLE_DISTANCE` 16, `NIMBLE_MS` 250, `BANDIT_PARRY_AC` 2,
+  `FEINT_MS` 400.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

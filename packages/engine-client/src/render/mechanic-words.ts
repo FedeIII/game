@@ -43,4 +43,6 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   sweep: { over: 'mob', ink: FIGHT_INK.blow },
   slam: { over: 'mob', ink: FIGHT_INK.hurt },
   bite: { over: 'mob', ink: FIGHT_INK.blow },
+  raise: { over: 'mob', ink: FIGHT_INK.miss },
+  mobParry: { over: 'mob', ink: FIGHT_INK.miss, sound: 'glance' },
 };
