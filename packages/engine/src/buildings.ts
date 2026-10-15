@@ -6,7 +6,8 @@ import type { Ground } from './world.ts';
  * The building model: a rectangle of walls with one door in the south wall, a floor inside, and
  * fixtures. Worlds make buildings (by generator or by hand); the engine collides with them,
  * draws them, and fades the roof while the player is inside. A building can have storeys above
- * its ground storey (Building.storeys), joined by stairs.
+ * its ground storey (Building.storeys), joined by stairs, and it can cut corners from the north of
+ * its rectangle (Building.cut): an L or a T.
  */
 
 /** What is on a tile of the structure layer. Codes from FIXTURE_CODE_BASE up are fixture tiles. */
@@ -58,14 +59,32 @@ export interface Storey {
   readonly floor?: Ground;
 }
 
+/**
+ * The corners that a building cuts from the north of its rectangle (Building.cut; 2026-10-15, Fede's
+ * request for the houses of the Wilds). In the `depth` rows from the north edge, the `west` columns
+ * from the west edge and the `east` columns from the east edge are not part of the building. The
+ * south part keeps the whole width and the door; the north part is a wing. One cut makes an L, two
+ * cuts make a T. The walls go round the shape (`onWall`).
+ */
+export interface BuildingCut {
+  readonly depth: number;
+  readonly west: number;
+  readonly east: number;
+}
+
 export interface Building {
   /** Unique in its world. */
   readonly id: string;
-  /** The outer walls, inclusive. The interior is the rectangle inside them. */
+  /**
+   * The outer walls, inclusive. The interior is the rectangle inside them; with a cut (`cut`), the
+   * rectangle is the box round the shape.
+   */
   readonly x0: number;
   readonly y0: number;
   readonly x1: number;
   readonly y1: number;
+  /** The corners cut from the north of the rectangle: an L or a T. Default: none (a rectangle). */
+  readonly cut?: BuildingCut;
   /** The door is in the south wall, at (doorX, y1), never in a corner. */
   readonly doorX: number;
   readonly fixtures: readonly Fixture[];
@@ -80,6 +99,11 @@ export interface Building {
   readonly style?: BuildingStyle;
   /** Columns (tx) of the south wall that have a lit window. Never a corner or the door. */
   readonly windows?: readonly number[];
+  /**
+   * The windows never light: nobody lives in the building (most houses of the Wilds). The client
+   * shows them as by day at every hour, and they give no light. The engine does not read it.
+   */
+  readonly dark?: boolean;
   /** Things on the roof. Never in a corner column. */
   readonly roofProps?: readonly RoofProp[];
   /**
@@ -126,33 +150,55 @@ export function storeyWindows(building: Building, storey: number): readonly numb
  */
 export function structureOnStorey(building: Building, storey: number, tx: number, ty: number): number {
   if (storey === 0) return structureIn(building, tx, ty);
-  const { x0, y0, x1, y1 } = building;
+  if (!inBuilding(building, tx, ty)) return Structure.None;
+  const { x0, x1, y1 } = building;
   if (ty === y1 && tx !== x0 && tx !== x1 && storeyWindows(building, storey).includes(tx)) return Structure.Window;
-  if (tx === x0 || tx === x1 || ty === y0 || ty === y1) return Structure.Wall;
+  if (onWall(building, tx, ty)) return Structure.Wall;
   for (const fixture of storeyFixtures(building, storey)) {
     for (const [x, y, code] of fixtureTiles(fixture)) if (x === tx && y === ty) return code;
   }
   return Structure.Floor;
 }
 
+/** Whether a tile is in the rectangle of the building: the box round it, with its cut corners (Building.cut). */
 export function inRect(building: Building, tx: number, ty: number): boolean {
   return tx >= building.x0 && tx <= building.x1 && ty >= building.y0 && ty <= building.y1;
 }
 
-/** The structure code that the building puts on a tile of its rectangle. */
+/** Whether a tile is part of the building: its walls, its door, its windows or its floor. A cut corner (Building.cut) is not. */
+export function inBuilding(building: Building, tx: number, ty: number): boolean {
+  if (!inRect(building, tx, ty)) return false;
+  const cut = building.cut;
+  return !cut || ty >= building.y0 + cut.depth || (tx >= building.x0 + cut.west && tx <= building.x1 - cut.east);
+}
+
+/**
+ * Whether a tile of the building is on its walls (a wall, the door or a window): a tile of the
+ * building next to a tile that is not, across a side or a corner. For a rectangle, its edge.
+ */
+export function onWall(building: Building, tx: number, ty: number): boolean {
+  if (!inBuilding(building, tx, ty)) return false;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) if (!inBuilding(building, tx + dx, ty + dy)) return true;
+  }
+  return false;
+}
+
+/** The structure code that the building puts on a tile: Structure.None outside it (a cut corner too). */
 export function structureIn(building: Building, tx: number, ty: number): number {
-  const { x0, y0, x1, y1, doorX } = building;
+  if (!inBuilding(building, tx, ty)) return Structure.None;
+  const { x0, x1, y1, doorX } = building;
   if (ty === y1 && tx === doorX) return Structure.Door;
   if (ty === y1 && building.windows?.includes(tx) && tx !== x0 && tx !== x1) return Structure.Window;
-  if (tx === x0 || tx === x1 || ty === y0 || ty === y1) return Structure.Wall;
+  if (onWall(building, tx, ty)) return Structure.Wall;
   for (const fixture of building.fixtures) {
     for (const [x, y, code] of fixtureTiles(fixture)) if (x === tx && y === ty) return code;
   }
   return Structure.Floor;
 }
 
-/** Whether a tile is inside the building: its interior or its doorway. */
+/** Whether a tile is inside the building: its interior (the tiles of the building inside its walls) or its doorway. */
 export function isInside(building: Building, tx: number, ty: number): boolean {
   if (tx === building.doorX && ty === building.y1) return true;
-  return tx > building.x0 && tx < building.x1 && ty > building.y0 && ty < building.y1;
+  return inBuilding(building, tx, ty) && !onWall(building, tx, ty);
 }

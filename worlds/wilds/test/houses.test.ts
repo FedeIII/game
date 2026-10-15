@@ -11,19 +11,23 @@ import {
   createPlayer,
   findInteraction,
   fixtureTiles,
+  inBuilding,
+  isInside,
   isWet,
+  landAt,
+  onWall,
   stepPlayer,
   useDoor,
   type Building,
 } from '@game/engine';
-import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, READ_LETTER, WildsSource, wilds } from '../src/index.ts';
+import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, HOUSE_KINDS, LANDS, READ_LETTER, SILVERSPRING, WildsSource, wilds, type House } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
 const houseOf = (world: World, cx: number, cy: number) => (world.source as WildsSource).house(cx, cy);
 
 /** Many buildings: every cell of a few seeds that has one. */
-function sample(): { world: World; building: Building }[] {
-  const out: { world: World; building: Building }[] = [];
+function sample(): { world: World; building: House }[] {
+  const out: { world: World; building: House }[] = [];
   for (const seed of [DEFAULT_SEED, 1, 7, 42, 1234]) {
     const world = newWorld(seed);
     for (let cy = -6; cy < 6; cy++) {
@@ -95,21 +99,23 @@ describe('buildings', () => {
         for (let tx = b.x0 - 1; tx <= b.x1 + 1; tx++) {
           const inRect = tx >= b.x0 && tx <= b.x1 && ty >= b.y0 && ty <= b.y1;
           const structure = world.structure(tx, ty);
-          if (!inRect) {
+          if (!inRect || !inBuilding(b, tx, ty)) {
+            // Round the house, and in a corner cut from it (Building.cut): open ground, dry, where nothing grows.
             expect(structure).toBe(Structure.None);
             expect(world.decor(tx, ty), `nothing grows next to building ${b.id}`).toBe(Decor.None);
             expect(isWet(world.ground(tx, ty))).toBe(false);
+            expect(world.buildingAt(tx, ty)).toBeNull();
             continue;
           }
-          expect(world.ground(tx, ty)).toBe(b.id === HOME_ID ? Ground.FloorEarth : Ground.Floor);
-          const edge = tx === b.x0 || tx === b.x1 || ty === b.y0 || ty === b.y1;
+          expect(world.ground(tx, ty)).toBe(b.floor);
+          const edge = onWall(b, tx, ty);
           if (structure === Structure.Door) {
             doors++;
             expect(ty).toBe(b.y1);
             expect(tx).toBeGreaterThan(b.x0 + 1);
             expect(tx).toBeLessThan(b.x1 - 1);
           } else if (structure === Structure.Window) {
-            // A lit window is part of the south wall, never in a corner.
+            // A window is part of the south wall, never in a corner.
             expect(ty).toBe(b.y1);
             expect(tx > b.x0 && tx < b.x1).toBe(true);
           } else {
@@ -128,13 +134,13 @@ describe('buildings', () => {
 
   it('can reach every piece of furniture from the door', () => {
     for (const { world, building: b } of buildings) {
-      // Walk the open floor from the tile inside the door.
+      // Walk the open floor from the tile inside the door: over the floor and over a pelt (no solid box).
       const seen = new Set<string>();
       const queue: [number, number][] = [[b.doorX, b.y1 - 1]];
       while (queue.length) {
         const [x, y] = queue.pop()!;
         const key = `${x},${y}`;
-        if (seen.has(key) || world.structure(x, y) !== Structure.Floor) continue;
+        if (seen.has(key) || !isInside(b, x, y) || world.solidBox(x, y) !== null) continue;
         seen.add(key);
         queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
       }
@@ -147,11 +153,13 @@ describe('buildings', () => {
     }
   });
 
-  it('has furniture in every building, and a bed or a bookshelf in most', () => {
+  it('has furniture in every building, and a bed or a bookshelf in each one that is not a store room', () => {
     const counts = buildings.map(({ building }) => building.fixtures.length);
     expect(Math.min(...counts)).toBeGreaterThan(0);
-    const homely = buildings.filter(({ building }) => building.fixtures.some((f) => f.kind === 'bed' || f.kind === 'bookshelf'));
-    expect(homely.length / buildings.length).toBeGreaterThan(0.9);
+    const homes = buildings.filter(({ building }) => building.kind !== 'storeroom');
+    const homely = homes.filter(({ building }) => building.fixtures.some((f) => f.kind === 'bed' || f.kind === 'bookshelf'));
+    expect(homely.length / homes.length).toBeGreaterThan(0.95);
+    expect(homes.length / buildings.length).toBeGreaterThan(0.8);
   });
 
   it('never puts the spawn inside a building', () => {
@@ -160,6 +168,147 @@ describe('buildings', () => {
       const spawn = world.findSpawn();
       expect(world.ground(Math.floor(spawn.x / TILE_SIZE), Math.floor(spawn.y / TILE_SIZE))).not.toBe(Ground.Floor);
     }
+  });
+});
+
+describe('the variants of the houses (Fede, 2026-10-15)', () => {
+  const houses = buildings.map(({ building }) => building).filter((b) => b.id !== HOME_ID);
+  /** The land of the middle of the cell of a house (the look and the kind of a house follow it). */
+  const landOf = (b: House) => {
+    const [cx, cy] = b.id.split(',').map(Number) as [number, number];
+    return landAt(LANDS, cx * BUILDING_CELL + BUILDING_CELL / 2, cy * BUILDING_CELL + BUILDING_CELL / 2)!.id;
+  };
+  /** The houses round Silverspring: the Mithril Enclave. */
+  const enclave: House[] = [];
+  for (let seed = 1; seed <= 40; seed++) {
+    const source = new WildsSource(seed);
+    for (let cy = Math.floor((SILVERSPRING.y0 - 14) / BUILDING_CELL); cy <= Math.floor((SILVERSPRING.y1 + 14) / BUILDING_CELL); cy++) {
+      for (let cx = Math.floor((SILVERSPRING.x0 - 14) / BUILDING_CELL); cx <= Math.floor((SILVERSPRING.x1 + 14) / BUILDING_CELL); cx++) {
+        const house = source.house(cx, cy);
+        if (house && landOf(house) === 'mithril-enclave') enclave.push(house);
+      }
+    }
+  }
+  const LOOKS: Record<string, string[]> = {
+    'iron-sovereignty': ['timber thatch 8', 'planks shingle 5', 'timber shingle 5', 'planks thatch 8', 'stone slate 7'],
+    wildlands: ['stone slate 5', 'rubble thatch 8', 'rubble slate 7', 'planks thatch 8'],
+    'mithril-enclave': ['brick clay 5', 'timber clay 5', 'stone slate 7'],
+  };
+  const lookOf = (b: House) => `${b.style!.walls} ${b.style!.roof} ${b.floor}`;
+
+  it('take the looks of their land, with the floor of the look', () => {
+    expect(Ground.Floor).toBe(5);
+    expect(Ground.FloorStone).toBe(7);
+    expect(Ground.FloorEarth).toBe(8);
+    expect(enclave.length).toBeGreaterThan(3);
+    for (const b of [...houses, ...enclave]) expect(LOOKS[landOf(b)], `${b.id}: ${lookOf(b)}`).toContain(lookOf(b));
+    for (const land of ['iron-sovereignty', 'wildlands'] as const) {
+      const looks = new Set(houses.filter((b) => landOf(b) === land).map(lookOf));
+      expect(looks.size, land).toBeGreaterThanOrEqual(3);
+    }
+    expect(new Set(enclave.map(lookOf)).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('are an L or a T now and then: corners cut from the north, the south part whole', () => {
+    const cuts = houses.map((b) => b.cut).filter((cut) => cut !== undefined);
+    expect(cuts.length / houses.length).toBeGreaterThan(0.15);
+    expect(cuts.length / houses.length).toBeLessThan(0.5);
+    expect(cuts.some((c) => c.west > 0 && c.east === 0)).toBe(true);
+    expect(cuts.some((c) => c.west === 0 && c.east > 0)).toBe(true);
+    expect(cuts.some((c) => c.west > 0 && c.east > 0)).toBe(true);
+    for (const b of houses) {
+      if (!b.cut) continue;
+      const { depth, west, east } = b.cut;
+      expect(depth).toBeGreaterThanOrEqual(2);
+      // The south part: the corridor and two rows more inside its walls. The wing: two columns inside its walls.
+      expect(b.y1 - (b.y0 + depth) + 1).toBeGreaterThanOrEqual(5);
+      expect(b.x1 - b.x0 + 1 - west - east).toBeGreaterThanOrEqual(4);
+      for (const side of [west, east]) expect(side === 0 || side >= 2).toBe(true);
+      // The corner tiles are not part of it; the door and the whole south wall are.
+      if (west > 0) expect(inBuilding(b, b.x0, b.y0)).toBe(false);
+      if (east > 0) expect(inBuilding(b, b.x1, b.y0)).toBe(false);
+      for (let tx = b.x0; tx <= b.x1; tx++) expect(inBuilding(b, tx, b.y1)).toBe(true);
+    }
+  });
+
+  it('have one or two windows now and then, and most are dark: a lit house has a burning candle, a dark one a cold one', () => {
+    const windowed = houses.filter((b) => b.windows);
+    expect(windowed.length / houses.length).toBeGreaterThan(0.45);
+    expect(windowed.length / houses.length).toBeLessThan(0.75);
+    for (const b of windowed) {
+      expect(b.windows!.length).toBeGreaterThanOrEqual(1);
+      expect(b.windows!.length).toBeLessThanOrEqual(2);
+      for (const tx of b.windows!) expect(Math.abs(tx - b.doorX)).toBeGreaterThan(1);
+      if (b.windows!.length === 2) expect(b.windows![1]! - b.windows![0]!).toBeGreaterThan(1);
+    }
+    const dark = houses.filter((b) => b.dark);
+    expect(dark.length / houses.length).toBeGreaterThan(0.75);
+    expect(dark.length / houses.length).toBeLessThan(0.92);
+    // Nobody was in a house with boards across its door.
+    for (const b of houses) if (b.barred) expect(b.dark, b.id).toBe(true);
+    for (const b of houses) {
+      for (const table of b.fixtures.filter((f) => f.kind === 'table')) {
+        if (b.dark) {
+          expect(table.light).toBeUndefined();
+          expect(table.look).toBe('cold');
+          expect(table.content?.pages).toEqual(['The candle burned down long ago. Nobody lives here now.']);
+        } else {
+          expect(table.light).toBeTruthy();
+          expect(table.look).toBeUndefined();
+          expect(table.content).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it('have a chimney now and then, never over a corner', () => {
+    const chimneys = houses.filter((b) => b.roofProps);
+    expect(chimneys.length / houses.length).toBeGreaterThan(0.25);
+    expect(chimneys.length / houses.length).toBeLessThan(0.55);
+    for (const b of chimneys) {
+      expect(b.roofProps).toHaveLength(1);
+      expect(b.roofProps![0]!.name).toBe('chimney');
+      expect(b.roofProps![0]!.tx).toBeGreaterThan(b.x0);
+      expect(b.roofProps![0]!.tx).toBeLessThan(b.x1);
+    }
+  });
+
+  it('have the things of their kind, and the kinds follow the land', () => {
+    const kinds = (kind: string) => houses.filter((b) => b.kind === kind);
+    for (const kind of HOUSE_KINDS) expect(kinds(kind).length, kind).toBeGreaterThan(5);
+    const has = (b: House, kind: string) => b.fixtures.filter((f) => f.kind === kind);
+    for (const b of houses) {
+      // The chest of every kind: the loot, the bars and the lock stay as they were.
+      expect(has(b, 'chest').length, b.id).toBeLessThanOrEqual(1);
+      if (b.kind === 'storeroom') {
+        expect(has(b, 'bed')).toHaveLength(0);
+        expect(has(b, 'table')).toHaveLength(0);
+      }
+      for (const crate of has(b, 'crate')) {
+        const pages = crate.content?.pages;
+        if (b.kind === 'farmhouse') expect(pages).toEqual(['Sacks of grain. The grain is mouldy.']);
+        else if (b.kind === 'lodge') expect(pages).toEqual(['Snares, a coil of rope and a rusty skinning knife.']);
+        else expect(pages).toBeUndefined();
+      }
+      for (const rug of has(b, 'rug')) {
+        expect(b.kind).toBe('lodge');
+        expect(rug.look).toBe('pelt');
+      }
+      for (const lectern of has(b, 'lectern')) {
+        expect(b.kind).toBe('hermitage');
+        expect(lectern.content?.pages).toHaveLength(1);
+        expect(lectern.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+      }
+    }
+    const share = (kind: string, b: House[]) => b.filter((h) => h.kind === kind).length / b.length;
+    expect(kinds('storeroom').every((b) => has(b, 'crate').length >= 3)).toBe(true);
+    expect(kinds('lodge').filter((b) => has(b, 'rug').length === 1).length / kinds('lodge').length).toBeGreaterThan(0.8);
+    expect(kinds('hermitage').filter((b) => has(b, 'lectern').length === 1).length / kinds('hermitage').length).toBeGreaterThan(0.8);
+    expect(kinds('farmhouse').every((b) => has(b, 'crate').length >= 1)).toBe(true);
+    const forest = houses.filter((b) => landOf(b) === 'iron-sovereignty');
+    const wild = houses.filter((b) => landOf(b) === 'wildlands');
+    expect(share('farmhouse', forest)).toBeGreaterThan(share('farmhouse', wild));
+    expect(share('lodge', wild)).toBeGreaterThan(share('lodge', forest));
   });
 });
 

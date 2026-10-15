@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, Decor, Ground, emptyChunk, fixtureTiles, inRect, structureIn, type Building, type Fixture, type LootTable, type MobRules, type WorldSource } from '../src/index.ts';
+import { CHUNK_SIZE, Decor, Ground, emptyChunk, fixtureTiles, inBuilding, structureIn, type Building, type Fixture, type LootTable, type MobRules, type WorldSource } from '../src/index.ts';
 
 /**
  * A small world from a text map, for engine tests: '.' grass, 'T' tree, 'R' rock, '~' water,
@@ -44,7 +44,7 @@ export function houseSource(extra: Partial<Building> = {}): WorldSource {
           const ty = cy * CHUNK_SIZE + ly;
           const i = ly * CHUNK_SIZE + lx;
           chunk.ground[i] = Ground.Grass;
-          if (inRect(house, tx, ty)) {
+          if (inBuilding(house, tx, ty)) {
             chunk.ground[i] = Ground.Floor;
             chunk.structure[i] = structureIn(house, tx, ty);
           }
@@ -52,7 +52,7 @@ export function houseSource(extra: Partial<Building> = {}): WorldSource {
       }
       return chunk;
     },
-    buildingAt: (tx, ty) => (inRect(house, tx, ty) ? house : null),
+    buildingAt: (tx, ty) => (inBuilding(house, tx, ty) ? house : null),
     buildingsIn: () => [house],
     fixtureAt: (tx, ty) => house.fixtures.find((f) => fixtureTiles(f).some(([x, y]) => x === tx && y === ty)) ?? null,
     fixturesIn: () => [...house.fixtures],

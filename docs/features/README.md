@@ -70,6 +70,7 @@ streaming-platform project):
 | Game: The Tips | `TIP` | [`game/tips.md`](game/tips.md) |
 | Game: The Towns of the Wilds | `TWN` | [`game/towns.md`](game/towns.md) |
 | Game: Buildings with Storeys | `STY` | [`game/storeys.md`](game/storeys.md) |
+| Game: The Houses of the Wilds | `HSE` | [`game/houses.md`](game/houses.md) |
 | Game: Day and Night | `DAY` | [`game/day-and-night.md`](game/day-and-night.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
@@ -117,4 +118,5 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [The Prologue](game/prologue.md) | Nine painted scenes of Kandrax with Fede's texts, for each new character and from the game menu: the world, the Dominions, the gods, Thrain's factory, and the character's identity and mission; its pace and how to skip it |
 | [Sound](game/sound.md) | Music on a recorded orchestra and choir (VSCO 2 CE, FluidR3), loaded when needed: the theme of Kandrax in the menu and the prologue, and in the game a music that follows the places, a hunt, a fight, a battle, a dream, a defeat, with stingers for discoveries and quests; the sounds of fights, steps, mobs' voices, doors, chests, coins, drinks and the GUI; an ambience for each place and the sounds of water, fires, fountains and forges near the player; when the sound starts and sleeps, and the "Sound" settings |
 | [Buildings with Storeys](game/storeys.md) | Buildings of more than one storey: walls one storey high for each, each storey with its own walls, windows, floor, things and people; stairs and a stairwell ("Go up the stairs", "Go down the stairs"); a player on a storey walks, acts and drops items only there; the building shows from the player's storey up, and the other storeys hide; the storey on the server (protocol 39) and in the place of a character |
+| [The Houses of the Wilds](game/houses.md) | The variants of the lonely houses: buildings with corners cut from the north (an L or a T) and their roofs in two parts; the look of the land (walls, roof, floor); windows and chimneys; dark houses (cold candle, windows that never light) and lit ones; five kinds of house with their own things (cottage, farmhouse, hunter's lodge with a pelt, hermit's hut with a lectern, store room); every thing reachable from the door |
 | [Day and Night](game/day-and-night.md) | One day and one night in 48 real minutes, at the same hour for every player (from the real clock): the darkness falls at dusk and lifts at dawn, a dim, overcast noon, and lights that fade out by day; `?hour=` stops the hour |

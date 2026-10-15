@@ -83,6 +83,15 @@ function table(): Part[] {
   return [...tableTop(), ...candle(8, -8.5), { sdf: box([19, 13, -11], [25, 14.2, -6], 0.2), material: M.bookRed }];
 }
 
+/** The table of a house where nobody lives (a dark house of the Wilds): its candle burned down to a cold stub in a pool of wax. */
+function coldTable(): Part[] {
+  return [
+    ...tableTop(),
+    { sdf: union(cylinder([8, 14, -8.5], 'y', 1.1, 1.6), ellipsoid([8.4, 13.1, -8.2], [2.2, 0.35, 1.8])), material: M.wax },
+    { sdf: box([19, 13, -11], [25, 14.2, -6], 0.2), material: M.bookRed },
+  ];
+}
+
 function bed(): Part[] {
   return [
     { sdf: box([1, 0, -30], [15, 5, -1]), material: M.woodDark },
@@ -375,6 +384,22 @@ function rug(): Part[] {
     return Math.abs(((x + 32) % 8) - 4) + Math.abs(((z + 64) % 8) - 4) < 2.2 ? M.bookBrown : M.canvasWine;
   };
   return [{ sdf: box([1, 0, -31], [31, 0.5, -1]), material: pattern }];
+}
+
+/**
+ * A bear pelt on the floor of a hunter's lodge (the look `pelt` of a rug, 2 x 2 tiles): the hide spread
+ * flat, the four legs out to the corners, the head to the north. Flat, so the pitch of its fur shows by
+ * the noise only.
+ */
+function pelt(): Part[] {
+  const legs = [[6, -5], [26, -5], [5, -24], [27, -24]].map(([x, z]) => roundCone([16 + (x! - 16) * 0.35, 0.4, -16 + (z! + 16) * 0.35], [x!, 0.3, z!], 3.4, 2));
+  const hide = union(ellipsoid([16, 0.3, -15], [8.5, 1.1, 10]), ...legs, ellipsoid([16, 0.4, -27], [3.6, 1.3, 3.4]));
+  return [
+    { sdf: intersect(displace(hide, 0.6, 0.5, 91), box([0, 0, -32], [32, 2, 0])), material: M.fur },
+    // The ears and the snout of the head.
+    { sdf: union(sphere([13.6, 1, -29.4], 1.1), sphere([18.4, 1, -29.4], 1.1)), material: M.fur },
+    { sdf: ellipsoid([16, 1.2, -24.6], [1.5, 0.8, 1.6]), material: M.woodDark },
+  ];
 }
 
 function crate(): Part[] {
@@ -807,6 +832,8 @@ export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
     fixture('table', table(), 40, 40),
+    // The table of a house where nobody lives: the candle is a cold stub (houses.ts in the Wilds).
+    { ...fixture('table', coldTable(), 40, 40), name: 'fixture/table/cold' },
     fixture('bed', bed(), 24, 64),
     fixture('chest', chest(), 24, 32),
     fixture('barrel', barrel(), 24, 32),
@@ -825,6 +852,8 @@ export function fixtureFrames(): Frame[] {
     fixture('fountain', fountain(), 56, 88),
     ...portalFrames(),
     fixture('rug', rug(), 40, 48),
+    // A bear pelt in a hunter's lodge of the Wilds.
+    { ...fixture('rug', pelt(), 40, 48), name: 'fixture/rug/pelt' },
     fixture('crate', crate(), 24, 40),
     fixture('cauldron', cauldron(), 24, 32),
     fixture('telescope', telescope(), 24, 40),

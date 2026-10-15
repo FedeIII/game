@@ -69,6 +69,7 @@ export const M = {
   darkRedGlass: 51,
   dimStainedBlue: 52,
   dimStainedRed: 53,
+  fur: 54,
 } as const;
 
 /**
@@ -145,4 +146,5 @@ export const MATERIALS: Material[] = [
   { ramp: ramp('#110506', '#1b080a', '#270c0f', '#341114', '#43181a'), bias: -0.1 }, // red glass by day
   { ramp: ramp('#0a0f1c', '#10182b', '#17233d', '#21304f'), bias: -0.05 }, // stained glass by day, blue
   { ramp: ramp('#180909', '#250e0c', '#341511', '#451e17'), bias: -0.05 }, // stained glass by day, red
+  { ramp: ramp('#100b08', '#1a120c', '#251a12', '#312319', '#3e2d20', '#4c3828'), dither: true }, // the fur of a pelt, dark brown
 ];

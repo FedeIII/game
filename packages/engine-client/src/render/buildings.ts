@@ -1,5 +1,5 @@
 import { Container, NineSliceSprite, Sprite, type Texture } from 'pixi.js';
-import { DEFAULT_STYLE, Ground, Structure, TILE_SIZE, hash2, storeyCount, storeyWindows, upperStorey, type Building, type World } from '@game/engine';
+import { DEFAULT_STYLE, Ground, Structure, TILE_SIZE, hash2, isInside, onWall, storeyCount, storeyWindows, upperStorey, type Building, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
@@ -28,6 +28,46 @@ const LOOK_SEED = 0x6b1d;
 const WINDOW_LIGHT = { radius: 48, colour: 0xffa850, y: -17 } as const;
 
 type DoorState = 'open' | 'closed' | 'boarded';
+
+/** A part of a roof: a rectangle of tiles with its own ridge. */
+interface RoofPart {
+  readonly x0: number;
+  readonly x1: number;
+  readonly y0: number;
+  readonly y1: number;
+}
+
+/**
+ * The parts of the roof of a building: one over its rectangle; for a building with a cut
+ * (Building.cut), the wing over the north part and the whole width over the south part. The south
+ * part comes last: the roof props stand on its ridge.
+ */
+function roofParts(building: Building): RoofPart[] {
+  const { x0, y0, x1, y1, cut } = building;
+  if (!cut) return [{ x0, x1, y0, y1 }];
+  return [
+    { x0: x0 + cut.west, x1: x1 - cut.east, y0, y1: y0 + cut.depth - 1 },
+    { x0, x1, y0: y0 + cut.depth, y1 },
+  ];
+}
+
+/**
+ * The row of a roof part, from the north: the north eave (`top`), the back slope, the ridge, the front
+ * slope and the south eave. A wing (`wing`) ends in its front slope: the roof of the south part goes on
+ * from there.
+ */
+function roofRow(r: number, rows: number, wing: boolean): string {
+  const ridge = ridgeRow(rows);
+  if (r === 0) return 'top';
+  if (r < ridge) return 'back';
+  if (r === ridge) return 'ridge';
+  return r === rows - 1 && !wing ? 'eave' : 'front';
+}
+
+/** The ridge row of a roof part with that many rows, from its north row. */
+function ridgeRow(rows: number): number {
+  return Math.max(1, Math.round(rows / 2 - 1));
+}
 
 interface BuildingView {
   readonly building: Building;
@@ -161,6 +201,7 @@ export class Buildings {
   lights(): LightSource[] {
     const out: LightSource[] = [];
     for (const { building, floorStorey: base } of this.views.values()) {
+      if (building.dark) continue;
       for (let storey = base; storey < storeyCount(building); storey++) {
         for (const tx of storeyWindows(building, storey)) {
           out.push({
@@ -188,11 +229,12 @@ export class Buildings {
     built.floorStorey = storey;
     const level = upperStorey(built.building, storey);
     if (!level) return;
-    const { x0, y0, x1, y1 } = built.building;
+    const { x0, y0, x1, y1, doorX } = built.building;
     const variants = this.art.variants(`ground/${GROUND_NAME[level.floor ?? Ground.Floor]}`);
     const floor = new Container();
     for (let ty = y0 + 1; ty < y1; ty++) {
       for (let tx = x0 + 1; tx < x1; tx++) {
+        if (!isInside(built.building, tx, ty) || (tx === doorX && ty === y1)) continue;
         const tile = new Sprite(variants[hash2(tx, ty, LOOK_SEED + 2 + storey) % variants.length]!);
         tile.position.set(tx * TILE_SIZE, ty * TILE_SIZE);
         floor.addChild(tile);
@@ -223,7 +265,11 @@ export class Buildings {
    */
   private wallFrames(building: Building, tx: number, ty: number, storey = 0): { readonly base: Texture; readonly lit: Texture | null } {
     const walls = this.wallsOf(building, storey);
-    if (ty === building.y1 && tx !== building.x0 && tx !== building.x1 && storeyWindows(building, storey).includes(tx)) return dayFrames(this.art, `wall/${walls}/window`);
+    if (ty === building.y1 && tx !== building.x0 && tx !== building.x1 && storeyWindows(building, storey).includes(tx)) {
+      const frames = dayFrames(this.art, `wall/${walls}/window`);
+      // A dark building (Building.dark): the window as by day, at every hour.
+      return building.dark ? { base: frames.base, lit: null } : frames;
+    }
     return { base: this.wallTexture(building, tx, ty, storey), lit: null };
   }
 
@@ -307,7 +353,7 @@ export class Buildings {
     const storeys = storeyCount(building);
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
-        if (tx !== x0 && tx !== x1 && ty !== y0 && ty !== y1) continue;
+        if (!onWall(building, tx, ty)) continue;
         const isDoor = tx === doorX && ty === y1;
         const stack: BuildingView['stacks'][number] = { ty, front: ty === y1, sprites: [], lits: [] };
         // The storeys: the ground one (or the door), and above it the same wall, one storey higher each
@@ -329,30 +375,36 @@ export class Buildings {
     const roofHeight = storeys * WALL_HEIGHT;
 
     // The roof sits on the wall tops: rows of slate tiles from the north eave to the south eave.
-    // Seen from the south, the back slope shows above the ridge and the front slope below it.
+    // Seen from the south, the back slope shows above the ridge and the front slope below it. A
+    // building with a cut has two parts: the wing, and the whole width south of it.
     const roof = new Container();
     const roofStyle = (building.style ?? DEFAULT_STYLE).roof;
     // A burned house has no roof (the style 'none'): its walls stand open to the sky.
-    const rows = roofStyle === ROOFLESS ? 0 : y1 - y0 + 1;
-    const ridge = Math.max(1, Math.round(rows / 2 - 1));
-    for (let r = 0; r < rows; r++) {
-      const row = r === 0 ? 'top' : r < ridge ? 'back' : r === ridge ? 'ridge' : r === rows - 1 ? 'eave' : 'front';
-      for (let tx = x0; tx <= x1; tx++) {
-        const column = tx === x0 ? 'l' : tx === x1 ? 'r' : 'm';
-        const tile = new Sprite(this.roofTexture(roofStyle, row, column, tx, y0 + r));
-        tile.position.set(tx * TILE_SIZE, (y0 + r) * TILE_SIZE - roofHeight);
-        roof.addChild(tile);
+    const parts = roofStyle === ROOFLESS ? [] : roofParts(building);
+    for (const [index, part] of parts.entries()) {
+      const rows = part.y1 - part.y0 + 1;
+      const wing = index < parts.length - 1;
+      for (let r = 0; r < rows; r++) {
+        const row = roofRow(r, rows, wing);
+        for (let tx = part.x0; tx <= part.x1; tx++) {
+          const column = tx === part.x0 ? 'l' : tx === part.x1 ? 'r' : 'm';
+          const tile = new Sprite(this.roofTexture(roofStyle, row, column, tx, part.y0 + r));
+          tile.position.set(tx * TILE_SIZE, (part.y0 + r) * TILE_SIZE - roofHeight);
+          roof.addChild(tile);
+        }
       }
     }
-    for (let tx = x0; tx <= x1 && rows > 0; tx++) {
+    for (let tx = x0; tx <= x1 && parts.length > 0; tx++) {
       const shadow = new Sprite(this.art.frame('roof/shadow'));
       shadow.position.set(tx * TILE_SIZE, (y1 + 1) * TILE_SIZE - roofHeight);
       roof.addChild(shadow);
     }
-    // Chimneys, flags and spires stand on the ridge, in the middle of their column.
+    // Chimneys, flags and spires stand on the ridge of the south part, in the middle of their column.
+    const south = parts.at(-1);
+    const ridge = south ? south.y0 + ridgeRow(south.y1 - south.y0 + 1) : y0;
     for (const prop of building.roofProps ?? []) {
       const sprite = new Sprite(this.art.frame(`roof/${prop.name}`));
-      sprite.position.set(prop.tx * TILE_SIZE + TILE_SIZE / 2, (y0 + ridge) * TILE_SIZE - roofHeight + RIDGE_LINE);
+      sprite.position.set(prop.tx * TILE_SIZE + TILE_SIZE / 2, ridge * TILE_SIZE - roofHeight + RIDGE_LINE);
       roof.addChild(sprite);
     }
     // Just in front of the south wall: above everything in the building, below what stands south of it.

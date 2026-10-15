@@ -5,7 +5,7 @@ import {
   TILE_SIZE,
   emptyChunk,
   fixtureTiles,
-  inRect,
+  inBuilding,
   isGrass,
   isWet,
   naturalDecor,
@@ -35,11 +35,12 @@ import {
   type QuestEffect,
   type SoundArea,
   type WorldSource,
+  landAt,
   populationArea,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
-import { BUILDING_CELL, DOOR_PATH, generateHouse } from './houses.ts';
+import { BUILDING_CELL, DOOR_PATH, generateHouse, type House } from './houses.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { GOBLINS_MET, ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
@@ -426,7 +427,7 @@ const overlaps = (b: { x0: number; y0: number; x1: number; y1: number }, x0: num
  */
 export class WildsSource implements WorldSource {
   readonly seed: number;
-  private readonly houses = new Map<string, Building | null>();
+  private readonly houses = new Map<string, House | null>();
   private readonly patches = new Map<string, Fixture | null>();
   private roadOf: Road | null = null;
   private northOf: Road | null = null;
@@ -502,7 +503,7 @@ export class WildsSource implements WorldSource {
    * The house of a cell (cached), or null. A cell has no house where the house's ground (its ring
    * and the approach to its door) would touch the town, the road or the signpost.
    */
-  house(cellX: number, cellY: number): Building | null {
+  house(cellX: number, cellY: number): House | null {
     const key = `${cellX},${cellY}`;
     let house = this.houses.get(key);
     if (house === undefined) {
@@ -510,7 +511,10 @@ export class WildsSource implements WorldSource {
       if (cellX === HOME_CELL[0] && cellY === HOME_CELL[1]) {
         house = generateHome(isWater);
       } else {
-        house = generateHouse(this.seed, cellX, cellY, isWater);
+        // The look and the kind of a house follow the land of the middle of its cell.
+        const middle = BUILDING_CELL / 2;
+        const land = landAt(LANDS, cellX * BUILDING_CELL + middle, cellY * BUILDING_CELL + middle)?.id;
+        house = generateHouse(this.seed, cellX, cellY, isWater, land);
         if (house && this.inTheWay(house)) house = null;
       }
       this.houses.set(key, house);
@@ -660,9 +664,9 @@ export class WildsSource implements WorldSource {
         const natural = naturalGround(this.seed, tx, ty);
         // The ground of the home is always dry (it stands where it must, see home.ts).
         const ground = house?.id === HOME_ID && isWet(natural) ? Ground.Grass : natural;
-        if (house && inRect(house, tx, ty)) {
-          // The home is a hut: packed earth with straw. The other houses have wooden floors.
-          chunk.ground[index] = house.id === HOME_ID ? Ground.FloorEarth : Ground.Floor;
+        if (house && inBuilding(house, tx, ty)) {
+          // The floor of the look of the house (the home is a hut: packed earth with straw).
+          chunk.ground[index] = house.floor;
           chunk.structure[index] = structureIn(house, tx, ty);
         } else {
           // A short mud path leads to the door.
@@ -681,7 +685,7 @@ export class WildsSource implements WorldSource {
 
   /** A tile of a town: its buildings, its streets with their things, its water and its gardens. */
   private townTile(town: Town, chunk: Chunk, index: number, tx: number, ty: number): void {
-    const building = town.buildings.find((b) => inRect(b, tx, ty));
+    const building = town.buildings.find((b) => inBuilding(b, tx, ty));
     if (building) {
       chunk.ground[index] = town.floor(building);
       chunk.structure[index] = structureIn(building, tx, ty);
@@ -725,9 +729,9 @@ export class WildsSource implements WorldSource {
 
   buildingAt(tx: number, ty: number): Building | null {
     const place = placeAt(tx, ty);
-    if (place) return place.buildings.find((b) => inRect(b, tx, ty)) ?? null;
+    if (place) return place.buildings.find((b) => inBuilding(b, tx, ty)) ?? null;
     const house = this.house(Math.floor(tx / BUILDING_CELL), Math.floor(ty / BUILDING_CELL));
-    return house && inRect(house, tx, ty) ? house : null;
+    return house && inBuilding(house, tx, ty) ? house : null;
   }
 
   buildingsIn(x0: number, y0: number, x1: number, y1: number): Building[] {
@@ -735,8 +739,8 @@ export class WildsSource implements WorldSource {
   }
 
   /** The houses of the cells (the home among them) that overlap a rectangle of tiles. */
-  private cellHousesIn(x0: number, y0: number, x1: number, y1: number): Building[] {
-    const out: Building[] = [];
+  private cellHousesIn(x0: number, y0: number, x1: number, y1: number): House[] {
+    const out: House[] = [];
     for (let cy = Math.floor(y0 / BUILDING_CELL); cy <= Math.floor(y1 / BUILDING_CELL); cy++) {
       for (let cx = Math.floor(x0 / BUILDING_CELL); cx <= Math.floor(x1 / BUILDING_CELL); cx++) {
         const house = this.house(cx, cy);

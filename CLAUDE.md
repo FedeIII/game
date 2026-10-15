@@ -8,7 +8,7 @@ A pixel-art game **engine** for the browser, and the applications on it. The gam
 Kandrax**, runs at https://world.kandrax.app (the main address, since 2026-10-13) and at its mirror
 https://game.azyr.io (the same files and the same server; see `deploy/README.md`, "Two addresses").
 It has one world: **the Wilds** (an endless dark forest with lonely
-stone houses, mobs, two hamlets and the town of Ironhold north of the home). A visitor signs in with Google, makes a character (D&D 5e races,
+houses, mobs, two hamlets and the town of Ironhold north of the home). A visitor signs in with Google, makes a character (D&D 5e races,
 classes, abilities) or continues with one, and starts in the character's home, a hut in the
 middle of the Wilds (see "Menu, characters and accounts"). The goal is an online, multiplayer sandbox. The engine has
 multiplayer: an authoritative Node server, client-side prediction and interpolation
@@ -324,7 +324,8 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   frame: top face (16 px) over front face (32 px). Keep wall tops dark: the torch lights them
   from close by, and a pale top glares.
 - `fixtures.ts`: every fixture type, `fixture/<kind>` (and `fixture/portal-glow`, white, which the
-  client tints). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
+  client tints). Looks of the houses of the Wilds: `fixture/table/cold` (the candle a cold stub of
+  wax) and `fixture/rug/pelt` (a bear pelt, `M.fur`). Footprints must match the boxes in `packages/engine/src/fixtures.ts`. The
   `signpost` points west only (do not mirror it); its post is on the east side of its tile.
   `herbpatch` and `cache` lie low on the ground (hidden things of Wisdom). A lit thing that goes out
   by day has an unlit frame, `<frame>/unlit` (its glass dark): the street lamp
@@ -1223,12 +1224,16 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 ## Buildings
 
 - **The model** (engine): a rectangle of walls with one door in the south wall (never in a
-  corner), a floor (`Ground.Floor`, `FloorStone` or `FloorEarth`, under the walls too; the world
+  corner), or an L or a T (`cut`, `BuildingCut`, since 2026-10-15: `depth` rows from the north edge
+  lose `west` and `east` columns; the south part keeps the whole width and the door, the north part
+  is a wing; `inBuilding()` says if a tile is part of it, `onWall()` if it is on its walls; use them,
+  not `inRect()`, which is the box round it), a floor (`Ground.Floor`, `FloorStone` or `FloorEarth`, under the walls too; the world
   source sets it), fixtures, and optional extras: a `sign` (the name over the door) or an
   `emblem` (a symbol on the board in place of the name, `ui/emblem/<emblem>`: the shrine of
   Whitegrove and the chapel of Ironhold show a chalice, Fede's decision of 2026-10-13), a `style`
   (`{ walls, roof }`, the names of the art sets; default `DEFAULT_STYLE`, stone and slate),
-  `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall)
+  `windows` (columns of the south wall with a lit window: `Structure.Window`, solid like a wall;
+  with `dark`, the windows never light: the page shows them unlit at every hour, without a light)
   and `roofProps` (`{ name, tx }`: a chimney, a flag, a spire on the ridge), and `locked` (a
   building that is shut for good: its door never opens, `World.isDoorLocked()`, and a press on it
   shows that line; NPCs may not have its door in their area), and `barred` (a gate: boards are
@@ -1255,7 +1260,8 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   fixtures by their depth line; the roof as one container just in front of the south wall
   (zIndex `y1 * 16 + 8.5`): above everything in the building, below what stands south of it.
   The roof sits on the wall tops, 32 px up for each storey: the north eave (`top`), the back slope, the
-  `ridge`, the front slope, the `eave`. Roof props stand on the ridge line, in the middle of
+  `ridge`, the front slope, the `eave`. An L or a T has a roof in two parts (`roofParts()`): the wing,
+  which ends in its front slope, and the whole width south of it, with its own ridge. Roof props stand on the ridge line, in the middle of
   their column. Each lit window gives a small warm light (radius 48) on the street in front of
   it (`Buildings.lights()`). By day a window shows unlit: the page draws the lit frame over the
   unlit one, with the alpha of the sky's lights (`render/unlit.ts`; 1 at night, 0 by day, half at
@@ -1278,11 +1284,23 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
   dry in any case). A new character (and a guest) starts in it, on the tile north of the door
   (`WildsSource.spawn()`), facing the door; a character that played before starts where it was
-  last. Houses: 7-11 x 6-9 tiles, never on water (deep or shallow); furniture by `furnish()` (bed with a
-  chest at its foot, bookshelves, a table with a candle, barrels) with the door column and the
-  row inside the south wall kept free; nothing grows on, round or in front of a house; a mud
-  path leads to the door. A chunk also reads the next cells (a house's ground can reach into
-  them). Tests check 150+ houses for a wall ring, one door and reachable furniture. A cell has no
+  last. Houses: 7-11 x 6-9 tiles, never on water (deep or shallow). **The variants** (2026-10-15,
+  Fede's decisions; `docs/features/game/houses.md`): a look of its land (`LOOKS`: walls, roof and
+  floor; the land of the middle of its cell, `LANDS`: in the forest of the Sovereignty timber and
+  planks with thatch or shingle, and some stone; in the wildlands old stone and fieldstone (`rubble`);
+  in the Mithril Enclave brick and timber with clay roofs), an L or a T now and then (`cutOf()`), one or
+  two windows in six houses of ten, a chimney in four of ten, and a kind (`HOUSE_KINDS`, weighted by the
+  land: `KINDS`): a cottage (bed with a chest at its foot, bookshelves, a table, barrels), a farmhouse
+  (crates of grain), a hunter's lodge (`lodge`: a bear pelt, `rug` with the look `pelt`, crates of
+  snares), a hermit's hut (`hermitage`: many books, a lectern with a book of lore) or a store room
+  (crates and barrels, a chest, no bed). About one house in five is lit (somebody was there not long
+  ago: its windows light at night, the candle on its table burns); the others are `dark` (the table
+  has the look `cold`, a cold stub, and its own line), and a barred house is always dark. `furnish()`
+  keeps the door column and the row inside the south wall free, and adds a thing only if every thing
+  stays reachable from the door. Nothing grows on, round or in front of a house (the cut corners
+  too); a mud path leads to the door. A chunk also reads the next cells (a house's ground can reach into
+  them). Tests check 150+ houses for a wall ring round the shape, one door, the floor of the look
+  and reachable furniture. A cell has no
   house where the house's ground would touch the town, the road or the signpost. About one house
   with a chest in four is barred (Strength 13; never the house east of the home); the chest of a
   house gives a candle stub, a silver ring, a pewter cup or a bundle of herbs, and 1 or 2 coins in

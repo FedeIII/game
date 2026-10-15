@@ -4,7 +4,7 @@ import { QUESTS } from './quests.ts';
 import { TEXTS_ES } from './text-es.ts';
 import { PROLOGUE } from './prologue.ts';
 
-export { BUILDING_CELL, CANDLE, DOOR_PATH, generateHouse } from './houses.ts';
+export { BUILDING_CELL, CANDLE, DOOR_PATH, HOUSE_KINDS, generateHouse, type House, type HouseKind } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeLegs, homeRoad, northRoad, road, signpost, type Heading, type Leg } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
@@ -123,7 +123,7 @@ export {
 export const DEFAULT_SEED = 20261007;
 
 /**
- * The wilds: an endless dark forest with lakes, paths and lonely stone houses, the town of
+ * The wilds: an endless dark forest with lakes, paths and lonely houses, the town of
  * Ironhold (Ferrozar in Spanish) north of the home, and Silverspring at the end of the north road
  * (docs/story/world.md). Shared since 2026-10-10 (Fede's decision): every visitor is in the same
  * Wilds, and a new character starts in the home, the house of the cell HOME_CELL.

@@ -1,4 +1,4 @@
-import { Structure, inRect, isInside, structureOnStorey, upperStorey, type Building } from './buildings.ts';
+import { Structure, inBuilding, isInside, structureOnStorey, upperStorey, type Building } from './buildings.ts';
 import { CHUNK_SIZE, TILE_SIZE } from './constants.ts';
 import { decodeFixture, fixtureTiles, type Fixture } from './fixtures.ts';
 import type { MobRules } from './mobs.ts';
@@ -424,7 +424,7 @@ export class World implements TileMap {
 
   buildingAt(tx: number, ty: number): Building | null {
     const building = this.source.buildingAt(tx, ty);
-    return building && inRect(building, tx, ty) ? building : null;
+    return building && inBuilding(building, tx, ty) ? building : null;
   }
 
   buildingsIn(x0: number, y0: number, x1: number, y1: number): Building[] {

@@ -38,6 +38,14 @@ this much: the secret of the gods stays a secret.
 The Wilds are an endless forest from a seed, with lakes and lonely houses. The places of the story
 are fixed: the same for every seed.
 
+**The lonely houses** (Fede, 2026-10-15; `docs/features/game/houses.md`) look like the houses of
+their land: in the forest of the Iron Sovereignty, timber and planks with thatch or shingle, as in
+its hamlets; in the wildlands, old stone and fieldstone; in the Mithril Enclave, brick and clay roofs,
+as in Silverspring. Some are an L or a T. Each is a cottage, a farmhouse, a hunter's lodge, a
+hermit's hut or a store room. Nobody lives in them now: most are dark, with a cold candle on the
+table. In about one in five, somebody was there not long ago: its windows light at night, and its
+candle burns.
+
 **The lands** (Fede, 2026-10-13): the name of a land shows over the screen when a character crosses
 into it, in both directions.
 

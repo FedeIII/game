@@ -1,5 +1,5 @@
 import { Container, NineSliceSprite, Sprite } from 'pixi.js';
-import { TILE_SIZE, fixtureType, inRect, storeyFixtures, type Building, type Conditions, type Fixture, type World } from '@game/engine';
+import { TILE_SIZE, fixtureType, inBuilding, storeyFixtures, type Building, type Conditions, type Fixture, type World } from '@game/engine';
 import type { Art } from '../assets.ts';
 import type { Rect } from './camera.ts';
 import type { LightSource } from './lighting.ts';
@@ -156,7 +156,7 @@ export class Fixtures {
     this.showStorey(viewer);
     const upstairs = viewer.storey > 0 ? viewer.building : null;
     for (const built of this.views.values()) {
-      const shown = !upstairs || !inRect(upstairs, built.fixture.tx, built.fixture.ty);
+      const shown = !upstairs || !inBuilding(upstairs, built.fixture.tx, built.fixture.ty);
       built.sprite.visible = shown;
       if (built.glow) built.glow.visible = shown;
       if (built.plate) built.plate.visible = shown;

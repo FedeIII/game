@@ -1,5 +1,5 @@
-import { TILE_SIZE, type Building, type Fixture } from '@game/engine';
-import { BUILDING_CELL, CANDLE, DOOR_PATH, HOME_CELL } from './houses.ts';
+import { Ground, TILE_SIZE, type Building, type Fixture } from '@game/engine';
+import { BUILDING_CELL, CANDLE, DOOR_PATH, HOME_CELL, type House } from './houses.ts';
 import { READ_LETTER } from './quests.ts';
 import { DREAM_BED } from './dream.ts';
 
@@ -32,8 +32,8 @@ const TEXTS = {
   barrel: ['Water from the stream. Cold, and good.'],
 } as const;
 
-/** The hut with its walls from (x0, y0). The door is in the middle of the south wall. */
-function hut(x0: number, y0: number): Building {
+/** The hut with its walls from (x0, y0). The door is in the middle of the south wall. Its floor is packed earth with straw. */
+function hut(x0: number, y0: number): House {
   const x1 = x0 + WIDTH - 1;
   const y1 = y0 + HEIGHT - 1;
   const ix0 = x0 + 1;
@@ -58,6 +58,8 @@ function hut(x0: number, y0: number): Building {
     y1,
     doorX,
     fixtures,
+    floor: Ground.FloorEarth,
+    kind: 'cottage',
     style: { walls: 'timber', roof: 'thatch' },
     windows: [x0 + 5],
     roofProps: [{ name: 'chimney', tx: x0 + 1 }],
@@ -69,7 +71,7 @@ function hut(x0: number, y0: number): Building {
  * middle of its cell where it, the ring round it and the approach to its door are dry. If the
  * cell has no such place, it stays in the middle, and the source makes its ground dry.
  */
-export function generateHome(isWater: (tx: number, ty: number) => boolean): Building {
+export function generateHome(isWater: (tx: number, ty: number) => boolean): House {
   const [cellX, cellY] = HOME_CELL;
   const minX = cellX * BUILDING_CELL + CELL_MARGIN;
   const minY = cellY * BUILDING_CELL + CELL_MARGIN;
