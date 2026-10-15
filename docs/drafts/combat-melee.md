@@ -285,7 +285,7 @@ makes more sense"; and no new art for now):
 | 2 | Riposte | With the grades on, a sharp or a clean evade gives it, not a late one (Fede, 2026-10-15; the draft: only a sharp one). With the grades off, every evade gives it; a sharp parry gives it too. |
 | 3 | The front of a brace | Three sectors of a quarter of the circle (Fede, 2026-10-15; the draft: a half circle): the front (45 degrees each way) in full, a side half of the AC of the brace, the back nothing. The words "side" and "behind" tell them. |
 | 4 | Sidestep | The jump from a brace is its move. The flank is a player more than 40 degrees off the aim of the blow (a jump of 1 tile at the reach of a goblin is about 47 degrees). The turn is 0.4 s after the blow. |
-| 5 | Parry | The last 5 ticks give disadvantage on the mob's roll (and a riposte with it on), in place of a sure parry. The input: the attack (question 3 below stays open). |
+| 5 | Parry | The last 5 ticks give disadvantage on the mob's roll (and a riposte with it on), in place of a sure parry. The input: the attack (question 3 below stays open). A parry binds the weapons for 0.3 s, with a burst of sparks and a flash (Fede, 2026-10-15). |
 | 6 | Guard stance, block | A hold of the dodge input for 0.2 s; a tap rolls at its release (question 4 below stays open). The bugbear breaks a guard; the brute's slam with the shapes on. |
 | 7 | Shove | A win knocks the mob down and pushes it back 1 tile (both, not one or the other). |
 | 8 | Clash | Only a blow of the player in the last 3 ticks of a wind-up; with the parry on, the parry comes first. |

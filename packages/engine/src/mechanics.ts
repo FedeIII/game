@@ -170,16 +170,20 @@ export function atFlank(mx: number, my: number, aim: number, x: number, y: numbe
  * a blow: the weapon meets the mob's weapon. The player stands in its guard (PlayerState.parry) and its
  * proficiency bonus goes on its AC against that blow; in the last SHARP_PARRY_TICKS the mob also rolls
  * with disadvantage (the draft: a sure parry), and a miss then gives a riposte (with the riposte on).
- * A miss is a parry: the steel rings, and both step back PARRY_PUSH. A hit takes its damage, as
- * before. Earlier than the window, an attack is a blow into the wind-up, as before (the INT opening).
- * Not a bow, not an empty hand.
+ * A miss is a parry: the steel rings, the weapons stay locked for PARRY_BIND_MS (a bind: the mob holds
+ * its blow, Mob.bind, and the player its guard, unless it moves or acts), and then both step back
+ * PARRY_PUSH (Fede, 2026-10-15: a longer clash of the weapons, with sparks and a flash on the page). A
+ * hit takes its damage, as before. Earlier than the window, an attack is a blow into the wind-up, as
+ * before (the INT opening). Not a bow, not an empty hand.
  */
 export const PARRY_WINDOW_TICKS = 9;
 export const SHARP_PARRY_TICKS = 5;
 /** The player stands in its guard this long (ticks) after the start of a parry. */
 export const PARRY_TICKS = 15;
-/** A parry pushes the player and the mob this far apart (world pixels). */
+/** A parry pushes the player and the mob this far apart (world pixels), at the end of its bind. */
 export const PARRY_PUSH = 4;
+/** The weapons of a parry stay locked this long after the blow (ms). */
+export const PARRY_BIND_MS = 300;
 
 // ---------------------------------------------------------------- 6. the guard stance and the shield block
 

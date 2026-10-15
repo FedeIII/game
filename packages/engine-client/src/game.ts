@@ -168,6 +168,7 @@ import { playPrologue, prologuePlaying } from './ui/prologue.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { MECHANIC_WORDS } from './render/mechanic-words.ts';
+import { Sparks } from './render/sparks.ts';
 import { PileViews } from './render/piles.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
@@ -1151,6 +1152,8 @@ async function run(options: GameOptions): Promise<void> {
   });
   // What the mechanics of the sandbox did since the last frame (mechanics.ts): a word over the player or the mob.
   const mechanicEvents: MechanicEvent[] = [];
+  // The sparks and the flash of the weapons that meet in a parry (render/sparks.ts), above the darkness.
+  const sparks = new Sparks(art, glowLayer);
   /** Whether the character was in a rage (a barbarian, the reactions of the sandbox) in the last tick. */
   let raging = false;
   // The hit points and the glancing blows of the player, as the last frame saw them: a change shows a number.
@@ -2142,7 +2145,7 @@ async function run(options: GameOptions): Promise<void> {
     // A player who sneaks shades its torch: it sees less, and the mobs see less of it.
     const torch = { x: shown.x, y: shown.y - 14, radius: sneakingShown() ? SNEAK_TORCH : TORCH.radius, colour: TORCH.colour, flicker: true, seed: 0 };
     const fxLight = playerView.fxLight;
-    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000, sky);
+    lighting?.update(view, [torch, ...(fxLight ? [fxLight] : []), ...sparks.lights(now), ...(others?.lights() ?? []), ...companionViews.lights(), ...fixtures.lights(), ...buildings.lights()], now / 1000, sky);
     edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());
@@ -2174,6 +2177,12 @@ async function run(options: GameOptions): Promise<void> {
       if (style.over === 'mob' && !mob) continue;
       if (style.replaces) replaced.add(style.replaces);
       if (style.sound === 'glance') gameSounds.glance();
+      // Where the weapons meet: half way from the player's chest to the mob's.
+      const foe = style.sparks ? mobsNow().find((m) => m.id === event.mob) : undefined;
+      if (foe) {
+        const chestY = shown.y - playerView.chestHeight;
+        sparks.burst((shown.x + foe.x) / 2, (chestY + foe.y - mobHead(foe.kind) * 0.55) / 2, now);
+      }
       fightNumbers.show(STRINGS.sandbox.words[event.kind], style.ink, mob ? mob.x : shown.x, mob ? mob.y - mobHead(mob.kind) - 4 : shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
     if (player.glance > numbersGlance && !replaced.has('miss')) {
@@ -2188,6 +2197,7 @@ async function run(options: GameOptions): Promise<void> {
     numbersGlance = player.glance;
     numbersEvade = player.evade;
     fightNumbers.update(now);
+    sparks.update(now);
     vitals.update(player, traits.maxHp, traits.maxStamina);
     vitals.setLevel(levelProgress(xpNow()));
     you.setLevel(levelProgress(xpNow()));

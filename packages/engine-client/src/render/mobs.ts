@@ -23,6 +23,8 @@ export interface MobLook {
   readonly exposed?: number;
   /** A bugbear that holds its blow for a brace (the guards of the mobs of the sandbox): no glint of its wind-up. */
   readonly feint?: boolean;
+  /** A blow that a parry met (the parry of the sandbox): it holds the frame of its blow, the weapons locked. */
+  readonly bind?: boolean;
   /** In a rite (state 'rite'): the runes that it has left. */
   readonly runes?: number;
   /** While its weapon burns (a Devastator's rite). */
@@ -294,7 +296,7 @@ export class MobViews {
         index = mob.stateMs < stats.windupMs * 0.45 ? 0 : 1;
         break;
       case 'strike':
-        name = mob.stateMs < stats.strikeMs * 0.7 ? 'strike' : 'windup';
+        name = mob.stateMs < stats.strikeMs * 0.7 || mob.bind ? 'strike' : 'windup';
         index = mob.stateMs < stats.strikeMs * 0.3 ? 0 : 1;
         if (name === 'windup') index = 0;
         break;

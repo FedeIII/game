@@ -17,6 +17,8 @@ export interface MechanicWordStyle {
   readonly replaces?: 'evade' | 'miss';
   /** A sound with the word: the ring of steel on steel (the sound of a glancing blow). */
   readonly sound?: 'glance';
+  /** Sparks and a flash where the weapons of the player and the mob meet (render/sparks.ts). */
+  readonly sparks?: boolean;
 }
 
 export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyle>> = {
@@ -25,7 +27,7 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   side: { over: 'player', ink: FIGHT_INK.miss },
   behind: { over: 'player', ink: FIGHT_INK.miss },
   flank: { over: 'mob', ink: FIGHT_INK.crit },
-  parry: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance' },
+  parry: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance', sparks: true },
   block: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance' },
   broken: { over: 'player', ink: FIGHT_INK.hurt },
   shoved: { over: 'mob', ink: FIGHT_INK.crit },

@@ -220,8 +220,13 @@ can test the choice between a blow into the wind-up and a parry (the draft, prop
   (+2; +3 at level 5). In the last 5 ticks of the wind-up (sharp) it also rolls with disadvantage (the
   draft: a sure parry), and a miss gives a riposte when the riposte is on.
 - **AC-SBX-011.3:** A miss is a parry: the word "parry" (Spanish "parada") rises over the character in
-  gold in place of "miss", with the ring of steel, and the character and the mob step 4 px apart. A hit
-  takes its damage and stuns, as before, and ends the parry.
+  gold in place of "miss", with the ring of steel. Half way between the chest of the character and the
+  mob's, a burst of sparks (0.42 s), a soft flash and a short warm light (0.18 s) show (Fede,
+  2026-10-15). A hit takes its damage and stuns, as before, and ends the parry.
+- **AC-SBX-011.5:** After a parry the weapons stay locked for 0.3 s more (a bind): the mob holds the
+  frame of its blow, and the character the frame of a brace, unless it walks, rolls or attacks. Then
+  both step 4 px apart. With a riposte (a sharp parry, the riposte on), the mob goes off balance after
+  the bind, and the opening covers the bind too.
 - **AC-SBX-011.4:** An attack earlier in the wind-up is a blow, as before. A bow, an empty hand or a
   cantrip does not parry.
 
@@ -401,7 +406,10 @@ with a rhythm: in melee while the stamina lasts, then out to breathe (the draft,
 - **5. The parry.** `Horde.parry()` (the page calls it before `Horde.strike()`; true: no strike) keeps a
   `Parry` for the player; `Horde.defence()` uses it for the blow of that mob. `PlayerState.parry`
   (ticks; the page draws the frame of a brace), `PARRY_WINDOW_TICKS` 9, `SHARP_PARRY_TICKS` 5,
-  `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the word "miss" away.
+  `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the word "miss" away. The
+  bind: `PARRY_BIND_MS` 300, `Mob.bind` (`MobLook.bind`: the frame of the blow), the brain's `parried`
+  (the push at the end of the blow, in `blow()`). The sparks: `render/sparks.ts` (`Sparks`, the frames
+  `fx/spark/<0-4>` and `fx/flash` of `art/fx.ts`, `MECHANIC_WORDS.parry.sparks`).
 - **6. The guard stance.** `MoveInput.guard`, `PlayerState.guarding` and `PlayerState.reel`,
   `guardStep()` and `blockPlayer()` (player.ts), `PlayerTraits.shield`; `GUARD_SPEED` 0.5,
   `GUARD_STAMINA` 12, `BLOCK_STAMINA` 15, `GUARD_BREAK_TICKS` 30; `Horde.breaksGuard()` (a bugbear; the

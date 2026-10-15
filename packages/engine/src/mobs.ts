@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_BIND_MS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -662,6 +662,8 @@ export interface Mob {
   guardUp?: number;
   parryReady?: boolean;
   feint?: boolean;
+  /** A blow that a parry met (the parry of the sandbox, mechanics.ts): the weapons stay locked, and it holds its blow (PARRY_BIND_MS). */
+  bind?: boolean;
 }
 
 /** A rider sits this far behind the middle of its mount for each seat (world pixels). */
@@ -1053,6 +1055,8 @@ interface Brain {
   /** How long a bugbear has held its blow for a brace (ms), and the side of a goblin's step aside after its blow (+1, -1; 0: none) (the guards of the mobs). */
   feintMs: number;
   nimble: number;
+  /** A parry met its blow (the parry, mechanics.ts): at the end of the bind, it and the player step apart. */
+  parried: boolean;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1285,6 +1289,7 @@ export class Horde {
       spotY: 0,
       feintMs: 0,
       nimble: 0,
+      parried: false,
     });
     return mob;
   }
@@ -1532,13 +1537,17 @@ export class Horde {
             mob.exposed = Math.max(mob.exposed ?? 0, stats.strikeMs + TURN_MS);
             this.event('flank', mob, brain.target!);
           }
-          if (brain.offBalanceMs > 0) {
+          if (brain.offBalanceMs > 0 && !brain.parried) {
             // Off balance (a riposte): it reels in place, and its blow is over.
             this.stagger(mob, brain, brain.offBalanceMs);
             break;
           }
+          // A parried blow: the weapons stay locked a moment (the bind), and then both step apart (blow()).
+          const parried = brain.parried;
           this.enter(mob, 'strike');
-          brain.timerMs = stats.strikeMs;
+          brain.parried = parried;
+          if (parried) mob.bind = true;
+          brain.timerMs = stats.strikeMs + (parried ? PARRY_BIND_MS : 0);
           break;
         }
         case 'strike':
@@ -1785,14 +1794,16 @@ export class Horde {
         this.event('block', mob, id);
       }
       if (defence.parry) {
-        // A parry: the steel rings, and both step back.
+        // A parry: the steel rings, and the weapons stay locked a moment (the bind); then both step back (blow()).
         this.event('parry', mob, id);
-        this.apart(mob, target, PARRY_PUSH);
+        this.brains.get(mob.id)!.parried = true;
+        target.parry = Math.max(target.parry, Math.ceil(PARRY_BIND_MS / TICK_MS) + 2);
       }
       // The riposte: an evade (with the grades, a sharp or a clean one, not a late one), or a sharp parry, puts the mob off balance.
       const riposte = (defence.braced && defence.grade !== 'late') || defence.parry?.sharp === true;
       if (melee && riposte && this.mechanics.has('riposte')) {
-        mob.exposed = RIPOSTE_MS;
+        // After a parry the opening also covers its bind.
+        mob.exposed = RIPOSTE_MS + (defence.parry ? stats.strikeMs + PARRY_BIND_MS : 0);
         this.brains.get(mob.id)!.offBalanceMs = RIPOSTE_MS;
         this.event('riposte', mob, id);
       }
@@ -2045,10 +2056,13 @@ export class Horde {
 
   private enter(mob: Mob, state: MobState): void {
     if (state !== 'rite') delete mob.runes;
+    // A bind ends with its blow (a blow that reaches the mob in it too).
+    delete mob.bind;
     mob.state = state;
     mob.stateMs = 0;
     const brain = this.brains.get(mob.id);
     if (brain) {
+      brain.parried = false;
       brain.stuckMs = 0;
       brain.anchorX = mob.x;
       brain.anchorY = mob.y;
@@ -2436,6 +2450,17 @@ export class Horde {
     }
     brain.timerMs -= dt;
     if (brain.timerMs > 0) return;
+    // The end of the bind of a parry: both step apart, and a riposte puts the mob off balance.
+    if (brain.parried) {
+      brain.parried = false;
+      delete mob.bind;
+      const target = brain.target === null ? undefined : players.get(brain.target);
+      if (target) this.apart(mob, target, PARRY_PUSH);
+      if (brain.offBalanceMs > 0) {
+        this.stagger(mob, brain, brain.offBalanceMs);
+        return;
+      }
+    }
     // A goblin's Nimble Escape (the guards of the mobs): a step aside, in place of a run away.
     if (mob.kind === 'skirmisher' && this.mechanics.has('mobGuards') && brain.target !== null && players.has(brain.target)) {
       this.enter(mob, 'retreat');

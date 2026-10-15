@@ -91,7 +91,10 @@ export interface PlayerState {
   brace: number;
   /** Ticks since the start of the brace (the grades of a brace: mechanics.ts, braceGrade); 0 without a brace. */
   braceAge: number;
-  /** Ticks left of a parry (0: none): an attack that met a mob's blow stands in its guard (the parry, mechanics.ts). */
+  /**
+   * Ticks left of a parry (0: none): an attack that met a mob's blow stands in its guard, also in the bind
+   * after the blow (the parry, mechanics.ts). A walk, a roll or an attack ends it.
+   */
   parry: number;
   /** Whether it holds its guard up (the guard stance, mechanics.ts): a slow walk, no attack, disadvantage on a blow from the front. */
   guarding: boolean;
@@ -817,6 +820,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.braceWindow = 0;
     player.brace = 0;
     player.evade = 0;
+    player.parry = 0;
     player.stamina -= kind.stamina;
     player.rest = 0;
     // A roll the way the input moves; when it stands, towards `face` (the mouse), or the way it faces.
@@ -833,6 +837,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.braceWindow = 0;
     player.brace = 0;
     player.evade = 0;
+    player.parry = 0;
     player.attack = ATTACK_TICKS;
     // A step back that is held into the attack does not brace after it (heldBack).
     player.heldBack = movesBack(move, move.attack);
@@ -885,6 +890,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   // It faces its walk; when it stands, the direction to face (the mouse), if the input gives one.
   const stands = Math.abs(move.x) < 0.01 && Math.abs(move.y) < 0.01;
   player.facing = stands && move.face !== undefined ? facingToward(player.facing, move.face) : facingFor(player.facing, move);
+  // A walk ends the guard of a parry (its bind).
+  if (Math.hypot(player.vx, player.vy) > 1) player.parry = 0;
   // One axis at a time, so the player slides along a wall instead of a full stop.
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);

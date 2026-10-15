@@ -386,7 +386,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   `jumpParts()` (three frames in the guard of the brace: the legs push off nearly straight, the knees
   come up, the knees bend to land; the page lifts them), in every skin sheet and as
   `player/<view>/jump/<i>` for the wanderer.
-- `fx.ts`: the effects of a fight, white and grey, tinted by the game: the effect of each attack
+- `fx.ts`: the effects of a fight, white and grey, tinted by the game: the burst of sparks and the
+  flash of two weapons that meet in a parry of the sandbox (`fx/spark/<0-4>`, `fx/flash`:
+  `render/sparks.ts`), the effect of each attack
   style (`fx/<style>/<turn>/<0-3>`: drawn facing right and turned by 0, 22.5, 45 and 67.5
   degrees, each frame cropped to its pixels with its own anchor) and the star of a stun
   (`fx/star`), and the arrow in flight (`fx/arrow/<turn>`, tinted `ARROW_TINT`). `fxPlacement()` (`attacks.ts`) gives the 16 directions: a drawn turn, then a

@@ -1,6 +1,7 @@
 /**
- * Effects of a fight: the effect of each attack style (`fx/<style>/<turn>/<0-3>`, attacks.ts)
- * and the star of a stun (`fx/star`). They are drawn in white and greys; the game tints them
+ * Effects of a fight: the effect of each attack style (`fx/<style>/<turn>/<0-3>`, attacks.ts),
+ * the star of a stun (`fx/star`), and the sparks and the flash of two weapons that meet in a parry
+ * (`fx/spark/<0-4>`, `fx/flash`). They are drawn in white and greys; the game tints them
  * (the colour of a blade, a spell, a flame) and turns them to the direction of the attack.
  *
  * Each effect is designed facing right (+x), from the attacker's chest at the anchor. The build
@@ -284,6 +285,72 @@ function star(): Image {
   return image;
 }
 
+/** The frames of the spark burst of two weapons that meet (a parry): the burst, then sparks that fly out and fall. */
+const SPARK_FRAMES = 5;
+const SPARK_SIZE = 21;
+
+/**
+ * One frame of the spark burst (`fx/spark/<i>`), white and greys, centred: a hot core with four long rays
+ * and four short ones, that breaks into sparks; the sparks fly out, fall a little and fade.
+ */
+function sparkBurst(i: number): Image {
+  const image = new Image(SPARK_SIZE, SPARK_SIZE);
+  const c = (SPARK_SIZE - 1) / 2;
+  // The core: a bright disc in the first frames.
+  const core = [2.2, 1.2, 0.6, 0, 0][i]!;
+  for (let y = 0; y < SPARK_SIZE; y++) {
+    for (let x = 0; x < SPARK_SIZE; x++) {
+      const d = Math.hypot(x - c, y - c);
+      if (core > 0 && d <= core) plotImage(image, x, y, 255, 1);
+      else if (i === 0 && d <= core + 1.3) plotImage(image, x, y, 225, 0.7);
+    }
+  }
+  // The rays: long along the axes, short on the diagonals; in the third frame only their outer part shows.
+  const long = [5, 8, 9, 0, 0][i]!;
+  const short = [3, 5, 6, 0, 0][i]!;
+  const from = i === 2 ? 4 : 1;
+  for (let k = 0; k < 8; k++) {
+    const angle = (k * Math.PI) / 4;
+    const length = k % 2 === 0 ? long : short;
+    for (let r = from; r <= length; r++) {
+      const x = Math.round(c + Math.cos(angle) * r);
+      const y = Math.round(c + Math.sin(angle) * r);
+      plotImage(image, x, y, 255 - (r / Math.max(1, length)) * 90, i === 2 ? 0.65 : 1);
+    }
+  }
+  // The sparks that fly out: at fixed angles, further in each frame, falling a little.
+  const out = [0, 5, 7.5, 9, 9.8][i]!;
+  const fall = [0, 0, 1, 2, 3][i]!;
+  const alpha = [0, 1, 0.9, 0.75, 0.5][i]!;
+  for (let k = 0; k < 9; k++) {
+    if (out === 0) break;
+    const angle = (k / 9) * Math.PI * 2 + hash(k, 3, 11) * 0.5;
+    const r = out * (0.75 + hash(k, 5, 17) * 0.35);
+    const x = Math.round(c + Math.cos(angle) * r);
+    const y = Math.round(c + Math.sin(angle) * r + fall * (0.6 + hash(k, 7, 19) * 0.6));
+    plotImage(image, x, y, 255, alpha);
+    // A short trail behind a spark, in the first frames.
+    if (i <= 2) plotImage(image, Math.round(c + Math.cos(angle) * (r - 1)), Math.round(c + Math.sin(angle) * (r - 1) + fall * 0.5), 190, alpha * 0.6);
+  }
+  return image;
+}
+
+/** The flash of two weapons that meet (`fx/flash`): a soft white disc, in rings of whole steps of alpha; the game adds it. */
+function flash(): Image {
+  const size = 15;
+  const image = new Image(size, size);
+  const c = (size - 1) / 2;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const d = Math.hypot(x - c, y - c) / (size / 2);
+      if (d >= 1) continue;
+      const a = Math.round((1 - d) ** 1.4 * 6) / 6;
+      plotImage(image, x, y, 255, a);
+    }
+  }
+  return image;
+}
+
 /** A frame of the canvas, cropped to its pixels, with the anchor where the canvas has it. */
 function cropped(name: string, image: Image): Frame {
   let x0: number = CANVAS.pivotX;
@@ -341,6 +408,8 @@ export function fxFrames(): Frame[] {
     }
   }
   frames.push({ name: 'fx/star', image: star(), anchor: { x: 0.5, y: 0.5 } });
+  for (let i = 0; i < SPARK_FRAMES; i++) frames.push({ name: `fx/spark/${i}`, image: sparkBurst(i), anchor: { x: 0.5, y: 0.5 } });
+  frames.push({ name: 'fx/flash', image: flash(), anchor: { x: 0.5, y: 0.5 } });
   // An arrow in flight: one drawing for each turn, placed as the effects are (fxPlacement).
   for (let turn = 0; turn < FX_TURNS; turn++) frames.push(cropped(`fx/arrow/${turn}`, arrow(new Canvas(turn))));
   frames.push(...ripples());

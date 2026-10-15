@@ -13,6 +13,7 @@ import {
   MOB_STATS,
   NIMBLE_MS,
   NO_INPUT,
+  PARRY_BIND_MS,
   PARRY_PUSH,
   PARRY_STAMINA,
   PARRY_TICKS,
@@ -336,17 +337,39 @@ describe('5. the parry', () => {
   const FIGHTER = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);
   const toward = (state: PlayerState, mob: Mob) => Math.atan2(mob.y - state.y, mob.x - state.x);
 
-  it('an attack in the last 0.15 s of a wind-up is a parry: the proficiency bonus goes on the AC, and a miss pushes both apart', () => {
+  it('an attack in the last 0.15 s of a wind-up is a parry: the proficiency bonus goes on the AC, and a miss binds the weapons, then pushes both apart', () => {
     // The d20 of the mob shows 7: 11 hits AC 10, and misses AC 12 (10 + the proficiency bonus).
     const { horde, player, state, mob } = duel(['parry'], faces(7));
     expect(untilWindup(horde, player, mob, 140)).toBe(true);
     expect(horde.parry(state, toward(state, mob), 1, FIGHTER)).toBe(true);
     expect(state.parry).toBe(PARRY_TICKS);
-    const apart = Math.hypot(mob.x - state.x, mob.y - state.y);
     const { hit, events } = blow(horde, player, mob);
     expect(hit?.[2]).toBe(0);
     expect(events).toEqual([{ kind: 'parry', mob: mob.id, player: 1 }]);
-    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeCloseTo(apart + 2 * PARRY_PUSH, 0);
+    // The bind (Fede, 2026-10-15): the mob holds its blow, the player its guard, longer than a blow.
+    expect(mob.state).toBe('strike');
+    expect(mob.bind).toBe(true);
+    expect(state.parry).toBeGreaterThanOrEqual(Math.ceil(PARRY_BIND_MS / TICK_MS));
+    for (let t = 0; t < MOB_STATS.skirmisher.strikeMs + PARRY_BIND_MS - 2 * TICK_MS; t += TICK_MS) {
+      horde.step(TICK_MS, [player]);
+      expect(mob.state).toBe('strike');
+    }
+    // Locked after its lunge.
+    const locked = Math.hypot(mob.x - state.x, mob.y - state.y);
+    // Its end: both step apart.
+    for (let t = 0; t < 4 * TICK_MS && mob.state === 'strike'; t += TICK_MS) horde.step(TICK_MS, [player]);
+    expect(mob.state).not.toBe('strike');
+    expect(mob.bind).toBeUndefined();
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeGreaterThan(locked + PARRY_PUSH);
+  });
+
+  it('a walk, a roll or an attack ends the guard of a bind', () => {
+    const p = createPlayer(100, 100);
+    p.parry = 20;
+    stepPlayer(p, NO_INPUT, world);
+    expect(p.parry).toBe(19);
+    stepPlayer(p, { x: 1, y: 0 }, world);
+    expect(p.parry).toBe(0);
   });
 
   it('in the last 5 ticks the mob rolls with disadvantage, and with the riposte on the miss gives one', () => {
@@ -357,6 +380,10 @@ describe('5. the parry', () => {
     const { hit, events } = blow(horde, player, mob);
     expect(hit?.[2]).toBe(0);
     expect(events.map((e) => e.kind)).toEqual(['parry', 'riposte']);
+    expect(mob.exposed).toBeGreaterThan(0);
+    // After the bind it is off balance, and the opening still holds.
+    for (let t = 0; t < MOB_STATS.skirmisher.strikeMs + PARRY_BIND_MS + TICK_MS; t += TICK_MS) horde.step(TICK_MS, [player]);
+    expect(mob.state).toBe('hurt');
     expect(mob.exposed).toBeGreaterThan(0);
   });
 
