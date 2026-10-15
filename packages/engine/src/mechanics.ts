@@ -14,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -31,9 +31,10 @@ export const NO_MECHANICS: Mechanics = new Set();
  * mob that must turn to a player at its side (the flank); `parry`, a blow that a parry turned (the
  * parry); `block`, a blow that a shield turned, and `broken`, a heavy blow that broke a guard (the
  * guard stance); `shoved`, a mob that a shove knocked down, `held`, a mob that a shove did not move, and
- * `tooBig`, a mob too big to shove (the shove).
+ * `tooBig`, a mob too big to shove (the shove); `clash`, `clashWon` and `clashLost`, two blows that met:
+ * a tie, a win and a loss of the player (the clash).
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken' | 'shoved' | 'held' | 'tooBig';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken' | 'shoved' | 'held' | 'tooBig' | 'clash' | 'clashWon' | 'clashLost';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -202,3 +203,19 @@ export const MOB_BODY: Readonly<Record<MobKind, { readonly size: Size; readonly 
 export function canShove(player: Size, mob: Size): boolean {
   return SIZES.indexOf(mob) - SIZES.indexOf(player) <= 1;
 }
+
+// ---------------------------------------------------------------- 8. the clash
+
+/**
+ * The clash (proposal 8): a blow of the player that starts in the last CLASH_TICKS of the wind-up of a
+ * mob that hunts it, face to face (the mob in the reach of the blow), meets the mob's blow: each side
+ * rolls its attack (d20 + its attack bonus), and the higher wins. Nobody takes damage, and the mob's
+ * blow does not land. The mob that loses reels (as from a blow); the player that loses reels for
+ * CLASH_REEL_TICKS (PlayerState.reel: no guard after it). A tie: both step CLASH_PUSH back, and the mob
+ * stops its blow for CLASH_PAUSE_MS. With the parry on, an attack in the last ticks of a wind-up is a
+ * parry: the parry comes first.
+ */
+export const CLASH_TICKS = 3;
+export const CLASH_REEL_TICKS = 24;
+export const CLASH_PUSH = 4;
+export const CLASH_PAUSE_MS = 250;

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   BLOCK_STAMINA,
   BRACE_TICKS,
+  CLASH_PUSH,
+  CLASH_REEL_TICKS,
   EMPTY_GEAR,
   GUARD_BREAK_TICKS,
   GUARD_SPEED,
@@ -471,5 +473,51 @@ describe('7. the shove', () => {
     expect(halfling.size).toBe('small');
     expect(halfling.athletics).toBe(2 + 2);
     expect(sheetTraits({ race: 'half-orc', class: 'fighter', base: PLAIN_SCORES, bonus: [] }, EMPTY_GEAR, 5).athletics).toBe(1 + 3);
+  });
+});
+
+describe('8. the clash', () => {
+  /** A blow with the attack bonus of a skirmisher (+4): equal d20s tie. */
+  const BLOW = { toHit: 4, damage: { count: 1, sides: 8, plus: 0 }, push: 1, stagger: 1 };
+  /** A duel in the last ticks of the mob's wind-up (`left` ms), and the player's blow with d20s `ours` and `theirs`. */
+  function clash(on: readonly Mechanic[], ours: number, theirs: number, left = 40) {
+    const { horde, player, state, mob } = duel(on, faces(ours, theirs));
+    expect(untilWindup(horde, player, mob, left)).toBe(true);
+    const results = horde.strike(state, Math.atan2(mob.y - state.y, mob.x - state.x), undefined, 1, BLOW, state);
+    return { horde, player, state, mob, results, events: horde.takeEvents() };
+  }
+
+  it("a blow in the last 3 ticks of a wind-up meets the mob's blow: the higher roll wins, and the mob reels", () => {
+    const { mob, results, events } = clash(['clash'], 15, 5);
+    expect(results).toEqual([]);
+    expect(events.map((e) => e.kind)).toEqual(['clashWon']);
+    expect(mob.state).toBe('hurt');
+    expect(mob.health).toBe(MOB_STATS.skirmisher.health);
+  });
+
+  it("a loss makes the player reel, and the mob's blow does not land", () => {
+    const { horde, player, state, mob, events } = clash(['clash'], 5, 15);
+    expect(events.map((e) => e.kind)).toEqual(['clashLost']);
+    expect(state.reel).toBe(CLASH_REEL_TICKS);
+    const hits: MobHit[] = [];
+    for (let t = 0; t < 300; t += TICK_MS) hits.push(...horde.step(TICK_MS, [player]));
+    expect(hits.filter(([m]) => m === mob.id)).toEqual([]);
+  });
+
+  it('a tie pushes both back', () => {
+    const { state, mob, events } = clash(['clash'], 10, 10);
+    expect(events.map((e) => e.kind)).toEqual(['clash']);
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeGreaterThan(14 + CLASH_PUSH);
+  });
+
+  it('is a blow earlier in the wind-up, or without its switch', () => {
+    for (const [on, left] of [
+      [['clash'], 200],
+      [[], 40],
+    ] as const) {
+      const { results, events } = clash(on as readonly Mechanic[], 15, 5, left);
+      expect(results).toHaveLength(1);
+      expect(events).toEqual([]);
+    }
   });
 });

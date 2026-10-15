@@ -559,9 +559,13 @@ const EN = {
         name: '7. Shove',
         line: 'A roll towards a mob in your reach shoves it, for the stamina of the roll: d20 + STR + proficiency against d20 + its STR or DEX. A win knocks it down for 0.8 s ("down"): it cannot wind up, and your blows roll with advantage. A halfling or a gnome cannot shove a brute or a worg ("too big").',
       },
+      clash: {
+        name: '8. Clash',
+        line: 'A blow of yours in the last 0.05 s of a wind-up meets the blow of the mob: each side rolls d20 + its attack bonus, and nobody takes damage. The loser reels ("clash won", "clash lost"); a tie pushes both back ("clash"). With the parry on, the parry comes first.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

@@ -484,8 +484,12 @@ export const ES: Strings = {
         name: '7. Empujón',
         line: 'Rodar hacia un enemigo a tu alcance lo empuja, por el aguante de la rodada: d20 + FUE + competencia contra d20 + su FUE o su DES. Si ganas, cae al suelo 0,8 s ("al suelo"): no puede cargar su golpe, y tus golpes tiran con ventaja. Un mediano o un gnomo no puede empujar a un bruto ni a un huargo ("muy grande").',
       },
+      clash: {
+        name: '8. Choque',
+        line: 'Un golpe tuyo en los últimos 0,05 s de una carga choca con el golpe del enemigo: cada uno tira d20 + su bonificador de ataque, y nadie recibe daño. Quien pierde se tambalea ("choque ganado", "choque perdido"); un empate os aparta a los dos ("choque"). Con la parada activa, la parada va primero.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

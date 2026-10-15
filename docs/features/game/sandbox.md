@@ -262,6 +262,23 @@ in melee without a retreat, and one more use of Strength (the draft, proposal 7)
 
 ---
 
+### REQ-SBX-014: 8. The clash
+
+**User Story:** As an admin, I want two blows that land together to meet, so that I can test a trade of
+blows as a contest of dice (the draft, proposal 8).
+
+**Acceptance Criteria:**
+- **AC-SBX-014.1:** With the switch "8. Clash", a blow of the character that starts in the last 3 ticks
+  (0.05 s) of the wind-up of a mob that hunts it, with the mob in the reach of the blow, meets the mob's
+  blow: each side rolls d20 + its attack bonus. Nobody takes damage, and the mob's blow does not land.
+- **AC-SBX-014.2:** A higher roll of the character: the mob reels as from a blow ("clash won", Spanish
+  "choque ganado"). A lower roll: the character reels for 24 ticks with no guard after it ("clash lost",
+  "choque perdido"), and the mob stops for 0.25 s. A tie: both step 4 px back ("clash", "choque"), and the
+  mob stops for 0.25 s. Each with the ring of steel.
+- **AC-SBX-014.3:** With the parry on, an attack in the last 9 ticks of a wind-up is a parry: no clash.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -306,6 +323,8 @@ in melee without a retreat, and one more use of Strength (the draft, proposal 7)
   roll), `PlayerState.shove` (ticks), `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics`;
   `MOB_BODY` (size, STR and DEX of each kind), `canShove()`, `SHOVE_ARC` 45 degrees, `SHOVE_TICKS` 12,
   `SHOVE_KNOCK_MS` 800, `SHOVE_PUSH` 16.
+- **8. The clash.** `Horde.strike(..., player)` calls `Horde.clash()` for each mob that the blow
+  touches; `CLASH_TICKS` 3, `CLASH_REEL_TICKS` 24, `CLASH_PUSH` 4, `CLASH_PAUSE_MS` 250.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

@@ -27,4 +27,7 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   shoved: { over: 'mob', ink: FIGHT_INK.crit },
   held: { over: 'mob', ink: FIGHT_INK.miss },
   tooBig: { over: 'mob', ink: FIGHT_INK.miss },
+  clash: { over: 'player', ink: FIGHT_INK.blow, sound: 'glance' },
+  clashWon: { over: 'mob', ink: FIGHT_INK.crit, sound: 'glance' },
+  clashLost: { over: 'player', ink: FIGHT_INK.hurt, sound: 'glance' },
 };

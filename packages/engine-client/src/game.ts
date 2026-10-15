@@ -1876,7 +1876,7 @@ async function run(options: GameOptions): Promise<void> {
       if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
       // The parry of the sandbox (mechanics.ts): an attack while a mob's blow comes meets it, and strikes nothing.
       else if (horde && !horde.parry(player, player.aim, 0, traits)) {
-        const results = horde.strike(player, player.aim, undefined, 0, traits);
+        const results = horde.strike(player, player.aim, undefined, 0, traits, player);
         sandboxFight?.blows(results);
         for (const result of results) {
           showBlow(result.mob.id, result.damage, result.crit);

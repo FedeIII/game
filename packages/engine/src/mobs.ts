@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, canShove, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, canShove, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -1546,7 +1546,8 @@ export class Horde {
    * (rollBlow): a hit takes its damage and pushes the mob away; the one that takes the last of its
    * hit points kills it; another one makes it reel (`hurt`). A miss glances off: no damage, no reel.
    * Either way the mob goes for the attacker. Returns what the blow did to each mob that it touched:
-   * the dead ones are `dying`.
+   * the dead ones are `dying`. `player`: the state of the attacker, for the clash of the sandbox
+   * (mechanics.ts): a mob whose blow it meets is not in the results.
    */
   strike(
     attacker: { readonly x: number; readonly y: number },
@@ -1554,6 +1555,7 @@ export class Horde {
     at?: (mob: Mob) => { x: number; y: number } | null,
     attackerId?: number,
     blow: Blow = PLAIN_BLOW,
+    player?: PlayerState,
   ): BlowResult[] {
     const struck: BlowResult[] = [];
     for (const mob of this.mobs) {
@@ -1564,9 +1566,39 @@ export class Horde {
         attackHits(attacker.x, attacker.y, aim, mob.x, mob.y, radius, blow.reach) ||
         (then !== null && attackHits(attacker.x, attacker.y, aim, then.x, then.y, radius, blow.reach));
       if (!hit) continue;
+      if (player && attackerId !== undefined && this.clash(mob, player, attackerId, blow)) continue;
       struck.push(this.hit(mob, mob.x - attacker.x, mob.y - attacker.y, blow, attackerId));
     }
     return struck;
+  }
+
+  /**
+   * The clash (mechanics.ts): a blow of player `id` that starts in the last CLASH_TICKS of the wind-up of
+   * a mob that hunts it meets the mob's blow. Each side rolls its attack; the loser reels, and nobody takes
+   * damage; a tie pushes both back. Returns whether the blows met.
+   */
+  private clash(mob: Mob, player: PlayerState, id: number, blow: Blow): boolean {
+    const brain = this.brains.get(mob.id)!;
+    if (!this.mechanics.has('clash') || mob.state !== 'windup' || brain.target !== id || brain.timerMs > CLASH_TICKS * TICK_MS) return false;
+    const stats = MOB_STATS[mob.kind];
+    const ours = rollDice(dice(1, 20, blow.toHit), this.dice);
+    const theirs = rollDice(dice(1, 20, stats.toHit + (mob.burning !== undefined ? BURN_TO_HIT : 0)), this.dice);
+    if (ours > theirs) {
+      // The mob reels, as from a blow, and its blow is broken.
+      this.stagger(mob, brain, stats.hurtMs);
+      this.event('clashWon', mob, id);
+    } else if (ours < theirs) {
+      player.reel = Math.max(player.reel, CLASH_REEL_TICKS);
+      player.attack = 0;
+      this.stagger(mob, brain, CLASH_PAUSE_MS);
+      this.event('clashLost', mob, id);
+    } else {
+      this.apart(mob, player, CLASH_PUSH);
+      this.stagger(mob, brain, CLASH_PAUSE_MS);
+      this.event('clash', mob, id);
+    }
+    brain.target = id;
+    return true;
   }
 
   /**
