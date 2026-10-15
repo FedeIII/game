@@ -99,7 +99,8 @@ export function lateBraceAc(braceAc: number): number {
  * The riposte (proposal 2; the Riposte of the Battle Master, and advantage): an evade puts the mob off
  * balance for RIPOSTE_MS. It reels in place (state 'hurt', with no push and no flash): it cannot wind up.
  * The next blow of the player on it in that time rolls with advantage and adds the INT opening, as on a
- * mob in its wind-up (Mob.exposed). With the grades of a brace, only a sharp evade gives it.
+ * mob in its wind-up (Mob.exposed). With the grades of a brace, a sharp or a clean evade gives it, not a
+ * late one (Fede, 2026-10-15).
  */
 export const RIPOSTE_MS = 400;
 

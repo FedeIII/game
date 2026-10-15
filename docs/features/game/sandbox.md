@@ -160,7 +160,8 @@ that attacks as well as it defends (the draft, proposal 2).
 **Acceptance Criteria:**
 - **AC-SBX-008.1:** With the switch "2. Riposte", a mob's blow that misses in a brace puts the mob off
   balance for 0.4 s (`RIPOSTE_MS`): it reels in place (no push, no white flash), cannot wind up, and the
-  word "open" (Spanish "expuesto") rises over it in gold. With the grades on, only a sharp evade does it.
+  word "open" (Spanish "expuesto") rises over it in gold. With the grades on, a sharp or a clean evade
+  does it, and a late one does not (Fede, 2026-10-15).
 - **AC-SBX-008.2:** The next blow (or arrow) of a player on that mob in that time rolls with advantage
   and adds the INT opening of the player, as on a mob in its wind-up. The opening is for that one blow.
 - **AC-SBX-008.3:** An arrow of a mob that misses a brace gives no riposte.

@@ -1789,8 +1789,8 @@ export class Horde {
         this.event('parry', mob, id);
         this.apart(mob, target, PARRY_PUSH);
       }
-      // The riposte: an evade (with the grades, a sharp one), or a sharp parry, puts the mob off balance.
-      const riposte = (defence.braced && (defence.grade === null || defence.grade === 'sharp')) || defence.parry?.sharp === true;
+      // The riposte: an evade (with the grades, a sharp or a clean one, not a late one), or a sharp parry, puts the mob off balance.
+      const riposte = (defence.braced && defence.grade !== 'late') || defence.parry?.sharp === true;
       if (melee && riposte && this.mechanics.has('riposte')) {
         mob.exposed = RIPOSTE_MS;
         this.brains.get(mob.id)!.offBalanceMs = RIPOSTE_MS;

@@ -282,7 +282,7 @@ makes more sense"; and no new art for now):
 | # | Proposal | In the sandbox |
 |---|---|---|
 | 1 | Grades of the brace | Sharp (6 ticks): the mob rolls with disadvantage against the AC of the brace, in place of a sure evade. Clean: as now. Late (from tick 13, also a held brace): half of what the brace adds, in place of disadvantage against the plain AC (that would be better than a clean brace). |
-| 2 | Riposte | As proposed. With the grades off, every evade gives it; a sharp parry gives it too. |
+| 2 | Riposte | With the grades on, a sharp or a clean evade gives it, not a late one (Fede, 2026-10-15; the draft: only a sharp one). With the grades off, every evade gives it; a sharp parry gives it too. |
 | 3 | The front of a brace | As proposed (90 degrees). The word "behind" tells a blow from the back. |
 | 4 | Sidestep | The jump from a brace is its move. The flank is a player more than 40 degrees off the aim of the blow (a jump of 1 tile at the reach of a goblin is about 47 degrees). The turn is 0.4 s after the blow. |
 | 5 | Parry | The last 5 ticks give disadvantage on the mob's roll (and a riposte with it on), in place of a sure parry. The input: the attack (question 3 below stays open). |

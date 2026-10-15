@@ -209,13 +209,20 @@ describe('2. the riposte', () => {
     }
   });
 
-  it('with the grades of a brace, only a sharp evade gives it', () => {
-    const { horde, player, state, mob } = duel(['grades', 'riposte'], faces(5));
-    expect(untilWindup(horde, player, mob, 20)).toBe(true);
-    brace(state, 9);
-    const { events } = blow(horde, player, mob);
-    expect(events).toEqual([]);
-    expect(mob.state).toBe('strike');
+  it('with the grades of a brace, a sharp or a clean evade gives it, and a late one does not (Fede, 2026-10-15)', () => {
+    for (const [age, kinds, state] of [
+      [3, ['sharp', 'riposte'], 'hurt'],
+      [9, ['riposte'], 'hurt'],
+      [20, [], 'strike'],
+    ] as const) {
+      // The d20 of the mob shows 1: a miss in every grade.
+      const duelled = duel(['grades', 'riposte'], faces(1));
+      expect(untilWindup(duelled.horde, duelled.player, duelled.mob, 20)).toBe(true);
+      brace(duelled.state, age);
+      const { events } = blow(duelled.horde, duelled.player, duelled.mob);
+      expect(events.map((e) => e.kind)).toEqual(kinds);
+      expect(duelled.mob.state).toBe(state);
+    }
   });
 
   it('without its switch the mob strikes on after a miss', () => {

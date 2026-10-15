@@ -462,7 +462,7 @@ export const ES: Strings = {
       },
       riposte: {
         name: '2. Réplica',
-        line: 'Una esquiva (con los grados, solo una precisa) desequilibra al enemigo 0,4 s ("expuesto"): no puede cargar su golpe, y tu siguiente golpe contra él tira con ventaja y suma tu bonificación de INT a un golpe mientras carga.',
+        line: 'Una esquiva (con los grados, una precisa o una limpia, no una tardía) desequilibra al enemigo 0,4 s ("expuesto"): no puede cargar su golpe, y tu siguiente golpe contra él tira con ventaja y suma tu bonificación de INT a un golpe mientras carga.',
       },
       front: {
         name: '3. El frente de la guardia',

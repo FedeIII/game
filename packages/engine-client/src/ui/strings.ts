@@ -537,7 +537,7 @@ const EN = {
       },
       riposte: {
         name: '2. Riposte',
-        line: 'An evade (with the grades, only a sharp one) puts the mob off balance for 0.4 s ("open"): it cannot wind up, and your next blow on it rolls with advantage and adds your INT opening.',
+        line: 'An evade (with the grades, a sharp or a clean one, not a late one) puts the mob off balance for 0.4 s ("open"): it cannot wind up, and your next blow on it rolls with advantage and adds your INT opening.',
       },
       front: {
         name: '3. The front of a brace',
