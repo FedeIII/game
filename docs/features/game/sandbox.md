@@ -151,6 +151,21 @@ timing must count more than a safe hold (the draft, proposal 1).
 
 ---
 
+### REQ-SBX-008: 2. The riposte
+
+**User Story:** As an admin, I want an evade to open the mob for a counter, so that I can test a brace
+that attacks as well as it defends (the draft, proposal 2).
+
+**Acceptance Criteria:**
+- **AC-SBX-008.1:** With the switch "2. Riposte", a mob's blow that misses in a brace puts the mob off
+  balance for 0.4 s (`RIPOSTE_MS`): it reels in place (no push, no white flash), cannot wind up, and the
+  word "open" (Spanish "expuesto") rises over it in gold. With the grades on, only a sharp evade does it.
+- **AC-SBX-008.2:** The next blow (or arrow) of a player on that mob in that time rolls with advantage
+  and adds the INT opening of the player, as on a mob in its wind-up. The opening is for that one blow.
+- **AC-SBX-008.3:** An arrow of a mob that misses a brace gives no riposte.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -174,6 +189,10 @@ timing must count more than a safe hold (the draft, proposal 1).
   jump); `braceGrade()`, `SHARP_TICKS` 6, `CLEAN_TICKS` 12, `lateBraceAc()` (`LATE_SHARE` 0.5);
   `Horde.defence()` gives the AC and the edge of the roll (`attackRoll(..., edge)`, `edgeOf()`: two d20,
   the higher or the lower; dice.ts).
+- **2. The riposte.** `Mob.exposed` (ms left of an opening: `rollBlow()` rolls with advantage and adds
+  `Blow.opening`; `Horde.hit()` takes it away), the brain's `offBalanceMs` (`Horde.stagger()`: the state
+  `hurt` with no push), `RIPOSTE_MS` 400. The page draws no flash for a reel with an opening
+  (`MobLook.exposed`).
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

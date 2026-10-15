@@ -11,7 +11,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades'] as const;
+export const MECHANICS = ['grades', 'riposte'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -23,9 +23,10 @@ export const NO_MECHANICS: Mechanics = new Set();
 
 /**
  * Something that a mechanic did in a fight, for the page to show (a word over the player or a mob):
- * `sharp`, a sharp evade (the grades of a brace).
+ * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
+ * riposte).
  */
-export type MechanicEventKind = 'sharp';
+export type MechanicEventKind = 'sharp' | 'riposte';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -58,3 +59,13 @@ export function braceGrade(age: number): BraceGrade {
 export function lateBraceAc(braceAc: number): number {
   return Math.max(1, Math.floor(braceAc * LATE_SHARE));
 }
+
+// ---------------------------------------------------------------- 2. the riposte
+
+/**
+ * The riposte (proposal 2; the Riposte of the Battle Master, and advantage): an evade puts the mob off
+ * balance for RIPOSTE_MS. It reels in place (state 'hurt', with no push and no flash): it cannot wind up.
+ * The next blow of the player on it in that time rolls with advantage and adds the INT opening, as on a
+ * mob in its wind-up (Mob.exposed). With the grades of a brace, only a sharp evade gives it.
+ */
+export const RIPOSTE_MS = 400;

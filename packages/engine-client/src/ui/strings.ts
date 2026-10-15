@@ -535,9 +535,13 @@ const EN = {
         name: '1. Grades of the brace',
         line: 'A blow in the first 0.1 s of a brace rolls with disadvantage ("sharp"). After 0.2 s, and in a held brace, the brace adds only half of its AC.',
       },
+      riposte: {
+        name: '2. Riposte',
+        line: 'An evade (with the grades, only a sharp one) puts the mob off balance for 0.4 s ("open"): it cannot wind up, and your next blow on it rolls with advantage and adds your INT opening.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

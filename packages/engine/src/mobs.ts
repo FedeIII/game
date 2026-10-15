@@ -1,8 +1,8 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
-import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
+import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, braceGrade, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { NO_MECHANICS, RIPOSTE_MS, braceGrade, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
@@ -653,6 +653,11 @@ export interface Mob {
   raider?: boolean;
   /** A mob of the story (an ambush, the attackers of a convoy): only such a mob hunts a quarry (HordePlayer.quarry). */
   story?: boolean;
+  /**
+   * The ms left of an opening that a mechanic of the sandbox gave (mechanics.ts: the riposte): the next
+   * blow of a player on it rolls with advantage and adds the INT opening (Blow.opening).
+   */
+  exposed?: number;
 }
 
 /** A rider sits this far behind the middle of its mount for each seat (world pixels). */
@@ -688,13 +693,15 @@ export interface BlowResult {
 
 /**
  * Rolls a blow on this mob now (5e): d20 + Blow.toHit against its AC; a hit rolls the damage, more on
- * a mob in its wind-up (Blow.opening) and on a mob that does not hunt the attacker (`unaware`: the
- * dice of Blow.sneak). A critical hit rolls all the dice twice. Damage 0: a miss.
+ * a mob in its wind-up or with an opening (Blow.opening, Mob.exposed) and on a mob that does not hunt
+ * the attacker (`unaware`: the dice of Blow.sneak). A critical hit rolls all the dice twice. Damage 0: a
+ * miss. A mob with an opening (Mob.exposed) gives the roll advantage.
  */
-export function rollBlow(blow: Blow, mob: Pick<Mob, 'kind' | 'state'>, unaware: boolean, source: DiceSource): { damage: number; crit: boolean } {
-  const roll = attackRoll(blow.toHit, MOB_STATS[mob.kind].ac, source);
+export function rollBlow(blow: Blow, mob: Pick<Mob, 'kind' | 'state' | 'exposed'>, unaware: boolean, source: DiceSource): { damage: number; crit: boolean } {
+  const exposed = (mob.exposed ?? 0) > 0;
+  const roll = attackRoll(blow.toHit, MOB_STATS[mob.kind].ac, source, edgeOf(exposed, false));
   if (!roll.hit) return { damage: 0, crit: false };
-  let damage = rollDice(blow.damage, source, roll.crit) + (mob.state === 'windup' ? (blow.opening ?? 0) : 0);
+  let damage = rollDice(blow.damage, source, roll.crit) + (mob.state === 'windup' || exposed ? (blow.opening ?? 0) : 0);
   if (unaware && blow.sneak && blow.sneak.count > 0) damage += rollDice(blow.sneak, source, roll.crit);
   return { damage: Math.max(1, damage), crit: roll.crit };
 }
@@ -1017,6 +1024,8 @@ interface Brain {
   readonly hitters: Set<number>;
   /** A foe that never flees, never lurks and never startles (SpawnOptions.steady: the sandbox). */
   steady: boolean;
+  /** After its blow: it reels this long in place (ms), off balance, in place of its blow (the riposte, mechanics.ts); 0: no. */
+  offBalanceMs: number;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1239,6 +1248,7 @@ export class Horde {
       native: false,
       holdMs: 0,
       steady: options.steady === true,
+      offBalanceMs: 0,
     });
     return mob;
   }
@@ -1406,6 +1416,7 @@ export class Horde {
       mob.stateMs += dt;
       if (brain.riteMs > 0) brain.riteMs -= dt;
       if (mob.burning !== undefined && (mob.burning -= dt) <= 0) delete mob.burning;
+      if (mob.exposed !== undefined && (mob.exposed -= dt) <= 0) delete mob.exposed;
       switch (mob.state) {
         case 'idle':
         case 'walk':
@@ -1459,6 +1470,11 @@ export class Horde {
           // after a stun. Then its attack roll: a hit stuns and hurts; a miss glances off.
           const reached = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
           brain.hit = reached && this.attack(mob, brain.target!, target!, players, hits);
+          if (brain.offBalanceMs > 0) {
+            // Off balance (a riposte): it reels in place, and its blow is over.
+            this.stagger(mob, brain, brain.offBalanceMs);
+            break;
+          }
           this.enter(mob, 'strike');
           brain.timerMs = stats.strikeMs;
           break;
@@ -1594,6 +1610,8 @@ export class Horde {
     // A blow on a lurker: its ambush springs at the attacker (the blow still takes it unaware).
     if (mob.state === 'lurk' && attackerId !== undefined) this.spring(mob, attackerId, null);
     const { damage, crit } = rollBlow(blow, mob, unaware, this.dice);
+    // An opening (a riposte) is for one blow.
+    delete mob.exposed;
     if (damage === 0) {
       // A miss: the mob does not reel, but it knows who attacked it.
       if (attackerId !== undefined && mob.state !== 'hurt') {
@@ -1645,7 +1663,7 @@ export class Horde {
    * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit. In a
    * brace the roll is against more AC (defence()), and a miss is an evade (missPlayer).
    */
-  private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
+  private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[], melee = true): boolean {
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
@@ -1654,6 +1672,12 @@ export class Horde {
     if (!roll.hit) {
       missPlayer(target, defence.braced);
       if (defence.grade === 'sharp') this.event('sharp', mob, id);
+      // The riposte: an evade (with the grades, a sharp one) puts the mob off balance.
+      if (melee && defence.braced && this.mechanics.has('riposte') && (defence.grade === null || defence.grade === 'sharp')) {
+        mob.exposed = RIPOSTE_MS;
+        this.brains.get(mob.id)!.offBalanceMs = RIPOSTE_MS;
+        this.event('riposte', mob, id);
+      }
       hits.push([mob.id, id, 0]);
       return false;
     }
@@ -1707,7 +1731,7 @@ export class Horde {
         if (hit < 0) continue;
         const p = open[hit]!;
         const shooter = this.mobs.find((m) => m.id === -arrow.owner) ?? { id: -arrow.owner, kind: arrow.from };
-        this.attack(shooter as Mob, p.id, p.state, players, hits);
+        this.attack(shooter as Mob, p.id, p.state, players, hits, false);
         continue;
       }
       const bodies = this.arrowBodies?.(arrow.owner) ?? [];
@@ -2175,6 +2199,14 @@ export class Horde {
     } else {
       this.giveUp(mob, brain);
     }
+  }
+
+  /** A mob reels in place for `ms` with no blow on it (state 'hurt', no push): off balance (the riposte). */
+  private stagger(mob: Mob, brain: Brain, ms: number): void {
+    brain.offBalanceMs = 0;
+    brain.push = 0;
+    brain.reelMs = ms;
+    this.enter(mob, 'hurt');
   }
 
   /** The push of a blow, away from the attacker: fast at first, over KNOCKBACK_MS. */

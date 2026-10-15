@@ -3,6 +3,7 @@ import {
   BRACE_TICKS,
   Horde,
   NO_INPUT,
+  RIPOSTE_MS,
   TICK_SECONDS,
   World,
   braceGrade,
@@ -129,5 +130,67 @@ describe('1. the grades of a brace', () => {
       const { hit } = blow(horde, player, mob);
       expect((hit?.[2] ?? 0) > 0).toBe(hits);
     }
+  });
+});
+
+describe('2. the riposte', () => {
+  const brace = (state: PlayerState, age: number) => {
+    state.brace = 10;
+    state.braceAge = age;
+  };
+
+  it('an evade puts the mob off balance for 0.4 s: it reels in place, and the page hears "riposte"', () => {
+    // The d20 of the mob shows 5: a miss against the brace.
+    const { horde, player, state, mob } = duel(['riposte'], faces(5));
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    brace(state, 9);
+    const { hit, events } = blow(horde, player, mob);
+    expect(hit?.[2]).toBe(0);
+    expect(events).toEqual([{ kind: 'riposte', mob: mob.id, player: 1 }]);
+    expect(mob.state).toBe('hurt');
+    expect(mob.exposed).toBeGreaterThan(0);
+    const x = mob.x;
+    // It does not wind up while it reels, and it does not move.
+    for (let t = 0; t < RIPOSTE_MS - 2 * TICK_MS; t += TICK_MS) {
+      horde.step(TICK_MS, [player]);
+      expect(mob.state).toBe('hurt');
+    }
+    expect(mob.x).toBe(x);
+  });
+
+  it('the next blow on a mob off balance rolls with advantage', () => {
+    // The d20 of the mob shows 5 (a miss); then the player's show 5 and 15: one d20 misses AC 15
+    // with +2, the higher of two hits.
+    for (const [on, hits] of [
+      [['riposte'], true],
+      [[], false],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as Mechanic[], faces(5, 5, 15));
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      brace(state, 9);
+      blow(horde, player, mob);
+      const [result] = horde.strike(state, Math.atan2(mob.y - state.y, mob.x - state.x), undefined, 1, { toHit: 2, damage: { count: 1, sides: 8, plus: 0 }, push: 1, stagger: 1 });
+      expect(result!.damage > 0).toBe(hits);
+      // The opening is for one blow.
+      expect(mob.exposed).toBeUndefined();
+    }
+  });
+
+  it('with the grades of a brace, only a sharp evade gives it', () => {
+    const { horde, player, state, mob } = duel(['grades', 'riposte'], faces(5));
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    brace(state, 9);
+    const { events } = blow(horde, player, mob);
+    expect(events).toEqual([]);
+    expect(mob.state).toBe('strike');
+  });
+
+  it('without its switch the mob strikes on after a miss', () => {
+    const { horde, player, state, mob } = duel([], faces(5));
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    brace(state, 9);
+    blow(horde, player, mob);
+    expect(mob.state).toBe('strike');
+    expect(mob.exposed).toBeUndefined();
   });
 });

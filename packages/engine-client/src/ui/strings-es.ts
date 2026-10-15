@@ -460,8 +460,12 @@ export const ES: Strings = {
         name: '1. Grados de la guardia',
         line: 'Un golpe en los primeros 0,1 s de una guardia tira con desventaja ("precisa"). Tras 0,2 s, y en una guardia mantenida, la guardia suma solo la mitad de su CA.',
       },
+      riposte: {
+        name: '2. Réplica',
+        line: 'Una esquiva (con los grados, solo una precisa) desequilibra al enemigo 0,4 s ("expuesto"): no puede cargar su golpe, y tu siguiente golpe contra él tira con ventaja y suma tu bonificación de INT a un golpe mientras carga.',
+      },
     },
-    words: { sharp: 'precisa' },
+    words: { sharp: 'precisa', riposte: 'expuesto' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

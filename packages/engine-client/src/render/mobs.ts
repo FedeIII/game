@@ -19,6 +19,8 @@ export interface MobLook {
   readonly health?: number;
   /** Its most health points, when they are not MobStats.health (a foe of the sandbox). */
   readonly maxHealth?: number;
+  /** The ms left of an opening (a mechanic of the sandbox: the riposte): it reels with no flash. */
+  readonly exposed?: number;
   /** In a rite (state 'rite'): the runes that it has left. */
   readonly runes?: number;
   /** While its weapon burns (a Devastator's rite). */
@@ -367,7 +369,8 @@ export class MobViews {
     view.body.alpha = alpha;
     view.shadow.alpha = alpha;
     const touched = this.touches.get(mob.id);
-    const flashing = ((mob.state === 'dying' || mob.state === 'hurt') && mob.stateMs < FLASH_MS) || (touched !== undefined && performance.now() - touched < FLASH_MS);
+    // A reel with an opening (off balance after a riposte) had no blow: no flash.
+    const flashing = ((mob.state === 'dying' || (mob.state === 'hurt' && !(mob.exposed && mob.exposed > 0))) && mob.stateMs < FLASH_MS) || (touched !== undefined && performance.now() - touched < FLASH_MS);
     view.flash.visible = flashing && !hidden;
     if (flashing) {
       view.flash.texture = texture;
