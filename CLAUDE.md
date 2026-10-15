@@ -837,7 +837,8 @@ gets its tag with `gated()`.
   `worlds/wilds/src/dialogs.ts`, CHA 10 to 16: Marta gives a room, CHA 13, `ROOM`, the refuge `inn`
   with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price, CHA 14; Brann
   and Elama words) and reputation (`REPUTATION_GATE`, CHA 12, in `ui/gates.ts`: each NPC says its
-  `NpcDef.greeting` once, with the character's name, within 2 tiles).
+  `NpcDef.greeting` once, with the character's name, within 2 tiles; not over a talk, and one
+  greeting at a time: `nextGreeting()` in `render/barks.ts`).
 - **Shops** (since 2026-10-13, Fede's request; `docs/features/items/pack-and-loot.md`, REQ-PK-017): a
   trader's answer opens its shop (`DialogAnswer.shop`, a `Shop` with `buy` and `sell` wares, `tab` the
   side to open; `dialog.ts`), and the page shows the shop panel (`ui/shop-panel.ts`) over the
@@ -1151,7 +1152,11 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   events: the Room sends them in the next snapshot (`b`), so every visitor gets them at once.
   The client (`render/barks.ts`) shows a line over its NPC only if the NPC is outside or in the
   visitor's own house, and never over a dialog with that NPC; screen readers do not get them.
-  Speech bubbles stay inside the screen. In a shared
+  **Nobody talks over a talk** (Fede's choice, 2026-10-15): while the visitor talks with someone (a
+  conversation, or the pages of a person or of a thing that speaks: `inTalk()` in `game.ts`), no NPC
+  line shows, a talk stops the lines on the screen (`BarkBubbles.hushAll()`), and a greeting waits
+  until the talk ends; the greetings then come one at a time (`nextGreeting()`). Speech bubbles stay
+  inside the screen. In a shared
   world the Room runs the crowd (`Room.tick()`, before each broadcast) and the snapshots carry
   the poses; otherwise the client runs its own crowd. To act on one, findInteraction() takes
   `npcActors()`; the target's fixture is `npcFixture(def)`, the same object while it walks.

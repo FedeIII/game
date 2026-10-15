@@ -47,6 +47,10 @@ is a plan and not new code.
   join one another by a short walk round it (within 2 tiles of it). Thus a thing never stands at the
   end of an alley of one tile, and never closes a strip of open ground by a wall (a bug of
   2026-10-13: a lamp post closed an alley of Ironhold).
+- **AC-TWN-001.10:** Nobody talks over a talk (Fede's choice, 2026-10-15). While the player talks
+  with someone (a conversation, or the pages of a person or of a thing that speaks), no NPC says a
+  line over it: the lines on the screen stop when the talk starts, and no new line shows until it
+  ends. A greeting waits until the talk ends (AC-CHA-008.3).
 
 ---
 

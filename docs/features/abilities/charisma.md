@@ -155,6 +155,12 @@ mine.
   for example "Evening, Lulu. Keep to the lamps." over Brann.
 - **AC-CHA-008.2:** A guest (no name) gets no greeting. Nobody greets during the arrival or in a
   conversation with the person.
+- **AC-CHA-008.3:** Nobody greets over a talk with someone else (a conversation, or the pages of a
+  person or of a thing that speaks): the greeting waits until the talk ends, and comes then if the
+  person is still within 2 tiles (Fede's choice, 2026-10-15: the greeting of the child covered the
+  line of Brann).
+- **AC-CHA-008.4:** The greetings come one at a time: a greeting waits while the last greeting is on
+  the screen. Thus two greetings never cover each other, also when they wait for the end of a talk.
 
 ---
 
@@ -193,7 +199,9 @@ can choose my scores.
   (protocol 16), so the prediction replays it.
 - **Reputation:** `NpcDef.greeting` (`{name}` for the character's name), `greet()` in
   `packages/engine-client/src/game.ts` (`GREET_RANGE` 2 tiles, `REPUTATION_GATE` in
-  `ui/gates.ts`), shown with the bubbles of NPC lines (`render/barks.ts`).
+  `ui/gates.ts`), shown with the bubbles of NPC lines (`render/barks.ts`). `nextGreeting()`
+  (`render/barks.ts`) chooses the greeting of the moment: none while `inTalk()` (a talk) or while the
+  last greeting shows (`BarkBubbles.showing()`).
 - **Persuasion:** a gate of CHA with its own DC (`{ ability: 'cha', dc }`) on each answer in
   `worlds/wilds/src/dialogs.ts`; `npm run checks` lists them all.
 - **The debug panel** (`?debug`): the line `cha` gives the shares, the presence, the daunt, the

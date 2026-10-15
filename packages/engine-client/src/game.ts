@@ -145,7 +145,7 @@ import { Fixtures } from './render/fixtures.ts';
 import { EdgeMarks } from './render/marks.ts';
 import { NetSession } from './net/session.ts';
 import { Lighting, TORCH } from './render/lighting.ts';
-import { BarkBubbles } from './render/barks.ts';
+import { BarkBubbles, nextGreeting, type Greeter } from './render/barks.ts';
 import { INTRO_TIMING, IntroTitle } from './render/intro.ts';
 import { LandCrossings, PlaceArrivals } from './render/place-titles.ts';
 import { WelcomeSpeech } from './render/welcome.ts';
@@ -637,6 +637,12 @@ async function run(options: GameOptions): Promise<void> {
    */
   const seenBy = (p: { readonly x: number; readonly y: number }, storey: number): boolean =>
     storey === player.storey || (storey === 0 && world.insideOf(...tileOf(p)) !== world.insideOf(...tileOf(player)));
+  /**
+   * Whether someone talks to the player: a conversation (its first line, the panel or a shop of it),
+   * or the pages of a person or of a thing that speaks. Then the other NPCs say no lines and no
+   * greetings, so that no bubble covers the talk (Fede, 2026-10-15).
+   */
+  const inTalk = () => talkWith !== null || (dialogKey !== null && speech.showing && !speaking);
   const sayLines = (lines: readonly (readonly [number, number])[]) => {
     const now = performance.now();
     const poses = npcPoses(now);
@@ -660,6 +666,8 @@ async function run(options: GameOptions): Promise<void> {
       // Nobody talks over the arrival: the title and the host's welcome.
       if (arriving(now)) continue;
       if (dialogKey === targetKey({ kind: 'npc', tx: def.home[0], ty: def.home[1], distance: 0, fixture: npcFixture(def) })) continue;
+      // Nobody talks over a talk with someone else.
+      if (inTalk()) continue;
       barkBubbles?.say(index, text, () => npcViews!.headOf(index), now);
       linesShown++;
     }
@@ -667,19 +675,24 @@ async function run(options: GameOptions): Promise<void> {
   net?.onBarks(sayLines);
   // Reputation (REPUTATION_GATE, CHA 12): each NPC greets the player by name once, when it comes close.
   const greeted = new Set<string>();
+  /** The NPC of the last greeting: one greeting at a time, so that the greetings that wait for the end of a talk do not cover one another. */
+  let greeter = -1;
   const greet = (now: number) => {
     if (!barkBubbles || !name || !meetsGate(traits.scores, REPUTATION_GATE) || arriving(now)) return;
     const poses = npcPoses(now);
     const here = world.insideOf(...tileOf(player));
-    npcDefs.forEach((def, index) => {
+    const close = npcDefs.flatMap((def, index): Greeter[] => {
       const pose = poses[index];
-      if (!def.greeting || greeted.has(def.id) || !pose || pose.away || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return;
+      if (!def.greeting || greeted.has(def.id) || !pose || pose.away || Math.hypot(pose.x - player.x, pose.y - player.y) > GREET_RANGE) return [];
       // Only in the same place: both outside, or in the same building, on the same storey.
-      if (world.insideOf(...tileOf(pose)) !== here || npcStorey(def) !== player.storey) return;
-      greeted.add(def.id);
-      if (talkWith === npcFixture(def)) return;
-      barkBubbles.say(index, gated(REPUTATION_GATE, tw(def.greeting).replace('{name}', name)), () => npcViews!.headOf(index), now);
+      if (world.insideOf(...tileOf(pose)) !== here || npcStorey(def) !== player.storey) return [];
+      return [{ index, id: def.id, partner: talkWith === npcFixture(def) }];
     });
+    // Nobody talks over a talk, or over the last greeting: a greeting waits, if the NPC is still close then.
+    const index = nextGreeting(close, greeted, inTalk() || (greeter >= 0 && barkBubbles.showing(greeter)));
+    if (index === null) return;
+    greeter = index;
+    barkBubbles.say(index, gated(REPUTATION_GATE, tw(npcDefs[index]!.greeting!).replace('{name}', name)), () => npcViews!.headOf(index), now);
   };
 
   // Mobs: in a world with mob rules. A single-player world runs its own horde (its seed differs
@@ -1518,9 +1531,12 @@ async function run(options: GameOptions): Promise<void> {
     }
     dialogKey = key;
     const fixture = target.fixture;
-    // A dialog with an NPC stops the line that it was saying, and its welcome.
+    // A dialog with an NPC stops the line that it was saying, and its welcome. A talk (a conversation,
+    // or the pages of a person or of a thing that speaks) stops the lines of all the NPCs: no bubble
+    // covers it (inTalk()).
     const talking = fixture ? npcIndex.get(fixture) : undefined;
-    if (talking !== undefined) barkBubbles?.hush(talking, now);
+    if (content.dialog || content.speaker === 'fixture') barkBubbles?.hushAll(now);
+    else if (talking !== undefined) barkBubbles?.hush(talking, now);
     if (talking !== undefined && talking === hostIndex) welcome?.stop(now);
     const walker = fixture ? npcIndex.get(fixture) : undefined;
     const guard = fixture ? guardOf.get(fixture) : undefined;
