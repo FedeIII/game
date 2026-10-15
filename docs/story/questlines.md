@@ -48,10 +48,10 @@ the road.
 | `met` | The cart broke down; lift it, or bring a lever: the farmer of Whitegrove has one. | the merchant | "Can I help?" (`CART_HELP`). |
 | `lever` | The smith of Ironhold gave me a lever. | the merchant | The smith: "A merchant on the road needs a lever for a broken cart." (`CART_LEVER`; without a lever in the pack). |
 | `lent` | The farmer of Whitegrove lent me a lever. | the merchant | The farmer: "The merchant needs a lever for his cart." (`FARMER_LEVER`; without a lever in the pack). |
-| `done` (end) | I helped the merchant; he paid me and goes on to Ironhold. | | "Stand back. I will lift it." (STR 13, `CART_LIFT`), or "Here is a lever." (`CART_MEND`: the merchant keeps the lever). |
+| `done` (end) | I helped the merchant; he paid me and goes on to Ironhold. | | "Stand back. I will lift it." (STR 15, `CART_LIFT`), or "Here is a lever." (`CART_MEND`: the merchant keeps the lever). |
 
 Reward: 10 coins. A character that helped sees the cart mended. Then the merchant tells the news of the
-trade (INT 13 or CHA 13: the Sovereignty and the Enclave both want the wildlands).
+trade (INT 10 or CHA 11: the Sovereignty and the Enclave both want the wildlands).
 
 ## Lentils for Bronzehold (`lentils`)
 
@@ -62,11 +62,11 @@ Chapter 1.5.1: the farmer of Arboleda Blanca sends lentils to Bronzal. A quest o
 | `carry` | The farmer gave me a sack of lentils for the sergeant of Bronzehold. | the sergeant | "I will take it." (`LENTILS_TAKE`: a sack of lentils into the pack). |
 | `done` (end) | I brought the lentils to Bronzehold, and the sergeant paid me. | | "I bring lentils from Whitegrove." (`LENTILS_GIVE`: takes the sack). |
 | `wet` | I waded through water with the sack, and the lentils got wet. They are ruined. | the sergeant | A wade or a swim with the sack (`LENTILS_SOAK`: the sack becomes a sack of wet lentils). The server sees it. |
-| `part` (end) | The lentils were wet, but I talked the sergeant into paying a part of the price. | | CHA 13: "A day in the sun, and most of them will keep." (`LENTILS_PLEAD`: takes the wet sack, 2 coins). |
+| `part` (end) | The lentils were wet, but I talked the sergeant into paying a part of the price. | | CHA 14: "A day in the sun, and most of them will keep." (`LENTILS_PLEAD`: takes the wet sack, 2 coins). |
 | `spoiled` (end) | I gave the wet lentils to the sergeant. He paid nothing for them. | | "Then take them for nothing." (`LENTILS_SPOILED`: takes the wet sack). |
 
 The farmer says to keep the sack dry. Reward: 5 coins, and the news of the road without the gate of WIS
-13 (the answer "What news?"). Wet lentils: 2 coins and the news with CHA 13, else nothing.
+12 (the answer "What news?"). Wet lentils: 2 coins and the news with CHA 14, else nothing.
 
 ## The Razed Villages (`ashes`)
 
@@ -91,7 +91,7 @@ Chapter 1 of the game ends with it.
 | `relic` | The Ash Warden went in ash. I keep the Tear and its orders. I need sleep. | | The ambush "shrine" falls (`ASHES_RELIC`: the Warden's orders). |
 | `gave` (end) | In a dream of ash, I gave Verath the Tear. | | The dream: "Take it." (`DREAM_GIVE`). |
 | `refused` (end) | I refused. The Seekers will come for it. | | "No. It stays with me." (`DREAM_REFUSE`). |
-| `lied` (end) | I promised to bring it north, and lied. | | "I will bring it to you, in the north." (CHA 13, `DREAM_LIE`). |
+| `lied` (end) | I promised to bring it north, and lied. | | "I will bring it to you, in the north." (CHA 16, `DREAM_LIE`). |
 
 - **The ambushes.** "cinders": the cinder hounds and a watcher march from the east on the burned trail,
   for a character at `next` or `stone` within 32 tiles of the Wren homestead; Mira and her children
@@ -155,7 +155,7 @@ Silverspring.
 |---|---|---|
 | The Road to Ironhold | | 100 (the arrival) |
 | The Broken Cart | 10 coins | 50 |
-| Lentils for Bronzehold | 5 coins (wet lentils: 2 coins with CHA 13, else nothing) | 50 (wet lentils: 40 with CHA 13, else 25) |
+| Lentils for Bronzehold | 5 coins (wet lentils: 2 coins with CHA 14, else nothing) | 50 (wet lentils: 40 with CHA 14, else 25) |
 | The Razed Villages | 12 coins and a draught (Mira); the Tear of Tigris (unless given to Verath); the Warden's orders | 50 (the three homesteads, `ruins`), 100 (the hounds fall, `held`), 75 (the camp, `camp`), 100 (the Warden goes, `relic`), 100 (the dream, at its end) |
 | The Hobgoblin Raid | 2 badger furs (the scouts); 20 coins (Himo home); a title, a bed at the Silver Trout, and the mithril permit (the band stopped on the road) | 75 (the scouts), 100 (the band falls, on the road or in Silverspring), 50 (Himo home), 50 (the title) |
 | The Caravan Ambush | 15 coins and a draught (saved); 20 coins, 3 badger furs and 5 mithril (robbed; then a fine of 60) | 100 (saved); a robber gets the XP of the militia that it brings down |

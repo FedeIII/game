@@ -188,10 +188,11 @@ export function packWeight(pack: Pack): number {
 }
 
 /**
- * A character with this chews a bundle of herbs for 1d4 hit points (Medicine). It is here, not in
- * traits.ts with the other gates, because traits.ts imports this module through player.ts.
+ * A character with this chews a bundle of herbs for 1d4 hit points (Medicine): an easy action, for a
+ * small reward (docs/features/abilities/checks.md). It is here, not in traits.ts with the other
+ * gates, because traits.ts imports this module through player.ts.
  */
-export const MEDICINE_GATE: Gate = { ability: 'wis', min: 13 };
+export const MEDICINE_GATE: Gate = { ability: 'wis', dc: 10 };
 
 /** What a drink does, and the gate that a character needs to use it (none for most). */
 export interface Drink {
@@ -204,8 +205,8 @@ export interface Drink {
 /**
  * What a drink does (the player uses it from the pack panel), as 5e (level-3.md): a healing draught
  * (a potion of healing) gives back 2d4+2 hit points, a strong draught (a potion of greater healing)
- * 4d4+4, an antidote ends a poison. A character with Medicine (WIS 13) chews a bundle of herbs for
- * 1d4 hit points.
+ * 4d4+4, an antidote ends a poison. A character with Medicine (MEDICINE_GATE, WIS 10) chews a bundle
+ * of herbs for 1d4 hit points.
  */
 export const DRINKS: Readonly<Partial<Record<ItemKind, Drink>>> = {
   draught: { hp: dice(2, 4, 2) },

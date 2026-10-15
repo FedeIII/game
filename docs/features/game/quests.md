@@ -190,7 +190,7 @@ item and to be paid for it (chapter 1.5.1, [A.2]: the farmer of Arboleda Blanca 
   (an item, one slot) and starts "Lentils for Bronzehold" at `carry`, with the sergeant of Bronzehold
   marked.
 - **AC-QST-027.2:** The sergeant takes the sack ("I bring lentils from Whitegrove."), pays 5 coins, and
-  tells without a gate where the Sovereignty pushes (towards Silverspring), which else needs WIS 13.
+  tells without a gate where the Sovereignty pushes (towards Silverspring), which else needs WIS 12.
 - **AC-QST-027.3:** The farmer lends his lever to a character who met the merchant of the broken cart
   and has no lever (the step `lent` of "The Broken Cart"); the merchant mends the cart with it.
 - **AC-QST-027.4:** If the character wades or swims with the sack (Fede, 2026-10-13: the farmer says to
@@ -198,7 +198,7 @@ item and to be paid for it (chapter 1.5.1, [A.2]: the farmer of Arboleda Blanca 
   quest goes to `wet`, with a banner and a journal line that says that they are ruined. The server sees
   the wade (it steps the player itself), so a page cannot hide it. The farmer then starts with another
   line.
-- **AC-QST-027.5:** The sergeant sees the wet sack and does not pay for it. With CHA 13 the character
+- **AC-QST-027.5:** The sergeant sees the wet sack and does not pay for it. With CHA 14 the character
   talks him into a part of the pay, 2 coins of 5, and hears the news of the road (`part`); else he
   takes the sack for nothing (`spoiled`). Both end the quest.
 
@@ -215,15 +215,16 @@ conversations, gates, errands and rewards.
 - **AC-QST-008.2:** "Can I help?" starts "The Broken Cart" at `met`. The merchant needs somebody to
   lift the cart, or a lever: the farmer of Whitegrove has one (AC-QST-027.3), and the smith of
   Ironhold gives one. The map marks the merchant.
-- **AC-QST-008.3:** A character with STR 13 can answer "Stand back. I will lift it." (a dim clue
-  with STR 11 or 12): the quest ends, and the merchant pays 10 coins.
+- **AC-QST-008.3:** A character with STR 15 can answer "Stand back. I will lift it." (a dim clue
+  with STR 13 or 14): the quest ends, and the merchant pays 10 coins. Lifting a loaded cart is a
+  medium action, and a way round the errand of the lever (`docs/features/abilities/checks.md`).
 - **AC-QST-008.4:** Any character can ask the smith: at `met`, `lever` or `lent`, without a lever in the pack,
   the smith starts with another line, and "A merchant on the road needs a lever for a broken cart."
   gives a lever (the step `lever`). A character that lost it can ask again.
 - **AC-QST-008.5:** "Here is a lever." gives the lever (of the farmer or of the smith) to the merchant: the quest ends,
   and the merchant pays 10 coins.
 - **AC-QST-008.6:** After the help, the merchant tells the news of the trade: Silverspring digs
-  mithril and needs tools; Ironhold has a forge and wants the mithril. With INT 13 or CHA 13, the
+  mithril and needs tools; Ironhold has a forge and wants the mithril. With INT 10 or CHA 11, the
   player hears that the Iron Sovereignty and the Mithril Enclave both want the unclaimed wildlands
   and do not play fair.
 - **AC-QST-008.7:** A character who helped sees the cart mended, with its wheel on. Others see it
@@ -275,7 +276,7 @@ letter leads to an adventure.
   hobgoblins. At `asked`, she starts with "Silverspring is north-east of here, over the hills. Go,
   and be careful."
 - **AC-QST-010.5:** At `heard` or `asked`, the soldier tells the character to stay out of it. With
-  WIS 13, the character can say that the soldier wants the hobgoblins to reach Silverspring, and the
+  WIS 14, the character can say that the soldier wants the hobgoblins to reach Silverspring, and the
   soldier threatens it.
 - **AC-QST-010.6:** At `asked`, the map marks the site of Silverspring, at the end of the north road.
 
@@ -414,14 +415,14 @@ sign that their burners left, so that I can follow the trail of who burns them.
   the same for every seed: the Hale homestead north of the town, the Marrow homestead east of the Hale
   homestead, the Tanner homestead north-west of the town. Each is a house of charred planks with no roof and an open door.
 - **AC-QST-017.2:** In each one, a charred plank shows a burned phoenix: "A plank, charred black.
-  Burned into it, deeper than the rest: a phoenix that rises from ashes." With INT 13, the character
-  also reads that magic made the mark.
+  Burned into it, deeper than the rest: a phoenix that rises from ashes." With INT 14 (old magic), the
+  character also reads that magic made the mark.
 - **AC-QST-017.3:** At `reeve`, the reeve names the Hale homestead, and the map marks its phoenix.
   Reading it moves the quest `ashes` to `ruin1`, and the map marks the phoenix of the Marrow
   homestead; reading that one moves it to `ruin2` (the Tanner homestead), and that one to `ruins`.
   A phoenix out of order does nothing.
 - **AC-QST-017.4:** A survivor lives in the ashes of the Hale and of the Tanner homestead. Each one saw
-  only shadows; with WIS 13, the character calms it, and it tells more (what the burners took or looked
+  only shadows; with WIS 11, the character calms it, and it tells more (what the burners took or looked
   for).
 
 ---
@@ -509,7 +510,7 @@ next and to get there first, so that I can stop one fire.
 **Acceptance Criteria:**
 - **AC-QST-022.1:** At `symbol`, the map marks the priest of Ironhold, and he starts at `pattern`. "The
   Seekers take old things from each house before they burn it." moves the quest to `next`: the Wrens,
-  by the pool of the Silvervein, keep carved stones. With INT 13, the character learns that the
+  by the pool of the Silvervein, keep carved stones. With INT 14, the character learns that the
   carvings are the waves of Tigris.
 - **AC-QST-022.2:** At `next` or `stone`, a character within 32 tiles of the middle of the Wren
   homestead starts the race: cinder hounds and a watcher of the Seekers march from the east end of the
@@ -543,11 +544,11 @@ someone there who talks, so that the mystery opens a little.
 - **AC-QST-023.3:** At `camp`, Sela is tied to the post (only for that character). She talks; "I will
   cut the ropes." moves the quest to `captive`. Then she tells what the Seekers believe, who leads them
   (Verath Shadowweave, who comes in dreams), and where they strike next: the shrine of Tigris under the
-  pool of the Silvervein, which the wave stone opens. WIS 13 hears her doubt; INT 13 hears that the
+  pool of the Silvervein, which the wave stone opens. WIS 13 hears her doubt; INT 12 hears that the
   Seekers come from a village in the far north.
 - **AC-QST-023.4:** At `camp` or `captive`, the chest gives the wave stone to a character who has none.
   The quest stays at its step.
-- **AC-QST-023.5:** The torn page on the stand tells of the Four and the Sleeper; INT 13 reads
+- **AC-QST-023.5:** The torn page on the stand tells of the Four and the Sleeper; INT 12 reads
   "Hondurria, then the walls" in its margin.
 - **AC-QST-023.6:** At `captive`, the map marks the south edge of the pool of the Silvervein.
 
@@ -560,7 +561,7 @@ to face them for it, so that I hurt their plans and learn more about them.
 
 **Acceptance Criteria:**
 - **AC-QST-024.1:** Eight standing stones stand on the bank of the pool of the Silvervein, and an altar of
-  the old kind on its south bank (195, -110). No tree, rock or herb grows round them. With INT 13, the
+  the old kind on its south bank (195, -110). No tree, rock or herb grows round them. With INT 14, the
   altar shows the name TIGRIS, and one stone says that Tigris gives and takes.
 - **AC-QST-024.2:** At `captive` with the wave stone, acting on the altar takes the stone and gives the
   Tear of Tigris: the quest moves to `shrine`. Without the stone, the altar gives nothing.
@@ -588,11 +589,12 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   falls (none with reduced motion); the panel glows red, with the face of Verath (a deep cowl and a
   mask of bone).
 - **AC-QST-025.3:** Verath tells a part of the truth: the four gods took thrones that were not theirs,
-  and each relic is a chain. INT 13 asks what Verath leaves out; WIS 13 sees that Verath believes it.
+  and each relic is a chain. INT 16 asks what Verath leaves out; WIS 15 sees that Verath believes it.
 - **AC-QST-025.4:** The choice ends the quest, at one of three steps: "Take it." gives the Tear (from the
   pack, or from the neck: its gift goes with it) and ends at `gave`; "No. It stays with me." ends at
-  `refused`; with CHA 13, "I will bring it to you, in the north." ends at `lied`, and the character
-  keeps the Tear. "Say nothing, and wake." ends nothing: the dream comes back in the next bed.
+  `refused`; with CHA 16 (a lie to a god: the hardest check of chapter 1), "I will bring it to you, in
+  the north." ends at `lied`, and the character keeps the Tear. "Say nothing, and wake." ends nothing:
+  the dream comes back in the next bed.
 - **AC-QST-025.5:** The conditions and the takes of all quest effects count what the character wears.
 
 ---
@@ -640,10 +642,10 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `ROAD`, `LENTILS`, `QUESTS`, the effects `READ_LETTER`, `ROAD_ARRIVED`, `START_ASHES`, `TELL_REEVE`,
   `CART_HELP`, `CART_LEVER`, `FARMER_LEVER`, `CART_LIFT` (flag `lifted`), `CART_MEND` (flag `lever`),
   `CART_REWARD` (10), `LENTILS_TAKE`, `LENTILS_GIVE`, and for the wet sack `LENTILS_SOAK`,
-  `LENTILS_PLEAD` (`LENTILS_WET_REWARD` 2, behind `PERSUASION_GATE`), `LENTILS_SPOILED`; the item
+  `LENTILS_PLEAD` (`LENTILS_WET_REWARD` 2, behind a gate of CHA 14), `LENTILS_SPOILED`; the item
   `wet-lentils`. The letter: `home.ts`. The dialogs:
   `REEVE` (start `letter`), `SMITH` (start `cart`), `MERCHANT`, `FARMER`, `SERGEANT` (`dialogs.ts`);
-  `ATHLETICS_GATE` (STR 13). The cart: `cartSpot()` (`road.ts`: beside the first leg of the road, from
+  the lift of the cart behind a gate of STR 15. The cart: `cartSpot()` (`road.ts`: beside the first leg of the road, from
   three fifths of the way from the hut to Whitegrove), `WildsSource.cart` (with `CART_LANTERN`, and the
   variant `fixture/cart-mended`), the merchant (after the NPCs of Ironhold in `WildsSource.npcs()`, look
   `merchant`), `CART_SAFE` (4 tiles: `roam` and
@@ -716,7 +718,7 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   woods).
 - **The caravan** (`worlds/wilds/src`): `CARAVAN` (steps `heard`, `saved`, `lost`, `robbing`, `robbed`,
   `pardoned`), `CARAVAN_HEARD` (the end of the scene `PLOT` in `town.ts`; the people `inn-soldier` and
-  `drinker` at the tables of the inn; `KEEN_GATE`, WIS 15), `CARAVAN_SAVED` (`CARAVAN_REWARD` 15 and a
+  `drinker` at the tables of the inn; its first two lines behind WIS 15), `CARAVAN_SAVED` (`CARAVAN_REWARD` 15 and a
   draught), `CARAVAN_LOST`, `CARAVAN_ROB`, `CARAVAN_ROBBED`, `CARAVAN_FINE` (`QuestEffect.cost`,
   `CARAVAN_FINE_COINS` 60); `WildsSource.convoys()` (`CARAVAN_MEET` 0.8, `CARAVAN_MILITIA`,
   `CARAVAN_WAGON`, `CLAN_UNITS`, `NOT_AT_THE_CARAVAN`); `WAGON_DRIVER`; the refusals (`Dialog.refuse`,

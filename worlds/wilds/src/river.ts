@@ -3,7 +3,7 @@
  * Silverspring", where the village pans its mithril). It rises at a spring in the hills north of
  * Silverspring, crosses the town from its north edge to its south edge (the channel of the town's map,
  * silverspring.ts), and runs on south into a pool. Outside the town it is a curve of deep water, with
- * a band of shallows at its banks (a character with Strength 13 wades them) and a bank where no tree
+ * a band of shallows at its banks (a character with the Strength of WADE_GATE wades them) and a bank where no tree
  * grows. Its two parts meet the town's channel straight, at the middle of its two columns.
  */
 

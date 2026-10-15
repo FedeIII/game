@@ -39,7 +39,7 @@ the hour means something.
   went south): at night she keeps a vigil in the chapel, on the rug before the lectern. She opens
   the door of the chapel, goes in, closes the door behind her, and stays there, seen.
 - **AC-NGT-001.5:** At night an NPC that goes home says no lines: not on its way, not at home, not
-  in its house. Its greeting by name (Charisma 13) does not come while it is away.
+  in its house. Its greeting by name (Charisma 12) does not come while it is away.
 - **AC-NGT-001.6:** At dawn an NPC that is away comes out of its door (it fades in, facing south),
   waits 1 to 5 seconds, and walks back to its area. An NPC inside a building walks out. Then it walks
   and speaks as by day.

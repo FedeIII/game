@@ -20,7 +20,7 @@ import {
 } from '../src/index.ts';
 import { houseSource } from './helpers.ts';
 
-const CHA_13: Gate = { ability: 'cha', min: 13 };
+const CHA_13: Gate = { ability: 'cha', dc: 13 };
 const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
 
 /** A trader: draughts and rings, a friend's price behind CHA 13, a ring of the guild for a member only. */

@@ -141,7 +141,7 @@ export class Conversation {
 
 /** A gate as the player reads it: "[INT 13]". */
 export function gateTag(gate: Gate): string {
-  return `[${STRINGS.abilities[gate.ability].short} ${gate.min}]`;
+  return `[${STRINGS.abilities[gate.ability].short} ${gate.dc}]`;
 }
 
 /**

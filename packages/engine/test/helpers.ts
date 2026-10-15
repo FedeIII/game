@@ -67,7 +67,7 @@ export const CHEST_LOOT: LootTable = { coins: [3, 3], items: [{ chance: 1, pick:
 
 /** The house world with a chest that gives CHEST_LOOT; `barred`: the door has boards (STR 13). */
 export function lootHouseSource(barred = false): WorldSource {
-  const source = houseSource({ fixtures: [LOOT_CHEST], ...(barred ? { barred: { ability: 'str', min: 13 } } : {}) });
+  const source = houseSource({ fixtures: [LOOT_CHEST], ...(barred ? { barred: { ability: 'str', dc: 13 } } : {}) });
   return { ...source, loot: (fixture) => (fixture.kind === 'chest' ? CHEST_LOOT : null) };
 }
 

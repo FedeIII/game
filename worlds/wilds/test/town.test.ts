@@ -614,14 +614,14 @@ describe('Intelligence in the Wilds', () => {
     const dialog = cauldron.content!.dialog!;
     expect(checkDialog(dialog)).toEqual([]);
     const recipes = dialog.nodes[dialog.start]!.answers.filter((a) => a.deal);
-    expect(recipes.map((a) => [a.deal!.goods, a.gate!.min])).toEqual([
+    expect(recipes.map((a) => [a.deal!.goods, a.gate!.dc])).toEqual([
       ['draught', 10],
       ['antidote', 13],
       ['strong-draught', 15],
     ]);
   });
 
-  it('puts lore (INT 13) on the books of the houses, and names its places for the map', () => {
+  it('puts lore (INT 10 to 12) on the books of the houses, and names its places for the map', () => {
     const source = new WildsSource(DEFAULT_SEED);
     let shelves = 0;
     for (let cy = -4; cy < 4; cy++) {
@@ -630,7 +630,9 @@ describe('Intelligence in the Wilds', () => {
         if (!house || house.id === 'home') continue;
         for (const f of house.fixtures.filter((f) => f.kind === 'bookshelf')) {
           shelves++;
-          expect(f.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+          const gate = f.content?.lore?.[0]?.gate;
+          expect(gate?.ability).toBe('int');
+          expect([10, 12]).toContain(gate?.dc);
         }
       }
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVERAGE_DICE, PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, World, checkDialog, dialogDeals, refugeAt, traitsOf, type Dialog, type Scores } from '@game/engine';
-import { APOTHECARY, DEFAULT_SEED, INNKEEPER, PEDDLER, PERSUASION_GATE, REEVE, TOWN_BUILDINGS, TOWN_NPCS, WATCHMAN, WildsSource } from '../src/index.ts';
+import { APOTHECARY, DEFAULT_SEED, INNKEEPER, PEDDLER, REEVE, TOWN_BUILDINGS, TOWN_NPCS, WATCHMAN, WildsSource } from '../src/index.ts';
 
 const withCha = (cha: number) => traitsOf({ ...PLAIN_SCORES, cha } as Scores, 'fighter', PLAIN_GEAR);
 const answers = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers);
@@ -12,13 +12,11 @@ const besideNpc = (id: string) => {
 };
 
 describe('persuasion in the conversations of Ironhold', () => {
-  it('gives each of the four people a way behind CHA 13, and the dialogs stay good', () => {
-    expect(PERSUASION_GATE).toEqual({ ability: 'cha', min: 13 });
+  it('gives each of the four people a way behind a check of CHA, each with its own DC, and the dialogs stay good', () => {
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE, PEDDLER]) expect(checkDialog(dialog), dialog.name).toEqual([]);
-    for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE]) {
-      const doors = answers(dialog).filter((a) => a.gate === PERSUASION_GATE);
-      expect(doors, dialog.name).toHaveLength(1);
-    }
+    const doors = [WATCHMAN, INNKEEPER, APOTHECARY, REEVE].map((dialog) => answers(dialog).filter((a) => a.gate?.ability === 'cha').map((a) => a.gate!.dc));
+    // A drink for Brann is easy; a room, a secret of the reeve and a friend's price ask more (docs/features/abilities/checks.md).
+    expect(doors).toEqual([[10], [13], [14], [13]]);
     // Isolde's friend's price is a shop behind the gate: the server checks the gate of the answer that opens it for each draught.
     const friend = dialogDeals(APOTHECARY).filter((offer) => offer.deal.id.startsWith('friend'));
     expect(friend.map((offer) => [offer.deal.goods, offer.deal.price])).toEqual([
@@ -26,7 +24,7 @@ describe('persuasion in the conversations of Ironhold', () => {
       ['antidote', 6],
       ['strong-draught', 11],
     ]);
-    for (const offer of friend) expect(offer.gates).toEqual([PERSUASION_GATE]);
+    for (const offer of friend) expect(offer.gates).toEqual([{ ability: 'cha', dc: 14 }]);
     for (const offer of dialogDeals(APOTHECARY).filter((o) => o.deal.id.startsWith('buy-'))) expect(offer.gates).toEqual([]);
   });
 

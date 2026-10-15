@@ -35,7 +35,7 @@ const everywhere: MobRules = { roam: () => true, hunt: () => true, population: {
 
 describe('the display of a gate (Fede\'s rule)', () => {
   it('is open with the score, a clue 1 or 2 under it, and nothing lower', () => {
-    const gate = { ability: 'int', min: 13 } as const;
+    const gate = { ability: 'int', dc: 13 } as const;
     const view = (int: number) => gateView({ ...PLAIN_SCORES, int } as Scores, gate);
     expect([view(15), view(13), view(12), view(11), view(10), view(8)]).toEqual(['open', 'open', 'hint', 'hint', 'hidden', 'hidden']);
   });
@@ -100,7 +100,7 @@ describe('a deal that takes items (a brew)', () => {
 
 describe('a dialog with gates', () => {
   it('needs an answer without a gate in each node, and a way to end it without a gate', () => {
-    const gate = { ability: 'int', min: 13 } as const;
+    const gate = { ability: 'int', dc: 13 } as const;
     const good: Dialog = { name: 'A', start: 'a', nodes: { a: { say: 'Hm?', answers: [{ text: 'Clever.', next: 'b', gate }, { text: 'Bye.' }] }, b: { say: 'Yes.', answers: [{ text: 'Bye.' }] } } };
     expect(checkDialog(good)).toEqual([]);
     const allGated: Dialog = { name: 'A', start: 'a', nodes: { a: { say: 'Hm?', answers: [{ text: 'Clever.', gate }] } } };
@@ -123,7 +123,7 @@ function cauldronSource(): WorldSource {
           pot: {
             say: 'It bubbles.',
             answers: [
-              { text: 'Brew.', next: 'done', gate: { ability: 'int', min: 13 } as const, deal: { id: 'draught', goods: 'draught', price: 0, items: [{ kind: 'herbs', count: 2 }], poor: 'short' } as const },
+              { text: 'Brew.', next: 'done', gate: { ability: 'int', dc: 13 } as const, deal: { id: 'draught', goods: 'draught', price: 0, items: [{ kind: 'herbs', count: 2 }], poor: 'short' } as const },
               { text: 'Leave.' },
             ],
           },

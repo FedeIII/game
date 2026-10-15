@@ -3,8 +3,9 @@
 ## Overview
 
 Strength (STR) is the force of the body. For every class it gives the push and the stagger of a
-blow, the slots of the pack and the load that it can carry ([Load](../items/load.md)). Its gate of 13 lets a character wade through shallow water and
-force a barred door. For the barbarian, the fighter and the paladin, STR also gives the attack
+blow, the slots of the pack and the load that it can carry ([Load](../items/load.md)). Its checks let
+a character wade through shallow water (STR 12) and force a barred door (STR 10 to 13, by what the
+chest of the house holds). Each check has its own DC ([Checks and DCs](checks.md)). For the barbarian, the fighter and the paladin, STR also gives the attack
 bonus and the damage of a blow ([Ability Scores](ability-scores.md), REQ-AS-002).
 
 ## Terminology
@@ -15,7 +16,7 @@ bonus and the damage of a blow ([Ability Scores](ability-scores.md), REQ-AS-002)
 - **Shallow water**: a ground (`Ground.Shallows`): a band of water at the shore of each lake,
   between the deep water and the sand. A small pond is all shallow water.
 - **Wading**: a walk in shallow water.
-- **Wader**: a character with STR 13 or more in shallow water.
+- **Wader**: a character with STR 12 or more (`WADE_GATE`) in shallow water.
 - **Barred door**: the door of a house with boards nailed across it (`Building.barred`).
 - **Forced door**: a barred door whose boards a strong character broke. It is an ordinary door
   until the boards come back.
@@ -80,8 +81,8 @@ things.
 that a lake becomes a shortcut and a refuge from mobs.
 
 **Acceptance Criteria:**
-- **AC-STR-004.1:** A character with STR 13 or more can walk into shallow water. For a character
-  with STR 12 or less, shallow water is solid, as deep water is.
+- **AC-STR-004.1:** A character with STR 12 or more can walk into shallow water (`WADE_GATE`, DC 12).
+  For a character with STR 11 or less, shallow water is solid, as deep water is.
 - **AC-STR-004.2:** In shallow water a wader walks at half speed: 40 px/s, not 80 px/s.
 - **AC-STR-004.3:** Deep water is solid for every character.
 - **AC-STR-004.4:** Shallow water is solid for every mob, so no mob follows a wader into the
@@ -97,8 +98,8 @@ that a lake becomes a shortcut and a refuge from mobs.
   while the wader walks. Other players see the same look on a wader.
 - **AC-STR-004.9:** Every lake of the Wilds has a band of shallow water at its shore, and a small
   pond is all shallow water. No house stands on shallow water.
-- **AC-STR-004.10:** When a wader with STR 13 steps into shallow water, it says "[STR 13] I wade
-  into the shallow water." It says it again only after 2 minutes (`WADE_LINE_MS` in `game.ts`), and
+- **AC-STR-004.10:** When a wader with STR 12 or more steps into shallow water, it says "[STR 12] I
+  wade into the shallow water." It says it again only after 2 minutes (`WADE_LINE_MS` in `game.ts`), and
   not while another line of the player shows. A character that wades only by a worn item says
   nothing. See [Ability Scores](ability-scores.md), REQ-AS-008.
 
@@ -111,19 +112,21 @@ go into the house and take what is in its chest.
 
 **Acceptance Criteria:**
 - **AC-STR-005.1:** A barred door shows boards nailed across it.
-- **AC-STR-005.2:** At a barred door, the action label is "Force the door" for a character with
-  STR 13 or more. For a character with less, it is "Try the door".
-- **AC-STR-005.3:** With STR 12 or less, a press leaves the door closed. With STR 11 or 12 the
-  player says "Boards are nailed across it. I am not strong enough to break them. [STR 13]" (a clue
-  of the gate, [Ability Scores](ability-scores.md), REQ-AS-007). With STR 10 or less it says only
-  "Boards are nailed across it."
-- **AC-STR-005.4:** With STR 13 or more, a press breaks the boards and opens the door at once. The
-  player says "The boards break.", and the view shakes for 0.22 s.
+- **AC-STR-005.2:** Each barred door has its own DC ([Checks and DCs](checks.md)). At a barred door,
+  the action label is "Force the door" for a character with a STR of the DC or more. For a character
+  with less, it is "Try the door".
+- **AC-STR-005.3:** With a STR under the DC, a press leaves the door closed. With a STR 1 or 2 under
+  the DC, the player says, for a door of DC 13, "[STR 13] Boards are nailed across it. I am not
+  strong enough to break them." (a clue of the gate, [Ability Scores](ability-scores.md), REQ-AS-007
+  and REQ-AS-008). With less, it says only "Boards are nailed across it."
+- **AC-STR-005.4:** With a STR of the DC or more, a press breaks the boards and opens the door at
+  once. The player says "[STR 13] The boards break." (with the DC of that door), and the view shakes
+  for 0.22 s.
 - **AC-STR-005.5:** After that, the door is an ordinary door for every player. A character with
-  STR 12 or less can open it, close it and go in.
+  a STR under the DC can open it, close it and go in.
 - **AC-STR-005.6:** In a shared world, every player sees the boards break and the door open.
 - **AC-STR-005.7:** In a shared world, the server checks the gate with the scores of the stored
-  character. A page cannot force a door for a character with STR 12 or less.
+  character. A page cannot force a door for a character with a STR under its DC.
 
 ---
 
@@ -150,9 +153,11 @@ STR opens places that weaker characters cannot open.
 - **AC-STR-007.1:** About one house with a chest in four is barred. A house without a chest is
   never barred.
 - **AC-STR-007.2:** The home and the house east of the home are never barred.
-- **AC-STR-007.3:** The chest of a barred house gives one thing, and a second thing in one of two.
-  It also gives 1 to 4 coins in two chests of three (coins are scarce: [Pack and
-  Loot](../items/pack-and-loot.md), REQ-PK-016).
+- **AC-STR-007.3:** The DC of the boards follows what the chest of the house holds (Fede,
+  2026-10-15): DC 10 to 13 at the start of the game, from the poorest chest to the richest. The
+  grades are the same as for a locked chest ([Dexterity](dexterity.md), REQ-DEX-007; [Pack and
+  Loot](../items/pack-and-loot.md), REQ-PK-016), but the boards keep a rich chest more often: DC 10
+  in one barred house of 9, 11 in two, 12 in three, and 13 in three.
 - **AC-STR-007.4:** The chest of a barred house has no lock.
 - **AC-STR-007.5:** The barred houses come from the seed of the world, so every visitor of a world
   sees the same houses barred.
@@ -160,8 +165,8 @@ STR opens places that weaker characters cannot open.
 ## Feature Behavior & Rules
 
 - **Constants** (`packages/engine/src/traits.ts`): `PUSH_PER_MOD` (0.15), `STAGGER_PER_MOD` (0.2),
-  `PACK_SLOTS` (6), `SLOTS_PER_MOD` (2), and the gates `WADE_GATE` and `FORCE_GATE` (STR 13, from
-  `GATE_SCORE`), and `CARRY_PER_STR` (15). The traits are `PlayerTraits.push`, `stagger`, `slots`,
+  `PACK_SLOTS` (6), `SLOTS_PER_MOD` (2), the gate `WADE_GATE` (STR 12), and `CARRY_PER_STR` (15).
+  A barred door has the gate of its world. The traits are `PlayerTraits.push`, `stagger`, `slots`,
   `carry` and `wade`.
 - **Push and reel** (`packages/engine/src/mobs.ts`): a `Blow` is `{ toHit, damage, push, stagger }`
   (and `opening`, `sneak`, `reach`), and `PlayerTraits` passes as one. After a hit (`rollBlow()`),
@@ -189,8 +194,8 @@ STR opens places that weaker characters cannot open.
 - **The look of a wader** (`packages/engine-client/src/render/player-view.ts`): `WADE_DEPTH` (5),
   the frames `fx/ripple/<i>`, `RIPPLE_MS` (220) while the wader stands and `RIPPLE_WALK_MS` (120)
   while it walks. `render/others.ts` asks `inShallows()` for each other player.
-- **Barred doors:** `Building.barred` is a `Gate` (`packages/engine/src/buildings.ts`), so a world
-  can give another gate. `World.doorBar()` gives the gate, or null for a forced door.
+- **Barred doors:** `Building.barred` is a `Gate` (`{ ability, dc }`,
+  `packages/engine/src/buildings.ts`), so each barred door has its own DC. `World.doorBar()` gives the gate, or null for a forced door.
   `World.setDoorForced()` and `World.forcedDoorList()` keep the forced doors. `useDoor(..., traits)`
   (`interact.ts`) gives `'barred'` or `'forced'`; `'forced'` also opens the door. No NPC of the
   Wilds walks near a barred door: the NPCs live in Ironhold, which has no barred door.
@@ -209,5 +214,7 @@ STR opens places that weaker characters cannot open.
   again. A reload of the page does the same for a world that the page runs.
 - **The Wilds** (`worlds/wilds/src/houses.ts`): `BARRED_CHANCE` (0.25), only for a house with a
   chest, never for the cell east of the home (`HOME_CELL` + (1, 0)). The home has its own plan (`home.ts`) without
-  boards. The loot is `BARRED_CHEST_LOOT` (`worlds/wilds/src/source.ts`).
+  boards. The grade of the chest (`chestGrade('boards', ...)`, from the seed) gives the DC of the
+  boards (`guardGate()`) and the loot (`guardedLoot()`): `CHEST_GRADES` in
+  `worlds/wilds/src/chests.ts`.
 - **The plan:** S1 to S6 in `docs/drafts/abilities.md`. S5 has no fallen tree (dropped).

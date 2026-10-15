@@ -1,5 +1,5 @@
 import { Ground, type Dialog, type Lore, type NpcDef, type QuestEffect } from '@game/engine';
-import { LORE_GATE, SURVIVOR_HALE, SURVIVOR_TANNER } from './dialogs.ts';
+import { SURVIVOR_HALE, SURVIVOR_TANNER } from './dialogs.ts';
 import { RUIN_HALE, RUIN_MARROW, RUIN_TANNER } from './quests.ts';
 import { Town, type Tile } from './towns.ts';
 
@@ -11,7 +11,7 @@ import { Town, type Tile } from './towns.ts';
  * the Hale homestead, north of Ironhold; its tracks lead east to the Marrow homestead, and those to
  * the Tanner homestead, south-west. All three are in the wildlands north of Ironhold (Fede,
  * 2026-10-13: where Thrain's letter says that homesteads burn). A survivor lives in the ashes of two of them: it saw only shadows
- * (Wisdom 13 calms it, and it tells more).
+ * (Wisdom 11 calms it, and it tells more).
  *
  * Places of the town builder (towns.ts), but not towns: mobs come here as in the woods. No tree or
  * rock grows round them (source.ts).
@@ -34,7 +34,7 @@ const MAP = [
 
 /** The phoenix on its plank: what it says, and what reading it does. */
 const BRAND_PAGES = ['A plank, charred black. Burned into it, deeper than the rest: a phoenix that rises from ashes.'];
-const BRAND_LORE: readonly Lore[] = [{ gate: LORE_GATE, pages: ['The burn is too clean for a torch, and the soot is cold. Magic made this mark, old magic: it still smells of thunder.'] }];
+const BRAND_LORE: readonly Lore[] = [{ gate: { ability: 'int', dc: 14 }, pages: ['The burn is too clean for a torch, and the soot is cold. Magic made this mark, old magic: it still smells of thunder.'] }];
 
 /** A burned homestead, with its north-west tile at (x0, y0), its phoenix, and a line for each of its other things. */
 function ruin(id: string, name: string, x0: number, y0: number, effect: QuestEffect, lines: { readonly shelf: string; readonly chest: string; readonly crate: string }): Town {

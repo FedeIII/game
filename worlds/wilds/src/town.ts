@@ -1,5 +1,5 @@
 import { Ground, type Building, type Fixture, type NpcDef, type SceneDef } from '@game/engine';
-import { APOTHECARY, CAULDRON, INNKEEPER, INSIGHT_GATE, KEEN_GATE, LORE_GATE, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
+import { APOTHECARY, CAULDRON, INNKEEPER, PEDDLER, PRIEST, REEVE, SMITH, SOLDIER, WATCHMAN } from './dialogs.ts';
 import { CARAVAN_HEARD, RAID_HEARD, ROAD_ARRIVED } from './quests.ts';
 import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
@@ -153,7 +153,7 @@ const BUILDINGS: readonly Plan[] = [
       m: {
         kind: 'maptable',
         pages: ['A map of the valley. The woods round the town are inked black.'],
-        lore: [{ gate: LORE_GATE, pages: ['Small marks in the black: an X by each house in the woods that its family boarded up.'] }],
+        lore: [{ gate: { ability: 'int', dc: 12 }, pages: ['Small marks in the black: an X by each house in the woods that its family boarded up.'] }],
       },
       d: { kind: 'desk', pages: ['Letters to the families who left. None of them is sent.'] },
       s: { kind: 'stairs' },
@@ -200,7 +200,7 @@ const BUILDINGS: readonly Plan[] = [
           b: {
             kind: 'bookshelf',
             pages: ['Ledgers of taxes, of births and of deaths. More deaths, lately.'],
-            lore: [{ gate: LORE_GATE, pages: ['The numbers do not add up. The granary took in grain all summer, and no cart took any out.'] }],
+            lore: [{ gate: { ability: 'int', dc: 13 }, pages: ['The numbers do not add up. The granary took in grain all summer, and no cart took any out.'] }],
           },
           k: { kind: 'coinchest', pages: ["The town's strongbox. Locked, and nearly empty."] },
           c: { kind: 'candelabra' },
@@ -230,7 +230,7 @@ const BUILDINGS: readonly Plan[] = [
       l: {
         kind: 'lectern',
         pages: ['An old book of prayers, open at the prayer for travellers.'],
-        lore: [{ gate: LORE_GATE, pages: ['In the margin, in small letters: "Who sleeps once under this roof wakes under it." The chapel keeps the lost.'] }],
+        lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['In the margin, in small letters: "Who sleeps once under this roof wakes under it." The chapel keeps the lost.'] }],
       },
       r: { kind: 'rug' },
     },
@@ -264,7 +264,7 @@ const BUILDINGS: readonly Plan[] = [
       a: {
         kind: 'apothecary',
         pages: ['Jars of roots, of powders, and of dried things with legs.'],
-        lore: [{ gate: LORE_GATE, pages: ['Labels in an old hand: "Two bundles of herbs, boiled, close a wound." "With the horn of an imp, they draw out its poison."'] }],
+        lore: [{ gate: { ability: 'int', dc: 12 }, pages: ['Labels in an old hand: "Two bundles of herbs, boiled, close a wound." "With the horn of an imp, they draw out its poison."'] }],
       },
       u: { kind: 'cauldron', dialog: CAULDRON },
       w: { kind: 'crystalball', pages: ['Cloudy glass. You see only your own face.'] },
@@ -385,7 +385,7 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
     ty: 0,
     content: {
       pages: ['NOTICE. The gate shuts at dusk. Keep to the lamps. By order of the Reeve.', 'Under it, in another hand: LOST, one grey goat. Answers to nothing.'],
-      lore: [{ gate: LORE_GATE, pages: ['A third notice, half torn off: the names of the families who boarded up their houses in the woods. "Goods left inside at the owner\'s risk."'] }],
+      lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['A third notice, half torn off: the names of the families who boarded up their houses in the woods. "Goods left inside at the owner\'s risk."'] }],
     },
   },
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },
@@ -527,7 +527,7 @@ export const ARGUMENT: SceneDef = {
     { npc: 'soldier', text: 'And leave Ironhold with no defence? One messenger alone dies in those hills.' },
     { npc: 'farmer', text: 'Then send soldiers with the messenger!' },
     { npc: 'soldier', text: 'My soldiers stay here. That is my last word.' },
-    { npc: 'soldier', text: 'Let the hobgoblins have Silverspring. It saves the Sovereignty the work.', gate: INSIGHT_GATE },
+    { npc: 'soldier', text: 'Let the hobgoblins have Silverspring. It saves the Sovereignty the work.', gate: { ability: 'wis', dc: 13 } },
     { npc: 'reeve', text: 'Enough! ...You, by the door. Come here. I need a word with you.' },
   ],
   effect: RAID_HEARD,
@@ -547,10 +547,10 @@ export const PLOT: SceneDef = {
   area: { x0: INN_HOUSE.x0, y0: INN_HOUSE.y0, x1: INN_HOUSE.x1, y1: INN_HOUSE.y1 + 2 },
   when: [{ quest: 'raid', at: ['asked', 'scouts', 'band', 'escort', 'home', 'lost', 'raid', 'defended', 'title'] }, { quest: 'caravan', not: true }],
   lines: [
-    { npc: 'drinker', text: '...and you think that they go without an escort?', gate: KEEN_GATE },
-    { npc: 'inn-soldier', text: 'Two militia, badly trained by an old woman of the Enclave. Nothing that troubles us.', gate: KEEN_GATE },
-    { npc: 'drinker', text: 'How many men do we need to... finish the job?', gate: INSIGHT_GATE },
-    { npc: 'inn-soldier', text: 'That is the beauty of it. With the right word, we send the hobgoblins straight at the caravan. They do the dirty work.', gate: INSIGHT_GATE },
+    { npc: 'drinker', text: '...and you think that they go without an escort?', gate: { ability: 'wis', dc: 15 } },
+    { npc: 'inn-soldier', text: 'Two militia, badly trained by an old woman of the Enclave. Nothing that troubles us.', gate: { ability: 'wis', dc: 15 } },
+    { npc: 'drinker', text: 'How many men do we need to... finish the job?', gate: { ability: 'wis', dc: 13 } },
+    { npc: 'inn-soldier', text: 'That is the beauty of it. With the right word, we send the hobgoblins straight at the caravan. They do the dirty work.', gate: { ability: 'wis', dc: 13 } },
     { npc: 'drinker', text: 'And the Sovereignty knows of this?' },
     { npc: 'inn-soldier', text: 'My friend, it was the idea of the Sovereignty. They want no part of the cargo, only proof that the caravan never came.' },
     { npc: 'inn-soldier', text: 'It leaves Silverspring by the north road. Half a day out, the hobgoblins wait for it.' },

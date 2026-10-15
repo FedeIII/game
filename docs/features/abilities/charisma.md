@@ -10,14 +10,15 @@ Ironhold greet it.
 
 ## Terminology
 
-- **Persuasion**: an answer in a conversation behind a gate of CHA 13.
+- **Persuasion**: an answer in a conversation behind a gate of CHA, with its own DC
+  ([Checks and DCs](checks.md)).
 - **Price**: the coins that a player pays for a deal. **Sale**: the coins that a player gets for an
   item.
 - **Presence**: how much less the attacks of a pack overlap on the character.
 - **Daunt**: how much longer a mob runs off after it hits the character.
 - **Inspire**: the extra guard that the character gives to the other players near it when a mob
   hits them.
-- **Reputation**: the people of Ironhold greet the character by its name (CHA 13).
+- **Reputation**: the people of Ironhold greet the character by its name (CHA 12).
 - **Clue**: the dim display of a thing behind a gate for a character that is 1 or 2 short of it
   ([Ability Scores](ability-scores.md), REQ-AS-007).
 
@@ -43,17 +44,20 @@ so that my main ability counts in a fight.
 words.
 
 **Acceptance Criteria:**
-- **AC-CHA-002.1:** Brann, Marta, Isolde and Elama each have one answer behind CHA 13, with the
-  gate rule: open with CHA 13, dim with CHA 11 or 12, not there with less.
+- **AC-CHA-002.1:** Brann, Marta, Isolde and Elama each have one answer behind a check of CHA, with
+  the gate rule: open with a CHA of its DC or more, dim with a CHA 1 or 2 under it, not there with
+  less. Each answer has its own DC, from what it asks and what it gives (Fede, 2026-10-15; [Checks
+  and DCs](checks.md)): a drink for a tip is DC 10, a room or a secret DC 13, a lasting lower price
+  DC 14.
 - **AC-CHA-002.2:** Marta, the innkeeper: "[CHA 13] Surely there is a corner for a friendly face?"
   gives the character a room. The Crooked Lantern becomes its refuge: it wakes there after a
   defeat if the inn is nearer than the home ([Constitution](constitution.md), REQ-CON-008).
 - **AC-CHA-002.3:** With the room, the bed by the east wall of the inn rests the character ("Rest":
   all hit points and stamina back). Without it, the bed says "A narrow bed by the east wall. It is
   not mine."
-- **AC-CHA-002.4:** Isolde, the apothecary: "[CHA 13] Then I need a friend who knows the labels. A
+- **AC-CHA-002.4:** Isolde, the apothecary: "[CHA 14] Then I need a friend who knows the labels. A
   friend's price, perhaps?" opens her shop at her friend's price (REQ-CHA-004).
-- **AC-CHA-002.5:** Brann, the watchman: "[CHA 13] You look like a man who needs a drink. The next
+- **AC-CHA-002.5:** Brann, the watchman: "[CHA 10] You look like a man who needs a drink. The next
   one is on me." He tells that the brutes are slow. Elama Rothenel, the reeve: "[CHA 13] You can
   tell me. I keep secrets." She tells of the last reeve and the granary.
 - **AC-CHA-002.6:** In a shared world the server gives the room only to a character with CHA 13,
@@ -89,7 +93,7 @@ cauldron.
   REQ-PK-017): a healing draught for 6 coins, an antidote for 8, a strong draught for 15, before
   Charisma.
 - **AC-CHA-004.2:** Her friend's price (REQ-CHA-002) is a shop of its own: 4, 6 and 11 coins, before
-  Charisma. The server sells at that price only to a character with CHA 13: the gate of the answer
+  Charisma. The server sells at that price only to a character with CHA 14: the gate of the answer
   that opens the shop counts for each draught.
 - **AC-CHA-004.3:** With the coins and room in the pack, the draught goes into the pack: "Drink it
   before you need it, not after." Else the panel says why, and nothing changes.
@@ -146,7 +150,7 @@ that we fight better together.
 mine.
 
 **Acceptance Criteria:**
-- **AC-CHA-008.1:** With CHA 13 or more, each person of Ironhold greets the character once, by its
+- **AC-CHA-008.1:** With CHA 12 or more (`REPUTATION_GATE`), each person of Ironhold greets the character once, by its
   name, when it comes within 2 tiles in the same place (both outside, or in the same building):
   for example "Evening, Lulu. Keep to the lamps." over Brann.
 - **AC-CHA-008.2:** A guest (no name) gets no greeting. Nobody greets during the arrival or in a
@@ -163,8 +167,8 @@ can choose my scores.
 - **AC-CHA-009.1:** Step 2 of the builder and the character panel list in the card "Charisma":
   "Prices" ("pay 90%, get 110%"), "Attacks of a pack" ("overlap 5% less", or "normal"), "A mob
   after its hit" ("runs off 10% longer"), "Others hit near you" ("+0.1 s of guard", or "nothing"),
-  "Persuasion" ("you win people over", or "from CHA 13") and "Reputation" ("people greet you by
-  name", or "from CHA 13").
+  "Persuasion" ("up to CHA 12": the highest DC of persuasion that the score passes, with the tone of
+  the modifier) and "Reputation" ("people greet you by name", or "from CHA 12").
 
 ## Feature Behavior & Rules
 
@@ -190,6 +194,7 @@ can choose my scores.
 - **Reputation:** `NpcDef.greeting` (`{name}` for the character's name), `greet()` in
   `packages/engine-client/src/game.ts` (`GREET_RANGE` 2 tiles, `REPUTATION_GATE` in
   `ui/gates.ts`), shown with the bubbles of NPC lines (`render/barks.ts`).
-- **Persuasion:** `PERSUASION_GATE` (CHA 13) in `worlds/wilds/src/dialogs.ts`.
+- **Persuasion:** a gate of CHA with its own DC (`{ ability: 'cha', dc }`) on each answer in
+  `worlds/wilds/src/dialogs.ts`; `npm run checks` lists them all.
 - **The debug panel** (`?debug`): the line `cha` gives the shares, the presence, the daunt, the
   inspire (and the `inspired` ticks now), and how many people greeted the player.

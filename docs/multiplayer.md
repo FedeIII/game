@@ -212,7 +212,7 @@ hall of Ironhold): `docs/features/game/storeys.md`.
   `sell-<kind>`, `sell-ring`, `buy-mithril`, `sell-mithril`).
 - `Room.deal()` finds the deal with `findDeal()`: the deal of an answer, or a ware of the shop of an
   answer (`wareDeal()`). It checks the gates and the conditions of that answer and of the ware
-  (`DealOffer`): the friend's price of Isolde needs CHA 13, the mithril of Ilsa the permit.
+  (`DealOffer`): the friend's price of Isolde needs CHA 14, the mithril of Ilsa the permit.
 
 ## Wet lentils (protocol 37, 2026-10-13)
 
@@ -446,7 +446,7 @@ server refuses it, and the visitor reloads the page.
 - A patch of herbs and the buried cache are sources of loot, as chests: the page sends `u` on
   their tile, and the Room's `Spoils` gives the loot (`l`, source 0). A patch fills again after 20
   minutes (`LootTable.refillMs`).
-- `drink` with the code of herbs chews a bundle: the Room checks Medicine (WIS 13,
+- `drink` with the code of herbs chews a bundle: the Room checks Medicine (WIS 10,
   `MEDICINE_GATE`).
 - The server keeps no new state of a character.
 
@@ -504,7 +504,7 @@ scores in the game"). The server makes each player's traits (`sheetTraits()`) fr
 character, as it takes the look and the name: a client never sends them. The page makes the same
 traits from the same character, so its prediction stays exact:
 
-- `stepPlayer(..., traits)`: a player with Strength 13 walks in shallow water, at half speed, and
+- `stepPlayer(..., traits)`: a player with Strength 12 (`WADE_GATE`) walks in shallow water, at half speed, and
   does not attack there. The prediction and the Room run the same rule.
 - A blow (`Horde.strike(..., blow)`) takes `traits.damage` from the hit points of the mob (the
   attack ability of the class) and pushes and staggers by Strength. Mob health is in points since

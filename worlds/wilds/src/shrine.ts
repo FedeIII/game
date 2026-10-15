@@ -1,5 +1,4 @@
-import type { Fixture } from '@game/engine';
-import { LORE_GATE } from './dialogs.ts';
+import type { Fixture, Lore } from '@game/engine';
 import { TEAR_TAKEN } from './quests.ts';
 
 /**
@@ -26,7 +25,7 @@ const ALTAR: Fixture = {
   ty: ALTAR_TILE[1],
   content: {
     pages: ['An altar of the old kind, half sunk in the mud of the bank. Waves are carved round its sides. In its top, a hollow for a flat stone.'],
-    lore: [{ gate: LORE_GATE, pages: ['The carvings are older than the chapel of Ironhold, older than the Enclave. A name runs round the hollow: TIGRIS.'] }],
+    lore: [{ gate: { ability: 'int', dc: 14 }, pages: ['The carvings are older than the chapel of Ironhold, older than the Enclave. A name runs round the hollow: TIGRIS.'] }],
   },
   // For a character sent by Sela, with the wave stone: the stone fits the hollow, and the Tear is there.
   variant: {
@@ -52,8 +51,8 @@ const STONE_TILES: readonly (readonly [number, number])[] = [
 ];
 
 const STONE_PAGES = ['A standing stone, taller than a man, carved with waves.'];
-/** One stone says more to a character with INT 13: Tigris both makes and breaks (Kandrax). */
-const STONE_LORE = [{ gate: LORE_GATE, pages: ['Under the waves, worn smooth: "Tigris gives and Tigris takes. The river feeds the field, and the river drowns the town."'] }];
+/** One stone says more to a character with INT 14: Tigris both makes and breaks (Kandrax). */
+const STONE_LORE: readonly Lore[] = [{ gate: { ability: 'int', dc: 14 }, pages: ['Under the waves, worn smooth: "Tigris gives and Tigris takes. The river feeds the field, and the river drowns the town."'] }];
 
 /** The things of the shrine: the altar and the standing stones. */
 export const SHRINE_FIXTURES: readonly Fixture[] = [

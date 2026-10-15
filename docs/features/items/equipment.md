@@ -409,8 +409,10 @@ house can give me something that changes my character.
   damage.", "Without armour and a shield: AC +2.", "Your STR is 19 while you wear it, if it is
   lower.", "+2 CON while you wear it, at most 20.", "Quiet steps: when you sneak, the mobs see you
   only from nearby.".
-- **AC-EQ-020.9:** They are rare loot: a locked chest gives one in 16, the chest of a barred house
-  one in 8, the buried cache of Ironhold one in 6. A longsword +1, a cloak of protection and boots
+- **AC-EQ-020.9:** They are rare loot: only the richest guarded chests give them (Fede, 2026-10-15:
+  the DC of a guard follows what the chest holds; [Pack and Loot](pack-and-loot.md), AC-PK-003.5): a
+  chest behind a lock or boards of DC 12 gives one in 8, of DC 13 one in 4. The buried cache of
+  Ironhold gives one in 6. A longsword +1, a cloak of protection and boots
   of elvenkind come most often, an amulet of health least often. Nobody sells or buys them.
 
 ---
@@ -521,7 +523,8 @@ mob before it comes close.
   `canUse()` and `dressSkin()`), `unarmoured`, `sets`, `adds` (`MAX_RAISED` 20) and `quiet`
   (`QUIET_SIGHT` 0.35). `wornScores()` raises the scores before `traitsOf()` uses them; `isQuiet()`.
   `Room.dress()` and `followGear()` cut the hit points and the stamina to the new most. The loot:
-  `MAGIC_ITEMS` and `MAGIC_CHANCE` in `worlds/wilds/src/source.ts`. The icons: `magicSword()`,
+  `MAGIC_ITEMS`, `MAGIC_CHANCE` (the cache) and `CHEST_GRADES` (the guarded chests) in
+  `worlds/wilds/src/chests.ts`. The icons: `magicSword()`,
   `cloak()`, `stoneRing()`, `bracers()`, `gauntlet()`, `headband()`, `belt()`, `boots()`, the
   material `cloth`, and `torusY()`.
 - **Reach** (phase 4c): `WeaponDef.reach`, `REACH_BONUS` (8) and `AttackGear.reach` in `gear.ts`;

@@ -1,4 +1,4 @@
-import type { Dialog, Gate, ItemKind, Shop } from '@game/engine';
+import type { Dialog, ItemKind, Shop } from '@game/engine';
 import { ASHES_NEXT, ASHES_SYMBOL, CARAVAN_FINE, DREAM_GIVE, DREAM_LIE, DREAM_REFUSE, MIRA_STONE, MIRA_STONE_AFTER, SELA_FREE, CARAVAN_ROB, CART_HELP, CART_LEVER, CART_LIFT, CART_MEND, FARMER_LEVER, LENTILS_GIVE, LENTILS_PLEAD, LENTILS_SPOILED, LENTILS_TAKE, RAID_ASKED, RAID_TITLE, RAID_TITLE_PERMIT, ROAD_DONE, START_ASHES, TELL_REEVE } from './quests.ts';
 
 /**
@@ -12,17 +12,11 @@ export const MITHRIL_PRICE = 10;
 /**
  * The conversations of the people of Ironhold (town.ts) and of Silverspring (silverspring.ts): what
  * each one says, and what the player can answer (see the engine's dialog.ts). Every node has a way out; a test checks each
- * dialog with checkDialog().
+ * dialog with checkDialog(). An answer behind a check has its own DC, from what the answer asks and
+ * what it gives (docs/features/abilities/checks.md; `npm run checks` lists them all).
  */
 
 const BYE = { text: 'Goodbye.' } as const;
-
-/** The gate of lore: Intelligence 13 (pages on things, answers in conversations). */
-export const LORE_GATE: Gate = { ability: 'int', min: 13 };
-/** The gate of insight: Wisdom 13 (answers that see what a person hides). */
-export const INSIGHT_GATE: Gate = { ability: 'wis', min: 13 };
-/** A keen ear: Wisdom 15 (the first lines of the plot in the Crooked Lantern). */
-export const KEEN_GATE: Gate = { ability: 'wis', min: 15 };
 
 /**
  * A character who robbed the caravan of Silverspring (quests.ts, caravan; story phase 5) is wanted:
@@ -33,10 +27,6 @@ const WANTED = { quest: 'caravan', at: ['robbing', 'robbed'] } as const;
 /** A person who refuses a wanted character starts at its node `wanted` (Dialog.refuse), with its line. */
 const REFUSE = { when: WANTED, node: 'wanted' } as const;
 const wanted = (say: string) => ({ say, answers: [{ text: 'I will go.' }] }) as const;
-/** The gate of athletics: Strength 13 (answers that lift or push what is heavy). */
-export const ATHLETICS_GATE: Gate = { ability: 'str', min: 13 };
-/** The gate of persuasion: Charisma 13 (answers that win a person over). */
-export const PERSUASION_GATE: Gate = { ability: 'cha', min: 13 };
 
 /** Brann, the watchman at the south entry of Ironhold (town.ts, TOWN_SOUTH), where the road from the hut comes in. */
 export const WATCHMAN: Dialog = {
@@ -76,7 +66,7 @@ export const WATCHMAN: Dialog = {
     },
     lamps: {
       say: 'The priest says it is the chapel candles. I say: do not ask. Just keep them lit.',
-      answers: [{ text: 'Can I come in?', next: 'enter' }, { text: 'You do not believe the priest.', next: 'believe', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'Can I come in?', next: 'enter' }, { text: 'You do not believe the priest.', next: 'believe', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     believe: {
       say: 'No. One winter the candles went out for a week, and the imps still stayed away. Something else keeps them out.',
@@ -86,7 +76,7 @@ export const WATCHMAN: Dialog = {
       say: 'Ironhold is open to anyone who is not a goblin. Welcome.',
       answers: [
         { text: 'Where should I go first?', next: 'advice' },
-        { text: 'You look like a man who needs a drink. The next one is on me.', next: 'treat', gate: PERSUASION_GATE },
+        { text: 'You look like a man who needs a drink. The next one is on me.', next: 'treat', gate: { ability: 'cha', dc: 10 } },
         { text: 'Thank you.' },
       ],
     },
@@ -144,7 +134,7 @@ export const INNKEEPER: Dialog = {
     },
     green: {
       say: 'Nobody knows. It warms you, and then it remembers you. I stopped asking.',
-      answers: [{ text: 'The ale, then.', next: 'ale', deal: ALE }, { text: 'You know what is in it.', next: 'knows', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'The ale, then.', next: 'ale', deal: ALE }, { text: 'You know what is in it.', next: 'knows', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     knows: {
       say: 'Ashroot, and a pinch from the green jar. Isolde told me once. I wish she had not.',
@@ -152,7 +142,7 @@ export const INNKEEPER: Dialog = {
     },
     room: {
       say: 'The beds are taken. Folk from the farms sleep here now. The farms are too close to the trees.',
-      answers: [{ text: 'Any news?', next: 'news' }, { text: 'Surely there is a corner for a friendly face?', next: 'corner', deal: ROOM, gate: PERSUASION_GATE }, BYE],
+      answers: [{ text: 'Any news?', next: 'news' }, { text: 'Surely there is a corner for a friendly face?', next: 'corner', deal: ROOM, gate: { ability: 'cha', dc: 13 } }, BYE],
     },
     corner: {
       say: 'Ha! For that smile... The bed by the east wall is yours when you need it. If the woods knock you down, wake up here, not out there.',
@@ -224,7 +214,7 @@ export const APOTHECARY: Dialog = {
       say: 'The labels say. Unless they fell off. Some of them fell off.',
       answers: [
         { text: 'What do you know of the imps?', next: 'imps' },
-        { text: "Then I need a friend who knows the labels. A friend's price, perhaps?", next: 'friend', gate: PERSUASION_GATE, shop: FRIEND_REMEDIES },
+        { text: "Then I need a friend who knows the labels. A friend's price, perhaps?", next: 'friend', gate: { ability: 'cha', dc: 14 }, shop: FRIEND_REMEDIES },
         BYE,
       ],
     },
@@ -240,8 +230,8 @@ export const APOTHECARY: Dialog = {
       say: 'Ashroot, for cuts. Salt, for a scratch from an imp. Wash it, and then wash it again.',
       answers: [
         { text: 'Why salt?', next: 'salt' },
-        { text: 'Could I brew a remedy myself?', next: 'brew', gate: LORE_GATE },
-        { text: 'You do not grow your ashroot here. Where do you find it?', next: 'ashroot', gate: INSIGHT_GATE },
+        { text: 'Could I brew a remedy myself?', next: 'brew', gate: { ability: 'int', dc: 10 } },
+        { text: 'You do not grow your ashroot here. Where do you find it?', next: 'ashroot', gate: { ability: 'wis', dc: 12 } },
         { text: 'Thank you.' },
       ],
     },
@@ -352,7 +342,7 @@ export const REEVE: Dialog = {
     },
     burned: {
       say: 'Steelforge sent you? Good. Three homesteads burned since the spring. Nobody saw who burned them.',
-      answers: [{ text: 'What else do you know?', next: 'searched' }, { text: 'You fear that it is more than bandits.', next: 'fear', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'What else do you know?', next: 'searched' }, { text: 'You fear that it is more than bandits.', next: 'fear', gate: { ability: 'wis', dc: 13 } }, BYE],
     },
     searched: {
       say: 'Every house was searched before the fire. The chests, the floors, even the hearths. Whoever it is, they look for something.',
@@ -385,7 +375,7 @@ export const REEVE: Dialog = {
     },
     shut: {
       say: 'The chandler, an old couple, a family I hardly knew. And the granary... the granary is another matter.',
-      answers: [{ text: 'What about the granary?', next: 'granary' }, { text: 'You miss the old couple.', next: 'couple', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'What about the granary?', next: 'granary' }, { text: 'You miss the old couple.', next: 'couple', gate: { ability: 'wis', dc: 13 } }, BYE],
     },
     couple: {
       say: 'I do. They never trusted my strongbox. They buried their savings across the lane from their door, a few steps to the west.',
@@ -397,7 +387,7 @@ export const REEVE: Dialog = {
     },
     granary: {
       say: 'It is barred from the inside. We do not know who barred it. We do not open it.',
-      answers: [{ text: 'Why not?', next: 'why' }, { text: 'Your ledgers say that grain went in all summer, and none came out.', next: 'grain', gate: LORE_GATE }, BYE],
+      answers: [{ text: 'Why not?', next: 'why' }, { text: 'Your ledgers say that grain went in all summer, and none came out.', next: 'grain', gate: { ability: 'int', dc: 13 } }, BYE],
     },
     grain: {
       say: '...You read my ledgers. Then you know why I do not open it. Something in there eats.',
@@ -405,7 +395,7 @@ export const REEVE: Dialog = {
     },
     why: {
       say: 'Because I am the reeve, and I say so. ...And because something in there scratches at night.',
-      answers: [{ text: 'You can tell me. I keep secrets.', next: 'secret', gate: PERSUASION_GATE }, BYE],
+      answers: [{ text: 'You can tell me. I keep secrets.', next: 'secret', gate: { ability: 'cha', dc: 13 } }, BYE],
     },
     secret: {
       say: '...The last reeve went into the granary with a lamp. The lamp came back out. He did not.',
@@ -413,7 +403,7 @@ export const REEVE: Dialog = {
     },
     map: {
       say: 'The valley. The woods are inked black, and every year I ink a little more of it.',
-      answers: [{ text: 'What happened to the town?', next: 'happened' }, { text: 'The marks in the black: are they the boarded houses?', next: 'marks', gate: LORE_GATE }, BYE],
+      answers: [{ text: 'What happened to the town?', next: 'happened' }, { text: 'The marks in the black: are they the boarded houses?', next: 'marks', gate: { ability: 'int', dc: 12 } }, BYE],
     },
     marks: {
       say: 'You read a map well. Yes. The families boarded their doors and left their strongboxes inside. Strong arms could open them. I did not say that.',
@@ -423,8 +413,8 @@ export const REEVE: Dialog = {
 };
 
 /** A recipe of the cauldron: what it takes from the pack, what it makes, and the Intelligence that it needs. */
-const brew = (id: 'draught' | 'antidote' | 'strong-draught', text: string, min: number, items: readonly { kind: 'herbs' | 'imp-horn' | 'brute-tusk'; count: number }[]) =>
-  ({ text, next: 'brewed', gate: { ability: 'int', min }, deal: { id, goods: id, price: 0, items, poor: 'short' } }) as const;
+const brew = (id: 'draught' | 'antidote' | 'strong-draught', text: string, dc: number, items: readonly { kind: 'herbs' | 'imp-horn' | 'brute-tusk'; count: number }[]) =>
+  ({ text, next: 'brewed', gate: { ability: 'int', dc }, deal: { id, goods: id, price: 0, items, poor: 'short' } }) as const;
 
 /**
  * The cauldron of Isolde, the apothecary: a conversation with the pot, whose answers are its
@@ -630,7 +620,7 @@ export const MERCHANT: Dialog = {
     help: {
       say: 'Somebody must lift the cart while I put the wheel on. Or bring me a lever: the farmer of Whitegrove has one, up the road.',
       answers: [
-        { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
+        { text: 'Stand back. I will lift it.', next: 'lifted', gate: { ability: 'str', dc: 15 }, effect: CART_LIFT },
         { text: 'I will find a lever.' },
         { text: 'Not now.' },
       ],
@@ -639,7 +629,7 @@ export const MERCHANT: Dialog = {
       say: 'Back again? The wheel is still in the mud.',
       answers: [
         { text: 'Here is a lever.', next: 'levered', effect: CART_MEND },
-        { text: 'Stand back. I will lift it.', next: 'lifted', gate: ATHLETICS_GATE, effect: CART_LIFT },
+        { text: 'Stand back. I will lift it.', next: 'lifted', gate: { ability: 'str', dc: 15 }, effect: CART_LIFT },
         { text: 'Where are you going?', next: 'where' },
         { text: 'Not yet.' },
       ],
@@ -659,8 +649,8 @@ export const MERCHANT: Dialog = {
     news: {
       say: 'Silverspring digs mithril, but it needs tools and blades. Ironhold has a forge, and it looks at that mithril with hungry eyes.',
       answers: [
-        { text: 'The Sovereignty and the Enclave both claim the wildlands.', next: 'claim', gate: LORE_GATE },
-        { text: 'A trader hears more than that. Tell me the rest.', next: 'rest', gate: PERSUASION_GATE },
+        { text: 'The Sovereignty and the Enclave both claim the wildlands.', next: 'claim', gate: { ability: 'int', dc: 10 } },
+        { text: 'A trader hears more than that. Tell me the rest.', next: 'rest', gate: { ability: 'cha', dc: 11 } },
         BYE,
       ],
     },
@@ -703,7 +693,7 @@ export const SOLDIER: Dialog = {
       say: 'I know that look. Stay out of this, traveller. The hills are no place for heroes.',
       answers: [
         { text: 'Silverspring needs help.', next: 'help' },
-        { text: 'You want the hobgoblins to reach Silverspring.', next: 'threat', gate: INSIGHT_GATE },
+        { text: 'You want the hobgoblins to reach Silverspring.', next: 'threat', gate: { ability: 'wis', dc: 14 } },
         BYE,
       ],
     },
@@ -790,7 +780,7 @@ export const KASMUT: Dialog = {
     },
     rich: {
       say: 'Rich? A pinch a day feeds a family. The rich live in Great Bwini, and they never pan anything.',
-      answers: [{ text: 'You do not like the rich.', next: 'dislike', gate: INSIGHT_GATE }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
+      answers: [{ text: 'You do not like the rich.', next: 'dislike', gate: { ability: 'wis', dc: 11 } }, { text: 'Who wants the mithril?', next: 'want' }, BYE],
     },
     dislike: {
       say: 'I served them for thirty years. I know what they are. Here, at least, the people who work also eat.',
@@ -806,7 +796,7 @@ export const KASMUT: Dialog = {
     },
     why: {
       say: 'The Enclave sent me. That is all.',
-      answers: [{ text: 'That is not all.', next: 'secret', gate: INSIGHT_GATE }, { text: 'The priests say that Simtu watches over the Silvervein.', next: 'gods' }, BYE],
+      answers: [{ text: 'That is not all.', next: 'secret', gate: { ability: 'wis', dc: 14 } }, { text: 'The priests say that Simtu watches over the Silvervein.', next: 'gods' }, BYE],
     },
     secret: {
       say: '...No, it is not. I left Great Bwini because I kept a secret, and powerful people wanted it. I keep it still. Ask me again, and we are done.',
@@ -957,7 +947,7 @@ export const JEWELLER: Dialog = {
 /**
  * The priest of the chapel of Ironhold. For a character who found the three burned homesteads
  * (quests.ts, ashes at `ruins`), the old books of the chapel know the phoenix; with Intelligence 13,
- * also a name in their margins.
+ * also a name in their margins, and with 14 what the carvings of the shrine mean.
  */
 export const PRIEST: Dialog = {
   name: 'The priest',
@@ -985,7 +975,7 @@ export const PRIEST: Dialog = {
     },
     sign: {
       say: 'A phoenix... The old books of this chapel speak of it. The sign of a god before the gods: one that burns, to be born again.',
-      answers: [{ text: 'Who follows such a god?', next: 'seekers', gate: LORE_GATE }, { text: 'Thank you, Father.' }],
+      answers: [{ text: 'Who follows such a god?', next: 'seekers', gate: { ability: 'int', dc: 13 } }, { text: 'Thank you, Father.' }],
     },
     seekers: {
       say: 'In a margin, a later hand wrote: "those who seek in the ashes". Heretics, the book says. It does not say what they seek.',
@@ -998,7 +988,7 @@ export const PRIEST: Dialog = {
     },
     river: {
       say: "Old things... Old Hale's father found his black stone in the ruins by the Silvervein. One family lives by that water now: the Wrens, at its pool. Their children bring me carved stones.",
-      answers: [{ text: 'What do the carvings mean?', next: 'waves', gate: LORE_GATE }, { text: 'Then the Wrens are next. I must go.' }],
+      answers: [{ text: 'What do the carvings mean?', next: 'waves', gate: { ability: 'int', dc: 14 } }, { text: 'Then the Wrens are next. I must go.' }],
     },
     waves: {
       say: 'Waves. The old books draw them so for Tigris, the goddess of the rivers, from before this chapel had a name. Go quickly, traveller.',
@@ -1067,18 +1057,18 @@ export const MIRA: Dialog = {
   },
 };
 
-/** The survivor of the Hale homestead: an old man who would not leave the ashes. Wisdom 13 calms him. */
+/** The survivor of the Hale homestead: an old man who would not leave the ashes. Wisdom 11 calms him. */
 export const SURVIVOR_HALE: Dialog = {
   name: 'Old Hale',
   start: 'away',
   nodes: {
     away: {
       say: 'Go away! ...Unless the reeve sent you. Did the reeve send you?',
-      answers: [{ text: 'The reeve sent me. What happened here?', next: 'night' }, { text: 'You are safe now. Breathe.', next: 'calm', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'The reeve sent me. What happened here?', next: 'night' }, { text: 'You are safe now. Breathe.', next: 'calm', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     night: {
       say: 'They came in the night. Shadows. I hid in the well. I saw nothing, I heard nothing. Go away.',
-      answers: [{ text: 'You are safe now. Breathe.', next: 'calm', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'You are safe now. Breathe.', next: 'calm', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     calm: {
       say: '...One of the shadows sang. Low, like a priest. They took no hens and no coins. They took the box from under the hearth. My father\'s box.',
@@ -1091,18 +1081,18 @@ export const SURVIVOR_HALE: Dialog = {
   },
 };
 
-/** The survivor of the Tanner homestead: a girl who waits for her mother. Wisdom 13 calms her. */
+/** The survivor of the Tanner homestead: a girl who waits for her mother. Wisdom 11 calms her. */
 export const SURVIVOR_TANNER: Dialog = {
   name: 'The Tanner girl',
   start: 'mother',
   nodes: {
     mother: {
       say: 'Are you my mother? ...No. She went to Ironhold for help. She will come back.',
-      answers: [{ text: 'Who burned your house?', next: 'bird' }, { text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'Who burned your house?', next: 'bird' }, { text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     bird: {
       say: 'People in long cloaks. They had a bird of fire on them. I hid under the hides.',
-      answers: [{ text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'You are brave. Will you tell me what you saw?', next: 'calm', gate: { ability: 'wis', dc: 11 } }, BYE],
     },
     calm: {
       say: 'They asked Mother for "the old book". We have no book. They looked under the hearthstone anyway, and then they burned everything.',
@@ -1153,7 +1143,7 @@ export const WAGON_DRIVER: Dialog = {
 /**
  * Sela, tied to the post of the camp of the Seekers (seekers.ts): a Seeker who would not burn a
  * family. Freed (SELA_FREE), she tells what the Seekers want and where they strike next; Wisdom 13
- * hears her doubt, and Intelligence 13 hears where the Seekers come from (a hook for chapter 2).
+ * hears her doubt, and Intelligence 12 hears where the Seekers come from (a hook for chapter 2).
  */
 export const SELA: Dialog = {
   name: 'Sela',
@@ -1173,7 +1163,7 @@ export const SELA: Dialog = {
     },
     want: {
       say: 'They say that the four gods are thieves on stolen thrones, and that each old relic is one of their chains. Break the chains, and the true god wakes. I believed it once.',
-      answers: [{ text: 'Do you still believe it?', next: 'doubt', gate: INSIGHT_GATE }, { text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
+      answers: [{ text: 'Do you still believe it?', next: 'doubt', gate: { ability: 'wis', dc: 13 } }, { text: 'Where do they strike next?', next: 'shrine' }, { text: 'Go, then.' }],
     },
     doubt: {
       say: '...Some nights. That is what frightens me. Verath does not lie, you see. Verath only tells half of the truth.',
@@ -1181,7 +1171,7 @@ export const SELA: Dialog = {
     },
     verath: {
       say: 'Verath Shadowweave. I never saw Verath awake. Verath comes in dreams, and you wake knowing what to do. Pray that you never hear a voice in the ash.',
-      answers: [{ text: 'Where do they strike next?', next: 'shrine' }, { text: 'Where do the Seekers come from?', next: 'north', gate: LORE_GATE }, { text: 'Go, then.' }],
+      answers: [{ text: 'Where do they strike next?', next: 'shrine' }, { text: 'Where do the Seekers come from?', next: 'north', gate: { ability: 'int', dc: 12 } }, { text: 'Go, then.' }],
     },
     north: {
       say: 'From a village in the far north, past the spring of the Silvervein. Our children grow up there. It is on no map.',
@@ -1203,8 +1193,8 @@ export const SELA: Dialog = {
 /**
  * Verath Shadowweave, in a dream of ash (dream.ts: the beds of a character at `relic`): a part of the
  * truth (the four gods took thrones that were not theirs), and the choice that ends chapter 1. Verath
- * never lies, and never tells everything (Sela, phase 8): INT 13 hears what Verath leaves out, WIS 13
- * sees that Verath believes it. CHA 13 can lie to Verath.
+ * never lies, and never tells everything (Sela, phase 8): INT 16 hears what Verath leaves out, WIS 15
+ * sees that Verath believes it. CHA 16 can lie to Verath: a lie to a god, the hardest check of chapter 1.
  */
 export const VERATH: Dialog = {
   name: 'Verath Shadowweave',
@@ -1230,8 +1220,8 @@ export const VERATH: Dialog = {
       say: 'The four gods are not what your priests say. They took thrones that were not theirs. Each relic is a chain that holds the old ones down. The Tear is one link.',
       answers: [
         { text: 'Prove it.', next: 'proof' },
-        { text: 'What do you leave out?', next: 'unsaid', gate: LORE_GATE },
-        { text: 'You believe this.', next: 'believes', gate: INSIGHT_GATE },
+        { text: 'What do you leave out?', next: 'unsaid', gate: { ability: 'int', dc: 16 } },
+        { text: 'You believe this.', next: 'believes', gate: { ability: 'wis', dc: 15 } },
         { text: 'What do you want from me?', next: 'ask' },
       ],
     },
@@ -1252,7 +1242,7 @@ export const VERATH: Dialog = {
       answers: [
         { text: 'Take it.', next: 'gave', effect: DREAM_GIVE },
         { text: 'No. It stays with me.', next: 'refused', effect: DREAM_REFUSE },
-        { text: 'I will bring it to you, in the north.', next: 'lied', effect: DREAM_LIE, gate: PERSUASION_GATE },
+        { text: 'I will bring it to you, in the north.', next: 'lied', effect: DREAM_LIE, gate: { ability: 'cha', dc: 16 } },
         { text: 'Say nothing, and wake.' },
       ],
     },
@@ -1365,11 +1355,11 @@ export const SERGEANT: Dialog = {
       say: 'Lentils! At last. Here is your pay. You came up the road with them, so you may hear the news of the road too.',
       answers: [{ text: 'What news?', next: 'trouble' }, BYE],
     },
-    // Wet lentils: a part of the pay only for a character that talks him into it (CHA 13), else nothing.
+    // Wet lentils: a part of the pay only for a character that talks him into it (CHA 14), else nothing.
     wet: {
       say: 'Are those the lentils from Whitegrove? The sack drips! Wet lentils rot within the week. I do not pay for rot.',
       answers: [
-        { text: 'A day in the sun, and most of them will keep. Pay me for those.', next: 'part', effect: LENTILS_PLEAD, gate: PERSUASION_GATE },
+        { text: 'A day in the sun, and most of them will keep. Pay me for those.', next: 'part', effect: LENTILS_PLEAD, gate: { ability: 'cha', dc: 14 } },
         { text: 'Then take them for nothing.', next: 'spoiled', effect: LENTILS_SPOILED },
         { text: 'I go to Ironhold.', next: 'ironhold' },
         BYE,
@@ -1389,7 +1379,7 @@ export const SERGEANT: Dialog = {
     },
     guard: {
       say: 'The road, and the edge of the Sovereignty. Past Ironhold the wildlands start, and nobody rules them.',
-      answers: [{ text: 'You expect trouble.', next: 'trouble', gate: INSIGHT_GATE }, BYE],
+      answers: [{ text: 'You expect trouble.', next: 'trouble', gate: { ability: 'wis', dc: 12 } }, BYE],
     },
     trouble: {
       say: 'The Sovereignty sends soldiers and settlers from the central cities to claim the wildlands. Lately they all go one way: towards Silverspring.',

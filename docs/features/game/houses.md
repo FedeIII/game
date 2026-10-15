@@ -115,13 +115,14 @@ read the life of its people in it.
 - **AC-HSE-005.4:** A **hermit's hut** has a bed with a chest, 2 to 4 bookshelves, a lectern with a
   book and a table. The book says "A book of prayers, open at the last page. Small, tight writing
   fills the margins." or "A hermit's day book. Roots, rain, and the names of birds.", and to a
-  character with INT 13 its lore, with the tag "[INT 13]".
+  character with INT 10 its lore, with the tag "[INT 10]".
 - **AC-HSE-005.5:** A **store room** has a chest in a corner, 3 to 6 crates and barrels, and no bed
   and no table.
 - **AC-HSE-005.6:** The kinds follow the land: farmhouses come most in the Iron Sovereignty, hunter's
   lodges and hermit's huts most in the wildlands.
-- **AC-HSE-005.7:** The chest of every kind gives the loot of the houses as before; the bars on the
-  door (STR 13) and the lock of the chest (DEX 13) come as before.
+- **AC-HSE-005.7:** The chest of every kind gives the loot of the houses as before. The bars on the
+  door (STR) and the lock of the chest (DEX) have a DC from 10 to 13, by what the chest holds
+  (`CHEST_GRADES` in `worlds/wilds/src/chests.ts`; [Checks and DCs](../abilities/checks.md)).
 
 ---
 

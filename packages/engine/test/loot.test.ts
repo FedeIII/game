@@ -94,7 +94,7 @@ describe('a barred door', () => {
     const last = REFILL_MS + REBAR_MS;
     expect(spoils.tick(last + REBAR_MS - 1000, [FAR])).toBe(false);
     expect(spoils.tick(last + REBAR_MS + 1000, [FAR])).toBe(true);
-    expect(world.doorBar(5, 6)).toEqual({ ability: 'str', min: 13 });
+    expect(world.doorBar(5, 6)).toEqual({ ability: 'str', dc: 13 });
     expect(world.isDoorOpen(5, 6)).toBe(false);
     expect(open(spoils, LOOT_CHEST, looted.pack, 6, last + REBAR_MS + 2000).taken.coins).toBe(3);
   });

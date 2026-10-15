@@ -10,12 +10,12 @@ describe('the drink belt', () => {
     expect(drinkTitle('herbs')).toBe('Chew a bundle of herbs (4)');
   });
 
-  it('follows the gate rule for herbs (Medicine, WIS 13)', () => {
+  it('follows the gate rule for herbs (Medicine, WIS 10)', () => {
     const wis = (n: number) => ({ ...PLAIN_SCORES, wis: n }) as Scores;
-    expect(drinkView('draught', wis(8))).toBe('open');
-    expect(drinkView('herbs', wis(13))).toBe('open');
-    expect(drinkView('herbs', wis(11))).toBe('hint');
-    expect(drinkView('herbs', wis(10))).toBe('hidden');
+    expect(drinkView('draught', wis(7))).toBe('open');
+    expect(drinkView('herbs', wis(10))).toBe('open');
+    expect(drinkView('herbs', wis(8))).toBe('hint');
+    expect(drinkView('herbs', wis(7))).toBe('hidden');
     expect(drinkView('cup', wis(18))).toBe('hidden');
   });
 

@@ -308,7 +308,7 @@ describe('the story through the server', () => {
     expect(far.quests.ashes?.step).toBe('reeve');
   });
 
-  it('ruins the lentils when the character wades with them: the sergeant pays a part only for CHA 13', () => {
+  it('ruins the lentils when the character wades with them: the sergeant pays a part only for CHA 14', () => {
     const world = new World(source);
     const room = new Room(world, { dice: AVERAGE_DICE });
     const farmer = { npc: npcIndex('whitegrove-farmer') };
@@ -329,12 +329,12 @@ describe('the story through the server', () => {
       Object.assign(p.state, shore);
       return p;
     };
-    // Without STR 13 the shallows stop the character: the sack stays dry.
+    // Without STR 12 (WADE_GATE) the shallows stop the character: the sack stays dry.
     const weak = carrier(10, 10);
     east(weak, 1);
     expect(weak.quests.lentils?.step).toBe('carry');
     expect(weak.pack.items.some((s) => s?.kind === 'lentils')).toBe(true);
-    // With STR 13 it wades in: the room sees it, the lentils are wet, and the server saves the book at once.
+    // With STR 12 or more it wades in: the room sees it, the lentils are wet, and the server saves the book at once.
     room.takeQuestSaves();
     const strong = carrier(13, 10);
     east(strong, 1);
@@ -346,7 +346,7 @@ describe('the story through the server', () => {
     // The farmer and the sergeant see the wet sack.
     expect(startNode(FARMER, strong.quests, strong.pack)).toBe('soaked');
     expect(startNode(SERGEANT, strong.quests, strong.pack)).toBe('wet');
-    // At the sergeant: no full pay, no plea without CHA 13; he takes the sack for nothing.
+    // At the sergeant: no full pay, no plea without CHA 14; he takes the sack for nothing.
     goTo(strong, 'bronzehold-sergeant');
     expect(room.quest(strong.id, sergeant, 'lentils-give', 0)).toBe(false);
     expect(room.quest(strong.id, sergeant, 'lentils-plead', 0)).toBe(false);
@@ -354,8 +354,8 @@ describe('the story through the server', () => {
     expect(strong.quests.lentils?.step).toBe('spoiled');
     expect(strong.pack.coins).toBe(0);
     expect(strong.pack.items.some((s) => s?.kind === 'wet-lentils')).toBe(false);
-    // With CHA 13 the sergeant pays a part.
-    const charming = carrier(13, 13);
+    // With CHA 14 the sergeant pays a part.
+    const charming = carrier(13, 14);
     east(charming, 1);
     expect(charming.quests.lentils?.step).toBe('wet');
     goTo(charming, 'bronzehold-sergeant');
@@ -403,8 +403,8 @@ describe('the story through the server', () => {
   it('lets a strong character lift the cart, and the merchant pays', () => {
     const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const merchant = { npc: npcIndex('merchant') };
-    const weak = join(room, besideNpc('merchant'), 12);
-    const strong = join(room, besideNpc('merchant'), 13);
+    const weak = join(room, besideNpc('merchant'), 14);
+    const strong = join(room, besideNpc('merchant'), 15);
     // The cart cannot be lifted before the character offers help.
     expect(room.quest(strong.id, merchant, 'cart-lift', 0)).toBe(false);
     for (const p of [weak, strong]) expect(room.quest(p.id, merchant, 'cart-help', 0)).toBe(true);
@@ -473,7 +473,7 @@ describe('the story through the server', () => {
     const scene = source.scenes().find((s) => s.id === 'argument')!;
     const low = scene.lines.filter((l) => l.gate);
     expect(low).toHaveLength(1);
-    expect(low[0]).toMatchObject({ npc: 'soldier', gate: { ability: 'wis', min: 13 } });
+    expect(low[0]).toMatchObject({ npc: 'soldier', gate: { ability: 'wis', dc: 13 } });
     expect(scene.when).toEqual([{ quest: 'ashes' }, { quest: 'raid', not: true }]);
   });
 
@@ -781,8 +781,8 @@ describe('the burned homesteads', () => {
       }
       const [bx, by] = brandTile(ruin);
       expect(world.fixtureAt(bx, by)?.kind).toBe('brand');
-      // The mark reads more with INT 13.
-      expect(world.fixtureAt(bx, by)?.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+      // The mark reads more with INT 14 (old magic).
+      expect(world.fixtureAt(bx, by)?.content?.lore?.[0]?.gate).toEqual({ ability: 'int', dc: 14 });
     }
   });
 
@@ -810,14 +810,14 @@ describe('the burned homesteads', () => {
     expect(p.quests.ashes?.step).toBe('symbol');
   });
 
-  it('have survivors who saw only shadows; Wisdom 13 calms them, and they tell more', () => {
+  it('have survivors who saw only shadows; Wisdom 11 calms them, and they tell more', () => {
     for (const id of ['hale-survivor', 'tanner-survivor']) {
       const npc = source.npcs()[npcIndex(id)]!;
       const dialog = npc.content.dialog!;
       expect(checkDialog(dialog)).toEqual([]);
       const calm = Object.values(dialog.nodes).flatMap((n) => n.answers).filter((a) => a.next === 'calm');
       expect(calm.length, id).toBeGreaterThan(0);
-      for (const a of calm) expect(a.gate).toEqual({ ability: 'wis', min: 13 });
+      for (const a of calm) expect(a.gate).toEqual({ ability: 'wis', dc: 11 });
       expect(RUINS.some((r) => r.has(npc.home[0], npc.home[1]))).toBe(true);
     }
   });
@@ -841,7 +841,7 @@ describe('the caravan of Silverspring', () => {
     expect(room.quest(p.id, { scene: 'plot' }, PLOT.effect.id, 0)).toBe(true);
     expect(p.quests.caravan?.step).toBe('heard');
     // The first lines need a keen ear (WIS 15, then 13); the last ones are for everybody.
-    expect(PLOT.lines.map((l) => l.gate?.min ?? 0)).toEqual([15, 15, 13, 13, 0, 0, 0]);
+    expect(PLOT.lines.map((l) => l.gate?.dc ?? 0)).toEqual([15, 15, 13, 13, 0, 0, 0]);
     // The map marks the meeting point.
     const [mx, my] = source.north.points[Math.floor(source.north.points.length * CARAVAN_MEET)]!;
     expect(CARAVAN.steps[0]!.at).toEqual([Math.floor(mx), Math.floor(my)]);
@@ -1084,7 +1084,7 @@ describe('the camp of the Seekers', () => {
     // Freed, she is gone from the post.
     expect(room.quest(p.id, { at: SEEKER_STAKE }, SELA_FREE.id, 0)).toBe(false);
     expect(SELA.nodes.doubt).toBeDefined();
-    expect(Object.values(SELA.nodes).flatMap((n) => n.answers).find((a) => a.next === 'north')?.gate).toEqual({ ability: 'int', min: 13 });
+    expect(Object.values(SELA.nodes).flatMap((n) => n.answers).find((a) => a.next === 'north')?.gate).toEqual({ ability: 'int', dc: 12 });
   });
 });
 
@@ -1182,7 +1182,7 @@ describe('the dream of Verath', () => {
     expect(p.traits.swim).toBe(false);
   });
 
-  it('lets a character refuse and keep the Tear, and lie only with CHA 13', () => {
+  it('lets a character refuse and keep the Tear, and lie only with CHA 16', () => {
     const room = new Room(new World(source), { dice: AVERAGE_DICE });
     const tear: Pack = { coins: 0, items: [{ kind: 'tear-of-tigris', count: 1 }] };
     const plain = sleeper(room, 10, PLAIN_GEAR, tear);
@@ -1192,7 +1192,7 @@ describe('the dream of Verath', () => {
     expect(plain.quests.ashes?.step).toBe('refused');
     expect(plain.pack.items).toEqual(tear.items);
     const room2 = new Room(new World(source), { dice: AVERAGE_DICE });
-    const liar = sleeper(room2, 13, PLAIN_GEAR, tear);
+    const liar = sleeper(room2, 16, PLAIN_GEAR, tear);
     room2.tick(0);
     expect(room2.quest(liar.id, { at: [bed.tx, bed.ty] }, DREAM_LIE.id, 0)).toBe(true);
     expect(liar.quests.ashes?.step).toBe('lied');

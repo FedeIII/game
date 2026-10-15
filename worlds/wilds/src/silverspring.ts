@@ -1,5 +1,5 @@
 import { Ground, type Fixture, type NpcDef } from '@game/engine';
-import { HOST, JEWELLER, KASMUT, LORE_GATE, MILITIA } from './dialogs.ts';
+import { HOST, JEWELLER, KASMUT, MILITIA } from './dialogs.ts';
 import { SILVERSPRING_SITE } from './road.ts';
 import { LAMP, Town, nameSign, type Plan } from './towns.ts';
 import { DREAM_BED } from './dream.ts';
@@ -73,7 +73,7 @@ const BUILDINGS: readonly Plan[] = [
       m: {
         kind: 'maptable',
         pages: ['A map of the hills between Silverspring and Ironhold. Pins mark where the panners saw tracks.'],
-        lore: [{ gate: LORE_GATE, pages: ['The pins make a line. Whatever made the tracks comes from the south-west, straight at Silverspring.'] }],
+        lore: [{ gate: { ability: 'int', dc: 11 }, pages: ['The pins make a line. Whatever made the tracks comes from the south-west, straight at Silverspring.'] }],
       },
       k: { kind: 'coinchest', pages: ["The pay chest of the militia. A note inside says: 'Owed: everything.'"] },
       b: { kind: 'barrel', pages: ['Water, and a ladle. Kasmut drills them hard.'] },
@@ -147,7 +147,7 @@ const BUILDINGS: readonly Plan[] = [
       w: {
         kind: 'crystalball',
         pages: ['A ball of clear glass. In its middle, a thread of silver light turns slowly.'],
-        lore: [{ gate: LORE_GATE, pages: ['Work of the Enclave: a spell of finding, closed in glass. It glows when mithril is near.'] }],
+        lore: [{ gate: { ability: 'int', dc: 14 }, pages: ['Work of the Enclave: a spell of finding, closed in glass. It glows when mithril is near.'] }],
       },
       a: { kind: 'anvil', pages: ['A small anvil, polished like a mirror.'] },
       s: { kind: 'scales', pages: ['Scales for dust. The weights are no bigger than seeds.'] },
@@ -204,7 +204,7 @@ const STREET_THINGS: Readonly<Record<string, Fixture>> = {
     ty: 0,
     content: {
       pages: ['NOTICE. Every able hand to the militia hall at dawn. By order of K. Parnika.', 'Under it: FOUND, one silver ring with a trout on it. Ask at the inn.'],
-      lore: [{ gate: LORE_GATE, pages: ['A newer notice: the Enclave raises the price that it pays for mithril dust. Under it, in chalk: "And the price of bread?"'] }],
+      lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['A newer notice: the Enclave raises the price that it pays for mithril dust. Under it, in chalk: "And the price of bread?"'] }],
     },
   },
   L: { kind: 'lamppost', tx: 0, ty: 0, light: LAMP },

@@ -10,8 +10,9 @@ character finds useful: herbs and trophies become draughts.
 
 ## Terminology
 
-- **Lore**: pages on a thing (a book, a board, a map) that only a character with INT 13 reads.
-- **Clever answer**: an answer in a conversation behind a gate of INT 13.
+- **Lore**: pages on a thing (a book, a board, a map) that only a character with an INT of its DC or
+  more reads. Each piece of lore has its own DC ([Checks and DCs](checks.md)).
+- **Clever answer**: an answer in a conversation behind a gate of INT, with its own DC.
 - **Opening**: the wind-up of a mob, the moment before its blow. A blow then does more damage.
 - **Reading a mob**: a health bar over a mob (INT 13), and a glint on its wind-up (INT 15).
 - **Seen chunk**: a part of the land of 32 × 32 tiles that the character has been near; the map
@@ -70,17 +71,22 @@ can choose my moment.
 secrets of the world.
 
 **Acceptance Criteria:**
-- **AC-INT-004.1:** A thing with lore shows its pages to everyone. With INT 13 or more, the player
-  then reads the lore too, one page more for each press.
-- **AC-INT-004.2:** With INT 11 or 12, the player reads "[INT 13] There is more here, but I cannot
-  make sense of it." instead of the lore.
-- **AC-INT-004.3:** With INT 10 or less, the player reads only the pages of the thing.
+- **AC-INT-004.1:** A thing with lore shows its pages to everyone. With an INT of the DC of its lore
+  or more, the player then reads the lore too, one page more for each press.
+- **AC-INT-004.2:** With an INT 1 or 2 under the DC, the player reads, for a lore of DC 13, "[INT 13]
+  There is more here, but I cannot make sense of it." instead of the lore.
+- **AC-INT-004.3:** With less, the player reads only the pages of the thing.
 - **AC-INT-004.4:** In the Wilds, the lore is on the books of the houses (one of five books, from
   the seed and the place of the shelf), the lectern of the chapel, the shelf of the apothecary,
   the ledgers and the map table of the reeve, and the notice board of the square.
 - **AC-INT-004.5:** Each piece of lore hints at a rule of the game: the opening of a brute, the
   brews, the chapel that keeps the lost, the boxes in the barred houses, the lamps that keep the
   imps away.
+- **AC-INT-004.6:** The DC of a piece of lore follows what it asks (Fede, 2026-10-15; [Checks and
+  DCs](checks.md)): a plain note or notice is DC 10 (the books of the houses, the lectern of the
+  chapel, the notice boards); pins on a map are 11; a recipe or the marks of a map 12 (the herbal,
+  the shelf of the apothecary, the map table of the reeve); accounts 13 (the reeve's ledgers); old
+  magic and old carvings 14 (the brand of the phoenix, the crystal ball, the shrine of Tigris).
 
 ---
 
@@ -90,13 +96,14 @@ secrets of the world.
 Ironhold tell me more.
 
 **Acceptance Criteria:**
-- **AC-INT-005.1:** An answer behind a gate shows its gate before its text, for example "[INT 13]
-  The marks in the black: are they the boarded houses?".
+- **AC-INT-005.1:** An answer behind a gate shows its gate before its text, for example "[INT 12]
+  The marks in the black: are they the boarded houses?". Each answer has its own DC ([Checks and
+  DCs](checks.md)).
 - **AC-INT-005.2:** With the score of the gate, the player can give it. With a score 1 or 2 under
   it, the answer is dim and the player cannot give it (a click, a number or E do nothing, and the
   selection goes past it). With a lower score, the answer is not there.
-- **AC-INT-005.3:** Elama Rothenel, the reeve, has two clever answers (on the map, and on the granary).
-  Isolde, the apothecary, has one (a remedy that the player can brew).
+- **AC-INT-005.3:** Elama Rothenel, the reeve, has two clever answers (on the map, INT 12, and on the
+  granary, INT 13). Isolde, the apothecary, has one (a remedy that the player can brew, INT 10).
 - **AC-INT-005.4:** Every node of a conversation keeps an answer without a gate, and a way to end
   the conversation without a gate.
 
@@ -158,8 +165,8 @@ can choose my scores.
 **Acceptance Criteria:**
 - **AC-INT-008.1:** Step 2 of the builder and the character panel list in the card "Intelligence":
   "A blow on a wind-up" (+N damage, or "no bonus"), "Read a mob" ("its health", "its health and
-  wind-up", or "from INT 13"), "The map" (the detail for the score) and "Old writing" ("you read
-  it", or "from INT 13").
+  wind-up", or "from INT 13"), "The map" (the detail for the score) and "Old writing" ("up to INT
+  12": the highest DC of lore that the score reads, with the tone of the modifier).
 
 ## Feature Behavior & Rules
 
@@ -171,8 +178,8 @@ can choose my scores.
   `packages/engine-client/src/render/mobs.ts` (`BAR`, `HEAD`, `GLINT_BLINK_MS`). Only the page
   draws them: the server knows nothing of them.
 - **Lore:** `Interaction.lore` (`Lore`: a gate and pages) in `packages/engine/src/fixtures.ts`;
-  `contentOf()` in `game.ts` adds the lore pages, or the clue `STRINGS.loreHint`. The Wilds:
-  `LORE_GATE` (INT 13) in `worlds/wilds/src/dialogs.ts`, `BOOKS` in `worlds/wilds/src/houses.ts`
+  `contentOf()` in `game.ts` adds the lore pages, or the clue `STRINGS.loreHint`. The Wilds: each
+  lore has its own gate (`{ ability: 'int', dc }`; `npm run checks` lists them), `BOOKS` in `worlds/wilds/src/houses.ts`
   (picked with `hash2()`, so the furniture keeps its places), and the `lore` of the things in
   `worlds/wilds/src/town.ts`.
 - **Clever answers:** `DialogAnswer.gate` (`packages/engine/src/dialog.ts`). `checkDialog()` checks

@@ -679,8 +679,8 @@ describe('Strength in a shared world', () => {
     const source = () => textSource(['....,,,,~~~~', '....,,,,~~~~', '....,,,,~~~~', '....,,,,~~~~']);
     const east = () => ({ x: 1, y: 0 });
     const net = new SimNetwork(40, source);
-    const strong = new SimClient(east, 1, source, strength(13));
-    const weak = new SimClient(east, 1, source, strength(12));
+    const strong = new SimClient(east, 1, source, strength(12));
+    const weak = new SimClient(east, 1, source, strength(11));
     net.connect(strong, [1, 1]);
     net.connect(weak, [1, 2]);
     net.run(3000);

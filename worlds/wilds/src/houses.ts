@@ -1,5 +1,5 @@
-import { FORCE_GATE, Ground, PICK_GATE, fixtureTiles, hash01, hash2, isInside, random, type Building, type BuildingCut, type Fixture, type Interaction } from '@game/engine';
-import { LORE_GATE } from './dialogs.ts';
+import { Ground, fixtureTiles, hash01, hash2, isInside, random, type Building, type BuildingCut, type Fixture, type Interaction } from '@game/engine';
+import { chestGrade, guardGate } from './chests.ts';
 
 /**
  * Houses of the wilds. The world is cut into cells of BUILDING_CELL x BUILDING_CELL tiles; a
@@ -23,11 +23,11 @@ export const HOME_CELL = [1, 5] as const;
 const BUILDING_CHANCE = 0.35;
 /**
  * The chance that a house with a chest has boards nailed across its door (Building.barred): a
- * character with Strength 13 or more can force them. Never the house east of the home, which
- * every new character finds first.
+ * character with the Strength of their DC forces them (chests.ts: the DC follows what the chest
+ * holds). Never the house east of the home, which every new character finds first.
  */
 const BARRED_CHANCE = 0.25;
-/** The chance that the chest of a house that is not barred has a lock (Fixture.lock): Dexterity 13 picks it. */
+/** The chance that the chest of a house that is not barred has a lock (Fixture.lock): its DC follows what the chest holds (chests.ts). */
 const LOCKED_CHANCE = 1 / 3;
 /** Tiles between a house and the edge of its cell. */
 const CELL_MARGIN = 2;
@@ -279,44 +279,45 @@ function furnish(rand: () => number, shape: Building, kind: HouseKind, lit: bool
 }
 
 /**
- * The books on the shelves of the houses: what anybody reads, and what a character with
- * Intelligence 13 reads too (Interaction.lore). Each one hints at a rule of the game.
+ * The books on the shelves of the houses: what anybody reads, and what a character with the
+ * Intelligence of its DC reads too (Interaction.lore). Each one hints at a rule of the game: a plain
+ * note is easy to read (DC 10), so that most characters learn it; a recipe needs some knowledge (12).
  */
 const BOOKS: readonly Interaction[] = [
   {
     pages: ['A bestiary. The pages are swollen with damp.'],
-    lore: [{ gate: LORE_GATE, pages: ['Of the grey brute: "It raises its club slowly. Strike while it is up, and strike hard."'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['Of the grey brute: "It raises its club slowly. Strike while it is up, and strike hard."'] }],
   },
   {
     pages: ['A herbal, with pressed leaves between the pages.'],
-    lore: [{ gate: LORE_GATE, pages: ['"Two bundles of herbs, boiled with care, close a wound. With the horn of an imp, they draw out its poison."'] }],
+    lore: [{ gate: { ability: 'int', dc: 12 }, pages: ['"Two bundles of herbs, boiled with care, close a wound. With the horn of an imp, they draw out its poison."'] }],
   },
   {
     pages: ['A book of the old roads of the valley.'],
-    lore: [{ gate: LORE_GATE, pages: ['"In the north, a chapel where the lost are found again. Sleep once under its roof, and it remembers you."'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['"In the north, a chapel where the lost are found again. Sleep once under its roof, and it remembers you."'] }],
   },
   {
     pages: ['The accounts of a household. Candles, salt, rope.'],
-    lore: [{ gate: LORE_GATE, pages: ['The last page: "We boarded the door and left the box inside. We will come back for it." Nobody came back.'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['The last page: "We boarded the door and left the box inside. We will come back for it." Nobody came back.'] }],
   },
   {
     pages: ['A book of tales for children, with the pictures cut out.'],
-    lore: [{ gate: LORE_GATE, pages: ['In the margin, in a child\'s hand: "The imps hate the light. Keep to the lamps."'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['In the margin, in a child\'s hand: "The imps hate the light. Keep to the lamps."'] }],
   },
 ];
 
 /**
  * The books on the lectern of a hermit's hut (HouseKind `hermitage`), as the books on the shelves: each
- * one hints at a rule of the game to a character with Intelligence 13.
+ * one hints at a rule of the game to a character with the Intelligence of its DC.
  */
 const LECTERN_BOOKS: readonly Interaction[] = [
   {
     pages: ['A book of prayers, open at the last page. Small, tight writing fills the margins.'],
-    lore: [{ gate: LORE_GATE, pages: ['In the margin: "They see you less when you go slowly and low. Crouch, and walk."'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['In the margin: "They see you less when you go slowly and low. Crouch, and walk."'] }],
   },
   {
     pages: ["A hermit's day book. Roots, rain, and the names of birds."],
-    lore: [{ gate: LORE_GATE, pages: ['The last entry: "Strike, then step back at once, and brace. Braced, I was harder to hit."'] }],
+    lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['The last entry: "Strike, then step back at once, and brace. Braced, I was harder to hit."'] }],
   },
 ];
 
@@ -358,8 +359,10 @@ export function generateHouse(seed: number, cellX: number, cellY: number, isWate
   // Only a house with a chest is barred: forcing the door must be worth it.
   const barred = boards && furniture.some((f) => f.kind === 'chest');
   const locked = !barred && hash01(cellX, cellY, seed + SEED_OFFSET + 3) < LOCKED_CHANCE;
+  // The grade of a guarded chest: what it holds, and the DC of its lock or of the boards (chests.ts).
+  const grade = chestGrade(barred ? 'boards' : 'lock', hash01(cellX, cellY, seed + SEED_OFFSET + 6));
   const fixtures = furniture.map((f) => {
-    if (f.kind === 'chest' && locked) return { ...f, lock: PICK_GATE };
+    if (f.kind === 'chest' && locked) return { ...f, lock: guardGate('lock', grade) };
     // A book on each shelf and on a lectern, picked from the seed and its place (not from `rand`: the furniture keeps its places).
     if (f.kind === 'bookshelf') return { ...f, content: BOOKS[hash2(f.tx, f.ty, seed + SEED_OFFSET + 4) % BOOKS.length]! };
     if (f.kind === 'lectern') return { ...f, content: LECTERN_BOOKS[hash2(f.tx, f.ty, seed + SEED_OFFSET + 4) % LECTERN_BOOKS.length]! };
@@ -374,6 +377,6 @@ export function generateHouse(seed: number, cellX: number, cellY: number, isWate
     ...(windows.length > 0 ? { windows } : {}),
     ...(lit ? {} : { dark: true }),
     ...(chimney !== null ? { roofProps: [{ name: 'chimney', tx: chimney }] } : {}),
-    ...(barred ? { barred: FORCE_GATE } : {}),
+    ...(barred ? { barred: guardGate('boards', grade) } : {}),
   };
 }

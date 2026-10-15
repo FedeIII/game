@@ -69,7 +69,7 @@ that a character grows by the story and not by killing.
   step of it (a fight of the story). Only an effect that moves its quest to a new step gives XP, so it
   comes once.
 - **AC-LVL-003.2:** The XP of the Wilds: the road to Ironhold 100; the cart 50; the lentils 50 (wet: 40
-  with CHA 13, else 25); the Razed Villages 50 for the three homesteads, 100 when the hounds fall at the
+  with CHA 14, else 25); the Razed Villages 50 for the three homesteads, 100 when the hounds fall at the
   Wren homestead, 75 for the camp of the Seekers, 100 when the Ash Warden goes, 100 at the end of the
   dream; the Hobgoblin Raid 75 for the scouts, 100 for the war band (on the road or in Silverspring), 50
   for Himo home, 50 for the title; the Caravan Ambush 100 when the caravan is saved.

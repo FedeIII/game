@@ -6,6 +6,8 @@ import {
   CAMP_TAKEN,
   CARAVAN_SAVED,
   CART_LIFT,
+  CHEST_GRADES,
+  CHEST_LOOT,
   DEFAULT_SEED,
   DREAM_REFUSE,
   HIMO_HOME,
@@ -21,6 +23,7 @@ import {
   SMITH,
   TOWN_CACHE,
   WildsSource,
+  type ChestGrade,
 } from '../src/index.ts';
 import * as questModule from '../src/quests.ts';
 
@@ -62,20 +65,15 @@ function meanValue(table: LootTable): number {
 /** What a quest effect gives, in coins. */
 const effectValue = (effect: QuestEffect) => (effect.give?.coins ?? 0) + (effect.give?.items ?? []).reduce((sum, s) => sum + sale(s.kind) * s.count, 0);
 
-/** The chest tables of the houses: an ordinary chest, a locked one, and the chest of a barred house. */
-function chestTables(): { chest: LootTable; locked: LootTable; barred: LootTable } {
-  const source = new WildsSource(DEFAULT_SEED);
-  const found: Partial<Record<'chest' | 'locked' | 'barred', LootTable>> = {};
-  for (let cy = -8; cy < 8; cy++) {
-    for (let cx = -8; cx < 8; cx++) {
-      const house = source.house(cx, cy);
-      const chest = house?.fixtures.find((f) => f.kind === 'chest');
-      const table = chest ? source.loot(chest) : null;
-      if (!house || !chest || !table) continue;
-      found[house.barred ? 'barred' : chest.lock ? 'locked' : 'chest'] = table;
-    }
-  }
-  return { chest: found.chest!, locked: found.locked!, barred: found.barred! };
+/** The chest tables of the houses: an ordinary chest, and the grades of a guarded chest (chests.ts), each with its weight behind a lock and behind boards. */
+function chestTables(): { chest: LootTable; grades: readonly ChestGrade[] } {
+  return { chest: CHEST_LOOT, grades: CHEST_GRADES };
+}
+
+/** The mean value of a guarded chest behind a lock or behind boards: its grades, by their weights. */
+function guardedValue(guard: 'lock' | 'boards'): number {
+  const total = CHEST_GRADES.reduce((sum, g) => sum + g[guard], 0);
+  return CHEST_GRADES.reduce((sum, g) => sum + (meanValue(g.loot) * g[guard]) / total, 0);
 }
 
 /**
@@ -83,7 +81,7 @@ function chestTables(): { chest: LootTable; locked: LootTable; barred: LootTable
  * the road at night, a rare ambush of bandits there by day, then the wildlands).
  */
 const KILLS: Partial<Record<MobKind, number>> = { skirmisher: 9, bandit: 3, imp: 12, brute: 4 };
-/** The chests that it opens: ordinary, locked (DEX 13), barred (STR 13), and the buried cache (WIS 13). */
+/** The chests that it opens: ordinary, locked (DEX 10 to 13), barred (STR 10 to 13), and the buried cache (WIS 13). */
 const OPENED = { chest: 12, locked: 2, barred: 2, cache: 1 } as const;
 /** The quests that it finishes, by their best way. */
 const REWARDS: readonly QuestEffect[] = [CART_LIFT, LENTILS_GIVE, RAID_SCOUTS, HIMO_HOME, CARAVAN_SAVED, ASHES_HELD];
@@ -110,8 +108,8 @@ describe('the economy of the Wilds', () => {
     const others =
       killValue(KILLS) +
       meanValue(chests.chest) * OPENED.chest +
-      meanValue(chests.locked) * OPENED.locked +
-      meanValue(chests.barred) * OPENED.barred +
+      guardedValue('lock') * OPENED.locked +
+      guardedValue('boards') * OPENED.barred +
       meanValue(cache) * OPENED.cache;
     expect(quests / (quests + others)).toBeGreaterThan(0.5);
   });
@@ -127,7 +125,7 @@ describe('the economy of the Wilds', () => {
 
   it('a chest has no coins at times', () => {
     const chests = chestTables();
-    for (const table of [chests.chest, chests.locked, chests.barred]) expect(table.coinChance).toBeLessThan(1);
+    for (const table of [chests.chest, ...chests.grades.map((g) => g.loot)]) expect(table.coinChance).toBeLessThan(1);
   });
 });
 

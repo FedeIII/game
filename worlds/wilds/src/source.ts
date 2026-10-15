@@ -41,6 +41,7 @@ import {
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
 import { BUILDING_CELL, DOOR_PATH, generateHouse, type House } from './houses.ts';
+import { CHEST_LOOT, MAGIC_CHANCE, MAGIC_ITEMS, TRINKETS, guardedLoot } from './chests.ts';
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { GOBLINS_MET, ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
@@ -93,54 +94,6 @@ function nearHouse(house: Building, tx: number, ty: number): boolean {
   const ring = tx >= house.x0 - 1 && tx <= house.x1 + 1 && ty >= house.y0 - 1 && ty <= house.y1 + 1;
   return ring || onApproach(house, tx, ty);
 }
-
-/**
- * What a chest in a house of the wilds holds: one small thing (Fede's choice, 2026-10-10), and a coin
- * or two in one chest of three (coins are scarce, Fede, 2026-10-13: docs/game-design.md, "Coins").
- */
-const TRINKETS = [
-  ['candle', 3],
-  ['ring', 1],
-  ['cup', 2],
-  ['herbs', 3],
-] as const;
-const CHEST_LOOT: LootTable = { coins: [1, 2], coinChance: 1 / 3, items: [{ chance: 1, pick: TRINKETS }] };
-/**
- * The magic items of the SRD (gear.ts), by weight: rare loot in a locked chest (1 in 16), a barred
- * house (1 in 8) and the buried cache of Ironhold (1 in 6). The common ones come more often.
- */
-export const MAGIC_ITEMS = [
-  ['longsword-plus-1', 3],
-  ['cloak-of-protection', 3],
-  ['boots-of-elvenkind', 3],
-  ['ring-of-protection', 2],
-  ['bracers-of-defence', 2],
-  ['gauntlets-of-ogre-power', 2],
-  ['headband-of-intellect', 2],
-  ['belt-of-dwarvenkind', 2],
-  ['amulet-of-health', 1],
-] as const;
-export const MAGIC_CHANCE = { locked: 1 / 16, barred: 1 / 8, cache: 1 / 6 } as const;
-/** A locked chest keeps more: 1 to 3 coins in one of two, and a second thing in about one of three. */
-const LOCKED_CHEST_LOOT: LootTable = {
-  coins: [1, 3],
-  coinChance: 1 / 2,
-  items: [
-    { chance: 1, pick: TRINKETS },
-    { chance: 0.35, pick: TRINKETS },
-    { chance: MAGIC_CHANCE.locked, pick: MAGIC_ITEMS },
-  ],
-};
-/** A barred house was shut with its things inside: 1 to 4 coins in two of three, and a second thing in one of two. */
-const BARRED_CHEST_LOOT: LootTable = {
-  coins: [1, 4],
-  coinChance: 2 / 3,
-  items: [
-    { chance: 1, pick: TRINKETS },
-    { chance: 0.5, pick: TRINKETS },
-    { chance: MAGIC_CHANCE.barred, pick: MAGIC_ITEMS },
-  ],
-};
 
 /** A patch of herbs gives a bundle, and grows again 20 minutes after it was picked (Fede's choice, 2026-10-10). */
 const HERB_LOOT: LootTable = { items: [{ chance: 1, pick: [['herbs', 1]] }], refillMs: 20 * 60_000 };
@@ -782,7 +735,7 @@ export class WildsSource implements WorldSource {
 
   /**
    * The chests of the houses of the wilds give loot (not the home's: that one is the character's
-   * own); a locked chest gives more, and the chest of a barred house the most. A patch of herbs
+   * own); a chest behind a lock or a barred door gives more, by the DC of its guard. A patch of herbs
    * gives a bundle, and the buried cache of Ironhold its savings.
    */
   loot(fixture: Fixture): LootTable | null {
@@ -791,7 +744,9 @@ export class WildsSource implements WorldSource {
     if (fixture.kind !== 'chest' || placeAt(fixture.tx, fixture.ty)) return null;
     const house = this.buildingAt(fixture.tx, fixture.ty);
     if (!house || house.id === HOME_ID) return null;
-    return house.barred ? BARRED_CHEST_LOOT : fixture.lock ? LOCKED_CHEST_LOOT : CHEST_LOOT;
+    // The DC of a guard follows what the chest holds (chests.ts: CHEST_GRADES).
+    const guard = house.barred ?? fixture.lock;
+    return guard ? guardedLoot(guard.dc) : CHEST_LOOT;
   }
 
   /**

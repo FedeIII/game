@@ -102,14 +102,20 @@ visit to a house has a reward.
   loot: a press on it shows "Your chest. Nothing in it yet."
 - **AC-PK-003.2:** No chest in Ironhold gives loot.
 - **AC-PK-003.3:** At a chest with loot, the action label is "Open the chest". At a locked chest,
-  it is "Pick the lock" for a character with DEX 13 or more ([Dexterity](../abilities/dexterity.md),
-  REQ-DEX-007).
+  it is "Pick the lock" for a character with a DEX of the DC of the lock or more
+  ([Dexterity](../abilities/dexterity.md), REQ-DEX-007).
 - **AC-PK-003.4:** An ordinary chest gives one thing: a candle stub, a silver ring, a pewter cup or
   a bundle of herbs. It also gives 1 or 2 coins in one chest of three (REQ-PK-016).
-- **AC-PK-003.5:** A locked chest gives one thing, and a second thing in about one of three; it
-  also gives 1 to 3 coins in one chest of two. The chest of a barred house gives one thing, and a
-  second thing in one of two; it also gives 1 to 4 coins in two chests of three. A locked chest also gives a magic item in one of 16, the chest of a barred house
-  in one of 8 ([Equipment](equipment.md), REQ-EQ-020).
+- **AC-PK-003.5:** A locked chest and the chest of a barred house give more, by the DC of their
+  guard: the DC follows what the chest holds (Fede, 2026-10-15; [Checks and
+  DCs](../abilities/checks.md)). At the start of the game there are four grades:
+  - DC 10: one thing, and a coin in two chests of three.
+  - DC 11: one thing, a second thing in one chest of three, and 1 or 2 coins in one of two.
+  - DC 12: one thing, a second thing in one of two, a magic item in one of 8 ([Equipment](equipment.md),
+    REQ-EQ-020), and 1 to 3 coins in one of two.
+  - DC 13: two things, a magic item in one of 4, and 2 to 4 coins in two chests of three.
+  A lock is more often on a poor chest (DC 10, 11, 12 and 13 in 3, 3, 2 and 1 locked chests of 9),
+  the boards of a barred house more often on a rich one (1, 2, 3 and 3 of 9).
 - **AC-PK-003.6:** Of the four things, a candle stub and a bundle of herbs come most often (3 in 9
   each). A pewter cup comes 2 in 9, and a silver ring 1 in 9.
 - **AC-PK-003.7:** The player says what it found in one line, for example "I find 4 coins and a
@@ -218,7 +224,7 @@ choose what to keep, what to use and what to drop.
   onto the ground."
 - **AC-PK-008.10:** What a drink does: "Drink it: 2d4+2 hit points back." (a healing draught),
   "Drink it: 4d4+4 hit points back." (a strong draught), "Drink it: a poison ends.", and for herbs
-  with WIS 13 "Chew it: 1d4 hit points back."
+  with WIS 10 "Chew it: 1d4 hit points back."
 - **AC-PK-008.11:** The detail of a drink that the character can use has the button "Drink" (for
   herbs "Chew"), with the key of the drink on the belt (REQ-PK-014). A press drinks one
   (REQ-PK-011).
@@ -226,7 +232,7 @@ choose what to keep, what to use and what to drop.
   stack of more than one item (REQ-PK-013). They take the items from the chosen slot.
 - **AC-PK-008.13:** A use behind a gate follows the gate rule ([Ability Scores](../abilities/ability-scores.md),
   REQ-AS-007). With a score 1 or 2 under the gate, the cell shows the gate dim in its corner ("WIS
-  13"). The detail then says "[WIS 13] You could chew a bundle of herbs, if you knew more of
+  10"). The detail then says "[WIS 10] You could chew a bundle of herbs, if you knew more of
   herbs.", and it has no "Chew". With a lower score, the item has no use in the panel.
 - **AC-PK-008.14:** The choice stays on its stack when the pack changes. When the stack goes,
   nothing is chosen.
@@ -295,9 +301,9 @@ woods.
 - **AC-PK-011.5:** In a shared world the page sends the drink to the server, which checks the pack,
   rolls the dice and gives the effect. The hit points that come back rise over the player in
   green, for example "+7".
-- **AC-PK-011.6:** A character with WIS 13 or more chews a bundle of herbs for 1d4 hit points. The
-  player says "I chew the bitter leaves. I feel a little better." The server checks the gate too:
-  without WIS 13, nothing changes.
+- **AC-PK-011.6:** A character with WIS 10 or more (`MEDICINE_GATE`) chews a bundle of herbs for
+  1d4 hit points. The player says "I chew the bitter leaves. I feel a little better." The server
+  checks the gate too: without WIS 10, nothing changes.
 
 ---
 
@@ -378,7 +384,7 @@ the next blow.
 **Acceptance Criteria:**
 - **AC-PK-014.1:** Under the hit points (top left), the belt shows one button for each drink that
   the character carries and can use: the healing draught, the strong draught, the antidote, and
-  the bundle of herbs with WIS 13 (Medicine). Each button shows the icon at 2x and the count of
+  the bundle of herbs with WIS 10 (Medicine). Each button shows the icon at 2x and the count of
   that kind in all the slots.
 - **AC-PK-014.2:** Each drink has a fixed key: 1 the healing draught, 2 the strong draught, 3 the
   antidote, 4 the herbs. The button shows its key. A touch screen shows no keys.
@@ -437,8 +443,9 @@ of the 5 for the lentils must be a big save (Fede, 2026-10-13; `docs/game-design
   scouts and Himo home), the caravan saved and the Wren homestead finished. An item counts at what
   a trader pays for it. What the mobs of the fights of the quests drop (the ambushes: the
   Devastator's armour, for example) counts with the quests: only a quest brings them. With the
-  numbers of 2026-10-13, the quests give about 97 coins and the rest about 68 (59%); before, the
-  rest gave about 163 (42%).
+  numbers of 2026-10-15 (the grades of the guarded chests: [Checks and DCs](../abilities/checks.md)),
+  the quests give about 97 coins and the rest about 69 (58%); on 2026-10-13 the rest gave about 68
+  (59%), and before that about 163 (42%).
 - **AC-PK-016.4:** A test checks AC-PK-016.1 to AC-PK-016.3 (`worlds/wilds/test/economy.test.ts`).
   A change of a loot table, a price or a reward must keep it green.
 
@@ -452,7 +459,7 @@ it buys, with my prices, so that I trade without a long conversation for each it
 
 **Acceptance Criteria:**
 - **AC-PK-017.1:** Four traders have a shop: Isolde, the apothecary ("Do you sell remedies?"; her
-  friend's price behind CHA 13: REQ-CHA-004), Corwin, the peddler ("What do you buy?", "Do you buy
+  friend's price behind CHA 14: REQ-CHA-004), Corwin, the peddler ("What do you buy?", "Do you buy
   trophies?": REQ-CHA-005), the smith ("Show me your iron.", "I have gear to sell.", and "Then let us
   trade." to a character with mithril: REQ-EQ-019), and Ilsa, the jeweller of Silverspring ("Here is
   the permit of Silverspring.": [Quests](../game/quests.md), REQ-QST-016). The inns keep the ale and
@@ -586,9 +593,12 @@ it buys, with my prices, so that I trade without a long conversation for each it
 - **Loot of a world:** `WorldSource.loot(fixture)` (`packages/engine/src/world.ts`) gives a loot
   table for a fixture, or null. A fixture with a table is a target of the action button, also
   without content or an examine line.
-- **The Wilds** (`worlds/wilds/src/source.ts`): `TRINKETS` (candle stub 3, silver ring 1, pewter
-  cup 2, bundle of herbs 3), `CHEST_LOOT`, `LOCKED_CHEST_LOOT` and `BARRED_CHEST_LOOT`. No chest
-  loot for the home (`HOME_ID`) or in the town (`inTown()`). `HERB_LOOT` (one bundle, 20 minutes)
+- **The Wilds** (`worlds/wilds/src/chests.ts`): `TRINKETS` (candle stub 3, silver ring 1, pewter
+  cup 2, bundle of herbs 3), `CHEST_LOOT` (an ordinary chest), and `CHEST_GRADES` (the guarded
+  chests: for each DC its loot and its weights behind a lock and behind boards; `chestGrade()`,
+  `guardGate()`, `guardedLoot()`). `WildsSource.loot()` (`worlds/wilds/src/source.ts`) gives the
+  loot of the DC of the guard of a chest. No chest loot for the home (`HOME_ID`) or in the town
+  (`inTown()`). `HERB_LOOT` (one bundle, 20 minutes)
   for a `herbpatch` (`worlds/wilds/src/herbs.ts`), and `CACHE_LOOT` for `TOWN_CACHE`
   (`worlds/wilds/src/town.ts`).
 - **The store** (`packages/engine-server/src/store.ts`): `Character.pack` (`character.ts`), the

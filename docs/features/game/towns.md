@@ -77,7 +77,7 @@ road, so that the road leads somewhere.
 - **AC-TWN-003.3:** The Silvervein (el río Vena de Plata) crosses the town from its north edge to its
   south edge, two tiles wide. The water is solid. Two bridges of planks (12 tiles) cross it, where the
   main street and the lane cross the river. Outside the town it goes on: north to its spring in the
-  hills, and south to a pool; deep in the middle, shallows at its banks (STR 13 wades them), and a bank
+  hills, and south to a pool; deep in the middle, shallows at its banks (STR 12 wades them), and a bank
   where no tree, rock, house or herb stands. No mob lives in it.
 - **AC-TWN-003.4:** The map shows Silverspring as a town.
 - **AC-TWN-003.5:** The inn has a bed for a guest of the town (the refuge `trout`): it rests only a
@@ -95,8 +95,8 @@ it feels like the mithril village of the Enclave.
   her shop; Doran of the militia at the west end of the main street, and a panner by the stream.
 - **AC-TWN-004.2:** Kasmut Parnika ("Kasmut Parnika, of the Enclave") is the veteran of the Mithril
   Enclave who trains the militia. She talks of the town, the mithril, the militia and the Enclave, and
-  she is openly cynical of Simtu ("Simtu watches the river, and I watch the hills."). With WIS 13, a
-  character sees that she does not like the rich, and that she hides why she left Great Bwini.
+  she is openly cynical of Simtu ("Simtu watches the river, and I watch the hills."). With WIS 11, a
+  character sees that she does not like the rich; with WIS 14, that she hides why she left Great Bwini.
 - **AC-TWN-004.3:** Tova ("Tova, of the Silver Trout") sells an ale for 2 coins. Her rooms are for
   the guard of the town and its friends.
 - **AC-TWN-004.4:** Doran ("Doran, of the militia") tells what the town is and who is in charge.
@@ -142,7 +142,7 @@ villages, so that the first journey of the game teaches me the world and its peo
   character that entered it wakes there after a defeat, if it is the nearest), an open farmhouse and
   two shut houses.
 - **AC-TWN-006.3:** Bronzehold (Bronzal): the guard post of the Sovereignty with its sergeant (a
-  conversation; with insight, WIS 13, he tells where the Sovereignty pushes: towards Silverspring), a
+  conversation; with insight, WIS 12, he tells where the Sovereignty pushes: towards Silverspring), a
   guard on the lane (how the goblins of the woods fight), the standard of the Sovereignty (an anvil of
   pale iron on wine red, as on the shield of its name sign; not the phoenix of the Ashen Seekers), a
   cold forge and two shut houses.

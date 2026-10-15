@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Decor, Ground, TILE_SIZE, World, checkDialog, createPlayer, findInteraction, fixtureTiles, type Dialog } from '@game/engine';
-import { APOTHECARY, BUILDING_CELL, DEFAULT_SEED, INNKEEPER, INSIGHT_GATE, REEVE, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, WATCHMAN, WildsSource } from '../src/index.ts';
+import { APOTHECARY, BUILDING_CELL, DEFAULT_SEED, INNKEEPER, REEVE, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, WATCHMAN, WildsSource } from '../src/index.ts';
 
 const SEEDS = [DEFAULT_SEED, 1, 7, 42, 1234];
 const key = (x: number, y: number) => `${x},${y}`;
@@ -97,10 +97,11 @@ describe('the buried cache of Ironhold', () => {
 });
 
 describe('insight in the conversations of Ironhold', () => {
-  const insight = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers.filter((a) => a.gate === INSIGHT_GATE));
+  const insight = (dialog: Dialog) => Object.values(dialog.nodes).flatMap((n) => n.answers.filter((a) => a.gate?.ability === 'wis'));
 
-  it('gives each of the four people one answer behind WIS 13 (the reeve one more, for the story)', () => {
-    expect(INSIGHT_GATE).toEqual({ ability: 'wis', min: 13 });
+  it('gives each of the four people one answer behind a check of WIS (the reeve one more, for the story)', () => {
+    // A plain feeling is easy to see (DC 11); the fear of the reeve and the cache of the old couple ask more (docs/features/abilities/checks.md).
+    expect([WATCHMAN, INNKEEPER, APOTHECARY, REEVE].map((dialog) => insight(dialog).map((a) => a.gate!.dc))).toEqual([[11], [11], [12], [13, 13]]);
     for (const dialog of [WATCHMAN, INNKEEPER, APOTHECARY, REEVE]) {
       expect(insight(dialog), dialog.name).toHaveLength(dialog === REEVE ? 2 : 1);
       expect(checkDialog(dialog), dialog.name).toEqual([]);

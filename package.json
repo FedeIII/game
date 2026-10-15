@@ -19,7 +19,8 @@
     "typecheck": "npm run art && tsc -p packages/engine && tsc -p packages/engine-server && tsc -p packages/engine-client && tsc -p packages/engine-client/art && tsc -p packages/engine-client/sounds && tsc -p worlds/wilds && tsc -p apps/game && tsc -p apps/game/tsconfig.node.json",
     "test": "vitest run",
     "check": "npm run typecheck && npm test",
-    "server": "npm run server -w @game/app"
+    "server": "npm run server -w @game/app",
+    "checks": "node scripts/checks.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.1",

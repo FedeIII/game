@@ -19,7 +19,7 @@ import type { QuestDef, QuestEffect } from '@game/engine';
 export const CART_REWARD = 10;
 /** The coins that the sergeant of Bronzehold pays for the farmer's lentils (chapter 1.5.1: bought at 1 gp 2 sp, sold at 1 gp 5 sp). */
 export const LENTILS_REWARD = 5;
-/** The coins that the sergeant pays for a wet sack, and only to a character that talks him into it (CHA 13). */
+/** The coins that the sergeant pays for a wet sack, and only to a character that talks him into it (CHA 14). */
 export const LENTILS_WET_REWARD = 2;
 
 /**
@@ -266,7 +266,7 @@ export const LENTILS_SOAK: QuestEffect = {
   take: [{ kind: 'lentils', count: 1 }],
   give: { coins: 0, items: [{ kind: 'wet-lentils', count: 1 }] },
 };
-/** The sergeant takes the wet sack: for a part of the pay, with CHA 13 (the answer's gate), or for nothing. */
+/** The sergeant takes the wet sack: for a part of the pay, with CHA 14 (the answer's gate), or for nothing. */
 export const LENTILS_PLEAD: QuestEffect = {
   id: 'lentils-plead',
   quest: 'lentils',
@@ -327,7 +327,7 @@ export const CART_HELP: QuestEffect = { id: 'cart-help', quest: 'cart', to: 'met
 export const CART_LEVER: QuestEffect = { id: 'cart-lever', quest: 'cart', to: 'lever', from: ['met', 'lever', 'lent'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
 /** The farmer of Whitegrove lends his lever (Fede, 2026-10-13: the cart comes before Ironhold, so the lever is near). */
 export const FARMER_LEVER: QuestEffect = { id: 'farmer-lever', quest: 'cart', to: 'lent', from: ['met', 'lever', 'lent'], give: { coins: 0, items: [{ kind: 'crowbar', count: 1 }] } };
-/** A strong character lifts the cart (Strength 13), and the merchant pays. */
+/** A strong character lifts the cart (Strength 15), and the merchant pays. */
 export const CART_LIFT: QuestEffect = { id: 'cart-lift', quest: 'cart', to: 'done', from: ['met', 'lever', 'lent'], flag: 'lifted', give: { coins: CART_REWARD, items: [] }, xp: 50 };
 /** The character brings a lever: the merchant keeps it, and pays. */
 export const CART_MEND: QuestEffect = {

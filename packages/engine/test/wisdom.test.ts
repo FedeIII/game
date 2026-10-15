@@ -59,21 +59,22 @@ describe('the traits of Wisdom', () => {
 });
 
 describe('Medicine', () => {
-  it('lets a character with WIS 13 chew a bundle of herbs for 1d4 hit points', () => {
+  it('lets a character with WIS 10 chew a bundle of herbs for 1d4 hit points (an easy check)', () => {
     expect(DRINKS.herbs).toEqual({ hp: dice(1, 4), gate: MEDICINE_GATE });
+    expect(MEDICINE_GATE).toEqual({ ability: 'wis', dc: 10 });
     const pack = { coins: 0, items: [{ kind: 'herbs' as const, count: 2 }] };
     const p = createPlayer(0, 0);
     p.hp = 1;
-    expect(drinkFrom(pack, 'herbs', p, withWis(12), AVERAGE_DICE)).toBeNull();
+    expect(drinkFrom(pack, 'herbs', p, withWis(9), AVERAGE_DICE)).toBeNull();
     expect(p.hp).toBe(1);
-    expect(drinkFrom(pack, 'herbs', p, withWis(13), AVERAGE_DICE)).toEqual({ coins: 0, items: [{ kind: 'herbs', count: 1 }] });
+    expect(drinkFrom(pack, 'herbs', p, withWis(10), AVERAGE_DICE)).toEqual({ coins: 0, items: [{ kind: 'herbs', count: 1 }] });
     expect(p.hp).toBe(1 + 2);
   });
 
   it('is checked by the server', () => {
     const room = new Room(new World(houseSource()), { dice: AVERAGE_DICE });
     const pack = { coins: 0, items: [{ kind: 'herbs' as const, count: 1 }] };
-    const dull = room.join(0, 1, undefined, '', undefined, { traits: withWis(12), hp: 1, pack })!;
+    const dull = room.join(0, 1, undefined, '', undefined, { traits: withWis(9), hp: 1, pack })!;
     const wise = room.join(0, 2, undefined, '', undefined, { traits: withWis(14), hp: 1, pack })!;
     for (const p of [dull, wise]) room.drink(p.id, ITEM_KINDS.indexOf('herbs'));
     expect(dull.state.hp).toBe(1);

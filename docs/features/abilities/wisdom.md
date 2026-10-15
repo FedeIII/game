@@ -16,9 +16,10 @@ points the way home.
 - **Danger mark**: a red chevron at the edge of the screen that points to a hunter out of view.
 - **Hidden thing**: a thing that shows only close by: a patch of herbs, the buried cache.
 - **Seek**: how far the character sees a hidden thing.
-- **Insight**: an answer in a conversation behind a gate of WIS 13.
-- **Medicine**: the skill to chew herbs for 1d4 hit points (WIS 13).
-- **The way home**: a pale arrow at the edge of the screen that points to the home (WIS 13).
+- **Insight**: an answer in a conversation behind a gate of WIS, with its own DC
+  ([Checks and DCs](checks.md)).
+- **Medicine**: the skill to chew herbs for 1d4 hit points (WIS 10).
+- **The way home**: a pale arrow at the edge of the screen that points to the home (WIS 12).
 - **Clue**: the dim display of a thing behind a gate for a character that is 1 or 2 short of it
   ([Ability Scores](ability-scores.md), REQ-AS-007).
 
@@ -95,14 +96,16 @@ the woods give me more.
 Ironhold tell me more.
 
 **Acceptance Criteria:**
-- **AC-WIS-005.1:** Each of the four people of Ironhold with a conversation has one answer behind
-  WIS 13, with the gate rule ([Intelligence](intelligence.md), REQ-INT-005): open with WIS 13, dim
-  with WIS 11 or 12, not there with less.
-- **AC-WIS-005.2:** Brann, the watchman: "[WIS 13] You do not believe the priest." He tells that
+- **AC-WIS-005.1:** Each of the four people of Ironhold with a conversation has one answer behind a
+  check of WIS, with the gate rule ([Intelligence](intelligence.md), REQ-INT-005): open with a WIS
+  of its DC or more, dim with a WIS 1 or 2 under it, not there with less. Each answer has its own DC,
+  from what it sees and what it gives (Fede, 2026-10-15; [Checks and DCs](checks.md)): a plain
+  feeling is DC 11, a fear or a sorrow that a person hides DC 13.
+- **AC-WIS-005.2:** Brann, the watchman: "[WIS 11] You do not believe the priest." He tells that
   the imps stayed away in a winter without candles.
-- **AC-WIS-005.3:** Marta, the innkeeper: "[WIS 13] You know what is in it." She tells what is in
+- **AC-WIS-005.3:** Marta, the innkeeper: "[WIS 11] You know what is in it." She tells what is in
   the green drink.
-- **AC-WIS-005.4:** Isolde, the apothecary: "[WIS 13] You do not grow your ashroot here. Where do
+- **AC-WIS-005.4:** Isolde, the apothecary: "[WIS 12] You do not grow your ashroot here. Where do
   you find it?" She tells that it grows wild between the trees (the patches of herbs).
 - **AC-WIS-005.5:** Elama Rothenel, the reeve: "[WIS 13] You miss the old couple." She tells that they
   buried their savings across the lane from their door, a few steps to the west (the buried
@@ -116,10 +119,10 @@ Ironhold tell me more.
 cauldron.
 
 **Acceptance Criteria:**
-- **AC-WIS-006.1:** With WIS 13 or more, the player chews a bundle of herbs for 1d4 hit points,
-  from the drink belt (key 4) or from the pack panel ([Pack and Loot](../items/pack-and-loot.md),
-  REQ-PK-011 and REQ-PK-014).
-- **AC-WIS-006.2:** With WIS 11 or 12, the slot of the herbs shows "WIS 13" dim, and nothing can be
+- **AC-WIS-006.1:** With WIS 10 or more (`MEDICINE_GATE`: an easy action for a small reward), the
+  player chews a bundle of herbs for 1d4 hit points, from the drink belt (key 4) or from the pack
+  panel ([Pack and Loot](../items/pack-and-loot.md), REQ-PK-011 and REQ-PK-014).
+- **AC-WIS-006.2:** With WIS 8 or 9, the slot of the herbs shows "WIS 10" dim, and nothing can be
   chewed. With less, the slot is plain.
 - **AC-WIS-006.3:** In a shared world the server checks the gate.
 
@@ -131,7 +134,7 @@ cauldron.
 the dark forest.
 
 **Acceptance Criteria:**
-- **AC-WIS-007.1:** With WIS 13 or more, a pale arrow at the edge of the screen points to the home
+- **AC-WIS-007.1:** With WIS 12 or more (`HOMEWARD_GATE`), a pale arrow at the edge of the screen points to the home
   while the home is out of the screen.
 - **AC-WIS-007.2:** The arrow is above the darkness, and it points in 16 directions.
 
@@ -145,9 +148,9 @@ choose my scores.
 **Acceptance Criteria:**
 - **AC-WIS-008.1:** Step 2 of the builder and the character panel list in the card "Wisdom": "Sense
   a mob that hunts you" (N tiles), "See hidden things" (N tiles), "The night" ("8% lighter",
-  "normal", "8% darker"), "Insight" ("see what people hide", or "from WIS 13"), "Medicine" ("chew
-  herbs for 1d4 HP", or "from WIS 13") and "The way home" ("an arrow points to it", or "from WIS
-  13").
+  "normal", "8% darker"), "Insight" ("up to WIS 12": the highest DC of insight that the score
+  passes, with the tone of the modifier), "Medicine" ("chew herbs for 1d4 HP", or "from WIS 10") and
+  "The way home" ("an arrow points to it", or "from WIS 12").
 
 ## Feature Behavior & Rules
 
@@ -173,8 +176,9 @@ choose my scores.
 - **The patches of the Wilds:** `herbPatch()` in `worlds/wilds/src/herbs.ts` (`TRIES` 4, `EDGE` 3,
   `OPEN_RADIUS` 6), and `WildsSource.herbs(cellX, cellY)` (cached), with `HERB_MARGIN` 2 in
   `worlds/wilds/src/source.ts`. The cache: `TOWN_CACHE` in `worlds/wilds/src/town.ts`.
-- **Insight:** `INSIGHT_GATE` (WIS 13) in `worlds/wilds/src/dialogs.ts`, on one answer of
-  `WATCHMAN`, `INNKEEPER`, `APOTHECARY` and `REEVE`.
+- **Insight:** a gate of WIS with its own DC (`{ ability: 'wis', dc }`) in
+  `worlds/wilds/src/dialogs.ts`, on one answer of `WATCHMAN`, `INNKEEPER`, `APOTHECARY` and `REEVE`
+  (two for the reeve); `npm run checks` lists them all.
 - **Medicine:** `MEDICINE_GATE` and `DRINKS.herbs` (`packages/engine/src/items.ts`); `drinkFrom()`
   checks the gate, so `Room.drink()` does too.
 - **The debug panel** (`?debug`): the line `wis` gives the sense, the seek, the night, the arrow,

@@ -1,5 +1,5 @@
 import { Ground, type Fixture, type NpcDef } from '@game/engine';
-import { BRONZEHOLD_GUARD, FARMER, LORE_GATE, SERGEANT } from './dialogs.ts';
+import { BRONZEHOLD_GUARD, FARMER, SERGEANT } from './dialogs.ts';
 import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 
 /**
@@ -82,7 +82,7 @@ const WHITEGROVE_BUILDINGS: readonly Plan[] = [
       l: {
         kind: 'lectern',
         pages: ['A book of prayers for the road. Travellers write their names in it before they go north.'],
-        lore: [{ gate: LORE_GATE, pages: ['The names thin out after the spring. The last pages are blank.'] }],
+        lore: [{ gate: { ability: 'int', dc: 10 }, pages: ['The names thin out after the spring. The last pages are blank.'] }],
       },
     },
   },
@@ -175,7 +175,7 @@ const BRONZEHOLD_BUILDINGS: readonly Plan[] = [
       m: {
         kind: 'maptable',
         pages: ['A map of the frontier. Pins mark the road to Ironhold, and more of them stand north-east of it.'],
-        lore: [{ gate: LORE_GATE, pages: ['The new pins all point one way: towards Silverspring, in the lands of the Enclave.'] }],
+        lore: [{ gate: { ability: 'int', dc: 11 }, pages: ['The new pins all point one way: towards Silverspring, in the lands of the Enclave.'] }],
       },
     },
     people: {

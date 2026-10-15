@@ -40,7 +40,8 @@ import {
  * docs/drafts/abilities.md and docs/drafts/equipment.md.
  *
  * Two kinds of effect: a scale (a number changes with the modifier of a score: -1 to +3) and a
- * gate (a fixed limit on a score opens something: Gate). A gate is never a roll of a die.
+ * gate (a check of one score against a difficulty class opens something: Gate). A gate is never a
+ * roll of a die.
  */
 export interface PlayerTraits {
   /**
@@ -137,11 +138,30 @@ export interface PlayerTraits {
   readonly inspire: number;
 }
 
-/** A fixed limit on a score: a thing opens for a character with at least `min` in `ability`. */
+/**
+ * A check of one ability (Fede, 2026-10-15): a thing opens for a character with a score of `dc` or
+ * more in `ability`. The DC is the score that the check needs: there is no die. Each check has its own
+ * DC, from its context: see DC, and docs/features/abilities/checks.md for how to choose it.
+ */
 export interface Gate {
   readonly ability: Ability;
-  readonly min: number;
+  /** The difficulty class: the score that the check needs. */
+  readonly dc: number;
 }
+
+/**
+ * The difficulty classes of 5e, as a guide to choose the DC of a check (Fede's table, 2026-10-15). In
+ * this game a DC is the score that the check needs, so a DC above 20 needs more than a score can
+ * have now. A very easy action needs no check.
+ */
+export const DC = {
+  veryEasy: 5,
+  easy: 10,
+  medium: 15,
+  hard: 20,
+  veryHard: 25,
+  nearlyImpossible: 30,
+} as const;
 
 /** No dice: a sneak attack of a class without it. */
 const NO_DICE: Dice = dice(0, 6);
@@ -228,14 +248,11 @@ export const DAUNT_PER_MOD = 0.1;
 export const INSPIRE_PER_MOD = 6;
 /** Other players this close (world pixels) get the guard of an inspiring player. */
 export const INSPIRE_RANGE = 3 * TILE_SIZE;
-/** The usual gate: a score of 13 or more. */
-export const GATE_SCORE = 13;
-/** A character with this can walk in shallow water. */
-export const WADE_GATE: Gate = { ability: 'str', min: GATE_SCORE };
-/** The usual boards on a barred door (Building.barred): a world can use another gate. */
-export const FORCE_GATE: Gate = { ability: 'str', min: GATE_SCORE };
-/** The usual lock of a chest (Fixture.lock). */
-export const PICK_GATE: Gate = { ability: 'dex', min: GATE_SCORE };
+/**
+ * A character with this can walk in shallow water: an easy action (DC 10), +2 because it is a way
+ * round every lake of a world, at all times (docs/features/abilities/checks.md).
+ */
+export const WADE_GATE: Gate = { ability: 'str', dc: 12 };
 
 /** While a player sneaks (isSneaking), mobs see it from this share of the distance. */
 export const SNEAK_SIGHT = 0.5;
@@ -247,21 +264,21 @@ export function sightOf(traits: Pick<PlayerTraits, 'sight'> & Partial<Pick<Playe
 
 /** Whether a character's scores pass a gate. */
 export function meetsGate(scores: Scores, gate: Gate): boolean {
-  return scores[gate.ability] >= gate.min;
+  return scores[gate.ability] >= gate.dc;
 }
 
-/** A score this much under a gate, or less, shows a clue of it (Fede's rule, 2026-10-10). */
+/** A score this much under the DC of a gate, or less, shows a clue of it (Fede's rule, 2026-10-10). */
 export const GATE_HINT = 2;
 
 /**
- * How a thing behind a gate shows to a character (Fede's rule, 2026-10-10): 'open' with the score
- * of the gate or more (the character can use it); 'hint' with a score 1 or 2 under it (a dim clue
- * with the gate, "[INT 13]", that it cannot use); 'hidden' with a lower score (nothing shows).
+ * How a thing behind a gate shows to a character (Fede's rule, 2026-10-10): 'open' with a score of
+ * the DC or more (the character can use it); 'hint' with a score 1 or 2 under it (a dim clue with
+ * the gate, "[INT 13]", that it cannot use); 'hidden' with a lower score (nothing shows).
  */
 export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden' {
   const score = scores[gate.ability];
-  if (score >= gate.min) return 'open';
-  return score >= gate.min - GATE_HINT ? 'hint' : 'hidden';
+  if (score >= gate.dc) return 'open';
+  return score >= gate.dc - GATE_HINT ? 'hint' : 'hidden';
 }
 
 /**

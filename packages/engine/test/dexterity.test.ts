@@ -280,7 +280,7 @@ describe('arrows', () => {
 describe('a locked chest', () => {
   it('opens only for Dexterity 13, each time', () => {
     const base = lootHouseSource();
-    const locked = { ...LOOT_CHEST, lock: { ability: 'dex' as const, min: 13 } };
+    const locked = { ...LOOT_CHEST, lock: { ability: 'dex' as const, dc: 13 } };
     const source = { ...base, loot: () => ({ coins: [2, 2] as const }) };
     const spoils = new Spoils(new World(source), () => 0.5);
     expect(spoils.open(locked, EMPTY_PACK, withDex(12), 0)).toBe('locked');

@@ -63,12 +63,19 @@ describe('the traits list', () => {
     expect(row(group(sheet, 'cha'), 'Prices')?.tone).toBe('worse');
   });
 
-  it('names every gate: open, or closed with its score', () => {
+  it('names every gate: open, or closed with its DC', () => {
     const sheet = traitSheet(traitsOf(scores({ str: 13, int: 13 }), 'fighter', EMPTY_GEAR));
-    expect(row(group(sheet, 'str'), 'Barred doors')).toEqual({ term: 'Barred doors', value: 'you break them', tone: 'better' });
-    expect(row(group(sheet, 'dex'), 'Locked chests')).toEqual({ term: 'Locked chests', value: 'from DEX 13', tone: 'closed' });
     expect(row(group(sheet, 'int'), 'Read a mob')).toEqual({ term: 'Read a mob', value: 'its health', tone: 'better' });
-    expect(row(group(sheet, 'wis'), 'Insight')?.tone).toBe('closed');
+    expect(row(group(sheet, 'wis'), 'The way home')).toEqual({ term: 'The way home', value: 'from WIS 12', tone: 'closed' });
+  });
+
+  it('gives the checks of the content, which each have their own DC, as the highest DC that the score passes', () => {
+    const sheet = traitSheet(traitsOf(scores({ str: 13, int: 13, cha: 8 }), 'fighter', EMPTY_GEAR));
+    expect(row(group(sheet, 'str'), 'Barred doors')).toEqual({ term: 'Barred doors', value: 'up to STR 13', tone: 'better' });
+    expect(row(group(sheet, 'dex'), 'Locked chests')).toEqual({ term: 'Locked chests', value: 'up to DEX 10', tone: 'plain' });
+    expect(row(group(sheet, 'int'), 'Old writing')).toEqual({ term: 'Old writing', value: 'up to INT 13', tone: 'better' });
+    expect(row(group(sheet, 'wis'), 'Insight')).toEqual({ term: 'Insight', value: 'up to WIS 10', tone: 'plain' });
+    expect(row(group(sheet, 'cha'), 'Persuasion')).toEqual({ term: 'Persuasion', value: 'up to CHA 8', tone: 'worse' });
   });
 
   it('shows the slow walk of heavy armour under Strength, and the arrows of a bow under Dexterity', () => {
@@ -82,9 +89,10 @@ describe('the traits list', () => {
   });
 
   it('shows the scores without the luck of an amulet in the groups, and opens the gates with it', () => {
-    const sheet = traitSheet(traitsOf(scores({ str: 12 }), 'fighter', { ...EMPTY_GEAR, neck: 'luck-amulet' }));
-    expect(group(sheet, 'str').score).toBe(12);
+    const sheet = traitSheet(traitsOf(scores({ str: 11 }), 'fighter', { ...EMPTY_GEAR, neck: 'luck-amulet' }));
+    expect(group(sheet, 'str').score).toBe(11);
     expect(row(group(sheet, 'str'), 'Shallow water')).toEqual({ term: 'Shallow water', value: 'you wade through it', tone: 'better' });
+    expect(row(group(sheet, 'str'), 'Barred doors')?.value).toBe('up to STR 12');
     expect(sheet.groups.map((g) => g.ability)).toEqual([...ABILITIES]);
   });
 });

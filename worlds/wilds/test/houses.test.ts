@@ -20,7 +20,7 @@ import {
   useDoor,
   type Building,
 } from '@game/engine';
-import { BUILDING_CELL, DEFAULT_SEED, HOME_CELL, HOME_ID, HOUSE_KINDS, LANDS, READ_LETTER, SILVERSPRING, WildsSource, wilds, type House } from '../src/index.ts';
+import { BUILDING_CELL, CHEST_GRADES, CHEST_LOOT, DEFAULT_SEED, HOME_CELL, HOME_ID, HOUSE_KINDS, LANDS, READ_LETTER, SILVERSPRING, WildsSource, wilds, type House } from '../src/index.ts';
 
 const newWorld = (seed: number) => new World(new WildsSource(seed));
 const houseOf = (world: World, cx: number, cy: number) => (world.source as WildsSource).house(cx, cy);
@@ -48,24 +48,26 @@ describe('buildings', () => {
     expect(new WildsSource(1).house(2, 3)).toEqual(new WildsSource(1).house(2, 3));
   });
 
-  it('about one in four with a chest is barred, never the home or the house next to it, and its chest gives more', () => {
+  it('about one in four with a chest is barred, never the home or the house next to it, and the DC of its boards follows what its chest holds', () => {
     const withChest = buildings.filter(({ building: b }) => b.id !== HOME_ID && b.id !== '1,0' && b.fixtures.some((f) => f.kind === 'chest'));
     const barred = withChest.filter(({ building: b }) => b.barred);
     expect(barred.length / withChest.length).toBeGreaterThan(0.15);
     expect(barred.length / withChest.length).toBeLessThan(0.35);
     for (const { building: b } of buildings) {
-      if (b.barred) expect(b.barred).toEqual({ ability: 'str', min: 13 });
+      if (b.barred) expect(b.barred.ability).toBe('str');
       if (b.id === HOME_ID || b.id === '1,0' || !b.fixtures.some((f) => f.kind === 'chest')) expect(b.barred).toBeUndefined();
     }
     for (const { world, building: b } of buildings) {
       const chest = b.fixtures.find((f) => f.kind === 'chest');
       const table = chest ? world.source.loot!(chest) : null;
       if (b.id === HOME_ID) expect(table).toBeNull();
-      else if (chest) expect(table!.coins![1]).toBe(b.barred ? 4 : chest.lock ? 3 : 2);
+      else if (chest) expect(table).toBe(b.barred ? CHEST_GRADES.find((g) => g.dc === b.barred!.dc)!.loot : chest.lock ? table : CHEST_LOOT);
     }
+    // Every grade guards some barred house.
+    expect(new Set(barred.map(({ building: b }) => b.barred!.dc))).toEqual(new Set(CHEST_GRADES.map((g) => g.dc)));
   });
 
-  it('lock the chest in about one house of three that is not barred, and a locked chest gives more', () => {
+  it('lock the chest in about one house of three that is not barred, and the DC of the lock follows what the chest holds', () => {
     const open = buildings.filter(({ building: b }) => b.id !== HOME_ID && !b.barred && b.fixtures.some((f) => f.kind === 'chest'));
     const locked = open.filter(({ building: b }) => b.fixtures.some((f) => f.lock));
     expect(locked.length / open.length).toBeGreaterThan(0.2);
@@ -74,11 +76,31 @@ describe('buildings', () => {
       for (const f of b.fixtures) {
         if (!f.lock) continue;
         expect(f.kind).toBe('chest');
-        expect(f.lock).toEqual({ ability: 'dex', min: 13 });
+        expect(f.lock.ability).toBe('dex');
         expect(b.barred).toBeUndefined();
-        expect(world.source.loot!(f)!.coins).toEqual([1, 3]);
+        expect(world.source.loot!(f)).toBe(CHEST_GRADES.find((g) => g.dc === f.lock!.dc)!.loot);
       }
     }
+    // Every grade has some locks; the locks are more often on poor chests, the boards on rich ones.
+    const locks = locked.map(({ building: b }) => b.fixtures.find((f) => f.lock)!.lock!.dc);
+    expect(new Set(locks)).toEqual(new Set(CHEST_GRADES.map((g) => g.dc)));
+    const boards = buildings.flatMap(({ building: b }) => (b.barred ? [b.barred.dc] : []));
+    const mean = (dcs: number[]) => dcs.reduce((sum, dc) => sum + dc, 0) / dcs.length;
+    expect(mean(boards)).toBeGreaterThan(mean(locks));
+  });
+
+  it('guard a richer chest with a higher DC, from 10 to 13 at the start of the game (Fede, 2026-10-15)', () => {
+    expect(CHEST_GRADES.map((g) => g.dc)).toEqual([10, 11, 12, 13]);
+    const coins = (g: (typeof CHEST_GRADES)[number]) => ((g.loot.coins![0] + g.loot.coins![1]) / 2) * (g.loot.coinChance ?? 1);
+    const things = (g: (typeof CHEST_GRADES)[number]) => (g.loot.items ?? []).reduce((sum, roll) => sum + roll.chance, 0);
+    for (let i = 1; i < CHEST_GRADES.length; i++) {
+      expect(coins(CHEST_GRADES[i]!)).toBeGreaterThan(coins(CHEST_GRADES[i - 1]!));
+      expect(things(CHEST_GRADES[i]!)).toBeGreaterThan(things(CHEST_GRADES[i - 1]!));
+      expect(CHEST_GRADES[i]!.loot.coins![1]).toBeGreaterThanOrEqual(CHEST_GRADES[i - 1]!.loot.coins![1]);
+    }
+    // Even the poorest guarded chest gives more than a chest without a guard; and every chest has no coins at times.
+    expect(coins(CHEST_GRADES[0]!)).toBeGreaterThan(((CHEST_LOOT.coins![0] + CHEST_LOOT.coins![1]) / 2) * CHEST_LOOT.coinChance!);
+    for (const g of CHEST_GRADES) expect(g.loot.coinChance).toBeLessThan(1);
   });
 
   it('there is the home in its cell, and a house next to it', () => {
@@ -297,7 +319,7 @@ describe('the variants of the houses (Fede, 2026-10-15)', () => {
       for (const lectern of has(b, 'lectern')) {
         expect(b.kind).toBe('hermitage');
         expect(lectern.content?.pages).toHaveLength(1);
-        expect(lectern.content?.lore?.[0]?.gate).toEqual({ ability: 'int', min: 13 });
+        expect(lectern.content?.lore?.[0]?.gate).toEqual({ ability: 'int', dc: 10 });
       }
     }
     const share = (kind: string, b: House[]) => b.filter((h) => h.kind === kind).length / b.length;

@@ -1,5 +1,5 @@
 import { Ground, type Fixture } from '@game/engine';
-import { LORE_GATE, SELA } from './dialogs.ts';
+import { SELA } from './dialogs.ts';
 import { STONE_BACK } from './quests.ts';
 import { Town, type Plan } from './towns.ts';
 import { SEEKER_CAMP_SITE } from './wren.ts';
@@ -62,7 +62,7 @@ const THINGS: Readonly<Record<string, Fixture>> = {
     ty: 0,
     content: {
       pages: ['A standard of grey cloth: a red phoenix that rises from ashes.'],
-      lore: [{ gate: LORE_GATE, pages: ['The cloth is old, older than the pole. Somebody mended it many times, with great care.'] }],
+      lore: [{ gate: { ability: 'int', dc: 11 }, pages: ['The cloth is old, older than the pole. Somebody mended it many times, with great care.'] }],
     },
   },
   S: {
@@ -93,7 +93,7 @@ const THINGS: Readonly<Record<string, Fixture>> = {
     ty: 0,
     content: {
       pages: ['A torn page on a stand, in a neat hand: "...and when the last chain of the Four breaks, the Sleeper wakes, and the ash becomes a world."'],
-      lore: [{ gate: LORE_GATE, pages: ['In the margin, in another hand: "Hondurria, then the walls." The rest of the page is burned away.'] }],
+      lore: [{ gate: { ability: 'int', dc: 12 }, pages: ['In the margin, in another hand: "Hondurria, then the walls." The rest of the page is burned away.'] }],
     },
   },
   x: { kind: 'crate', tx: 0, ty: 0, content: { pages: ['Rope, lamp oil, and masks of bone, wrapped in cloth.'] } },

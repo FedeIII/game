@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLAIN_GEAR, PLAIN_SCORES, Room, TILE_SIZE, WEARABLES, World, checkDialog, dialogDeals, gearAddress, kitOf, traitsOf, type DialogAnswer, type ItemKind, type Pack } from '@game/engine';
-import { DEFAULT_SEED, MAGIC_CHANCE, MAGIC_ITEMS, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
+import { CHEST_GRADES, DEFAULT_SEED, MAGIC_CHANCE, MAGIC_ITEMS, SMITH, SMITH_PRICES, TOWN_NPCS, WildsSource, smithPays } from '../src/index.ts';
 import { MITHRIL_PRICE } from '../src/index.ts';
 
 const answers = (): DialogAnswer[] => Object.values(SMITH.nodes).flatMap((n) => n.answers);
@@ -82,7 +82,9 @@ describe('magic items in the Wilds', () => {
       expect(WEARABLES[kind], kind).toBeDefined();
       expect(kind in SMITH_PRICES, kind).toBe(false);
     }
-    expect(MAGIC_CHANCE).toEqual({ locked: 1 / 16, barred: 1 / 8, cache: 1 / 6 });
+    expect(MAGIC_CHANCE).toEqual({ cache: 1 / 6 });
+    // The richest guarded chests (chests.ts): a magic item in one of 8 at DC 12, one of 4 at DC 13.
+    expect(CHEST_GRADES.map((g) => g.loot.items?.find((r) => r.pick === MAGIC_ITEMS)?.chance ?? 0)).toEqual([0, 0, 1 / 8, 1 / 4]);
   });
 });
 

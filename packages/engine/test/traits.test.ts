@@ -8,6 +8,7 @@ import {
   CLASS_PRIMARY,
   GUEST_TRAITS,
   PLAIN_BLOW,
+  WADE_GATE,
   meetsGate,
   sheetTraits,
   traitsOf,
@@ -54,11 +55,12 @@ describe('Strength', () => {
     expect(traitsOf(scores({ str: 17 }), 'bard', PLAIN_GEAR).slots).toBe(12);
   });
 
-  it('lets a character wade from 13 on: a fixed gate, no roll', () => {
-    expect(traitsOf(scores({ str: 12 }), 'fighter', PLAIN_GEAR).wade).toBe(false);
-    expect(traitsOf(scores({ str: 13 }), 'fighter', PLAIN_GEAR).wade).toBe(true);
-    expect(meetsGate(scores({ str: 13 }), { ability: 'str', min: 13 })).toBe(true);
-    expect(meetsGate(scores({ str: 12 }), { ability: 'str', min: 13 })).toBe(false);
+  it('lets a character wade from STR 12 on (WADE_GATE): a fixed gate, no roll', () => {
+    expect(WADE_GATE).toEqual({ ability: 'str', dc: 12 });
+    expect(traitsOf(scores({ str: 11 }), 'fighter', PLAIN_GEAR).wade).toBe(false);
+    expect(traitsOf(scores({ str: 12 }), 'fighter', PLAIN_GEAR).wade).toBe(true);
+    expect(meetsGate(scores({ str: 13 }), { ability: 'str', dc: 13 })).toBe(true);
+    expect(meetsGate(scores({ str: 12 }), { ability: 'str', dc: 13 })).toBe(false);
   });
 });
 

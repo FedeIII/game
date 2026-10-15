@@ -281,7 +281,8 @@ export interface Fixture {
   readonly light?: Light;
   /**
    * A lock (a chest that gives loot, loot.ts): only a character whose scores pass the gate opens
-   * it (Dexterity 13: it picks the lock). The lock keeps no state: each opening needs the gate.
+   * it (a Dexterity of its DC or more: it picks the lock; the world chooses the DC, for example by what
+   * the chest holds). The lock keeps no state: each opening needs the gate.
    */
   readonly lock?: Gate;
   /**

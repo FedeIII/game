@@ -102,7 +102,7 @@ armour protects me.
 - **AC-CMB-005.1:** No hit point comes back by itself.
 - **AC-CMB-005.2:** A bed of the character (the home, a refuge) gives back all the hit points.
 - **AC-CMB-005.3:** A healing draught gives back 2d4+2 hit points; a strong draught 4d4+4; herbs
-  (with Medicine, WIS 13) 1d4.
+  (with Medicine, WIS 10) 1d4.
 - **AC-CMB-005.4:** A defeated character wakes at home or at its nearest refuge with all its hit
   points (and half of its coins go).
 - **AC-CMB-005.5:** After the change to the new scale, every stored character has all its hit points.

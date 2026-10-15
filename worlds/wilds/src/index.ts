@@ -4,13 +4,15 @@ import { QUESTS } from './quests.ts';
 import { TEXTS_ES } from './text-es.ts';
 import { PROLOGUE } from './prologue.ts';
 
+export { checksOf, checksTable, type CheckEntry } from './checks.ts';
+export { CHEST_GRADES, CHEST_LOOT, MAGIC_CHANCE, MAGIC_ITEMS, TRINKETS, chestGrade, guardGate, guardedLoot, type ChestGrade } from './chests.ts';
 export { BUILDING_CELL, CANDLE, DOOR_PATH, HOUSE_KINDS, generateHouse, type House, type HouseKind } from './houses.ts';
 export { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH_ROAD_START, Road, RoadStretch, SILVERSPRING_SITE, campSite, campTrail, cartSpot, homeLegs, homeRoad, northRoad, road, signpost, type Heading, type Leg } from './road.ts';
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
 export { River, SILVERVEIN } from './river.ts';
-export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FIRST_GOBLINS, FOREST_EDGE_Y, FOREST_MOBS, LANDS, WILD_MOBS, MAGIC_CHANCE, MAGIC_ITEMS, WildsSource, inTutorialForest } from './source.ts';
+export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FIRST_GOBLINS, FOREST_EDGE_Y, FOREST_MOBS, LANDS, WILD_MOBS, WildsSource, inTutorialForest } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME_SIGN, TOWN_SOUTH, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NAME_SIGN, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -23,21 +25,17 @@ export { PROLOGUE } from './prologue.ts';
 export { Plot, Town, type TownPlan } from './towns.ts';
 export {
   APOTHECARY,
-  ATHLETICS_GATE,
   FARMER,
   HOST,
   INNKEEPER,
-  INSIGHT_GATE,
   JEWELLER,
   KASMUT,
-  KEEN_GATE,
   MERCHANT,
   MILITIA,
   MIRA,
   MITHRIL_COST,
   MITHRIL_PRICE,
   PEDDLER,
-  PERSUASION_GATE,
   PRIEST,
   REEVE,
   SELA,

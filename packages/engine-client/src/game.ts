@@ -664,7 +664,7 @@ async function run(options: GameOptions): Promise<void> {
     }
   };
   net?.onBarks(sayLines);
-  // Reputation (Charisma 13): each NPC greets the player by name once, when it comes close.
+  // Reputation (REPUTATION_GATE, CHA 12): each NPC greets the player by name once, when it comes close.
   const greeted = new Set<string>();
   const greet = (now: number) => {
     if (!barkBubbles || !name || !meetsGate(traits.scores, REPUTATION_GATE) || arriving(now)) return;
@@ -871,7 +871,7 @@ async function run(options: GameOptions): Promise<void> {
   const speech = new SpeechBubble(art, font, { name: 'dialog' });
   textScene.addChild(speech.root);
   // Marks at the edge of the screen (Wisdom): the mobs that hunt the player out of its view, and
-  // the way home (WIS 13). Above the darkness, under the speech.
+  // the way home (HOMEWARD_GATE, WIS 12). Above the darkness, under the speech.
   const edgeMarks = new EdgeMarks(art);
   textScene.addChildAt(edgeMarks.root, textScene.getChildIndex(speech.root));
   const homeMark = world.source.landmarks?.().find((mark) => mark.kind === 'home') ?? null;

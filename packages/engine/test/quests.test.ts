@@ -166,7 +166,7 @@ describe('scenes', () => {
     when: { quest: 'errand', not: true },
     lines: [
       { npc: 'asker', text: 'Hello.' },
-      { npc: 'other', text: 'A secret.', gate: { ability: 'wis', min: 13 } },
+      { npc: 'other', text: 'A secret.', gate: { ability: 'wis', dc: 13 } },
     ],
     effect: START,
   };

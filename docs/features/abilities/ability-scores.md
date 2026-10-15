@@ -19,8 +19,8 @@ the other effects of INT, WIS and CHA come later (`docs/drafts/abilities.md`).
 - **Trait**: one thing that the scores give in the game, for example the damage of a blow or the
   slots of the pack.
 - **Scale**: an effect in which a number changes with a modifier.
-- **Gate**: a fixed limit on one score. A character with that score or more can do a thing. The
-  usual gate is 13.
+- **Gate**: a check of one score: a character with a score of its DC (difficulty class) or more can
+  do a thing. Each gate has its own DC ([Checks and DCs](checks.md)), from 10 to 17 in the Wilds.
 - **Attack ability**: the ability that a class attacks with. It gives the attack bonus and the
   damage of a blow.
 - **Attack bonus**: what a character adds to the d20 of its attack roll: +2 (the proficiency bonus
@@ -47,8 +47,8 @@ that my choices have a result.
 - **AC-AS-001.3:** Each effect is a scale or a gate. No trait uses a die roll: the same scores and
   the same gear always give the same traits. The dice roll only in a fight, and for the hit points
   that a draught or herbs give back ([Combat](../game/combat.md)).
-- **AC-AS-001.4:** A gate of 13 opens for a final score of 13 or more. It stays shut for a score
-  of 12 or less.
+- **AC-AS-001.4:** A gate of DC 13 opens for a final score of 13 or more. It stays shut for a score
+  of 12 or less. Each gate has its own DC ([Checks and DCs](checks.md), REQ-CHK-001).
 - **AC-AS-001.5:** The traits of a character do not change during play.
 
 ---
@@ -116,8 +116,8 @@ character.
     guard of 1.00 s, and a roll every 1.60 s;
   - mobs see it from 100% of their sight (50% while it sneaks, 75% in noisy armour);
   - with a bow in its kit, arrows that fly 5 tiles.
-- **AC-AS-004.4:** A guest does not pass a gate of 13. It cannot wade, force a barred door, or
-  pick a lock.
+- **AC-AS-004.4:** A guest passes the gates of DC 10 only. It cannot wade (STR 12), and it forces
+  only the boards and picks only the locks of DC 10.
 - **AC-AS-004.5:** A guest plays only on a page of the developer's machine (`localhost`, with
   `?nomenu`), for tests. On game.azyr.io every visitor signs in and plays a stored character
   (Fede's decision, 2026-10-11).
@@ -144,14 +144,16 @@ game, so that I can choose my scores with knowledge.
   DEX, in this order (in brackets, the value for a fighter with every score 10 and no gear):
   - Strength: "Walk" ("25% slower (armour)", only in a heavy armour without its STR),
     "Knockback" ("normal", or for example "+15%" and "−15%"), "Stagger" ("normal", "+20%"),
-    "Pack" ("6 slots"), "Shallow water" ("you wade through it", or "from STR 13") and "Barred
-    doors" ("you break them", or "from STR 13").
+    "Pack" ("6 slots"), "Shallow water" ("you wade through it", or "from STR 12") and "Barred
+    doors" ("up to STR 10": [Checks and DCs](checks.md), REQ-CHK-003).
   - Dexterity: "Attacks" ("one every 0.45 s"), "Guard after a hit" ("1.00 s"), "Roll" ("every
     1.60 s"), "Mobs see you from" ("100% (sneaking 50%)"), "Arrows fly" ("5 tiles", only with a
-    bow) and "Locked chests" ("you pick them", or "from DEX 13").
+    bow) and "Locked chests" ("up to DEX 10").
   The rows of CON, INT, WIS and CHA are in the documents of those abilities.
-- **AC-AS-005.5:** A gate row shows its "yes" text when the score passes the gate. Else it shows
-  the gate, for example "from STR 13", and the whole row is dim.
+- **AC-AS-005.5:** A gate row with one DC for the whole game shows its "yes" text when the score
+  passes the gate. Else it shows the gate, for example "from STR 12", and the whole row is dim. A row
+  of the checks of the content, which each have their own DC, shows the highest DC that the score
+  passes, for example "up to STR 14" ([Checks and DCs](checks.md), REQ-CHK-003).
 - **AC-AS-005.6:** A value shows how it compares with a score of 10: brighter when the modifier
   of its ability is above 0 (or its gate is open), dim when it is 0 ("normal"), and in a pale red
   when it is under 0 (and the slow walk of a heavy armour). A bonus that a low score does not take away ("A blow on a wind-up",
@@ -182,10 +184,10 @@ character can do.
 which score to raise, without a list of everything that I cannot do.
 
 **Acceptance Criteria:**
-- **AC-AS-007.1:** A character with the score of a gate or more uses the thing behind it: an
+- **AC-AS-007.1:** A character with a score of the DC of a gate or more uses the thing behind it: an
   answer, a page, a door, a chest, a recipe.
-- **AC-AS-007.2:** A character with a score 1 or 2 under the gate sees a dim clue with the gate,
-  for example "[INT 13]" or "[STR 13]", and cannot use the thing.
+- **AC-AS-007.2:** A character with a score 1 or 2 under the DC sees a dim clue with the gate, for
+  example "[INT 13]" or "[STR 12]", and cannot use the thing.
 - **AC-AS-007.3:** A character with a score 3 or more under the gate sees nothing of it.
 - **AC-AS-007.4:** The rule is the same for every ability and every gate in the world: dialog
   answers (lore, insight, persuasion), lore pages, barred doors, locked chests, the recipes of the
@@ -234,8 +236,8 @@ know what my character is good at.
 - **The code.** `packages/engine/src/traits.ts`: `PlayerTraits`, `traitsOf(scores, class, gear, level)`,
   `sheetTraits(sheet, gear)` (a stored character), `guestTraits(skin, gear)` (a guest; its gear
   is `guestGear(skin)`), `GUEST_TRAITS` (every score 10, a fighter and `PLAIN_GEAR`, a rapier: for
-  tests and for a player without a look), `PLAIN_SCORES`, `Gate`, `meetsGate()` and `GATE_SCORE`
-  (13). The attack bonus is `PlayerTraits.toHit`: `proficiencyBonus(level)` (2; 3 at level 5) + the
+  tests and for a player without a look), `PLAIN_SCORES`, `Gate` (`{ ability, dc }`), `meetsGate()`
+  and `DC` (the 5e table, a guide: [Checks and DCs](checks.md)). The attack bonus is `PlayerTraits.toHit`: `proficiencyBonus(level)` (2; 3 at level 5) + the
   modifier of the attack ability + the magic bonus of the weapon. The damage is
   `PlayerTraits.damage`, a `Dice` (`packages/engine/src/dice.ts`): the dice of the gear
   (`packages/engine/src/gear.ts`, [Equipment](../items/equipment.md)) + the same modifier and

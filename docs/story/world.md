@@ -116,8 +116,9 @@ at its north edge.
 
 North of the forest (row -9 and north), a character has about 4 imps and 2 brutes round it, and they
 live only from row -11 north (two rows of margin from the forest). Lonely houses stand in about a third of the 24 x 24-tile cells:
-a quarter of the houses with a chest are barred (STR 13), a third of the other chests are locked
-(DEX 13).
+a quarter of the houses with a chest are barred (STR), a third of the other chests are locked (DEX).
+The DC of the boards or of the lock is from 10 to 13, by what the chest holds
+(`docs/features/abilities/checks.md`).
 
 | Place | Where | What |
 |---|---|---|

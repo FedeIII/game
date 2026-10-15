@@ -4,8 +4,9 @@
 
 Dexterity (DEX) is the speed and the skill of the hands and the feet. For every class it gives the
 time between attacks and the guard after a hit. It also gives the time between dodge rolls, their
-distance and their safe ticks, the AC of a brace, and how far mobs see the character. For a ranger it gives the range of its arrows. Its gate of 13
-picks the locks of chests, for every class. For the bard, the monk, the ranger and the rogue, DEX
+distance and their safe ticks, the AC of a brace, and how far mobs see the character. For a ranger it gives the range of its arrows. Its check
+picks the locks of chests, for every class: DEX 10 to 13, by what the chest holds (each check has its
+own DC: [Checks and DCs](checks.md)). For the bard, the monk, the ranger and the rogue, DEX
 also gives the attack bonus and the damage of a blow ([Ability Scores](ability-scores.md),
 REQ-AS-002).
 
@@ -23,7 +24,7 @@ REQ-AS-002).
 - **Sneaking on purpose**: a slow walk, or the sneak walk while it is on. Only this changes the
   look of the player.
 - **Arrow**: the attack of a ranger: a shot that flies straight until it hits a mob or a thing.
-- **Lock**: a gate on a chest (`Fixture.lock`). DEX 13 picks it.
+- **Lock**: a gate on a chest (`Fixture.lock`). A DEX of its DC or more picks it.
 - **Brace**: the stance after a step back right after a melee blow ([Combat](../game/combat.md),
   REQ-CMB-013). In it, a mob's attack rolls against more AC.
 - **Tick**: one step of the simulation: 1/60 s.
@@ -196,20 +197,27 @@ loot in them.
 **Acceptance Criteria:**
 - **AC-DEX-007.1:** In the Wilds, about one chest in three of the houses that are not barred has a
   lock.
-- **AC-DEX-007.2:** At a locked chest, the action label is "Pick the lock" for a character with DEX
-  13 or more. For a character with less, it is "Open the chest".
-- **AC-DEX-007.3:** With DEX 13 or more, a press opens the chest at once. The line starts with "The
-  lock clicks open." and then says what the player found, for example "The lock clicks open. I
-  find 4 coins and a pewter cup."
-- **AC-DEX-007.4:** With DEX 12 or less, a press does not open the chest. With DEX 11 or 12 the
-  player says "It is locked. I cannot pick it. [DEX 13]" (a clue of the gate,
-  [Ability Scores](ability-scores.md), REQ-AS-007). With DEX 10 or less it says only "It is
-  locked."
-- **AC-DEX-007.5:** Each time that a character opens the chest, it needs DEX 13. The lock keeps no
-  state: after one character picks it, the chest stays locked for a character with less DEX.
-- **AC-DEX-007.6:** A locked chest gives one thing, and a second thing in about one of three (35%).
-  It also gives 1 to 3 coins in one chest of two (coins are scarce: [Pack and
-  Loot](../items/pack-and-loot.md), REQ-PK-016).
+- **AC-DEX-007.2:** Each lock has its own DC ([Checks and DCs](checks.md)). At a locked chest, the
+  action label is "Pick the lock" for a character with a DEX of the DC or more. For a character with
+  less, it is "Open the chest".
+- **AC-DEX-007.3:** With a DEX of the DC or more, a press opens the chest at once. The line starts
+  with the tag of the gate and "The lock clicks open.", and then says what the player found, for
+  example "[DEX 12] The lock clicks open. I find 3 coins and a pewter cup."
+- **AC-DEX-007.4:** With a DEX under the DC, a press does not open the chest. With a DEX 1 or 2 under
+  the DC, the player says, for a lock of DC 13, "[DEX 13] It is locked. I cannot pick it." (a clue of
+  the gate, [Ability Scores](ability-scores.md), REQ-AS-007 and REQ-AS-008). With less, it says only
+  "It is locked."
+- **AC-DEX-007.5:** Each time that a character opens the chest, it needs the DC of the lock. The lock
+  keeps no state: after one character picks it, the chest stays locked for a character with less DEX.
+- **AC-DEX-007.6:** The DC of a lock follows what the chest holds (Fede, 2026-10-15): at the start of
+  the game, from DC 10 (the poorest chest) to DC 13 (the richest). A lock is more often on a poor
+  chest: DC 10 in three locked chests of 9, 11 in three, 12 in two, and 13 in one. The grades
+  (coins are scarce: [Pack and Loot](../items/pack-and-loot.md), REQ-PK-016):
+  - DC 10: one thing, and a coin in two chests of three.
+  - DC 11: one thing, a second thing in one chest of three, and 1 or 2 coins in one of two.
+  - DC 12: one thing, a second thing in one of two, a magic item in one of 8, and 1 to 3 coins in
+    one of two.
+  - DC 13: two things, a magic item in one of 4, and 2 to 4 coins in two chests of three.
 - **AC-DEX-007.7:** In a shared world the server checks the gate again with the scores of the
   stored character.
 
@@ -232,7 +240,7 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
 
 - **Constants** (`packages/engine/src/traits.ts`): `COOLDOWN_PER_MOD` (2), `GUARD_PER_MOD` (9),
   `DODGE_PER_MOD` (12), `ROLL_REACH_PER_MOD` (2 px), `ROLL_SAFE_PER_MOD` (1 tick), `SIGHT_PER_MOD`
-  (0.08), `RANGE_TILES` (5), `BRACE_AC` (2), `SNEAK_SIGHT` (0.5) and `PICK_GATE` (DEX 13). The traits
+  (0.08), `RANGE_TILES` (5), `BRACE_AC` (2) and `SNEAK_SIGHT` (0.5). A lock has the gate of its world. The traits
   are `PlayerTraits.cooldown`, `guard`, `dodgeCooldown` (ticks), `rollReach` (world pixels),
   `rollSafe` (ticks), `sight` (a share), `ranged` (a ranger only), `range` (world pixels) and
   `braceAc`.
@@ -305,7 +313,8 @@ Dexterity helps me to stay in front of a foe (Fede's decision, 2026-10-14).
   for a character without the gate. The page checks `meetsGate()` first, and says the line without
   a message to the server. The Room answers a request without the gate with `l` source 2.
 - **Locks in the Wilds** (`worlds/wilds/src/houses.ts`): `LOCKED_CHANCE` (1/3), from the seed, so
-  every visitor finds the same chests locked. The house east of the home can have a lock. The loot
-  is `LOCKED_CHEST_LOOT` (`worlds/wilds/src/source.ts`).
+  every visitor finds the same chests locked. The house east of the home can have a lock. The grade
+  of the chest (`chestGrade('lock', ...)`, from the seed) gives the DC of the lock (`guardGate()`)
+  and the loot (`guardedLoot()`): `CHEST_GRADES` in `worlds/wilds/src/chests.ts`.
 - **Dropped:** D7, a faster walk (`docs/drafts/abilities.md`). DEX does not change the speed of the
   walk: "an imp is faster than you" stays a rule.

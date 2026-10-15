@@ -7,7 +7,7 @@ const SHOP: Shop = {
   buy: [
     { id: 'buy-draught', kind: 'draught', price: 6 },
     { id: 'buy-plate', kind: 'plate-armour', price: 150 },
-    { id: 'buy-secret', kind: 'antidote', price: 4, gate: { ability: 'cha', min: 13 } },
+    { id: 'buy-secret', kind: 'antidote', price: 4, gate: { ability: 'cha', dc: 13 } },
     { id: 'buy-permit', kind: 'mithril', price: 5, when: { has: 'mithril-permit' } },
   ],
   sell: [

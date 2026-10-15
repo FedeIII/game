@@ -1,5 +1,5 @@
-import { ABILITIES, FORCE_GATE, MEDICINE_GATE, PICK_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, rollOf, type Ability, type Gate, type PlayerTraits } from '@game/engine';
-import { HOMEWARD_GATE, INSIGHT_GATE, LORE_GATE, PERSUASION_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
+import { ABILITIES, MEDICINE_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, rollOf, type Ability, type Gate, type PlayerTraits } from '@game/engine';
+import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
 /**
@@ -76,7 +76,10 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
   const bonus: TraitTone = modifier > 0 ? 'better' : 'plain';
   const row = (term: string, value: string, tone: TraitTone = scale): TraitRow => ({ term, value, tone });
   const gate = (term: string, gate: Gate, yes: string): TraitRow =>
-    meetsGate(traits.scores, gate) ? row(term, yes, 'better') : row(term, t.from(short(gate.ability), gate.min), 'closed');
+    meetsGate(traits.scores, gate) ? row(term, yes, 'better') : row(term, t.from(short(gate.ability), gate.dc), 'closed');
+  // The checks of the content (locks, boards, lore, insight, persuasion) each have their own DC: the
+  // score (with the luck) is the highest DC that the character passes (docs/features/abilities/checks.md).
+  const checks = (term: string): TraitRow => row(term, t.upTo(short(ability), traits.scores[ability]));
   switch (ability) {
     case 'str':
       return [
@@ -86,7 +89,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         row(t.slots, t.slotsValue(traits.slots)),
         row(t.carry, t.carryValue(traits.carry)),
         gate(t.wade, WADE_GATE, t.wadeYes),
-        gate(t.force, FORCE_GATE, t.forceYes),
+        checks(t.force),
       ];
     case 'dex':
       return [
@@ -98,7 +101,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         ...(traits.brace ? [row(t.brace, t.braceValue(traits.braceAc))] : []),
         row(t.sight, t.sightValue(traits.sight, traits.sight * traits.sneakSight)),
         ...(traits.ranged ? [row(t.range, t.rangeValue(traits.range / TILE_SIZE))] : []),
-        gate(t.pick, PICK_GATE, t.pickYes),
+        checks(t.pick),
       ];
     case 'con':
       return [
@@ -115,16 +118,16 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
           ? row(t.readFoe, t.readFoeOpening, 'better')
           : meetsGate(traits.scores, READ_FOE_GATE)
             ? row(t.readFoe, t.readFoeHealth, 'better')
-            : row(t.readFoe, t.from(short('int'), READ_FOE_GATE.min), 'closed'),
+            : row(t.readFoe, t.from(short('int'), READ_FOE_GATE.dc), 'closed'),
         row(t.map, t.mapValue(traits.scores.int), traits.scores.int >= 11 ? 'better' : 'plain'),
-        gate(t.lore, LORE_GATE, t.loreYes),
+        checks(t.lore),
       ];
     case 'wis':
       return [
         row(t.sense, t.tiles(traits.sense / TILE_SIZE)),
         row(t.seek, t.tiles(traits.seek / TILE_SIZE)),
         row(t.night, t.nightValue(traits.night)),
-        gate(t.insight, INSIGHT_GATE, t.insightYes),
+        checks(t.insight),
         gate(t.medicine, MEDICINE_GATE, t.medicineYes),
         gate(t.homeward, HOMEWARD_GATE, t.homewardYes),
       ];
@@ -134,7 +137,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
         row(t.presence, t.presenceValue(traits.presence)),
         row(t.daunt, t.dauntValue(traits.daunt)),
         row(t.inspire, t.inspireValue(traits.inspire * TICK_SECONDS), bonus),
-        gate(t.persuasion, PERSUASION_GATE, t.persuasionYes),
+        checks(t.persuasion),
         gate(t.reputation, REPUTATION_GATE, t.reputationYes),
       ];
   }

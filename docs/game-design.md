@@ -25,6 +25,19 @@ design a quest, an encounter, a mob or an ability. The decisions of one feature 
 - The tutorial is the exception in difficulty only: its goblins are an easy match, so that a new
   player learns the controls without fear (`docs/drafts/tutorial.md`).
 
+## Checks
+
+- **A DC is the score that a check needs** (Fede, 2026-10-15): "A DC of X in this game means that the
+  player needs a score in that ability of X or more." There is no die (Fede's rule, 2026-10-10).
+- **Each check has its own DC, from its context.** The 5e table of DCs is the guide (easy 10, medium 15,
+  hard 20), and the reward moves it: the world guards a valuable thing better. At the start of the game
+  a chest goes from DC 10 (a few coins) to DC 13 (the most coins of the start and two things); a chest
+  with an important item in the house of an NPC would be DC 16, and a chest of a bank with a magic item
+  DC 20.
+- Choose the DC of a new check with the rubric of `docs/features/abilities/checks.md`, and read the
+  register first (`npm run checks`), so that the check fits the others. Ask Fede when the rubric does
+  not give a clear answer.
+
 ## Experience
 
 - **Kills and quests give XP; the quests give more than half of it** (Fede, 2026-10-14), as for the

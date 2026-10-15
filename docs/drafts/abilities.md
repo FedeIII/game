@@ -21,7 +21,8 @@ of effect:
 - **Scale:** a number changes with the mod. For fights.
 - **Gate:** a score of 13 or more opens something. For words and the world. A gate is a fixed
   limit, not a d20 roll: the player can see why, and a conversation cannot be opened again for a
-  new roll. (Open: gates or d20 rolls.)
+  new roll. (Open: gates or d20 rolls.) **Since 2026-10-15 (Fede):** each gate has its own DC, and
+  a DC is the score that it needs, still with no roll: `docs/features/abilities/checks.md`.
 
 In the tables, **Exists** means that the engine has the mechanic and only a number changes;
 **New** means that the mechanic must be made. ★ marks the first recommendation.

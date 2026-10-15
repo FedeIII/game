@@ -54,14 +54,14 @@ describe('a conversation', () => {
       name: 'The merchant',
       start: 'stuck',
       nodes: {
-        stuck: { say: 'The wheel is stuck.', answers: [{ text: 'I lift it.', next: 'up', gate: { ability: 'str', min: 13 } }, { text: 'Goodbye.' }] },
+        stuck: { say: 'The wheel is stuck.', answers: [{ text: 'I lift it.', next: 'up', gate: { ability: 'str', dc: 13 } }, { text: 'Goodbye.' }] },
         up: { say: 'Thank you!', answers: [{ text: 'Goodbye.' }] },
       },
     };
     const talk = new Conversation(cart, strong);
     expect(talk.answeredGate).toBeNull();
     talk.choose(0);
-    expect([talk.answered, talk.answeredGate]).toEqual(['I lift it.', { ability: 'str', min: 13 }]);
+    expect([talk.answered, talk.answeredGate]).toEqual(['I lift it.', { ability: 'str', dc: 13 }]);
     talk.choose(0);
     expect(talk.answeredGate).toBeNull();
   });
@@ -69,7 +69,7 @@ describe('a conversation', () => {
 
 describe('a line of a gate', () => {
   it('starts with the tag of the gate, which a speech bubble finds again', () => {
-    const line = gated({ ability: 'dex', min: 13 }, 'The lock clicks open.');
+    const line = gated({ ability: 'dex', dc: 13 }, 'The lock clicks open.');
     expect(line).toBe('[DEX 13] The lock clicks open.');
     expect(splitTag(line)).toEqual({ tag: '[DEX 13]', text: 'The lock clicks open.' });
   });
@@ -80,7 +80,7 @@ describe('an answer behind a gate', () => {
     name: 'The reeve',
     start: 'a',
     nodes: {
-      a: { say: 'Yes?', answers: [{ text: 'The ledgers lie.', next: 'b', gate: { ability: 'int', min: 13 } }, { text: 'Goodbye.' }] },
+      a: { say: 'Yes?', answers: [{ text: 'The ledgers lie.', next: 'b', gate: { ability: 'int', dc: 13 } }, { text: 'Goodbye.' }] },
       b: { say: 'So you read them.', answers: [{ text: 'Goodbye.' }] },
     },
   };

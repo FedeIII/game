@@ -66,6 +66,7 @@ npm test             # Vitest only
 npm run art          # make packages/engine-client/src/generated/ again (atlas + icon)
 npm run build        # production build of the app in apps/game/dist
 npm run server       # the game server, port 3020: accounts (.dev-data/game.db, dev sign-in), /ws (dev and preview send /api/, /auth/, /ws to it)
+npm run checks       # the register of the checks: every gate of the content and of the page, with its ability, DC and context
 scripts/deploy.sh    # on the VPS only: check, build, restart game-server (PM2), publish the client
 ```
 
@@ -613,8 +614,14 @@ character give: `traitsOf(scores, class)`, `sheetTraits(sheet)`, `GUEST_TRAITS` 
 a guest). The server makes the traits from the stored character (`Room.join(..., { traits,
 pack })`); the page makes the same from the same character, so the prediction stays exact. A
 client never sends its traits. Two kinds of effect: a scale (a number changes with the modifier,
--1 to +3) and a gate (`Gate`: a fixed limit on a score, 13 by default; `meetsGate()`), never a
-roll of a die (the dice roll only in a fight and in a draught: see "Mobs and fights"). **How a
+-1 to +3) and a gate (`Gate`: a check, `{ ability, dc }`; `meetsGate()`), never a roll of a die
+(the dice roll only in a fight and in a draught: see "Mobs and fights"). **Each check has its own
+DC, and a DC is the score that it needs** (Fede, 2026-10-15; `docs/features/abilities/checks.md`):
+choose the DC of a new check with the rubric there (the 5e table `DC` as a guide, the reward, the
+same fact with the same DC, 10 to 17 in chapter 1), and read the register first: `npm run checks`
+(`worlds/wilds/src/checks.ts`, `scripts/checks.ts`) prints every check with its DC and its context;
+`worlds/wilds/test/checks.test.ts` keeps the limits. The content writes each gate inline (no shared
+gate constants in the Wilds). **How a
 gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
 gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
 with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
@@ -634,9 +641,9 @@ gets its tag with `gated()`.
   see "Equipment", + that modifier + a magic bonus) from its hit points. See "Mobs and fights".
 - **Strength**, for every class: the push of a blow (`push`: `knockback` x (1 + 0.15 x mod)), how
   long a mob reels (`stagger`: `hurtMs` x (1 + 0.2 x mod)), the slots of the pack (6 + 2 x mod: 4
-  to 12), and two gates of 13: wading through shallow water (`WADE_GATE`; `stepPlayer(...,
-  traits)`: half speed, no attack there) and forcing a barred door (`FORCE_GATE`,
-  `Building.barred`).
+  to 12), and two gates: wading through shallow water (`WADE_GATE`, STR 12; `stepPlayer(...,
+  traits)`: half speed, no attack there) and forcing a barred door (`Building.barred`: STR 10 to 13
+  by what the chest of the house holds, see "Guarded chests").
 - **The pack** (`items.ts`): coins in a purse and items in slots, each slot one kind up to its
   stack (`ITEM_STACK`), and each kind with a weight in pounds (`ITEM_WEIGHT`, 5e; see "The load"). `Pack.items` is the slots in order, null for a free slot (never at the
   end): a stack keeps its slot until it goes, a new one takes the first free slot (`addToPack`),
@@ -700,8 +707,8 @@ gets its tag with `gated()`.
   (`guard`: 60 + 9 x mod), the time between dodges (`dodgeCooldown`: 96 - 12 x mod), the distance and
   the safe ticks of a roll (`rollReach`: 2 px x mod, `rollSafe`: 1 tick x mod), how far mobs
   see the player (`sight`: 1 - 0.08 x mod, half of that while it sneaks: `sightOf()`), the range of
-  a ranger's arrows (`range`: 5 + mod tiles; `ranged` for a ranger only), and a gate of 13 for
-  locked chests (`PICK_GATE`, `Fixture.lock`).
+  a ranger's arrows (`range`: 5 + mod tiles; `ranged` for a ranger only), and the gate of a locked
+  chest (`Fixture.lock`: DEX 10 to 13 by what the chest holds, see "Guarded chests").
 - **The dodge** (`player.ts`): `MoveInput.dodge` starts a roll the way the input moves (or towards
   the mouse, or the way the player faces), of the kind of the load (`ROLLS`, `rollOf()`; see "The
   load"): a light roll 36 px in 15 ticks (0.25 s), safe in its first 12 (`inSafeRoll()`: no mob can
@@ -747,10 +754,15 @@ gets its tag with `gated()`.
   arrow did is in `Horde.takeShotResults()` (`bl`). The page of the shooter flies its own copy at
   once (`flyArrow()`) and flashes the mob that it reaches; the others draw the server's (`ar` in the
   snapshot, `render/arrows.ts`).
-- **Locked chests**: one chest in three of the Wilds houses that are not barred has a lock (DEX
-  13). It opens each time for a character with the gate ("Pick the lock", "The lock clicks
-  open."), never for one without ("It is locked. I cannot pick it."); it gives more (1 to 3
-  coins in one of two, a second thing in about one of three).
+- **Guarded chests** (`worlds/wilds/src/chests.ts`; Fede, 2026-10-15): one chest in three of the
+  Wilds houses that are not barred has a lock (DEX), and a barred house has boards (STR). The DC of
+  the guard follows what the chest holds (`CHEST_GRADES`): DC 10 a coin in two chests of three and
+  one small thing; 11 up to 2 coins and a second thing in one of three; 12 up to 3 coins, a second
+  thing in one of two and a magic item in one of 8; 13 (the most of the start) 2 to 4 coins, two
+  things and a magic item in one of 4. A lock is more often on a poor chest (weights 3, 3, 2, 1), the
+  boards more often keep a rich one (1, 2, 3, 3); `chestGrade()`, `guardGate()`, `guardedLoot()`. A
+  lock opens each time for a character with the gate ("Pick the lock", "The lock clicks open."),
+  never for one without ("It is locked. I cannot pick it.").
 - **Constitution**: hit points (`maxHp` = `levelHp(class, mod, level)`: 5e, the hit die `HIT_DIE` at
   its most and the mod at level 1, then half the die + 1 and the mod for each level; a fighter with CON
   10 has 10 at level 1, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
@@ -778,14 +790,15 @@ gets its tag with `gated()`.
   (`opening`: + max(0, mod) damage on a mob in its wind-up, after the dice, `rollBlow()`; arrows
   too). Gates in the page (`ui/gates.ts`): read a mob (INT 13 a health bar over it, INT 15 a glint on its wind-up;
   `MobViews.setReading()`), the map (INT 11 houses and paths, 13 names and refuges, 15 barred
-  houses and locked chests), lore (`LORE_GATE`, INT 13 in `worlds/wilds/src/dialogs.ts`).
+  houses and locked chests), and the lore of the content (each page and answer with its own DC, INT 10
+  to 16).
 - **Lore** (`Interaction.lore`: a gate and pages): after its own pages, a thing shows its lore
   to a character with the gate, the clue `STRINGS.loreHint` to one 1 or 2 under it (`contentOf()`
   in `game.ts`). The Wilds: the books of the houses (`BOOKS`, `houses.ts`), and in Ironhold the
   lectern, the apothecary's shelf, the reeve's ledgers and map table, the notice board.
 - **Gated answers** (`DialogAnswer.gate`): the conversation panel hides, dims (`.dim`, not
   selectable) or opens each one with `gateView()`. `checkDialog()` wants an answer without a gate
-  in each node, and a way to end without gates. The reeve has two (INT 13), the apothecary one.
+  in each node, and a way to end without gates. The reeve has two (INT 12 and 13), the apothecary one.
 - **The cauldron** of the apothecary (`CAULDRON`, a conversation of a fixture: `Interaction.dialog`
   with `speaker: 'fixture'`): three recipes (draught INT 10, antidote 13, strong draught 15), each
   a deal that takes items (`Deal.items`, `goods` an item kind). The page sends `deal` with `at`
@@ -801,11 +814,12 @@ gets its tag with `gated()`.
   2 x mod tiles: a red chevron at the screen edge for each mob that hunts the player out of view,
   `Horde.huntersOf()`, `h` in the snapshot, `render/marks.ts`), the seek (`seek`: 3 + 2 x mod
   tiles, at least 1: how far it sees a hidden thing, `Fixture.hidden`, `Fixtures.update(...,
-  seeker)`), and the night (`night`: the darkness x (1 - 0.08 x mod), only in the page). Gates of
-  13: insight (`INSIGHT_GATE` in `worlds/wilds/src/dialogs.ts`: one answer each for the watchman,
-  the innkeeper, the apothecary and the reeve), Medicine (`MEDICINE_GATE` in `items.ts`:
+  seeker)`), and the night (`night`: the darkness x (1 - 0.08 x mod), only in the page). Gates:
+  insight (answers in `worlds/wilds/src/dialogs.ts`, WIS 11 to 15: one or more for the watchman,
+  the innkeeper, the apothecary and the reeve), Medicine (`MEDICINE_GATE`, WIS 10, in `items.ts`:
   `DRINKS.herbs`, chew a bundle for 1d4 HP; the pack shows the dim tag `.pack-gate` 1 or 2 under it)
-  and the way home (`HOMEWARD_GATE` in `ui/gates.ts`: a pale arrow at the screen edge to the home).
+  and the way home (`HOMEWARD_GATE`, WIS 12, in `ui/gates.ts`: a pale arrow at the screen edge to the
+  home).
 - **Hidden things** of the Wilds: a patch of herbs (`herbpatch`, `herbs.ts`, `WildsSource.herbs()`:
   in about four cells in five, on open grass away from houses, the road and the town; one bundle,
   it grows again after 20 minutes, `LootTable.refillMs`) and the buried cache of Ironhold
@@ -816,10 +830,10 @@ gets its tag with `gated()`.
   the price to the answer, "(2 coins)", so the answer texts have none), presence (`presence`: the
   overlap of a pack - 0.05 x mod, `Horde.overlap()`), daunt (`daunt`: a mob runs off x (1 + 0.1 x
   mod) after its hit) and inspire (`inspire`: max(0, mod) x 6 ticks of guard for the other players
-  within 3 tiles of a hit; `PlayerState.inspired`, in `WireSelf`). Gates of 13: persuasion
-  (`PERSUASION_GATE` in `worlds/wilds/src/dialogs.ts`: Marta gives a room, `ROOM`, the refuge `inn`
-  with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price; Brann and
-  Elama words) and reputation (`REPUTATION_GATE` in `ui/gates.ts`: each NPC says its
+  within 3 tiles of a hit; `PlayerState.inspired`, in `WireSelf`). Gates: persuasion (answers in
+  `worlds/wilds/src/dialogs.ts`, CHA 10 to 16: Marta gives a room, CHA 13, `ROOM`, the refuge `inn`
+  with `Refuge.given` and its bed with `Interaction.restFor`; Isolde a friend's price, CHA 14; Brann
+  and Elama words) and reputation (`REPUTATION_GATE`, CHA 12, in `ui/gates.ts`: each NPC says its
   `NpcDef.greeting` once, with the character's name, within 2 tiles).
 - **Shops** (since 2026-10-13, Fede's request; `docs/features/items/pack-and-loot.md`, REQ-PK-017): a
   trader's answer opens its shop (`DialogAnswer.shop`, a `Shop` with `buy` and `sell` wares, `tab` the
@@ -832,7 +846,7 @@ gets its tag with `gated()`.
   conversation (Fede's decision, 2026-10-13). The shops of the Wilds (`worlds/wilds/src/dialogs.ts`):
   Corwin buys rings 5, cups 3, candles 1, imp horns 2, brute tusks 4, badger furs 4 (`PEDDLER_SHOP`);
   Isolde sells the three draughts (6, 8, 15 coins, `REMEDIES`; her friend's price 4, 6, 11,
-  `FRIEND_REMEDIES`, behind the CHA 13 answer that opens it); the smith (`SMITH_SHOP`, `SMITH_PRICES`,
+  `FRIEND_REMEDIES`, behind the CHA 14 answer that opens it); the smith (`SMITH_SHOP`, `SMITH_PRICES`,
   `FORGED`, since 2026-10-11) sells the armour, the shield and the weapons (leather 5 to plate 150, a
   mace 3 to a longbow 12, a glaive 8; not the staffs) and buys all of them back for half
   (`smithPays()`), from the pack only: a worn piece must come off first; Ilsa sells mithril
@@ -922,10 +936,10 @@ and a test through the Room should play it. The Wilds (`worlds/wilds/src/quests.
 first quest, 2026-10-13: the letter of Thrain Steelforge on the home's table sends the character to
 Ironhold; the scene `ARRIVAL` ends it when it comes into the town), `ashes` (Elama Rothenel starts it
 once the road is done, `ROAD_DONE`; a character from before has it from the letter, at `letter`),
-`cart` (the merchant by a broken cart on the road before Whitegrove: lift it with STR 13, or bring a
+`cart` (the merchant by a broken cart on the road before Whitegrove: lift it with STR 15, or bring a
 lever: the farmer of Whitegrove lends his, `lent`, or the smith's; 10 coins), `lentils` (the farmer of
 Whitegrove sends a sack to the sergeant of Bronzehold: 5 coins; a wade or a swim with it makes it a
-sack of wet lentils, `wet`, and the sergeant then pays 2 coins to CHA 13 or nothing), and `raid`
+sack of wet lentils, `wet`, and the sergeant then pays 2 coins to CHA 14 or nothing), and `raid`
 (the scene `ARGUMENT` in the town hall, then the reeve asks the character to warn Silverspring).
 The merchant's cart has a lantern: mobs never come within 4 tiles of it (`CART_SAFE`), as for the
 town. **Scenes** (`packages/engine/src/scenes.ts`, `WorldSource.scenes()`): talks that a character
@@ -1302,14 +1316,13 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   them). Tests check 150+ houses for a wall ring round the shape, one door, the floor of the look
   and reachable furniture. A cell has no
   house where the house's ground would touch the town, the road or the signpost. About one house
-  with a chest in four is barred (Strength 13; never the house east of the home); the chest of a
+  with a chest in four is barred (STR 10 to 13; never the house east of the home); the chest of a
   house gives a candle stub, a silver ring, a pewter cup or a bundle of herbs, and 1 or 2 coins in
-  one of three, and the chest of a barred house more (1 to 4 coins in two of three, and a second
-  thing in one of two; a magic
-  item in one of 8, a locked chest one in 16, the buried cache one in 6). The
+  one of three, and a chest behind a lock or boards more, by the DC of its guard (see "Guarded
+  chests"; a magic item only at DC 12 and 13; the buried cache one in 6). The
   home's chest is the character's own: no loot. Every lake has a band of shallow water at its
   shore (`Ground.Shallows`, from the elevation: `naturalGround()`), and a small pond is all
-  shallow: a character with Strength 13 wades through it.
+  shallow: a character with Strength 12 (`WADE_GATE`) wades through it.
 - **Where the hut is** (Fede's decision, 2026-10-12): south of Ironhold, near the northern edge of the
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
@@ -1386,7 +1399,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 - **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6, 2026-10-11): the Hale, the
   Marrow and the Tanner homestead, fixed, in the wildlands north of Ironhold (Hale north, Marrow north-east, Tanner north-west; 2026-10-13); roofless charred
   houses (`{ walls: 'charred', roof: 'none' }`), each with a phoenix (the fixture `brand`) that moves
-  `ashes` on in order; survivors at Hale and Tanner (WIS 13 calms them); then the priest (`PRIEST`)
+  `ashes` on in order; survivors at Hale and Tanner (WIS 11 calms them); then the priest (`PRIEST`)
   or the apothecary tells of the phoenix (`symbol`). `?at=-30,-36` starts at the Hale homestead.
 - **The caravan** (story phase 5, 2026-10-11; `docs/features/npcs/guards.md` and REQ-QST-019 to 021):
   **guards** (`packages/engine/src/guards.ts`) are NPCs that fight, with the bodies of players; a
@@ -1413,7 +1426,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
   the wave stone in the altar gives **the Tear of Tigris** (worn: walks in deep water, `PlayerTraits.swim`),
   and the Ash Warden marches for it (`relic`: its orders). `?at=196,-108` starts by the altar. Phase 10:
   **the dream of Verath** (`dream.ts`): at `relic` the beds open a dream (`Interaction.dream`, the veil
-  of `ui/dream.ts`); the choice ends chapter 1 at `gave`, `refused` or `lied` (CHA 13). Quest effects
+  of `ui/dream.ts`); the choice ends chapter 1 at `gave`, `refused` or `lied` (CHA 16). Quest effects
   count what a character wears (`ownedPack()`, `unwearFor()`).
 - **The atlas has pages** (2026-10-12): `art/build.ts` packs the frames into pages of at most 2048 x
   2048 (16-bit GPUs: `atlas.png`, `atlas-1.png`, ...; each frame has its `page` in `atlas.json`), and

@@ -300,8 +300,8 @@ describe('the luck amulet', () => {
   it('adds 1 to each score for the gates, needs attunement, and changes no scale', () => {
     const plain = traitsOf(scores({ int: 12 }), 'wizard', EMPTY_GEAR);
     const lucky = traitsOf(scores({ int: 12 }), 'wizard', gear({ neck: 'luck-amulet' }));
-    expect(meetsGate(plain.scores, { ability: 'int', min: 13 })).toBe(false);
-    expect(meetsGate(lucky.scores, { ability: 'int', min: 13 })).toBe(true);
+    expect(meetsGate(plain.scores, { ability: 'int', dc: 13 })).toBe(false);
+    expect(meetsGate(lucky.scores, { ability: 'int', dc: 13 })).toBe(true);
     expect(lucky.luck).toBe(1);
     expect(lucky.damage).toEqual(plain.damage);
     expect(lucky.toHit).toBe(plain.toHit);
