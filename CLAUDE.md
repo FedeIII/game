@@ -765,7 +765,7 @@ gets its tag with `gated()`.
   faces the way it struck, a blow rolls against the AC of the brace (no safe tick), a hit ends both, and
   water ends both. Its own frames (`jumpParts()`) and sound (`jump`). Each brace needs a new step back (Fede, 2026-10-14): a step back held into the attack
   does not brace (`PlayerState.heldBack`), until a release (any move that is not back) in the attack or
-  in the window, and a new press. A brace costs no stamina, but stamina does not fill in it. Guards and
+  in the window, and a new press. A brace costs no stamina, and stamina fills in it as in a walk (Fede, 2026-10-15). Guards and
   companions never brace.
 - **Sneaking** (`isSneaking()`): standing, or a walk at half speed or slower (`SNEAK_SPEED`; C
   turns the sneak walk on and off, and an attack turns it off: `SneakWalk` in `input/sneak-walk.ts`,
@@ -797,7 +797,7 @@ gets its tag with `gated()`.
   its most and the mod at level 1, then half the die + 1 and the mod for each level; a fighter with CON
   10 has 10 at level 1, a wizard 6; `PlayerState.hp`), a shorter stun (`stun`: x (1 - 0.1 x mod)), no recovery
   (`recover` 0: no HP comes back by itself; only the HP of a companion do, `COMPANION_RECOVER`),
-  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use, a quarter of it in a walk (`WALK_REFILL_SHARE`, `staminaRefillNow()`; Fede, 2026-10-15), not in a brace; a roll costs 30 to 50 by the load, the sneak walk 8 per second; no stamina: no
+  stamina (`maxStamina` 100 + 10 x mod, `staminaRefill` 20 + 4 x mod per second, 1 s after the last use, a quarter of it in a walk and in a brace (`WALK_REFILL_SHARE`, `staminaRefillNow()`; Fede, 2026-10-15); a roll costs 30 to 50 by the load, the sneak walk 8 per second; no stamina: no
   roll, and the sneak walk does not hide; an attack costs `attackStamina`, `ATTACK_STAMINA` by
   `AttackGear.weight`: light 4, plain 6, heavy 10, an arrow of the longbow too; with too little, the
   attack comes, and the next one waits twice as long, `TIRED_COOLDOWN`; guards and companions do not

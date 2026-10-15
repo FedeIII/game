@@ -366,7 +366,7 @@ const EN = {
     pick: 'Locked chests',
     stun: 'Stun from a hit',
     stamina: 'Stamina',
-    staminaValue: (max: number, refill: number, walk: number): string => `${max} (+${refill} each second, +${walk} in a walk)`,
+    staminaValue: (max: number, refill: number, walk: number): string => `${max} (+${refill} each second, +${walk} in a walk or a brace)`,
     attackStamina: 'Each attack',
     attackStaminaValue: (n: number): string => `${n} stamina`,
     resist: 'Poison and drink',

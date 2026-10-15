@@ -330,9 +330,9 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
 - **AC-CMB-013.4:** The next attack breaks a brace. A dodge in a brace does not break it: it is a jump
   (REQ-CMB-015). A brace does not start in water, and not after an arrow (a bow: `PlayerTraits.brace` is
   false). Guards and companions never brace.
-- **AC-CMB-013.5:** A brace and an evade cost no stamina, but stamina does not fill in a brace: it fills
-  again 1 s after the brace ends, as after a use ([Constitution](../abilities/constitution.md),
-  REQ-CON-009). A blow that comes during the attack itself, or after the brace, rolls against the plain
+- **AC-CMB-013.5:** A brace and an evade cost no stamina, and stamina fills in a brace as in a walk: a
+  quarter of the full rate, 1 s after its last use (Fede, 2026-10-15; before, it did not fill in a brace)
+  ([Constitution](../abilities/constitution.md), REQ-CON-009). A blow that comes during the attack itself, or after the brace, rolls against the plain
   AC.
 - **AC-CMB-013.6:** The server owns it. The page predicts the brace from its inputs, also while the step
   back is held; the evade comes from the server (the mob's miss). The other players see both (protocol
@@ -486,8 +486,8 @@ I can move out of a blow and still stay in melee (Fede, 2026-10-15; near proposa
 - **The brace** (`packages/engine/src/player.ts`, REQ-CMB-013): `BRACE_WINDOW_TICKS`, `BRACE_TICKS`,
   `EVADE_TICKS`, `BRACE_BACK`, `PlayerState.braceWindow`, `heldBack` (the step back is held with no
   release since the start of the attack: set at the start of each attack, cleared by any move that is
-  not back), `brace` (it stays at 1 while the step back is held; in it `rest` stays at 0, so stamina
-  does not fill) and `evade` (a look: it ends with the brace), `armourNow()` (the AC of the roll: + `braceAc` in a
+  not back), `brace` (it stays at 1 while the step back is held; in it stamina fills as in a walk:
+  `staminaRefillNow()`) and `evade` (a look: it ends with the brace), `armourNow()` (the AC of the roll: + `braceAc` in a
   brace) and `missPlayer()` (a miss: an evade in a brace, else a glance), both used by `Horde.attack()`
   (blows and arrows) and by a guard's swing; `PlayerTraits.brace` (`!strike.ranged`) and `braceAc`
   (`BRACE_AC` 2 + DEX, at least 1; `traits.ts`). The wire: `WireSelf` (the brace window, the brace, the

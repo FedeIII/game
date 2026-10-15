@@ -190,8 +190,8 @@ that I use them with care.
 - **AC-CON-009.4:** Without stamina the sneak walk does not hide the character from mobs. Standing
   still hides it with no stamina.
 - **AC-CON-009.5:** Stamina comes back 1 s after its last use, at 20 + 4 × CON modifier each
-  second (16 at CON 8, 32 at CON 17), up to the most. In a brace it does not fill: it fills again 1 s
-  after the brace ends ([Combat](../game/combat.md), REQ-CMB-013).
+  second (16 at CON 8, 32 at CON 17), up to the most. In a brace it fills as in a walk (below; Fede,
+  2026-10-15; [Combat](../game/combat.md), REQ-CMB-013).
 - **AC-CON-009.5e:** While the character walks, only a quarter of that comes back (Fede, 2026-10-15):
   5 + CON modifier each second (4 at CON 8, 8 at CON 17). A walk in shallow water and a walk into a
   wall are walks too. The sneak walk uses stamina, so none comes back in it. The full refill starts

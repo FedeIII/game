@@ -132,7 +132,7 @@ export interface PlayerState {
   recover: number;
   /** Stamina (CON): a roll, an attack and the sneak walk use it. */
   stamina: number;
-  /** Ticks since stamina was last used or the last tick of a brace (it fills again after STAMINA_REST_TICKS). */
+  /** Ticks since stamina was last used (it fills again after STAMINA_REST_TICKS). */
   rest: number;
   /** Ticks left of a defeat (0: none): the player lies still; then the caller wakes it (wakePlayer). */
   down: number;
@@ -225,7 +225,7 @@ export const JUMP_REACH_SHARE = 0.5;
  * look); a hit stuns it, and the brace ends. Then the player walks again (a step back later than the
  * window is a walk: the kite). An attack or a roll breaks a brace. Each brace needs a new step back: a
  * step back held into the attack does not brace, until a release (heldBack; Fede, 2026-10-14). A brace
- * costs no stamina, but stamina does not fill in it.
+ * costs no stamina, and stamina fills in it as in a walk (WALK_REFILL_SHARE; Fede, 2026-10-15).
  */
 export const BRACE_WINDOW_TICKS = 9;
 export const BRACE_TICKS = 18;
@@ -903,8 +903,6 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     }
     if (player.evade > 0) player.evade--;
     if (player.brace === 0) player.evade = 0;
-    // Stamina does not fill in a brace: it fills again STAMINA_REST_TICKS after its end.
-    player.rest = 0;
     player.facing = facingOfAngle(player.aim);
     player.vx = 0;
     player.vy = 0;
@@ -969,13 +967,13 @@ function body(player: PlayerState, traits: StepTraits, dt: number): void {
 /**
  * The stamina that comes back each second now: none in the STAMINA_REST_TICKS after a use, all of
  * `staminaRefill` while the player stands, and WALK_REFILL_SHARE of it while it walks (its velocity of
- * the last tick: a walk in water and a walk into a wall too). The sneak walk uses stamina, so none
- * comes back in it.
+ * the last tick: a walk in water and a walk into a wall too) or braces (Fede, 2026-10-15: a brace
+ * refills as a walk). The sneak walk uses stamina, so none comes back in it.
  */
-export function staminaRefillNow(player: Pick<PlayerState, 'rest' | 'vx' | 'vy'>, traits: Pick<StepTraits, 'staminaRefill'>): number {
+export function staminaRefillNow(player: Pick<PlayerState, 'rest' | 'vx' | 'vy'> & Partial<Pick<PlayerState, 'brace'>>, traits: Pick<StepTraits, 'staminaRefill'>): number {
   if (player.rest < STAMINA_REST_TICKS) return 0;
   const refill = traits.staminaRefill ?? STAMINA_REFILL;
-  return Math.hypot(player.vx, player.vy) > 1 ? refill * WALK_REFILL_SHARE : refill;
+  return Math.hypot(player.vx, player.vy) > 1 || (player.brace ?? 0) > 0 ? refill * WALK_REFILL_SHARE : refill;
 }
 
 /**
@@ -1024,7 +1022,8 @@ function swayed(move: MoveInput, drunk: number): MoveInput {
 
 /**
  * One tick of a jump from a brace: along its direction (the jump of its kind: jumpOf), the face to the
- * way it struck. The brace waits (it does not count down), stamina does not fill, and an evade runs on.
+ * way it struck. The brace waits (it does not count down), and an evade runs on. Its stamina was used at
+ * its start, so none comes back in it (STAMINA_REST_TICKS).
  * Walls stop it; water ends it, and the brace with it (a brace does not stay in water).
  */
 function hop(player: PlayerState, world: PlayerMap, solid: SolidMap, traits: StepTraits, dt: number): void {
@@ -1037,7 +1036,6 @@ function hop(player: PlayerState, world: PlayerMap, solid: SolidMap, traits: Ste
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);
   player.facing = facingOfAngle(player.aim);
-  player.rest = 0;
   if (player.evade > 0) player.evade--;
   if (wadingAt(world, player.x, player.y, traits)) {
     player.jump = 0;

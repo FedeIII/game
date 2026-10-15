@@ -19,6 +19,7 @@ import {
   Room,
   TICK_SECONDS,
   TILE_SIZE,
+  WALK_REFILL_SHARE,
   World,
   armourNow,
   canAttack,
@@ -30,6 +31,7 @@ import {
   kitOf,
   missPlayer,
   rollingDice,
+  staminaRefillNow,
   stepPlayer,
   traitsOf,
   type DiceSource,
@@ -177,22 +179,27 @@ describe('a brace', () => {
     expect(strikes.attack).toBe(ATTACK_TICKS);
   });
 
-  it('stops the refill of stamina while it lasts; stamina fills again a second after its end', () => {
+  it('refills stamina as a walk does while it lasts, a second after the last use (Fede, 2026-10-15)', () => {
     const p = createPlayer(100, 100);
     strike(p);
-    const after = p.stamina;
-    expect(after).toBe(MELEE.maxStamina - MELEE.attackStamina);
-    // Held for three seconds: no stamina comes back.
-    for (let i = 0; i < 3 * STAMINA_REST_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
+    expect(p.stamina).toBe(MELEE.maxStamina - MELEE.attackStamina);
+    p.stamina = 50;
+    // The first second after the attack: no stamina comes back yet.
+    stepPlayer(p, BACK, open, MELEE);
+    expect(p.brace).toBeGreaterThan(0);
+    for (let i = ATTACK_TICKS + 1; i < STAMINA_REST_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
+    expect(p.stamina).toBe(50);
+    // Then, held, it fills at the rate of a walk: a quarter of the rate of a stand.
+    for (let i = 0; i < 2 * STAMINA_REST_TICKS; i++) stepPlayer(p, BACK, open, MELEE);
     expect(p.brace).toBe(1);
-    expect(p.stamina).toBe(after);
-    // Let go: the brace ends, and stamina fills again after STAMINA_REST_TICKS.
+    expect(staminaRefillNow(p, MELEE)).toBe(MELEE.staminaRefill * WALK_REFILL_SHARE);
+    const before = p.stamina;
+    stepPlayer(p, BACK, open, MELEE);
+    expect(p.stamina - before).toBeCloseTo(MELEE.staminaRefill * WALK_REFILL_SHARE * TICK_SECONDS);
+    // Let go: the brace ends, and the stand fills it at the full rate.
     stepPlayer(p, NO_INPUT, open, MELEE);
     expect(p.brace).toBe(0);
-    for (let i = 0; i < STAMINA_REST_TICKS; i++) stepPlayer(p, NO_INPUT, open, MELEE);
-    expect(p.stamina).toBe(after);
-    stepPlayer(p, NO_INPUT, open, MELEE);
-    expect(p.stamina).toBeGreaterThan(after);
+    expect(staminaRefillNow(p, MELEE)).toBe(MELEE.staminaRefill);
   });
 
   it('does not start in shallow water', () => {
