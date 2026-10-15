@@ -21,7 +21,8 @@ function plainCode(code: number): number {
  * rest of the world. Glyphs are white; a tint gives them their colour.
  *
  * 'normal' is the font of speech and signs; 'small' is the font of name tags: small capitals,
- * so it shows a lowercase letter as its capital.
+ * so it shows a lowercase letter as its capital; 'tiny' is the font of the texts of a fight over a
+ * player or a mob (render/fight-numbers.ts), tiny capitals.
  */
 export class PixelFont {
   readonly height: number;
@@ -33,14 +34,14 @@ export class PixelFont {
   private readonly fallback: Texture;
   private readonly glyphs = new Map<number, Texture>();
 
-  constructor(art: Art, size: 'normal' | 'small' = 'normal') {
-    const metrics = size === 'small' ? atlasData.meta.smallFont : atlasData.meta.font;
+  constructor(art: Art, size: 'normal' | 'small' | 'tiny' = 'normal') {
+    const metrics = size === 'tiny' ? atlasData.meta.tinyFont : size === 'small' ? atlasData.meta.smallFont : atlasData.meta.font;
     this.art = art;
     this.height = metrics.height;
     this.lineHeight = metrics.lineHeight;
     this.spacing = metrics.spacing;
-    this.prefix = size === 'small' ? 'smallfont' : 'font';
-    this.capitals = size === 'small';
+    this.prefix = size === 'tiny' ? 'tinyfont' : size === 'small' ? 'smallfont' : 'font';
+    this.capitals = size !== 'normal';
     this.fallback = art.frame(metrics.fallback);
   }
 

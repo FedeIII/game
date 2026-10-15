@@ -164,7 +164,8 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   their torches and their names; the server sends only those within 30 tiles, `PLAYER_SEND_RADIUS`),
   `name-tag.ts` (a name over a head, in the small font: the other players', the companions' and the
   visitor's own; without a chosen name, `skinName()` of the look; it shows only while its player is on
-  the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away), `lighting.ts` (the light map: darkness with a hole for each light; the sky of the hour scales it each frame),
+  the screen or within 2 tiles of it, `TAG_MARGIN`, and fades out farther away; the visitor's own name
+  also hides in a fight and while it moves, and comes back after 2.5 s calm and still: `NameCalm`), `lighting.ts` (the light map: darkness with a hole for each light; the sky of the hour scales it each frame),
   `crt.ts` (the CRT shader), `pixel-text.ts` / `text-layout.ts` (the pixel fonts: `new
   PixelFont(art)` or `new PixelFont(art, 'small')`),
   `place-titles.ts` (`PlaceArrivals` and `LandCrossings`: when the name of a place or a land shows over
@@ -176,7 +177,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
-  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back), `piles.ts` (the items on the
+  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back; in the tiny font, as every text of a fight), `piles.ts` (the items on the
   ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, a gold spark now and then
   above the darkness, and a very faint shine now and then; a toss shows the items fly from the hands, or out of a
   mob, on an arc to their pile, with one small hop: `pile/<kind>/bare` depth-sorted in `entityLayer`, `pile/shadow`
@@ -422,7 +423,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   ñ, ¿, ¡, ·, dashes. Accented capitals and curly quotes draw as plain ones. The small font
   (`SMALL_GLYPHS`: capitals 5 px, digits, space and `' - . _ + [ ]`; frames `smallfont/<char code>`;
   metrics in `meta.smallFont`) draws lowercase as capitals and an accented letter as the plain
-  one; it is for the names over other players, the numbers of a fight and the tag of a gate in a bubble. Also the bubble
+  one; it is for the names over other players and the tag of a gate in a bubble. The tiny font
+  (`TINY_GLYPHS`: capitals and digits 4 px, space and `' - . + !`; frames `tinyfont/<char code>`; metrics
+  in `meta.tinyFont`; Fede, 2026-10-15) is for every text of a fight over a player or a mob. Also the bubble
   (`ui/bubble`, `ui/bubble-tail`), the "more pages" triangle (`ui/more`), the sign board
   (`ui/sign`), the emblems on a sign board in place of a name (`ui/emblem/<name>`: `chalice`, over
   a shrine or a chapel; each with its shadow), the plate of a name sign and the shield over it (`ui/namesign/<look>`,

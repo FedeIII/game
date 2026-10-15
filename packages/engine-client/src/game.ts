@@ -170,7 +170,7 @@ import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
 import { MECHANIC_WORDS } from './render/mechanic-words.ts';
 import { Sparks } from './render/sparks.ts';
 import { PileViews } from './render/piles.ts';
-import { NameTag } from './render/name-tag.ts';
+import { NameCalm, NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
 import { CompanionViews, type CompanionPose } from './render/companions.ts';
 import { OtherPlayers } from './render/others.ts';
@@ -291,6 +291,13 @@ const FIGHT_STATES: ReadonlySet<string> = new Set(['windup', 'strike', 'hurt']);
 const CLOSE_CHASE = 3 * TILE_SIZE;
 /** A blow, a hit or a kill keeps the music of a fight this long at least (ms); the director holds it longer. */
 const FIGHT_SIGN_MS = 1500;
+/**
+ * The name over the own character (Fede, 2026-10-15): it hides in a fight (a mob hunts the character, or
+ * a blow, a hit or a kill came less than FIGHT_SIGN_MS ago) and while the character moves, and comes back
+ * after this long out of a fight, standing still (ms). It fades out and in over NAME_FADE_SECONDS.
+ */
+const NAME_CALM_MS = 2500;
+const NAME_FADE_SECONDS = 0.3;
 
 /** "a, b and c". */
 /** The sky for the debug panel: "13:24, darkness 0.25, lights 0.00". */
@@ -971,6 +978,8 @@ async function run(options: GameOptions): Promise<void> {
   // The visitor's own name over its head: the one it chose, or else the name of its look. It
   // hides while the player speaks (a bubble over its head).
   const ownTag = new NameTag(smallFont, tagLayer);
+  // The own name hides in a fight and while the character moves (render/name-tag.ts, NameCalm).
+  const nameCalm = new NameCalm(NAME_CALM_MS, NAME_FADE_SECONDS);
   let speaking = false;
   const displayName = () => name || skinName(skin);
 
@@ -1134,7 +1143,7 @@ async function run(options: GameOptions): Promise<void> {
   // the server's word comes a moment after the kill or the press.
   const lootText = new LootText(smallFont, tagLayer);
   // What the dice of a fight did (level-3.md): numbers over the mobs that the player's blows touch, and over the player.
-  const fightNumbers = new FightNumbers(smallFont, tagLayer);
+  const fightNumbers = new FightNumbers(new PixelFont(art, 'tiny'), tagLayer);
   /** The number of a blow of the player on mob `id`: its damage, a critical hit, or a miss. */
   const showBlow = (id: number, damage: number, crit: boolean): void => {
     const mob = mobsNow().find((m) => m.id === id);
@@ -2144,7 +2153,11 @@ async function run(options: GameOptions): Promise<void> {
     edgeMarks.update(view, huntersNow(), homeMark && meetsGate(traits.scores, HOMEWARD_GATE) ? homeMark : null, now);
     speech.update(now, view);
     ownTag.set(displayName());
-    ownTag.place(shown.x, shown.y, playerView.headHeight, view, 1, !(speech.showing && speaking));
+    // The own name hides in a fight and while the character moves; it comes back after NAME_CALM_MS out of a fight, standing still.
+    const moving = Math.hypot(player.vx, player.vy) > 1 || player.dodge > 0 || player.jump > 0;
+    const fighting = huntersNow().length > 0 || now - fightSignAt < FIGHT_SIGN_MS || player.down > 0;
+    const nameShown = nameCalm.update(now, seconds, moving || fighting);
+    ownTag.place(shown.x, shown.y, playerView.headHeight, view, nameShown, nameShown > 0 && !(speech.showing && speaking));
     greet(now);
     barkBubbles?.update(now, view);
     lootText.update(now, shown.x, shown.y, playerView.headHeight);

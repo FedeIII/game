@@ -195,6 +195,76 @@ export const SMALL_GLYPHS: Record<string, string> = {
 
 const SMALL_FALLBACK = '### #.# #.# #.# ###';
 
+// ---------------------------------------------------------------- tiny font
+
+/**
+ * The tiny font for the texts of a fight over a player or a mob (render/fight-numbers.ts: the numbers
+ * of the dice and the words of the mechanics; Fede, 2026-10-15): capitals and digits 4 rows tall, 3
+ * columns wide except M, N and W, on the grid of the world's pixels. It has no lowercase, and an accented
+ * letter draws as the plain one. Frames `tinyfont/<char code>`; build.ts writes the metrics into the atlas
+ * JSON (meta.tinyFont).
+ */
+export const TINY_FONT = {
+  height: 4,
+  lineHeight: 6,
+  spacing: 1,
+  fallback: 'tinyfont/fallback',
+} as const;
+
+export const TINY_GLYPHS: Record<string, string> = {
+  ' ': '.. .. .. ..',
+  "'": '# # . .',
+  '-': '... ### ... ...',
+  '+': '.#. ### .#. ...',
+  '.': '. . . #',
+  // The "!" of a critical hit ("14!").
+  '!': '# # . #',
+  A: '.#. #.# ### #.#',
+  B: '##. ### #.# ##.',
+  C: '.## #.. #.. .##',
+  D: '##. #.# #.# ##.',
+  E: '### ##. #.. ###',
+  F: '### ##. #.. #..',
+  G: '.## #.. #.# .##',
+  H: '#.# ### #.# #.#',
+  I: '### .#. .#. ###',
+  J: '..# ..# #.# .#.',
+  K: '#.# ##. ##. #.#',
+  L: '#.. #.. #.. ###',
+  M: '#...# ##.## #.#.# #...#',
+  N: '#..# ##.# #.## #..#',
+  O: '.#. #.# #.# .#.',
+  P: '##. #.# ##. #..',
+  Q: '.#. #.# ##. .##',
+  R: '##. #.# ##. #.#',
+  S: '.## #.. ..# ##.',
+  T: '### .#. .#. .#.',
+  U: '#.# #.# #.# ###',
+  V: '#.# #.# #.# .#.',
+  W: '#...# #.#.# #.#.# .#.#.',
+  X: '#.# .#. .#. #.#',
+  Y: '#.# #.# .#. .#.',
+  Z: '### ..# .#. ###',
+  '0': '### #.# #.# ###',
+  '1': '.#. ##. .#. ###',
+  '2': '##. ..# .#. ###',
+  '3': '### .## ..# ###',
+  '4': '#.# ### ..# ..#',
+  '5': '### ##. ..# ##.',
+  '6': '#.. ### #.# ###',
+  '7': '### ..# .#. .#.',
+  '8': '### ### #.# ###',
+  '9': '### #.# ### ..#',
+};
+
+const TINY_FALLBACK = '### #.# #.# ###';
+
+function tinyGlyph(spec: string, name: string): Image {
+  const rows = spec.split(' ');
+  if (rows.length !== TINY_FONT.height) throw new Error(`tiny glyph ${name} has ${rows.length} rows, not ${TINY_FONT.height}`);
+  return grid(rows, { '#': 0xffffffff });
+}
+
 function smallGlyph(spec: string, name: string): Image {
   const rows = spec.split(' ');
   if (rows.length !== SMALL_FONT.height) throw new Error(`small glyph ${name} has ${rows.length} rows, not ${SMALL_FONT.height}`);
@@ -358,6 +428,8 @@ export function fontFrames(): Frame[] {
   frames.push({ name: FONT.fallback, image: glyph(FALLBACK, 'fallback') });
   for (const [ch, spec] of Object.entries(SMALL_GLYPHS)) frames.push({ name: `smallfont/${ch.charCodeAt(0)}`, image: smallGlyph(spec, ch) });
   frames.push({ name: SMALL_FONT.fallback, image: smallGlyph(SMALL_FALLBACK, 'fallback') });
+  for (const [ch, spec] of Object.entries(TINY_GLYPHS)) frames.push({ name: `tinyfont/${ch.charCodeAt(0)}`, image: tinyGlyph(spec, ch) });
+  frames.push({ name: TINY_FONT.fallback, image: tinyGlyph(TINY_FALLBACK, 'fallback') });
   frames.push({ name: 'ui/bubble', image: grid(BUBBLE_FRAME, BUBBLE) });
   frames.push({ name: 'ui/bubble-tail', image: grid(BUBBLE_TAIL, BUBBLE), anchor: { x: 0.5, y: 0 } });
   frames.push({ name: 'ui/more', image: grid(MORE, { '#': 0xd8ccb0ff }) });

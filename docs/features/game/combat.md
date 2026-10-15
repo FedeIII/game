@@ -119,6 +119,24 @@ armour protects me.
 - **AC-CMB-006.2:** Over the player: the damage that it takes in red, the hit points that come back in
   green ("+7"), and "miss" when a mob's attack glances off.
 - **AC-CMB-006.3:** The hit points show as a red bar with the numbers ("7 / 11").
+- **AC-CMB-006.4:** Every text of a fight over a player or a mob (the numbers, "miss", "evade", and the
+  words of the mechanics of the sandbox) is in the tiny font: capitals and digits 4 px tall, smaller
+  than the names over the heads (5 px) (Fede, 2026-10-15). The "!" of a critical hit draws ("14!").
+
+---
+
+### REQ-CMB-016: The own name in a fight
+
+**User Story:** As a player, I want my name over my head to go away in a fight and while I move, so
+that it does not cover the fight.
+
+**Acceptance Criteria:**
+- **AC-CMB-016.1:** The name over the own character fades out (0.3 s) while the character is in a fight
+  (a mob hunts it, or a blow, a hit or a kill came less than 1.5 s ago, or it lies defeated) or moves (a
+  walk, a roll, a jump) (Fede, 2026-10-15).
+- **AC-CMB-016.2:** It fades in again only after 2.5 s out of a fight and standing still (`NAME_CALM_MS`).
+- **AC-CMB-016.3:** The names of the other players do not change. The own name still hides while the
+  character's own speech bubble shows.
 
 ---
 
@@ -414,6 +432,10 @@ I can move out of a blow and still stay in melee (Fede, 2026-10-15; near proposa
 - **The server**: `RoomOptions.dice`, `Room.dice` (the draughts), `RoomPlayer.blows`; the snapshot
   field `bl` (protocol 26: `WireBlow`, `toWireBlow()`). The store's migration of 2026-10-11 sets every
   `hp` to NULL.
+- **The texts of a fight and the own name**: `FightNumbers` draws with `PixelFont(art, 'tiny')`
+  (`TINY_FONT`, `TINY_GLYPHS` in `art/font.ts`, the frames `tinyfont/<char code>`, `meta.tinyFont`).
+  `NameCalm` (`render/name-tag.ts`) gives how much the own name shows; `game.ts` calls it each frame
+  with `NAME_CALM_MS` 2500 and `NAME_FADE_SECONDS` 0.3.
 - **The page**: `render/fight-numbers.ts` (`FightNumbers`, `FIGHT_INK`), `MobViews.touch()` and
   `mobHead()` (`render/mobs.ts`), `NetSession.onBlows()`, `ui/vitals.ts` (the bar), `STRINGS.fight`.
   The debug panel shows "ac 18, weapon +5 1d8+3" and "fight blows N".

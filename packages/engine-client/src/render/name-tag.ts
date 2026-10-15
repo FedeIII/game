@@ -102,3 +102,28 @@ export class NameTag {
     this.near = -1;
   }
 }
+
+/**
+ * When the name over the own character shows (Fede, 2026-10-15): it hides while the character is busy
+ * (in a fight, or it moves), and comes back after `calmMs` of calm (out of a fight, standing still). It
+ * fades out and in over `fadeSeconds`. update() gives the share of the name that shows (0 to 1).
+ */
+export class NameCalm {
+  private since = -Infinity;
+  private shown = 1;
+  private readonly calmMs: number;
+  private readonly fadeSeconds: number;
+
+  constructor(calmMs: number, fadeSeconds: number) {
+    this.calmMs = calmMs;
+    this.fadeSeconds = fadeSeconds;
+  }
+
+  /** At `now` (ms), `seconds` after the last update: how much the name shows, with `busy` (a fight, a move) now. */
+  update(now: number, seconds: number, busy: boolean): number {
+    if (busy) this.since = now;
+    const target = now - this.since >= this.calmMs ? 1 : -1;
+    this.shown = Math.max(0, Math.min(1, this.shown + (target * seconds) / this.fadeSeconds));
+    return this.shown;
+  }
+}

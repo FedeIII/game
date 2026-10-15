@@ -21,7 +21,8 @@ interface Number_ {
 /**
  * What the dice of a fight did (docs/drafts/level-3.md), as numbers that rise from a head and fade:
  * the damage of the player's blow over a mob ("7", "14!" for a critical hit), "miss", and the damage
- * that the player takes. In the small font, in the text layer (above the darkness).
+ * that the player takes; and the words of the mechanics of the sandbox. In the tiny font (Fede,
+ * 2026-10-15: every text of a fight is smaller than a name), in the text layer (above the darkness).
  */
 export class FightNumbers {
   private readonly font: PixelFont;

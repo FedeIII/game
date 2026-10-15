@@ -11,7 +11,7 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Image, encodePng, upscale } from './png.ts';
-import { FONT, SMALL_FONT, fontFrames } from './font.ts';
+import { FONT, SMALL_FONT, TINY_FONT, fontFrames } from './font.ts';
 import { LIGHTING } from './lights.ts';
 import { buildArt } from './sprites.ts';
 import { PROLOGUE_VIEW, prologueScenes } from './prologue.ts';
@@ -127,6 +127,7 @@ const json = {
     lighting: LIGHTING,
     font: FONT,
     smallFont: SMALL_FONT,
+    tinyFont: TINY_FONT,
     mobEyes: art.mobEyes,
   },
 };
