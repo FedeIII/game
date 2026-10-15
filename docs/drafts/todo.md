@@ -6,11 +6,6 @@
 
 ## Open
 
-- **Free all the frames of a skin that the store drops** (2026-10-15). When the skin store drops the
-  sheet of a skin that nobody wears, it destroys its textures, but not the brace frame and the evade
-  frames (`textures.brace`, `textures.evade`): a small leak of Texture objects.
-  Code: `SkinStore.retain()` in `packages/engine-client/src/skins/skin-store.ts`.
-
 - **An admin tools section with debug controls** (2026-10-15). A section of admin tools with
   different debug controls, for example: change the date and the hour in the game, spawn items, and
   more.
@@ -225,3 +220,7 @@
   font (Fede's request of the same day), and it has a "!": a critical hit shows "14!". Done 2026-10-15,
   commit `33df876`. Later the same day the "!" went (Fede): the box and the "!" both looked like a third
   digit ("140", "141"), so a critical hit seemed to do more than 100 damage. A critical hit is now its number in green.
+
+- **Free all the frames of a skin that the store drops** (2026-10-15). `SkinStore.retain()` now frees
+  every frame of a dropped skin, the brace and the evade too: `playerFrames()` gives all the frames of
+  each pose, and a test checks it. Done 2026-10-15, commit `3960667`.
