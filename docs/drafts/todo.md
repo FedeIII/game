@@ -6,21 +6,6 @@
 
 ## Open
 
-- **Evaluate the combat mechanics of the melee draft** (2026-10-15). Evaluate the mechanics of
-  `docs/drafts/combat-melee.md`: step 1, the brace (built), and the twelve proposals that are not
-  built (the grades of the brace, the riposte, the front of a brace, the sidestep, the parry, the
-  guard stance and the shield block, the shove, the clash, the reactions of the classes, the shapes
-  of a mob's blow, the guards of the mobs, a price in stamina). The draft has its own list of what to
-  watch in a game, a recommended order and four questions for Fede. The item "A short jump from the
-  brace" (done: REQ-CMB-015) is near to proposal 4, the sidestep.
-  Code: the brace (`BRACE_WINDOW_TICKS`, `BRACE_TICKS`, `heldBack`), `armourNow()`, `missPlayer()`,
-  `glancePlayer()` and the dodge in `packages/engine/src/player.ts`; `BRACE_AC`, `braceAc`,
-  `ATTACK_STAMINA` in `packages/engine/src/traits.ts`; `rollBlow()`, the wind-ups and `MOB_STATS` in
-  `packages/engine/src/mobs.ts`; `attackRoll()` in `packages/engine/src/dice.ts`; REQ-CMB-013 in
-  `docs/features/game/combat.md`; Fede's rules in `docs/game-design.md`.
-  Ask Fede: what must the evaluation give: a play test of the brace against each mob (the three
-  questions of step 1), a simulation of the odds and the timing, or a ranked choice of the proposals
-  to build next?
 - **Free all the frames of a skin that the store drops** (2026-10-15). When the skin store drops the
   sheet of a skin that nobody wears, it destroys its textures, but not the brace frame and the evade
   frames (`textures.brace`, `textures.evade`): a small leak of Texture objects.
@@ -235,3 +220,10 @@
   input (1 tile in 0.15 s, a little shorter with more load, longer with more DEX), for the stamina of a
   roll and with the wait between dodges; the brace and its AC go on through it, and it has frames of its
   own. Done 2026-10-15, commit `c84ba00`.
+
+- **Evaluate the combat mechanics of the melee draft** (2026-10-15). In place of an evaluation, Fede
+  asked for a sandbox to test them: "Sandbox" (an admin only, in the main menu and the game menu) puts a
+  character with ten times its hit points against three foes that never flee, with five times theirs,
+  and starts again after each fight; a panel at the bottom left turns each of the twelve proposals on or
+  off (`docs/features/game/sandbox.md`, the draft's section "The sandbox"). Done 2026-10-15, commits
+  `ffcfa44` to `f067436`.
