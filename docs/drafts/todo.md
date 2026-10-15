@@ -41,6 +41,13 @@
   in production, or only in development? Which other controls do you want (a teleport, XP, mobs,
   quest steps)?
 
+- **A critical hit shows a box after its number** (2026-10-15). The number of a critical hit over a
+  mob is "14!" (`STRINGS.fight.crit`), but the small font has no "!", so the page draws its fallback
+  glyph, a box, after the number. Found while the sandbox needed words without a "!".
+  Code: `SMALL_GLYPHS` and `SMALL_FALLBACK` in `packages/engine-client/art/font.ts`; `PixelFont` in
+  `packages/engine-client/src/render/pixel-text.ts`; `FightNumbers` in
+  `packages/engine-client/src/render/fight-numbers.ts`.
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
