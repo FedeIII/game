@@ -83,6 +83,8 @@ export interface PlayerPose {
   readonly dodgeKind?: LoadTier;
   /** Ticks left of a brace, of an evade and of a jump from a brace, as in PlayerState. */
   readonly brace?: number;
+  /** Ticks left of a parry (a mechanic of the sandbox), as in PlayerState: it stands in its guard, the frame of a brace. */
+  readonly parry?: number;
   readonly evade?: number;
   readonly jump?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
@@ -322,7 +324,7 @@ export class PlayerView {
       const frames = this.textures.evade[state.facing];
       texture = frames[Math.min(frames.length - 1, Math.floor(((EVADE_TICKS - evade) * frames.length) / EVADE_TICKS))]!;
       this.travelled = 0;
-    } else if (brace > 0) {
+    } else if (brace > 0 || (state.parry ?? 0) > 0) {
       texture = this.textures.brace[state.facing];
       this.travelled = 0;
     } else if (attack > 0) {
@@ -369,7 +371,8 @@ export class PlayerView {
    * it (a blink), and a glancing blow (a spark, and a pale flash).
    */
   private fight(state: PlayerPose, now: number): void {
-    const attack = state.attack ?? 0;
+    // A parry is no blow: no effect, no lunge.
+    const attack = (state.parry ?? 0) > 0 ? 0 : (state.attack ?? 0);
     const stun = state.stun ?? 0;
     const elapsed = attack > 0 ? ATTACK_TICKS - attack : Infinity;
     // The effect: from the chest, in the direction of the attack (in 16 steps).

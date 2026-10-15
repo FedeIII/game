@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   BRACE_TICKS,
+  EMPTY_GEAR,
   Horde,
   MOB_STATS,
   NO_INPUT,
+  PARRY_PUSH,
+  PARRY_TICKS,
+  PLAIN_GEAR,
+  PLAIN_SCORES,
   RIPOSTE_MS,
   TICK_SECONDS,
   TURN_MS,
@@ -14,6 +19,7 @@ import {
   inFront,
   lateBraceAc,
   stepPlayer,
+  traitsOf,
   type DiceSource,
   type HordePlayer,
   type Mechanic,
@@ -271,5 +277,60 @@ describe('4. the flank', () => {
     expect(atFlank(0, 0, 0, 10, 8)).toBe(false);
     expect(atFlank(0, 0, 0, 10, 9)).toBe(true);
     expect(atFlank(0, 0, Math.PI, -14, 16)).toBe(true);
+  });
+});
+
+describe('5. the parry', () => {
+  /** A fighter with a rapier at level 1: proficiency +2. */
+  const FIGHTER = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);
+  const toward = (state: PlayerState, mob: Mob) => Math.atan2(mob.y - state.y, mob.x - state.x);
+
+  it('an attack in the last 0.15 s of a wind-up is a parry: the proficiency bonus goes on the AC, and a miss pushes both apart', () => {
+    // The d20 of the mob shows 7: 11 hits AC 10, and misses AC 12 (10 + the proficiency bonus).
+    const { horde, player, state, mob } = duel(['parry'], faces(7));
+    expect(untilWindup(horde, player, mob, 140)).toBe(true);
+    expect(horde.parry(state, toward(state, mob), 1, FIGHTER)).toBe(true);
+    expect(state.parry).toBe(PARRY_TICKS);
+    const apart = Math.hypot(mob.x - state.x, mob.y - state.y);
+    const { hit, events } = blow(horde, player, mob);
+    expect(hit?.[2]).toBe(0);
+    expect(events).toEqual([{ kind: 'parry', mob: mob.id, player: 1 }]);
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeCloseTo(apart + 2 * PARRY_PUSH, 0);
+  });
+
+  it('in the last 5 ticks the mob rolls with disadvantage, and with the riposte on the miss gives one', () => {
+    // The d20s of the mob show 15, then 5: one d20 hits AC 12, the lower misses.
+    const { horde, player, state, mob } = duel(['parry', 'riposte'], faces(15, 5));
+    expect(untilWindup(horde, player, mob, 70)).toBe(true);
+    expect(horde.parry(state, toward(state, mob), 1, FIGHTER)).toBe(true);
+    const { hit, events } = blow(horde, player, mob);
+    expect(hit?.[2]).toBe(0);
+    expect(events.map((e) => e.kind)).toEqual(['parry', 'riposte']);
+    expect(mob.exposed).toBeGreaterThan(0);
+  });
+
+  it('is no parry earlier in the wind-up, without its switch, without a weapon, or away from the mob', () => {
+    const early = duel(['parry'], faces(7));
+    expect(untilWindup(early.horde, early.player, early.mob, 400)).toBe(true);
+    expect(early.horde.parry(early.state, toward(early.state, early.mob), 1, FIGHTER)).toBe(false);
+    for (const [on, traits, away] of [
+      [[], FIGHTER, false],
+      [['parry'], traitsOf(PLAIN_SCORES, 'fighter', EMPTY_GEAR), false],
+      [['parry'], FIGHTER, true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(7));
+      expect(untilWindup(horde, player, mob, 140)).toBe(true);
+      expect(horde.parry(state, toward(state, mob) + (away ? Math.PI : 0), 1, traits)).toBe(false);
+      expect(state.parry).toBe(0);
+    }
+  });
+
+  it('a parry ends with a hit that stuns the player', () => {
+    // The d20 of the mob shows 18: a hit, parry or not.
+    const { horde, player, state, mob } = duel(['parry'], faces(18));
+    expect(untilWindup(horde, player, mob, 140)).toBe(true);
+    horde.parry(state, toward(state, mob), 1, FIGHTER);
+    expect(blow(horde, player, mob).hit?.[2]).toBeGreaterThan(0);
+    expect(state.parry).toBe(0);
   });
 });

@@ -198,6 +198,27 @@ that I can test the rest of the sidestep (the draft, proposal 4: the jump from a
 
 ---
 
+### REQ-SBX-011: 5. The parry
+
+**User Story:** As an admin, I want an attack at the end of a mob's wind-up to meet its blow, so that I
+can test the choice between a blow into the wind-up and a parry (the draft, proposal 5).
+
+**Acceptance Criteria:**
+- **AC-SBX-011.1:** With the switch "5. Parry", an attack with a melee weapon that starts in the last 9
+  ticks (0.15 s) of the wind-up of a mob that hunts the character, with the mob in the reach and in
+  front of the attack, is a parry, not a blow: it touches no mob, and the character stands in the frame
+  of a brace for 15 ticks, with no effect of a blow.
+- **AC-SBX-011.2:** The blow of that mob rolls against the AC and the proficiency bonus of the character
+  (+2; +3 at level 5). In the last 5 ticks of the wind-up (sharp) it also rolls with disadvantage (the
+  draft: a sure parry), and a miss gives a riposte when the riposte is on.
+- **AC-SBX-011.3:** A miss is a parry: the word "parry" (Spanish "parada") rises over the character in
+  gold in place of "miss", with the ring of steel, and the character and the mob step 4 px apart. A hit
+  takes its damage and stuns, as before, and ends the parry.
+- **AC-SBX-011.4:** An attack earlier in the wind-up is a blow, as before. A bow, an empty hand or a
+  cantrip does not parry.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -229,6 +250,10 @@ that I can test the rest of the sidestep (the draft, proposal 4: the jump from a
 - **4. The flank.** The brain's `aim` (set when a wind-up starts) and `turnMs`; `atFlank()`
   (`FLANK_ANGLE` 40 degrees), `TURN_MS` 400. The turn and the opening last the blow (`strikeMs`) and
   `TURN_MS`.
+- **5. The parry.** `Horde.parry()` (the page calls it before `Horde.strike()`; true: no strike) keeps a
+  `Parry` for the player; `Horde.defence()` uses it for the blow of that mob. `PlayerState.parry`
+  (ticks; the page draws the frame of a brace), `PARRY_WINDOW_TICKS` 9, `SHARP_PARRY_TICKS` 5,
+  `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the word "miss" away.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

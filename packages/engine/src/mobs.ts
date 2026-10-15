@@ -2,10 +2,10 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, RIPOSTE_MS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
-import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
+import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
 /**
@@ -848,6 +848,16 @@ interface Defence {
   readonly edge: Edge;
   readonly braced: boolean;
   readonly grade: BraceGrade | null;
+  /** A parry that meets this blow (the parry, mechanics.ts): a miss is a parry; `sharp` in its last ticks. */
+  readonly parry: { readonly sharp: boolean } | null;
+}
+
+/** A parry that waits for the blow of a mob (Horde.parry): the mob, a sharp one, the bonus to the AC, and until when it holds (horde ms). */
+interface Parry {
+  readonly mob: number;
+  readonly sharp: boolean;
+  readonly bonus: number;
+  readonly untilMs: number;
 }
 
 /**
@@ -1134,6 +1144,8 @@ export class Horde {
   mechanics: Mechanics = NO_MECHANICS;
   /** What the mechanics did since the last takeEvents(): the page shows them. */
   private events: MechanicEvent[] = [];
+  /** The parries that wait for a mob's blow, by player (the parry, mechanics.ts). */
+  private readonly parries = new Map<number, Parry>();
   /** The mobs of a world without MobRules.areaAt: its population, by day and at night. */
   private readonly plainArea: MobArea;
   /** For each player, when the next group of each rare spawn (MobSpawn.every) may come (horde ms). */
@@ -1680,13 +1692,19 @@ export class Horde {
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
-    const defence = this.defence(mob, id, target, body);
+    const defence = this.defence(mob, id, target, body, melee);
     const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), defence.ac, this.dice, defence.edge);
     if (!roll.hit) {
       missPlayer(target, defence.braced);
       if (defence.grade === 'sharp') this.event('sharp', mob, id);
-      // The riposte: an evade (with the grades, a sharp one) puts the mob off balance.
-      if (melee && defence.braced && this.mechanics.has('riposte') && (defence.grade === null || defence.grade === 'sharp')) {
+      if (defence.parry) {
+        // A parry: the steel rings, and both step back.
+        this.event('parry', mob, id);
+        this.apart(mob, target, PARRY_PUSH);
+      }
+      // The riposte: an evade (with the grades, a sharp one), or a sharp parry, puts the mob off balance.
+      const riposte = (defence.braced && (defence.grade === null || defence.grade === 'sharp')) || defence.parry?.sharp === true;
+      if (melee && riposte && this.mechanics.has('riposte')) {
         mob.exposed = RIPOSTE_MS;
         this.brains.get(mob.id)!.offBalanceMs = RIPOSTE_MS;
         this.event('riposte', mob, id);
@@ -1712,17 +1730,59 @@ export class Horde {
    * disadvantage, and a late one only a part of the AC of the brace. With the front of a brace, a brace
    * does not count against a blow from its side or its back.
    */
-  private defence(mob: Mob, id: number, target: PlayerState, body: HordePlayer['traits']): Defence {
+  private defence(mob: Mob, id: number, target: PlayerState, body: HordePlayer['traits'], melee = true): Defence {
     const ac = body?.ac ?? 10;
     const braceAc = body?.braceAc ?? 0;
-    if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null };
+    // A parry that waits for this blow (the parry): the proficiency bonus on the AC, and disadvantage when sharp.
+    const parry = melee ? this.parries.get(id) : undefined;
+    if (parry && parry.mob === mob.id) {
+      this.parries.delete(id);
+      if (this.clockMs <= parry.untilMs && target.parry > 0) return { ac: ac + parry.bonus, edge: parry.sharp ? -1 : 0, braced: false, grade: null, parry: { sharp: parry.sharp } };
+    }
+    if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null, parry: null };
     if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
       this.event('behind', mob, id);
-      return { ac, edge: 0, braced: false, grade: null };
+      return { ac, edge: 0, braced: false, grade: null, parry: null };
     }
-    if (!this.mechanics.has('grades') || braceAc === 0) return { ac: ac + braceAc, edge: 0, braced: true, grade: null };
+    if (!this.mechanics.has('grades') || braceAc === 0) return { ac: ac + braceAc, edge: 0, braced: true, grade: null, parry: null };
     const grade = braceGrade(target.braceAge);
-    return { ac: ac + (grade === 'late' ? lateBraceAc(braceAc) : braceAc), edge: grade === 'sharp' ? -1 : 0, braced: true, grade };
+    return { ac: ac + (grade === 'late' ? lateBraceAc(braceAc) : braceAc), edge: grade === 'sharp' ? -1 : 0, braced: true, grade, parry: null };
+  }
+
+  /**
+   * The parry (mechanics.ts): an attack of player `id` (at `player`, towards `aim`) that starts while
+   * the blow of a mob comes (in the last PARRY_WINDOW_TICKS of the wind-up of a mob that hunts it, in
+   * the reach of the attack) is a parry, not a blow: the player stands in its guard, and the blow of that
+   * mob rolls against its AC and its proficiency bonus (sharp in the last SHARP_PARRY_TICKS: with
+   * disadvantage too). Only with a melee weapon. Returns whether it is a parry: then the caller does not
+   * strike.
+   */
+  parry(player: PlayerState, aim: number, id: number, traits: Pick<PlayerTraits, 'strike' | 'level' | 'reach'>): boolean {
+    if (!this.mechanics.has('parry') || traits.strike.kind !== 'weapon' || traits.strike.ranged) return false;
+    let best: Mob | null = null;
+    let left = Infinity;
+    for (const mob of this.mobs) {
+      if (mob.state !== 'windup' || MOB_STATS[mob.kind].arrowRange !== undefined) continue;
+      const brain = this.brains.get(mob.id)!;
+      if (brain.target !== id || brain.timerMs > PARRY_WINDOW_TICKS * TICK_MS || brain.timerMs >= left) continue;
+      if (!attackHits(player.x, player.y, aim, mob.x, mob.y, MOB_STATS[mob.kind].radius, traits.reach)) continue;
+      best = mob;
+      left = brain.timerMs;
+    }
+    if (!best) return false;
+    this.parries.set(id, { mob: best.id, sharp: left <= SHARP_PARRY_TICKS * TICK_MS, bonus: proficiencyBonus(traits.level), untilMs: this.clockMs + left + 2 * TICK_MS });
+    player.parry = PARRY_TICKS;
+    return true;
+  }
+
+  /** A mob and a player step `push` world pixels apart (a parry, a clash). */
+  private apart(mob: Mob, player: PlayerState, push: number): void {
+    const dx = player.x - mob.x;
+    const dy = player.y - mob.y;
+    const d = Math.hypot(dx, dy) || 1;
+    moveAxis(player, this.world, (dx / d) * push, 0);
+    moveAxis(player, this.world, 0, (dy / d) * push);
+    this.move(mob, (-dx / d) * push, (-dy / d) * push);
   }
 
   /** A mob's arrow (an archer's blow): it flies at the players (Arrow.from), with the mob's id as its owner, negative. */

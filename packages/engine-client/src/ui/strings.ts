@@ -547,9 +547,13 @@ const EN = {
         name: '4. The flank',
         line: 'A mob aims its blow when its wind-up starts. If its blow does not hit you and you are more than 40 degrees off that aim (a jump to the side), it must turn for 0.4 s after its blow ("flank"), and your next blow on it rolls with advantage.',
       },
+      parry: {
+        name: '5. Parry',
+        line: 'An attack with a melee weapon in the last 0.15 s of a wind-up meets the blow: no blow of yours, and your proficiency bonus goes on your AC against it. In its last 0.08 s the mob also rolls with disadvantage, and a miss gives a riposte. A miss: "parry", and both step back.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

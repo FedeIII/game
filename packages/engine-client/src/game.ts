@@ -1851,7 +1851,8 @@ async function run(options: GameOptions): Promise<void> {
       sneakWalk.attack();
       gameSounds.swing(traits.strike, traits.strike.twoHands);
       if (horde && traits.ranged) horde.shoot(player, player.aim, traits.range, 0, traits);
-      else if (horde) {
+      // The parry of the sandbox (mechanics.ts): an attack while a mob's blow comes meets it, and strikes nothing.
+      else if (horde && !horde.parry(player, player.aim, 0, traits)) {
         const results = horde.strike(player, player.aim, undefined, 0, traits);
         sandboxFight?.blows(results);
         for (const result of results) {
@@ -2136,21 +2137,22 @@ async function run(options: GameOptions): Promise<void> {
       }
       fightNumbers.show(change > 0 ? `+${change}` : String(-change), change > 0 ? FIGHT_INK.heal : FIGHT_INK.hurt, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
-    if (player.glance > numbersGlance) {
-      fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
-      gameSounds.glance();
-    }
-    // The words of the mechanics of the sandbox; a sharp evade says its own word, not "evade".
-    let ownWord = false;
+    // The words of the mechanics of the sandbox; a sharp evade or a parry says its own word, not "evade" or "miss".
+    const replaced = new Set<string>();
     for (const event of mechanicEvents.splice(0)) {
       const style = MECHANIC_WORDS[event.kind];
       const mob = style.over === 'mob' ? mobsNow().find((m) => m.id === event.mob) : undefined;
       if (style.over === 'mob' && !mob) continue;
-      if (style.over === 'player') ownWord = true;
+      if (style.replaces) replaced.add(style.replaces);
+      if (style.sound === 'glance') gameSounds.glance();
       fightNumbers.show(STRINGS.sandbox.words[event.kind], style.ink, mob ? mob.x : shown.x, mob ? mob.y - mobHead(mob.kind) - 4 : shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
+    if (player.glance > numbersGlance && !replaced.has('miss')) {
+      fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+      gameSounds.glance();
+    }
     if (player.evade > numbersEvade) {
-      if (!ownWord) fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+      if (!replaced.has('evade')) fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
       gameSounds.evade();
     }
     numbersHp = player.hp;

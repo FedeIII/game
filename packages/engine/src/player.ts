@@ -86,6 +86,8 @@ export interface PlayerState {
   brace: number;
   /** Ticks since the start of the brace (the grades of a brace: mechanics.ts, braceGrade); 0 without a brace. */
   braceAge: number;
+  /** Ticks left of a parry (0: none): an attack that met a mob's blow stands in its guard (the parry, mechanics.ts). */
+  parry: number;
   /**
    * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
@@ -340,6 +342,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     heldBack: false,
     brace: 0,
     braceAge: 0,
+    parry: 0,
     evade: 0,
     jump: 0,
     hp: PLAIN_HP,
@@ -424,6 +427,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.heldBack = false;
   player.brace = 0;
   player.braceAge = 0;
+  player.parry = 0;
   player.evade = 0;
   player.jump = 0;
   player.poison = 0;
@@ -507,6 +511,7 @@ export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'd
 export function stunPlayer(player: PlayerState, ticks: number): void {
   player.stun = Math.max(player.stun, ticks);
   player.attack = 0;
+  player.parry = 0;
   // A hit after the safe ticks of a roll ends the roll.
   player.dodge = 0;
   player.braceWindow = 0;
@@ -694,6 +699,7 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (player.cooldown > 0) player.cooldown--;
   if (player.dodgeCooldown > 0) player.dodgeCooldown--;
   if (player.glance > 0) player.glance--;
+  if (player.parry > 0) player.parry--;
   if (player.down > 0) {
     // Defeated: it lies still. When `down` ends, the caller wakes it at a safe place (wakePlayer).
     player.down--;

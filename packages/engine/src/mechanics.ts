@@ -11,7 +11,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -25,9 +25,10 @@ export const NO_MECHANICS: Mechanics = new Set();
  * Something that a mechanic did in a fight, for the page to show (a word over the player or a mob):
  * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
  * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
- * mob that must turn to a player at its side (the flank).
+ * mob that must turn to a player at its side (the flank); `parry`, a blow that a parry turned (the
+ * parry).
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -106,3 +107,22 @@ export const TURN_MS = 400;
 export function atFlank(mx: number, my: number, aim: number, x: number, y: number): boolean {
   return !inFront(mx, my, aim, x, y, FLANK_ANGLE);
 }
+
+// ---------------------------------------------------------------- 5. the parry
+
+/**
+ * The parry (proposal 5; the reaction Parry of the SRD knight and bandit captain): an attack of a
+ * melee weapon while a mob's blow comes, in the last PARRY_WINDOW_TICKS of its wind-up, is a parry, not
+ * a blow: the weapon meets the mob's weapon. The player stands in its guard (PlayerState.parry) and its
+ * proficiency bonus goes on its AC against that blow; in the last SHARP_PARRY_TICKS the mob also rolls
+ * with disadvantage (the draft: a sure parry), and a miss then gives a riposte (with the riposte on).
+ * A miss is a parry: the steel rings, and both step back PARRY_PUSH. A hit takes its damage, as
+ * before. Earlier than the window, an attack is a blow into the wind-up, as before (the INT opening).
+ * Not a bow, not an empty hand.
+ */
+export const PARRY_WINDOW_TICKS = 9;
+export const SHARP_PARRY_TICKS = 5;
+/** The player stands in its guard this long (ticks) after the start of a parry. */
+export const PARRY_TICKS = 15;
+/** A parry pushes the player and the mob this far apart (world pixels). */
+export const PARRY_PUSH = 4;

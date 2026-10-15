@@ -472,8 +472,12 @@ export const ES: Strings = {
         name: '4. El flanco',
         line: 'Un enemigo apunta su golpe cuando empieza a cargarlo. Si su golpe no te da y estás a más de 40 grados de ese punto (un salto a un lado), tiene que girarse 0,4 s tras su golpe ("flanco"), y tu siguiente golpe contra él tira con ventaja.',
       },
+      parry: {
+        name: '5. Parada',
+        line: 'Un ataque con un arma cuerpo a cuerpo en los últimos 0,15 s de una carga detiene el golpe: no golpeas, y tu bonificador por competencia se suma a tu CA contra él. En sus últimos 0,08 s el enemigo tira además con desventaja, y un fallo da una réplica. Un fallo: "parada", y los dos retroceden.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',
