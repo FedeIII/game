@@ -178,6 +178,8 @@ export const PLAIN_STAMINA = 100;
 /** Stamina that comes back each second (CON 10), STAMINA_REST_TICKS after it was last used. */
 export const STAMINA_REFILL = 20;
 export const STAMINA_REST_TICKS = 60;
+/** While the player walks, only this share of the refill comes back (Fede, 2026-10-15): staminaRefillNow. */
+export const WALK_REFILL_SHARE = 0.25;
 /** The sneak walk costs this much stamina each second (a roll: ROLLS). */
 export const SNEAK_STAMINA = 8;
 /**
@@ -758,7 +760,7 @@ function body(player: PlayerState, traits: StepTraits, dt: number): void {
     }
   }
   if (player.rest < STAMINA_REST_TICKS) player.rest++;
-  else player.stamina = Math.min(traits.maxStamina ?? PLAIN_STAMINA, player.stamina + (traits.staminaRefill ?? STAMINA_REFILL) * dt);
+  else player.stamina = Math.min(traits.maxStamina ?? PLAIN_STAMINA, player.stamina + staminaRefillNow(player, traits) * dt);
   if (player.poison > 0) {
     player.poison--;
     player.poisonClock++;
@@ -773,6 +775,18 @@ function body(player: PlayerState, traits: StepTraits, dt: number): void {
     if (player.poison === 0) player.poisonClock = 0;
   }
   if (player.drunk > 0) player.drunk--;
+}
+
+/**
+ * The stamina that comes back each second now: none in the STAMINA_REST_TICKS after a use, all of
+ * `staminaRefill` while the player stands, and WALK_REFILL_SHARE of it while it walks (its velocity of
+ * the last tick: a walk in water and a walk into a wall too). The sneak walk uses stamina, so none
+ * comes back in it.
+ */
+export function staminaRefillNow(player: Pick<PlayerState, 'rest' | 'vx' | 'vy'>, traits: Pick<StepTraits, 'staminaRefill'>): number {
+  if (player.rest < STAMINA_REST_TICKS) return 0;
+  const refill = traits.staminaRefill ?? STAMINA_REFILL;
+  return Math.hypot(player.vx, player.vy) > 1 ? refill * WALK_REFILL_SHARE : refill;
 }
 
 /** Whether a move goes away from the direction `aim` (radians): BRACE_BACK. */

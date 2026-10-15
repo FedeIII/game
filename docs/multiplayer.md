@@ -70,6 +70,15 @@ misses the line, which is harmless.
 buildings, its NPCs (the snapshots carry their poses) and doors that never open. A page of
 protocol 9 has another world, so the server refuses it, and the visitor reloads the page.
 
+## A slower refill of stamina in a walk (protocol 47, 2026-10-15)
+
+No message changes. The rule of the stamina in `stepPlayer()` changes, so a page of protocol 46 would
+predict the stamina wrongly (`docs/features/abilities/constitution.md`, REQ-CON-009):
+
+- While the player walks, only a quarter of its refill comes back (`WALK_REFILL_SHARE`,
+  `staminaRefillNow()`). The walk is the velocity of the last tick (`vx`, `vy`), which `you` already
+  carries exactly, so the page predicts the refill from the server's last word and its inputs.
+
 ## The load and the roll (protocol 46, 2026-10-15)
 
 The roll of a dodge comes from the load of the character (`docs/features/items/load.md`): what its worn

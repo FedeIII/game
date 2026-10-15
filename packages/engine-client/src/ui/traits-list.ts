@@ -1,4 +1,4 @@
-import { ABILITIES, MEDICINE_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, abilityModifier, formatDice, meetsGate, rollOf, type Ability, type Gate, type PlayerTraits } from '@game/engine';
+import { ABILITIES, MEDICINE_GATE, TICK_SECONDS, TILE_SIZE, WADE_GATE, WALK_REFILL_SHARE, abilityModifier, formatDice, meetsGate, rollOf, type Ability, type Gate, type PlayerTraits } from '@game/engine';
 import { HOMEWARD_GATE, READ_FOE_GATE, READ_OPENING_GATE, REPUTATION_GATE } from './gates.ts';
 import { STRINGS } from './strings.ts';
 
@@ -106,7 +106,7 @@ function groupRows(ability: Ability, modifier: number, traits: PlayerTraits): Tr
     case 'con':
       return [
         row(t.stun, t.share(traits.stun)),
-        row(t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill)),
+        row(t.stamina, t.staminaValue(traits.maxStamina, traits.staminaRefill, traits.staminaRefill * WALK_REFILL_SHARE)),
         // The weapon decides it, not the score: plain.
         row(t.attackStamina, t.attackStaminaValue(traits.attackStamina), 'plain'),
         row(t.resist, t.share(traits.resist)),

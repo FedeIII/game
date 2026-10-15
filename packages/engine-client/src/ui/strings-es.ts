@@ -310,7 +310,7 @@ export const ES: Strings = {
     pick: 'Cofres cerrados',
     stun: 'Aturdimiento por un golpe',
     stamina: 'Aguante',
-    staminaValue: (max: number, refill: number): string => `${max} (+${refill} cada segundo)`,
+    staminaValue: (max: number, refill: number, walk: number): string => `${max} (+${refill} cada segundo, +${walk} al caminar)`,
     attackStamina: 'Cada ataque',
     attackStaminaValue: (n: number): string => `${n} de aguante`,
     resist: 'Veneno y bebida',

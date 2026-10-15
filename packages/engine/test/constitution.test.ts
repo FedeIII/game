@@ -16,6 +16,7 @@ import {
   TILE_SIZE,
   TIRED_COOLDOWN,
   WAKE_GUARD_TICKS,
+  WALK_REFILL_SHARE,
   World,
   checkDialog,
   createPlayer,
@@ -23,6 +24,7 @@ import {
   kitOf,
   parseClientMessage,
   rest,
+  staminaRefillNow,
   stepPlayer,
   traitsOf,
   wakePoint,
@@ -142,6 +144,57 @@ describe('stamina', () => {
     expect(p.stamina).toBeCloseTo(traits.maxStamina - 8, 3);
     for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, NO_INPUT, open, traits);
     expect(p.stamina).toBeCloseTo(traits.maxStamina, 3);
+  });
+
+  it('comes back at a quarter of the rate in a walk (Fede, 2026-10-15)', () => {
+    const traits = withCon(14); // 28 each second: 7 in a walk
+    expect(WALK_REFILL_SHARE).toBe(0.25);
+    const walker = createPlayer(100, 100);
+    const stander = createPlayer(100, 100);
+    for (const p of [walker, stander]) {
+      p.stamina = 10;
+      p.rest = 0;
+    }
+    // The second after the use: nothing comes back, walk or not.
+    for (let i = 0; i < STAMINA_REST_TICKS; i++) {
+      stepPlayer(walker, { x: 1, y: 0 }, open, traits);
+      stepPlayer(stander, NO_INPUT, open, traits);
+    }
+    expect(walker.stamina).toBe(10);
+    expect(stander.stamina).toBe(10);
+    for (let i = 0; i < TICK_RATE; i++) {
+      stepPlayer(walker, { x: 1, y: 0 }, open, traits);
+      stepPlayer(stander, NO_INPUT, open, traits);
+    }
+    expect(walker.stamina).toBeCloseTo(10 + 7, 3);
+    expect(stander.stamina).toBeCloseTo(10 + 28, 3);
+    // The walk stops: all of the refill comes back from the next tick.
+    stepPlayer(walker, NO_INPUT, open, traits);
+    for (let i = 0; i < TICK_RATE; i++) stepPlayer(walker, NO_INPUT, open, traits);
+    expect(walker.stamina).toBeCloseTo(10 + 7 + 7 / TICK_RATE + 28, 3);
+  });
+
+  it('gives the refill of now: none after a use, all of it at rest, a quarter in a walk', () => {
+    const traits = withCon(10);
+    const p = createPlayer(100, 100);
+    p.rest = STAMINA_REST_TICKS - 1;
+    expect(staminaRefillNow(p, traits)).toBe(0);
+    p.rest = STAMINA_REST_TICKS;
+    expect(staminaRefillNow(p, traits)).toBe(20);
+    p.vx = 80;
+    expect(staminaRefillNow(p, traits)).toBe(5);
+    // A player without traits (every score 10): the same.
+    expect(staminaRefillNow(p, {})).toBe(5);
+  });
+
+  it('comes back at a quarter of the rate in a walk through shallow water', () => {
+    const water = new World(textSource([',,,,,,,,', ',,,,,,,,']));
+    const p = createPlayer(8, 8);
+    p.stamina = 50;
+    for (let i = 0; i < TICK_RATE; i++) stepPlayer(p, { x: 1, y: 0 }, water, { wade: true });
+    expect(p.wading).toBe(true);
+    // The first tick stands (no walk yet), then a walk: 5 each second.
+    expect(p.stamina).toBeCloseTo(50 + 20 / TICK_RATE + (5 * (TICK_RATE - 1)) / TICK_RATE, 3);
   });
 
   it('pays for an attack by the weight of what it attacks with: light 4, plain 6, heavy 10 (an arrow of a longbow too)', () => {

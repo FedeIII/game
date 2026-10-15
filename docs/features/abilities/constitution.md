@@ -192,6 +192,10 @@ that I use them with care.
 - **AC-CON-009.5:** Stamina comes back 1 s after its last use, at 20 + 4 × CON modifier each
   second (16 at CON 8, 32 at CON 17), up to the most. In a brace it does not fill: it fills again 1 s
   after the brace ends ([Combat](../game/combat.md), REQ-CMB-013).
+- **AC-CON-009.5e:** While the character walks, only a quarter of that comes back (Fede, 2026-10-15):
+  5 + CON modifier each second (4 at CON 8, 8 at CON 17). A walk in shallow water and a walk into a
+  wall are walks too. The sneak walk uses stamina, so none comes back in it. The full refill starts
+  again in the tick after the walk stops.
 - **AC-CON-009.5a:** An attack costs stamina by the weight of what the character attacks with (Fede,
   2026-10-14; `ATTACK_STAMINA`): a light weapon (the shortsword) or martial arts 4; another weapon, a
   cantrip or an unarmed strike 6; a heavy weapon (the greataxe, the glaive) 10. An arrow of a longbow
@@ -255,7 +259,8 @@ I can choose my scores.
 - **AC-CON-012.1:** Step 2 of the builder and the character panel show "Hit points" (for the class,
   the scores and the level) in the key numbers at the top, and the card "Constitution" lists "Stun
   from a hit", "Stamina" and "Poison and drink" with their values for the scores (for CON 12:
-  "−10%", "110 (+24 each second)" and "−15%").
+  "−10%", "110 (+24 each second, +6 in a walk)" and "−15%"; in Spanish "110 (+24 cada segundo, +6 al
+  caminar)").
 - **AC-CON-012.2:** The values change at once when a score changes in the builder.
 
 ## Feature Behavior & Rules
@@ -265,7 +270,9 @@ I can choose my scores.
   `REFILL_PER_MOD`, `RESIST_PER_MOD`). `maxHp` is `levelHp(class, CON modifier, level)`, with
   `HIT_DIE`; the level comes from the XP (`experience.ts`). `recover` is 0 for every character. The plain values are in
   `packages/engine/src/player.ts`: `PLAIN_HP` (18: a d8 class with CON 10, for a player without
-  traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`. `attackStamina` is
+  traits and the test companion), `PLAIN_STAMINA`, `STAMINA_REFILL`, `WALK_REFILL_SHARE` (0.25).
+  `staminaRefillNow()` gives the refill of now from `rest` and the velocity of the last tick (`vx`,
+  `vy`); `body()` adds it each tick, and the `con` line of the debug panel shows it. `attackStamina` is
   `ATTACK_STAMINA[strike.weight]` (`player.ts`; `AttackGear.weight` in `gear.ts`: `light`, `plain`
   or `heavy`); a guard or a companion steps without it (no cost). With too little, `stepPlayer()`
   multiplies the cooldown of the attack by `TIRED_COOLDOWN` (2).
