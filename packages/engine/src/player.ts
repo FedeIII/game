@@ -100,6 +100,8 @@ export interface PlayerState {
    * heavy blow that broke its guard: mechanics.ts).
    */
   reel: number;
+  /** Ticks left of a shove (0: none): it stands, its hands on the mob (the shove, mechanics.ts). */
+  shove: number;
   /**
    * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
@@ -357,6 +359,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     parry: 0,
     guarding: false,
     reel: 0,
+    shove: 0,
     evade: 0,
     jump: 0,
     hp: PLAIN_HP,
@@ -444,6 +447,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.parry = 0;
   player.guarding = false;
   player.reel = 0;
+  player.shove = 0;
   player.evade = 0;
   player.jump = 0;
   player.poison = 0;
@@ -453,7 +457,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.reel === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
+  return player.down === 0 && player.stun === 0 && player.reel === 0 && player.shove === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
 }
 
 /**
@@ -465,6 +469,7 @@ export function canDodge(player: PlayerState): boolean {
     player.down === 0 &&
     player.stun === 0 &&
     player.reel === 0 &&
+    player.shove === 0 &&
     player.attack === 0 &&
     player.dodge === 0 &&
     player.jump === 0 &&
@@ -530,6 +535,7 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.attack = 0;
   player.parry = 0;
   player.guarding = false;
+  player.shove = 0;
   // A hit after the safe ticks of a roll ends the roll.
   player.dodge = 0;
   player.braceWindow = 0;
@@ -737,9 +743,10 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return false;
   }
-  if (player.reel > 0) {
-    // A reel (a broken guard): it stands, and no guard follows.
-    player.reel--;
+  if (player.reel > 0 || player.shove > 0) {
+    // A reel (a broken guard): it stands, and no guard follows. A shove: it stands, its hands on the mob.
+    if (player.reel > 0) player.reel--;
+    else player.shove--;
     player.guarding = false;
     player.vx = 0;
     player.vy = 0;

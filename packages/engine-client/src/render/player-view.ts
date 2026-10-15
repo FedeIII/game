@@ -87,6 +87,8 @@ export interface PlayerPose {
   readonly parry?: number;
   /** Whether it holds its guard up (the guard stance of the sandbox): the frame of a brace, or the sneak walk when it walks. */
   readonly guarding?: boolean;
+  /** Ticks left of a shove (the shove of the sandbox), as in PlayerState: the second frame of an attack, its arms out. */
+  readonly shove?: number;
   readonly evade?: number;
   readonly jump?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
@@ -297,7 +299,7 @@ export class PlayerView {
     const down = state.down ?? 0;
     const brace = state.brace ?? 0;
     const evade = state.evade ?? 0;
-    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading || state.guarding) this.crouch = false;
+    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading || state.guarding || (state.shove ?? 0) > 0) this.crouch = false;
     else if (state.sneaking) this.crouch = true;
     else if (speed >= 1) this.crouch = false;
     this.fight(state, now);
@@ -328,6 +330,11 @@ export class PlayerView {
       this.travelled = 0;
     } else if (brace > 0 || (state.parry ?? 0) > 0 || (state.guarding && speed < 1)) {
       texture = this.textures.brace[state.facing];
+      this.travelled = 0;
+    } else if ((state.shove ?? 0) > 0) {
+      // A shove: the second frame of an attack, the arms out.
+      const frames = this.textures.attack[state.facing];
+      texture = frames[Math.min(frames.length - 1, 1)]!;
       this.travelled = 0;
     } else if (state.guarding) {
       // A guard that walks: the frames of the sneak walk (the knees bent, the arms forward).

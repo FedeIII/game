@@ -1,3 +1,6 @@
+import type { Race } from './character.ts';
+import type { MobKind } from './mobs.ts';
+
 /**
  * The mechanics of combat of the melee draft (docs/drafts/combat-melee.md: its proposals), each one a
  * switch that is off by default. Only the sandbox of an admin turns them on now (the page's
@@ -11,7 +14,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -27,9 +30,10 @@ export const NO_MECHANICS: Mechanics = new Set();
  * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
  * mob that must turn to a player at its side (the flank); `parry`, a blow that a parry turned (the
  * parry); `block`, a blow that a shield turned, and `broken`, a heavy blow that broke a guard (the
- * guard stance).
+ * guard stance); `shoved`, a mob that a shove knocked down, `held`, a mob that a shove did not move, and
+ * `tooBig`, a mob too big to shove (the shove).
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken' | 'shoved' | 'held' | 'tooBig';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -144,3 +148,57 @@ export const GUARD_SPEED = 0.5;
 export const GUARD_STAMINA = 12;
 export const BLOCK_STAMINA = 15;
 export const GUARD_BREAK_TICKS = 30;
+
+// ---------------------------------------------------------------- 7. the shove
+
+/**
+ * The shove (proposal 7; the Shove of 5e): a roll forward into a mob in reach (the way of the roll
+ * within SHOVE_ARC of the way to the mob) is a shove, not a roll. It costs the stamina of the roll, and
+ * the player stands SHOVE_TICKS. The dice: d20 + the player's STR modifier and proficiency bonus
+ * (PlayerTraits.athletics) against d20 + the better of the mob's STR and DEX modifiers (MOB_BODY); a tie
+ * goes to the mob. A win knocks the mob down for SHOVE_KNOCK_MS (it cannot wind up, and blows on it roll
+ * with advantage: Mob.exposed) and pushes it SHOVE_PUSH back. A loss does nothing. A player cannot
+ * shove a mob more than one size larger (5e): a halfling or a gnome cannot shove a brute or a worg.
+ */
+export const SHOVE_ARC = Math.PI / 4;
+export const SHOVE_TICKS = 12;
+export const SHOVE_KNOCK_MS = 800;
+export const SHOVE_PUSH = 16;
+
+/** The sizes of 5e, from small to big. */
+export const SIZES = ['tiny', 'small', 'medium', 'large', 'huge'] as const;
+export type Size = (typeof SIZES)[number];
+
+/** The size of each race (5e): a gnome and a halfling are small. */
+export const RACE_SIZE: Readonly<Record<Race, Size>> = {
+  human: 'medium',
+  dwarf: 'medium',
+  elf: 'medium',
+  gnome: 'small',
+  'half-elf': 'medium',
+  halfling: 'small',
+  'half-orc': 'medium',
+};
+
+/** The body of each kind of mob for a shove (its SRD stat block): its size and its STR and DEX modifiers. */
+export const MOB_BODY: Readonly<Record<MobKind, { readonly size: Size; readonly str: number; readonly dex: number }>> = {
+  imp: { size: 'tiny', str: -3, dex: 3 },
+  brute: { size: 'large', str: 3, dex: 0 },
+  goblin: { size: 'small', str: -1, dex: 2 },
+  worg: { size: 'large', str: 3, dex: 1 },
+  hobgoblin: { size: 'medium', str: 1, dex: 1 },
+  bugbear: { size: 'medium', str: 2, dex: 2 },
+  devastator: { size: 'medium', str: 1, dex: 1 },
+  hound: { size: 'medium', str: 3, dex: 1 },
+  watcher: { size: 'medium', str: 0, dex: 2 },
+  seeker: { size: 'medium', str: 2, dex: 0 },
+  adept: { size: 'medium', str: 0, dex: 0 },
+  warden: { size: 'medium', str: 3, dex: 1 },
+  skirmisher: { size: 'small', str: -1, dex: 2 },
+  bandit: { size: 'medium', str: 0, dex: 1 },
+};
+
+/** Whether a player of size `player` can shove a mob of size `mob`: at most one size larger (5e). */
+export function canShove(player: Size, mob: Size): boolean {
+  return SIZES.indexOf(mob) - SIZES.indexOf(player) <= 1;
+}

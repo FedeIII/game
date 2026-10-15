@@ -1,6 +1,7 @@
 import { ABILITIES, ATTACK_ABILITY, abilityModifier, appearanceOf, finalScores, type Ability, type CharacterClass, type CharacterSheet, type Scores } from './character.ts';
 import { TILE_SIZE } from './constants.ts';
 import { dice, plusDice, type Dice } from './dice.ts';
+import { RACE_SIZE, type Size } from './mechanics.ts';
 import {
   EMPTY_GEAR,
   HEAVY_SPEED,
@@ -105,6 +106,10 @@ export interface PlayerTraits {
   readonly braceAc: number;
   /** Whether it holds a shield (gear.ts): its guard stance is a block (mechanics.ts). */
   readonly shield: boolean;
+  /** Its size (5e, by its race: mechanics.ts, RACE_SIZE): a shove of the sandbox needs a mob at most one size larger. */
+  readonly size: Size;
+  /** What a shove of the sandbox adds to its d20 (mechanics.ts): the STR modifier and the proficiency bonus. */
+  readonly athletics: number;
   /** Its most hit points at its level (the hit die of its class, and CON: levelHp). */
   readonly maxHp: number;
   /** The length of a stun that a mob gives it, as a share (CON). */
@@ -288,7 +293,7 @@ export function gateView(scores: Scores, gate: Gate): 'open' | 'hint' | 'hidden'
  * items can raise the scores first (wornScores: gauntlets of ogre power, a belt of dwarvenkind): the
  * scales and the gates use the raised scores.
  */
-export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level = 1): PlayerTraits {
+export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level = 1, size: Size = 'medium'): PlayerTraits {
   const scores = wornScores(final, gear);
   const attack = ATTACK_ABILITY[cls];
   const strike = attackGear(gear, cls, level);
@@ -333,6 +338,8 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
     brace: !strike.ranged,
     braceAc: strike.ranged ? 0 : Math.max(1, BRACE_AC + dex),
     shield: gear.off === 'shield',
+    size,
+    athletics: str + proficiencyBonus(level),
     maxHp: levelHp(cls, con, level),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
     recover: 0,
@@ -354,7 +361,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
 
 /** The traits of a stored character with this gear, at a level (experience.ts, levelOf its XP). */
 export function sheetTraits(sheet: Pick<CharacterSheet, 'base' | 'race' | 'bonus' | 'class'>, gear: Gear, level = 1): PlayerTraits {
-  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class, gear, level);
+  return traitsOf(finalScores(sheet.base, sheet.race, sheet.bonus), sheet.class, gear, level, RACE_SIZE[sheet.race]);
 }
 
 /** The 5e kit of a stored character's class (gear.ts, kitOf): the gear of a new character. */
@@ -372,7 +379,8 @@ export function guestGear(skin: number): Gear {
 
 /** The traits of a player without a character (a guest): every score 10, the class of its look, and its kit (guestGear). */
 export function guestTraits(skin: number, gear: Gear = guestGear(skin), level = 1): PlayerTraits {
-  return traitsOf(PLAIN_SCORES, appearanceOf(skin).class, gear, level);
+  const look = appearanceOf(skin);
+  return traitsOf(PLAIN_SCORES, look.class, gear, level, RACE_SIZE[look.race]);
 }
 
 /**

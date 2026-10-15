@@ -480,8 +480,12 @@ export const ES: Strings = {
         name: '6. Postura defensiva y bloqueo con escudo',
         line: 'Mantén la esquiva (un toque sigue rodando): te cubres, caminas a media velocidad y no atacas. Un golpe de frente tira con desventaja. Cuesta 12 de aguante cada segundo; con escudo, 15 por cada golpe que detiene ("bloqueo"). El golpe de un osgo la rompe ("rota"): te tambaleas 0,5 s.',
       },
+      shove: {
+        name: '7. Empujón',
+        line: 'Rodar hacia un enemigo a tu alcance lo empuja, por el aguante de la rodada: d20 + FUE + competencia contra d20 + su FUE o su DES. Si ganas, cae al suelo 0,8 s ("al suelo"): no puede cargar su golpe, y tus golpes tiran con ventaja. Un mediano o un gnomo no puede empujar a un bruto ni a un huargo ("muy grande").',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

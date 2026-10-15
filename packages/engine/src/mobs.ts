@@ -2,9 +2,9 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { GUARD_BREAK_TICKS, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, canShove, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -1789,6 +1789,64 @@ export class Horde {
     if (!best) return false;
     this.parries.set(id, { mob: best.id, sharp: left <= SHARP_PARRY_TICKS * TICK_MS, bonus: proficiencyBonus(traits.level), untilMs: this.clockMs + left + 2 * TICK_MS });
     player.parry = PARRY_TICKS;
+    return true;
+  }
+
+  /**
+   * The shove (mechanics.ts): a roll of player `id` (at `player`) the way `aim` (radians) into a living
+   * mob in its reach, within SHOVE_ARC of that way, is a shove: it costs the stamina of the roll and
+   * the wait between dodges, and the player stands SHOVE_TICKS. A mob more than one size larger does
+   * not move ("too big"). Else a contest: d20 + the player's athletics against d20 + the better of the
+   * mob's STR and DEX; a win knocks the mob down (it reels for SHOVE_KNOCK_MS, SHOVE_PUSH away, and blows
+   * on it roll with advantage), a loss or a tie does nothing. Returns whether it is a shove: then the
+   * caller does not roll.
+   */
+  shove(player: PlayerState, id: number, aim: number, traits: Pick<PlayerTraits, 'reach' | 'size' | 'athletics' | 'dodgeCooldown' | 'rollReach' | 'rollSafe'>): boolean {
+    if (!this.mechanics.has('shove')) return false;
+    let best: Mob | null = null;
+    let bestD = Infinity;
+    for (const mob of this.mobs) {
+      if (mob.state === 'dying' || mob.state === 'lurk' || mob.state === 'ride') continue;
+      const dx = mob.x - player.x;
+      const dy = mob.y - player.y;
+      const d = Math.hypot(dx, dy);
+      if (d > traits.reach + MOB_STATS[mob.kind].radius || d >= bestD) continue;
+      if (Math.abs(normalAngle(Math.atan2(dy, dx) - aim)) > SHOVE_ARC) continue;
+      best = mob;
+      bestD = d;
+    }
+    if (!best) return false;
+    // The price of the roll, and the player stands with its hands on the mob.
+    player.stamina = Math.max(0, player.stamina - rollOf(player.load, traits).stamina);
+    player.rest = 0;
+    player.dodgeCooldown = traits.dodgeCooldown;
+    player.shove = SHOVE_TICKS;
+    player.braceWindow = 0;
+    player.aim = Math.atan2(best.y - player.y, best.x - player.x);
+    player.facing = facingOfAngle(player.aim);
+    player.vx = 0;
+    player.vy = 0;
+    const body = MOB_BODY[best.kind];
+    if (!canShove(traits.size, body.size)) {
+      this.event('tooBig', best, id);
+      return true;
+    }
+    const ours = rollDice(dice(1, 20, traits.athletics), this.dice);
+    const theirs = rollDice(dice(1, 20, Math.max(body.str, body.dex)), this.dice);
+    if (ours <= theirs) {
+      this.event('held', best, id);
+      return true;
+    }
+    const brain = this.brains.get(best.id)!;
+    brain.target = id;
+    brain.lostMs = 0;
+    brain.slideX = Math.cos(player.aim);
+    brain.slideY = Math.sin(player.aim);
+    brain.push = SHOVE_PUSH;
+    brain.reelMs = SHOVE_KNOCK_MS;
+    best.exposed = SHOVE_KNOCK_MS;
+    this.enter(best, 'hurt');
+    this.event('shoved', best, id);
     return true;
   }
 

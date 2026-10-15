@@ -555,9 +555,13 @@ const EN = {
         name: '6. Guard stance and shield block',
         line: 'Hold the dodge input (a tap still rolls): you raise a guard, walk at half speed and do not attack. A blow from your front rolls with disadvantage. It costs 12 stamina each second; with a shield, 15 for each blow that it turns ("block"). A bugbear\'s blow breaks it ("broken"): you reel for 0.5 s.',
       },
+      shove: {
+        name: '7. Shove',
+        line: 'A roll towards a mob in your reach shoves it, for the stamina of the roll: d20 + STR + proficiency against d20 + its STR or DEX. A win knocks it down for 0.8 s ("down"): it cannot wind up, and your blows roll with advantage. A halfling or a gnome cannot shove a brute or a worg ("too big").',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

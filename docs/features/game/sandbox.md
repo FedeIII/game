@@ -242,6 +242,26 @@ the timing of a blow, and what a shield gives in it (the draft, proposal 6).
 
 ---
 
+### REQ-SBX-013: 7. The shove
+
+**User Story:** As an admin, I want a roll into a mob to shove it, so that I can test a way to make room
+in melee without a retreat, and one more use of Strength (the draft, proposal 7).
+
+**Acceptance Criteria:**
+- **AC-SBX-013.1:** With the switch "7. Shove", a roll (not the jump from a brace) whose way is within 45
+  degrees of the way to a living mob in the reach of the character is a shove, not a roll: it costs the
+  stamina of the roll and the wait between dodges, and the character stands 12 ticks in the second frame
+  of its attack, facing the mob.
+- **AC-SBX-013.2:** The dice: d20 + the STR modifier and the proficiency bonus of the character against
+  d20 + the better of the STR and DEX modifiers of the mob (its SRD stat block); a tie goes to the mob.
+- **AC-SBX-013.3:** A win knocks the mob down: it reels for 0.8 s (it cannot wind up), 16 px back, the
+  word "down" (Spanish "al suelo") rises over it, and blows on it roll with advantage and add the INT
+  opening. A loss: "holds" (Spanish "resiste"), and nothing else.
+- **AC-SBX-013.4:** A character cannot shove a mob more than one size larger (5e): a halfling or a gnome
+  (small) does not move a brute or a worg (large): "too big" (Spanish "muy grande").
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -282,6 +302,10 @@ the timing of a blow, and what a shield gives in it (the draft, proposal 6).
   `GUARD_STAMINA` 12, `BLOCK_STAMINA` 15, `GUARD_BREAK_TICKS` 30; `Horde.breaksGuard()` (a bugbear; the
   slam of the shapes of the blows too). The page: `input/dodge-hold.ts` (`DodgeHold`, `GUARD_HOLD_MS`
   200), `DodgeButton.onRelease()`, `Mouse.onAltRelease()`.
+- **7. The shove.** `Horde.shove()` (the page calls it when a roll starts, out of a brace; true: no
+  roll), `PlayerState.shove` (ticks), `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics`;
+  `MOB_BODY` (size, STR and DEX of each kind), `canShove()`, `SHOVE_ARC` 45 degrees, `SHOVE_TICKS` 12,
+  `SHOVE_KNOCK_MS` 800, `SHOVE_PUSH` 16.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

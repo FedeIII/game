@@ -14,15 +14,21 @@ import {
   PLAIN_GEAR,
   PLAIN_SCORES,
   PLAYER_SPEED,
+  ROLLS,
+  SHOVE_KNOCK_MS,
+  SHOVE_TICKS,
   RIPOSTE_MS,
   TICK_SECONDS,
   TURN_MS,
   World,
   atFlank,
   braceGrade,
+  canDodge,
+  canShove,
   createPlayer,
   inFront,
   lateBraceAc,
+  sheetTraits,
   stepPlayer,
   traitsOf,
   type DiceSource,
@@ -406,5 +412,64 @@ describe('6. the guard stance and the shield block', () => {
     for (let i = 0; i < GUARD_BREAK_TICKS; i++) stepPlayer(state, GUARD, world, { mechanics: on });
     expect(state.reel).toBe(0);
     expect(state.guard).toBe(0);
+  });
+});
+
+describe('7. the shove', () => {
+  const FIGHTER = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);
+  /** A goblin 1 tile east, and a player that rolls to the east: the d20s show `ours`, then `theirs`. */
+  function shove(on: readonly Mechanic[], ours: number, theirs: number, kind: MobKind = 'skirmisher', traits = FIGHTER) {
+    const { horde, player, state, mob } = duel(on, faces(ours, theirs), kind, { ac: 10 }, 14);
+    const shoved = horde.shove(state, 1, 0, traits);
+    return { horde, player, state, mob, shoved, events: horde.takeEvents() };
+  }
+
+  it('a roll into a mob in reach is a shove: a win knocks it down, pushes it back, and blows on it roll with advantage', () => {
+    // 15 + 2 (STR 10, proficiency 2) against 5 + 2 (a goblin's DEX).
+    const { state, mob, shoved, events } = shove(['shove'], 15, 5);
+    expect(shoved).toBe(true);
+    expect(events).toEqual([{ kind: 'shoved', mob: mob.id, player: 1 }]);
+    expect(mob.state).toBe('hurt');
+    expect(mob.exposed).toBe(SHOVE_KNOCK_MS);
+    // It costs the stamina of a light roll, and the player stands.
+    expect(state.stamina).toBe(100 - ROLLS.light.stamina);
+    expect(state.shove).toBe(SHOVE_TICKS);
+    expect(canDodge(state)).toBe(false);
+  });
+
+  it('a loss or a tie does nothing to the mob', () => {
+    for (const [ours, theirs] of [
+      [5, 15],
+      [10, 10],
+    ] as const) {
+      const { mob, shoved, events } = shove(['shove'], ours, theirs);
+      expect(shoved).toBe(true);
+      expect(events.map((e) => e.kind)).toEqual(['held']);
+      expect(mob.state).toBe('chase');
+    }
+  });
+
+  it('a small character cannot shove a large mob (5e): "too big", no contest', () => {
+    const halfling = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR, 1, 'small');
+    const { mob, shoved, events } = shove(['shove'], 20, 1, 'brute', halfling);
+    expect(shoved).toBe(true);
+    expect(events.map((e) => e.kind)).toEqual(['tooBig']);
+    expect(mob.state).toBe('chase');
+    expect(canShove('medium', 'large')).toBe(true);
+    expect(canShove('small', 'large')).toBe(false);
+  });
+
+  it('is no shove without its switch, or away from the mob', () => {
+    expect(shove([], 15, 5).shoved).toBe(false);
+    const { horde, state } = duel(['shove'], faces(15, 5), 'skirmisher', { ac: 10 }, 14);
+    expect(horde.shove(state, 1, Math.PI, FIGHTER)).toBe(false);
+    expect(state.shove).toBe(0);
+  });
+
+  it('a character gets its size from its race, and its athletics from STR and its proficiency', () => {
+    const halfling = sheetTraits({ race: 'halfling', class: 'rogue', base: { ...PLAIN_SCORES, str: 14 }, bonus: [] }, EMPTY_GEAR);
+    expect(halfling.size).toBe('small');
+    expect(halfling.athletics).toBe(2 + 2);
+    expect(sheetTraits({ race: 'half-orc', class: 'fighter', base: PLAIN_SCORES, bonus: [] }, EMPTY_GEAR, 5).athletics).toBe(1 + 3);
   });
 });
