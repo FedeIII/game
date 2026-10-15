@@ -22,4 +22,6 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   behind: { over: 'player', ink: FIGHT_INK.miss },
   flank: { over: 'mob', ink: FIGHT_INK.crit },
   parry: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance' },
+  block: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance' },
+  broken: { over: 'player', ink: FIGHT_INK.hurt },
 };

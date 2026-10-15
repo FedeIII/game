@@ -10,6 +10,7 @@ export class Mouse {
   private point: { x: number; y: number } | null = null;
   private readonly listeners: ((at: { readonly x: number; readonly y: number }) => void)[] = [];
   private readonly altListeners: (() => void)[] = [];
+  private readonly altReleaseListeners: (() => void)[] = [];
 
   constructor(surface: HTMLElement) {
     const track = (event: PointerEvent): void => {
@@ -36,6 +37,10 @@ export class Mouse {
       event.preventDefault();
       for (const listener of this.listeners) listener({ x: event.clientX, y: event.clientY });
     });
+    // The release of the right button, anywhere (the hold of a dodge: the guard stance of the sandbox).
+    window.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'mouse' && event.button === 2) for (const listener of this.altReleaseListeners) listener();
+    });
     // Out of the window, or onto the GUI (an element that is not inside the surface).
     surface.addEventListener('pointerleave', (event) => {
       if (event.pointerType === 'mouse') lose();
@@ -51,6 +56,11 @@ export class Mouse {
   /** Calls `listener` at each press of the right button on the world. */
   onAltPress(listener: () => void): void {
     this.altListeners.push(listener);
+  }
+
+  /** Calls `listener` at each release of the right button (input/dodge-hold.ts). */
+  onAltRelease(listener: () => void): void {
+    this.altReleaseListeners.push(listener);
   }
 
   /** Calls `listener` with the point of each press of the main button on the world. */

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BLOCK_STAMINA,
   BRACE_TICKS,
   EMPTY_GEAR,
+  GUARD_BREAK_TICKS,
+  GUARD_SPEED,
+  GUARD_STAMINA,
   Horde,
   MOB_STATS,
   NO_INPUT,
@@ -9,6 +13,7 @@ import {
   PARRY_TICKS,
   PLAIN_GEAR,
   PLAIN_SCORES,
+  PLAYER_SPEED,
   RIPOSTE_MS,
   TICK_SECONDS,
   TURN_MS,
@@ -28,6 +33,7 @@ import {
   type MobHit,
   type MobKind,
   type MobRules,
+  type MoveInput,
   type PlayerState,
 } from '../src/index.ts';
 import { textSource } from './helpers.ts';
@@ -332,5 +338,73 @@ describe('5. the parry', () => {
     horde.parry(state, toward(state, mob), 1, FIGHTER);
     expect(blow(horde, player, mob).hit?.[2]).toBeGreaterThan(0);
     expect(state.parry).toBe(0);
+  });
+});
+
+describe('6. the guard stance and the shield block', () => {
+  const GUARD: MoveInput = { x: 1, y: 0, guard: true };
+  const on = new Set<Mechanic>(['guard']);
+
+  it('a hold of the dodge input raises a guard: half speed, no attack, and 12 stamina each second without a shield', () => {
+    const p = createPlayer(100, 100);
+    expect(stepPlayer(p, { ...GUARD, attack: 0 }, world, { mechanics: on })).toBe(false);
+    expect(p.guarding).toBe(true);
+    expect(p.vx).toBeCloseTo(PLAYER_SPEED * GUARD_SPEED);
+    expect(p.attack).toBe(0);
+    for (let i = 1; i < 60; i++) stepPlayer(p, GUARD, world, { mechanics: on });
+    expect(p.stamina).toBeCloseTo(100 - GUARD_STAMINA, 0);
+    // With a shield it costs nothing each second.
+    const s = createPlayer(100, 100);
+    for (let i = 0; i < 60; i++) stepPlayer(s, GUARD, world, { mechanics: on, shield: true });
+    expect(s.stamina).toBe(100);
+  });
+
+  it('drops with no stamina, and does nothing without its switch', () => {
+    const p = createPlayer(100, 100);
+    p.stamina = 0;
+    // It used its stamina just now: none comes back yet.
+    p.rest = 0;
+    stepPlayer(p, GUARD, world, { mechanics: on });
+    expect(p.guarding).toBe(false);
+    const q = createPlayer(100, 100);
+    stepPlayer(q, GUARD, world, {});
+    expect(q.guarding).toBe(false);
+    expect(q.vx).toBeCloseTo(PLAYER_SPEED);
+  });
+
+  // The d20s of the mob show 15, then 5: one d20 hits AC 10, the lower misses.
+  it('a blow from the front rolls with disadvantage; with a shield a miss is a block, for 15 stamina', () => {
+    for (const shield of [false, true]) {
+      const { horde, player, state, mob } = duel(['guard'], faces(15, 5), 'skirmisher', { ac: 10, shield });
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      state.guarding = true;
+      state.aim = 0;
+      const { hit, events } = blow(horde, player, mob);
+      expect(hit?.[2]).toBe(0);
+      expect(events.map((e) => e.kind)).toEqual(shield ? ['block'] : []);
+      expect(state.stamina).toBe(shield ? 100 - BLOCK_STAMINA : 100);
+    }
+  });
+
+  it('a blow from the back rolls one d20', () => {
+    const { horde, player, state, mob } = duel(['guard'], faces(15, 5), 'skirmisher', { ac: 10 }, -14);
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.guarding = true;
+    state.aim = 0;
+    expect(blow(horde, player, mob).hit?.[2]).toBeGreaterThan(0);
+  });
+
+  it("a bugbear's blow breaks the guard: one d20, and the player reels with no guard after it", () => {
+    const { horde, player, state, mob } = duel(['guard'], faces(5), 'bugbear', { ac: 10 }, 18);
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.guarding = true;
+    state.aim = 0;
+    const { events } = blow(horde, player, mob);
+    expect(events.map((e) => e.kind)).toEqual(['broken']);
+    expect(state.guarding).toBe(false);
+    expect(state.reel).toBe(GUARD_BREAK_TICKS);
+    for (let i = 0; i < GUARD_BREAK_TICKS; i++) stepPlayer(state, GUARD, world, { mechanics: on });
+    expect(state.reel).toBe(0);
+    expect(state.guard).toBe(0);
   });
 });

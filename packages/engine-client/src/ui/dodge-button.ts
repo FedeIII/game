@@ -12,7 +12,8 @@ const ROLL_ICON = `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="
  */
 export class DodgeButton {
   private readonly button: HTMLButtonElement;
-  private readonly listeners: (() => void)[] = [];
+  private readonly listeners: ((source: string) => void)[] = [];
+  private readonly releaseListeners: ((source: string) => void)[] = [];
   private braced = false;
 
   constructor() {
@@ -24,17 +25,31 @@ export class DodgeButton {
     // pointerdown, not click: a dodge must answer at once. preventDefault keeps the focus on the game.
     this.button.addEventListener('pointerdown', (event) => {
       event.preventDefault();
-      this.fire();
+      // The release comes to the button even when the finger slides off it (the hold of the guard stance).
+      this.button.setPointerCapture(event.pointerId);
+      this.fire('button');
     });
+    const up = () => this.let('button');
+    this.button.addEventListener('pointerup', up);
+    this.button.addEventListener('pointercancel', up);
     window.addEventListener('keydown', (event) => {
       if ((event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isFormField(event.target)) return;
-      this.fire();
+      this.fire('shift');
+    });
+    window.addEventListener('keyup', (event) => {
+      if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') this.let('shift');
     });
     document.body.append(this.button);
   }
 
-  onPress(listener: () => void): void {
+  /** Calls `listener` at each press, with its source ('button' or 'shift'). */
+  onPress(listener: (source: string) => void): void {
     this.listeners.push(listener);
+  }
+
+  /** Calls `listener` at each release, with its source (the hold of the guard stance: input/dodge-hold.ts). */
+  onRelease(listener: (source: string) => void): void {
+    this.releaseListeners.push(listener);
   }
 
   /** Names the button for a brace ("Dodge": a dodge there is a jump) or out of one ("Roll"). */
@@ -49,7 +64,11 @@ export class DodgeButton {
     this.button.classList.toggle('ready', ready);
   }
 
-  private fire(): void {
-    for (const listener of this.listeners) listener();
+  private fire(source: string): void {
+    for (const listener of this.listeners) listener(source);
+  }
+
+  private let(source: string): void {
+    for (const listener of this.releaseListeners) listener(source);
   }
 }

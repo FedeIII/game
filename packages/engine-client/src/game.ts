@@ -139,6 +139,7 @@ import { loadArt } from './assets.ts';
 import { TouchJoystick } from './input/joystick.ts';
 import { Keyboard, isFormField } from './input/keyboard.ts';
 import { Mouse } from './input/mouse.ts';
+import { DodgeHold } from './input/dodge-hold.ts';
 import { SneakWalk } from './input/sneak-walk.ts';
 import { FixedStep } from './loop.ts';
 import { Buildings } from './render/buildings.ts';
@@ -878,7 +879,21 @@ async function run(options: GameOptions): Promise<void> {
   // A dodge: Shift, the right mouse button, or the dodge button on a touch screen (with mobs only).
   const dodgeButton = mobRules ? new DodgeButton() : null;
   let dodgeAskedAt = -Infinity;
-  dodgeButton?.onPress(() => (dodgeAskedAt = performance.now()));
+  // The hold of the dodge input (input/dodge-hold.ts): with the guard stance of the sandbox on, a tap
+  // rolls and a hold raises the guard; else a press rolls at once.
+  const dodgeHold = new DodgeHold();
+  const pressDodge = (source: string): void => {
+    const now = performance.now();
+    if (sandboxFight && mechanics.has('guard')) dodgeHold.press(source, now);
+    else dodgeAskedAt = now;
+  };
+  const releaseDodge = (source: string): void => {
+    const now = performance.now();
+    if (dodgeHold.release(source, now)) dodgeAskedAt = now;
+  };
+  window.addEventListener('blur', () => dodgeHold.clear());
+  dodgeButton?.onPress(pressDodge);
+  dodgeButton?.onRelease(releaseDodge);
   let attackAskedAt = -Infinity;
   /** The point of the screen (CSS pixels) that a click asked to attack, or null for the button or Space. */
   let attackClick: { readonly x: number; readonly y: number } | null = null;
@@ -892,7 +907,8 @@ async function run(options: GameOptions): Promise<void> {
       attackAskedAt = performance.now();
       attackClick = at;
     });
-    mouse.onAltPress(() => (dodgeAskedAt = performance.now()));
+    mouse.onAltPress(() => pressDodge('mouse'));
+    mouse.onAltRelease(() => releaseDodge('mouse'));
   }
   /** The direction from the player's chest to a point of the screen (where the visitor sees it), or undefined in the dead zone. */
   const wayTo = (at: { readonly x: number; readonly y: number }): number | undefined => {
@@ -1827,6 +1843,8 @@ async function run(options: GameOptions): Promise<void> {
     const face = mouse.at && !gameMenu.shown && !prologuePlaying() ? wayTo(mouse.at) : undefined;
     if (face !== undefined) input = { ...input, face };
     if (still) dodgeAskedAt = -Infinity;
+    // The guard stance of the sandbox: the dodge input held.
+    if (!still && sandboxFight && dodgeHold.guarding(performance.now())) input = { ...input, guard: true };
     if (performance.now() - dodgeAskedAt < ATTACK_BUFFER_MS && canDodge(player)) {
       input = { ...input, dodge: true };
       dodgeAskedAt = -Infinity;
@@ -2028,7 +2046,8 @@ async function run(options: GameOptions): Promise<void> {
     shown.x = previous.x + (player.x - previous.x) * sim.alpha + smoothing.x;
     shown.y = previous.y + (player.y - previous.y) * sim.alpha + smoothing.y;
     const wading = inShallows(world, shown.x, shown.y);
-    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading, sneaking: sneakingShown(), poisoned: player.poison > 0 }, seconds);
+    // A reel (a broken guard, in the sandbox) shows as a stun.
+    playerView.update(shown.x, shown.y, attackPose ? { ...player, ...attackPose, vx: 0, vy: 0 } : { ...player, wading, sneaking: sneakingShown(), poisoned: player.poison > 0, stun: Math.max(player.stun, player.reel) }, seconds);
     // A hit (a stun starts: from the local horde, or in a snapshot) shakes the view a little.
     if (player.stun > 0 && !stunSeen) {
       hitsTaken++;

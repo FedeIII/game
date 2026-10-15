@@ -476,8 +476,12 @@ export const ES: Strings = {
         name: '5. Parada',
         line: 'Un ataque con un arma cuerpo a cuerpo en los últimos 0,15 s de una carga detiene el golpe: no golpeas, y tu bonificador por competencia se suma a tu CA contra él. En sus últimos 0,08 s el enemigo tira además con desventaja, y un fallo da una réplica. Un fallo: "parada", y los dos retroceden.',
       },
+      guard: {
+        name: '6. Postura defensiva y bloqueo con escudo',
+        line: 'Mantén la esquiva (un toque sigue rodando): te cubres, caminas a media velocidad y no atacas. Un golpe de frente tira con desventaja. Cuesta 12 de aguante cada segundo; con escudo, 15 por cada golpe que detiene ("bloqueo"). El golpe de un osgo la rompe ("rota"): te tambaleas 0,5 s.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

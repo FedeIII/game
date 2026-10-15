@@ -103,6 +103,8 @@ export interface PlayerTraits {
   readonly brace: boolean;
   /** What a brace adds to its AC against a mob's attack (BRACE_AC + DEX, at least 1; 0 without a brace). */
   readonly braceAc: number;
+  /** Whether it holds a shield (gear.ts): its guard stance is a block (mechanics.ts). */
+  readonly shield: boolean;
   /** Its most hit points at its level (the hit die of its class, and CON: levelHp). */
   readonly maxHp: number;
   /** The length of a stun that a mob gives it, as a share (CON). */
@@ -330,6 +332,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
     range: (RANGE_TILES + dex) * TILE_SIZE,
     brace: !strike.ranged,
     braceAc: strike.ranged ? 0 : Math.max(1, BRACE_AC + dex),
+    shield: gear.off === 'shield',
     maxHp: levelHp(cls, con, level),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
     recover: 0,

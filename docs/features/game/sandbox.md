@@ -219,6 +219,29 @@ can test the choice between a blow into the wind-up and a parry (the draft, prop
 
 ---
 
+### REQ-SBX-012: 6. The guard stance and the shield block
+
+**User Story:** As an admin, I want to hold a guard up, so that I can test a defence that is not tied to
+the timing of a blow, and what a shield gives in it (the draft, proposal 6).
+
+**Acceptance Criteria:**
+- **AC-SBX-012.1:** With the switch "6. Guard stance and shield block", a press of the dodge input (Shift,
+  the right mouse button, the dodge button) held for 0.2 s (`GUARD_HOLD_MS`) raises a guard until the
+  release; a shorter press is a tap, and rolls at its release. Without the switch a press rolls at once,
+  as before.
+- **AC-SBX-012.2:** In the guard the character walks at half speed without a turn, faces the mouse (or
+  the way it struck), and does not attack, roll or brace. It shows the frame of a brace, and the frames
+  of the sneak walk when it walks.
+- **AC-SBX-012.3:** A mob's blow from its front (within 90 degrees) rolls with disadvantage. Without a
+  shield the guard costs 12 stamina each second (`GUARD_STAMINA`); with a shield it costs nothing each
+  second, and a blow that misses is a block: 15 stamina (`BLOCK_STAMINA`), the word "block" (Spanish
+  "bloqueo") in place of "miss", and the ring of steel. Stamina does not fill in a guard; with no stamina
+  the guard drops.
+- **AC-SBX-012.4:** A bugbear's blow breaks the guard: one d20, the word "broken" (Spanish "rota") in red,
+  and the character reels for 30 ticks (it cannot act, it shows as stunned, and no guard follows).
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -254,6 +277,11 @@ can test the choice between a blow into the wind-up and a parry (the draft, prop
   `Parry` for the player; `Horde.defence()` uses it for the blow of that mob. `PlayerState.parry`
   (ticks; the page draws the frame of a brace), `PARRY_WINDOW_TICKS` 9, `SHARP_PARRY_TICKS` 5,
   `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the word "miss" away.
+- **6. The guard stance.** `MoveInput.guard`, `PlayerState.guarding` and `PlayerState.reel`,
+  `guardStep()` and `blockPlayer()` (player.ts), `PlayerTraits.shield`; `GUARD_SPEED` 0.5,
+  `GUARD_STAMINA` 12, `BLOCK_STAMINA` 15, `GUARD_BREAK_TICKS` 30; `Horde.breaksGuard()` (a bugbear; the
+  slam of the shapes of the blows too). The page: `input/dodge-hold.ts` (`DodgeHold`, `GUARD_HOLD_MS`
+  200), `DodgeButton.onRelease()`, `Mouse.onAltRelease()`.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

@@ -11,7 +11,7 @@
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -26,9 +26,10 @@ export const NO_MECHANICS: Mechanics = new Set();
  * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
  * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
  * mob that must turn to a player at its side (the flank); `parry`, a blow that a parry turned (the
- * parry).
+ * parry); `block`, a blow that a shield turned, and `broken`, a heavy blow that broke a guard (the
+ * guard stance).
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry';
+export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -126,3 +127,20 @@ export const SHARP_PARRY_TICKS = 5;
 export const PARRY_TICKS = 15;
 /** A parry pushes the player and the mob this far apart (world pixels). */
 export const PARRY_PUSH = 4;
+
+// ---------------------------------------------------------------- 6. the guard stance and the shield block
+
+/**
+ * The guard stance (proposal 6; the Dodge action of 5e, from the front only): a hold of the dodge input
+ * (MoveInput.guard; a tap stays a roll) raises a guard. The player walks at GUARD_SPEED, faces the way of
+ * its aim (the mouse, or the way it struck), and does not attack or roll. A blow from its front (within
+ * FRONT_ANGLE) rolls with disadvantage. The guard costs GUARD_STAMINA each second; with a shield it is
+ * a block, and costs BLOCK_STAMINA for each blow that it turns, and nothing each second. With no
+ * stamina the guard drops. A heavy blow (a bugbear's, or a slam: the shapes of the blows) breaks the
+ * guard: no disadvantage, and the player reels for GUARD_BREAK_TICKS (PlayerState.reel: no guard after
+ * it, as after a stun).
+ */
+export const GUARD_SPEED = 0.5;
+export const GUARD_STAMINA = 12;
+export const BLOCK_STAMINA = 15;
+export const GUARD_BREAK_TICKS = 30;

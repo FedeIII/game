@@ -85,6 +85,8 @@ export interface PlayerPose {
   readonly brace?: number;
   /** Ticks left of a parry (a mechanic of the sandbox), as in PlayerState: it stands in its guard, the frame of a brace. */
   readonly parry?: number;
+  /** Whether it holds its guard up (the guard stance of the sandbox): the frame of a brace, or the sneak walk when it walks. */
+  readonly guarding?: boolean;
   readonly evade?: number;
   readonly jump?: number;
   /** Whether it sneaks on purpose (a slow walk, or the sneak walk of C): it crouches (PlayerView.crouched). */
@@ -295,7 +297,7 @@ export class PlayerView {
     const down = state.down ?? 0;
     const brace = state.brace ?? 0;
     const evade = state.evade ?? 0;
-    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading) this.crouch = false;
+    if (attack > 0 || dodge > 0 || down > 0 || brace > 0 || evade > 0 || jump > 0 || (state.stun ?? 0) > 0 || this.wading || state.guarding) this.crouch = false;
     else if (state.sneaking) this.crouch = true;
     else if (speed >= 1) this.crouch = false;
     this.fight(state, now);
@@ -324,9 +326,14 @@ export class PlayerView {
       const frames = this.textures.evade[state.facing];
       texture = frames[Math.min(frames.length - 1, Math.floor(((EVADE_TICKS - evade) * frames.length) / EVADE_TICKS))]!;
       this.travelled = 0;
-    } else if (brace > 0 || (state.parry ?? 0) > 0) {
+    } else if (brace > 0 || (state.parry ?? 0) > 0 || (state.guarding && speed < 1)) {
       texture = this.textures.brace[state.facing];
       this.travelled = 0;
+    } else if (state.guarding) {
+      // A guard that walks: the frames of the sneak walk (the knees bent, the arms forward).
+      this.travelled += speed * seconds;
+      const frames = this.textures.sneak[state.facing];
+      texture = frames[Math.floor(this.travelled / SNEAK_STRIDE) % frames.length]!;
     } else if (attack > 0) {
       // The attack frames, by the ticks since the attack started.
       const elapsed = ATTACK_TICKS - attack;

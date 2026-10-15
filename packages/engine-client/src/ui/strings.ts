@@ -551,9 +551,13 @@ const EN = {
         name: '5. Parry',
         line: 'An attack with a melee weapon in the last 0.15 s of a wind-up meets the blow: no blow of yours, and your proficiency bonus goes on your AC against it. In its last 0.08 s the mob also rolls with disadvantage, and a miss gives a riposte. A miss: "parry", and both step back.',
       },
+      guard: {
+        name: '6. Guard stance and shield block',
+        line: 'Hold the dodge input (a tap still rolls): you raise a guard, walk at half speed and do not attack. A blow from your front rolls with disadvantage. It costs 12 stamina each second; with a shield, 15 for each blow that it turns ("block"). A bugbear\'s blow breaks it ("broken"): you reel for 0.5 s.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

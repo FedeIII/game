@@ -2,9 +2,9 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { GUARD_BREAK_TICKS, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -807,7 +807,7 @@ export interface HordePlayer {
    * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
    * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'shield' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -850,6 +850,8 @@ interface Defence {
   readonly grade: BraceGrade | null;
   /** A parry that meets this blow (the parry, mechanics.ts): a miss is a parry; `sharp` in its last ticks. */
   readonly parry: { readonly sharp: boolean } | null;
+  /** A shield in a guard stance that meets this blow (mechanics.ts): a miss is a block. */
+  readonly block?: boolean;
 }
 
 /** A parry that waits for the blow of a mob (Horde.parry): the mob, a sharp one, the bonus to the AC, and until when it holds (horde ms). */
@@ -1697,6 +1699,11 @@ export class Horde {
     if (!roll.hit) {
       missPlayer(target, defence.braced);
       if (defence.grade === 'sharp') this.event('sharp', mob, id);
+      if (defence.block) {
+        // A shield in a guard turns the blow, for stamina.
+        blockPlayer(target);
+        this.event('block', mob, id);
+      }
       if (defence.parry) {
         // A parry: the steel rings, and both step back.
         this.event('parry', mob, id);
@@ -1739,6 +1746,16 @@ export class Horde {
       this.parries.delete(id);
       if (this.clockMs <= parry.untilMs && target.parry > 0) return { ac: ac + parry.bonus, edge: parry.sharp ? -1 : 0, braced: false, grade: null, parry: { sharp: parry.sharp } };
     }
+    // The guard stance: a blow from its front rolls with disadvantage (a block with a shield); a heavy blow breaks it.
+    if (target.guarding && this.mechanics.has('guard') && melee && inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
+      if (this.breaksGuard(mob)) {
+        target.guarding = false;
+        target.reel = Math.max(target.reel, GUARD_BREAK_TICKS);
+        this.event('broken', mob, id);
+        return { ac, edge: 0, braced: false, grade: null, parry: null };
+      }
+      return { ac, edge: -1, braced: false, grade: null, parry: null, block: body?.shield === true };
+    }
     if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null, parry: null };
     if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
       this.event('behind', mob, id);
@@ -1773,6 +1790,11 @@ export class Horde {
     this.parries.set(id, { mob: best.id, sharp: left <= SHARP_PARRY_TICKS * TICK_MS, bonus: proficiencyBonus(traits.level), untilMs: this.clockMs + left + 2 * TICK_MS });
     player.parry = PARRY_TICKS;
     return true;
+  }
+
+  /** Whether the blow of a mob is heavy enough to break a guard (the guard stance, mechanics.ts): a bugbear's. */
+  private breaksGuard(mob: Mob): boolean {
+    return mob.kind === 'bugbear';
   }
 
   /** A mob and a player step `push` world pixels apart (a parry, a clash). */

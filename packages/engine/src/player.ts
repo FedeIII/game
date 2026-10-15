@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import type { AttackWeight } from './gear.ts';
 import type { LoadTier } from './load.ts';
-import type { Mechanics } from './mechanics.ts';
+import { BLOCK_STAMINA, GUARD_SPEED, GUARD_STAMINA, type Mechanics } from './mechanics.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -29,6 +29,11 @@ export interface MoveInput {
    * mouse pointer when it is over the world (Fede, 2026-10-14). A player that walks faces its walk.
    */
   readonly face?: number;
+  /**
+   * The dodge input is held (the guard stance, a mechanic of the sandbox: mechanics.ts): the player
+   * raises its guard. Only with the switch `guard`.
+   */
+  readonly guard?: boolean;
 }
 
 export const NO_INPUT: MoveInput = { x: 0, y: 0 };
@@ -88,6 +93,13 @@ export interface PlayerState {
   braceAge: number;
   /** Ticks left of a parry (0: none): an attack that met a mob's blow stands in its guard (the parry, mechanics.ts). */
   parry: number;
+  /** Whether it holds its guard up (the guard stance, mechanics.ts): a slow walk, no attack, disadvantage on a blow from the front. */
+  guarding: boolean;
+  /**
+   * Ticks left of a reel (0: none): it stands and cannot act, as in a stun, but no guard follows (a
+   * heavy blow that broke its guard: mechanics.ts).
+   */
+  reel: number;
   /**
    * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
@@ -262,7 +274,7 @@ export interface PlayerMap extends SolidMap {
  * character braces and pays).
  */
 export type StepTraits = Partial<
-  Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina'>
+  Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina' | 'shield'>
 > & {
   /** The mechanics of the melee draft that are on (mechanics.ts): none, but in the sandbox of an admin. */
   readonly mechanics?: Mechanics;
@@ -343,6 +355,8 @@ export function createPlayer(x: number, y: number): PlayerState {
     brace: 0,
     braceAge: 0,
     parry: 0,
+    guarding: false,
+    reel: 0,
     evade: 0,
     jump: 0,
     hp: PLAIN_HP,
@@ -428,6 +442,8 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.brace = 0;
   player.braceAge = 0;
   player.parry = 0;
+  player.guarding = false;
+  player.reel = 0;
   player.evade = 0;
   player.jump = 0;
   player.poison = 0;
@@ -437,7 +453,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
 
 /** Whether the player can start an attack in its next tick. */
 export function canAttack(player: PlayerState): boolean {
-  return player.down === 0 && player.stun === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
+  return player.down === 0 && player.stun === 0 && player.reel === 0 && player.attack === 0 && player.cooldown === 0 && player.dodge === 0 && player.jump === 0;
 }
 
 /**
@@ -448,6 +464,7 @@ export function canDodge(player: PlayerState): boolean {
   return (
     player.down === 0 &&
     player.stun === 0 &&
+    player.reel === 0 &&
     player.attack === 0 &&
     player.dodge === 0 &&
     player.jump === 0 &&
@@ -501,8 +518,8 @@ export function isSneakWalk(vx: number, vy: number): boolean {
  * shallow water (the water makes it slow, not the player), not while it strikes, braces, evades, rolls,
  * jumps or lies.
  */
-export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'> & Partial<Pick<PlayerState, 'brace' | 'evade' | 'jump'>>): boolean {
-  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading || (player.brace ?? 0) > 0 || (player.evade ?? 0) > 0 || (player.jump ?? 0) > 0) return false;
+export function isSneaking(player: Pick<PlayerState, 'vx' | 'vy' | 'attack' | 'dodge' | 'down' | 'stamina' | 'wading'> & Partial<Pick<PlayerState, 'brace' | 'evade' | 'jump' | 'guarding'>>): boolean {
+  if (player.attack > 0 || player.dodge > 0 || player.down > 0 || player.wading || (player.brace ?? 0) > 0 || (player.evade ?? 0) > 0 || (player.jump ?? 0) > 0 || player.guarding === true) return false;
   if (Math.hypot(player.vx, player.vy) <= 1) return true;
   return isSneakWalk(player.vx, player.vy) && player.stamina > 0;
 }
@@ -512,6 +529,7 @@ export function stunPlayer(player: PlayerState, ticks: number): void {
   player.stun = Math.max(player.stun, ticks);
   player.attack = 0;
   player.parry = 0;
+  player.guarding = false;
   // A hit after the safe ticks of a roll ends the roll.
   player.dodge = 0;
   player.braceWindow = 0;
@@ -574,9 +592,10 @@ export function clampInput(input: MoveInput): MoveInput {
   const x = Number.isFinite(input.x) ? input.x : 0;
   const y = Number.isFinite(input.y) ? input.y : 0;
   const length = Math.hypot(x, y);
-  const move: { x: number; y: number; attack?: number; dodge?: boolean; face?: number } = length > 1 ? { x: x / length, y: y / length } : { x, y };
+  const move: { x: number; y: number; attack?: number; dodge?: boolean; face?: number; guard?: boolean } = length > 1 ? { x: x / length, y: y / length } : { x, y };
   if (input.attack !== undefined && Number.isFinite(input.attack)) move.attack = normalAngle(input.attack);
   if (input.dodge === true) move.dodge = true;
+  if (input.guard === true) move.guard = true;
   if (input.face !== undefined && Number.isFinite(input.face)) move.face = normalAngle(input.face);
   return move;
 }
@@ -718,6 +737,14 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return false;
   }
+  if (player.reel > 0) {
+    // A reel (a broken guard): it stands, and no guard follows.
+    player.reel--;
+    player.guarding = false;
+    player.vx = 0;
+    player.vy = 0;
+    return false;
+  }
   if (player.guard > 0) player.guard--;
   const solid = traits.swim ? swimMap(world) : traits.wade ? wadeMap(world) : world;
   if (player.dodge > 0) {
@@ -743,6 +770,12 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     return false;
   }
   const wading = wadingAt(world, player.x, player.y, traits);
+  // The guard stance (a mechanic of the sandbox): a hold of the dodge input.
+  player.guarding = move.guard === true && traits.mechanics?.has('guard') === true && !wading && player.stamina > 0;
+  if (player.guarding) {
+    guardStep(player, move, solid, traits, dt);
+    return false;
+  }
   const window = player.braceWindow;
   if (player.braceWindow > 0) player.braceWindow--;
   const kind = move.dodge ? rollOf(player.load, traits) : null;
@@ -876,6 +909,33 @@ export function staminaRefillNow(player: Pick<PlayerState, 'rest' | 'vx' | 'vy'>
   if (player.rest < STAMINA_REST_TICKS) return 0;
   const refill = traits.staminaRefill ?? STAMINA_REFILL;
   return Math.hypot(player.vx, player.vy) > 1 ? refill * WALK_REFILL_SHARE : refill;
+}
+
+/**
+ * One tick of the guard stance (mechanics.ts): no attack, no roll, no brace. The player faces the way of
+ * its aim (the way to `face`, the mouse, when the input gives it) and walks at GUARD_SPEED without a
+ * turn. Without a shield the guard costs GUARD_STAMINA each second (with a shield, each blow that it
+ * turns: Horde); stamina does not fill in it.
+ */
+function guardStep(player: PlayerState, move: MoveInput, solid: SolidMap, traits: StepTraits, dt: number): void {
+  player.braceWindow = 0;
+  player.brace = 0;
+  player.evade = 0;
+  if (move.face !== undefined) player.aim = move.face;
+  player.facing = facingOfAngle(player.aim);
+  const speed = PLAYER_SPEED * (traits.speed ?? 1) * GUARD_SPEED;
+  player.vx = move.x * speed;
+  player.vy = move.y * speed;
+  moveAxis(player, solid, player.vx * dt, 0);
+  moveAxis(player, solid, 0, player.vy * dt);
+  if (!traits.shield) player.stamina = Math.max(0, player.stamina - GUARD_STAMINA * dt);
+  player.rest = 0;
+}
+
+/** The stamina that a shield block takes (the guard stance, mechanics.ts): BLOCK_STAMINA, or what is left. */
+export function blockPlayer(player: PlayerState): void {
+  player.stamina = Math.max(0, player.stamina - BLOCK_STAMINA);
+  player.rest = 0;
 }
 
 /** Whether a move goes away from the direction `aim` (radians): BRACE_BACK. */
