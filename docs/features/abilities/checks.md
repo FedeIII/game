@@ -205,6 +205,10 @@ The register (`npm run checks`) has all of them. These show the scale:
   people, the places (and the storeys of their buildings), the houses round the home, the scenes, the
   drinks and the wade. `scripts/checks.ts` adds the checks of the page and prints the table
   (`npm run checks`).
+- **For Claude**: the skill `dc` (`.claude/skills/dc/SKILL.md`) loads the rubric of this document and
+  the register into the context, with the steps to add a check. Load it before you add a check or
+  change a DC. A hook (`.claude/settings.json`, `.claude/hooks/dc-reminder.py`) tells Claude to load it
+  when an edit writes `dc: <number>` into a `.ts` file that is not a test.
 - **Tests**: `worlds/wilds/test/checks.test.ts` (the register has every kind of check and every
   answer of the people; every DC of the Wilds is from 10 to 17; each ability has 3 DCs or more),
   `worlds/wilds/test/houses.test.ts` (the grades: a higher DC holds more; the locks and the boards

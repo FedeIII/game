@@ -621,7 +621,10 @@ choose the DC of a new check with the rubric there (the 5e table `DC` as a guide
 same fact with the same DC, 10 to 17 in chapter 1), and read the register first: `npm run checks`
 (`worlds/wilds/src/checks.ts`, `scripts/checks.ts`) prints every check with its DC and its context;
 `worlds/wilds/test/checks.test.ts` keeps the limits. The content writes each gate inline (no shared
-gate constants in the Wilds). **How a
+gate constants in the Wilds). **Load the skill `dc` (`.claude/skills/dc/`) before you add a check or
+change a DC**: it brings the rubric and the register into the context. A hook does the same after the
+fact: when an edit writes `dc: <number>` into a `.ts` file that is not a test, it tells Claude to load
+the skill (`.claude/settings.json`, `.claude/hooks/dc-reminder.py`). **How a
 gate shows (Fede's rule, 2026-10-10, for every ability)**: `gateView()`
 gives `open` (the score is enough), `hint` (1 or 2 under it, `GATE_HINT`: the thing shows dim
 with its tag, `gateTag()`, for example "[INT 13]") or `hidden` (lower: it is not there). The
