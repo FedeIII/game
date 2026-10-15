@@ -6,16 +6,6 @@
 
 ## Open
 
-- **Bubbles of two NPCs overlap** (2026-10-15). In a conversation with Brann, the watchman at the
-  south gate of Ironhold, the child came close and greeted the player by name (CHA 13): her bubble
-  covered the line of the watchman. Two NPCs that stand close can show their bubbles one on top of
-  the other: a greeting or a line of one NPC over the line of a conversation with another NPC.
-  Code: `greet()` and `sayLines()` in `packages/engine-client/src/game.ts` (`talkWith`,
-  `barkBubbles.say()`), `BarkBubbles` in `render/barks.ts`, `placeBubble()` in
-  `render/speech-bubble.ts`.
-  Ask Fede: do the other NPCs keep quiet while a conversation is open, or does a bubble move up
-  when it covers another bubble?
-
 - **A short jump from the brace** (2026-10-15). In a brace, the dodge (the roll button, Shift or the
   right mouse button) does not roll: the player makes a short jump in the direction of the input. The
   player keeps the brace through the jump, but the jump costs the stamina of a roll. Now a dodge in a
@@ -229,3 +219,8 @@
 - **Slower stamina refill while the player moves** (2026-10-15). While the player walks, only a quarter
   of the stamina refill comes back (Fede's choice; `WALK_REFILL_SHARE`, `staminaRefillNow()`; protocol
   47); the character panel shows both rates. Done 2026-10-15, commit `e3e87fd`.
+
+- **Bubbles of two NPCs overlap** (2026-10-15). While the player talks with someone (a conversation, or
+  the pages of a person), the other NPCs say no lines and no greetings (Fede's choice: they keep quiet);
+  a greeting waits until the talk ends, and the greetings then come one at a time. Done 2026-10-15,
+  commit `25016b9`.
