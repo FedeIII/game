@@ -14,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions', 'shapes', 'mobGuards'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions', 'shapes', 'mobGuards', 'stamina'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -352,3 +352,17 @@ export const NIMBLE_DISTANCE = 16;
 export const NIMBLE_MS = 250;
 export const BANDIT_PARRY_AC = 2;
 export const FEINT_MS = 400;
+
+// ---------------------------------------------------------------- 12. a price in stamina
+
+/**
+ * A price in stamina (proposal 12; CON): a defence in melee costs stamina. An evade (a miss in a brace)
+ * costs EVADE_STAMINA, but a sharp one (the grades) nothing; a parry PARRY_STAMINA; a shove
+ * SHOVE_STAMINA in place of the stamina of the roll. The guard stance and the shield block have their
+ * own price (GUARD_STAMINA, BLOCK_STAMINA). With no stamina there is no brace (a brace in progress drops)
+ * and no parry: the player must leave melee to breathe. The attacks already cost stamina
+ * (ATTACK_STAMINA, built on 2026-10-14).
+ */
+export const EVADE_STAMINA = 10;
+export const PARRY_STAMINA = 10;
+export const SHOVE_STAMINA = 20;

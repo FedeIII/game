@@ -344,6 +344,20 @@ sides, where the player must read the mob (the draft, proposal 11).
 
 ---
 
+### REQ-SBX-018: 12. A price in stamina
+
+**User Story:** As an admin, I want each defence in melee to cost stamina, so that I can test a fight
+with a rhythm: in melee while the stamina lasts, then out to breathe (the draft, proposal 12).
+
+**Acceptance Criteria:**
+- **AC-SBX-018.1:** With the switch "12. A price in stamina", an evade (a miss in a brace) costs 10
+  stamina, and a sharp one (the grades) nothing; a parry costs 10 at its start; a shove costs 20 in place
+  of the stamina of the roll. The guard stance and the block keep their own price (REQ-SBX-012).
+- **AC-SBX-018.2:** With no stamina, a step back after an attack does not brace (it walks), a brace in
+  progress drops, and an attack in the window of a parry is a blow.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -401,6 +415,8 @@ sides, where the player must read the mob (the draft, proposal 11).
   no glint), the brain's `feintMs` and `nimble`; `rollBlow(..., acBonus)` (`Horde.hit(..., melee)`: an
   arrow is not parried); `SHIELD_UP_MS` 500, `NIMBLE_DISTANCE` 16, `NIMBLE_MS` 250, `BANDIT_PARRY_AC` 2,
   `FEINT_MS` 400.
+- **12. A price in stamina.** `EVADE_STAMINA` 10, `PARRY_STAMINA` 10, `SHOVE_STAMINA` 20; `stepPlayer()`
+  (`spent`: no brace), `Horde.attack()`, `Horde.parry()`, `Horde.shove()`.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

@@ -575,6 +575,10 @@ const EN = {
         name: '11. Guards of the mobs',
         line: 'After its blow a hobgoblin raises its shield for 0.5 s ("shield up"): your blows roll with disadvantage. A goblin steps aside after its blow, in place of a run away. A bandit parries your first blow after its own (+2 AC, "parried"). A bugbear holds its blow while you brace, up to 0.4 s, and strikes when the brace ends; INT 15 shows no glint then. A brute keeps no guard.',
       },
+      stamina: {
+        name: '12. A price in stamina',
+        line: 'An evade costs 10 stamina (a sharp one nothing), a parry 10, a shove 20 in place of the roll. With no stamina there is no brace and no parry: leave the melee to breathe.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
     words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost', shield: 'shield', deflect: 'deflect', caught: 'caught', uncanny: 'uncanny dodge', protect: 'protected', rage: 'rage', thrust: 'thrust', sweep: 'sweep', slam: 'slam', bite: 'bite', raise: 'shield up', mobParry: 'parried' } satisfies Record<MechanicEventKind, string>,

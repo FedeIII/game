@@ -852,7 +852,9 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     player.vy = 0;
     return true;
   }
-  if (player.brace === 0 && window > 0 && !wading && back && !player.heldBack) {
+  // A price in stamina (a mechanic of the sandbox): with no stamina there is no brace.
+  const spent = traits.mechanics?.has('stamina') === true && player.stamina <= 0;
+  if (player.brace === 0 && window > 0 && !wading && back && !player.heldBack && !spent) {
     player.braceWindow = 0;
     player.brace = BRACE_TICKS;
     player.braceAge = 0;
@@ -861,7 +863,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     // A brace: it stands and faces the way it struck. It lasts BRACE_TICKS, and stays at its last
     // tick while the step back is held. An evade (a miss in the brace) sways it, and ends with it.
     player.braceAge++;
-    if (player.brace > 1 || !back) player.brace--;
+    if (spent) player.brace = 1;
+    if (player.brace > 1 || !back || spent) player.brace--;
     if (player.brace === 0) {
       player.braceAge = 0;
       // The spell Shield of a wizard or a sorcerer holds a moment after the brace (the reactions).

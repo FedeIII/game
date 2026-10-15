@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -1774,6 +1774,11 @@ export class Horde {
     if (!roll.hit) {
       missPlayer(target, defence.braced);
       if (defence.grade === 'sharp') this.event('sharp', mob, id);
+      // A price in stamina: an evade costs some, a sharp one nothing.
+      else if (defence.braced && this.mechanics.has('stamina')) {
+        target.stamina = Math.max(0, target.stamina - EVADE_STAMINA);
+        target.rest = 0;
+      }
       if (defence.block) {
         // A shield in a guard turns the blow, for stamina.
         blockPlayer(target);
@@ -1889,6 +1894,12 @@ export class Horde {
       left = brain.timerMs;
     }
     if (!best) return false;
+    // A price in stamina: a parry costs some, and there is none with no stamina.
+    if (this.mechanics.has('stamina')) {
+      if (player.stamina <= 0) return false;
+      player.stamina = Math.max(0, player.stamina - PARRY_STAMINA);
+      player.rest = 0;
+    }
     this.parries.set(id, { mob: best.id, sharp: left <= SHARP_PARRY_TICKS * TICK_MS, bonus: proficiencyBonus(traits.level), untilMs: this.clockMs + left + 2 * TICK_MS });
     player.parry = PARRY_TICKS;
     return true;
@@ -1919,7 +1930,8 @@ export class Horde {
     }
     if (!best) return false;
     // The price of the roll, and the player stands with its hands on the mob.
-    player.stamina = Math.max(0, player.stamina - rollOf(player.load, traits).stamina);
+    // A price in stamina: a shove costs its own, else the stamina of the roll.
+    player.stamina = Math.max(0, player.stamina - (this.mechanics.has('stamina') ? SHOVE_STAMINA : rollOf(player.load, traits).stamina));
     player.rest = 0;
     player.dodgeCooldown = traits.dodgeCooldown;
     player.shove = SHOVE_TICKS;

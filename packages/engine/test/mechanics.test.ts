@@ -5,6 +5,7 @@ import {
   CLASH_PUSH,
   CLASH_REEL_TICKS,
   EMPTY_GEAR,
+  EVADE_STAMINA,
   GUARD_BREAK_TICKS,
   GUARD_SPEED,
   GUARD_STAMINA,
@@ -13,6 +14,7 @@ import {
   NIMBLE_MS,
   NO_INPUT,
   PARRY_PUSH,
+  PARRY_STAMINA,
   PARRY_TICKS,
   PLAIN_GEAR,
   PLAIN_SCORES,
@@ -21,6 +23,7 @@ import {
   ROLLS,
   SHIELD_AFTER_TICKS,
   SHOVE_KNOCK_MS,
+  SHOVE_STAMINA,
   SHOVE_TICKS,
   RIPOSTE_MS,
   TICK_SECONDS,
@@ -734,5 +737,63 @@ describe('11. the guards of the mobs', () => {
     state.brace = 0;
     expect(horde.step(TICK_MS, [player]).find(([m]) => m === mob.id)?.[2]).toBeGreaterThan(0);
     expect(mob.feint).toBeUndefined();
+  });
+});
+
+describe('12. a price in stamina', () => {
+  const brace = (state: PlayerState, age: number) => {
+    state.brace = 10;
+    state.braceAge = age;
+  };
+
+  it('an evade costs 10 stamina, and a sharp one nothing', () => {
+    for (const [on, age, cost] of [
+      [['stamina'], 9, EVADE_STAMINA],
+      [['stamina', 'grades'], 3, 0],
+      [[], 9, 0],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(1));
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      brace(state, age);
+      blow(horde, player, mob);
+      expect(state.stamina).toBe(100 - cost);
+    }
+  });
+
+  it('a parry costs 10, and there is none with no stamina', () => {
+    const FIGHTER = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR);
+    for (const [stamina, parries] of [
+      [100, true],
+      [0, false],
+    ] as const) {
+      const { horde, player, state, mob } = duel(['parry', 'stamina'], faces(7));
+      expect(untilWindup(horde, player, mob, 140)).toBe(true);
+      state.stamina = stamina;
+      expect(horde.parry(state, Math.atan2(mob.y - state.y, mob.x - state.x), 1, FIGHTER)).toBe(parries);
+      if (parries) expect(state.stamina).toBe(100 - PARRY_STAMINA);
+    }
+  });
+
+  it('a shove costs 20 in place of the roll', () => {
+    const { horde, state } = duel(['shove', 'stamina'], faces(15, 5));
+    horde.shove(state, 1, 0, traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR));
+    expect(state.stamina).toBe(100 - SHOVE_STAMINA);
+  });
+
+  it('with no stamina a step back does not brace, and a brace drops', () => {
+    const on = new Set<Mechanic>(['stamina']);
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 0, y: 0, attack: 0 }, world, { brace: true, mechanics: on });
+    for (let i = 0; i < 18; i++) stepPlayer(p, NO_INPUT, world, { brace: true, mechanics: on });
+    p.stamina = 0;
+    p.rest = 0;
+    stepPlayer(p, { x: -1, y: 0 }, world, { brace: true, mechanics: on });
+    expect(p.brace).toBe(0);
+    const q = createPlayer(100, 100);
+    q.brace = 10;
+    q.stamina = 0;
+    q.rest = 0;
+    stepPlayer(q, { x: -1, y: 0 }, world, { brace: true, mechanics: on });
+    expect(q.brace).toBe(0);
   });
 });
