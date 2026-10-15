@@ -26,6 +26,21 @@
   frames (`textures.brace`, `textures.evade`): a small leak of Texture objects.
   Code: `SkinStore.retain()` in `packages/engine-client/src/skins/skin-store.ts`.
 
+- **An admin tools section with debug controls** (2026-10-15). A section of admin tools with
+  different debug controls, for example: change the date and the hour in the game, spawn items, and
+  more.
+  Code: the admin sections of the settings of the game menu (`settingsSections`, the display
+  `CrtControls` and the experience `xpSection()` in `packages/engine-client/src/game.ts`;
+  `ui/xp-section.ts`); the admin check and its routes (`Accounts.isAdmin()`, `PUT /api/me/xp-divisor`
+  in `packages/engine-server/src/accounts.ts`); the hour (`skyNow()` and `?hour=` in `game.ts`,
+  `hourOf()` and `skyAt()` in `packages/engine/src/daytime.ts`; the server's `GAME_HOUR`, for
+  development only, and `RoomOptions.clock` in `apps/game/server/main.ts`); the items (`addToPack()`
+  in `packages/engine/src/items.ts`, the pack that the Room owns in a shared world).
+  Ask Fede: the hour comes from the real clock and is the same for every player of the shared Wilds:
+  must a change of the hour change it for everyone, or only for the admin's page? Must the tools work
+  in production, or only in development? Which other controls do you want (a teleport, XP, mobs,
+  quest steps)?
+
 ## Done
 
 - **Wider speech bubbles for long lines** (2026-10-13). A short text still wraps at 104 world pixels;
