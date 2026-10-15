@@ -3352,14 +3352,16 @@ body:has(#stick:not([hidden])) #sandbox-button {
   opacity: 1;
 }
 
+/* --sandbox-bottom: where the panel starts, over the button; it stays under the vitals at the top left (80 px). */
 #sandbox {
+  --sandbox-bottom: calc(var(--ui-margin) + 44px + 10px);
   position: fixed;
   z-index: 2;
   left: calc(var(--ui-margin) + env(safe-area-inset-left));
-  bottom: calc(var(--ui-margin) + 44px + 10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--sandbox-bottom) + env(safe-area-inset-bottom));
   box-sizing: border-box;
   width: min(420px, calc(100vw - 2 * var(--ui-margin)));
-  max-height: calc(100vh - 2 * var(--ui-margin) - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100vh - var(--sandbox-bottom) - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -3371,7 +3373,7 @@ body:has(#stick:not([hidden])) #sandbox-button {
 }
 
 body:has(#stick:not([hidden])) #sandbox {
-  bottom: calc(var(--ui-margin) + 2 * var(--stick-radius) + 14px + 44px + 10px + env(safe-area-inset-bottom));
+  --sandbox-bottom: calc(var(--ui-margin) + 2 * var(--stick-radius) + 14px + 44px + 10px);
 }
 
 #sandbox[hidden] {
