@@ -134,6 +134,19 @@ export interface PlayerTextures {
   readonly headHeight: number;
 }
 
+/** Every frame of a set of player textures, of each pose and each facing (to free them all). */
+export function playerFrames(textures: PlayerTextures): Texture[] {
+  const frames: Texture[] = [];
+  for (const pose of Object.values(textures) as unknown[]) {
+    if (typeof pose !== 'object' || pose === null) continue;
+    for (const facing of Object.values(pose) as (Texture | readonly Texture[])[]) {
+      if (Array.isArray(facing)) frames.push(...(facing as readonly Texture[]));
+      else frames.push(facing as Texture);
+    }
+  }
+  return frames;
+}
+
 /** The hooded wanderer of the atlas: the look of a player whose own skin is not ready. */
 export function atlasPlayerTextures(art: Art): PlayerTextures {
   const stand = {} as Record<Facing, Texture>;
