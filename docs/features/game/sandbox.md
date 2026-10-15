@@ -170,15 +170,21 @@ that attacks as well as it defends (the draft, proposal 2).
 
 ### REQ-SBX-009: 3. The front of a brace
 
-**User Story:** As an admin, I want a brace that guards only its front, so that I can test if the
+**User Story:** As an admin, I want a brace that guards its front best, so that I can test if the
 player must put the foes in front of it (the draft, proposal 3: positioning).
 
 **Acceptance Criteria:**
-- **AC-SBX-009.1:** With the switch "3. The front of a brace", a brace counts only against a blow from a
-  mob within 90 degrees of the way that the character struck. Against a blow from the side or the back,
-  the AC of the brace, its grade and its riposte do not count: the blow rolls against the plain AC, a
-  miss glances off ("miss"), and the word "behind" (Spanish "por detrás") rises over the character.
-- **AC-SBX-009.2:** Without the switch a brace counts against a blow from every side.
+- **AC-SBX-009.1:** With the switch "3. The front of a brace", the way of the mob from the character,
+  against the way that the character struck, gives a quarter of the circle (Fede, 2026-10-15). From the
+  front quarter (within 45 degrees of that way) the brace counts in full.
+- **AC-SBX-009.2:** From a side quarter (45 to 135 degrees) the brace adds half of its AC, rounded down,
+  at least 1 (a brace of + 4: + 2), and the word "side" (Spanish "de lado") rises over the character. With
+  the grades on, the half comes after the grade (a late brace of + 4: + 1). Its evade, its grade and its
+  riposte stay.
+- **AC-SBX-009.3:** From the back quarter (more than 135 degrees) the brace does not count: the AC of
+  the brace, its grade and its riposte do not count, the blow rolls against the plain AC, a miss glances
+  off ("miss"), and the word "behind" (Spanish "por detrás") rises over the character.
+- **AC-SBX-009.4:** Without the switch a brace counts in full against a blow from every side.
 
 ---
 
@@ -386,7 +392,9 @@ with a rhythm: in melee while the stamina lasts, then out to breathe (the draft,
   `Blow.opening`; `Horde.hit()` takes it away), the brain's `offBalanceMs` (`Horde.stagger()`: the state
   `hurt` with no push), `RIPOSTE_MS` 400. The page draws no flash for a reel with an opening
   (`MobLook.exposed`).
-- **3. The front.** `inFront()` (`FRONT_ANGLE` 90 degrees from `PlayerState.aim`) in `Horde.defence()`.
+- **3. The front.** `braceSector()` (`FULL_ANGLE` 45 and `SIDE_ANGLE` 135 degrees from
+  `PlayerState.aim`), `partBraceAc()` (`SIDE_SHARE` 0.5) in `Horde.defence()`. (`inFront()` and
+  `FRONT_ANGLE` 90 degrees stay for the front of a guard stance.)
 - **4. The flank.** The brain's `aim` (set when a wind-up starts) and `turnMs`; `atFlank()`
   (`FLANK_ANGLE` 40 degrees), `TURN_MS` 400. The turn and the opening last the blow (`strikeMs`) and
   `TURN_MS`.

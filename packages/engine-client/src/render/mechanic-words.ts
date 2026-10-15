@@ -22,6 +22,7 @@ export interface MechanicWordStyle {
 export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyle>> = {
   sharp: { over: 'player', ink: FIGHT_INK.crit, replaces: 'evade' },
   riposte: { over: 'mob', ink: FIGHT_INK.crit },
+  side: { over: 'player', ink: FIGHT_INK.miss },
   behind: { over: 'player', ink: FIGHT_INK.miss },
   flank: { over: 'mob', ink: FIGHT_INK.crit },
   parry: { over: 'player', ink: FIGHT_INK.crit, replaces: 'miss', sound: 'glance' },

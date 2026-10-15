@@ -22,6 +22,7 @@ import {
   RAGE_TICKS,
   ROLLS,
   SHIELD_AFTER_TICKS,
+  SIDE_SHARE,
   SHOVE_KNOCK_MS,
   SHOVE_STAMINA,
   SHOVE_TICKS,
@@ -32,12 +33,14 @@ import {
   World,
   atFlank,
   braceGrade,
+  braceSector,
   canDodge,
   canShove,
   createPlayer,
   inFront,
   inShape,
   lateBraceAc,
+  partBraceAc,
   shapeOf,
   sheetTraits,
   stepPlayer,
@@ -76,13 +79,13 @@ function tough(x: number, y: number): PlayerState {
   return p;
 }
 
-/** A horde with the mechanics `on`, one steady mob of `kind` 1 tile east of a player that it hunts (or `dx` east). */
-function duel(on: readonly Mechanic[], dice: DiceSource, kind: MobKind = 'skirmisher', traits: HordePlayer['traits'] = { ac: 10, braceAc: 4 }, dx = 14) {
+/** A horde with the mechanics `on`, one steady mob of `kind` 1 tile east of a player that it hunts (or `dx` east and `dy` south). */
+function duel(on: readonly Mechanic[], dice: DiceSource, kind: MobKind = 'skirmisher', traits: HordePlayer['traits'] = { ac: 10, braceAc: 4 }, dx = 14, dy = 0) {
   const horde = new Horde(world, open, 1, dice);
   horde.mechanics = new Set(on);
   const state = tough(100, 100);
   const player: HordePlayer = { id: 1, state, traits };
-  const mob = horde.spawn(kind, 100 + dx, 100, { steady: true });
+  const mob = horde.spawn(kind, 100 + dx, 100 + dy, { steady: true });
   horde.provoke(mob, 1, state);
   return { horde, player, state, mob };
 }
@@ -236,38 +239,56 @@ describe('2. the riposte', () => {
 });
 
 describe('3. the front of a brace', () => {
-  // The d20 of the mob shows 9: 13 hits the plain AC 10, and misses the AC of the brace, 14.
-  it('a brace counts against a blow from its front, and not from its back', () => {
-    for (const [dx, hits] of [
-      [14, false],
-      [-14, true],
-    ] as const) {
-      const { horde, player, state, mob } = duel(['front'], faces(9), 'skirmisher', { ac: 10, braceAc: 4 }, dx);
-      expect(untilWindup(horde, player, mob, 20)).toBe(true);
-      // It struck to the east, and braces.
-      state.aim = 0;
-      state.brace = 10;
-      state.braceAge = 9;
-      const { hit, events } = blow(horde, player, mob);
-      expect((hit?.[2] ?? 0) > 0).toBe(hits);
-      expect(events).toEqual(hits ? [{ kind: 'behind', mob: mob.id, player: 1 }] : []);
-    }
-  });
-
-  it('without its switch a brace counts from every side', () => {
-    const { horde, player, state, mob } = duel([], faces(9), 'skirmisher', { ac: 10, braceAc: 4 }, -14);
+  /** A blow on a brace of +4 (it struck to the east) from a mob at (dx, dy), with a d20 of `natural` (+4). */
+  function from(on: readonly Mechanic[], natural: number, dx: number, dy: number) {
+    const { horde, player, state, mob } = duel(on, faces(natural), 'skirmisher', { ac: 10, braceAc: 4 }, dx, dy);
     expect(untilWindup(horde, player, mob, 20)).toBe(true);
     state.aim = 0;
     state.brace = 10;
     state.braceAge = 9;
+    const { hit, events } = blow(horde, player, mob);
+    return { hits: (hit?.[2] ?? 0) > 0, events: events.map((e) => e.kind) };
+  }
+
+  it('a brace counts in full from the front, half from a side, and not at all from the back (Fede, 2026-10-15)', () => {
+    // 7 + 4 = 11: it misses AC 14 (in full) and AC 12 (half), and hits AC 10.
+    expect(from(['front'], 7, 14, 0)).toEqual({ hits: false, events: [] });
+    expect(from(['front'], 7, 0, 14)).toEqual({ hits: false, events: ['side'] });
+    expect(from(['front'], 7, -14, 0)).toEqual({ hits: true, events: ['behind'] });
+    // 9 + 4 = 13: it misses AC 14, and hits AC 12 from a side.
+    expect(from(['front'], 9, 14, 0).hits).toBe(false);
+    expect(from(['front'], 9, 0, -14).hits).toBe(true);
+  });
+
+  it('from a side, the half comes after the grade of the brace', () => {
+    // A late brace adds 2 (half of 4); from a side 1 (half of 2): 9 + 4 = 13 hits AC 11, not AC 14.
+    const { horde, player, state, mob } = duel(['front', 'grades'], faces(6), 'skirmisher', { ac: 10, braceAc: 4 }, 0, 14);
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.aim = 0;
+    state.brace = 10;
+    state.braceAge = 20;
+    // 6 + 4 = 10 misses AC 11.
     expect(blow(horde, player, mob).hit?.[2]).toBe(0);
   });
 
-  it('the front is the half of the circle round the way that the player struck', () => {
-    expect(inFront(0, 0, 0, 10, 0)).toBe(true);
-    expect(inFront(0, 0, 0, 0, 10)).toBe(true);
-    expect(inFront(0, 0, 0, -1, 10)).toBe(false);
-    expect(inFront(0, 0, Math.PI, -10, 1)).toBe(true);
+  it('without its switch a brace counts in full from every side', () => {
+    expect(from([], 9, -14, 0)).toEqual({ hits: false, events: [] });
+    expect(from([], 9, 0, 14)).toEqual({ hits: false, events: [] });
+  });
+
+  it('the sectors are quarters of the circle round the way that the player struck', () => {
+    expect(braceSector(0, 0, 0, 10, 0)).toBe('front');
+    expect(braceSector(0, 0, 0, 10, 9)).toBe('front');
+    expect(braceSector(0, 0, 0, 10, 11)).toBe('side');
+    expect(braceSector(0, 0, 0, 0, -10)).toBe('side');
+    // 132 degrees off the aim: a side; 138 degrees: the back.
+    expect(braceSector(0, 0, 0, -10, 11)).toBe('side');
+    expect(braceSector(0, 0, 0, -10, 9)).toBe('back');
+    expect(braceSector(0, 0, 0, -10, 1)).toBe('back');
+    expect(braceSector(0, 0, Math.PI, -10, 0)).toBe('front');
+    expect(partBraceAc(4, SIDE_SHARE)).toBe(2);
+    expect(partBraceAc(1, SIDE_SHARE)).toBe(1);
+    expect(partBraceAc(0, SIDE_SHARE)).toBe(0);
   });
 });
 

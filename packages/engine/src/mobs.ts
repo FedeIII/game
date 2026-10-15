@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -1864,13 +1864,16 @@ export class Horde {
       return { ac: ac + SHIELD_AC, edge: 0, braced: target.brace > 0, grade: null, parry: null };
     }
     if (target.brace === 0 || slam) return { ac, edge: 0, braced: false, grade: null, parry: null };
-    if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
+    // The front of a brace: in full from the front, half from a side, nothing from the back.
+    const sector = this.mechanics.has('front') ? braceSector(target.x, target.y, target.aim, mob.x, mob.y) : 'front';
+    if (sector === 'back') {
       this.event('behind', mob, id);
       return { ac, edge: 0, braced: false, grade: null, parry: null };
     }
-    if (!this.mechanics.has('grades') || braceAc === 0) return { ac: ac + braceAc, edge: 0, braced: true, grade: null, parry: null };
-    const grade = braceGrade(target.braceAge);
-    return { ac: ac + (grade === 'late' ? lateBraceAc(braceAc) : braceAc), edge: grade === 'sharp' ? -1 : 0, braced: true, grade, parry: null };
+    if (sector === 'side') this.event('side', mob, id);
+    const grade = this.mechanics.has('grades') && braceAc > 0 ? braceGrade(target.braceAge) : null;
+    const full = grade === 'late' ? lateBraceAc(braceAc) : braceAc;
+    return { ac: ac + (sector === 'side' ? partBraceAc(full, SIDE_SHARE) : full), edge: grade === 'sharp' ? -1 : 0, braced: true, grade, parry: null };
   }
 
   /**

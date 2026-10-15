@@ -541,7 +541,7 @@ const EN = {
       },
       front: {
         name: '3. The front of a brace',
-        line: 'A brace counts only against a blow from within 90 degrees of the way you struck. A blow from the side or the back ("behind") rolls against your plain AC.',
+        line: 'A brace counts in full against a blow from the front quarter (within 45 degrees of the way you struck), and half of it against a blow from a side quarter ("side"). Against a blow from the back quarter ("behind") it does not count: your plain AC.',
       },
       flank: {
         name: '4. The flank',
@@ -581,7 +581,7 @@ const EN = {
       },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost', shield: 'shield', deflect: 'deflect', caught: 'caught', uncanny: 'uncanny dodge', protect: 'protected', rage: 'rage', thrust: 'thrust', sweep: 'sweep', slam: 'slam', bite: 'bite', raise: 'shield up', mobParry: 'parried' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', side: 'side', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost', shield: 'shield', deflect: 'deflect', caught: 'caught', uncanny: 'uncanny dodge', protect: 'protected', rage: 'rage', thrust: 'thrust', sweep: 'sweep', slam: 'slam', bite: 'bite', raise: 'shield up', mobParry: 'parried' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

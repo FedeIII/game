@@ -466,7 +466,7 @@ export const ES: Strings = {
       },
       front: {
         name: '3. El frente de la guardia',
-        line: 'Una guardia solo cuenta contra un golpe que viene a menos de 90 grados de la dirección de tu golpe. Un golpe por el lado o por la espalda ("por detrás") tira contra tu CA normal.',
+        line: 'Una guardia cuenta entera contra un golpe del cuarto de delante (a menos de 45 grados de la dirección de tu golpe), y la mitad contra un golpe de un cuarto de lado ("de lado"). Contra un golpe del cuarto de atrás ("por detrás") no cuenta: tu CA normal.',
       },
       flank: {
         name: '4. El flanco',
@@ -505,7 +505,7 @@ export const ES: Strings = {
         line: 'Una esquiva cuesta 10 de aguante (una precisa, nada), una parada 10, un empujón 20 en lugar de la rodada. Sin aguante no hay guardia ni parada: sal del cuerpo a cuerpo para respirar.',
       },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia', thrust: 'estocada', sweep: 'barrido', slam: 'mazazo', bite: 'mordisco', raise: 'escudo alzado', mobParry: 'parado' },
+    words: { sharp: 'precisa', riposte: 'expuesto', side: 'de lado', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia', thrust: 'estocada', sweep: 'barrido', slam: 'mazazo', bite: 'mordisco', raise: 'escudo alzado', mobParry: 'parado' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

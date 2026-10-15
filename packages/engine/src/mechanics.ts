@@ -27,7 +27,7 @@ export const NO_MECHANICS: Mechanics = new Set();
 /**
  * Something that a mechanic did in a fight, for the page to show (a word over the player or a mob):
  * `sharp`, a sharp evade (the grades of a brace); `riposte`, a mob off balance after an evade (the
- * riposte); `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
+ * riposte); `side` and `behind`, a blow from the side or the back of a brace (the front of a brace); `flank`, a
  * mob that must turn to a player at its side (the flank); `parry`, a blow that a parry turned (the
  * parry); `block`, a blow that a shield turned, and `broken`, a heavy blow that broke a guard (the
  * guard stance); `shoved`, a mob that a shove knocked down, `held`, a mob that a shove did not move, and
@@ -40,6 +40,7 @@ export const NO_MECHANICS: Mechanics = new Set();
 export type MechanicEventKind =
   | 'sharp'
   | 'riposte'
+  | 'side'
   | 'behind'
   | 'flank'
   | 'parry'
@@ -90,7 +91,12 @@ export function braceGrade(age: number): BraceGrade {
 
 /** What a late brace adds to the AC: LATE_SHARE of `braceAc`, rounded down, at least 1. */
 export function lateBraceAc(braceAc: number): number {
-  return Math.max(1, Math.floor(braceAc * LATE_SHARE));
+  return partBraceAc(braceAc, LATE_SHARE);
+}
+
+/** A share of what a brace adds to the AC (a late brace, a blow from the side), rounded down, at least 1 (0 without a brace). */
+export function partBraceAc(braceAc: number, share: number): number {
+  return braceAc <= 0 ? 0 : Math.max(1, Math.floor(braceAc * share));
 }
 
 // ---------------------------------------------------------------- 2. the riposte
@@ -107,11 +113,27 @@ export const RIPOSTE_MS = 400;
 // ---------------------------------------------------------------- 3. the front of a brace
 
 /**
- * The front of a brace (proposal 3): a brace counts only against a blow from its front, from a mob
- * within FRONT_ANGLE of the way that the player struck (PlayerState.aim). A blow from the side or the
- * back rolls against the plain AC, and a miss glances off. With one mob nothing changes; with two or
- * three the player must keep them in front of it (positioning).
+ * The front of a brace (proposal 3; Fede's three sectors, 2026-10-15): the way of a mob from the player,
+ * against the way that the player struck (PlayerState.aim), gives a sector of a quarter of the circle.
+ * From the front (within FULL_ANGLE of the aim) the brace counts in full. From a side (up to SIDE_ANGLE)
+ * it adds only SIDE_SHARE of its AC (rounded down, at least 1; after the grade of the brace), and its
+ * evade, its grade and its riposte stay. From the back it does not count: the plain AC, and a miss
+ * glances off. With one mob nothing changes; with two or three the player must keep them in front of it
+ * (positioning).
  */
+export type BraceSector = 'front' | 'side' | 'back';
+
+export const FULL_ANGLE = Math.PI / 4;
+export const SIDE_ANGLE = (3 * Math.PI) / 4;
+export const SIDE_SHARE = 0.5;
+
+/** The sector of a brace of a player at (px, py) that struck at `aim` (radians), for a mob at (x, y). */
+export function braceSector(px: number, py: number, aim: number, x: number, y: number): BraceSector {
+  if (inFront(px, py, aim, x, y, FULL_ANGLE)) return 'front';
+  return inFront(px, py, aim, x, y, SIDE_ANGLE) ? 'side' : 'back';
+}
+
+/** The front of a guard stance (the guard stance, mechanics.ts): within this angle of the aim. */
 export const FRONT_ANGLE = Math.PI / 2;
 
 /** Whether (x, y) is in front of a player at (px, py) that faces `aim` (radians): within `angle` of it. */
