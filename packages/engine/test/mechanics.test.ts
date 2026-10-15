@@ -24,7 +24,12 @@ import {
   ROLLS,
   SHIELD_AFTER_TICKS,
   SIDE_SHARE,
+  FALL_MS,
+  RISE_MS,
   SHOVE_KNOCK_MS,
+  SHOVE_PUSH,
+  STRUGGLE_GAP,
+  STRUGGLE_MS,
   SHOVE_STAMINA,
   SHOVE_TICKS,
   RIPOSTE_MS,
@@ -37,6 +42,7 @@ import {
   braceSector,
   canDodge,
   canShove,
+  hitPlayer,
   createPlayer,
   inFront,
   inShape,
@@ -487,42 +493,83 @@ describe('7. the shove', () => {
   function shove(on: readonly Mechanic[], ours: number, theirs: number, kind: MobKind = 'skirmisher', traits = FIGHTER) {
     const { horde, player, state, mob } = duel(on, faces(ours, theirs), kind, { ac: 10 }, 14);
     const shoved = horde.shove(state, 1, 0, traits);
-    return { horde, player, state, mob, shoved, events: horde.takeEvents() };
+    return { horde, player, state, mob, shoved };
+  }
+  /** Runs the player (standing) and the horde for `ms`; returns the events and each state of the mob. */
+  function run(horde: Horde, player: HordePlayer, mob: Mob, ms: number) {
+    const events: MechanicEvent[] = [];
+    const states: string[] = [];
+    for (let t = 0; t < ms; t += TICK_MS) {
+      stepPlayer(player.state, NO_INPUT, world);
+      horde.step(TICK_MS, [player]);
+      events.push(...horde.takeEvents());
+      if (states.at(-1) !== mob.state) states.push(mob.state);
+    }
+    return { events: events.map((e) => e.kind), states };
   }
 
-  it('a roll into a mob in reach is a shove: a win knocks it down, pushes it back, and blows on it roll with advantage', () => {
-    // 15 + 2 (STR 10, proficiency 2) against 5 + 2 (a goblin's DEX).
-    const { state, mob, shoved, events } = shove(['shove'], 15, 5);
+  it('a roll into a mob in reach is a shove: both struggle for 0.5 s, the mob steps in, and the player stands', () => {
+    const { horde, player, state, mob, shoved } = shove(['shove'], 15, 5);
     expect(shoved).toBe(true);
-    expect(events).toEqual([{ kind: 'shoved', mob: mob.id, player: 1 }]);
-    expect(mob.state).toBe('hurt');
-    expect(mob.exposed).toBe(SHOVE_KNOCK_MS);
+    expect(mob.state).toBe('struggle');
     // It costs the stamina of a light roll, and the player stands.
     expect(state.stamina).toBe(100 - ROLLS.light.stamina);
     expect(state.shove).toBe(SHOVE_TICKS);
     expect(canDodge(state)).toBe(false);
+    const { events, states } = run(horde, player, mob, STRUGGLE_MS - 2 * TICK_MS);
+    expect(events).toEqual([]);
+    expect(states).toEqual(['struggle']);
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeCloseTo(STRUGGLE_GAP, 0);
   });
 
-  it('a loss or a tie does nothing to the mob', () => {
+  it('a win throws the mob back and down: it falls, lies, stands up, and blows on it roll with advantage', () => {
+    // 15 + 2 (STR 10, proficiency 2) against 5 + 2 (a goblin's DEX).
+    const { horde, player, state, mob } = shove(['shove'], 15, 5);
+    const struggle = run(horde, player, mob, STRUGGLE_MS + TICK_MS);
+    expect(struggle.events).toEqual(['shoved']);
+    expect(mob.state).toBe('floored');
+    expect(mob.exposed).toBeGreaterThan(SHOVE_KNOCK_MS);
+    // A blow does not get it up.
+    horde.strike(state, Math.atan2(mob.y - state.y, mob.x - state.x), undefined, 1, { toHit: 20, damage: { count: 1, sides: 4, plus: 0 }, push: 1, stagger: 1 });
+    expect(mob.state).toBe('floored');
+    const fall = run(horde, player, mob, FALL_MS + TICK_MS);
+    // Chest to chest in the struggle, then thrown back.
+    expect(Math.hypot(mob.x - state.x, mob.y - state.y)).toBeCloseTo(STRUGGLE_GAP + SHOVE_PUSH, 0);
+    const down = run(horde, player, mob, SHOVE_KNOCK_MS + RISE_MS);
+    expect([...fall.states, ...down.states]).toEqual(['floored', 'floored', 'chase']);
+  });
+
+  it('a loss or a tie: after the struggle both go back to the fight', () => {
     for (const [ours, theirs] of [
       [5, 15],
       [10, 10],
     ] as const) {
-      const { mob, shoved, events } = shove(['shove'], ours, theirs);
-      expect(shoved).toBe(true);
-      expect(events.map((e) => e.kind)).toEqual(['held']);
-      expect(mob.state).toBe('chase');
+      const { horde, player, state, mob } = shove(['shove'], ours, theirs);
+      const { events, states } = run(horde, player, mob, STRUGGLE_MS + 3 * TICK_MS);
+      expect(events).toEqual(['held']);
+      // Then it hunts again (and winds up at once, chest to chest).
+      expect(states.slice(0, 2)).toEqual(['struggle', 'chase']);
+      expect(state.shove).toBe(0);
     }
   });
 
-  it('a small character cannot shove a large mob (5e): "too big", no contest', () => {
+  it('a small character cannot shove a large mob (5e): it struggles, then "too big"', () => {
     const halfling = traitsOf(PLAIN_SCORES, 'fighter', PLAIN_GEAR, 1, 'small');
-    const { mob, shoved, events } = shove(['shove'], 20, 1, 'brute', halfling);
-    expect(shoved).toBe(true);
-    expect(events.map((e) => e.kind)).toEqual(['tooBig']);
-    expect(mob.state).toBe('chase');
+    const { horde, player, mob } = shove(['shove'], 20, 1, 'brute', halfling);
+    const { events, states } = run(horde, player, mob, STRUGGLE_MS + 3 * TICK_MS);
+    expect(events).toEqual(['tooBig']);
+    expect(states.slice(0, 2)).toEqual(['struggle', 'chase']);
     expect(canShove('medium', 'large')).toBe(true);
     expect(canShove('small', 'large')).toBe(false);
+  });
+
+  it('a hit on the player ends the struggle at once', () => {
+    const { horde, player, state, mob } = shove(['shove'], 15, 5);
+    run(horde, player, mob, 100);
+    hitPlayer(state, 1, 30, 0);
+    const { events, states } = run(horde, player, mob, 50);
+    expect(events).toEqual([]);
+    expect(states).toEqual(['chase']);
   });
 
   it('is no shove without its switch, or away from the mob', () => {

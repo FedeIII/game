@@ -243,6 +243,13 @@ hall of Ironhold): `docs/features/game/storeys.md`.
   the pack in the next snapshot, and gets the loot line (`l`). A page cannot hide a wade: the server
   steps the player itself. In a world that the page runs, the page applies them.
 
+## The states of a shove of the sandbox (2026-10-15, no new protocol)
+
+- Two more states of a mob, `struggle` (code 13 of `MOB_STATES`) and `floored` (code 14): the shove of
+  the sandbox of an admin (`docs/features/game/sandbox.md`, REQ-SBX-013). The sandbox runs in the page,
+  and the Room never turns its mechanics on, so the server never sends these codes; the protocol stays
+  48. A mechanic that becomes a rule of the game will need a new protocol.
+
 ## The goblins of the forest (protocol 36, 2026-10-13)
 
 - A new kind of mob, `skirmisher` (code 12 of `MOB_KINDS`), and two new states of a mob, `startled`

@@ -428,3 +428,34 @@ export function jumpParts(spec: FigureSpec, style: AttackStyle, frame: number): 
   const action: FigureAction = { ...braceAction(style, spec), lean: pose.lean, crouch: pose.crouch, tuck: pose.tuck };
   return figure(spec, Math.PI * 0.5, pose.stride, action);
 }
+
+/** Frames of a struggle in a sheet (a shove of the sandbox: mechanics.ts): a push, and a harder one. */
+export const STRUGGLE_FRAMES = 2;
+/** In each frame of a struggle: the lean in, the crouch, and the stride of the feet (one foot far back). */
+const STRUGGLE = [
+  { lean: 0.26, crouch: 0.45, stride: 0.7 },
+  { lean: 0.36, crouch: 0.6, stride: 0.85 },
+] as const;
+/** The arm of a struggle that pushes: out in front at the chest, the hand on the foe. */
+const PUSH: ArmPose = [
+  [0.2, -0.15, 0.97],
+  [0.0, 0.2, 1],
+];
+/** The weapon arm in a struggle: the fist up by the shoulder, so that the blade points up, out of the push. */
+const HOLD_UP: ArmPose = [
+  [0.3, -0.4, 0.85],
+  [0.0, 0.95, 0.3],
+];
+
+/**
+ * The parts of frame `frame` of a struggle (a shove of the sandbox; Fede, 2026-10-15): the figure leans
+ * into the foe on bent knees, one foot far back. The free hand (or the shield) pushes on the foe, and the
+ * weapon is up by the shoulder; with a staff (both hands on it), the staff pushes across the body.
+ */
+export function struggleParts(spec: FigureSpec, style: AttackStyle, frame: number): Part[] {
+  const pose = STRUGGLE[frame]!;
+  const guard = braceAction(style, spec);
+  const staff = guard.weapon?.kind === 'staff' && GUARDS[style].left === 'mirror';
+  const action: FigureAction = { right: staff ? PUSH : HOLD_UP, left: mirror(PUSH), lean: pose.lean, crouch: pose.crouch, ...(guard.weapon ? { weapon: guard.weapon } : {}) };
+  return figure(spec, Math.PI * 0.5, pose.stride, action);
+}

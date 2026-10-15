@@ -1,5 +1,5 @@
 import { Container, Sprite, Texture } from 'pixi.js';
-import { MOB_STATS, type Facing, type MobKind, type MobState } from '@game/engine';
+import { FALL_MS, MOB_STATS, RISE_MS, SHOVE_KNOCK_MS, type Facing, type MobKind, type MobState } from '@game/engine';
 import atlasData from '../generated/atlas.json';
 import type { Art } from '../assets.ts';
 import type { PixelFont } from './pixel-text.ts';
@@ -118,6 +118,8 @@ const SPRING_FADE_MS = 180;
 export function seesMob(mob: Pick<MobLook, 'x' | 'y' | 'state'>, seeker: { readonly x: number; readonly y: number; readonly range: number } | null): boolean {
   return mob.state !== 'lurk' || (seeker !== null && Math.hypot(mob.x - seeker.x, mob.y - seeker.y) <= seeker.range);
 }
+/** In a struggle (a shove of the sandbox) a goblin changes its push this often (ms), as the player does. */
+const STRUGGLE_BEAT_MS = 110;
 /** The white flash of a blow, at the start of a death or a reel (ms). */
 const FLASH_MS = 110;
 /** Ash and embers that rise from a dead mob: for this long (ms). */
@@ -180,6 +182,8 @@ export class MobViews {
   private readonly touches = new Map<number, number>();
   private readonly motes: Mote[] = [];
   private readonly frames = new Map<string, Texture[]>();
+  /** Whether each kind has the frames of a shove of the sandbox (shoveFrames). */
+  private readonly shoveKinds = new Map<MobKind, boolean>();
   /** The atlas name of each frame texture: the eye pixels are listed by it. */
   private readonly names = new Map<Texture, string>();
   /** What the player reads of a mob (Intelligence): its health (INT 13), and its wind-up (INT 15). */
@@ -272,6 +276,13 @@ export class MobViews {
     return view;
   }
 
+  /** Whether the kind has the frames of a shove of the sandbox (`struggle/<i>`, `fall/<i>`, `rise/<i>`: the goblins only). */
+  private shoveFrames(kind: MobKind): boolean {
+    let has = this.shoveKinds.get(kind);
+    if (has === undefined) this.shoveKinds.set(kind, (has = this.art.tryFrame(`mob/${kind}/down/struggle/0`) !== null));
+    return has;
+  }
+
   /** The textures of `mob/<kind>/<facing>/<name>/<i>` (or the single frames `.../stand` and `.../hurt`). */
   private frame(kind: MobKind, facing: Facing, name: string, index: number): Texture {
     const key = `${kind}/${facing}/${name}`;
@@ -304,6 +315,29 @@ export class MobViews {
         // It reels back from the blow, then stands for a moment before it comes on again.
         name = mob.stateMs < stats.hurtMs * 0.75 ? 'hurt' : 'stand';
         break;
+      case 'struggle':
+        // A shove of the sandbox: it pushes back, a push and a harder one by turns (a kind without the frames: its wind-up).
+        if (this.shoveFrames(mob.kind)) {
+          name = 'struggle';
+          index = Math.floor(now / STRUGGLE_BEAT_MS) % 2;
+        } else name = 'windup';
+        break;
+      case 'floored': {
+        // Thrown down by a shove: it falls on its back, lies, and gets up (a kind without the frames: it reels).
+        const t = mob.stateMs;
+        if (!this.shoveFrames(mob.kind)) name = t < FALL_MS + SHOVE_KNOCK_MS ? 'hurt' : 'stand';
+        else if (t < FALL_MS) {
+          name = 'fall';
+          index = Math.floor((t / FALL_MS) * 3);
+        } else if (t < FALL_MS + SHOVE_KNOCK_MS) {
+          name = 'fall';
+          index = 2;
+        } else {
+          name = 'rise';
+          index = Math.floor(((t - FALL_MS - SHOVE_KNOCK_MS) / RISE_MS) * 2);
+        }
+        break;
+      }
       case 'ride':
         // On the back of its worg: it stands there, raised (below).
         name = 'stand';

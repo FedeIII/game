@@ -305,9 +305,10 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   hand casts, strikes with the palm or punches); `skinOfLook()`; `skinKey()` names a look for the
   skin store and its cache (`SkinStore.get(look)`).
   `renderSkinSheet()` gives 4 views x (stand + 8 walk + 4 attack + 4 roll + 2 fall + crouch + 8 sneak
-  walk + brace + 3 evade + 4 heavy roll + 3 jump; the first column of each: `SKIN_COLUMNS`) frames of
+  walk + brace + 3 evade + 4 heavy roll + 3 jump + 2 struggle (a shove of the sandbox:
+  `struggleParts()`); the first column of each: `SKIN_COLUMNS`) frames of
   56 x 56. The columns of a view go on `SKIN_VIEW_ROWS` rows of `SKIN_ROW_CELLS` (20) frames: find a
-  frame with `skinCell(column, view)`, never with `column * width`; the sheet is 1120 x 448 px (keep
+  frame with `skinCell(column, view)`, never with `column * width`; the sheet is 1120 x 672 px (keep
   it at most 2048 on a side)
   (pivot 28, 50: room for a staff over the head or a rapier at full reach; `SKIN_PORTRAIT` is the
   32 x 48 round the figure at rest, for the settings preview). The browser runs it at run time, so `skins.ts`, `figure.ts`, `sdf.ts`,
@@ -355,7 +356,9 @@ broken letters (2026-10-08). See "Verify a change in a browser" to emulate such 
   brute (big grey ghoul with tusks and a spiked club). Frames `mob/<kind>/<view>/stand`,
   `.../walk/<0-5>`, `.../windup/<0-1>`, `.../strike/<0-1>`, `.../die/<0-5>`, and
   `mob/<kind>/shadow`; a kind that ambushes (`CROUCHING`: the bandit) also has `.../crouch` and
-  `.../creep/<0-5>`. The eyes are a material of their own: the build lists the eye pixels of
+  `.../creep/<0-5>`; the goblins of the sandbox (`SHOVE_ANIMATED`: the skirmisher) also have the frames
+  of a shove, `.../struggle/<0-1>`, `.../fall/<0-2>` (thrown on its back, its eyes open) and
+  `.../rise/<0-1>` (the poses `grapple`, `floored`, `rise` of `MobPose`). The eyes are a material of their own: the build lists the eye pixels of
   each frame in `meta.mobEyes`, and the game draws them glowing above the darkness. In a death
   the eyes go dark. Preview the frames when you change a model: poses that look right in one
   view can hide the head in another.

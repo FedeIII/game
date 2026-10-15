@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_BIND_MS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
+import { BANDIT_PARRY_AC, CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, EVADE_STAMINA, FALL_MS, FEINT_MS, GUARD_BREAK_TICKS, MOB_BODY, NIMBLE_DISTANCE, NIMBLE_MS, NO_MECHANICS, PARRY_BIND_MS, PARRY_PUSH, PARRY_STAMINA, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, RISE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHIELD_UP_MS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_STAMINA, SHOVE_TICKS, SIDE_SHARE, SLAM_WINDUP, STRUGGLE_GAP, STRUGGLE_MS, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, braceSector, canShove, inFront, inShape, lateBraceAc, partBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape, type Size } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -620,10 +620,12 @@ export function mobXp(kind: MobKind): number {
  * rides another mob (ride: a goblin on a worg, protocol 27), casts a rite (rite: the Devastator,
  * protocol 29), stops short when it sees a player (startled: a patrol, protocol 36), flees from
  * the player (flee: a patrol, protocol 36), or hides and creeps after a player (lurk: an ambush,
- * protocol 40). The order is the code on the wire.
+ * protocol 40), struggles with a player that shoves it (struggle), and lies on the ground and stands
+ * up after a shove (floored) (the shove of the sandbox, mechanics.ts: the server never gives them). The
+ * order is the code on the wire.
  */
-export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite' | 'startled' | 'flee' | 'lurk';
-export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite', 'startled', 'flee', 'lurk'];
+export type MobState = 'idle' | 'walk' | 'chase' | 'windup' | 'strike' | 'retreat' | 'dying' | 'hurt' | 'ride' | 'rite' | 'startled' | 'flee' | 'lurk' | 'struggle' | 'floored';
+export const MOB_STATES: readonly MobState[] = ['idle', 'walk', 'chase', 'windup', 'strike', 'retreat', 'dying', 'hurt', 'ride', 'rite', 'startled', 'flee', 'lurk', 'struggle', 'floored'];
 
 export interface Mob {
   readonly id: number;
@@ -1057,6 +1059,8 @@ interface Brain {
   nimble: number;
   /** A parry met its blow (the parry, mechanics.ts): at the end of the bind, it and the player step apart. */
   parried: boolean;
+  /** The player that shoves it, its STR for the dice and its size (the shove, mechanics.ts), while it struggles. */
+  shover: { readonly athletics: number; readonly size: Size } | null;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1290,6 +1294,7 @@ export class Horde {
       feintMs: 0,
       nimble: 0,
       parried: false,
+      shover: null,
     });
     return mob;
   }
@@ -1578,6 +1583,12 @@ export class Horde {
           if (this.despawn(mob, players) || this.leaves(mob, brain, people)) break;
           this.lurk(mob, brain, players, dt);
           break;
+        case 'struggle':
+          this.struggle(mob, brain, byId, dt);
+          break;
+        case 'floored':
+          this.floored(mob, brain, byId, dt);
+          break;
       }
     }
     return hits;
@@ -1729,11 +1740,14 @@ export class Horde {
       return { mob, damage: 0, crit: false };
     }
     const d = Math.hypot(dx, dy) || 1;
-    brain.slideX = dx / d;
-    brain.slideY = dy / d;
     const stats = MOB_STATS[mob.kind];
-    brain.push = stats.knockback * blow.push;
-    brain.reelMs = stats.hurtMs * blow.stagger;
+    // A mob on the ground after a shove keeps the push of its fall.
+    if (mob.state !== 'floored') {
+      brain.slideX = dx / d;
+      brain.slideY = dy / d;
+      brain.push = stats.knockback * blow.push;
+      brain.reelMs = stats.hurtMs * blow.stagger;
+    }
     mob.health = Math.max(0, mob.health - damage);
     if (attackerId !== undefined) brain.hitters.add(attackerId);
     if (mob.health <= 0) {
@@ -1742,6 +1756,8 @@ export class Horde {
       this.defeats.push({ mob, hitters: [...brain.hitters] });
       return { mob, damage, crit };
     }
+    // On the ground after a shove (mechanics.ts): the blow hurts, but it stays down.
+    if (mob.state === 'floored') return { mob, damage, crit };
     // The Ash Warden: hurt to half, it goes in ash (its health stays: it is not dead).
     if (stats.vanishAt !== undefined && mob.health <= stats.health * stats.vanishAt) {
       this.vanish(mob.id);
@@ -1921,19 +1937,17 @@ export class Horde {
 
   /**
    * The shove (mechanics.ts): a roll of player `id` (at `player`) the way `aim` (radians) into a living
-   * mob in its reach, within SHOVE_ARC of that way, is a shove: it costs the stamina of the roll and
-   * the wait between dodges, and the player stands SHOVE_TICKS. A mob more than one size larger does
-   * not move ("too big"). Else a contest: d20 + the player's athletics against d20 + the better of the
-   * mob's STR and DEX; a win knocks the mob down (it reels for SHOVE_KNOCK_MS, SHOVE_PUSH away, and blows
-   * on it roll with advantage), a loss or a tie does nothing. Returns whether it is a shove: then the
-   * caller does not roll.
+   * mob in its reach, within SHOVE_ARC of that way, is a shove: it costs the stamina of the roll and the
+   * wait between dodges. The player and the mob struggle for STRUGGLE_MS (the mob in state 'struggle',
+   * the player in PlayerState.shove); then the dice (struggle()). Returns whether it is a shove: then
+   * the caller does not roll.
    */
   shove(player: PlayerState, id: number, aim: number, traits: Pick<PlayerTraits, 'reach' | 'size' | 'athletics' | 'dodgeCooldown' | 'rollReach' | 'rollSafe'>): boolean {
     if (!this.mechanics.has('shove')) return false;
     let best: Mob | null = null;
     let bestD = Infinity;
     for (const mob of this.mobs) {
-      if (mob.state === 'dying' || mob.state === 'lurk' || mob.state === 'ride') continue;
+      if (mob.state === 'dying' || mob.state === 'lurk' || mob.state === 'ride' || mob.state === 'struggle' || mob.state === 'floored') continue;
       const dx = mob.x - player.x;
       const dy = mob.y - player.y;
       const d = Math.hypot(dx, dy);
@@ -1943,7 +1957,6 @@ export class Horde {
       bestD = d;
     }
     if (!best) return false;
-    // The price of the roll, and the player stands with its hands on the mob.
     // A price in stamina: a shove costs its own, else the stamina of the roll.
     player.stamina = Math.max(0, player.stamina - (this.mechanics.has('stamina') ? SHOVE_STAMINA : rollOf(player.load, traits).stamina));
     player.rest = 0;
@@ -1954,28 +1967,84 @@ export class Horde {
     player.facing = facingOfAngle(player.aim);
     player.vx = 0;
     player.vy = 0;
-    const body = MOB_BODY[best.kind];
-    if (!canShove(traits.size, body.size)) {
-      this.event('tooBig', best, id);
-      return true;
-    }
-    const ours = rollDice(dice(1, 20, traits.athletics), this.dice);
-    const theirs = rollDice(dice(1, 20, Math.max(body.str, body.dex)), this.dice);
-    if (ours <= theirs) {
-      this.event('held', best, id);
-      return true;
-    }
+    // Both struggle: the mob's blow (a wind-up) is over, and it turns to the player.
     const brain = this.brains.get(best.id)!;
     brain.target = id;
     brain.lostMs = 0;
-    brain.slideX = Math.cos(player.aim);
-    brain.slideY = Math.sin(player.aim);
-    brain.push = SHOVE_PUSH;
-    brain.reelMs = SHOVE_KNOCK_MS;
-    best.exposed = SHOVE_KNOCK_MS;
-    this.enter(best, 'hurt');
-    this.event('shoved', best, id);
+    brain.shover = { athletics: traits.athletics, size: traits.size };
+    this.enter(best, 'struggle');
+    best.facing = facingTo(player.x - best.x, player.y - best.y, best.facing);
     return true;
+  }
+
+  /**
+   * A struggle (the shove, mechanics.ts): the mob steps in to STRUGGLE_GAP from its player and pushes
+   * for STRUGGLE_MS. Then the dice: a win of the player throws it back and down (state 'floored'), a
+   * loss or a tie lets both go on. A mob more than one size larger does not move ("too big"). A hit on
+   * the player (no shove any more) ends the struggle at once.
+   */
+  private struggle(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    const target = brain.target === null ? undefined : players.get(brain.target);
+    const shover = brain.shover;
+    if (!target || !shover || (target.shove === 0 && mob.stateMs < STRUGGLE_MS)) {
+      brain.shover = null;
+      this.giveUpOrChase(mob, brain, players);
+      return;
+    }
+    const dx = target.x - mob.x;
+    const dy = target.y - mob.y;
+    const d = Math.hypot(dx, dy);
+    mob.facing = facingTo(dx, dy, mob.facing);
+    // It steps in, chest to chest.
+    if (d > STRUGGLE_GAP) {
+      const step = Math.min(d - STRUGGLE_GAP, (120 * dt) / 1000);
+      this.move(mob, (dx / d) * step, (dy / d) * step);
+    }
+    if (mob.stateMs < STRUGGLE_MS) return;
+    brain.shover = null;
+    const body = MOB_BODY[mob.kind];
+    if (!canShove(shover.size, body.size)) {
+      this.event('tooBig', mob, brain.target!);
+      this.giveUpOrChase(mob, brain, players);
+      return;
+    }
+    const ours = rollDice(dice(1, 20, shover.athletics), this.dice);
+    const theirs = rollDice(dice(1, 20, Math.max(body.str, body.dex)), this.dice);
+    if (ours <= theirs) {
+      this.event('held', mob, brain.target!);
+      this.giveUpOrChase(mob, brain, players);
+      return;
+    }
+    // Thrown back, and down.
+    brain.slideX = -dx / (d || 1);
+    brain.slideY = -dy / (d || 1);
+    brain.push = SHOVE_PUSH;
+    mob.exposed = FALL_MS + SHOVE_KNOCK_MS + RISE_MS;
+    this.enter(mob, 'floored');
+    this.event('shoved', mob, brain.target!);
+  }
+
+  /**
+   * On the ground after a shove (state 'floored', mechanics.ts): it slides back as it falls (FALL_MS),
+   * lies SHOVE_KNOCK_MS, and stands up (RISE_MS); then it goes for its player again.
+   */
+  private floored(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>, dt: number): void {
+    if (mob.stateMs < FALL_MS) {
+      const ease = (t: number) => 1 - (1 - Math.max(0, Math.min(1, t))) ** 2;
+      const share = ease(mob.stateMs / FALL_MS) - ease((mob.stateMs - dt) / FALL_MS);
+      if (share > 0) this.move(mob, brain.slideX * brain.push * share, brain.slideY * brain.push * share);
+      return;
+    }
+    if (mob.stateMs >= FALL_MS + SHOVE_KNOCK_MS + RISE_MS) this.giveUpOrChase(mob, brain, players);
+  }
+
+  /** After a struggle or a fall: back to the hunt of its target, or home without one. */
+  private giveUpOrChase(mob: Mob, brain: Brain, players: ReadonlyMap<number, PlayerState>): void {
+    if (brain.target !== null && players.has(brain.target)) {
+      brain.curve = this.newCurve();
+      brain.queuedMs = this.clockMs;
+      this.enter(mob, 'chase');
+    } else this.giveUp(mob, brain);
   }
 
   /** Whether the blow of a mob is heavy enough to break a guard (the guard stance, mechanics.ts): a bugbear's. */

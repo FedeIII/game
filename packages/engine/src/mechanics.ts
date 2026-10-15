@@ -206,16 +206,26 @@ export const GUARD_BREAK_TICKS = 30;
 
 /**
  * The shove (proposal 7; the Shove of 5e): a roll forward into a mob in reach (the way of the roll
- * within SHOVE_ARC of the way to the mob) is a shove, not a roll. It costs the stamina of the roll, and
- * the player stands SHOVE_TICKS. The dice: d20 + the player's STR modifier and proficiency bonus
- * (PlayerTraits.athletics) against d20 + the better of the mob's STR and DEX modifiers (MOB_BODY); a tie
- * goes to the mob. A win knocks the mob down for SHOVE_KNOCK_MS (it cannot wind up, and blows on it roll
- * with advantage: Mob.exposed) and pushes it SHOVE_PUSH back. A loss does nothing. A player cannot
- * shove a mob more than one size larger (5e): a halfling or a gnome cannot shove a brute or a worg.
+ * within SHOVE_ARC of the way to the mob) is a shove, not a roll. It costs the stamina of the roll.
+ * The player and the mob struggle for STRUGGLE_MS (Fede, 2026-10-15): the mob steps in to STRUGGLE_GAP
+ * (state 'struggle'), and both push; the player stands (PlayerState.shove). Then the dice: d20 + the
+ * player's STR modifier and proficiency bonus (PlayerTraits.athletics) against d20 + the better of the
+ * mob's STR and DEX modifiers (MOB_BODY); a tie goes to the mob. A win knocks the mob back SHOVE_PUSH as
+ * it falls (FALL_MS), and it lies on the ground SHOVE_KNOCK_MS, then stands up (RISE_MS) (state
+ * 'floored'): it cannot wind up, and blows on it roll with advantage (Mob.exposed); a blow does not get
+ * it up. A loss: both go back to the fight. A player cannot shove a mob more than one size larger (5e):
+ * a halfling or a gnome cannot shove a brute or a worg; it struggles, and the mob does not move. A hit
+ * on the player in the struggle ends it.
  */
 export const SHOVE_ARC = Math.PI / 4;
-export const SHOVE_TICKS = 12;
+export const STRUGGLE_MS = 500;
+/** The player stands this many ticks in a struggle: STRUGGLE_MS, and 2 more, so that the dice come first. */
+export const SHOVE_TICKS = 32;
+/** In a struggle the mob steps in to this distance from the player (world pixels). */
+export const STRUGGLE_GAP = 13;
+export const FALL_MS = 250;
 export const SHOVE_KNOCK_MS = 800;
+export const RISE_MS = 450;
 export const SHOVE_PUSH = 16;
 
 /** The sizes of 5e, from small to big. */

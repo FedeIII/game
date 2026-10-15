@@ -45,6 +45,15 @@ export interface MobPose {
   readonly reel?: number;
   /** A crouch (0..1): low on bent knees, the body forward (an ambush that hides or creeps). */
   readonly crouch?: number;
+  /**
+   * A struggle (0..1, a little more for the hardest push): the body leans in, both hands and the shield
+   * forward, one foot back (a shove of the sandbox).
+   */
+  readonly grapple?: number;
+  /** A fall after a shove (0..1): thrown back, and over on its back, its eyes open (1: it lies). */
+  readonly floored?: number;
+  /** A rise after a shove (0..1): from a seat on the ground, up on bent knees (1: it stands). */
+  readonly rise?: number;
 }
 
 const POSE: MobPose = { phase: 0, walk: 0, windup: 0, strike: 0, death: 0 };
@@ -67,8 +76,13 @@ export const MOB_FRAMES: Readonly<Record<MobKind, { width: number; height: numbe
   bandit: { width: 56, height: 60, pivotX: 28, pivotY: 48 },
 };
 
-/** Frames of each animation (`creep`: the kinds of CROUCHING only). */
-export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6, creep: 6 } as const;
+/** Frames of each animation (`creep`: the kinds of CROUCHING only; `struggle`, `fall` and `rise`: SHOVE_ANIMATED only). */
+export const MOB_ANIMATIONS = { walk: 6, windup: 2, strike: 2, die: 6, creep: 6, struggle: 2, fall: 3, rise: 2 } as const;
+/**
+ * The kinds with the frames of a shove of the sandbox: `struggle/<i>`, `fall/<i>` and `rise/<i>` (Fede,
+ * 2026-10-15: the goblins of the sandbox only). The page shows other frames for the other kinds.
+ */
+export const SHOVE_ANIMATED: readonly MobKind[] = ['skirmisher'];
 
 /** The colour of the glow of the eyes, for the game. */
 export const MOB_EYE_GLOW: Readonly<Record<MobKind, number>> = {
@@ -594,11 +608,13 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   const thigh = b.hip * 0.5;
   const shin = b.hip * 0.52;
   const low = pose.crouch ?? 0;
-  const crouch = (b.weapon === 'bow' ? 0.25 * windup : 0.3 * windup + 0.15 * strike) + 1.5 * low;
+  // A struggle: it leans in, its knees bent, one foot forward and one back.
+  const grapple = pose.grapple ?? 0;
+  const crouch = (b.weapon === 'bow' ? 0.25 * windup : 0.3 * windup + 0.15 * strike) + 1.5 * low + 0.55 * grapple;
   const legs: Leg[] = [-1, 1].map((side) => {
     const p = phase + (side < 0 ? 0 : Math.PI);
     const swing = 0.5 * walk * Math.sin(p);
-    const theta = 0.15 + swing + 0.5 * crouch + 1.1 * kneel + (b.weapon === 'bow' ? 0 : 0.3 * strike * (side < 0 ? 1 : -0.3));
+    const theta = 0.15 + swing + 0.5 * crouch + 1.1 * kneel + (b.weapon === 'bow' ? 0 : 0.3 * strike * (side < 0 ? 1 : -0.3)) + grapple * (side < 0 ? 0.35 : -0.75);
     const hip: Vec3 = [side * b.shoulders * 0.45, b.hip, -0.3];
     const knee = add(hip, [side * 0.15, -thigh * Math.cos(theta), thigh * Math.sin(theta)]);
     const phi = theta - 0.45 - 0.5 * walk * Math.max(0, Math.cos(p)) - 0.6 * crouch - 2.2 * kneel;
@@ -618,7 +634,7 @@ function humanoid(pose: MobPose, b: Build): Part[] {
 
   // The body leans forward with the hunch, back in a wind-up, forward in the blow.
   const bob = 0.35 * walk * Math.abs(Math.sin(phase));
-  const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike) + 3.4 * low;
+  const lean = b.hunch + (b.weapon === 'bow' ? 0 : -0.8 * windup + 1.8 * strike) + 3.4 * low + 3.0 * grapple;
   const pelvis = up([0, b.hip + 0.6 + bob, 0]);
   const chest = up([0, b.chest + bob - 0.2 * strike, lean]);
   const torso = b.armour ? MM.metal : b.weapon === 'bow' || b.face === 'mask' || b.clothed ? MM.cloth : MM.hide;
@@ -648,7 +664,7 @@ function humanoid(pose: MobPose, b: Build): Part[] {
   }
 
   // The head.
-  const head = add(chest, [0, b.head * 1.25 + b.limb * 0.6, 0.6 + b.hunch * 0.4 - 0.4 * windup]);
+  const head = add(chest, [0, b.head * 1.25 + b.limb * 0.6 - 0.4 * grapple, 0.6 + b.hunch * 0.4 - 0.4 * windup + 0.7 * grapple]);
   const eye = pose.death > 0.2 ? MM.mouth : MM.eye;
   m.sphere(head, b.head, MM.hide);
   if (b.face === 'goblin') {
@@ -740,6 +756,12 @@ function humanoid(pose: MobPose, b: Build): Part[] {
       elbowD = [side * 0.6, -armLen, 0.5 + 0.9 * sway];
       wristD = [side * -0.2, -armLen * 0.95, 1.1 + 1.0 * sway];
     }
+    if (grapple > 0) {
+      // A struggle: both arms out in front at the chest, the hands (and the shield) on the foe.
+      const k = Math.min(1, grapple);
+      elbowD = mix(elbowD, [side * -0.2, -armLen * 0.25, armLen * 0.8], k);
+      wristD = mix(wristD, [side * -0.35, armLen * 0.15, armLen * 0.8], k);
+    }
     const elbow = add(shoulder, elbowD);
     const wrist = add(elbow, wristD);
     m.chain([shoulder, elbow, wrist], [b.limb * 1.1, b.limb * 0.95, b.limb * 0.85], b.fur ? MM.hide : b.armour || b.robe || b.clothed ? MM.cloth : MM.hide);
@@ -771,7 +793,9 @@ function humanoid(pose: MobPose, b: Build): Part[] {
     const hang: Vec3 = staff ? [0.2, 8, 1.0] : [0.4, -6, 3.8];
     const back: Vec3 = staff ? [-0.3, 8, -2.4] : [-0.4, 4, -7.5];
     const down: Vec3 = staff ? [-0.4, -4, 8] : [-0.4, -6.5, 7];
-    const along = mix(mix(hang, back, windup), down, strike);
+    // In a struggle the blade points up and back, out of the way of the push.
+    const held: Vec3 = [1.2, 6, -2.5];
+    const along = mix(mix(mix(hang, back, windup), down, strike), held, Math.min(1, grapple));
     const n = Math.hypot(...along);
     const dir: Vec3 = [along[0] / n, along[1] / n, along[2] / n];
     const at = (k: number): Vec3 => add(grip, [dir[0] * k, dir[1] * k, dir[2] * k]);
@@ -900,6 +924,16 @@ export function mobModel(kind: MobKind, pose: MobPose): Part[] {
   const d = pose.death;
   const small = kind === 'imp' || kind === 'goblin' || kind === 'skirmisher';
   if (pose.reel) return tilt(parts, -0.24 * pose.reel, 0.06 * pose.reel, 0, small ? -1.5 : -2);
+  if (pose.floored !== undefined) {
+    // Thrown back after a shove, then over on its back; it does not sink into a heap (it is alive).
+    const f = pose.floored;
+    return tilt(parts, -0.3 - 1.25 * f * f, 0.12 * f, 1.6 * Math.max(0, (f - 0.5) / 0.5), small ? -1.5 : -2);
+  }
+  if (pose.rise !== undefined) {
+    // From a seat on the ground (tipped back, low), up on bent knees (the model crouches).
+    const r = 1 - pose.rise;
+    return tilt(parts, -0.75 * r, 0, 1.4 * r, small ? -1.5 : -2);
+  }
   if (d <= 0) return parts;
   if (kind === 'worg' || kind === 'hound') {
     // Down on its legs (in the model), then over on its side.
@@ -928,6 +962,12 @@ export function mobPoses(kind?: MobKind): { name: string; pose: MobPose }[] {
   out.push({ name: 'strike/0', pose: { ...POSE, windup: 0.25, strike: 0.85 } }, { name: 'strike/1', pose: { ...POSE, strike: 1 } });
   out.push({ name: 'hurt', pose: { ...POSE, windup: 0.3, reel: 1 } });
   for (let i = 0; i < MOB_ANIMATIONS.die; i++) out.push({ name: `die/${i}`, pose: { ...POSE, strike: i === 0 ? 0.3 : 0, death: (i + 1) / MOB_ANIMATIONS.die } });
+  if (kind && SHOVE_ANIMATED.includes(kind)) {
+    // A shove of the sandbox: the struggle (a push, and a harder one), the fall after a lost struggle, the rise.
+    out.push({ name: 'struggle/0', pose: { ...POSE, grapple: 0.9 } }, { name: 'struggle/1', pose: { ...POSE, grapple: 1.2 } });
+    for (let i = 0; i < MOB_ANIMATIONS.fall; i++) out.push({ name: `fall/${i}`, pose: { ...POSE, floored: (i + 1) / MOB_ANIMATIONS.fall } });
+    out.push({ name: 'rise/0', pose: { ...POSE, crouch: 0.85, rise: 0.25 } }, { name: 'rise/1', pose: { ...POSE, crouch: 0.45, rise: 0.75 } });
+  }
   return out;
 }
 

@@ -43,6 +43,8 @@ const POISON_TINT = 0x9cc48a;
 const FALL_SWITCH = 10;
 /** In an evade the figure also sways back from the way it struck, by at most this (world pixels). */
 const EVADE_BACK = 2;
+/** In a struggle (a shove of the sandbox) the figure changes its push this often (ms): a push, and a harder one. */
+const STRUGGLE_BEAT_MS = 110;
 /** In a jump from a brace the figure rises over its shadow on an arc, at most this high (world pixels). */
 const JUMP_LIFT = 5;
 /** Effects that glow (added to what is under them), and give a little light. */
@@ -87,7 +89,7 @@ export interface PlayerPose {
   readonly parry?: number;
   /** Whether it holds its guard up (the guard stance of the sandbox): the frame of a brace, or the sneak walk when it walks. */
   readonly guarding?: boolean;
-  /** Ticks left of a shove (the shove of the sandbox), as in PlayerState: the second frame of an attack, its arms out. */
+  /** Ticks left of a shove (the shove of the sandbox), as in PlayerState: it struggles with the mob. */
   readonly shove?: number;
   readonly evade?: number;
   readonly jump?: number;
@@ -122,6 +124,8 @@ export interface PlayerTextures {
   readonly evade: Readonly<Record<Facing, readonly Texture[]>>;
   /** The frames of a jump from a brace (player.ts, JUMPS): the spring, the hop, the reach for the ground. */
   readonly jump: Readonly<Record<Facing, readonly Texture[]>>;
+  /** The frames of a struggle (a shove of the sandbox): a push, and a harder one. */
+  readonly struggle: Readonly<Record<Facing, readonly Texture[]>>;
   /** From the centre of the feet to just above the head or hat, in world pixels: speech goes there. */
   readonly headHeight: number;
 }
@@ -139,6 +143,7 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
   const brace = {} as Record<Facing, Texture>;
   const evade = {} as Record<Facing, Texture[]>;
   const jump = {} as Record<Facing, Texture[]>;
+  const struggle = {} as Record<Facing, Texture[]>;
   for (const facing of FACINGS) {
     stand[facing] = art.frame(`player/${facing}/stand`);
     walk[facing] = art.animation(`walk/${facing}`);
@@ -151,8 +156,9 @@ export function atlasPlayerTextures(art: Art): PlayerTextures {
     brace[facing] = art.frame(`player/${facing}/brace`);
     evade[facing] = art.variants(`player/${facing}/evade`);
     jump[facing] = art.variants(`player/${facing}/jump`);
+    struggle[facing] = art.variants(`player/${facing}/struggle`);
   }
-  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, headHeight: ATLAS_HEAD_HEIGHT };
+  return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, struggle, headHeight: ATLAS_HEAD_HEIGHT };
 }
 
 /**
@@ -332,9 +338,9 @@ export class PlayerView {
       texture = this.textures.brace[state.facing];
       this.travelled = 0;
     } else if ((state.shove ?? 0) > 0) {
-      // A shove: the second frame of an attack, the arms out.
-      const frames = this.textures.attack[state.facing];
-      texture = frames[Math.min(frames.length - 1, 1)]!;
+      // A struggle: a push and a harder one, by turns.
+      const frames = this.textures.struggle[state.facing];
+      texture = frames[Math.floor(now / STRUGGLE_BEAT_MS) % frames.length]!;
       this.travelled = 0;
     } else if (state.guarding) {
       // A guard that walks: the frames of the sneak walk (the knees bent, the arms forward).

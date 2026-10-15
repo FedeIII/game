@@ -9,6 +9,7 @@ import {
   SKIN_FALL_FRAMES,
   SKIN_FRAME,
   SKIN_JUMP_FRAMES,
+  SKIN_STRUGGLE_FRAMES,
   SKIN_ROLL_FRAMES,
   SKIN_SNEAK_FRAMES,
   SKIN_VERSION,
@@ -245,6 +246,7 @@ export class SkinStore {
           ...textures.fall[facing],
           ...textures.sneak[facing],
           ...textures.jump[facing],
+          ...textures.struggle[facing],
         ])
           frame.destroy(false);
       }
@@ -257,7 +259,8 @@ export class SkinStore {
 
   /**
    * The frames of a sheet, for each view (where skinCell puts them): the stand, the walk, the attack,
-   * the roll, the fall, the crouch, the sneak walk, the brace, the evade, the heavy roll and the jump.
+   * the roll, the fall, the crouch, the sneak walk, the brace, the evade, the heavy roll, the jump and
+   * the struggle.
    */
   private textures(key: string, canvas: HTMLCanvasElement, headHeight: number): PlayerTextures {
     const base = Texture.from(canvas);
@@ -280,6 +283,7 @@ export class SkinStore {
     const brace = {} as Record<Facing, Texture>;
     const evade = {} as Record<Facing, Texture[]>;
     const jump = {} as Record<Facing, Texture[]>;
+    const struggle = {} as Record<Facing, Texture[]>;
     const frames = (first: number, length: number, row: number) => Array.from({ length }, (_, i) => frame(first + i, row));
     SKIN_VIEWS.forEach((view, row) => {
       stand[view.name] = frame(SKIN_COLUMNS.stand, row);
@@ -293,7 +297,8 @@ export class SkinStore {
       brace[view.name] = frame(SKIN_COLUMNS.brace, row);
       evade[view.name] = frames(SKIN_COLUMNS.evade, SKIN_EVADE_FRAMES, row);
       jump[view.name] = frames(SKIN_COLUMNS.jump, SKIN_JUMP_FRAMES, row);
+      struggle[view.name] = frames(SKIN_COLUMNS.struggle, SKIN_STRUGGLE_FRAMES, row);
     });
-    return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, headHeight };
+    return { stand, walk, attack, roll, heavyRoll, fall, crouch, sneak, brace, evade, jump, struggle, headHeight };
   }
 }

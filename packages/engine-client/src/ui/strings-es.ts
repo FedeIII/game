@@ -482,7 +482,7 @@ export const ES: Strings = {
       },
       shove: {
         name: '7. Empujón',
-        line: 'Rodar hacia un enemigo a tu alcance lo empuja, por el aguante de la rodada: d20 + FUE + competencia contra d20 + su FUE o su DES. Si ganas, cae al suelo 0,8 s ("al suelo"): no puede cargar su golpe, y tus golpes tiran con ventaja. Un mediano o un gnomo no puede empujar a un bruto ni a un huargo ("muy grande").',
+        line: 'Rodar hacia un enemigo a tu alcance lo empuja, por el aguante de la rodada: forcejeáis 0,5 s, y luego d20 + FUE + competencia contra d20 + su FUE o su DES. Si ganas, sale despedido y cae al suelo ("al suelo"): se queda tendido 0,8 s y se levanta, no puede cargar su golpe, y tus golpes tiran con ventaja. Un mediano o un gnomo no puede empujar a un bruto ni a un huargo ("muy grande").',
       },
       clash: {
         name: '8. Choque',

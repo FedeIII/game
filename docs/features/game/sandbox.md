@@ -263,15 +263,23 @@ in melee without a retreat, and one more use of Strength (the draft, proposal 7)
 **Acceptance Criteria:**
 - **AC-SBX-013.1:** With the switch "7. Shove", a roll (not the jump from a brace) whose way is within 45
   degrees of the way to a living mob in the reach of the character is a shove, not a roll: it costs the
-  stamina of the roll and the wait between dodges, and the character stands 12 ticks in the second frame
-  of its attack, facing the mob.
-- **AC-SBX-013.2:** The dice: d20 + the STR modifier and the proficiency bonus of the character against
-  d20 + the better of the STR and DEX modifiers of the mob (its SRD stat block); a tie goes to the mob.
-- **AC-SBX-013.3:** A win knocks the mob down: it reels for 0.8 s (it cannot wind up), 16 px back, the
-  word "down" (Spanish "al suelo") rises over it, and blows on it roll with advantage and add the INT
-  opening. A loss: "holds" (Spanish "resiste"), and nothing else.
-- **AC-SBX-013.4:** A character cannot shove a mob more than one size larger (5e): a halfling or a gnome
-  (small) does not move a brute or a worg (large): "too big" (Spanish "muy grande").
+  stamina of the roll and the wait between dodges.
+- **AC-SBX-013.2:** The character and the mob struggle for 0.5 s (Fede, 2026-10-15): the mob steps in to
+  13 px and stops its blow, both face each other, and both push, a push and a harder one by turns. The
+  character cannot act meanwhile. A hit on the character (by another mob) ends the struggle at once.
+- **AC-SBX-013.3:** At the end of the struggle, the dice: d20 + the STR modifier and the proficiency
+  bonus of the character against d20 + the better of the STR and DEX modifiers of the mob (its SRD stat
+  block); a tie goes to the mob.
+- **AC-SBX-013.4:** A win: the word "down" (Spanish "al suelo") rises over the mob; it is thrown 16 px
+  back as it falls on its back (0.25 s), lies on the ground (0.8 s), and stands up (0.45 s); then it
+  hunts again. All that time it cannot wind up, and blows on it roll with advantage and add the INT
+  opening (once); a blow does not get it up.
+- **AC-SBX-013.5:** A loss: "holds" (Spanish "resiste"), and both go back to the fight as before.
+- **AC-SBX-013.6:** A character cannot shove a mob more than one size larger (5e): a halfling or a gnome
+  (small) struggles with a brute or a worg (large), and then "too big" (Spanish "muy grande").
+- **AC-SBX-013.7:** The struggle, the fall and the rise have frames of their own for the character
+  (every skin, and the wanderer) and for the goblins of the sandbox (Fede, 2026-10-15). Another mob
+  shows its wind-up in a struggle and its reel on the ground.
 
 ---
 
@@ -416,9 +424,14 @@ with a rhythm: in melee while the stamina lasts, then out to breathe (the draft,
   slam of the shapes of the blows too). The page: `input/dodge-hold.ts` (`DodgeHold`, `GUARD_HOLD_MS`
   200), `DodgeButton.onRelease()`, `Mouse.onAltRelease()`.
 - **7. The shove.** `Horde.shove()` (the page calls it when a roll starts, out of a brace; true: no
-  roll), `PlayerState.shove` (ticks), `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics`;
-  `MOB_BODY` (size, STR and DEX of each kind), `canShove()`, `SHOVE_ARC` 45 degrees, `SHOVE_TICKS` 12,
-  `SHOVE_KNOCK_MS` 800, `SHOVE_PUSH` 16.
+  roll) puts the mob in the state `struggle` (`Horde.struggle()`: the dice at its end) and the player in
+  `PlayerState.shove` (ticks); a win puts the mob in the state `floored` (`Horde.floored()`: the push,
+  the lie and the rise). `PlayerTraits.size` (`RACE_SIZE`) and `PlayerTraits.athletics`; `MOB_BODY`,
+  `canShove()`, `SHOVE_ARC` 45 degrees, `STRUGGLE_MS` 500, `SHOVE_TICKS` 32, `STRUGGLE_GAP` 13,
+  `FALL_MS` 250, `SHOVE_KNOCK_MS` 800, `RISE_MS` 450, `SHOVE_PUSH` 16. The art: `struggleParts()`
+  (`art/attacks.ts`; `SKIN_COLUMNS.struggle`, `player/<view>/struggle/<i>`), the poses `grapple`,
+  `floored` and `rise` of `MobPose` and `SHOVE_ANIMATED` (`art/mobs.ts`); the page: `PlayerView` (the
+  struggle frames by turns, `STRUGGLE_BEAT_MS` 110), `MobViews` (the frames by the time of the state).
 - **8. The clash.** `Horde.strike(..., player)` calls `Horde.clash()` for each mob that the blow
   touches; `CLASH_TICKS` 3, `CLASH_REEL_TICKS` 24, `CLASH_PUSH` 4, `CLASH_PAUSE_MS` 250.
 - **9. The reactions.** `PlayerState.ward`, `uncanny`, `rage` and `rageRest` (ticks), `PlayerTraits.deflect`
