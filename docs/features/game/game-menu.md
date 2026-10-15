@@ -104,8 +104,9 @@ button, so that each one is easy to find (Fede, 2026-10-14).
 **Acceptance Criteria:**
 - **AC-GMN-005.1:** "Settings" shows the settings screen in the panel of the game menu, in the place of
   the choices: the title "Settings", then "Controls" (to read), "Language", "Sound", "Tips", and for an
-  admin "Display" (the CRT settings) and "Experience" (the divisor of the XP of a kill; only with a
-  character), as the settings of the menu of the page (`main-menu.md`, REQ-MNU-003), and "Back".
+  admin "Display" (the CRT settings), "Experience" (the divisor of the XP of a kill; only with a
+  character) and "Admin tools" (the debug controls: `admin-tools.md`, REQ-ADM), as the settings of the
+  menu of the page (`main-menu.md`, REQ-MNU-003), and "Back".
 - **AC-GMN-005.2:** "Back" or Escape shows the choices again, with the focus on "Settings". The next
   time the game menu opens, it shows the choices.
 - **AC-GMN-005.3:** The title of the settings screen has the focus when it opens. Tab moves between

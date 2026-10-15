@@ -411,6 +411,30 @@ describe('accounts: admins', () => {
     await again.signIn('boss@example.com');
     expect((await again.request('GET', '/api/me')).json.user.xpDivisor).toBeUndefined();
   });
+
+  it('applies the tools of an admin in the shared world, saves what they change, and ignores them from anybody else', async () => {
+    const started = await start({ admins: ['boss@example.com'] });
+    const boss = new Browser(started.port);
+    await boss.signIn('boss@example.com');
+    const bossId = (await boss.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const other = new Browser(started.port);
+    await other.signIn('someone@example.com');
+    const otherId = (await other.request('POST', '/api/characters', sheet)).json.character.id as string;
+    const a = await boss.hello({ character: bossId });
+    const b = await other.hello({ character: otherId });
+    const coinsOf = (messages: ServerMessage[]) => messages.flatMap((m) => (m.t === 'snap' && m.pk ? [m.pk[0]] : [])).at(-1);
+    b.send({ t: 'admin', c: { do: 'give', kind: 'coins', count: 77 } });
+    a.send({ t: 'admin', c: { do: 'give', kind: 'coins', count: 50 } });
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline && coinsOf(a.messages) !== 50) await new Promise((r) => setTimeout(r, 20));
+    expect(coinsOf(a.messages)).toBe(50);
+    expect(coinsOf(b.messages)).toBeUndefined();
+    // The store has it at once.
+    const stored = (await boss.request('GET', '/api/characters')).json.characters.find((c: { id: string }) => c.id === bossId);
+    expect(stored.pack.coins).toBe(50);
+    await a.close();
+    await b.close();
+  });
 });
 
 describe('accounts: the shared world', () => {

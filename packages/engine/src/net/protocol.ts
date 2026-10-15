@@ -1,3 +1,4 @@
+import { checkAdminCommand, type AdminCommand } from '../admin.ts';
 import { TILE_SIZE } from '../constants.ts';
 import { EMPTY_GEAR, GEAR_BASE, GEAR_SLOTS, SHOWN_SLOTS, fitsSlot, type Gear, type GearSlot, type ShownGear, type ShownSlot } from '../gear.ts';
 import { ITEM_KINDS, ITEM_STACK, MAX_SLOTS, type ItemKind, type ItemStack, type Loot, type Pack, type PackSlot } from '../items.ts';
@@ -14,7 +15,7 @@ import { QUEST_ID, checkQuests, type QuestBook } from '../quests.ts';
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
  * it tells the visitor to reload the page.
  */
-export const PROTOCOL_VERSION = 48;
+export const PROTOCOL_VERSION = 49;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;
@@ -275,7 +276,17 @@ export interface QuestMessage {
   readonly effect: string;
 }
 
-export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage | QuestMessage;
+/**
+ * A tool of an admin (admin.ts, AdminCommand; protocol 49): the hour of the world, a teleport, items,
+ * XP, mobs, a quest step. The server applies it only for an admin (the email of its account is in
+ * ADMIN_EMAILS); it ignores it from anybody else.
+ */
+export interface AdminMessage {
+  readonly t: 'admin';
+  readonly c: AdminCommand;
+}
+
+export type ClientMessage = HelloMessage | InputMessage | SkinMessage | NameMessage | PingMessage | DealMessage | DrinkMessage | PutMessage | MoveMessage | QuestMessage | AdminMessage;
 
 /** What a blow did to a mob (mobs.ts, BlowResult): [mob id, damage (0: a miss), 1 for a critical hit else 0]. */
 export type WireBlow = readonly [number, number, 0 | 1];
@@ -527,6 +538,11 @@ export interface WelcomeMessage {
   readonly xp: number;
   /** The piles on the ground near the player (within PILE_SEND_RADIUS). */
   readonly pl: readonly WirePile[];
+  /**
+   * The shift of the clock of the world's day (ms) that an admin chose (admin.ts; protocol 49): the hour
+   * is that of the real clock plus it. Without it, 0.
+   */
+  readonly hs?: number;
 }
 
 /**
@@ -588,6 +604,8 @@ export interface SnapshotMessage {
   readonly m?: readonly WireMob[];
   /** In a world with mobs: the ids of the mobs that hunt this player (Horde.huntersOf), when there are any. */
   readonly h?: readonly number[];
+  /** The shift of the clock of the world's day (ms), when an admin changed it (protocol 49): 0 is the real clock. */
+  readonly hs?: number;
 }
 
 /**
@@ -757,6 +775,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
     case 'move':
       return isAddress(m.from) && isAddress(m.to) && m.from !== m.to ? { t: 'move', from: m.from, to: m.to } : null;
+    case 'admin': {
+      const command = checkAdminCommand(m.c);
+      return command ? { t: 'admin', c: command } : null;
+    }
     default:
       return null;
   }

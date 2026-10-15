@@ -121,7 +121,7 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     const day = definition.day;
     const fixed = options.hour;
     const clock = day && fixed !== undefined ? () => clockAtHour(fixed, day) : Date.now;
-    const room = new Room(new World(definition.createSource(null)), { maxPlayers: options.maxPlayers ?? 50, random: Math.random, day, clock });
+    const room = new Room(new World(definition.createSource(null)), { maxPlayers: options.maxPlayers ?? 50, random: Math.random, day, clock, quests: definition.quests ?? [] });
     rooms.set(definition.id, room);
     sockets.set(room, new Map());
   }
@@ -278,6 +278,15 @@ export async function startServer(options: ServerOptions): Promise<GameServer> {
     if (message.t === 'drink') return client.room.drink(client.playerId, message.kind);
     if (message.t === 'put') return client.room.put(client.playerId, message, t);
     if (message.t === 'move') return client.room.move(client.playerId, message.from, message.to);
+    if (message.t === 'admin') {
+      // The tools of an admin (admin.ts): only an account whose email is in ADMIN_EMAILS; anybody else's are ignored.
+      if (!accounts || !client.user || !accounts.isAdmin(client.user)) return;
+      if (!client.room.admin(client.playerId, message.c, t)) return;
+      log(`${client.world}: an admin used the tool "${message.c.do}"`);
+      // What the tool changed in the character (its place, pack, XP, quests) is saved at once.
+      savePlace(client);
+      return;
+    }
     client.room.input(client.playerId, message, t);
   }
 

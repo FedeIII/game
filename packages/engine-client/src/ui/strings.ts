@@ -196,6 +196,33 @@ const EN = {
     saved: 'Saved',
     failed: 'Not saved',
   },
+  /** The admin tools in the settings of the game menu (ui/admin-section.ts), for an admin only. */
+  admin: {
+    heading: 'Admin tools',
+    note: 'Tools to test the game. The hour changes for every player of a shared world; the other tools change only your character.',
+    /** What the section shows now: the hour (null: a world without a day), the tile of the character, its level and XP. */
+    now: (clock: string | null, moved: boolean, tx: number, ty: number, level: number, xp: number): string =>
+      `${clock === null ? 'No day here' : `${clock}${moved ? ' (moved)' : ''}`} · tile ${tx}, ${ty} · level ${level}, ${xp} XP`,
+    hour: 'Hour',
+    set: 'Set',
+    realClock: 'Real clock',
+    place: 'Go to',
+    tile: 'Tile',
+    go: 'Go',
+    items: 'Items',
+    coins: 'Coins',
+    count: 'How many',
+    give: 'Give',
+    level: 'Level',
+    xp: 'XP',
+    mobs: 'Mobs',
+    spawn: 'Spawn',
+    quest: 'Quest',
+    step: 'Step',
+    notStarted: 'Not started',
+    done: 'Done',
+    offline: 'Not connected',
+  },
   /** A bed of the player's own (Interaction.rest). */
   rest: 'Rest',
   rested: 'I rest a while. I feel well again.',

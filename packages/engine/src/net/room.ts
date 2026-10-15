@@ -1,3 +1,4 @@
+import { adminLoot, setQuestStep, spawnBeside, teleport, type AdminCommand } from '../admin.ts';
 import { CHUNK_SIZE, TICK_RATE, TILE_SIZE } from '../constants.ts';
 import { canReachDoor, canReachPile, reachableFixture, useDoor, useStairs, type Feet } from '../interact.ts';
 import { EMPTY_GEAR, gearSlotAt, sameShown, shownGear, type Gear } from '../gear.ts';
@@ -8,10 +9,10 @@ import { Spoils } from '../loot.ts';
 import { Piles, dropPoint, pileStorey, tossPoint } from '../piles.ts';
 import { createPlayer, resumePlace, stepPlayer, wakePlayer, type PlayerState } from '../player.ts';
 import { DEAL_RANGE, findDeal, findEffectAnswer, makeDeal, type Dialog } from '../dialog.ts';
-import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestEffect } from '../quests.ts';
+import { EMPTY_BOOK, applyEffect, holds, type Conditions, type QuestBook, type QuestDef, type QuestEffect } from '../quests.ts';
 import { SCENE_MARGIN, inScene } from '../scenes.ts';
 import { rollingDice, type DiceSource } from '../dice.ts';
-import { NIGHT_SKY, isDaytime, skyAtClock, type DayCycle, type Sky } from '../daytime.ts';
+import { NIGHT_SKY, isDaytime, shiftToHour, skyAtClock, type DayCycle, type Sky } from '../daytime.ts';
 import { Ambushes } from '../ambushes.ts';
 import { Confrontations } from '../confrontations.ts';
 import { Escorts } from '../escorts.ts';
@@ -98,6 +99,8 @@ export interface RoomOptions {
    */
   readonly day?: DayCycle;
   readonly clock?: () => number;
+  /** The world's quests (WorldDefinition.quests): an admin sets a quest at one of their steps (Room.admin). */
+  readonly quests?: readonly QuestDef[];
 }
 
 /** A rest in a bed of the player's own (Interaction.rest): all hit points and stamina back, no poison or drink. */
@@ -170,6 +173,8 @@ export interface RoomPlayer {
   newlyExplored: [number, number][];
   /** The piles near it that its client has, as a key (ids and counts): a snapshot carries them when they change. */
   pileKey: string;
+  /** The version of the shift of the hour that its client has (Room.hourShift). */
+  shiftVersion: number;
 }
 
 /** Sets the load of a player's state from its pack and its gear (load.ts): the kind of its next roll. */
@@ -274,6 +279,14 @@ export class Room {
   private readonly clock: (() => number) | null;
   /** The sky of the last tick (always night without a day and a clock). */
   sky: Sky = NIGHT_SKY;
+  /**
+   * The shift of the clock of the day (ms) that an admin chose (admin.ts): the hour of the world is that
+   * of the clock plus it, for the mobs, the NPCs and every page. 0: the real clock. A restart of the
+   * server clears it. Its version goes up at each change: a snapshot carries it then.
+   */
+  hourShift = 0;
+  private shiftVersion = 0;
+  private readonly quests: readonly QuestDef[];
 
   constructor(world: World, options: RoomOptions = {}) {
     this.world = world;
@@ -281,6 +294,7 @@ export class Room {
     this.random = options.random ?? null;
     this.day = options.day;
     this.clock = options.clock ?? null;
+    this.quests = options.quests ?? [];
     const defs = world.source.npcs?.() ?? [];
     this.npcs = defs.length > 0 ? new NpcCrowd(world, defs, Math.floor((this.random?.() ?? 0.5) * 0xffffffff)) : null;
     const rules = world.source.mobs?.();
@@ -359,6 +373,70 @@ export class Room {
     if (player) player.xpDivisor = divisor;
   }
 
+  /**
+   * A tool of an admin (admin.ts) for player `id`; the server calls it only for an admin. The hour
+   * changes for every player of the room; the other tools change the admin's own character: it goes to
+   * a tile (its companions with it), gets coins or items (what does not fit falls at its feet), gets
+   * its XP set (its level follows, up or down), gets mobs beside it, or gets a quest set at a step.
+   * Returns whether something changed.
+   */
+  admin(id: number, command: AdminCommand, nowMs: number): boolean {
+    const player = this.players.get(id);
+    if (!player) return false;
+    switch (command.do) {
+      case 'hour': {
+        if (!this.day || !this.clock) return false;
+        this.hourShift = command.hour === null ? 0 : shiftToHour(this.clock(), command.hour, this.day);
+        this.shiftVersion++;
+        this.sky = skyAtClock(this.clock() + this.hourShift, this.day);
+        return true;
+      }
+      case 'go': {
+        if (!teleport(player.state, this.world, command.at[0], command.at[1])) return false;
+        for (const companion of this.companions.ofLeader(id)) {
+          companion.state.x = player.state.x;
+          companion.state.y = player.state.y;
+          companion.state.storey = 0;
+        }
+        this.explore(player);
+        return true;
+      }
+      case 'give': {
+        const { pack, taken, left } = addToPack(player.pack, adminLoot(command.kind, command.count), player.traits.slots);
+        player.pack = pack;
+        player.packChanged = true;
+        if (left.items.length > 0) this.piles.put(player.state.x, player.state.y, left.items, nowMs, player.state, player.state.storey);
+        player.loot.push(toWireLoot('drop', taken, !lootIsEmpty(left)));
+        return true;
+      }
+      case 'xp':
+        this.setXp(player, command.xp);
+        return true;
+      case 'mob':
+        return this.horde !== null && spawnBeside(this.horde, this.world, command.kind, command.count, player.state.x, player.state.y).length > 0;
+      case 'quest': {
+        const book = setQuestStep(player.quests, this.quests, command.quest, command.step);
+        if (!book) return false;
+        player.quests = book;
+        player.questsChanged = true;
+        return true;
+      }
+    }
+  }
+
+  /** Sets the XP of a player (an admin's tool): its traits follow its level, up (gainXp) or down (its hit points stay within the new most). */
+  private setXp(player: RoomPlayer, xp: number): void {
+    if (xp >= player.xp) return this.gainXp(player, xp - player.xp);
+    const before = levelOf(player.xp);
+    player.xp = xp;
+    player.xpChanged = true;
+    const level = levelOf(xp);
+    if (level === before || !player.traitsFor) return;
+    player.traits = player.traitsFor(player.gear, level);
+    player.state.hp = Math.min(player.state.hp, player.traits.maxHp);
+    player.state.stamina = Math.min(player.state.stamina, player.traits.maxStamina);
+  }
+
   /** The players whose quest book the room changed by itself since the last call (the server saves them). */
   takeQuestSaves(): number[] {
     const ids = [...this.questSaves];
@@ -375,7 +453,7 @@ export class Room {
     this.lastTickMs = nowMs;
     if (dt === 0) return;
     // The hour: the mobs and the NPCs follow it.
-    this.sky = this.day && this.clock ? skyAtClock(this.clock(), this.day) : NIGHT_SKY;
+    this.sky = this.day && this.clock ? skyAtClock(this.clock() + this.hourShift, this.day) : NIGHT_SKY;
     const daytime = isDaytime(this.sky);
     if (this.horde) this.horde.daytime = daytime;
     if (this.npcs) this.npcs.night = !daytime;
@@ -552,6 +630,7 @@ export class Room {
       explored: new Set((character?.explored ?? []).map(([cx, cy]) => `${cx},${cy}`)),
       newlyExplored: [],
       pileKey: '',
+      shiftVersion: this.shiftVersion,
     };
     this.explore(player);
     player.newlyExplored = [];
@@ -625,6 +704,7 @@ export class Room {
     player.gearChanged = false;
     player.questsChanged = false;
     player.xpChanged = false;
+    player.shiftVersion = this.shiftVersion;
     const piles = this.pilesNear(player);
     player.pileKey = pileKey(piles);
     return {
@@ -643,6 +723,7 @@ export class Room {
       hp: player.state.hp,
       rf: [...player.refuges],
       ex: exploredList(player.explored),
+      ...(this.hourShift !== 0 ? { hs: this.hourShift } : {}),
     };
   }
 
@@ -1057,6 +1138,8 @@ export class Room {
       p.pileKey = key;
       const tossed = tosses.filter((t) => Math.hypot(t.x - s.x, t.y - s.y) <= PILE_SEND_RADIUS).map((t) => t.wire);
       const hunters = this.horde ? this.horde.huntersOf(p.id).map((m) => m.id) : [];
+      const shifted = p.shiftVersion !== this.shiftVersion;
+      p.shiftVersion = this.shiftVersion;
       send(p.id, {
         t: 'snap',
         ms,
@@ -1119,6 +1202,7 @@ export class Room {
         ...(arrows.length > 0 ? { ar: arrows.filter((a) => Math.hypot(a[2] - s.x, a[3] - s.y) <= MOB_SEND_RADIUS) } : {}),
         ...(hunters.length > 0 ? { h: hunters } : {}),
         ...(companions.length > 0 ? { cp: companions.filter((c) => Math.hypot(c[3] - s.x, c[4] - s.y) <= MOB_SEND_RADIUS) } : {}),
+        ...(shifted ? { hs: this.hourShift } : {}),
       });
     }
   }

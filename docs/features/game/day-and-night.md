@@ -48,8 +48,12 @@ me, so that we share the day and the night.
 - **AC-DAY-002.1:** The hour comes from the real clock (milliseconds since 1970, UTC): two pages at
   the same moment show the same hour.
 - **AC-DAY-002.2:** The hour does not depend on the server: a restart of the server, a lost
-  connection or a world that the page runs alone (`?offline`) does not change it.
-- **AC-DAY-002.3:** No message of the protocol carries the hour.
+  connection or a world that the page runs alone (`?offline`) does not change it. The one exception is
+  an admin who moves the hour (`docs/features/game/admin-tools.md`, REQ-ADM-002): then every page of
+  the shared world adds the server's shift to its clock, until the admin gives the real clock back or
+  the server restarts.
+- **AC-DAY-002.3:** No message of the protocol carries the hour; only the shift of an admin goes on the
+  wire (`hs`, protocol 49).
 
 ---
 

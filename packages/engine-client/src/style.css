@@ -584,6 +584,62 @@ body:has(#character:not([hidden]), #worlds:not([hidden]), #pack:not([hidden]), #
   opacity: 0.8;
 }
 
+/* The admin tools (ui/admin-section.ts): a row for each tool, its name and its controls. */
+.admin-tools {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-now {
+  margin: 0;
+  font: 12px var(--ui-mono);
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-label {
+  font-size: 13px;
+}
+
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-controls input,
+.admin-controls select {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--ui-ink-faint);
+  border-radius: var(--ui-radius);
+  background: var(--ui-backdrop);
+  color: var(--ui-ink);
+  font: 13px var(--ui-mono);
+  box-sizing: border-box;
+}
+
+.admin-controls input {
+  width: 72px;
+}
+
+.admin-controls select {
+  flex: 1 1 120px;
+  min-width: 0;
+  font-family: var(--ui-serif);
+}
+
+.admin-status {
+  min-height: 1em;
+  font: 12px var(--ui-mono);
+}
+
 .settings-footer {
   display: flex;
   flex-wrap: wrap;

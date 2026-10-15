@@ -75,7 +75,7 @@ const MENU_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="
 <path d="M5 7h14M5 12h14M5 17h14"/></svg>`;
 
 /** What can have the focus in the settings screen. */
-const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]';
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]';
 
 export class GameMenu {
   private readonly root: HTMLDivElement;

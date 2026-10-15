@@ -42,6 +42,12 @@ import {
   pileStorey,
   facingOfAngle,
   addToPack,
+  adminLoot,
+  setQuestStep,
+  shiftToHour,
+  spawnBeside,
+  teleport,
+  type AdminCommand,
   ITEM_KINDS,
   DRINKS,
   canDodge,
@@ -207,6 +213,7 @@ import { Vitals } from './ui/vitals.ts';
 import { PresenceLabel } from './ui/presence.ts';
 import { YouSection } from './ui/you-section.ts';
 import { xpSection } from './ui/xp-section.ts';
+import { adminSection } from './ui/admin-section.ts';
 import { CharacterPanel } from './ui/character-panel.ts';
 import { controlList } from './ui/control-list.ts';
 import { CrtControls, applyCrt, crtStateFrom, loadSavedCrt, type CrtState } from './ui/crt-settings.ts';
@@ -301,10 +308,10 @@ const NAME_FADE_SECONDS = 0.3;
 
 /** "a, b and c". */
 /** The sky for the debug panel: "13:24, darkness 0.25, lights 0.00". */
-function skyLine(sky: Sky, cycle: boolean, fixed: boolean): string {
+function skyLine(sky: Sky, cycle: boolean, fixed: boolean, shiftHours: number): string {
   const minutes = Math.floor(sky.hour * 60) % (24 * 60);
   const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-  const note = !cycle ? ' (always night)' : fixed ? ' (?hour)' : '';
+  const note = !cycle ? ' (always night)' : fixed ? ' (?hour)' : shiftHours !== 0 ? ` (an admin moved it ${shiftHours.toFixed(1)} h on)` : '';
   return `${clock}, darkness ${sky.darkness.toFixed(2)}, lights ${sky.lights.toFixed(2)}${note}`;
 }
 
@@ -954,11 +961,14 @@ async function run(options: GameOptions): Promise<void> {
   const lighting = params.has('nolight') ? null : new Lighting(art, app.renderer, definition.darkness * traits.night);
   if (lighting) scene.addChild(lighting.root);
   // The hour of the world's day: from the real clock (UTC), so every page shows the same hour.
-  // ?hour=<0-24> stops the clock at that hour, for a screenshot.
+  // ?hour=<0-24> stops the clock at that hour, for a screenshot. An admin moves the clock (admin.ts):
+  // in a shared world for every page (the server's word), in a world that the page runs for this page.
   const fixedHour = Number.parseFloat(params.get('hour') ?? '');
+  let localHourShift = 0;
+  const hourShift = (): number => (net ? net.hourShift : localHourShift);
   const skyNow = (): Sky => {
     const day = definition.day;
-    const hour = Number.isFinite(fixedHour) ? ((fixedHour % 24) + 24) % 24 : day ? hourOf(Date.now(), day) : 0;
+    const hour = Number.isFinite(fixedHour) ? ((fixedHour % 24) + 24) % 24 : day ? hourOf(Date.now() + hourShift(), day) : 0;
     return skyAt(hour, day);
   };
   scene.addChild(glowLayer);
@@ -1720,6 +1730,70 @@ async function run(options: GameOptions): Promise<void> {
       body: xpSection(xpDivisor, (divisor) => api.setXpDivisor(divisor), (divisor) => (xpDivisor = divisor)),
     });
   }
+  /**
+   * A tool of an admin (admin.ts): the server applies it in a shared world (only for an admin), and the
+   * page in its own world (also the sandbox). Returns whether it went.
+   */
+  const runAdmin = (command: AdminCommand): boolean => {
+    if (net) return net.admin(command);
+    const now = performance.now();
+    switch (command.do) {
+      case 'hour':
+        localHourShift = command.hour === null || !definition.day ? 0 : shiftToHour(Date.now(), command.hour, definition.day);
+        return true;
+      case 'go':
+        if (!teleport(player, world, command.at[0], command.at[1])) return false;
+        previous.x = player.x;
+        previous.y = player.y;
+        for (const companion of localCompanions?.ofLeader(0) ?? []) {
+          companion.state.x = player.x;
+          companion.state.y = player.y;
+          companion.state.storey = 0;
+        }
+        return true;
+      case 'give': {
+        const result = addToPack(pack, adminLoot(command.kind, command.count), traits.slots);
+        pack = result.pack;
+        lootText.add(dropLines(result.taken), now);
+        lootSound(result.taken);
+        if (result.left.items.length > 0) localPiles.put(player.x, player.y, result.left.items, now, player, player.storey);
+        if (!lootIsEmpty(result.left)) say(STRINGS.packFull, now);
+        return true;
+      }
+      case 'xp':
+        localXp = command.xp;
+        return true;
+      case 'mob':
+        return horde !== null && spawnBeside(horde, world, command.kind, command.count, player.x, player.y).length > 0;
+      case 'quest': {
+        const book = setQuestStep(localQuests, quests, command.quest, command.step);
+        if (!book) return false;
+        const before = localQuests;
+        localQuests = book;
+        questsChanged(before, book);
+        return true;
+      }
+    }
+  };
+  // The admin tools (ui/admin-section.ts; Fede, 2026-10-15): the hour, a teleport, items, the level, mobs, a quest step.
+  if (admin) {
+    settingsSections.push({
+      heading: STRINGS.admin.heading,
+      body: adminSection({
+        places: world.source.places?.() ?? [],
+        mobs: worldMobs ? MOB_KINDS : [],
+        quests,
+        now: () => ({
+          hour: definition.day ? skyNow().hour : null,
+          moved: hourShift() !== 0,
+          tile: [Math.floor(player.x / TILE_SIZE), Math.floor(player.y / TILE_SIZE)],
+          xp: xpNow(),
+          book: questsNow(),
+        }),
+        run: runAdmin,
+      }),
+    });
+  }
   const gameMenu = new GameMenu(
     options.name ?? tw(definition.name),
     {
@@ -2334,7 +2408,7 @@ async function run(options: GameOptions): Promise<void> {
       ...(quests.length ? [`quests  ${Object.entries(questsNow()).map(([id, e]) => `${id}:${e.step}${e.flags.length ? `(${e.flags.join(',')})` : ''}`).join(' ') || '-'}${pendingQuests ? ' (pending)' : ''}${scenePlayer?.playing ? `, scene ${scenePlayer.progress}` : ''}`] : []),
       ...(npcDefs.length ? [`talk    ${conversation.current ? `${conversation.current.dialog.name}: ${conversation.current.id}, answer ${conversation.current.selected + 1} of ${conversation.current.answers.length}${shopPanel.state ? `, shop ${shopPanel.state.side} ${shopPanel.state.chosen ?? '-'}` : ''}` : pendingTalk ? 'starting' : '-'}`] : []),
       ...(npcDefs.length ? [`walkers ${npcPoses(now).map((p, i) => `${npcDefs[i]!.id} ${Math.floor(p.x / TILE_SIZE)},${Math.floor(p.y / TILE_SIZE)}`).join('; ')}`] : []),
-      `sky     ${skyLine(skyNow(), definition.day !== undefined, Number.isFinite(fixedHour))}`,
+      `sky     ${skyLine(skyNow(), definition.day !== undefined, Number.isFinite(fixedHour), definition.day ? (hourShift() / definition.day.length) * 24 : 0)}`,
       `music   ${director.mood ?? '-'} by ${isDaytime(skyNow()) ? 'day' : 'night'} (track ${audio.musicId ?? '-'}${audio.running ? '' : ', no sound yet'}, ambience ${audio.ambienceId ?? '-'}), area ${placeNow().area?.id ?? '-'}, ${audio.bank.readyIds.length} instruments`,
       ...(sandboxFight ? [`sandbox ${sandboxFight.foe}, mechanics ${[...mechanics].join(' ') || '-'}; won ${sandboxFight.wins}, lost ${sandboxFight.losses}; this fight ${sandboxFight.log.hits}/${sandboxFight.log.blows} blows, ${sandboxFight.log.struck}/${sandboxFight.log.attacks} attacks (${sandboxFight.log.damage} hp)`] : []),
       `zoom    ${camera.zoom}x (dpr ${window.devicePixelRatio})`,

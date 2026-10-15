@@ -79,3 +79,12 @@ export function skyAtClock(clock: number, cycle: DayCycle | undefined): Sky {
 export function clockAtHour(hour: number, cycle: DayCycle): number {
   return ((((hour % 24) + 24) % 24) / 24) * cycle.length;
 }
+
+/**
+ * The shift (ms, from 0 to less than one day) that puts the hour of `clock + shift` at `hour`: an
+ * admin's tool (admin.ts). The day goes on from there, at its usual speed.
+ */
+export function shiftToHour(clock: number, hour: number, cycle: DayCycle): number {
+  const into = ((clock % cycle.length) + cycle.length) % cycle.length;
+  return (((clockAtHour(hour, cycle) - into) % cycle.length) + cycle.length) % cycle.length;
+}

@@ -102,7 +102,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`), the load of a character (`load.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), the mechanics of the melee draft that only the sandbox turns on (`mechanics.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`), the load of a character (`load.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), the mechanics of the melee draft that only the sandbox turns on (`mechanics.ts`), the tools of an admin (`admin.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -203,6 +203,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `conversation.ts` (the conversation panel: `Conversation`, the state, and `ConversationPanel`; see "Fixtures, content and actions"),
   `you-section.ts` (the content of the character panel: the character's picture, name, race and class, level and XP, scores, what they give (`traits-list.ts`, also in the builder: a card for each ability)),
   `xp-section.ts` (the "Experience" section of the settings of the game menu, for an admin only: the divisor of the XP of the kills of its own characters),
+  `admin-section.ts` (the "Admin tools" section of the settings of the game menu, for an admin only: see "Admins"),
   `control-list.ts` (`controlList()`: the controls to read, in the settings of the menu and of the game menu),
   `pack-panel.ts` (top right, left of the character button, a bag icon, or I on a keyboard: the twelve worn slots round a picture of the character at 3x (4x on a big screen) with its AC, attack bonus and damage dice under them, and its load and the kind of roll that it gives (`loadLine()`; see "The load") ("Wear", "Take off", a drag on or off a worn slot; see "Equipment"), the coins and the slots of the pack, each stack in the slot where the player put it; a drag (mouse or finger) moves a stack onto another slot, or tosses it out onto the world; a press on a slot chooses it, and the detail under the slots says what it is, what it does, the world's line about it (`WorldDefinition.items`) and its weight, with "Drink" or "Chew", "Drop one" and "Drop all"; the button has a red mark when the pack is full), `shop-panel.ts` (`ShopPanel`, `#shop`: the shop of a
   trader, in the place of the top-right panels, opened by an answer of a conversation: the trader's
@@ -602,7 +603,17 @@ the display settings (the CRT switch and sliders, in the settings of the game me
 ignores what their browser saved (`?crt=` and `?nocrt` work for everyone). An admin also chooses the
 divisor of the XP of the kills of its own characters (2026-10-14, to test the levels: "Experience" in
 the settings of the game menu, `ui/xp-section.ts`; `PUT /api/me/xp-divisor`, the column `xp_divisor` of `users`; the
-server gives it to the Room at once, `Room.setXpDivisor()`); the others always have `KILL_XP_DIVISOR`. The dev sign-in takes
+server gives it to the Room at once, `Room.setXpDivisor()`); the others always have `KILL_XP_DIVISOR`. **The admin
+tools** (2026-10-15, Fede's request; `docs/features/game/admin-tools.md`): the section "Admin tools" in the
+settings of the game menu (`ui/admin-section.ts`) moves the hour of the world, takes the character to a place
+or a tile, gives coins and items, sets the level or gives XP, puts mobs beside the character
+(`spawnBeside()`, as `?mob=`) and sets a quest at a step. Each tool is a command (`AdminCommand`,
+`packages/engine/src/admin.ts`): in a shared world the page sends it (the message `admin`, protocol 49), and
+the server applies it with `Room.admin()` only for an admin, on the live site too, and saves the character at
+once; in a world that the page runs, the page applies it (`runAdmin()` in `game.ts`). The hour is for every
+player of the shared world (Fede's decision): the Room keeps a shift of the clock (`Room.hourShift`,
+`shiftToHour()`), the pages get it (`hs`) and add it to their clock, and "Real clock" or a restart of the
+server takes it away. The dev sign-in takes
 an email as the name: it then signs in with that email, as Google would, so an admin email there
 is an admin.
 
@@ -895,7 +906,7 @@ ability with its score and its rows, Fede's choice of 2026-10-14; a value is bri
 as it compares with a score of 10; `traitSheet()` gives it without the DOM); the pack panel shows the pack; a chest says "Open the chest", and the
 player says what it found; a barred door says "Force the door" (strong enough) or "Try the
 door". A guest's traits: every score 10, and the class of its look (`guestTraits()`). The
-protocol: `docs/multiplayer.md`, protocol 48.
+protocol: `docs/multiplayer.md`, protocol 49.
 
 ## Levels and experience
 
@@ -1269,7 +1280,8 @@ and the protocol need it).
   `docs/features/game/day-and-night.md`): a world with `WorldDefinition.day` (`DayCycle`: `length`
   in real ms, `noon` the share of the night's darkness at noon) has a day. The Wilds: 48 minutes,
   noon 0.25 (dim, overcast). The hour comes from the real clock (`hourOf(Date.now(), day)`, UTC), so
-  every page shows the same hour with no message from the server. `skyAt()` gives the `Sky`: the
+  every page shows the same hour with no message from the server; an admin can move it for the whole
+  shared world (the admin tools: the shift `hs`, protocol 49; see "Admins"). `skyAt()` gives the `Sky`: the
   darkness (1 at night) and `lights` (1 at night, 0 by day): night from 21 to 5, dawn 5 to 7, day 7
   to 19, dusk 19 to 21 (`DAY_HOURS`). `Lighting.update(..., sky)` scales the darkness by it, and the
   holes and glows of all lights fade out by day. The debug panel's `sky` line gives the hour;
@@ -1621,7 +1633,12 @@ email of `ADMIN_EMAILS` to see the display settings: the server needs the list),
 game", the builder (`label[for=builder-race-<race>]`, `...-class-<class>`, `...-gender-<g>`,
 `#builder-name`, `#builder-next`, `#builder-<ability>-up`, `#builder-<ability>-bonus`,
 `#builder-create`), and wait for `#menu` to go. The game menu: Escape, `#game-menu`,
-`button[data-choice=<choice>]` (`settings` shows `.game-menu-settings`); the character panel:
+`button[data-choice=<choice>]` (`settings` shows `.game-menu-settings`; for an admin, the admin tools there:
+`#admin-now`, `#admin-hour` with `#admin-hour-set` and `#admin-hour-real`, `#admin-place` with
+`#admin-place-go`, `#admin-tx`, `#admin-ty` with `#admin-tile-go`, `#admin-item`, `#admin-count` with
+`#admin-give`, `#admin-level` with `#admin-level-set`, `#admin-xp` with `#admin-xp-give`, `#admin-mob`,
+`#admin-mob-count` with `#admin-mob-spawn`, `#admin-quest`, `#admin-step` with `#admin-quest-set`, and
+`#admin-status`); the character panel:
 `#character-button`, `#character`. A conversation: `#conversation` (hidden when
 closed), `.conversation-text`, `.conversation-said`, `.conversation-answer` (`.selected`). `?nomenu` skips it: a guest. URL switches:
 `?nomenu` (no menu: a guest with a random look; nothing is saved, and a shared world refuses it;

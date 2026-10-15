@@ -74,6 +74,7 @@ streaming-platform project):
 | Game: The Houses of the Wilds | `HSE` | [`game/houses.md`](game/houses.md) |
 | Game: Day and Night | `DAY` | [`game/day-and-night.md`](game/day-and-night.md) |
 | Game: The Sandbox | `SBX` | [`game/sandbox.md`](game/sandbox.md) |
+| Game: The Admin Tools | `ADM` | [`game/admin-tools.md`](game/admin-tools.md) |
 
 To add a document, give it a new prefix, and add it to this table and to the table of its domain.
 
@@ -123,3 +124,4 @@ To add a document, give it a new prefix, and add it to this table and to the tab
 | [Buildings with Storeys](game/storeys.md) | Buildings of more than one storey: walls one storey high for each, each storey with its own walls, windows, floor, things and people; stairs and a stairwell ("Go up the stairs", "Go down the stairs"); a player on a storey walks, acts and drops items only there; the building shows from the player's storey up, and the other storeys hide; the storey on the server (protocol 39) and in the place of a character |
 | [The Houses of the Wilds](game/houses.md) | The variants of the lonely houses: buildings with corners cut from the north (an L or a T) and their roofs in two parts; the look of the land (walls, roof, floor); windows and chimneys; dark houses (cold candle, windows that never light) and lit ones; five kinds of house with their own things (cottage, farmhouse, hunter's lodge with a pelt, hermit's hut with a lectern, store room); every thing reachable from the door |
 | [Day and Night](game/day-and-night.md) | One day and one night in 48 real minutes, at the same hour for every player (from the real clock): the darkness falls at dusk and lifts at dawn, a dim, overcast noon, and lights that fade out by day; `?hour=` stops the hour |
+| [The Admin Tools](game/admin-tools.md) | The debug controls of an admin in the settings of the game menu: the hour of the world (for every player of the shared world, until "Real clock" or a restart of the server), a teleport to a place or a tile, coins and items, the level and XP, mobs beside the character, and a quest at a step; only for an admin on the server (protocol 49), and saved at once |

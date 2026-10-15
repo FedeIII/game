@@ -31,6 +31,7 @@ export * from './escorts.ts';
 export * from './guards.ts';
 export * from './convoys.ts';
 export * from './dialog.ts';
+export * from './admin.ts';
 export * from './net/protocol.ts';
 export * from './net/room.ts';
 export * from './net/prediction.ts';

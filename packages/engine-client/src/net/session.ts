@@ -19,6 +19,7 @@ import {
   stepPlayer,
   useDoor,
   useStairs,
+  type AdminCommand,
   type ClientMessage,
   type Gear,
   type Loot,
@@ -116,6 +117,8 @@ export class NetSession {
   quests: QuestBook | null = null;
   /** The XP of the character, in the server's last word (null before the welcome): its level comes from it (experience.ts). */
   xp: number | null = null;
+  /** The shift of the clock of the world's day (ms) that an admin chose (admin.ts), in the server's last word: the hour of every page of the world. */
+  hourShift = 0;
   private readonly questListeners: ((before: QuestBook, after: QuestBook) => void)[] = [];
   private readonly blowListeners: ((blows: readonly WireBlow[]) => void)[] = [];
   private traits: PlayerTraits;
@@ -193,6 +196,13 @@ export class NetSession {
   deal(from: { readonly npc: number } | { readonly at: readonly [number, number] }, deal: string): boolean {
     if (this.status !== 'online') return false;
     this.send({ t: 'deal', ...from, deal });
+    return true;
+  }
+
+  /** A tool of an admin (admin.ts) through the server, which applies it only for an admin. False while not online. */
+  admin(command: AdminCommand): boolean {
+    if (this.status !== 'online') return false;
+    this.send({ t: 'admin', c: command });
     return true;
   }
 
@@ -420,6 +430,7 @@ export class NetSession {
         this.refuges = message.rf;
         this.quests = fromWireBook(message.qs ?? []);
         this.xp = Number.isInteger(message.xp) ? message.xp : 0;
+        this.hourShift = Number.isFinite(message.hs) ? message.hs! : 0;
         this.explored.clear();
         for (const [cx, cy] of message.ex) this.explored.add(`${cx},${cy}`);
         this.addJump(this.player.x - before.x, this.player.y - before.y);
@@ -453,6 +464,7 @@ export class NetSession {
           if (before !== null) for (const listener of this.questListeners) listener(before, this.quests);
         }
         if (Number.isInteger(message.xp)) this.xp = message.xp!;
+        if (Number.isFinite(message.hs)) this.hourShift = message.hs!;
         if (message.bl) for (const listener of this.blowListeners) listener(message.bl);
         if (message.wk !== undefined) for (const listener of this.wokeListeners) listener(message.wk);
         for (const [cx, cy] of message.ex ?? []) this.explored.add(`${cx},${cy}`);
