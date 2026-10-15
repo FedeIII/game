@@ -114,12 +114,17 @@ armour protects me.
 **User Story:** As a player, I want to see what the dice did, so that I understand the fight.
 
 **Acceptance Criteria:**
-- **AC-CMB-006.1:** Over a mob that the player's blow touched, a number rises and fades in 0.9 s: the
-  damage ("7"), a critical hit in orange ("14!"), or "miss" in grey ("fallo" in Spanish).
-- **AC-CMB-006.2:** Over the player: the damage that it takes in red, the hit points that come back in
-  green ("+7"), and "miss" when a mob's attack glances off.
+- **AC-CMB-006.1:** Over a mob that the player's blow hit, a number rises and fades in 0.9 s: the damage
+  ("7"), or a critical hit in green ("14!"). A blow that misses shows no word (Fede, 2026-10-15; before,
+  "miss", "fallo" in Spanish).
+- **AC-CMB-006.2:** Over the player: the damage that it takes in red, and the hit points that come back in
+  green ("+7"). A mob's attack that glances off shows its spark and its sound, and no word.
+- **AC-CMB-006.5:** The colours of the texts of a fight (Fede, 2026-10-15): green for a good moment of the
+  player (a critical hit, and in the sandbox "sharp", "open", "flank", "parry", "block", "down", "clash
+  won", "deflect", "caught", "uncanny dodge" and "protected"), red for what goes against it (a hit on it, a mob's slam, a
+  broken guard, a lost clash, and the "!" of a startled goblin), and grey or pale for a word of no side.
 - **AC-CMB-006.3:** The hit points show as a red bar with the numbers ("7 / 11").
-- **AC-CMB-006.4:** Every text of a fight over a player or a mob (the numbers, "miss", "evade", and the
+- **AC-CMB-006.4:** Every text of a fight over a player or a mob (the numbers, "evade", and the
   words of the mechanics of the sandbox) is in the tiny font: capitals and digits 4 px tall, smaller
   than the names over the heads (5 px) (Fede, 2026-10-15). The "!" of a critical hit draws ("14!").
 
@@ -197,8 +202,8 @@ beat, so that I learn to fight without fear (the tutorial, `docs/drafts/tutorial
 - **AC-CMB-009.2:** Skirmishers patrol in groups of 2 or 3: the group walks a loop round the place where
   it came, the members a step apart.
 - **AC-CMB-009.3:** When one of them sees a character, the group (the members within 8 tiles) stops
-  short and looks at the character for 0.6 s, with a "!" over each head (the pixel font, gold, above the
-  darkness) and a yelp.
+  short and looks at the character for 0.6 s, with a "!" over each head (the pixel font, red since
+  2026-10-15, above the darkness) and a yelp.
 - **AC-CMB-009.4:** Then some flee and the others fight. The dice of the horde choose how many flee,
   from none (all fight) to all, each number with the same chance (a group of 3: none, 1, 2 or 3, one
   chance in four each), and which ones. A goblin alone flees or fights with one chance in two (Fede,
@@ -324,7 +329,7 @@ without losing the melee situation"). The next steps are in `docs/drafts/combat-
   REQ-DEX-008). A hit is a hit: damage, a stun, and the brace ends.
 - **AC-CMB-013.3a:** A miss in a brace does not end it: the character sways out of the blow where it
   stands (an evade: `EVADE_TICKS` 15, 0.25 s, three frames of a sway out of the blow and back), and the
-  word "evade" rises over it ("esquiva" in Spanish), with a swish, in place of the spark and "miss". The
+  word "evade" rises over it ("esquiva" in Spanish), with a swish, in place of the spark of a glance. The
   evade is only a look: a mob can hit the character in it, the character can attack or roll in it, and
   it ends with the brace. The mob goes on as after a miss: to the end of the line, not away.
 - **AC-CMB-013.4:** The next attack breaks a brace. A dodge in a brace does not break it: it is a jump

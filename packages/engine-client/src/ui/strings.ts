@@ -170,7 +170,6 @@ const EN = {
   },
   /** What the dice of a fight did (render/fight-numbers.ts): a miss, and a critical hit. */
   fight: {
-    miss: 'miss',
     /** A mob's attack that missed the player in its brace: the player evaded it (player.ts, missPlayer). */
     evade: 'evade',
     crit: (n: number): string => `${n}!`,

@@ -145,7 +145,6 @@ export const ES: Strings = {
     ended: 'Misión cumplida',
   },
   fight: {
-    miss: 'fallo',
     evade: 'esquiva',
     crit: (n: number): string => `${n}!`,
   },

@@ -125,10 +125,11 @@ const FLASH_MS = 110;
 /** Ash and embers that rise from a dead mob: for this long (ms). */
 const ASH = { ms: 1100 } as const;
 /**
- * The "!" over a startled patrol (state 'startled'): in the pixel font, gold on a 1-pixel shadow, this
- * far over the head (world pixels); it pops up over its first `popMs`.
+ * The "!" over a startled patrol (state 'startled'): in the pixel font, red on a 1-pixel shadow (a mob's
+ * action against the player: Fede, 2026-10-15), this far over the head (world pixels); it pops up over its
+ * first `popMs`.
  */
-const ALERT = { ink: 0xffc040, shadow: 0x07050a, gap: 4, pop: 3, popMs: 120 } as const;
+const ALERT = { ink: 0xe04a3a, shadow: 0x07050a, gap: 4, pop: 3, popMs: 120 } as const;
 
 const eyesOf = (atlasData.meta as unknown as { mobEyes: Record<string, number[]> }).mobEyes;
 

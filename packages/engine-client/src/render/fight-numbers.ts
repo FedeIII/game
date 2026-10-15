@@ -1,8 +1,13 @@
 import { Container } from 'pixi.js';
 import type { PixelFont } from './pixel-text.ts';
 
-/** The colours of the numbers, on a 1-pixel shadow: a blow of the player, a critical hit, a miss, a hit on the player, hit points back. */
-export const FIGHT_INK = { blow: 0xe8e0c8, crit: 0xffb040, miss: 0x8a8478, hurt: 0xe04a3a, heal: 0x7ac060 } as const;
+/**
+ * The colours of the texts of a fight, on a 1-pixel shadow (Fede, 2026-10-15: green for what is good for
+ * the player, red for what a mob does against it): a blow of the player, `good` (a critical hit of the
+ * player, a good moment of a mechanic), `miss` (a neutral word in grey), `hurt` (a hit on the player, a
+ * bad moment), `heal` (hit points back).
+ */
+export const FIGHT_INK = { blow: 0xe8e0c8, good: 0x7ac060, miss: 0x8a8478, hurt: 0xe04a3a, heal: 0x7ac060 } as const;
 const SHADOW = 0x07050a;
 /** A number rises this far (world pixels) over its life (ms), and fades in its last part. */
 const RISE = 14;
@@ -20,8 +25,8 @@ interface Number_ {
 
 /**
  * What the dice of a fight did (docs/drafts/level-3.md), as numbers that rise from a head and fade:
- * the damage of the player's blow over a mob ("7", "14!" for a critical hit), "miss", and the damage
- * that the player takes; and the words of the mechanics of the sandbox. In the tiny font (Fede,
+ * the damage of the player's blow over a mob ("7", "14!" for a critical hit), and the damage that the
+ * player takes (a miss shows no word: Fede, 2026-10-15); and the words of the mechanics of the sandbox. In the tiny font (Fede,
  * 2026-10-15: every text of a fight is smaller than a name), in the text layer (above the darkness).
  */
 export class FightNumbers {

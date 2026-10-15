@@ -142,7 +142,7 @@ timing must count more than a safe hold (the draft, proposal 1).
 **Acceptance Criteria:**
 - **AC-SBX-007.1:** With the switch "1. Grades of the brace", a mob's blow that comes in the first 6
   ticks (0.1 s) of a brace (sharp) rolls with disadvantage against the AC of the brace. A miss is an
-  evade, and the word "sharp" (Spanish "precisa") rises over the character in gold, in place of
+  evade, and the word "sharp" (Spanish "precisa") rises over the character in green, in place of
   "evade". The draft gave a sure evade; the sandbox gives the dice an edge (Fede, 2026-10-15).
 - **AC-SBX-007.2:** A blow in ticks 7 to 12 (clean) rolls against the AC of the brace, as without the
   switch.
@@ -160,7 +160,7 @@ that attacks as well as it defends (the draft, proposal 2).
 **Acceptance Criteria:**
 - **AC-SBX-008.1:** With the switch "2. Riposte", a mob's blow that misses in a brace puts the mob off
   balance for 0.4 s (`RIPOSTE_MS`): it reels in place (no push, no white flash), cannot wind up, and the
-  word "open" (Spanish "expuesto") rises over it in gold. With the grades on, a sharp or a clean evade
+  word "open" (Spanish "expuesto") rises over it in green. With the grades on, a sharp or a clean evade
   does it, and a late one does not (Fede, 2026-10-15).
 - **AC-SBX-008.2:** The next blow (or arrow) of a player on that mob in that time rolls with advantage
   and adds the INT opening of the player, as on a mob in its wind-up. The opening is for that one blow.
@@ -183,7 +183,7 @@ player must put the foes in front of it (the draft, proposal 3: positioning).
   riposte stay.
 - **AC-SBX-009.3:** From the back quarter (more than 135 degrees) the brace does not count: the AC of
   the brace, its grade and its riposte do not count, the blow rolls against the plain AC, a miss glances
-  off ("miss"), and the word "behind" (Spanish "por detrás") rises over the character.
+  off (its spark), and the word "behind" (Spanish "por detrás") rises over the character.
 - **AC-SBX-009.4:** Without the switch a brace counts in full against a blow from every side.
 
 ---
@@ -197,7 +197,7 @@ that I can test the rest of the sidestep (the draft, proposal 4: the jump from a
 - **AC-SBX-010.1:** With the switch "4. The flank", a mob aims its blow when its wind-up starts. When
   the blow does not hit (a miss, or the character out of its reach) and the character is then more than
   40 degrees off that aim, the character is at its flank: the word "flank" (Spanish "flanco") rises over
-  the mob in gold.
+  the mob in green.
 - **AC-SBX-010.2:** A mob that a character flanks does not wind up again in its blow and for 0.4 s after
   it (`TURN_MS`): it stands, and then faces the character.
 - **AC-SBX-010.3:** The next blow of a player on it in that time rolls with advantage and adds the INT
@@ -220,7 +220,7 @@ can test the choice between a blow into the wind-up and a parry (the draft, prop
   (+2; +3 at level 5). In the last 5 ticks of the wind-up (sharp) it also rolls with disadvantage (the
   draft: a sure parry), and a miss gives a riposte when the riposte is on.
 - **AC-SBX-011.3:** A miss is a parry: the word "parry" (Spanish "parada") rises over the character in
-  gold in place of "miss", with the ring of steel. Half way between the chest of the character and the
+  green, with the ring of steel. Half way between the chest of the character and the
   mob's, a burst of sparks (0.42 s), a soft flash and a short warm light (0.18 s) show (Fede,
   2026-10-15). A hit takes its damage and stuns, as before, and ends the parry.
 - **AC-SBX-011.5:** After a parry the weapons stay locked for 0.3 s more (a bind): the mob holds the
@@ -248,7 +248,7 @@ the timing of a blow, and what a shield gives in it (the draft, proposal 6).
 - **AC-SBX-012.3:** A mob's blow from its front (within 90 degrees) rolls with disadvantage. Without a
   shield the guard costs 12 stamina each second (`GUARD_STAMINA`); with a shield it costs nothing each
   second, and a blow that misses is a block: 15 stamina (`BLOCK_STAMINA`), the word "block" (Spanish
-  "bloqueo") in place of "miss", and the ring of steel. Stamina does not fill in a guard; with no stamina
+  "bloqueo") in green, and the ring of steel. Stamina does not fill in a guard; with no stamina
   the guard drops.
 - **AC-SBX-012.4:** A bugbear's blow breaks the guard: one d20, the word "broken" (Spanish "rota") in red,
   and the character reels for 30 ticks (it cannot act, it shows as stunned, and no guard follows).
@@ -418,7 +418,7 @@ with a rhythm: in melee while the stamina lasts, then out to breathe (the draft,
 - **5. The parry.** `Horde.parry()` (the page calls it before `Horde.strike()`; true: no strike) keeps a
   `Parry` for the player; `Horde.defence()` uses it for the blow of that mob. `PlayerState.parry`
   (ticks; the page draws the frame of a brace), `PARRY_WINDOW_TICKS` 9, `SHARP_PARRY_TICKS` 5,
-  `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the word "miss" away. The
+  `PARRY_TICKS` 15, `PARRY_PUSH` 4. `MECHANIC_WORDS.parry.replaces` keeps the sound of a glance away. The
   bind: `PARRY_BIND_MS` 300, `Mob.bind` (`MobLook.bind`: the frame of the blow), the brain's `parried`
   (the push at the end of the blow, in `blow()`). The sparks: `render/sparks.ts` (`Sparks`, the frames
   `fx/spark/<0-4>` and `fx/flash` of `art/fx.ts`, `MECHANIC_WORDS.parry.sparks`).

@@ -177,7 +177,7 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
-  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "miss", "+7" for hit points back; in the tiny font, as every text of a fight), `piles.ts` (the items on the
+  of a fight did, as numbers that rise over a mob or the player: the damage, "14!" for a critical hit, "+7" for hit points back, no word for a miss; in the tiny font, as every text of a fight; green for a good moment of the player, red for what goes against it: `FIGHT_INK`), `piles.ts` (the items on the
   ground: `pile/<kind>` on `pileLayer`, between the ground and the depth-sorted things, a gold spark now and then
   above the darkness, and a very faint shine now and then; a toss shows the items fly from the hands, or out of a
   mob, on an arc to their pile, with one small hop: `pile/<kind>/bare` depth-sorted in `entityLayer`, `pile/shadow`
@@ -1044,7 +1044,7 @@ them in a world that the page runs. The atlas is 2048 px wide since then.
 small shield (7 HP, AC 15, +4, 1d6+2), in melee only, with a slow wind-up in which it stands. It
 **patrols** (`MobStats.patrol`, `Horde.spawnPatrol()`): a group of 2 or 3 walks a loop round the place
 where it came. The first one that sees a player **startles** the group (state `startled`,
-`STARTLE_MS` 0.6 s, a gold "!" over each head in the text layer, a yelp); then a random number of them,
+`STARTLE_MS` 0.6 s, a red "!" over each head in the text layer, a yelp); then a random number of them,
 from none to all (each number with the same chance), **flees** (state `flee`, 64 px/s: slower than a
 player, so a player catches it; caught, cornered or hit, it turns and fights; away, it hides for
 `HIDE_MS` 10 s and goes back to its loop), and the others fight. A
@@ -1104,7 +1104,7 @@ that shrinks as it comes near); close enough, it winds up and strikes. Its attac
 `MobStats.toHit` against the player's AC: a hit stuns the player and takes the rolled
 `MobStats.damage` (`hitPlayer`: no move, no attack; see "Ability scores in the game",
 Constitution), and after it the player has a guard of 1 s in which no mob can hit it again; the
-mob runs away for 1 to 2 s and then comes back. A miss glances off (a spark, "miss"): no stun, and
+mob runs away for 1 to 2 s and then comes back. A miss glances off (a spark, no word): no stun, and
 the mob chases on. **Mobs that hunt one player take turns** (`Horde.waitFor()`, `nextUp()`): their attacks start one after the other. The
 others hound the player: they keep `MobStats.harass` from it (imp 36 to 50 px, brute 42 to 56 px:
 out of their reach and out of the player's), move round it, keep apart, and look at it. The line

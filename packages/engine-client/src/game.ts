@@ -1152,9 +1152,8 @@ async function run(options: GameOptions): Promise<void> {
     const now = performance.now();
     fightSignAt = now;
     gameSounds.blow(mob, damage, crit, player.x, player.y);
-    const y = mob.y - mobHead(mob.kind) - 4;
-    if (damage === 0) fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, mob.x, y, now);
-    else fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.crit : FIGHT_INK.blow, mob.x, y, now);
+    // A miss shows no word (Fede, 2026-10-15); a critical hit is green, as every good moment of the player.
+    if (damage > 0) fightNumbers.show(crit ? STRINGS.fight.crit(damage) : String(damage), crit ? FIGHT_INK.good : FIGHT_INK.blow, mob.x, mob.y - mobHead(mob.kind) - 4, now);
   };
   net?.onBlows((list) => {
     for (const [id, damage, crit] of list) showBlow(id, damage, crit === 1);
@@ -2168,7 +2167,7 @@ async function run(options: GameOptions): Promise<void> {
         sandboxFight?.blows([result]);
       }
     }
-    // A hit on the player shows its damage; a mob's attack that glanced off, "miss"; one that a brace evaded, "evade"; a draught, what it gave back.
+    // A hit on the player shows its damage; one that a brace evaded, "evade"; a draught, what it gave back. A mob's attack that glanced off shows only its spark.
     if (player.down === 0 && player.hp !== numbersHp) {
       const change = player.hp - numbersHp;
       if (change < 0) {
@@ -2193,10 +2192,8 @@ async function run(options: GameOptions): Promise<void> {
       }
       fightNumbers.show(STRINGS.sandbox.words[event.kind], style.ink, mob ? mob.x : shown.x, mob ? mob.y - mobHead(mob.kind) - 4 : shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
     }
-    if (player.glance > numbersGlance && !replaced.has('miss')) {
-      fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
-      gameSounds.glance();
-    }
+    // A glancing blow: its spark and its sound, and no word (Fede, 2026-10-15).
+    if (player.glance > numbersGlance && !replaced.has('miss')) gameSounds.glance();
     if (player.evade > numbersEvade) {
       if (!replaced.has('evade')) fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
       gameSounds.evade();

@@ -188,8 +188,8 @@ less.
 - **AC-DEX-006.7:** A ranger cannot shoot in shallow water.
 - **AC-DEX-006.8:** A kill with an arrow drops its loot into the pack of the ranger who shot it.
 - **AC-DEX-006.9:** In a shared world, the page of the ranger shows its own arrow at once, and the
-  mob flashes when the arrow reaches it. The damage or "miss" shows over the mob when the server's
-  word comes. The other players see the arrows of the server within 30 tiles of them.
+  mob flashes when the arrow reaches it. The damage shows over the mob when the server's word comes (a
+  miss shows no word). The other players see the arrows of the server within 30 tiles of them.
 - **AC-DEX-006.10:** The builder and the character panel show "Arrows fly" with the range in tiles
   for a character with a bow.
 
