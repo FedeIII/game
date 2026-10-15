@@ -90,13 +90,6 @@ export class SandboxPanel {
     const mechanicsLegend = document.createElement('legend');
     mechanicsLegend.textContent = T.mechanicsTitle;
     mechanics.append(mechanicsLegend);
-    if (MECHANICS.length === 0) {
-      const none = document.createElement('p');
-      none.className = 'sandbox-none';
-      none.textContent = T.noMechanics;
-      mechanics.append(none);
-    }
-    const texts = T.mechanics as Readonly<Record<string, { readonly name: string; readonly line: string }>>;
     for (const id of MECHANICS) {
       const label = document.createElement('label');
       label.className = 'sandbox-mechanic';
@@ -107,10 +100,10 @@ export class SandboxPanel {
       input.addEventListener('change', () => actions.mechanic(id, input.checked));
       const text = document.createElement('span');
       const name = document.createElement('strong');
-      name.textContent = texts[id]!.name;
+      name.textContent = T.mechanics[id].name;
       const line = document.createElement('span');
       line.className = 'sandbox-line';
-      line.textContent = texts[id]!.line;
+      line.textContent = T.mechanics[id].line;
       text.append(name, line);
       label.append(input, text);
       mechanics.append(label);

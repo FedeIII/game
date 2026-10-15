@@ -3439,8 +3439,7 @@ body:has(#stick:not([hidden])) #sandbox {
   font-weight: bold;
 }
 
-.sandbox-line,
-.sandbox-none {
+.sandbox-line {
   display: block;
   margin: 0;
   font-size: 13px;

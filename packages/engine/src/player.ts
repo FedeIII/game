@@ -84,6 +84,8 @@ export interface PlayerState {
    * it rolls against more AC (PlayerTraits.braceAc). It stays at 1 while the step back is held.
    */
   brace: number;
+  /** Ticks since the start of the brace (the grades of a brace: mechanics.ts, braceGrade); 0 without a brace. */
+  braceAge: number;
   /**
    * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
@@ -337,6 +339,7 @@ export function createPlayer(x: number, y: number): PlayerState {
     braceWindow: 0,
     heldBack: false,
     brace: 0,
+    braceAge: 0,
     evade: 0,
     jump: 0,
     hp: PLAIN_HP,
@@ -388,10 +391,11 @@ export function glancePlayer(player: PlayerState): void {
 /**
  * A mob's attack (a blow, an arrow, a guard's swing on a robber) that its roll missed. In a brace the
  * player sways out of it where it stands (an evade: a look only), and the brace goes on; else the
- * attack glances off its armour (glancePlayer).
+ * attack glances off its armour (glancePlayer). `braced`: whether the brace counted against this
+ * attack (the front of a brace, mechanics.ts: a blow from behind glances off).
  */
-export function missPlayer(player: PlayerState): void {
-  if (player.brace > 0) player.evade = EVADE_TICKS;
+export function missPlayer(player: PlayerState, braced = player.brace > 0): void {
+  if (braced) player.evade = EVADE_TICKS;
   else glancePlayer(player);
 }
 
@@ -419,6 +423,7 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.braceWindow = 0;
   player.heldBack = false;
   player.brace = 0;
+  player.braceAge = 0;
   player.evade = 0;
   player.jump = 0;
   player.poison = 0;
@@ -789,11 +794,14 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
   if (player.brace === 0 && window > 0 && !wading && back && !player.heldBack) {
     player.braceWindow = 0;
     player.brace = BRACE_TICKS;
+    player.braceAge = 0;
   }
   if (player.brace > 0) {
     // A brace: it stands and faces the way it struck. It lasts BRACE_TICKS, and stays at its last
     // tick while the step back is held. An evade (a miss in the brace) sways it, and ends with it.
+    player.braceAge++;
     if (player.brace > 1 || !back) player.brace--;
+    if (player.brace === 0) player.braceAge = 0;
     if (player.evade > 0) player.evade--;
     if (player.brace === 0) player.evade = 0;
     // Stamina does not fill in a brace: it fills again STAMINA_REST_TICKS after its end.
@@ -886,6 +894,7 @@ function swayed(move: MoveInput, drunk: number): MoveInput {
  */
 function hop(player: PlayerState, world: PlayerMap, solid: SolidMap, traits: StepTraits, dt: number): void {
   player.jump--;
+  player.braceAge++;
   const kind = jumpOf(player.dodgeKind, traits);
   const speed = kind.distance / (kind.ticks * TICK_SECONDS);
   player.vx = Math.cos(player.dodgeAim) * speed;

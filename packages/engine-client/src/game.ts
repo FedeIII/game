@@ -111,6 +111,7 @@ import {
   type Interaction,
   type InteractionTarget,
   type Loot,
+  type MechanicEvent,
   type Mechanics,
   type MoveInput,
   type Gear,
@@ -165,6 +166,7 @@ import { GameMenu, escapeAction, type SettingsSection } from './ui/game-menu.ts'
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
 import { LootText } from './render/loot-text.ts';
 import { FIGHT_INK, FightNumbers } from './render/fight-numbers.ts';
+import { MECHANIC_WORDS } from './render/mechanic-words.ts';
 import { PileViews } from './render/piles.ts';
 import { NameTag } from './render/name-tag.ts';
 import { NpcViews } from './render/npcs.ts';
@@ -1131,6 +1133,8 @@ async function run(options: GameOptions): Promise<void> {
   net?.onBlows((list) => {
     for (const [id, damage, crit] of list) showBlow(id, damage, crit === 1);
   });
+  // What the mechanics of the sandbox did since the last frame (mechanics.ts): a word over the player or the mob.
+  const mechanicEvents: MechanicEvent[] = [];
   // The hit points and the glancing blows of the player, as the last frame saw them: a change shows a number.
   let numbersHp = player.hp;
   let numbersGlance = player.glance;
@@ -1903,6 +1907,7 @@ async function run(options: GameOptions): Promise<void> {
     const mobHits = horde?.step(TICK_SECONDS * 1000, [{ id: 0, state: player, sight: sightOf(traits, player), traits }, ...(localCompanions?.targets() ?? []), ...(localGuards?.targets() ?? [])]) ?? [];
     if (sandboxFight) {
       sandboxFight.attacks(mobHits);
+      mechanicEvents.push(...horde!.takeEvents());
       // A victory: the fight starts again a moment later.
       if (sandboxFight.tick(player, traits, performance.now())) {
         previous.x = player.x;
@@ -2135,8 +2140,17 @@ async function run(options: GameOptions): Promise<void> {
       fightNumbers.show(STRINGS.fight.miss, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
       gameSounds.glance();
     }
+    // The words of the mechanics of the sandbox; a sharp evade says its own word, not "evade".
+    let ownWord = false;
+    for (const event of mechanicEvents.splice(0)) {
+      const style = MECHANIC_WORDS[event.kind];
+      const mob = style.over === 'mob' ? mobsNow().find((m) => m.id === event.mob) : undefined;
+      if (style.over === 'mob' && !mob) continue;
+      if (style.over === 'player') ownWord = true;
+      fightNumbers.show(STRINGS.sandbox.words[event.kind], style.ink, mob ? mob.x : shown.x, mob ? mob.y - mobHead(mob.kind) - 4 : shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+    }
     if (player.evade > numbersEvade) {
-      fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
+      if (!ownWord) fightNumbers.show(STRINGS.fight.evade, FIGHT_INK.miss, shown.x, shown.y - playerView.headHeight - PLAYER_NUMBER_RISE, now);
       gameSounds.evade();
     }
     numbersHp = player.hp;

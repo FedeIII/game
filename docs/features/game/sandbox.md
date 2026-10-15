@@ -133,6 +133,24 @@ me back to the sandbox, so that a test goes on.
 
 ---
 
+### REQ-SBX-007: 1. The grades of a brace
+
+**User Story:** As an admin, I want a brace that gives more for an exact timing, so that I can test if
+timing must count more than a safe hold (the draft, proposal 1).
+
+**Acceptance Criteria:**
+- **AC-SBX-007.1:** With the switch "1. Grades of the brace", a mob's blow that comes in the first 6
+  ticks (0.1 s) of a brace (sharp) rolls with disadvantage against the AC of the brace. A miss is an
+  evade, and the word "sharp" (Spanish "precisa") rises over the character in gold, in place of
+  "evade". The draft gave a sure evade; the sandbox gives the dice an edge (Fede, 2026-10-15).
+- **AC-SBX-007.2:** A blow in ticks 7 to 12 (clean) rolls against the AC of the brace, as without the
+  switch.
+- **AC-SBX-007.3:** A blow from tick 13 on (late), also in a held brace, rolls against the AC and half of
+  what the brace adds, rounded down, at least 1 (a fighter with DEX 14: + 2 in place of + 4). The jump
+  from a brace counts its ticks too.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -149,10 +167,18 @@ me back to the sandbox, so that a test goes on.
   `NO_MECHANICS`. The player's side reads `StepTraits.mechanics` (`stepPlayer()`); the mobs' side reads
   `Horde.mechanics`. The Room sets neither, so a shared world plays as before, and no message on the
   wire changes. The page sets both in the sandbox only.
+- **The words of the mechanics.** `Horde.takeEvents()` gives a `MechanicEvent` (a kind, a mob, a
+  player) for what a mechanic did; the page shows its word (`STRINGS.sandbox.words`) over the player or
+  the mob, as a number of a fight (`render/mechanic-words.ts`, `MECHANIC_WORDS`).
+- **1. The grades.** `PlayerState.braceAge` counts the ticks of a brace (1 in its first tick, and in a
+  jump); `braceGrade()`, `SHARP_TICKS` 6, `CLEAN_TICKS` 12, `lateBraceAc()` (`LATE_SHARE` 0.5);
+  `Horde.defence()` gives the AC and the edge of the roll (`attackRoll(..., edge)`, `edgeOf()`: two d20,
+  the higher or the lower; dice.ts).
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).
 - **The debug panel** (`?debug`) has the line `sandbox`: the foe, the mechanics that are on, the fights
   won and lost, and the numbers of the fight that goes on.
-- **Tests.** `packages/engine/test/sandbox.test.ts` (steady foes), `packages/engine-client/src/sandbox.test.ts`
+- **Tests.** `packages/engine/test/sandbox.test.ts` (steady foes), `packages/engine/test/mechanics.test.ts`
+  (each mechanic with and without its switch), `packages/engine/test/dice.test.ts` (advantage), `packages/engine-client/src/sandbox.test.ts`
   (the fight, its start again, the log, the kept choice), `menu/resume.test.ts`, `ui/game-menu.test.ts`.

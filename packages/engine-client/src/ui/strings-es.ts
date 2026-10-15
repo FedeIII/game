@@ -455,8 +455,13 @@ export const ES: Strings = {
     foes: 'Enemigos (tres, con cinco veces sus puntos de golpe)',
     foe: { skirmisher: 'Goblins', brute: 'Brutos', bugbear: 'Osgos', hobgoblin: 'Hobgoblins', worg: 'Huargos', bandit: 'Bandidos' },
     mechanicsTitle: 'Mecánicas del borrador del cuerpo a cuerpo',
-    noMechanics: 'Aún no hay ninguna mecánica.',
-    mechanics: {},
+    mechanics: {
+      grades: {
+        name: '1. Grados de la guardia',
+        line: 'Un golpe en los primeros 0,1 s de una guardia tira con desventaja ("precisa"). Tras 0,2 s, y en una guardia mantenida, la guardia suma solo la mitad de su CA.',
+      },
+    },
+    words: { sharp: 'precisa' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

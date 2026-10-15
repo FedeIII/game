@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVERAGE_DICE, Room, World, attackRoll, averageDice, dice, formatDice, rollDice, rollingDice, toWireBlow, type DiceSource, type SnapshotMessage } from '../src/index.ts';
+import { AVERAGE_DICE, Room, World, attackRoll, averageDice, dice, edgeOf, formatDice, rollDice, rollingDice, toWireBlow, type DiceSource, type SnapshotMessage } from '../src/index.ts';
 import { mobHouseSource } from './helpers.ts';
 
 /** A source that rolls the same share of each die (0: a natural 1; 0.999: the highest face). */
@@ -54,6 +54,35 @@ describe('dice', () => {
     for (let i = 0; i < 4000; i++) if (attackRoll(5, 15, roll).hit) hits++;
     expect(hits / 4000).toBeGreaterThan(0.5);
     expect(hits / 4000).toBeLessThan(0.6);
+  });
+});
+
+describe('advantage and disadvantage', () => {
+  it('take the higher or the lower of two d20 (5e), and cancel out', () => {
+    // Two dice: the first shows 4, the second 17.
+    const two = (): DiceSource => {
+      const faces = [3.5 / 20, 16.5 / 20];
+      let i = 0;
+      return { kind: 'roll', random: () => faces[i++ % 2]! };
+    };
+    expect(attackRoll(0, 10, two(), 1).natural).toBe(17);
+    expect(attackRoll(0, 10, two(), -1).natural).toBe(4);
+    expect(attackRoll(0, 10, two(), 0).natural).toBe(4);
+    expect(edgeOf(true, true)).toBe(0);
+    expect(edgeOf(true, false)).toBe(1);
+    expect(edgeOf(false, true)).toBe(-1);
+  });
+
+  it('change the odds as 5e says: +5 against AC 15 hits 55% alone, 80% with advantage, 30% with disadvantage', () => {
+    for (const [edge, share] of [
+      [1, 0.7975],
+      [-1, 0.3025],
+    ] as const) {
+      const roll = rollingDice(seeded(11));
+      let hits = 0;
+      for (let i = 0; i < 20000; i++) if (attackRoll(5, 15, roll, edge).hit) hits++;
+      expect(Math.abs(hits / 20000 - share)).toBeLessThan(0.015);
+    }
   });
 });
 

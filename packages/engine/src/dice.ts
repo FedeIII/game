@@ -67,12 +67,25 @@ export interface AttackRoll {
 }
 
 /**
- * An attack roll (5e): d20 + `toHit` against `ac`. A natural 20 always hits, as a critical hit; a
- * natural 1 always misses. The average source always hits, without a critical hit.
+ * Advantage and disadvantage (5e): with advantage an attack rolls two d20 and takes the higher, with
+ * disadvantage the lower. 1: advantage, -1: disadvantage, 0: one d20. Both at once cancel out (edgeOf).
  */
-export function attackRoll(toHit: number, ac: number, source: DiceSource): AttackRoll {
+export type Edge = -1 | 0 | 1;
+
+/** The edge of a roll with these causes of advantage and of disadvantage: both cancel out, as in 5e. */
+export function edgeOf(advantage: boolean, disadvantage: boolean): Edge {
+  return advantage === disadvantage ? 0 : advantage ? 1 : -1;
+}
+
+/**
+ * An attack roll (5e): d20 + `toHit` against `ac`, with advantage or disadvantage (`edge`). A natural
+ * 20 always hits, as a critical hit; a natural 1 always misses. The average source always hits,
+ * without a critical hit.
+ */
+export function attackRoll(toHit: number, ac: number, source: DiceSource, edge: Edge = 0): AttackRoll {
   if (source.kind === 'average') return { hit: true, crit: false, natural: 0 };
-  const natural = die(20, source);
+  const first = die(20, source);
+  const natural = edge === 0 ? first : edge > 0 ? Math.max(first, die(20, source)) : Math.min(first, die(20, source));
   if (natural === 20) return { hit: true, crit: true, natural };
   if (natural === 1) return { hit: false, crit: false, natural };
   return { hit: natural + toHit >= ac, crit: false, natural };

@@ -1,10 +1,10 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
-import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource } from './dice.ts';
+import { attackRoll, averageDice, dice, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { NO_MECHANICS, type Mechanics } from './mechanics.ts';
+import { NO_MECHANICS, braceGrade, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
-import { GUARD_TICKS, PLAYER_HALF_WIDTH, armourNow, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
+import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, canBeHit, hitPlayer, missPlayer, moveAxis, normalAngle, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, type PlayerTraits } from './traits.ts';
 import { FULL_BOX, type SolidMap, type World } from './world.ts';
 
@@ -832,6 +832,18 @@ export interface ShotResult extends BlowResult {
 export type MobHit = [number, number, number];
 
 /**
+ * How a player stands against a mob's blow now (Horde.defence): the AC that the roll must reach, the
+ * edge of the roll (dice.ts), whether its brace counts against the blow (a miss is then an evade), and
+ * the grade of the brace (mechanics.ts; null without the grades).
+ */
+interface Defence {
+  readonly ac: number;
+  readonly edge: Edge;
+  readonly braced: boolean;
+  readonly grade: BraceGrade | null;
+}
+
+/**
  * A mob that a blow killed (an arrow too), and the attackers whose blows hit it before (their ids:
  * players, and guards): each character among them gets the XP of the kill (experience.ts, killXp).
  */
@@ -1107,6 +1119,8 @@ export class Horde {
   daytime = false;
   /** The mechanics of the melee draft that are on (mechanics.ts): none, but in the sandbox of an admin. */
   mechanics: Mechanics = NO_MECHANICS;
+  /** What the mechanics did since the last takeEvents(): the page shows them. */
+  private events: MechanicEvent[] = [];
   /** The mobs of a world without MobRules.areaAt: its population, by day and at night. */
   private readonly plainArea: MobArea;
   /** For each player, when the next group of each rare spawn (MobSpawn.every) may come (horde ms). */
@@ -1536,6 +1550,17 @@ export class Horde {
     return defeats;
   }
 
+  /** What the mechanics of the melee draft did since the last call (mechanics.ts): a word for the page to show. */
+  takeEvents(): MechanicEvent[] {
+    const events = this.events;
+    this.events = [];
+    return events;
+  }
+
+  private event(kind: MechanicEventKind, mob: Mob, player: number): void {
+    this.events.push({ kind, mob: mob.id, player });
+  }
+
   /** What the players' arrows did to mobs since the last call (a hit, a miss), with their shooters. */
   takeShotResults(): ShotResult[] {
     const results = this.shotResults;
@@ -1618,15 +1643,17 @@ export class Horde {
    * damage (with the martial advantage of a hobgoblin that has an ally next to the player), stuns and
    * poisons; a miss glances off. A player with Charisma close by gives a player that was hurt more
    * guard after the stun (the best one counts). Records it in `hits`; returns whether it hit. In a
-   * brace the roll is against more AC (armourNow), and a miss is an evade (missPlayer).
+   * brace the roll is against more AC (defence()), and a miss is an evade (missPlayer).
    */
   private attack(mob: Mob, id: number, target: PlayerState, players: readonly HordePlayer[], hits: MobHit[]): boolean {
     const stats = MOB_STATS[mob.kind];
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
-    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), armourNow(target, body?.ac ?? 10, body?.braceAc), this.dice);
+    const defence = this.defence(target, body);
+    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), defence.ac, this.dice, defence.edge);
     if (!roll.hit) {
-      missPlayer(target);
+      missPlayer(target, defence.braced);
+      if (defence.grade === 'sharp') this.event('sharp', mob, id);
       hits.push([mob.id, id, 0]);
       return false;
     }
@@ -1640,6 +1667,20 @@ export class Horde {
     if (target.down === 0) target.inspired = inspireFor(id, target, players);
     hits.push([mob.id, id, damage]);
     return true;
+  }
+
+  /**
+   * How a player stands against a mob's blow now: its AC, and in a brace the AC of the brace
+   * (PlayerTraits.braceAc). With the grades of a brace (mechanics.ts), a sharp brace also gives the mob
+   * disadvantage, and a late one only a part of the AC of the brace.
+   */
+  private defence(target: PlayerState, body: HordePlayer['traits']): Defence {
+    const ac = body?.ac ?? 10;
+    const braceAc = body?.braceAc ?? 0;
+    if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null };
+    if (!this.mechanics.has('grades') || braceAc === 0) return { ac: ac + braceAc, edge: 0, braced: true, grade: null };
+    const grade = braceGrade(target.braceAge);
+    return { ac: ac + (grade === 'late' ? lateBraceAc(braceAc) : braceAc), edge: grade === 'sharp' ? -1 : 0, braced: true, grade };
   }
 
   /** A mob's arrow (an archer's blow): it flies at the players (Arrow.from), with the mob's id as its owner, negative. */

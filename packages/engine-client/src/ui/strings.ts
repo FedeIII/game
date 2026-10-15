@@ -1,4 +1,4 @@
-import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, LoadTier, Mechanic, Race } from '@game/engine';
+import type { Ability, ArmourType, CharacterClass, GearSlot, Gender, Interactable, ItemKind, LoadTier, Mechanic, MechanicEventKind, Race } from '@game/engine';
 import { LANG } from '../i18n.ts';
 import { ES } from './strings-es.ts';
 
@@ -529,9 +529,15 @@ const EN = {
     foes: 'Foes (three, with five times their hit points)',
     foe: { skirmisher: 'Goblins', brute: 'Brutes', bugbear: 'Bugbears', hobgoblin: 'Hobgoblins', worg: 'Worgs', bandit: 'Bandits' },
     mechanicsTitle: 'Mechanics of the melee draft',
-    noMechanics: 'No mechanic is built yet.',
     /** Each mechanic (mechanics.ts): its name, and what it does in one line. */
-    mechanics: {} satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
+    mechanics: {
+      grades: {
+        name: '1. Grades of the brace',
+        line: 'A blow in the first 0.1 s of a brace rolls with disadvantage ("sharp"). After 0.2 s, and in a held brace, the brace adds only half of its AC.',
+      },
+    } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
+    /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
+    words: { sharp: 'sharp' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',
