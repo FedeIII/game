@@ -3,7 +3,9 @@
 Status: a draft of 2026-10-14. Fede's request: a combat system of our own, where the player and the
 mobs can stay in melee and still be safe from a blow, without the roll or the kite that take them
 out of it. Step 1, **the brace**, is built (`docs/features/game/combat.md`, REQ-CMB-013). Everything
-after step 1 is a proposal for Fede to choose from. Nothing after step 1 is built.
+after step 1 is a proposal for Fede to choose from. Since 2026-10-15 each proposal is built as a switch
+of the sandbox of an admin, where Fede tests them (see "The sandbox" below,
+`docs/features/game/sandbox.md`); none is on in the game.
 
 ## What stays
 
@@ -263,6 +265,36 @@ The same moves for the mobs, so that a fight has two sides and the player must r
 4. The parry (5), the guard stance and the block (6), and the price in stamina (12).
 5. The reactions of the classes (9), with the class features of levels 1 to 5.
 6. The shapes of the blows (10) and the clash (8) last: they need the most art.
+
+## The sandbox (2026-10-15)
+
+Fede asked for no written evaluation: "I test them myself". The sandbox of an admin ("Sandbox" in the
+main menu and in the game menu, `docs/features/game/sandbox.md`) is a fight against three foes that
+never flee (goblins at first; also goblin archers, brutes, bugbears, hobgoblins, worgs, bandits), with
+five times their hit points; the character has ten times its own. A panel at the bottom left turns
+each proposal on or off (`packages/engine/src/mechanics.ts`, a switch each), at once, and shows the
+fights won and lost and the numbers of the last one (blows that hit, attacks that hit, the hit points
+that they took). The Room never turns a switch on: the game does not change.
+
+Where the sandbox differs from the proposals above (Fede, 2026-10-15: "adapt them to dice whenever it
+makes more sense"; and no new art for now):
+
+| # | Proposal | In the sandbox |
+|---|---|---|
+| 1 | Grades of the brace | Sharp (6 ticks): the mob rolls with disadvantage against the AC of the brace, in place of a sure evade. Clean: as now. Late (from tick 13, also a held brace): half of what the brace adds, in place of disadvantage against the plain AC (that would be better than a clean brace). |
+| 2 | Riposte | As proposed. With the grades off, every evade gives it; a sharp parry gives it too. |
+| 3 | The front of a brace | As proposed (90 degrees). The word "behind" tells a blow from the back. |
+| 4 | Sidestep | The jump from a brace is its move. The flank is a player more than 40 degrees off the aim of the blow (a jump of 1 tile at the reach of a goblin is about 47 degrees). The turn is 0.4 s after the blow. |
+| 5 | Parry | The last 5 ticks give disadvantage on the mob's roll (and a riposte with it on), in place of a sure parry. The input: the attack (question 3 below stays open). |
+| 6 | Guard stance, block | A hold of the dodge input for 0.2 s; a tap rolls at its release (question 4 below stays open). The bugbear breaks a guard; the brute's slam with the shapes on. |
+| 7 | Shove | A win knocks the mob down and pushes it back 1 tile (both, not one or the other). |
+| 8 | Clash | Only a blow of the player in the last 3 ticks of a wind-up; with the parry on, the parry comes first. |
+| 9 | Reactions of the classes | At every level (the class features come later). The monk catches an arrow with the 5e numbers of Deflect Missiles (1d10 + DEX + level), not always. The barbarian's rage starts with its first attack. |
+| 10 | Shapes of the blows | A word over the mob is the tell ("thrust", "sweep", "slam", "bite"), in place of a wind-up of its own (art). |
+| 11 | Guards of the mobs | The bandit parries in place of a new bandit captain (art). |
+| 12 | A price in stamina | As proposed. |
+
+What a word means over the player or a mob is in `STRINGS.sandbox.words` (`render/mechanic-words.ts`).
 
 ## Questions for Fede
 

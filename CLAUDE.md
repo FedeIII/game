@@ -102,7 +102,7 @@ Art preview at 4x: `cd packages/engine-client && node art/build.ts --preview /tm
 
 | Package | Name | What | May import |
 |---|---|---|---|
-| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`), the load of a character (`load.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
+| `packages/engine` | `@game/engine` | The simulation, pure TypeScript: world model, tiles, collision, movement, buildings, fixtures, interactions, doors, NPCs and their conversations (`dialog.ts`), mobs and fights, the natural-terrain toolkit, the character rules (`character.ts`), what the scores and the gear give (`traits.ts`), levels and XP (`experience.ts`), items and the pack (`items.ts`), what a character wears (`gear.ts`), the load of a character (`load.ts`) and the moves between the pack and the worn slots (`inventory.ts`), the loot of chests and the barred doors over time (`loot.ts`), items on the ground (`piles.ts`), NPCs that follow a player (`companions.ts`), the time of day (`daytime.ts`), the mechanics of the melee draft that only the sandbox turns on (`mechanics.ts`), and the multiplayer core (`net/`: protocol, `Room`, `Prediction`, `Remotes`). **No DOM, no PixiJS, no network**: the server imports it as it is. | nothing |
 | `packages/engine-server` | `@game/engine-server` | The game server: `startServer()` (Node, `ws`): accounts with Google sign-in, sessions and characters in SQLite (`accounts.ts`, `google.ts`, `store.ts`; `/api/`, `/auth/`), a Room per shared world at `/ws`, limits, heartbeat, `/healthz`. | `@game/engine` |
 | `packages/engine-client` | `@game/engine-client` | The browser runtime as a library: `startGame()`, renderers, input, GUI, and the art pipeline (`art/`). | `@game/engine` |
 | `worlds/wilds` | `@game/world-wilds` | The Wilds: a `WorldSource` (generated), the towns (the builder `towns.ts`; Ironhold `town.ts`, Silverspring `silverspring.ts`), the roads and the signpost (`road.ts`), and its texts. | `@game/engine` |
@@ -137,6 +137,11 @@ when an app needs art of its own, give the atlas builder a list of extra frames 
   `api.ts` (the accounts API), `dom.ts`, `resume.ts` (after a reload for a new build, the menu
   starts the same character at once: a note in sessionStorage `game.resume.v1`, good for one start
   within 5 minutes; the game menu notes a screen in the same way: `game.menu-screen.v1`).
+- `sandbox.ts`: the sandbox of an admin (see "The sandbox of an admin" under "Mobs and fights"):
+  `SandboxFight` (the foes, the start again, the log of a fight), `sandboxRules()`, `sandboxTraits()`,
+  the kept choice (`loadSandbox()`, localStorage `game.sandbox.v1`); its panel is `ui/sandbox-panel.ts`,
+  its words `render/mechanic-words.ts`, and the hold of the dodge input for its guard stance
+  `input/dodge-hold.ts`.
 - `skins/`: the skin seed of a guest (`seed.ts`, localStorage `game.skin.v1`, `?skin=`), the Web
   Worker that renders skins (`skin-worker.ts`) and `SkinStore` (textures, render queue,
   localStorage cache of rendered sheets, which drops the sheets of an older `SKIN_VERSION`;
@@ -469,7 +474,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   dev sign-in with a name only (or an email: see "Admins"). After Google, the page shows
   `?login=failed` or `cancelled` once.
 - **Main screen**: "New game", "Continue" (off without characters), "Prologue" (only once this
-  browser saw it), "Settings" (the controls to read, the language, the sound (`soundSection()`), the
+  browser saw it), "Sandbox" (an admin only: the list of characters for the sandbox; see "Mobs and
+  fights"), "Settings" (the controls to read, the language, the sound (`soundSection()`), the
   switch of the tips (`ui/tips.ts`: "Show tips", "Show all tips again"), and for an admin the CRT
   settings; the settings of the game menu have the same sections),
   "Sign out" (the last button, Fede, 2026-10-14), and "Signed in with Google · Delete account ·
@@ -524,7 +530,7 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   over the game when no other panel, conversation or dream is open (on a touch screen, a faint icon
   under the character button opens it), with these choices only, in this order (Fede, 2026-10-14):
   "Main menu" (a reload into the main screen), "Load game" (a reload into the list of characters),
-  "Settings" (a second screen in the same panel with the controls to read, the language, the sound,
+  "Sandbox" (an admin only: a reload into the list for the sandbox), "Settings" (a second screen in the same panel with the controls to read, the language, the sound,
   the tips, and for an admin the display and the experience; "Back" or Escape goes back to the
   choices) and "Prologue". No button has the focus when it opens: Enter does not leave the game by
   mistake. Escape or a click outside the panel closes it. The character stands
@@ -1146,6 +1152,22 @@ world (a touch screen) it keeps its facing. An attack and a brace face the way o
 the way of the roll. The server owns the facing (protocol 45), so the others see it. The effect of the attack shows in 16 directions (`fxPlacement()`). `?mob=imp,brute` puts mobs next to the
 player at the start (single-player worlds, so the Wilds with `?offline`); `?nomobs` turns them off.
 
+**The sandbox of an admin** (since 2026-10-15, Fede's request in place of an evaluation of the melee draft:
+"I test them myself"; `docs/features/game/sandbox.md`, REQ-SBX): "Sandbox" in the main menu or the game
+menu, then a character. The page runs the world alone (no server, nothing saved, no XP, no loot); the
+character fights three steady foes (`Horde.spawn(..., { health, steady })`: they never startle, flee or
+lurk; `Horde.provoke()`) in the glade of `WorldDefinition.sandbox` (the Wilds: (11, 134)), with ten times
+its hit points (`SANDBOX_HP`) against five times theirs (`FOE_HP`). A defeat starts the whole sandbox
+again with the same character; a victory 2.5 s later. A panel at the bottom left (crossed swords) chooses
+the foes and turns each mechanic of `docs/drafts/combat-melee.md` on or off: `packages/engine/src/mechanics.ts`
+(`MECHANICS`: grades, riposte, front, flank, parry, guard, shove, clash, reactions, shapes, mobGuards,
+stamina), read by `stepPlayer()` (`StepTraits.mechanics`) and by the horde (`Horde.mechanics`). The Room
+never turns one on, so a shared world and the wire do not change. What a mechanic did comes as a
+`MechanicEvent` (`Horde.takeEvents()`), a word over the player or the mob. A sure effect of the draft
+became an edge of the dice (advantage and disadvantage: `attackRoll(..., edge)`, `edgeOf()`), Fede's
+choice. A mechanic that Fede keeps becomes a rule of the game, without its switch (and then the Room
+and the protocol need it).
+
 ## Fixtures, content and actions
 
 - **Walking NPCs** (`packages/engine/src/npc.ts`, since 2026-10-08): a world gives them with
@@ -1616,7 +1638,10 @@ for each slot, `.gear-slot[data-gear=<slot>]` for each worn slot (also a `.pack-
 `.shop-tab[data-side=buy|sell]`, `.shop-ware[data-ware=<id>]`, `.shop-trade`, `.shop-say`; in a shared
 world the server takes the place of a character from the store, so `?at=` works only within 64 tiles
 of it), `#belt` and `.belt-drink` (the drink belt), `#map-button` and
-`#map` (the map panel), `?offline` (a
+`#map` (the map panel), the sandbox (an admin: `#menu-sandbox`, then `.character-play`; `#sandbox-button`,
+`#sandbox`, `input[data-mechanic=<id>]`, `input[name=sandbox-foe]`; the switches can be put in
+localStorage `game.sandbox.v1` before the page loads: `{ "foe": "skirmisher", "mechanics": [...] }`;
+the debug line `sandbox`), `?offline` (a
 shared world played alone), `?skin=<n>` (another skin, not saved), `?nointro`, `?introat=<ms>`,
 `?lang=en|es` (the language, not kept), `?mob=imp,brute` (mobs next to the player), `?companion=<look>` (a companion of that NPC look
 next to the player, which follows it; a world that the page runs), `?nomobs` (no mobs: use it in tests that walk about),
