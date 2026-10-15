@@ -19,8 +19,7 @@ uses the Arcane Raiders of the saga plan and the Ashen Seekers of the `RPG` note
 are quest state, conversations with conditions, overheard scenes, world events, new mobs, new
 places and a second language.
 
-**The Drive is the source of the story, not this file.** Read the documents live (`CLAUDE.md`,
-"Lore: Kandrax, on Google Drive") before you build a quest. This draft keeps only the design and
+**The Drive is the source of the story, not this file.** Read the documents live (`docs/lore.md`) before you build a quest. This draft keeps only the design and
 the names:
 
 - `Sagas/Dioses Olvidados/Capítulos/1.5.1 - Pueblos Arrasados`: route [A] "Interior" (A.1 the

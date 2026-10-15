@@ -38,4 +38,6 @@ in the top-right corner (your look and name, CRT on/off and sliders; saved in th
   runtime and the art. `worlds/*`: the worlds. `apps/game`: game.azyr.io.
 - `docs/stack.md`: the stack and the reasons for it.
 - `deploy/README.md`: how game.azyr.io is deployed.
-- `CLAUDE.md`: the layout and the rules of the code, and how to add a world or an app.
+- `CLAUDE.md`: the rules of the code and a map of the documents.
+- `docs/code/`: the code, part by part (`docs/code/layout.md`: the layout, and how to add a world or
+  an app).

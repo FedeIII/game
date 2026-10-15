@@ -27,7 +27,7 @@ the questlines and the prologue. It is the one written truth of the story.
 
 ## The sources, and how they relate
 
-- **Kandrax**, Fede's D&D 5e world, on the Drive (folder `Kandrax D&D`; see `CLAUDE.md`, "Lore").
+- **Kandrax**, Fede's D&D 5e world, on the Drive (folder `Kandrax D&D`; see `docs/lore.md`).
   The story of the game follows chapter 1.5.1 of the saga, "Pueblos Arrasados". Read the Drive live; do
   not copy it here. These documents give only what the game uses.
 - **The plans** in `docs/drafts/`: `story-razed-villages.md` (phases 1 to 6), `story-arcane-raiders.md`

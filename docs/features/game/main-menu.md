@@ -7,8 +7,8 @@ the sign-in, the main screen ("New game", "Continue"), the list of characters an
 This document gives what Fede asked for on 2026-10-12: a pixel-art picture behind the menu, "Prologue"
 on the main screen once the browser saw the prologue, and a settings screen; and on 2026-10-13: music
 and sounds in the menu, and the logo of the game at the top of the menu, with the buttons of the main
-screen at the bottom. The sign-in, the characters and the accounts are in `CLAUDE.md` ("Menu,
-characters and accounts").
+screen at the bottom. The sign-in, the characters and the accounts are in
+`docs/code/menu-and-accounts.md`.
 
 ## Terminology
 

@@ -781,7 +781,7 @@ function spruce(c: Canvas, x: number, foot: number, height: number, ramp: readon
 }
 
 /**
- * The character's home at night (CLAUDE.md, "The worlds": the hut of the cell (0, 0)): a log hut with
+ * The character's home at night (docs/code/wilds.md: the home): a log hut with
  * a steep thatch roof, a stone chimney, a lit window and a door ajar, alone in a clearing of the spruce
  * forest. The view is three-quarters: the long front wall faces the viewer, and the gable end goes
  * back to the left. The moon, high on the left, lights the gable, the thatch and the left edges of the

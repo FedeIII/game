@@ -76,8 +76,8 @@ export const SKIN_VIEWS = [
  * (after a blow), the frames of an evade, the frames of a heavy roll, the frames of a jump from a
  * brace and the frames of a struggle and of a grab (a shove of the sandbox). The columns of a view go on
  * SKIN_VIEW_ROWS rows of SKIN_ROW_CELLS frames (skinCell): the
- * sheet is 20 x 56 = 1120 px wide. Keep it at most 2048 px (a GPU with 16-bit floats; see "Art" in
- * CLAUDE.md).
+ * sheet is 20 x 56 = 1120 px wide. Keep it at most 2048 px (a GPU with 16-bit floats; see
+ * docs/code/art.md).
  */
 export const SKIN_WALK_FRAMES = 8;
 export const SKIN_ATTACK_FRAMES = ATTACK_FRAMES;

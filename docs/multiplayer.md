@@ -545,8 +545,8 @@ server refuses it, and the visitor reloads the page.
 
 ## Strength: traits, barred doors, chests and the pack (protocol 11, 2026-10-10)
 
-The ability scores do things in the game (see `docs/drafts/abilities.md` and CLAUDE.md, "Ability
-scores in the game"). The server makes each player's traits (`sheetTraits()`) from its stored
+The ability scores do things in the game (see `docs/drafts/abilities.md` and
+`docs/code/abilities.md`). The server makes each player's traits (`sheetTraits()`) from its stored
 character, as it takes the look and the name: a client never sends them. The page makes the same
 traits from the same character, so its prediction stays exact:
 
@@ -584,8 +584,8 @@ The place of the character (2026-10-10, no change of the protocol): the player s
 character was last in this world (`Room.join(..., place)`), at any distance from the spawn. When
 `at` is another tile within 64 tiles of the place (a client that walked on while it was cut off),
 the player starts at `at`. The server notes the place when the player leaves and at each
-heartbeat (25 s). See CLAUDE.md, "Menu, characters
-and accounts".
+heartbeat (25 s). See
+`docs/code/menu-and-accounts.md`.
 
 ## Looks and names (protocol 4, 2026-10-08)
 
@@ -619,8 +619,8 @@ Protocol 25 (2026-10-11): four more kinds of mobs, codes 2 to 5 (`MOB_KINDS`: go
 hobgoblin, bugbear). A goblin's arrows go in `ar` as the rangers' do, with the goblin's id,
 negative, as the shooter: every player sees them, and no page takes them for its own.
 
-The server runs the mobs of a shared world (`Room.horde`, a `Horde`, see CLAUDE.md "Mobs and
-fights"): `Room.tick()` steps them with every player's true state, and a mob's hit stuns that
+The server runs the mobs of a shared world (`Room.horde`, a `Horde`, see
+`docs/code/combat.md`): `Room.tick()` steps them with every player's true state, and a mob's hit stuns that
 state at once. The client takes the stun from the next snapshot (`you`), and its prediction
 replays the unconfirmed inputs with it, so the player stands still at once and a correction
 is small. The client draws the mobs 100 ms in the past, like the players (`Remotes.mobsAt()`); a
@@ -690,7 +690,7 @@ effect of the blow in its direction.
 it from the TypeScript sources (type stripping); there is no build step.
 
 ```bash
-scripts/dev.sh                       # local: the server and the page, the Wilds shared (see CLAUDE.md)
+scripts/dev.sh                       # local: the server and the page, the Wilds shared (see docs/development.md)
 npm run server                       # local, port 3020, allows the Vite origins
 curl -s http://127.0.0.1:3020/healthz   # {"ok":true,"protocol":26,"players":{"wilds":0},"accounts":true} (one count per shared world)
 pm2 logs game-server                  # on the VPS: one line per arrival and departure; no addresses
@@ -734,7 +734,7 @@ nothing. Set it for both or for neither: a page that shares a world needs a serv
 - `packages/engine-server/test/server.test.ts`: the real server on a free port, with `ws`
   clients: two visitors, refusals, a bad message, another origin, the per-address limit,
   ping and health.
-- In a browser: two Playwright contexts in a shared world (see CLAUDE.md, "Verify a change in a
-  browser"): each sees the other (the `others` line of `?debug`; for an admin also `#presence`), and a door
+- In a browser: two Playwright contexts in a shared world (see
+  `docs/browser-checks.md`): each sees the other (the `others` line of `?debug`; for an admin also `#presence`), and a door
   that one opens is open for the other. The `net` line of `?debug` gives the others in the world, the
   near ones and the names that show: "3 others (2 near, 1 named)".

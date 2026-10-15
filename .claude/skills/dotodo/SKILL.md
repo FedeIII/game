@@ -27,7 +27,7 @@ even if they are small. If you find a new problem, add it to the list as a new i
 
 - Read all the code that the item names. A name in the item can be old: if it is gone, find the
   code with a search.
-- Read the parts of `CLAUDE.md` that apply to the item.
+- Read the documents of `docs/code/` that apply to the item (the map is in `CLAUDE.md`).
 - For a quest, an encounter, a mob or an ability, read `docs/game-design.md` first.
 - For a change to the story, read `docs/story/`. Change it in the same commit as the code.
 - Read the feature document in `docs/features/` that the change touches.
@@ -55,12 +55,13 @@ Obey the rules of `CLAUDE.md`. Especially:
 2. Make sure that all tests pass. If a test fails, fix the cause. Do not delete a test or make it
    weaker.
 3. For a change that the player sees (GUI, art, the world, a fight), check it in a browser: see
-   "Verify a change in a browser" in `CLAUDE.md`. Look at the screenshot with the Read tool.
+   `docs/browser-checks.md`. Look at the screenshot with the Read tool.
 
 ## 6. Update the documents
 
-- Update `CLAUDE.md`, `docs/features/`, `docs/story/` and `docs/multiplayer.md` where the change
+- Update `docs/code/`, `docs/features/`, `docs/story/` and `docs/multiplayer.md` where the change
   makes them wrong.
+- Do not write details in `CLAUDE.md`: it has only the rules and the map of the documents.
 - Write in Simplified Technical English.
 
 ## 7. Commit, and mark the item done
