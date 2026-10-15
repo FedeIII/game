@@ -6,20 +6,6 @@
 
 ## Open
 
-- **Variants for the random huts of the Wilds** (2026-10-14). The random houses of the Wilds must
-  have variants. Now every random house has the same look: no `style` (so `DEFAULT_STYLE`, stone
-  walls and a slate roof), a wood floor (`Ground.Floor`), no windows and no roof props. Only the size
-  (7-11 x 6-9 tiles), the door column and the furniture change.
-  Code: `generateHouse()` and `furnish()` in `worlds/wilds/src/houses.ts`; the floor of a house in
-  `worlds/wilds/src/source.ts` (`house.id === HOME_ID ? Ground.FloorEarth : Ground.Floor`); the home
-  as an example of a style (`style: { walls: 'timber', roof: 'thatch' }`, a window, a chimney) in
-  `worlds/wilds/src/home.ts`; `Building.style`, `windows`, `roofProps` and `DEFAULT_STYLE` in
-  `packages/engine/src/buildings.ts`; `WALL_STYLES`, `ROOF_STYLES`, `ROOF_PROPS` in
-  `packages/engine-client/art/buildings.ts`; the tests of the houses in `worlds/wilds/test/`.
-  Ask Fede: which variants: the wall and roof styles, the floors, windows and chimneys, other shapes
-  (not only a rectangle), the furniture? Do the variants follow the land (the forest of the
-  Sovereignty, the wildlands)?
-
 - **Different DCs for ability gates by the difficulty of the action** (2026-10-15). Each ability gate
   must have its own DC (difficulty class), from the difficulty that the design gives to its action.
   Now nearly every gate needs a score of 13 (`GATE_SCORE`): the wade and the barred doors (STR), the
@@ -273,3 +259,8 @@
   light, medium, heavy (new frames: a low roll over one shoulder to one knee) and overloaded (a step
   aside); they differ in distance and speed, safe ticks and stamina, and DEX adds distance and safe
   ticks. Done 2026-10-15, commit `0f73005`.
+- **Variants for the random huts of the Wilds** (2026-10-14). Each random house now has the look of its
+  land (walls, roof, floor), a shape (a rectangle, an L or a T: `Building.cut` in the engine), windows
+  and a chimney now and then, and a kind with its own things (cottage, farmhouse, hunter's lodge with a
+  pelt, hermit's hut with a lectern, store room); most are dark with a cold candle, about one in five is
+  lit. Done 2026-10-15, commit `b87f54d`.
