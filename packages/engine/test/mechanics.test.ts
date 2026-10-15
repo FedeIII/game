@@ -16,12 +16,15 @@ import {
   PLAIN_GEAR,
   PLAIN_SCORES,
   PLAYER_SPEED,
+  RAGE_TICKS,
   ROLLS,
+  SHIELD_AFTER_TICKS,
   SHOVE_KNOCK_MS,
   SHOVE_TICKS,
   RIPOSTE_MS,
   TICK_SECONDS,
   TURN_MS,
+  UNCANNY_TICKS,
   World,
   atFlank,
   braceGrade,
@@ -519,5 +522,94 @@ describe('8. the clash', () => {
       expect(results).toHaveLength(1);
       expect(events).toEqual([]);
     }
+  });
+});
+
+describe('9. the reactions of the classes', () => {
+  const on = new Set<Mechanic>(['reactions']);
+
+  it("a wizard's brace is the spell Shield: +5 AC from every side, until 0.3 s after the brace", () => {
+    // The d20 of the mob shows 10: 14 hits AC 14 (the brace), and misses AC 15 (the Shield).
+    for (const [mechanics, kinds, hits] of [
+      [['reactions'], ['shield'], false],
+      [[], [], true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(mechanics as readonly Mechanic[], faces(10), 'skirmisher', { ac: 10, braceAc: 4, class: 'wizard' }, -14);
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      state.aim = 0;
+      state.brace = 10;
+      state.braceAge = 9;
+      const { hit, events } = blow(horde, player, mob);
+      expect((hit?.[2] ?? 0) > 0).toBe(hits);
+      expect(events.map((e) => e.kind)).toEqual(kinds);
+    }
+    // After the brace, the Shield holds SHIELD_AFTER_TICKS more.
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 0, y: 0, attack: 0 }, world, { brace: true, class: 'wizard', mechanics: on });
+    for (let i = 0; i < 18; i++) stepPlayer(p, NO_INPUT, world, { brace: true, class: 'wizard', mechanics: on });
+    stepPlayer(p, { x: -1, y: 0 }, world, { brace: true, class: 'wizard', mechanics: on });
+    for (let i = 0; i < 40 && p.brace > 0; i++) stepPlayer(p, NO_INPUT, world, { brace: true, class: 'wizard', mechanics: on });
+    expect(p.brace).toBe(0);
+    expect(p.ward).toBe(SHIELD_AFTER_TICKS);
+  });
+
+  it('a monk in a brace takes 1d10 + DEX + level off an arrow, and catches it when nothing is left', () => {
+    // The arrow hits (18), its d6 shows 3 (5 damage), and the monk's d10 shows 5 (+ 5): caught.
+    const { horde, player, state } = duel(['reactions'], faces(18, 10, 10), 'goblin', { ac: 10, braceAc: 3, class: 'monk', deflect: 5 }, 60);
+    const events: MechanicEvent[] = [];
+    for (let t = 0; t < 4000 && events.length === 0; t += TICK_MS) {
+      state.brace = 10;
+      horde.step(TICK_MS, [player]);
+      events.push(...horde.takeEvents());
+    }
+    expect(events.map((e) => e.kind)).toEqual(['caught']);
+    expect(state.hp).toBe(1000);
+    expect(state.stun).toBe(0);
+  });
+
+  it("a monk's guard stance costs no stamina (Patient Defense)", () => {
+    const p = createPlayer(100, 100);
+    for (let i = 0; i < 60; i++) stepPlayer(p, { x: 0, y: 0, guard: true }, world, { class: 'monk', mechanics: new Set<Mechanic>(['guard', 'reactions']) });
+    expect(p.guarding).toBe(true);
+    expect(p.stamina).toBe(100);
+  });
+
+  it('a rogue hit in its own attack takes half the damage, once in 30 s (Uncanny Dodge)', () => {
+    // Every die shows its highest face: 1d6+2 is 8.
+    const { horde, player, state, mob } = duel(['reactions'], faces(20), 'skirmisher', { ac: 10, class: 'rogue' });
+    expect(untilWindup(horde, player, mob, 20)).toBe(true);
+    state.attack = 10;
+    const first = blow(horde, player, mob);
+    expect(first.events.map((e) => e.kind)).toEqual(['uncanny']);
+    // A natural 20 rolls the dice twice: 2d6 + 2 = 14, halved to 7.
+    expect(first.hit?.[2]).toBe(7);
+    expect(state.uncanny).toBe(UNCANNY_TICKS);
+  });
+
+  it('a fighter with a shield in a brace protects a companion within 1 tile: the blow rolls with disadvantage', () => {
+    for (const [braced, hits] of [
+      [true, false],
+      [false, true],
+    ] as const) {
+      // The d20s of the mob show 15, then 5: one hits AC 10, the lower misses.
+      const { horde, player, mob } = duel(['reactions'], faces(15, 5));
+      const fighter: HordePlayer = { id: 2, state: tough(100, 112), traits: { ac: 18, class: 'fighter', shield: true } };
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      fighter.state.brace = braced ? 10 : 0;
+      expect(untilWindup(horde, player, mob, 20)).toBe(true);
+      let hit: MobHit | undefined;
+      for (let t = 0; t < 1000 && !hit && mob.state === 'windup'; t += TICK_MS) hit = horde.step(TICK_MS, [player, fighter]).find(([m]) => m === mob.id);
+      expect((hit?.[2] ?? 0) > 0).toBe(hits);
+    }
+  });
+
+  it("a barbarian's first attack starts a rage that halves the damage of each hit", () => {
+    const p = createPlayer(100, 100);
+    stepPlayer(p, { x: 0, y: 0, attack: 0 }, world, { class: 'barbarian', mechanics: on });
+    expect(p.rage).toBe(RAGE_TICKS);
+    const { horde, player, state, mob } = duel(['reactions'], faces(19), 'skirmisher', { ac: 10, class: 'barbarian' });
+    state.rage = 100;
+    // 1d6+2 at its highest face: 8, halved to 4.
+    expect(blow(horde, player, mob).hit?.[2]).toBe(4);
   });
 });

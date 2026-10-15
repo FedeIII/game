@@ -7,6 +7,9 @@ import { FIGHT_INK } from './fight-numbers.ts';
  * numbers of a fight do (render/fight-numbers.ts). Gold for a good moment of the player, the grey of a
  * miss for what goes against it.
  */
+/** The blue of a spell of protection (the spell Shield of a wizard or a sorcerer). */
+const SPELL_BLUE = 0x8ab8ff;
+
 export interface MechanicWordStyle {
   readonly over: 'player' | 'mob';
   readonly ink: number;
@@ -30,4 +33,10 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   clash: { over: 'player', ink: FIGHT_INK.blow, sound: 'glance' },
   clashWon: { over: 'mob', ink: FIGHT_INK.crit, sound: 'glance' },
   clashLost: { over: 'player', ink: FIGHT_INK.hurt, sound: 'glance' },
+  shield: { over: 'player', ink: SPELL_BLUE },
+  deflect: { over: 'player', ink: FIGHT_INK.crit },
+  caught: { over: 'player', ink: FIGHT_INK.crit },
+  uncanny: { over: 'player', ink: FIGHT_INK.crit },
+  protect: { over: 'player', ink: FIGHT_INK.crit },
+  rage: { over: 'player', ink: FIGHT_INK.hurt },
 };

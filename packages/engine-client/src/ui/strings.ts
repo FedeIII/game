@@ -527,7 +527,7 @@ const EN = {
     title: 'Sandbox',
     note: 'Nothing here is saved.',
     foes: 'Foes (three, with five times their hit points)',
-    foe: { skirmisher: 'Goblins', brute: 'Brutes', bugbear: 'Bugbears', hobgoblin: 'Hobgoblins', worg: 'Worgs', bandit: 'Bandits' },
+    foe: { skirmisher: 'Goblins', goblin: 'Goblin archers', brute: 'Brutes', bugbear: 'Bugbears', hobgoblin: 'Hobgoblins', worg: 'Worgs', bandit: 'Bandits' },
     mechanicsTitle: 'Mechanics of the melee draft',
     /** Each mechanic (mechanics.ts): its name, and what it does in one line. */
     mechanics: {
@@ -563,9 +563,13 @@ const EN = {
         name: '8. Clash',
         line: 'A blow of yours in the last 0.05 s of a wind-up meets the blow of the mob: each side rolls d20 + its attack bonus, and nobody takes damage. The loser reels ("clash won", "clash lost"); a tie pushes both back ("clash"). With the parry on, the parry comes first.',
       },
+      reactions: {
+        name: '9. Reactions of the classes',
+        line: 'Wizard, sorcerer: the brace is the spell Shield, +5 AC from every side, until 0.3 s after it. Monk: an arrow in a brace loses 1d10 + DEX + level of damage, or is caught; the guard stance costs no stamina. Rogue: once in 30 s, a hit in your attack takes half damage. Fighter with a shield: your brace gives a blow on a companion within 1 tile disadvantage. Barbarian: your first attack starts a rage of 60 s that halves the damage of each hit.',
+      },
     } satisfies Record<Mechanic, { readonly name: string; readonly line: string }>,
     /** The words over the player or a mob for what a mechanic did (mechanics.ts, MechanicEvent): the small font, no "!". */
-    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost' } satisfies Record<MechanicEventKind, string>,
+    words: { sharp: 'sharp', riposte: 'open', behind: 'behind', flank: 'flank', parry: 'parry', block: 'block', broken: 'broken', shoved: 'down', held: 'holds', tooBig: 'too big', clash: 'clash', clashWon: 'clash won', clashLost: 'clash lost', shield: 'shield', deflect: 'deflect', caught: 'caught', uncanny: 'uncanny dodge', protect: 'protected', rage: 'rage' } satisfies Record<MechanicEventKind, string>,
     restart: 'Start again',
     record: (wins: number, losses: number): string => `Won ${wins} · Lost ${losses}`,
     noFight: 'No fight has ended yet.',

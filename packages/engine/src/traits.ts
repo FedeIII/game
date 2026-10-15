@@ -110,6 +110,8 @@ export interface PlayerTraits {
   readonly size: Size;
   /** What a shove of the sandbox adds to its d20 (mechanics.ts): the STR modifier and the proficiency bonus. */
   readonly athletics: number;
+  /** What a monk's Deflect Missiles takes off an arrow, with 1d10 (the reactions of the sandbox, mechanics.ts): the DEX modifier and the level. */
+  readonly deflect: number;
   /** Its most hit points at its level (the hit die of its class, and CON: levelHp). */
   readonly maxHp: number;
   /** The length of a stun that a mob gives it, as a share (CON). */
@@ -340,6 +342,7 @@ export function traitsOf(final: Scores, cls: CharacterClass, gear: Gear, level =
     shield: gear.off === 'shield',
     size,
     athletics: str + proficiencyBonus(level),
+    deflect: dex + level,
     maxHp: levelHp(cls, con, level),
     stun: Math.max(0.1, 1 - STUN_PER_MOD * con),
     recover: 0,

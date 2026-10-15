@@ -110,8 +110,9 @@ that I can compare a fight with and without a mechanic.
   foes that hit of those that reached the character, with the hit points that they took ("Won in 41 s ·
   12 of your 19 blows hit · 4 of their 15 attacks hit (38 HP)"). Before the first end: "No fight has
   ended yet."
-- **AC-SBX-005.3:** "Foes" gives the kinds: goblins (the default), brutes, bugbears, hobgoblins, worgs
-  and bandits (Spanish: goblins, brutos, osgos, hobgoblins, huargos, bandidos).
+- **AC-SBX-005.3:** "Foes" gives the kinds: goblins (the default), goblin archers, brutes, bugbears,
+  hobgoblins, worgs and bandits (Spanish: goblins, goblins arqueros, brutos, osgos, hobgoblins, huargos,
+  bandidos).
 - **AC-SBX-005.4:** "Mechanics of the melee draft" has a switch for each mechanic, with its name and
   what it does in one line. A switch takes effect at once, in the fight that goes on.
 - **AC-SBX-005.5:** While the panel is open, the fight stands still. Escape or the button closes it,
@@ -279,6 +280,30 @@ blows as a contest of dice (the draft, proposal 8).
 
 ---
 
+### REQ-SBX-015: 9. The reactions of the classes
+
+**User Story:** As an admin, I want each class to answer a blow in its own way, so that I can test the
+reactions of the SRD as class features (the draft, proposal 9).
+
+**Acceptance Criteria:**
+- **AC-SBX-015.1:** With the switch "9. Reactions of the classes", the brace of a wizard or a sorcerer is
+  the spell Shield: +5 AC (in place of the AC of the brace, no grade) against every blow from every side,
+  from the start of the brace to 18 ticks (0.3 s) after its end; the word "shield" (Spanish "escudo")
+  rises in blue.
+- **AC-SBX-015.2:** An arrow that hits a monk in a brace loses 1d10 + its DEX modifier + its level of
+  damage ("deflect", Spanish "desvío"); at 0 or less the monk catches it: no damage and no stun
+  ("caught", "atrapada"). A monk's guard stance costs no stamina (Patient Defense).
+- **AC-SBX-015.3:** A hit on a rogue in its own attack, out of a brace, takes half of its damage, once in
+  30 s ("uncanny dodge", "esquiva asombrosa").
+- **AC-SBX-015.4:** A fighter with a shield in a brace protects another player or a companion within 1
+  tile (16 px): a blow on that one rolls with disadvantage ("protected", "protección").
+- **AC-SBX-015.5:** A barbarian's first attack starts a rage of 60 s ("rage", "furia"), which halves the
+  damage of each hit (at least 1); the next rage waits 60 s after its end.
+- **AC-SBX-015.6:** The foes of the panel include goblin archers (Spanish "goblins arqueros"), to test the
+  arrows.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -325,6 +350,10 @@ blows as a contest of dice (the draft, proposal 8).
   `SHOVE_KNOCK_MS` 800, `SHOVE_PUSH` 16.
 - **8. The clash.** `Horde.strike(..., player)` calls `Horde.clash()` for each mob that the blow
   touches; `CLASH_TICKS` 3, `CLASH_REEL_TICKS` 24, `CLASH_PUSH` 4, `CLASH_PAUSE_MS` 250.
+- **9. The reactions.** `PlayerState.ward`, `uncanny`, `rage` and `rageRest` (ticks), `PlayerTraits.deflect`
+  (DEX modifier + level), `StepTraits.class`; `shieldCaster()`, `SHIELD_AC` 5, `SHIELD_AFTER_TICKS` 18,
+  `UNCANNY_TICKS` 1800, `PROTECT_RANGE` 16, `RAGE_TICKS` and `RAGE_REST_TICKS` 3600. The page puts the
+  word of a rage itself (a rage starts in `stepPlayer()`).
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

@@ -1,4 +1,4 @@
-import type { Race } from './character.ts';
+import type { CharacterClass, Race } from './character.ts';
 import type { MobKind } from './mobs.ts';
 
 /**
@@ -14,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -32,9 +32,29 @@ export const NO_MECHANICS: Mechanics = new Set();
  * parry); `block`, a blow that a shield turned, and `broken`, a heavy blow that broke a guard (the
  * guard stance); `shoved`, a mob that a shove knocked down, `held`, a mob that a shove did not move, and
  * `tooBig`, a mob too big to shove (the shove); `clash`, `clashWon` and `clashLost`, two blows that met:
- * a tie, a win and a loss of the player (the clash).
+ * a tie, a win and a loss of the player (the clash); `shield`, `deflect`, `caught`, `uncanny`, `protect`
+ * and `rage`, the reactions of the classes.
  */
-export type MechanicEventKind = 'sharp' | 'riposte' | 'behind' | 'flank' | 'parry' | 'block' | 'broken' | 'shoved' | 'held' | 'tooBig' | 'clash' | 'clashWon' | 'clashLost';
+export type MechanicEventKind =
+  | 'sharp'
+  | 'riposte'
+  | 'behind'
+  | 'flank'
+  | 'parry'
+  | 'block'
+  | 'broken'
+  | 'shoved'
+  | 'held'
+  | 'tooBig'
+  | 'clash'
+  | 'clashWon'
+  | 'clashLost'
+  | 'shield'
+  | 'deflect'
+  | 'caught'
+  | 'uncanny'
+  | 'protect'
+  | 'rage';
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -219,3 +239,34 @@ export const CLASH_TICKS = 3;
 export const CLASH_REEL_TICKS = 24;
 export const CLASH_PUSH = 4;
 export const CLASH_PAUSE_MS = 250;
+
+// ---------------------------------------------------------------- 9. the reactions of the classes
+
+/**
+ * The reactions of the classes (proposal 9: what the SRD gives some classes for the same moment; a class
+ * feature of levels 1 to 5, here at every level):
+ * - A wizard or a sorcerer: the spell Shield. Its brace is a Shield: SHIELD_AC more on its AC (in place
+ *   of the AC of the brace) against every blow, from every side, from the start of the brace to
+ *   SHIELD_AFTER_TICKS after its end (PlayerState.ward).
+ * - A monk: Deflect Missiles. An arrow that hits it in a brace loses 1d10 + its DEX modifier + its level
+ *   of damage (PlayerTraits.deflect); at 0 it catches the arrow (no damage, no stun). And Patient
+ *   Defense: its guard stance costs no stamina.
+ * - A rogue: Uncanny Dodge. Once in UNCANNY_TICKS, a hit in its own attack (out of a brace) takes half of
+ *   its damage (PlayerState.uncanny).
+ * - A fighter: the fighting style Protection. With a shield, its brace covers another player (or a
+ *   companion) within PROTECT_RANGE: a blow on that one rolls with disadvantage.
+ * - A barbarian: Rage. It needs no brace: its first attack starts a rage of RAGE_TICKS that halves the
+ *   damage of each hit (PlayerState.rage), and the next rage waits RAGE_REST_TICKS after its end.
+ * - A ranger: none (the kite stays its art). The others: none in the draft.
+ */
+export const SHIELD_AC = 5;
+export const SHIELD_AFTER_TICKS = 18;
+export const UNCANNY_TICKS = 1800;
+export const PROTECT_RANGE = 16;
+export const RAGE_TICKS = 3600;
+export const RAGE_REST_TICKS = 3600;
+
+/** Whether a class casts the spell Shield in its brace (the reactions). */
+export function shieldCaster(cls: CharacterClass | undefined): boolean {
+  return cls === 'wizard' || cls === 'sorcerer';
+}

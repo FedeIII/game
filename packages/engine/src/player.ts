@@ -1,7 +1,7 @@
 import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import type { AttackWeight } from './gear.ts';
 import type { LoadTier } from './load.ts';
-import { BLOCK_STAMINA, GUARD_SPEED, GUARD_STAMINA, type Mechanics } from './mechanics.ts';
+import { BLOCK_STAMINA, GUARD_SPEED, GUARD_STAMINA, RAGE_REST_TICKS, RAGE_TICKS, SHIELD_AFTER_TICKS, shieldCaster, type Mechanics } from './mechanics.ts';
 import type { PlayerTraits } from './traits.ts';
 import { Ground, type SolidMap } from './world.ts';
 
@@ -102,6 +102,11 @@ export interface PlayerState {
   reel: number;
   /** Ticks left of a shove (0: none): it stands, its hands on the mob (the shove, mechanics.ts). */
   shove: number;
+  /** The reactions of the classes (mechanics.ts): the ticks left of a Shield after a brace, of the wait of an Uncanny Dodge, of a rage and of the wait after it. */
+  ward: number;
+  uncanny: number;
+  rage: number;
+  rageRest: number;
   /**
    * Ticks left of an evade (0: none): a mob's attack missed the player in its brace, and the player
    * sways out of it where it stands. Only a look: it ends with the brace (missPlayer).
@@ -276,7 +281,7 @@ export interface PlayerMap extends SolidMap {
  * character braces and pays).
  */
 export type StepTraits = Partial<
-  Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina' | 'shield'>
+  Pick<PlayerTraits, 'wade' | 'swim' | 'cooldown' | 'guard' | 'dodgeCooldown' | 'rollReach' | 'rollSafe' | 'maxHp' | 'recover' | 'maxStamina' | 'staminaRefill' | 'speed' | 'brace' | 'attackStamina' | 'shield' | 'class'>
 > & {
   /** The mechanics of the melee draft that are on (mechanics.ts): none, but in the sandbox of an admin. */
   readonly mechanics?: Mechanics;
@@ -360,6 +365,10 @@ export function createPlayer(x: number, y: number): PlayerState {
     guarding: false,
     reel: 0,
     shove: 0,
+    ward: 0,
+    uncanny: 0,
+    rage: 0,
+    rageRest: 0,
     evade: 0,
     jump: 0,
     hp: PLAIN_HP,
@@ -448,6 +457,10 @@ export function wakePlayer(player: PlayerState, x: number, y: number, traits: Pa
   player.guarding = false;
   player.reel = 0;
   player.shove = 0;
+  player.ward = 0;
+  player.uncanny = 0;
+  player.rage = 0;
+  player.rageRest = 0;
   player.evade = 0;
   player.jump = 0;
   player.poison = 0;
@@ -831,6 +844,8 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
       player.rest = 0;
     }
     player.cooldown = (traits.cooldown ?? ATTACK_COOLDOWN_TICKS) * (tired ? TIRED_COOLDOWN : 1);
+    // A barbarian's first attack starts its rage (the reactions).
+    if (traits.mechanics?.has('reactions') && traits.class === 'barbarian' && player.rage === 0 && player.rageRest === 0) player.rage = RAGE_TICKS;
     player.aim = move.attack;
     player.facing = facingOfAngle(move.attack);
     player.vx = 0;
@@ -847,7 +862,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
     // tick while the step back is held. An evade (a miss in the brace) sways it, and ends with it.
     player.braceAge++;
     if (player.brace > 1 || !back) player.brace--;
-    if (player.brace === 0) player.braceAge = 0;
+    if (player.brace === 0) {
+      player.braceAge = 0;
+      // The spell Shield of a wizard or a sorcerer holds a moment after the brace (the reactions).
+      if (traits.mechanics?.has('reactions') && shieldCaster(traits.class)) player.ward = SHIELD_AFTER_TICKS;
+    }
     if (player.evade > 0) player.evade--;
     if (player.brace === 0) player.evade = 0;
     // Stamina does not fill in a brace: it fills again STAMINA_REST_TICKS after its end.
@@ -881,6 +900,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, world: PlayerM
  */
 function body(player: PlayerState, traits: StepTraits, dt: number): void {
   const maxHp = traits.maxHp ?? PLAIN_HP;
+  // The reactions of the classes (mechanics.ts): a Shield after a brace, the wait of an Uncanny Dodge, a rage and the wait after it.
+  if (player.ward > 0) player.ward--;
+  if (player.uncanny > 0) player.uncanny--;
+  if (player.rage > 0 && --player.rage === 0) player.rageRest = RAGE_REST_TICKS;
+  else if (player.rageRest > 0) player.rageRest--;
   if (player.hp > 0 && player.hp < maxHp && (traits.recover ?? RECOVER_TICKS) > 0) {
     if (player.recover > 0) player.recover--;
     if (player.recover === 0) {
@@ -935,7 +959,9 @@ function guardStep(player: PlayerState, move: MoveInput, solid: SolidMap, traits
   player.vy = move.y * speed;
   moveAxis(player, solid, player.vx * dt, 0);
   moveAxis(player, solid, 0, player.vy * dt);
-  if (!traits.shield) player.stamina = Math.max(0, player.stamina - GUARD_STAMINA * dt);
+  // A shield blocks for stamina, not each second; a monk's Patient Defense costs none (the reactions).
+  const patient = traits.class === 'monk' && traits.mechanics?.has('reactions') === true;
+  if (!traits.shield && !patient) player.stamina = Math.max(0, player.stamina - GUARD_STAMINA * dt);
   player.rest = 0;
 }
 

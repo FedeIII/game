@@ -1151,6 +1151,8 @@ async function run(options: GameOptions): Promise<void> {
   });
   // What the mechanics of the sandbox did since the last frame (mechanics.ts): a word over the player or the mob.
   const mechanicEvents: MechanicEvent[] = [];
+  /** Whether the character was in a rage (a barbarian, the reactions of the sandbox) in the last tick. */
+  let raging = false;
   // The hit points and the glancing blows of the player, as the last frame saw them: a change shows a number.
   let numbersHp = player.hp;
   let numbersGlance = player.glance;
@@ -1852,6 +1854,9 @@ async function run(options: GameOptions): Promise<void> {
       input = { ...input, attack: attackClick ? aimAt(attackClick) : aim(input) };
       attackAskedAt = -Infinity;
     }
+    // A barbarian's rage (the reactions of the sandbox): its word when it starts.
+    if (sandboxFight && player.rage > 0 && !raging) mechanicEvents.push({ kind: 'rage', mob: 0, player: 0 });
+    raging = player.rage > 0;
     // The shove of the sandbox (mechanics.ts): a roll into a mob in reach shoves it, and does not roll.
     if (input.dodge && sandboxFight && player.brace === 0) {
       const way = Math.hypot(input.x, input.y) > 0.1 ? Math.atan2(input.y, input.x) : (input.face ?? facingAngle(player.facing));

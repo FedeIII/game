@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, canShove, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, RIPOSTE_MS, SHARP_PARRY_TICKS, TURN_MS, atFlank, braceGrade, inFront, lateBraceAc, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, lateBraceAc, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -807,7 +807,7 @@ export interface HordePlayer {
    * presence, daunt); and the guard that it gives to the players near it when they are hit (CHA:
    * inspire).
    */
-  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'shield' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
+  readonly traits?: Partial<Pick<PlayerTraits, 'ac' | 'braceAc' | 'shield' | 'class' | 'level' | 'deflect' | 'stun' | 'resist' | 'guard' | 'presence' | 'daunt' | 'inspire'>>;
 }
 
 /**
@@ -1727,7 +1727,11 @@ export class Horde {
     const body = this.bodies.get(id);
     const burning = mob.burning !== undefined;
     const defence = this.defence(mob, id, target, body, melee);
-    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), defence.ac, this.dice, defence.edge);
+    // A fighter's Protection (the reactions): a fighter with a shield in a brace close by gives the blow disadvantage.
+    const guardian = this.mechanics.has('reactions') ? players.find((p) => p.id !== id && p.traits?.class === 'fighter' && p.traits.shield === true && p.state.brace > 0 && Math.hypot(p.state.x - target.x, p.state.y - target.y) <= PROTECT_RANGE) : undefined;
+    if (guardian) this.event('protect', mob, id);
+    const edge = guardian ? edgeOf(defence.edge > 0, true) : defence.edge;
+    const roll = attackRoll(stats.toHit + (burning ? BURN_TO_HIT : 0), defence.ac, this.dice, edge);
     if (!roll.hit) {
       missPlayer(target, defence.braced);
       if (defence.grade === 'sharp') this.event('sharp', mob, id);
@@ -1757,6 +1761,26 @@ export class Horde {
     }
     if (burning) damage += rollDice(BURN_DICE, this.dice, roll.crit);
     damage = Math.max(1, damage);
+    if (this.mechanics.has('reactions')) {
+      // A monk deflects an arrow in its brace, and catches it when nothing is left.
+      if (!melee && body?.class === 'monk' && target.brace > 0) {
+        damage -= rollDice(dice(1, 10, body.deflect ?? 0), this.dice);
+        if (damage <= 0) {
+          this.event('caught', mob, id);
+          hits.push([mob.id, id, 0]);
+          return false;
+        }
+        this.event('deflect', mob, id);
+      }
+      // A rogue's Uncanny Dodge: a hit in its own attack, out of a brace, once in a while.
+      if (body?.class === 'rogue' && target.attack > 0 && target.brace === 0 && target.uncanny === 0) {
+        damage = Math.max(1, Math.floor(damage / 2));
+        target.uncanny = UNCANNY_TICKS;
+        this.event('uncanny', mob, id);
+      }
+      // A barbarian's rage halves the damage.
+      if (target.rage > 0) damage = Math.max(1, Math.floor(damage / 2));
+    }
     hitPlayer(target, damage, stats.stunTicks, stats.poisonTicks, body);
     if (target.down === 0) target.inspired = inspireFor(id, target, players);
     hits.push([mob.id, id, damage]);
@@ -1787,6 +1811,11 @@ export class Horde {
         return { ac, edge: 0, braced: false, grade: null, parry: null };
       }
       return { ac, edge: -1, braced: false, grade: null, parry: null, block: body?.shield === true };
+    }
+    // The spell Shield of a wizard or a sorcerer (the reactions): in its brace and a moment after it, from every side.
+    if (this.mechanics.has('reactions') && shieldCaster(body?.class) && (target.brace > 0 || target.ward > 0)) {
+      this.event('shield', mob, id);
+      return { ac: ac + SHIELD_AC, edge: 0, braced: target.brace > 0, grade: null, parry: null };
     }
     if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null, parry: null };
     if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {

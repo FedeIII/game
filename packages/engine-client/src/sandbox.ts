@@ -18,8 +18,11 @@ export const SANDBOX_HP = 10;
 export const FOE_HP = 5;
 /** The number of foes in a fight. */
 export const FOE_COUNT = 3;
-/** The kinds of foe that the panel offers: the goblins of the forest first (Fede's choice). */
-export const SANDBOX_FOES = ['skirmisher', 'brute', 'bugbear', 'hobgoblin', 'worg', 'bandit'] as const satisfies readonly MobKind[];
+/**
+ * The kinds of foe that the panel offers: the goblins of the forest first (Fede's choice), and the
+ * goblin archers (their arrows: a monk's Deflect Missiles, the reactions of the classes).
+ */
+export const SANDBOX_FOES = ['skirmisher', 'goblin', 'brute', 'bugbear', 'hobgoblin', 'worg', 'bandit'] as const satisfies readonly MobKind[];
 export type SandboxFoe = (typeof SANDBOX_FOES)[number];
 /** The foes come this far east of the character (tiles), already on their way to it. */
 const FOE_TILES = 6;
