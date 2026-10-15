@@ -6,18 +6,6 @@
 
 ## Open
 
-- **Slower stamina refill while the player moves** (2026-10-15). Stamina must come back slower while
-  the player moves. Now stamina comes back at the same rate whether the player walks or stands:
-  `staminaRefill` per second (`STAMINA_REFILL` 20 + `REFILL_PER_MOD` 4 x the CON modifier), from
-  `STAMINA_REST_TICKS` (60) after the last use (an attack, a roll, the sneak walk, a brace).
-  Code: `body()` (`player.rest`, `player.stamina`) and `stepPlayer()` in
-  `packages/engine/src/player.ts`, with `STAMINA_REFILL`, `STAMINA_REST_TICKS`, `SNEAK_STAMINA`;
-  `staminaRefill`, `REFILL_PER_MOD` in `traitsOf()` in `packages/engine/src/traits.ts`; the stamina in
-  `docs/features/game/combat.md` (REQ-CMB-013); the `con` line of the debug panel and the traits list
-  (`ui/traits-list.ts`).
-  Ask Fede: how much slower (for example half the rate)? Does a slow walk or the sneak walk count as a
-  move? Does a companion follow the same rule?
-
 - **Bubbles of two NPCs overlap** (2026-10-15). In a conversation with Brann, the watchman at the
   south gate of Ironhold, the child came close and greeted the player by name (CHA 13): her bubble
   covered the line of the watchman. Two NPCs that stand close can show their bubbles one on top of
@@ -237,3 +225,7 @@
   `docs/features/abilities/checks.md`, `npm run checks` prints the register of every check, the locks
   and barred doors of the houses go from DC 10 to 13 by what the chest holds, and the other checks of
   the Wilds go from 10 to 16. Done 2026-10-15, commit `fb0f14d`.
+
+- **Slower stamina refill while the player moves** (2026-10-15). While the player walks, only a quarter
+  of the stamina refill comes back (Fede's choice; `WALK_REFILL_SHARE`, `staminaRefillNow()`; protocol
+  47); the character panel shows both rates. Done 2026-10-15, commit `e3e87fd`.
