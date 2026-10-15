@@ -6,29 +6,13 @@
 
 ## Open
 
-- **A short jump from the brace** (2026-10-15). In a brace, the dodge (the roll button, Shift or the
-  right mouse button) does not roll: the player makes a short jump in the direction of the input. The
-  player keeps the brace through the jump, but the jump costs the stamina of a roll. Now a dodge in a
-  brace ends the brace (`player.brace = 0`) and starts a roll of 32 px in 15 ticks
-  (`DODGE_DISTANCE`, `DODGE_TICKS`) that costs 35 stamina (`DODGE_STAMINA`).
-  Code: the start of a dodge in `stepPlayer()` (`move.dodge`, `player.dodgeAim`, `player.dodge`),
-  `canDodge()`, `canBeHit()`, `PlayerState.brace`, `heldBack`, `BRACE_TICKS`, `BRACE_AC` and the dodge
-  constants in `packages/engine/src/player.ts`; `PlayerTraits.braceAc` and `dodgeCooldown` in
-  `packages/engine/src/traits.ts`; the brace and roll frames (`braceParts()`, `rollParts()`) in
-  `packages/engine-client/art/attacks.ts`; the brace and the roll in `render/player-view.ts`;
-  `ui/dodge-button.ts`; REQ-CMB-013 in `docs/features/game/combat.md`; the next ideas of the melee in
-  `docs/drafts/combat-melee.md`.
-  Ask Fede: how far and how long is the jump? Can a mob hit the player in the jump (the brace AC, as
-  in a brace, or no hit, as in a roll)? Does the jump use the wait between dodges
-  (`dodgeCooldown`)? Does the jump need new frames, or does it show the brace frames with a hop?
-
 - **Evaluate the combat mechanics of the melee draft** (2026-10-15). Evaluate the mechanics of
   `docs/drafts/combat-melee.md`: step 1, the brace (built), and the twelve proposals that are not
   built (the grades of the brace, the riposte, the front of a brace, the sidestep, the parry, the
   guard stance and the shield block, the shove, the clash, the reactions of the classes, the shapes
   of a mob's blow, the guards of the mobs, a price in stamina). The draft has its own list of what to
   watch in a game, a recommended order and four questions for Fede. The item "A short jump from the
-  brace" (above) is near to proposal 4, the sidestep.
+  brace" (done: REQ-CMB-015) is near to proposal 4, the sidestep.
   Code: the brace (`BRACE_WINDOW_TICKS`, `BRACE_TICKS`, `heldBack`), `armourNow()`, `missPlayer()`,
   `glancePlayer()` and the dodge in `packages/engine/src/player.ts`; `BRACE_AC`, `braceAc`,
   `ATTACK_STAMINA` in `packages/engine/src/traits.ts`; `rollBlow()`, the wind-ups and `MOB_STATS` in
@@ -224,3 +208,8 @@
   the pages of a person), the other NPCs say no lines and no greetings (Fede's choice: they keep quiet);
   a greeting waits until the talk ends, and the greetings then come one at a time. Done 2026-10-15,
   commit `25016b9`.
+
+- **A short jump from the brace** (2026-10-15). In a brace, a dodge is now a short jump the way of the
+  input (1 tile in 0.15 s, a little shorter with more load, longer with more DEX), for the stamina of a
+  roll and with the wait between dodges; the brace and its AC go on through it, and it has frames of its
+  own. Done 2026-10-15, commit `c84ba00`.
