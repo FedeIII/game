@@ -2,7 +2,7 @@ import { TICK_SECONDS, TILE_SIZE } from './constants.ts';
 import { flyArrow, newArrow, type Arrow } from './arrows.ts';
 import { attackRoll, averageDice, dice, edgeOf, rollDice, rollingDice, type Dice, type DiceSource, type Edge } from './dice.ts';
 import { crXp } from './experience.ts';
-import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, lateBraceAc, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics } from './mechanics.ts';
+import { CLASH_PAUSE_MS, CLASH_PUSH, CLASH_REEL_TICKS, CLASH_TICKS, GUARD_BREAK_TICKS, MOB_BODY, NO_MECHANICS, PARRY_PUSH, PARRY_TICKS, PARRY_WINDOW_TICKS, PROTECT_RANGE, RIPOSTE_MS, SHARP_PARRY_TICKS, SHIELD_AC, SHOVE_ARC, SHOVE_KNOCK_MS, SHOVE_PUSH, SHOVE_TICKS, SLAM_WINDUP, TURN_MS, UNCANNY_TICKS, atFlank, braceGrade, canShove, inFront, inShape, lateBraceAc, shapeOf, shieldCaster, type BraceGrade, type MechanicEvent, type MechanicEventKind, type Mechanics, type Shape } from './mechanics.ts';
 import { MOB_LOOT, rollLoot, type Loot } from './items.ts';
 import { GUARD_TICKS, PLAYER_HALF_WIDTH, attackHits, blockPlayer, canBeHit, facingOfAngle, hitPlayer, missPlayer, moveAxis, normalAngle, rollOf, type Facing, type PlayerState } from './player.ts';
 import { INSPIRE_RANGE, proficiencyBonus, type PlayerTraits } from './traits.ts';
@@ -1042,6 +1042,10 @@ interface Brain {
   aim: number;
   /** The ms left in which it turns to a player at its flank: it does not wind up (the flank, mechanics.ts). */
   turnMs: number;
+  /** The shape of the blow that it winds up, and where the player stood when it began (the shapes of the blows, mechanics.ts). */
+  shape: Shape | null;
+  spotX: number;
+  spotY: number;
 }
 
 /** How Horde.spawn() puts a mob: its hit points, and whether it is steady. */
@@ -1269,6 +1273,9 @@ export class Horde {
       offBalanceMs: 0,
       aim: 0,
       turnMs: 0,
+      shape: null,
+      spotX: 0,
+      spotY: 0,
     });
     return mob;
   }
@@ -1489,7 +1496,9 @@ export class Horde {
           }
           // The blow: it reaches the player if the player is still close, and not stunned or just
           // after a stun. Then its attack roll: a hit stuns and hurts; a miss glances off.
-          const reached = target !== undefined && Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange && canBeHit(target);
+          // With a shape (the shapes of the blows), the blow lands only in its shape.
+          const inReach = target !== undefined && (brain.shape ? inShape(brain.shape, mob.x, mob.y, brain.aim, stats.hitRange, target.x, target.y, brain.spotX, brain.spotY) : Math.hypot(target.x - mob.x, target.y - mob.y) <= stats.hitRange);
+          const reached = inReach && canBeHit(target!);
           brain.hit = reached && this.attack(mob, brain.target!, target!, players, hits);
           // The flank: a blow that did not hit a player at its side; it must turn first.
           if (!brain.hit && target && this.mechanics.has('flank') && atFlank(mob.x, mob.y, brain.aim, target.x, target.y)) {
@@ -1796,15 +1805,17 @@ export class Horde {
   private defence(mob: Mob, id: number, target: PlayerState, body: HordePlayer['traits'], melee = true): Defence {
     const ac = body?.ac ?? 10;
     const braceAc = body?.braceAc ?? 0;
+    // A slam (the shapes of the blows) breaks a guard, and a brace or a parry does not count against it.
+    const slam = melee && this.brains.get(mob.id)?.shape === 'slam';
     // A parry that waits for this blow (the parry): the proficiency bonus on the AC, and disadvantage when sharp.
     const parry = melee ? this.parries.get(id) : undefined;
     if (parry && parry.mob === mob.id) {
       this.parries.delete(id);
-      if (this.clockMs <= parry.untilMs && target.parry > 0) return { ac: ac + parry.bonus, edge: parry.sharp ? -1 : 0, braced: false, grade: null, parry: { sharp: parry.sharp } };
+      if (this.clockMs <= parry.untilMs && target.parry > 0 && !slam) return { ac: ac + parry.bonus, edge: parry.sharp ? -1 : 0, braced: false, grade: null, parry: { sharp: parry.sharp } };
     }
     // The guard stance: a blow from its front rolls with disadvantage (a block with a shield); a heavy blow breaks it.
     if (target.guarding && this.mechanics.has('guard') && melee && inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
-      if (this.breaksGuard(mob)) {
+      if (this.breaksGuard(mob) || slam) {
         target.guarding = false;
         target.reel = Math.max(target.reel, GUARD_BREAK_TICKS);
         this.event('broken', mob, id);
@@ -1813,11 +1824,11 @@ export class Horde {
       return { ac, edge: -1, braced: false, grade: null, parry: null, block: body?.shield === true };
     }
     // The spell Shield of a wizard or a sorcerer (the reactions): in its brace and a moment after it, from every side.
-    if (this.mechanics.has('reactions') && shieldCaster(body?.class) && (target.brace > 0 || target.ward > 0)) {
+    if (this.mechanics.has('reactions') && shieldCaster(body?.class) && (target.brace > 0 || target.ward > 0) && !slam) {
       this.event('shield', mob, id);
       return { ac: ac + SHIELD_AC, edge: 0, braced: target.brace > 0, grade: null, parry: null };
     }
-    if (target.brace === 0) return { ac, edge: 0, braced: false, grade: null, parry: null };
+    if (target.brace === 0 || slam) return { ac, edge: 0, braced: false, grade: null, parry: null };
     if (this.mechanics.has('front') && !inFront(target.x, target.y, target.aim, mob.x, mob.y)) {
       this.event('behind', mob, id);
       return { ac, edge: 0, braced: false, grade: null, parry: null };
@@ -2333,8 +2344,13 @@ export class Horde {
         this.enter(mob, 'windup');
         mob.facing = facingTo(dx, dy, mob.facing);
         brain.timerMs = stats.windupMs;
-        // It aims its blow now (the flank).
+        // It aims its blow now (the flank), and chooses its shape (the shapes of the blows).
         brain.aim = Math.atan2(dy, dx);
+        brain.shape = this.mechanics.has('shapes') ? shapeOf(mob.kind, this.random()) : null;
+        brain.spotX = target.x;
+        brain.spotY = target.y;
+        if (brain.shape === 'slam') brain.timerMs = stats.windupMs * SLAM_WINDUP;
+        if (brain.shape) this.event(brain.shape, mob, brain.target!);
         return;
       }
       if (brain.turnMs > 0 && d <= stats.harass[1]) {

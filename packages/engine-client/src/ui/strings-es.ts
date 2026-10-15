@@ -492,8 +492,12 @@ export const ES: Strings = {
         name: '9. Reacciones de las clases',
         line: 'Mago, hechicero: la guardia es el conjuro Escudo, +5 a la CA por todos los lados, hasta 0,3 s después. Monje: una flecha en la guardia pierde 1d10 + DES + nivel de daño, o la atrapas; la postura defensiva no gasta aguante. Pícaro: una vez cada 30 s, un golpe en tu ataque hace la mitad de daño. Guerrero con escudo: tu guardia da desventaja a un golpe contra un compañero a 1 casilla. Bárbaro: tu primer ataque empieza una furia de 60 s que reduce a la mitad el daño de cada golpe.',
       },
+      shapes: {
+        name: '10. Formas de los golpes',
+        line: 'Una palabra sobre el enemigo anuncia su golpe cuando empieza a cargarlo. Una estocada (goblin, bandido, hobgoblin) es estrecha: un salto a un lado te saca de ella. Un barrido (bruto, osgo) es ancho: sigue al salto. Un mazazo (un bruto de vez en cuando) carga mucho y cae donde estabas: rueda o salta fuera; ni la guardia, ni la postura defensiva, ni la parada lo detienen. Un mordisco (huargo) es rápido y estrecho.',
+      },
     },
-    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia' },
+    words: { sharp: 'precisa', riposte: 'expuesto', behind: 'por detrás', flank: 'flanco', parry: 'parada', block: 'bloqueo', broken: 'rota', shoved: 'al suelo', held: 'resiste', tooBig: 'muy grande', clash: 'choque', clashWon: 'choque ganado', clashLost: 'choque perdido', shield: 'escudo', deflect: 'desvío', caught: 'atrapada', uncanny: 'esquiva asombrosa', protect: 'protección', rage: 'furia', thrust: 'estocada', sweep: 'barrido', slam: 'mazazo', bite: 'mordisco' },
     restart: 'Empezar de nuevo',
     record: (wins: number, losses: number): string => `Ganados ${wins} · Perdidos ${losses}`,
     noFight: 'Aún no ha terminado ningún combate.',

@@ -14,7 +14,7 @@ import type { MobKind } from './mobs.ts';
  */
 
 /** The mechanics, in the order of the proposals of the draft. */
-export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions'] as const;
+export const MECHANICS = ['grades', 'riposte', 'front', 'flank', 'parry', 'guard', 'shove', 'clash', 'reactions', 'shapes'] as const;
 
 export type Mechanic = (typeof MECHANICS)[number];
 
@@ -33,7 +33,8 @@ export const NO_MECHANICS: Mechanics = new Set();
  * guard stance); `shoved`, a mob that a shove knocked down, `held`, a mob that a shove did not move, and
  * `tooBig`, a mob too big to shove (the shove); `clash`, `clashWon` and `clashLost`, two blows that met:
  * a tie, a win and a loss of the player (the clash); `shield`, `deflect`, `caught`, `uncanny`, `protect`
- * and `rage`, the reactions of the classes.
+ * and `rage`, the reactions of the classes; `thrust`, `sweep`, `slam` and `bite`, the tell of a wind-up
+ * (the shapes of the blows).
  */
 export type MechanicEventKind =
   | 'sharp'
@@ -54,7 +55,8 @@ export type MechanicEventKind =
   | 'caught'
   | 'uncanny'
   | 'protect'
-  | 'rage';
+  | 'rage'
+  | Shape;
 
 export interface MechanicEvent {
   readonly kind: MechanicEventKind;
@@ -269,4 +271,60 @@ export const RAGE_REST_TICKS = 3600;
 /** Whether a class casts the spell Shield in its brace (the reactions). */
 export function shieldCaster(cls: CharacterClass | undefined): boolean {
   return cls === 'wizard' || cls === 'sorcerer';
+}
+
+// ---------------------------------------------------------------- 10. the shapes of the blows
+
+/**
+ * The shapes of a mob's blow (proposal 10): each kind of mob has one or two, each with its own tell and
+ * its own answer. The mob aims its blow when its wind-up starts (the flank), and the shape gives where
+ * the blow lands; a player out of it at the end of the wind-up is not hit (no roll), as out of reach.
+ * - A thrust (hobgoblin, bandit, goblin): straight, within THRUST_ARC of the aim, and a little further
+ *   (THRUST_REACH). A jump to the side gets out of it.
+ * - A sweep (brute, bugbear): wide, within SWEEP_ARC: a jump to the side stays in it.
+ * - A slam (the brute now and then, SLAM_SHARE; the Devastator): overhead, with a wind-up SLAM_WINDUP
+ *   times as long, on the place where the player stood when it began (within SLAM_RADIUS). A roll or a
+ *   jump gets out of it; a brace, a guard and a parry do not count against it (a guard breaks).
+ * - A bite (worg, cinder hound): quick and narrow, within BITE_ARC.
+ * The page shows the shape as a word over the mob when its wind-up starts: its tell, until the mobs get
+ * a wind-up of their own for each shape (art).
+ */
+export type Shape = 'thrust' | 'sweep' | 'slam' | 'bite';
+
+export const THRUST_ARC = (30 * Math.PI) / 180;
+export const THRUST_REACH = 4;
+export const SWEEP_ARC = (100 * Math.PI) / 180;
+export const BITE_ARC = (60 * Math.PI) / 180;
+export const SLAM_RADIUS = 14;
+export const SLAM_WINDUP = 1.5;
+export const SLAM_SHARE = 1 / 3;
+
+/** The shapes of the blow of each kind (the others have none: their blows land as before). */
+export const MOB_SHAPES: Readonly<Partial<Record<MobKind, { readonly shape: Shape; readonly slam?: number }>>> = {
+  brute: { shape: 'sweep', slam: SLAM_SHARE },
+  bugbear: { shape: 'sweep' },
+  devastator: { shape: 'slam' },
+  hobgoblin: { shape: 'thrust' },
+  bandit: { shape: 'thrust' },
+  skirmisher: { shape: 'thrust' },
+  worg: { shape: 'bite' },
+  hound: { shape: 'bite' },
+};
+
+/** The shape of the next blow of a mob of `kind` (`roll`: a random number from 0 to 1, for a slam now and then), or null. */
+export function shapeOf(kind: MobKind, roll: number): Shape | null {
+  const shapes = MOB_SHAPES[kind];
+  if (!shapes) return null;
+  return shapes.slam !== undefined && roll < shapes.slam ? 'slam' : shapes.shape;
+}
+
+/**
+ * Whether a blow of `shape` from a mob at (mx, my), aimed at `aim` (radians) with its reach `hitRange`,
+ * lands on a player at (x, y); a slam lands on the spot (sx, sy) where the player stood.
+ */
+export function inShape(shape: Shape, mx: number, my: number, aim: number, hitRange: number, x: number, y: number, sx: number, sy: number): boolean {
+  if (shape === 'slam') return Math.hypot(x - sx, y - sy) <= SLAM_RADIUS;
+  const d = Math.hypot(x - mx, y - my);
+  if (shape === 'thrust') return d <= hitRange + THRUST_REACH && (d <= 8 || inFront(mx, my, aim, x, y, THRUST_ARC));
+  return d <= hitRange && inFront(mx, my, aim, x, y, shape === 'sweep' ? SWEEP_ARC : BITE_ARC);
 }

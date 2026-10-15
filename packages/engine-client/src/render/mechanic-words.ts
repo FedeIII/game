@@ -39,4 +39,8 @@ export const MECHANIC_WORDS: Readonly<Record<MechanicEventKind, MechanicWordStyl
   uncanny: { over: 'player', ink: FIGHT_INK.crit },
   protect: { over: 'player', ink: FIGHT_INK.crit },
   rage: { over: 'player', ink: FIGHT_INK.hurt },
+  thrust: { over: 'mob', ink: FIGHT_INK.blow },
+  sweep: { over: 'mob', ink: FIGHT_INK.blow },
+  slam: { over: 'mob', ink: FIGHT_INK.hurt },
+  bite: { over: 'mob', ink: FIGHT_INK.blow },
 };

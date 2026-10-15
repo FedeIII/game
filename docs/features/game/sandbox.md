@@ -304,6 +304,26 @@ reactions of the SRD as class features (the draft, proposal 9).
 
 ---
 
+### REQ-SBX-016: 10. The shapes of the blows
+
+**User Story:** As an admin, I want each blow of a mob to have a shape with its own answer, so that I can
+test a fight where the right defence depends on the tell (the draft, proposal 10).
+
+**Acceptance Criteria:**
+- **AC-SBX-016.1:** With the switch "10. Shapes of the blows", a mob aims its blow when its wind-up
+  starts, and a word over it tells the shape: "thrust" (goblin, bandit, hobgoblin; Spanish "estocada"),
+  "sweep" (brute, bugbear; "barrido"), "slam" (a brute in one blow of three; "mazazo", in red) or "bite"
+  (worg; "mordisco"). The other kinds have no shape: their blows land as before.
+- **AC-SBX-016.2:** The blow lands only in its shape, at the end of the wind-up: a thrust within 30
+  degrees of its aim and 4 px further than the reach; a sweep within 100 degrees; a bite within 60
+  degrees; a slam within 14 px of the place where the character stood when the wind-up began. A
+  character out of the shape is not hit (no roll).
+- **AC-SBX-016.3:** A slam winds up 1.5 times as long. A brace (and the spell Shield of a brace) and a
+  parry do not count against it, and it breaks a guard stance.
+- **AC-SBX-016.4:** No new art: the word is the tell, until the mobs get a wind-up for each shape.
+
+---
+
 ## Feature Behavior & Rules
 
 - **Files.** `packages/engine-client/src/sandbox.ts` (`SandboxFight`, `sandboxRules()`,
@@ -354,6 +374,9 @@ reactions of the SRD as class features (the draft, proposal 9).
   (DEX modifier + level), `StepTraits.class`; `shieldCaster()`, `SHIELD_AC` 5, `SHIELD_AFTER_TICKS` 18,
   `UNCANNY_TICKS` 1800, `PROTECT_RANGE` 16, `RAGE_TICKS` and `RAGE_REST_TICKS` 3600. The page puts the
   word of a rage itself (a rage starts in `stepPlayer()`).
+- **10. The shapes.** The brain's `shape`, `spotX` and `spotY` (set when a wind-up starts); `shapeOf()`,
+  `inShape()`, `MOB_SHAPES`, `THRUST_ARC` 30 degrees, `THRUST_REACH` 4, `SWEEP_ARC` 100 degrees,
+  `BITE_ARC` 60 degrees, `SLAM_RADIUS` 14, `SLAM_WINDUP` 1.5, `SLAM_SHARE` 1/3.
 - **The fight log.** `SandboxFight.blows()` counts the blows of the player (`Horde.strike()` and the
   results of its arrows), `attacks()` the attacks of the foes on player 0 (`Horde.step()`), and
   `tick()` ends a fight (a defeat at once; a victory when every foe is `dying` or gone).

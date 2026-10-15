@@ -32,7 +32,9 @@ import {
   canShove,
   createPlayer,
   inFront,
+  inShape,
   lateBraceAc,
+  shapeOf,
   sheetTraits,
   stepPlayer,
   traitsOf,
@@ -611,5 +613,63 @@ describe('9. the reactions of the classes', () => {
     state.rage = 100;
     // 1d6+2 at its highest face: 8, halved to 4.
     expect(blow(horde, player, mob).hit?.[2]).toBe(4);
+  });
+});
+
+describe('10. the shapes of the blows', () => {
+  it('each kind has its shapes: a brute sweeps, and slams now and then', () => {
+    expect(shapeOf('skirmisher', 0)).toBe('thrust');
+    expect(shapeOf('bugbear', 0)).toBe('sweep');
+    expect(shapeOf('brute', 0.1)).toBe('slam');
+    expect(shapeOf('brute', 0.5)).toBe('sweep');
+    expect(shapeOf('worg', 0)).toBe('bite');
+    expect(shapeOf('imp', 0)).toBeNull();
+  });
+
+  it('a thrust is narrow, a sweep wide, a slam lands on the spot where the player stood', () => {
+    // A mob at (0, 0) that aims east, with a reach of 22.
+    expect(inShape('thrust', 0, 0, 0, 22, 20, 0, 0, 0)).toBe(true);
+    expect(inShape('thrust', 0, 0, 0, 22, 14, 16, 0, 0)).toBe(false);
+    expect(inShape('sweep', 0, 0, 0, 22, 14, 16, 0, 0)).toBe(true);
+    expect(inShape('sweep', 0, 0, 0, 22, -14, 4, 0, 0)).toBe(false);
+    expect(inShape('slam', 0, 0, 0, 22, 18, 4, 16, 0)).toBe(true);
+    expect(inShape('slam', 0, 0, 0, 22, 16, 18, 16, 0)).toBe(false);
+  });
+
+  it('the page hears the shape when the wind-up starts, and a jump out of a thrust is not hit', () => {
+    for (const [on, hits] of [
+      [['shapes'], false],
+      [[], true],
+    ] as const) {
+      const { horde, player, state, mob } = duel(on as readonly Mechanic[], faces(19));
+      expect(untilWindup(horde, player, mob, 1000)).toBe(true);
+      expect(horde.takeEvents().map((e) => e.kind)).toEqual(on.length ? ['thrust'] : []);
+      // A jump to the side in the wind-up: 49 degrees off its aim, still in its reach.
+      state.y += 16;
+      const { hit } = blow(horde, player, mob);
+      expect(hit !== undefined).toBe(hits);
+    }
+  });
+
+  it('a slam has a longer wind-up, and a brace does not count against it', () => {
+    // Find a brute that slams (one blow in three).
+    for (let seed = 1; seed < 40; seed++) {
+      const horde = new Horde(world, open, seed, faces(10));
+      horde.mechanics = new Set<Mechanic>(['shapes']);
+      const state = tough(100, 100);
+      const player: HordePlayer = { id: 1, state, traits: { ac: 10, braceAc: 6 } };
+      const mob = horde.spawn('brute', 118, 100, { steady: true });
+      horde.provoke(mob, 1, state);
+      expect(untilWindup(horde, player, mob, 2000)).toBe(true);
+      if (horde.takeEvents()[0]?.kind !== 'slam') continue;
+      const brain = (horde as unknown as { brains: Map<number, { timerMs: number }> }).brains.get(mob.id)!;
+      expect(brain.timerMs).toBeGreaterThan(MOB_STATS.brute.windupMs);
+      state.brace = 30;
+      state.braceAge = 9;
+      // 10 + 5 = 15: it misses AC 16 (the brace), and hits AC 10.
+      expect(blow(horde, player, mob).hit?.[2]).toBeGreaterThan(0);
+      return;
+    }
+    throw new Error('no slam');
   });
 });
