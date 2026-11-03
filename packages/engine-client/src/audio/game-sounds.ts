@@ -8,10 +8,11 @@
  *   the mobs: their voices (they spot the player, gather for a blow, are hurt, die), their swings,
  *     their arrows and fire bolts
  *   the things: doors, chests, locks, herbs, a buried cache, coins, items, drinks, the GUI
+ *   the abilities: a score that opens what a gate closes plays the sound of its ability (ABILITY_FX)
  *   the places: an ambience for each mood (the night forest, a town, a room...), and near the player
  *     the water, a fire, a fountain, a forge, louder as it comes near, from their side
  */
-import { Ground, MOB_KINDS, type AttackGear, type MobKind, type World } from '@game/engine';
+import { Ground, MOB_KINDS, type Ability, type AttackGear, type Gate, type MobKind, type World } from '@game/engine';
 import { audio } from './audio.ts';
 import { mobVoice, type VoiceEvent } from './creatures.ts';
 import { isPlaceMood, type Mood, type PlaceMood } from './director.ts';
@@ -30,6 +31,33 @@ const ALERT_MS = 8000;
 const ARMOURED: ReadonlySet<MobKind> = new Set(['hobgoblin', 'warden', 'devastator']);
 /** The big mobs: a heavy swing. */
 const HEAVY: ReadonlySet<MobKind> = new Set(['brute', 'bugbear', 'warden', 'devastator', 'worg']);
+
+/**
+ * The sound of each ability (2026-11-03, Fede's request): it plays when the score of a character opens
+ * what a gate closes to a lower score: the wade (STR), a barred door (STR), a lock (DEX), a lore page
+ * (INT), the herbs of Medicine (WIS), a line of a scene (WIS), a greeting by name (CHA), an answer of a
+ * conversation and a ware of a shop (each ability). Each one is short and soft (audio/fx.ts).
+ */
+export const ABILITY_FX: Readonly<Record<Ability, FxId>> = {
+  str: 'abilityStr',
+  dex: 'abilityDex',
+  con: 'abilityCon',
+  int: 'abilityInt',
+  wis: 'abilityWis',
+  cha: 'abilityCha',
+};
+/** The gain of the sound of an ability: under the sound of the thing that it opens. */
+export const ABILITY_GAIN = 0.7;
+/** At most one sound of an ability in this long (ms): two gates at the same moment play one. */
+export const ABILITY_GAP_MS = 400;
+
+/**
+ * Whether a page or a line behind `gate` plays the sound of its ability: not after a page or a line
+ * behind the same gate (a run of lore pages, or of lines of a scene, plays it once).
+ */
+export function soundsGate(gate: Gate | undefined, before: Gate | undefined): gate is Gate {
+  return gate !== undefined && !(before !== undefined && before.ability === gate.ability && before.dc === gate.dc);
+}
 
 /** The step sound of a ground. */
 export function stepOf(ground: Ground): FxId | null {
@@ -129,11 +157,12 @@ export class GameSounds {
   /** The place of the ambience (its mood, and inside or not): a new ambience in the same place is a change of the hour. */
   private ambienceWhere: string | null = null;
   private voicesAt: number[] = [];
+  private abilityAt = -Infinity;
 
   /** Loads the recorded sounds of the effects, renders the common ones, and listens to the GUI. */
   start(): void {
     audio.preload(FX_INSTRUMENTS);
-    this.fx.prepare(['swing', 'hitFlesh', 'stepGrass', 'stepDirt', 'stepWood', 'stepStone', 'hurt', 'mobFall', 'coins', 'pickup', 'uiOpen']);
+    this.fx.prepare(['swing', 'hitFlesh', 'stepGrass', 'stepDirt', 'stepWood', 'stepStone', 'hurt', 'mobFall', 'coins', 'pickup', 'uiOpen', ...Object.values(ABILITY_FX)]);
     // The panels: a page turns for the journal and the map, a rustle for the others.
     window.addEventListener('game:panel-open', (event) => {
       const id = (event as CustomEvent<string>).detail;
@@ -155,6 +184,17 @@ export class GameSounds {
   at(id: FxId, x: number, y: number, px: number, py: number, gain = 1, range?: number): void {
     const place = spatial(x - px, y - py, range);
     if (place) this.fx.play(id, { gain: gain * place.gain, pan: place.pan });
+  }
+
+  /**
+   * A score of the player opened what a gate closes: the sound of its ability (ABILITY_FX), `delay`
+   * seconds from now. At most one in ABILITY_GAP_MS.
+   */
+  ability(ability: Ability, delay = 0): void {
+    const now = performance.now();
+    if (now - this.abilityAt < ABILITY_GAP_MS) return;
+    this.abilityAt = now;
+    this.fx.play(ABILITY_FX[ability], { gain: ABILITY_GAIN, delay });
   }
 
   /** The player's attack starts: the sound of its weapon. */

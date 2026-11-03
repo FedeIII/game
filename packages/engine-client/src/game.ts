@@ -167,7 +167,7 @@ import { DreamVeil } from './ui/dream.ts';
 import { audio } from './audio/audio.ts';
 import { Discoveries, MusicDirector, PLACE_MOODS, type Mood } from './audio/director.ts';
 import { GameMusic } from './audio/game-music.ts';
-import { GameSounds } from './audio/game-sounds.ts';
+import { GameSounds, soundsGate } from './audio/game-sounds.ts';
 import { soundSection } from './ui/sound-section.ts';
 import { GameMenu, escapeAction, type SettingsSection } from './ui/game-menu.ts';
 import { playPrologue, prologuePlaying } from './ui/prologue.ts';
@@ -318,6 +318,9 @@ function skyLine(sky: Sky, cycle: boolean, fixed: boolean, shiftHours: number): 
 function andList(parts: readonly string[]): string {
   return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} ${STRINGS.and} ${parts[parts.length - 1]}`;
 }
+
+/** What a thing shows: its content, and the gate of each page that a gate opens (a lore page), for the sound of its ability. */
+type Shown = Interaction & { readonly gates?: readonly (Gate | undefined)[] };
 
 /** What the player says when it opens a chest: what it found, that it is empty, or that the pack is full. */
 function chestLine(taken: Loot, full: boolean): string {
@@ -726,6 +729,7 @@ async function run(options: GameOptions): Promise<void> {
     if (index === null) return;
     greeter = index;
     barkBubbles.say(index, gated(REPUTATION_GATE, tw(npcDefs[index]!.greeting!).replace('{name}', name)), () => npcViews!.headOf(index), now);
+    gameSounds.ability(REPUTATION_GATE.ability);
   };
 
   // Mobs: in a world with mob rules. A single-player world runs its own horde (its seed differs
@@ -1018,16 +1022,21 @@ async function run(options: GameOptions): Promise<void> {
   // Scenes (scenes.ts): talks that the character overhears when it comes into their area at their step.
   const scenes = world.source.scenes?.() ?? [];
   const scenePlayer = scenes.length > 0 ? new ScenePlayer(art, font, textScene) : null;
-  /** The lines of a scene as this character hears them: a line said low is a murmur without its gate (gateView). */
+  /**
+   * The lines of a scene as this character hears them: a line said low is a murmur without its gate
+   * (gateView). The first of a run of lines behind a gate that it passes plays the sound of its ability.
+   */
   const sceneLines = (scene: SceneDef) =>
-    scene.lines.map((line) => {
+    scene.lines.map((line, i) => {
       const index = npcDefs.findIndex((def) => def.id === line.npc);
       const view = line.gate ? gateView(traits.scores, line.gate) : 'open';
+      const sounds = view === 'open' && soundsGate(line.gate, scene.lines[i - 1]?.gate);
       return {
         text: view !== 'open' ? STRINGS.murmur(view === 'hint' ? gateTag(line.gate!) : null) : line.gate ? gated(line.gate, tw(line.text)) : tw(line.text),
         anchor: () => (index >= 0 && npcViews ? npcViews.headOf(index) : { x: shown.x, y: shown.y - playerView.headHeight }),
         started: (now: number) => {
           if (index >= 0) barkBubbles?.hush(index, now);
+          if (sounds) gameSounds.ability(line.gate!.ability);
         },
       };
     });
@@ -1105,17 +1114,18 @@ async function run(options: GameOptions): Promise<void> {
   // opens with the answers (ui/conversation.ts). While the panel is open, the player stands still
   // and the panel has the keys; the conversation ends with an answer that ends it, with Esc, or
   // when the NPC is not close any more.
-  const contentOf = (t: InteractionTarget): Interaction | null => {
+  const contentOf = (t: InteractionTarget): Shown | null => {
     // A thing with a variant says and does something else for a character at its step (Fixture.variant.content).
     const content = t.fixture ? fixtureContent(t.fixture, questsNow(), packNow()) : undefined;
     if (content) {
       if (!content.lore) return content;
       // Pages behind a gate (lore): read with the score, a clue with 1 or 2 less, nothing with less (gateView).
-      const extra = content.lore.flatMap((lore) => {
+      const extra = content.lore.flatMap((lore): { text: string; gate?: Gate }[] => {
         const view = gateView(traits.scores, lore.gate);
-        return view === 'open' ? lore.pages.map((page) => gated(lore.gate, page)) : view === 'hint' ? [STRINGS.loreHint(gateTag(lore.gate))] : [];
+        return view === 'open' ? lore.pages.map((page) => ({ text: gated(lore.gate, page), gate: lore.gate })) : view === 'hint' ? [{ text: STRINGS.loreHint(gateTag(lore.gate)) }] : [];
       });
-      return { ...content, pages: [...(content.pages ?? []), ...extra] };
+      const own = content.pages ?? [];
+      return { ...content, pages: [...own, ...extra.map((p) => p.text)], gates: [...own.map(() => undefined), ...extra.map((p) => p.gate)] };
     }
     // By day a thing can have another line (a lamp that is not lit).
     const line = (isDaytime(skyNow()) ? definition.examineByDay?.[t.kind] : undefined) ?? definition.examine[t.kind];
@@ -1145,6 +1155,7 @@ async function run(options: GameOptions): Promise<void> {
     const wading = inShallows(world.level(player.storey), player.x, player.y);
     if (wading && !wasWading && now - wadeSaidAt > WADE_LINE_MS && meetsGate(traits.scores, WADE_GATE) && !speech.showing) {
       say(gated(WADE_GATE, STRINGS.waded), now);
+      gameSounds.ability(WADE_GATE.ability);
       wadeSaidAt = now;
     }
     wasWading = wading;
@@ -1211,6 +1222,7 @@ async function run(options: GameOptions): Promise<void> {
     const line = STRINGS.drank[kind];
     if (line) say(gate ? gated(gate, line) : line, now);
     gameSounds.fx.play(kind === 'herbs' ? 'chew' : 'drink');
+    if (gate) gameSounds.ability(gate.ability);
     if (DRINKS[kind]?.hp) gameSounds.fx.play('heal', { delay: 0.6 });
   };
   // Items on the ground: the server keeps them in a shared world; the page keeps its own in a world that it runs.
@@ -1299,12 +1311,18 @@ async function run(options: GameOptions): Promise<void> {
     if (taken.coins > 0) gameSounds.fx.play('coins', { delay });
     else if (taken.items.length > 0) gameSounds.fx.play('pickup', { delay });
   };
-  /** The sound of opening a source of loot: herbs, a buried cache, a chest (its lock first, if it has one), then what is in it. */
+  /**
+   * The sound of opening a source of loot: herbs, a buried cache, a chest (its lock first, if it has one,
+   * and the sound of its ability when the lock gives), then what is in it.
+   */
   const openSound = (fixture: Fixture | null, taken: Loot): void => {
     if (fixture?.kind === 'herbpatch') gameSounds.fx.play('herbs');
     else if (fixture?.kind === 'cache') gameSounds.fx.play('dig');
     else {
-      if (fixture?.lock) gameSounds.fx.play('lockPick');
+      if (fixture?.lock) {
+        gameSounds.fx.play('lockPick');
+        gameSounds.ability(fixture.lock.ability, 0.5);
+      }
       gameSounds.fx.play('chestOpen', { delay: fixture?.lock ? 0.55 : 0 });
     }
     lootSound(taken, fixture?.lock ? 0.9 : 0.35);
@@ -1439,7 +1457,12 @@ async function run(options: GameOptions): Promise<void> {
   const shopPanel = new ShopPanel(
     art,
     {
-      trade: (row) => makeTrade(row.deal),
+      trade: (row) => {
+        const done = makeTrade(row.deal);
+        // A ware behind a gate (a friend's price): the sound of its ability.
+        if (done && row.ware.gate) gameSounds.ability(row.ware.gate.ability);
+        return done;
+      },
       close: () => conversation.resume(),
       line: (line) => speech.show([line], talkAnchor, performance.now(), true),
       sound: (what) => gameSounds.fx.play(what === 'choose' ? 'uiClick' : 'uiSelect', { gain: 0.7 }),
@@ -1464,6 +1487,8 @@ async function run(options: GameOptions): Promise<void> {
     },
     // The player's hand: an answer, a selection.
     sound: (what) => gameSounds.fx.play(what === 'choose' ? 'uiClick' : 'uiSelect', { gain: 0.7 }),
+    // An answer behind a gate that the player passes: the sound of its ability, after the click.
+    passed: (gate) => gameSounds.ability(gate.ability, 0.05),
     // An effect on a quest (the server applies it in a shared world; the page in its own world).
     effect: (effect) => {
       if (!talkWith) return false;
@@ -1541,7 +1566,10 @@ async function run(options: GameOptions): Promise<void> {
         // Boards across the door: they hold, or they break (and the view shakes a little).
         const bar = world.buildingAt(target.tx, target.ty)?.barred;
         say(result === 'forced' ? (bar ? gated(bar, STRINGS.forced) : STRINGS.forced) : bar ? shortOf(bar, STRINGS.barred, STRINGS.barredPlain) : STRINGS.barred, now);
-        if (result === 'forced') shakeUntil = now + SHAKE.ms;
+        if (result === 'forced') {
+          shakeUntil = now + SHAKE.ms;
+          if (bar) gameSounds.ability(bar.ability);
+        }
       } else if (locked) {
         // A door that never opens: the player says the building's line.
         speech.show([locked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
@@ -1660,7 +1688,15 @@ async function run(options: GameOptions): Promise<void> {
       pendingTalk = { at: content.dream ? now : now + TALK_DELAY_MS, dialog: content.dialog, ...(content.face ? { face: content.face } : {}), ...(content.dream ? { dream: true } : {}) };
       return;
     }
-    speech.show(content.pages ?? [], anchor, now);
+    // A lore page that the player reads with its score: the sound of the gate's ability, once for a run of pages behind the same gate.
+    const gates = content.gates;
+    const pageSound = gates
+      ? (page: number) => {
+          const gate = gates[page];
+          if (soundsGate(gate, gates[page - 1])) gameSounds.ability(gate.ability);
+        }
+      : undefined;
+    speech.show(content.pages ?? [], anchor, now, false, pageSound);
     speaking = !(content.speaker === 'fixture' && fixture);
     // A thing that starts or moves a quest when the character reads it (a letter).
     if (content.effect && fixture) applyQuest(content.effect, { at: [target.tx, target.ty] });

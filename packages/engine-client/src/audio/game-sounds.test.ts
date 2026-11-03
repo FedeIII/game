@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Ground, MOB_KINDS } from '@game/engine';
+import { ABILITIES, Ground, MOB_KINDS } from '@game/engine';
 import manifest from '../generated/sounds.json';
 import { VOICE_OF, mobVoice, syllables, type VoiceEvent } from './creatures.ts';
 import { PLACE_MOODS } from './director.ts';
 import { FX, FX_INSTRUMENTS, spatial } from './fx.ts';
-import { ambienceOf, stepOf, voiceOfChange } from './game-sounds.ts';
+import { ABILITY_FX, ambienceOf, soundsGate, stepOf, voiceOfChange } from './game-sounds.ts';
 import { AMBIENCES } from './sounds.ts';
 
 const INSTRUMENTS = (manifest as unknown as { instruments: Record<string, unknown> }).instruments;
@@ -95,7 +95,26 @@ describe('the sounds of the game', () => {
     }
   });
 
-  it('play their recorded sounds from the bank', () => {
+  it('give each ability its own short sound (2026-11-03)', () => {
+    const ids = ABILITIES.map((a) => ABILITY_FX[a]);
+    expect(new Set(ids).size).toBe(ABILITIES.length);
+    for (const id of ids) {
+      expect(FX[id], id).toBeDefined();
+      expect(FX[id].seconds, id).toBeLessThanOrEqual(1.2);
+    }
+  });
+
+  it('play the sound of a gate once for a run of pages or lines behind the same gate', () => {
+    const int10 = { ability: 'int', dc: 10 } as const;
+    const int12 = { ability: 'int', dc: 12 } as const;
+    expect(soundsGate(int10, undefined)).toBe(true);
+    expect(soundsGate(int10, { ...int10 })).toBe(false);
+    expect(soundsGate(int12, int10)).toBe(true);
+    expect(soundsGate({ ability: 'wis', dc: 10 }, int10)).toBe(true);
+    expect(soundsGate(undefined, int10)).toBe(false);
+  });
+
+    it('play their recorded sounds from the bank', () => {
     for (const inst of FX_INSTRUMENTS) expect(INSTRUMENTS[inst], inst).toBeDefined();
     for (const [id, def] of Object.entries(FX)) {
       expect(def.seconds, id).toBeGreaterThan(0);

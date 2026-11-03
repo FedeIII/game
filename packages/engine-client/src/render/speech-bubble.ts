@@ -79,6 +79,8 @@ export class SpeechBubble {
   private hideAt = -Infinity;
   /** Whether a dialog of one page stays until the game closes it. */
   private stay = false;
+  /** What the game does when a page of the dialog shows (the sound of the gate of a lore page). */
+  private onPage: ((page: number) => void) | null = null;
   /** The longest line of the text, in world pixels: WIDEST_TEXT, or less on a narrow screen. */
   private widest = WIDEST_TEXT;
 
@@ -117,10 +119,12 @@ export class SpeechBubble {
   /**
    * Shows the first page of a dialog over `anchor`, from `now` (performance.now()). With `stay`,
    * a dialog of one page does not fade by itself: it stays until the game closes it (the line of
-   * a conversation stays while the conversation panel shows it).
+   * a conversation stays while the conversation panel shows it). `onPage` hears the index of each page
+   * of this dialog when it shows.
    */
-  show(pages: readonly string[], anchor: Anchor, now: number, stay = false): void {
+  show(pages: readonly string[], anchor: Anchor, now: number, stay = false, onPage?: (page: number) => void): void {
     if (pages.length === 0) return;
+    this.onPage = onPage ?? null;
     // Do not fade in again when a dialog replaces one that is still on screen.
     if (!this.root.visible) this.shownAt = now;
     this.stay = stay;
@@ -158,6 +162,7 @@ export class SpeechBubble {
     // One short page goes away by itself; a dialog (or a page that must stay) stays until it is closed.
     this.hideAt = this.pages.length === 1 && !this.stay ? now + this.duration(line) : Infinity;
     if (this.live) this.live.textContent = line;
+    this.onPage?.(this.page);
   }
 
   /** Wraps the page on screen and sizes the frame round it. */

@@ -475,6 +475,51 @@ export function ring(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.
   }
 }
 
+/** A singing bowl: a soft tone that swells and fades, two sines `beat` Hz apart that beat slowly, and a faint higher partial. */
+export function bowl(ctx: BaseAudioContext, out: AudioNode, t: number, freq = 392, gain = 0.08, seconds = 1, beat = 2.5): void {
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(gain, t + 0.04);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+  env.connect(out);
+  for (const [f, level] of [
+    [freq, 1],
+    [freq + beat, 0.8],
+    [freq * 2.71, 0.12],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = level;
+    osc.connect(g).connect(env);
+    osc.start(t);
+    osc.stop(t + seconds + 0.02);
+  }
+}
+
+/** A short, low stab of brass: two sawtooths a little apart through a low-pass that opens at the attack and closes. */
+export function stab(ctx: BaseAudioContext, out: AudioNode, t: number, freq = 73.4, gain = 0.1, seconds = 0.35): void {
+  const low = ctx.createBiquadFilter();
+  low.type = 'lowpass';
+  low.Q.value = 2;
+  low.frequency.setValueAtTime(180, t);
+  low.frequency.exponentialRampToValueAtTime(1100, t + 0.03);
+  low.frequency.exponentialRampToValueAtTime(220, t + seconds);
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(gain, t + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+  low.connect(env).connect(out);
+  for (const f of [freq, freq * 1.004]) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = f;
+    osc.connect(low);
+    osc.start(t);
+    osc.stop(t + seconds + 0.02);
+  }
+}
+
 /** A gulp: a short low tone that falls, muffled. */
 export function gulp(ctx: BaseAudioContext, out: AudioNode, t: number, gain = 0.25): void {
   const osc = ctx.createOscillator();

@@ -221,6 +221,8 @@ export interface ConversationEvents {
   readonly shop?: (shop: Shop, tab: ShopSide | undefined, say: string) => void;
   /** A sound for the player's hand: an answer chosen, or a selection moved with the keys. */
   readonly sound?: (what: 'choose' | 'select') => void;
+  /** The player gives an answer behind a gate that it passes (and pays its deal, if it has one): the game plays the sound of the gate's ability. */
+  readonly passed?: (gate: Gate) => void;
 }
 
 /**
@@ -339,7 +341,9 @@ export class ConversationPanel {
     this.events.sound?.('choose');
     // An effect that the game could not apply (the server is not there): nothing changes.
     if (answer.effect && !(this.events.effect?.(answer.effect) ?? false)) return;
-    const next = talk.give(answer, answer.deal ? (this.events.deal?.(answer.deal) ?? false) : false);
+    const paid = answer.deal ? (this.events.deal?.(answer.deal) ?? false) : false;
+    if (answer.gate && (!answer.deal || paid)) this.events.passed?.(answer.gate);
+    const next = talk.give(answer, paid);
     if (!next) {
       this.end();
       return;

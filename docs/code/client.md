@@ -130,7 +130,8 @@ change its part of the code, and change it in the same commit as the code.
   the woods; far voices and a forge in a town by day; crickets and owls at night; a room is the same at
   any hour; the hour crossfades them over 12 s) and the sounds near the player (water, fires, fountains,
   forges). The ambience `town` is the prologue's (its scene of the Iron Sovereignty); the game's town has
-  `townDay` and `townNight`. A new effect: a recipe in `FX`, and a call from `game.ts`; a new mob kind
+  `townDay` and `townNight`. A gate that opens a thing plays the short sound of its ability (`ABILITY_FX`,
+  `GameSounds.ability()`; REQ-SND-010 of `docs/features/game/sound.md`). A new effect: a recipe in `FX`, and a call from `game.ts`; a new mob kind
   needs a voice in `VOICE_OF` (the test checks it). Check the levels of a change with an offline render
   in a headless page (`renderOffline()`: it leaves out the track's `level`).
 - `art/`: the art and the atlas packer (`build.ts`). Output goes to `src/generated/` (in git;

@@ -220,6 +220,8 @@ know what my character is good at.
 - **AC-AS-008.6:** A screen reader hears the tag as text, before the line.
 - **AC-AS-008.7:** Without a tag: the things that are not lines (the map, the reading of a mob, the
   arrow home) and the scales without a gate (the seek of a patch of herbs or of a cache).
+- **AC-AS-008.8:** When a gate opens a thing (not a clue), the sound of its ability plays (2026-11-03;
+  [REQ-SND-010](../game/sound.md)).
 
 ## Feature Behavior & Rules
 

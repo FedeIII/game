@@ -31,7 +31,10 @@ line)` in `ui/conversation.ts`, "[STR 13] The boards break.": the forced door, t
 every 2 minutes, `WADE_LINE_MS`), the picked lock, each lore page, the chewed herbs, a line of a scene
 behind a gate, the greeting by name, and a clue; a bubble draws the tag in the small font and in old
 gold, and the conversation panel in old gold (`gateTagElement()`, `.gate-tag`). A new line of a gate
-gets its tag with `gated()`.
+gets its tag with `gated()`. **A gate that opens a thing plays the sound of its ability** (Fede's request,
+2026-11-03; `docs/features/game/sound.md`, REQ-SND-010): `GameSounds.ability(gate.ability)` (`ABILITY_FX`
+in `audio/game-sounds.ts`), at each place above, and for a gated answer (`ConversationEvents.passed`) and
+a gated ware. A new kind of gate calls it when it opens (not for a clue).
 
 - **The attack ability (Option B, Fede's decision, 2026-10-10)**: each class strikes with its own
   ability (`ATTACK_ABILITY` in `character.ts`): STR barbarian, fighter, paladin; DEX bard, monk,

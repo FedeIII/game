@@ -30,6 +30,8 @@ a fight, a dream, a defeat, a discovery, a quest.
 - **A night form**: the music of a place at night: the same piece, slower, softer and on fewer
   instruments (2026-10-13).
 - **A sound area**: a part of the world with a mood of its own (`SoundArea`).
+- **The sound of an ability**: a short, soft effect for each of the six ability scores. It plays when a
+  score of the character opens what a gate closes to a lower score (2026-11-03).
 - **To sleep**: the context is suspended. Nothing sounds and the device does no audio work. When it
   wakes, the music goes on where it stopped.
 
@@ -280,6 +282,41 @@ not only a light.
 - **AC-SND-009.7:** The debug panel's line `music` says "by day" or "by night", the track (a night form
   is `<place>-night`) and the ambience.
 
+### REQ-SND-010: The sound of an ability
+
+**User Story:** As a player, I want to hear which ability of my character opens a thing when it opens
+it, so that I feel what my character is good at.
+
+**Acceptance Criteria (Fede's request, 2026-11-03: "a different sound every time an ability is used for
+something blocked otherwise ... characteristic of each ability but subtle and short"):**
+- **AC-SND-010.1:** Each ability has its own sound, at most 1.2 s long:
+  - Strength: a heavy, low drum (a taiko) and a short, low stab of brass;
+  - Dexterity: a quick flick of air and two small, light taps, the second higher;
+  - Constitution: a slow, strong heartbeat (two low beats, each with a muffled thump);
+  - Intelligence: two small, clear bells, a fourth up;
+  - Wisdom: a calm, low tone that swells and fades with a slow beat (a singing bowl);
+  - Charisma: a warm strum of a harp string up a major chord.
+- **AC-SND-010.2:** The sound plays when a gate opens a thing for the character (the gate's tag shows
+  then, [REQ-AS-008](../abilities/ability-scores.md)):
+  - the wade into shallow water (STR), when the player says that it wades (at most every 2 minutes);
+  - a barred door that the player forces (STR), with the crash of the boards;
+  - a locked chest that the player picks (DEX), when the lock gives (0.5 s after the press), in a world
+    that the page runs and in a shared world;
+  - a lore page (INT), when the page shows;
+  - the herbs that the player chews with Medicine (WIS), from the belt or the pack;
+  - a line of a scene that only a character with the gate hears (WIS);
+  - the greeting of an NPC by name (CHA);
+  - an answer of a conversation behind a gate (any ability), after the click of the answer; an answer
+    with a deal plays it only when the player pays (not when the deal goes to `poor`);
+  - a ware of a shop behind a gate (any ability), when the trade goes.
+- **AC-SND-010.3:** A run of lore pages, or of lines of a scene, behind the same gate (the same ability
+  and DC) plays the sound once, at its first page or line.
+- **AC-SND-010.4:** A clue (a score 1 or 2 under the gate), a murmur and a closed gate play no sound of
+  an ability. The gates that are not a moment (the map, the reading of a mob, the arrow home) play none.
+- **AC-SND-010.5:** The sound is soft: under the sound of the thing that it opens, at about the level of
+  the healing chime. At most one sound of an ability plays in 0.4 s.
+- **AC-SND-010.6:** The sound follows the "Effects" slider and the mute.
+
 ---
 
 ## Feature Behavior & Rules
@@ -368,13 +405,26 @@ not only a light.
   first play of an effect is its recipe, live; then 2 to 5 variants are rendered once (mono, 32 kHz,
   an `OfflineAudioContext`) and each play is one of them at random, ±4 % in pitch. `spatial(dx, dy,
   range)`: the gain and the pan of a sound at a point. The recorded sounds of the effects
-  (`FX_INSTRUMENTS`: metalHit, zap, bubbles, scrape, chain, slap, woodClick, shaker, guiro, from VSCO 2
-  CE) load when the game starts. The synthesized parts: `synth.ts` (`thud`, `voice`, `creak`, `splash`,
-  `clink`, `rustle`, `crunch`, `ring`, `gulp`, and the older `whoosh`, `noiseHit`, `boom`, `bell`).
+  (`FX_INSTRUMENTS`: metalHit, zap, bubbles, scrape, chain, slap, woodClick, shaker, guiro, taiko, from
+  VSCO 2 CE) load when the game starts. The synthesized parts: `synth.ts` (`thud`, `voice`, `creak`,
+  `splash`, `clink`, `rustle`, `crunch`, `ring`, `gulp`, `bowl`, `stab`, and the older `whoosh`,
+  `noiseHit`, `boom`, `bell`, `pluck`).
+- **The sounds of the abilities** (REQ-SND-010): the effects `abilityStr`, `abilityDex`, `abilityCon`,
+  `abilityInt`, `abilityWis`, `abilityCha` (`fx.ts`); `ABILITY_FX` (the effect of each ability),
+  `ABILITY_GAIN` (0.7), `ABILITY_GAP_MS` (400) and `soundsGate(gate, before)` (a run of pages or lines
+  behind the same gate plays once) in `game-sounds.ts`; `GameSounds.ability(ability, delay)`. `GameSounds.start()`
+  renders their variants at once (`prepare()`), so that the first one plays as it should. `game.ts` calls
+  it at each gate: `sayWade`, the door (`forced`), `openSound` (a lock), `drinkKind` (a drink with a
+  gate), `sceneLines` (`started`), `greet`, the conversation panel's `passed` (`ui/conversation.ts`), the
+  shop's `trade`, and a lore page: `contentOf()` gives the gate of each page (`Shown.gates`), and
+  `SpeechBubble.show(pages, anchor, now, stay, onPage)` tells the game which page shows. The levels of
+  2026-11-03 (dBFS, the loudest 100 ms, at their gain, above 250 Hz: what a small speaker plays): STR
+  about -30, DEX -34, CON -33, INT -34, WIS -28, CHA -34; for a comparison, `heal` -30.5, `pickup` -35,
+  `uiClick` -40, `chestOpen` -25.
 - **The voices** (`audio/creatures.ts`): `VOICE_OF` (the voice and the size of each kind of mob),
   `syllables()`, `mobVoice()`.
 - **The game** (`audio/game-sounds.ts`): `GameSounds` (`swing`, `blow`, `hurt`, `glance`, `dodge`,
-  `down`, `mobsNow`, `arrowsNow`, `steps`, `place`, `silence`, `resume`; `fx` for the things),
+  `down`, `ability`, `mobsNow`, `arrowsNow`, `steps`, `place`, `silence`, `resume`; `fx` for the things),
   `stepOf()`, `ambienceOf()`, `voiceOfChange()`, `STRIDE`. `game.ts` calls it from its handlers (the
   attack, the blows, the doors, the sources of loot, the piles, the pack, the drinks, the deals, the
   conversation) and in each frame (`directMusic`). The GUI: the event `game:panel-open`, and a press on
@@ -407,7 +457,8 @@ not only a light.
   note of an instrument of its list, the night forms slower and softer on fewer instruments, the window of
   the stingers of the hour); `audio/game-sounds.test.ts` (the steps of each ground, the ambience of each
   mood by day and at night, the voices of the changes of a mob, the place of a sound, the voice of every
-  kind of mob for every moment, the effects). `renderOffline()` renders a track and an ambience in an
+  kind of mob for every moment, the effects, a sound for each ability, one sound for a run of pages behind
+  the same gate). `renderOffline()` renders a track and an ambience in an
   `OfflineAudioContext`, to measure the levels in a browser (it leaves out the track's `level`: add it).
   The levels of 2026-10-13 (dBFS of the loud second windows): the ambiences -37 to -49 (the forest -42.6
   at night, -42.4 by day; a town -45.8 at night, -43.2 by day); the places' music -23 to -27 by day,

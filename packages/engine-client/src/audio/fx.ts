@@ -11,7 +11,7 @@
 import type { AudioEngine } from './audio.ts';
 import { playNote } from './sampler.ts';
 import type { SampleBank } from './samples.ts';
-import { boom, bell, clink, creak, crunch, gulp, noiseHit, ring, rustle, splash, thud, voice, whoosh, type VoiceShape } from './synth.ts';
+import { boom, bell, bowl, clink, creak, crunch, gulp, noiseHit, pluck, ring, rustle, splash, stab, thud, voice, whoosh, type VoiceShape } from './synth.ts';
 
 type Render = (ctx: BaseAudioContext, out: AudioNode, t: number, bank: SampleBank) => void;
 
@@ -32,6 +32,15 @@ function rec(bank: SampleBank, inst: string, ctx: BaseAudioContext, out: AudioNo
 }
 
 const r = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** A gain into `out` that fades to nothing from `from` to `to` (s after `t`): a rendered variant then ends without a click. */
+function faded(c: BaseAudioContext, out: AudioNode, t: number, from: number, to: number): GainNode {
+  const g = c.createGain();
+  g.gain.setValueAtTime(1, t + from);
+  g.gain.linearRampToValueAtTime(0, t + to);
+  g.connect(out);
+  return g;
+}
 
 export const FX = {
   // ------------------------------------------------------------ fights
@@ -402,6 +411,62 @@ export const FX = {
       bell(c, o, t, 1760, 0.07, 1.1, -0.2);
       bell(c, o, t + 0.08, 2640, 0.05, 1, 0.2);
       whoosh(c, o, t, 0.5, 0.05, 900, 3500);
+    },
+  },
+  // ------------------------------------------------------------ the abilities
+  // A score that opens what a gate closes (the wade, a barred door, a lock, a lore page, a gated answer...)
+  // plays the short, soft sound of its ability (2026-11-03, Fede's request; ABILITY_FX in game-sounds.ts).
+  // Strength: a heavy, low drum, and a short low stab of brass.
+  abilityStr: {
+    seconds: 0.7,
+    variants: 2,
+    samples: ['taiko'],
+    render: (c, o, t, b) => {
+      const out = faded(c, o, t, 0.45, 0.68);
+      rec(b, 'taiko', c, out, t, 0.4, -300);
+      boom(c, out, t, 0.12, 55, 0.5);
+      stab(c, out, t + 0.01, 73.4, 0.09, 0.32);
+    },
+  },
+  // Dexterity: a quick, light flick: a breath of air and two small taps, the second higher.
+  abilityDex: {
+    seconds: 0.3,
+    variants: 3,
+    render: (c, o, t) => {
+      whoosh(c, o, t, 0.1, 0.05, 1600, 5200);
+      thud(c, o, t + 0.03, 1250, 0.14, 0.05);
+      thud(c, o, t + 0.09, 1870, 0.11, 0.05);
+    },
+  },
+  // Constitution: a slow, strong heartbeat: two low beats, each with a muffled thump.
+  abilityCon: {
+    seconds: 0.65,
+    variants: 2,
+    render: (c, o, t) => {
+      thud(c, o, t, 65, 0.4, 0.18);
+      noiseHit(c, o, t, 0.09, 360, 1, 'bandpass');
+      thud(c, o, t + 0.2, 58, 0.3, 0.24);
+      noiseHit(c, o, t + 0.2, 0.11, 320, 0.8, 'bandpass');
+    },
+  },
+  // Intelligence: a clear, bright chime: two small bells, a fourth up.
+  abilityInt: {
+    seconds: 0.9,
+    variants: 2,
+    render: (c, o, t) => {
+      bell(c, o, t, 987.8, 0.045, 0.7);
+      bell(c, o, t + 0.08, 1318.5, 0.04, 0.8);
+    },
+  },
+  // Wisdom: a calm, low tone that swells and fades with a slow beat: a singing bowl.
+  abilityWis: { seconds: 1.1, variants: 2, render: (c, o, t) => bowl(c, o, t, 392, 0.045, 1.05) },
+  // Charisma: a warm strum: a harp string runs up a major chord.
+  abilityCha: {
+    seconds: 0.8,
+    variants: 2,
+    render: (c, o, t) => {
+      const out = faded(c, o, t, 0.45, 0.78);
+      [440, 554.37, 659.26, 880].forEach((f, k) => pluck(c, out, t + k * 0.035, f, 0.12, 0, 0.5));
     },
   },
   // ------------------------------------------------------------ the GUI
