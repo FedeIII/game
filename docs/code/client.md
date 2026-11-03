@@ -51,7 +51,8 @@ change its part of the code, and change it in the same commit as the code.
   pixels, and a long one makes a wider bubble, at most 208 pixels or the width of the screen:
   `wrapBubble()` in `text-layout.ts`; a bubble stays inside the screen, and its tail then moves along
   its bottom edge to stay over the speaker: `placeBubble()`; a line that starts with the tag of a gate,
-  "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`), `marks.ts` (the marks at the
+  "[STR 13] The boards break.", shows the tag in the small font and in old gold: `splitTag()`;
+  `dialog` gives a new number for each `show()`, so that the game knows which dialog is on screen), `marks.ts` (the marks at the
   edge of the screen: the mobs that hunt the player out of view, the way home), `loot-text.ts` (what a kill
   drops or a pick-up gives, "+3 COINS", rising over the player's head in the small font), `fight-numbers.ts` (what the dice
   of a fight did, as numbers that rise over a mob or the player: the damage, a critical hit in green with no mark, "+7" for hit points back, no word for a miss; in the tiny font, as every text of a fight; green for a good moment of the player, red for what goes against it: `FIGHT_INK`), `piles.ts` (the items on the

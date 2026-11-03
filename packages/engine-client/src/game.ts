@@ -305,6 +305,15 @@ const FIGHT_SIGN_MS = 1500;
  */
 const NAME_CALM_MS = 2500;
 const NAME_FADE_SECONDS = 0.3;
+/**
+ * How long a line in the dialog bubble stays when nothing closes it (ms): a line of the player (a
+ * chest, a door, a rest) or a page alone. It is much longer than the line of an NPC (Fede,
+ * 2026-11-03): a base and a little more for each letter. The action button closes it before.
+ */
+const LINE_BASE_MS = 8000;
+const LINE_PER_LETTER_MS = 100;
+const LINE_LONGEST_MS = 20000;
+const lineTime = (line: string): number => Math.min(LINE_LONGEST_MS, LINE_BASE_MS + line.length * LINE_PER_LETTER_MS);
 
 /** "a, b and c". */
 /** The sky for the debug panel: "13:24, darkness 0.25, lights 0.00". */
@@ -977,7 +986,7 @@ async function run(options: GameOptions): Promise<void> {
   };
   scene.addChild(glowLayer);
   // Text in the world is above the darkness, so it is readable at night.
-  const speech = new SpeechBubble(art, font, { name: 'dialog' });
+  const speech = new SpeechBubble(art, font, { name: 'dialog', duration: lineTime });
   textScene.addChild(speech.root);
   // Marks at the edge of the screen (Wisdom): the mobs that hunt the player out of its view, and
   // the way home (HOMEWARD_GATE, WIS 12). Above the darkness, under the speech.
@@ -1142,11 +1151,21 @@ async function run(options: GameOptions): Promise<void> {
     Boolean(fixture?.content ?? definition.examine[kind]) || (fixture !== null && spoils.isSource(fixture)) || kind === 'stairs' || kind === 'stairwell';
   /** Over the player's head: where it speaks. */
   const playerHead = () => ({ x: shown.x, y: shown.y - playerView.headHeight });
+  /** The dialog of the bubble that is the player's last line, and the target in front of the player then (targetKey()), or null. */
+  let said = { dialog: -1, from: null as string | null };
   /** The player says a line (a door, a chest, a full pack). */
   const say = (line: string, now: number) => {
     speech.show([line], playerHead, now);
     speaking = true;
+    said = { dialog: speech.dialog, from: target ? targetKey(target) : null };
   };
+  /**
+   * Whether a press of the action button closes the player's line: the line is on screen, and in
+   * front of the player is the same target as when it said the line (a chest, a door), or nothing.
+   * A press on another thing acts on that thing.
+   */
+  const closesLine = (): boolean =>
+    speech.showing && speech.dialog === said.dialog && (!target || targetKey(target) === said.from);
   /** Whether the player was in shallow water at the last step, and when it last said that it wades. */
   let wasWading = false;
   let wadeSaidAt = -Infinity;
@@ -1536,8 +1555,15 @@ async function run(options: GameOptions): Promise<void> {
 
   action.onPress((source: PressSource) => {
     // The conversation panel has the keys while it is open (and the button is hidden).
-    if (!target || conversation.open) return;
+    if (conversation.open) return;
     const now = performance.now();
+    // The player's line (a chest, a door) stays long: a press closes it (closesLine()).
+    if (closesLine()) {
+      speech.hide(now);
+      if (dialogKey === said.from) dialogKey = null;
+      return;
+    }
+    if (!target) return;
     tips.done('act', now);
     if (target.pile) {
       tips.done('pickup', now);
@@ -1572,13 +1598,11 @@ async function run(options: GameOptions): Promise<void> {
         }
       } else if (locked) {
         // A door that never opens: the player says the building's line.
-        speech.show([locked], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
-        speaking = true;
+        say(locked, now);
       } else if (result === 'blocked') {
         // Who is in the way: the player itself, or someone else (another visitor, an NPC).
         const self = Math.abs(player.x - (target.tx * TILE_SIZE + TILE_SIZE / 2)) < TILE_SIZE / 2 + 5 && player.y + 3 > target.ty * TILE_SIZE && player.y - 3 < (target.ty + 1) * TILE_SIZE;
-        speech.show([self ? STRINGS.doorBlocked : STRINGS.doorBlockedByOther], () => ({ x: shown.x, y: shown.y - playerView.headHeight }), now);
-        speaking = true;
+        say(self ? STRINGS.doorBlocked : STRINGS.doorBlockedByOther, now);
       }
       buildings.refreshDoor(target.tx, target.ty);
       return;
@@ -2222,7 +2246,7 @@ async function run(options: GameOptions): Promise<void> {
     } else if (dialogKey && (!target || targetKey(target) !== dialogKey)) {
       closeDialog(now);
     }
-    action.setTarget(target ? actionLabel(target) : null);
+    action.setTarget(closesLine() ? STRINGS.close : target ? actionLabel(target) : null);
     updateTips(now);
 
     const view = camera.view();

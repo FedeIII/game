@@ -83,6 +83,8 @@ export class SpeechBubble {
   private onPage: ((page: number) => void) | null = null;
   /** The longest line of the text, in world pixels: WIDEST_TEXT, or less on a narrow screen. */
   private widest = WIDEST_TEXT;
+  /** The number of dialogs that show() started: the game compares it to know which dialog is on screen. */
+  private started = 0;
 
   constructor(art: Art, font: PixelFont, options: SpeechOptions = {}) {
     this.font = font;
@@ -116,6 +118,11 @@ export class SpeechBubble {
     return this.page < this.pages.length - 1;
   }
 
+  /** The number of the dialog on screen (or of the last one): each show() gives a new number. */
+  get dialog(): number {
+    return this.started;
+  }
+
   /**
    * Shows the first page of a dialog over `anchor`, from `now` (performance.now()). With `stay`,
    * a dialog of one page does not fade by itself: it stays until the game closes it (the line of
@@ -124,6 +131,7 @@ export class SpeechBubble {
    */
   show(pages: readonly string[], anchor: Anchor, now: number, stay = false, onPage?: (page: number) => void): void {
     if (pages.length === 0) return;
+    this.started++;
     this.onPage = onPage ?? null;
     // Do not fade in again when a dialog replaces one that is still on screen.
     if (!this.root.visible) this.shownAt = now;

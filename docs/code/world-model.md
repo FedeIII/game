@@ -107,7 +107,7 @@ land where the page starts. Two titles never overlap: one waits for the other (`
   top of its head, at 8x, sharp: `drawCloseup()`), its name, "You: " and the last answer, its
   line, and the numbered answers (an answer that ends it in italics). Each answer makes the NPC
   say the next line in its bubble too; the line stays over its head as long as the panel shows it
-  (`SpeechBubble.show(..., stay)`), not only the 2.5 s of a short line. While the panel is open the player stands still and does
+  (`SpeechBubble.show(..., stay)`), not only the time of a short line. While the panel is open the player stands still and does
   not attack, and the panel takes the keys first (capture phase): W S or the arrows choose, E,
   Enter or Space answer, 1 to 9 answer at once, Esc ends it; a tap or a click answers. It ends
   with an answer that ends it, Esc, the close button, a stun, or an NPC more than 40 px away.
@@ -118,7 +118,11 @@ land where the page starts. Two titles never overlap: one waits for the other (`
   closed, `'locked'`, and the player says the building's line; the label is "Try the door"); on
   a signpost, "Read the sign"; on anything else, the first page, then
   the next page on each press, then "Close"; with a link, the card stays while the player is
-  in range, and E opens the link. Walking away closes the dialog and the card.
+  in range, and E opens the link. Walking away closes the dialog and the card. A dialog of one
+  page and a line of the player (`say()`: a chest, a door, a rest, a full pack) stay 8 s and
+  0.1 s for each letter, at most 20 s (`lineTime()`). While the player's line shows, with the
+  same target in front of the player, or none, the label is "Close" and a press closes the line
+  (`closesLine()`; `docs/features/game/player-lines.md`).
 - **Lights:** a fixture's `light` (`radius` from `LIGHTING.radii`, `colour`, centre in pixels
   from its anchor corner). The player's torch is radius 150. A portal's glow takes the colour of
   its light. `WorldDefinition.darkness` (0..1) scales the night: the wilds are 1.
