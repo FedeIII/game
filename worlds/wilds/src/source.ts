@@ -36,7 +36,6 @@ import {
   type SoundArea,
   type WorldSource,
   landAt,
-  populationArea,
 } from '@game/engine';
 import { HOME_CELL, HOME_ID, generateHome, homeStart } from './home.ts';
 import { herbPatch, naturalSolid } from './herbs.ts';
@@ -45,7 +44,7 @@ import { CHEST_LOOT, MAGIC_CHANCE, MAGIC_ITEMS, TRINKETS, guardedLoot } from './
 import { CAMP, CAMP_GATE } from './camp.ts';
 import { MERCHANT, WAGON_DRIVER } from './dialogs.ts';
 import { GOBLINS_MET, ASHES_HELD, ASHES_LATE, ASHES_RELIC, CAMP_TAKEN, CARAVAN_LOST, CARAVAN_ROBBED, CARAVAN_SAVED, HIMO_HOME, HIMO_LOST, RAID_ARRIVED, RAID_BAND, RAID_DEFENDED, RAID_SCOUTS, WADE_EFFECTS } from './quests.ts';
-import { BAND_AREA, BAND_SPAN, Grove, Road, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
+import { BAND_AREA, BAND_SPAN, Grove, Road, RoadBand, RoadStretch, campTrail, cartSpot, gateRoad, homeLegs, homeRoad, northRoad, signpost } from './road.ts';
 import { BRONZEHOLD, HAMLET_NPCS, HAMLET_SIGNS, WHITEGROVE, WHITEGROVE_SHRINE } from './hamlets.ts';
 import { SILVERVEIN } from './river.ts';
 import { HALE, MARROW, RUINS, RUIN_NPCS, TANNER } from './ruins.ts';
@@ -127,18 +126,40 @@ const REFUGES: readonly Refuge[] = [
 ];
 
 /**
- * The mobs round each player in the wildlands: four imps and two brutes at night. By day they are less
- * frequent (Fede, 2026-10-13): two imps and one brute, and each one comes only after a wait (an imp
- * about every minute, a brute about every two). The hobgoblin band comes only with the story: none of
- * it roams.
+ * The encounters of the roads (Fede, 2026-11-03): near a road, about one encounter in each leg of 2
+ * minutes of a walk by day, and one each minute at night (the mean wait between two groups, ms). Away
+ * from the roads of the wildlands, three times as many (WILD_MOBS).
+ */
+const ROAD_DAY_EVERY = 120_000;
+const ROAD_NIGHT_EVERY = 60_000;
+/** A player this close to the middle line of a road (tiles) is near the road: its mobs are those of the road. */
+export const ROAD_REACH = 16;
+
+/**
+ * The most mobs round each player in the wildlands: four imps and two brutes at night, two imps and one
+ * brute by day (Fede, 2026-10-13). Each one comes only after a wait: an imp is two encounters in three and
+ * a brute one in three. The hobgoblin band comes only with the story: none of it roams.
  */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
-export const WILD_MOBS: MobArea = {
-  night: populationArea(MOB_POPULATION).night,
-  day: [
-    { kind: 'imp', count: 2, every: 60_000 },
-    { kind: 'brute', count: 1, every: 120_000 },
+/** The mobs of the wildlands near a road (ROAD_REACH): by day an encounter about every 2 minutes, at night about every minute. */
+export const ROAD_WILD_MOBS: MobArea = {
+  night: [
+    { kind: 'imp', count: MOB_POPULATION.imp, every: ROAD_NIGHT_EVERY * 1.5 },
+    { kind: 'brute', count: MOB_POPULATION.brute, every: ROAD_NIGHT_EVERY * 3 },
   ],
+  day: [
+    { kind: 'imp', count: 2, every: ROAD_DAY_EVERY * 1.5 },
+    { kind: 'brute', count: 1, every: ROAD_DAY_EVERY * 3 },
+  ],
+};
+/**
+ * The mobs of the wildlands away from the roads: three times as often as near a road (Fede, 2026-11-03).
+ * By day an imp about every minute and a brute about every two (an encounter about every 40 s); at night
+ * an imp about every 30 s and a brute about every minute (an encounter about every 20 s).
+ */
+export const WILD_MOBS: MobArea = {
+  night: ROAD_WILD_MOBS.night.map((spawn) => ({ ...spawn, every: spawn.every! / 3 })),
+  day: ROAD_WILD_MOBS.day.map((spawn) => ({ ...spawn, every: spawn.every! / 3 })),
 };
 
 /**
@@ -150,13 +171,14 @@ export const WILD_MOBS: MobArea = {
  */
 export const FOREST_EDGE_Y = IRONHOLD.y0;
 /**
- * The mobs of the forest of the tutorial (Fede, 2026-10-13). At night: the goblins, one patrol of 2 or
- * 3 round each player, as before. By day the bandits take their place: very rare (a group about every
- * 8 minutes round a player in the forest), a group of 1 to 3 that ambushes the player.
+ * The mobs of the forest of the tutorial (Fede, 2026-10-13), at the rate of a road (Fede, 2026-11-03: the
+ * whole forest is the land of the road). At night: the goblins, a patrol of 2 or 3 about every minute
+ * round each player, at most one patrol at a time. By day the bandits take their place: a group of 1 to
+ * 3 that ambushes the player, about every 2 minutes (one in each leg of the road).
  */
 export const FOREST_MOBS: MobArea = {
-  night: [{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }],
-  day: [{ kind: 'bandit', count: 3, behaviour: 'ambush', group: [1, 3], every: 8 * 60_000 }],
+  night: [{ kind: 'skirmisher', count: 3, behaviour: 'patrol', every: ROAD_NIGHT_EVERY }],
+  day: [{ kind: 'bandit', count: 3, behaviour: 'ambush', group: [1, 3], every: ROAD_DAY_EVERY }],
 };
 /**
  * A new character on the road to Ironhold (the letter read, Ironhold not reached) that is in the forest
@@ -387,6 +409,7 @@ export class WildsSource implements WorldSource {
   private trailOf: Road | null = null;
   private gateOf: Road | null = null;
   private groveOf: Grove | null = null;
+  private bandOf: RoadBand | null = null;
   private signOf: Fixture | null = null;
   private cartOf: Fixture | null = null;
   private npcList: readonly NpcDef[] | null = null;
@@ -430,6 +453,12 @@ export class WildsSource implements WorldSource {
   get grove(): Grove {
     this.groveOf ??= new Grove(this.north);
     return this.groveOf;
+  }
+
+  /** The land near the roads (ROAD_REACH): the road to Ironhold, the north road and the way from the gate to it, not the trails. */
+  get nearRoads(): RoadBand {
+    this.bandOf ??= new RoadBand([this.road, this.north, this.gate], ROAD_REACH);
+    return this.bandOf;
   }
 
   /** Whether a tile is on a road or close to it, where nothing grows (but in the grove). */
@@ -1057,10 +1086,12 @@ export class WildsSource implements WorldSource {
    * a town. They hunt everywhere outside the houses and the towns: they never come into a town, so
    * it is safe. They never come near the lantern of the merchant's cart (CART_SAFE). In the forest
    * of the tutorial (inTutorialForest) only goblin patrols live at night and bandits by day, and only
-   * there (Fede, 2026-10-13: FOREST_MOBS).
+   * there (Fede, 2026-10-13: FOREST_MOBS). In the wildlands, the mobs come near a road at the rate of the
+   * road, and three times as often away from the roads (Fede, 2026-11-03: ROAD_WILD_MOBS, WILD_MOBS).
    */
   mobs(): MobRules {
     const cart = this.cart;
+    const nearRoads = this.nearRoads;
     const nearCart = (tx: number, ty: number) => Math.hypot(tx + 0.5 - (cart.tx + 1), ty + 0.5 - (cart.ty + 0.5)) <= CART_SAFE;
     // A margin of two rows between the two kinds of woods: no mob lives on the line itself.
     const kindFits = (ty: number, kind: MobKind | undefined) =>
@@ -1077,7 +1108,7 @@ export class WildsSource implements WorldSource {
       // The mobs of the raid on Silverspring go into the town too (an event: Fede's decision, 2026-10-11).
       raid: (tx, ty) => !nearCart(tx, ty),
       population: MOB_POPULATION,
-      areaAt: (tx, ty) => (inTutorialForest(tx, ty) ? FOREST_MOBS : WILD_MOBS),
+      areaAt: (tx, ty) => (inTutorialForest(tx, ty) ? FOREST_MOBS : nearRoads.has(tx, ty) ? ROAD_WILD_MOBS : WILD_MOBS),
     };
   }
 }

@@ -12,9 +12,10 @@ export const BUILDING_CELL = 24;
 
 /**
  * The cell of the player's home (home.ts): in the forest at the northern edge of the Iron Sovereignty,
- * south of Ironhold (Fede, 2026-10-12 and 2026-10-13). Cells are BUILDING_CELL tiles square.
+ * south of Ironhold (Fede, 2026-10-12 and 2026-10-13), about 600 tiles of road from Whitegrove (Fede,
+ * 2026-11-03: 2 minutes of a walk). Cells are BUILDING_CELL tiles square.
  */
-export const HOME_CELL = [1, 5] as const;
+export const HOME_CELL = [-5, 69] as const;
 
 /**
  * The chance that a cell has a house. The cell HOME_CELL has the player's home (home.ts) instead,

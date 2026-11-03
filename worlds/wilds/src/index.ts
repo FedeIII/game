@@ -12,7 +12,7 @@ export { BAND_AREA, BAND_SPAN, CAMP_OFFSET, CAMP_SHARE, GROVE_SPAN, Grove, NORTH
 export { CAMP, CAMP_GATE, CAMP_STAKE } from './camp.ts';
 export { HALE, MARROW, RUINS, RUIN_NPCS, TANNER, brandTile } from './ruins.ts';
 export { River, SILVERVEIN } from './river.ts';
-export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FIRST_GOBLINS, FOREST_EDGE_Y, FOREST_MOBS, LANDS, WILD_MOBS, WildsSource, inTutorialForest } from './source.ts';
+export { CARAVAN_MEET, CART_SAFE, ENCLAVE_REACH, FIRST_GOBLINS, FOREST_EDGE_Y, FOREST_MOBS, LANDS, ROAD_REACH, ROAD_WILD_MOBS, WILD_MOBS, WildsSource, inTutorialForest } from './source.ts';
 export { TEXTS_ES } from './text-es.ts';
 export { ARGUMENT, IRONHOLD, PLOT, TOWN, TOWN_BUILDINGS, TOWN_CACHE, TOWN_GATE, TOWN_NAME_SIGN, TOWN_SOUTH, TOWN_NAME, TOWN_NPCS, TOWN_SCENES, TOWN_STREET_FIXTURES, inTown } from './town.ts';
 export { SILVERSPRING, SILVERSPRING_NAME, SILVERSPRING_NAME_SIGN, SILVERSPRING_NPCS } from './silverspring.ts';
@@ -211,7 +211,7 @@ export const wilds: WorldDefinition = {
   // One day and one night in 48 real minutes, and a dim, overcast noon (Fede's decisions, 2026-10-13).
   day: { length: 48 * 60_000, noon: 0.25 },
   multiplayer: true,
-  // The sandbox of an admin (Fede, 2026-10-15): a glade of the forest 25 tiles west of the home, with
-  // trees round it, away from the road and the houses.
-  sandbox: { at: [11, 134] },
+  // The sandbox of an admin (Fede, 2026-10-15): a glade of the forest about 30 tiles south of the home,
+  // with trees round it, away from the road and the houses.
+  sandbox: { at: [-102, 1707] },
 };

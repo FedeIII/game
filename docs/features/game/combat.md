@@ -245,19 +245,28 @@ frequency and encoded behavior.").
 - **AC-CMB-010.4:** A mob that the area brought and does not want at this hour (a goblin by day, a
   bandit at night) goes away when no character is within 17 tiles of it: nobody sees it go. A mob that
   hunts finishes its hunt first. The mobs of the story never go.
-- **AC-CMB-010.5:** The Wilds: in the forest of the tutorial, the goblin patrols at night as before
-  (3 round a character, groups of 2 or 3), and by day the bandits (REQ-CMB-011: 3 round a character,
-  groups of 1 to 3, a group about every 8 minutes). In the wildlands, 4 imps and 2 brutes at night;
-  by day they are less frequent (Fede, 2026-10-13): 2 imps and 1 brute, an imp about every minute and a
-  brute about every two minutes.
+- **AC-CMB-010.5:** The Wilds, in the forest of the tutorial (the land of the road, Fede, 2026-11-03):
+  at night a goblin patrol (at most 3 goblins round a character, groups of 2 or 3) about every minute,
+  and by day the bandits (REQ-CMB-011: at most 3 round a character, groups of 1 to 3, a group about every
+  2 minutes). Thus a leg of the road (2 minutes of a walk, REQ-TWN-010) has about one ambush by day and
+  two patrols at night.
+- **AC-CMB-010.6:** The Wilds, in the wildlands: at most 4 imps and 2 brutes round a character at night,
+  and 2 imps and 1 brute by day (Fede, 2026-10-13: less frequent by day). Within 16 tiles of a road (the
+  road to Ironhold, the north road and the way from the east gate; not a trail) an encounter comes about
+  every minute at night (an imp about every 90 s, a brute about every 3 minutes) and about every 2
+  minutes by day (an imp about every 3 minutes, a brute about every 6). Away from the roads, three times
+  as often (Fede, 2026-11-03): an imp about every 30 s and a brute about every minute at night, an imp
+  about every minute and a brute about every 2 minutes by day. The place of the character chooses the
+  rate.
 
 ---
 
 ### REQ-CMB-011: The bandits of the forest
 
-**User Story:** As a player on the road to Ironhold by day, I want a rare ambush of robbers, so that the
-day has its own danger (Fede, 2026-10-13: "Very rare, they appear as a pack of 1 to 3 of them (same
-level than goblins) that try to ambush the player.").
+**User Story:** As a player on the road to Ironhold by day, I want an ambush of robbers now and then, so
+that the day has its own danger (Fede, 2026-10-13: "Very rare, they appear as a pack of 1 to 3 of them
+(same level than goblins) that try to ambush the player."; 2026-11-03: about one in each leg of the
+road, a group about every 2 minutes).
 
 **Acceptance Criteria:**
 - **AC-CMB-011.1:** The bandit is the bandit of the SRD with a scimitar: 11 hit points, AC 12, +3,

@@ -22,14 +22,19 @@ import {
   useStairs,
   stepPlayer,
   type Fixture,
+  isWet,
+  naturalGround,
 } from '@game/engine';
 import {
   BRONZEHOLD,
   BRONZEHOLD_NORTH,
   BRONZEHOLD_SOUTH,
   DEFAULT_SEED,
+  DOOR_PATH,
   FOREST_EDGE_Y,
   FOREST_MOBS,
+  ROAD_REACH,
+  ROAD_WILD_MOBS,
   WILD_MOBS,
   HAMLET_NPCS,
   HAMLET_SIGNS,
@@ -56,6 +61,7 @@ import {
   WildsSource,
   inTown,
 } from '../src/index.ts';
+import { Road, homeLegs } from '../src/road.ts';
 
 const SEEDS = [DEFAULT_SEED, 1, 7, 42, 1234];
 const source = new WildsSource(DEFAULT_SEED);
@@ -64,12 +70,12 @@ const key = (x: number, y: number) => `${x},${y}`;
 const centre = (tx: number, ty: number) => ({ x: tx * TILE_SIZE + 8, y: ty * TILE_SIZE + 8 });
 
 /** The tiles that a player can walk to from (sx, sy) inside a rectangle, through open ground (closed doors count as walls). */
-function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1: number, y1: number): Set<string> {
+function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1: number, y1: number, allowed: (tx: number, ty: number) => boolean = () => true): Set<string> {
   const seen = new Set<string>();
   const queue: [number, number][] = [[sx, sy]];
   while (queue.length) {
     const [x, y] = queue.pop()!;
-    if (x < x0 || x > x1 || y < y0 || y > y1 || seen.has(key(x, y)) || w.solidBox(x, y)) continue;
+    if (x < x0 || x > x1 || y < y0 || y > y1 || seen.has(key(x, y)) || !allowed(x, y) || w.solidBox(x, y)) continue;
     seen.add(key(x, y));
     queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
   }
@@ -81,6 +87,22 @@ function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1:
  * not join one another by a short walk round it (within 2 tiles of it). For example, a lamp post at
  * the end of an alley of one tile: a player in the alley cannot get past it (a bug of 2026-10-13).
  */
+/**
+ * The tiles where a walk on the road from the hut to Ironhold may go: the road and its cleared ground,
+ * the ground of the home, the hamlets, the town and the way out of its east gate (the road is about 1800
+ * tiles long: a walk through the whole forest round it would take too long).
+ */
+function onTheWay(s: WildsSource): (tx: number, ty: number) => boolean {
+  const home = s.home();
+  return (tx, ty) =>
+    s.road.clear(tx, ty) ||
+    s.gate.clear(tx, ty) ||
+    (tx >= home.x0 - 2 && tx <= home.x1 + 2 && ty >= home.y0 - 2 && ty <= home.y1 + DOOR_PATH + 2) ||
+    inTown(tx, ty) ||
+    WHITEGROVE.has(tx, ty) ||
+    BRONZEHOLD.has(tx, ty);
+}
+
 function blockers(town: { streetFixtures: readonly Fixture[] }): string[] {
   const out: string[] = [];
   for (const f of town.streetFixtures.filter((f) => f.kind !== 'palisade')) {
@@ -138,7 +160,7 @@ describe('the signpost and the road', () => {
       const w = new World(s);
       const home = s.home();
       const road = s.road;
-      const area = reachable(w, home.doorX, home.y1 + 1, TOWN.x0, Math.min(TOWN.y0, home.y0) - 4, home.x1 + 4, Math.max(TOWN.y1, home.y1 + 8));
+      const area = reachable(w, home.doorX, home.y1 + 1, -Infinity, -Infinity, Infinity, Infinity, onTheWay(s));
       expect(area.has(key(TOWN_GATE.tx, TOWN_GATE.ty)), `seed ${seed}`).toBe(true);
       // The road is mud, with nothing on it (next to the hut, the hut's own ground stays).
       const homeGround = (tx: number, ty: number) => tx >= home.x0 - 1 && tx <= home.x1 + 1 && ty >= home.y0 - 1 && ty <= home.y1 + 3;
@@ -371,7 +393,7 @@ describe('Silverspring', () => {
     expect(bridges).toBe(12);
     // The river goes on outside the town, north to its spring and south to its pool, and it is water there too.
     for (const ty of [s.y0 - 1, s.y0 - 10, s.y1 + 1, s.y1 + 10]) {
-      const wet = [195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206].filter((tx) => SILVERVEIN.wet(tx, ty));
+      const wet = Array.from({ length: 12 }, (_, i) => SILVERSPRING_SITE.tx + 24 + i).filter((tx) => SILVERVEIN.wet(tx, ty));
       expect(wet.length, `row ${ty}`).toBeGreaterThanOrEqual(2);
       for (const tx of wet) expect([Ground.Water, Ground.Shallows]).toContain(world.ground(tx, ty));
     }
@@ -380,7 +402,7 @@ describe('Silverspring', () => {
     expect(SILVERVEIN.pool[1]).toBeGreaterThan(s.y1);
     // No mob lives in it.
     const rules = source.mobs();
-    expect(rules.roam(202, s.y1 + 10)).toBe(false);
+    expect(rules.roam(SILVERSPRING_SITE.tx + 31, s.y1 + 10)).toBe(false);
   });
 
   it('has Kasmut Parnika in the militia hall, with a conversation for a character who comes to warn the town', () => {
@@ -657,7 +679,7 @@ describe('the road through the hamlets', () => {
       }
       // A player walks from the door of the hut to the gate.
       const home = s.home();
-      const area = reachable(w, home.doorX, home.y1 + 1, -60, TOWN.y0 - 4, 40, home.y1 + 10);
+      const area = reachable(w, home.doorX, home.y1 + 1, -Infinity, -Infinity, Infinity, Infinity, onTheWay(s));
       expect(area.has(key(TOWN_GATE.tx, TOWN_GATE.ty)), `seed ${seed}`).toBe(true);
     }
   });
@@ -812,19 +834,38 @@ describe('the forest of the tutorial', () => {
     expect(rules.areaAt!(home.doorX, home.y1 + 4)).toBe(FOREST_MOBS);
     expect(rules.areaAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toBe(FOREST_MOBS);
     expect(rules.areaAt!(TOWN.x0 - 4, TOWN.y0 + 4)).toBe(FOREST_MOBS);
-    expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol' }]);
-    expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group])).toEqual([['bandit', 'ambush', [1, 3]]]);
-    const wildlands = rules.areaAt!(TOWN_GATE.tx, TOWN.y0 - 1);
-    expect(wildlands).toBe(WILD_MOBS);
-    expect(wildlands.night).toEqual([
-      { kind: 'imp', count: 4 },
-      { kind: 'brute', count: 2 },
+    // At the rate of a road (Fede, 2026-11-03): a goblin patrol about every minute at night, a group of bandits about every 2 minutes by day.
+    expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol', every: 60_000 }]);
+    expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group, s.every])).toEqual([['bandit', 'ambush', [1, 3], 120_000]]);
+    // In the wildlands near a road (the way from the east gate to the north road): an encounter about every
+    // minute at night and every 2 minutes by day; an imp is two encounters in three.
+    const road = rules.areaAt!(TOWN_GATE.tx, TOWN.y0 - 1);
+    expect(road).toBe(ROAD_WILD_MOBS);
+    expect(road.night).toEqual([
+      { kind: 'imp', count: 4, every: 90_000 },
+      { kind: 'brute', count: 2, every: 180_000 },
     ]);
     // By day fewer, and each one only after a wait (Fede: "less frequent during day").
+    expect(road.day).toEqual([
+      { kind: 'imp', count: 2, every: 180_000 },
+      { kind: 'brute', count: 1, every: 360_000 },
+    ]);
+    // Away from the roads, three times as often (Fede, 2026-11-03).
+    const wildlands = rules.areaAt!(TOWN.x0 - 10, TOWN.y0 - 60);
+    expect(wildlands).toBe(WILD_MOBS);
+    expect(wildlands.night).toEqual([
+      { kind: 'imp', count: 4, every: 30_000 },
+      { kind: 'brute', count: 2, every: 60_000 },
+    ]);
     expect(wildlands.day).toEqual([
       { kind: 'imp', count: 2, every: 60_000 },
       { kind: 'brute', count: 1, every: 120_000 },
     ]);
+    const rate = (spawns: readonly { every?: number }[]) => spawns.reduce((sum, spawn) => sum + 60_000 / spawn.every!, 0);
+    expect(rate(road.day)).toBeCloseTo(0.5);
+    expect(rate(road.night)).toBeCloseTo(1);
+    expect(rate(wildlands.day)).toBeCloseTo(3 * rate(road.day));
+    expect(rate(wildlands.night)).toBeCloseTo(3 * rate(road.night));
     // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
     let forest = 0;
     let wild = 0;
@@ -849,6 +890,52 @@ describe('the forest of the tutorial', () => {
     }
     expect(forest).toBeGreaterThan(20);
     expect(wild).toBeGreaterThan(20);
+  });
+
+  it('has the mobs of the road near the north road, and three times as many away from it', () => {
+    const rules = source.mobs();
+    const north = source.north;
+    for (const share of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+      const i = Math.floor(north.points.length * share);
+      const [x, y] = north.points[i]!;
+      // Across the road: the way that it runs there, turned by a right angle.
+      const [nx, ny] = north.points[i + 4]!;
+      const d = Math.hypot(nx - x, ny - y);
+      const across = (tiles: number) => [Math.floor(x - ((ny - y) / d) * tiles), Math.floor(y + ((nx - x) / d) * tiles)] as const;
+      expect(rules.areaAt!(Math.floor(x), Math.floor(y)), `share ${share}`).toBe(ROAD_WILD_MOBS);
+      expect(rules.areaAt!(...across(ROAD_REACH - 4)), `share ${share}`).toBe(ROAD_WILD_MOBS);
+      expect(rules.areaAt!(...across(-(ROAD_REACH - 4))), `share ${share}`).toBe(ROAD_WILD_MOBS);
+      expect(rules.areaAt!(...across(ROAD_REACH + 30)), `share ${share}`).toBe(WILD_MOBS);
+      expect(rules.areaAt!(...across(-(ROAD_REACH + 30))), `share ${share}`).toBe(WILD_MOBS);
+    }
+  });
+});
+
+describe('the distances between the settlements', () => {
+  /** The length of a road (tiles). */
+  const length = (points: readonly (readonly [number, number])[]) => points.slice(1).reduce((sum, [x, y], i) => sum + Math.hypot(x - points[i]![0], y - points[i]![1]), 0);
+
+  it('are about 2 minutes of a walk on the road from one settlement to the next, and twice that to Silverspring (Fede, 2026-11-03)', () => {
+    const walk = 5; // tiles each second (PLAYER_SPEED)
+    for (const seed of SEEDS) {
+      const s = new WildsSource(seed);
+      // Each leg of the road from the hut: to Whitegrove, to Bronzehold, to Ironhold.
+      for (const leg of homeLegs(s.home())) {
+        const seconds = length(new Road([leg]).points) / walk;
+        expect(seconds, `seed ${seed}`).toBeGreaterThan(100);
+        expect(seconds, `seed ${seed}`).toBeLessThan(140);
+      }
+    }
+    const north = length(source.north.points) / walk;
+    expect(north).toBeGreaterThan(210);
+    expect(north).toBeLessThan(260);
+  });
+
+  it('has a road from the hut to Ironhold that crosses no water for the seed of the game', () => {
+    for (const leg of homeLegs(source.home())) {
+      for (const [x, y] of new Road([leg]).points) expect(isWet(naturalGround(DEFAULT_SEED, Math.floor(x), Math.floor(y))), `${x},${y}`).toBe(false);
+    }
+    for (const [x, y] of source.north.points) expect(isWet(naturalGround(DEFAULT_SEED, Math.floor(x), Math.floor(y))), `${x},${y}`).toBe(false);
   });
 });
 

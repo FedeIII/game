@@ -1,5 +1,6 @@
 import type { Fixture, Lore } from '@game/engine';
 import { TEAR_TAKEN } from './quests.ts';
+import { SILVERSPRING_SITE } from './road.ts';
 
 /**
  * The shrine of Tigris (story phase 9; "Shadows of the Ashen Seekers", phase 5, "Indirect
@@ -16,8 +17,11 @@ import { TEAR_TAKEN } from './quests.ts';
  * stand on the bank of the pool, and the river keeps its water round them.
  */
 
+/** A tile at (dx, dy) from the site of Silverspring (road.ts): the shrine is south of the town, at the pool of its river. */
+const near = (dx: number, dy: number) => [SILVERSPRING_SITE.tx + dx, SILVERSPRING_SITE.ty + dy] as const;
+
 /** The altar: on the south bank of the pool, two tiles wide (its anchor is the west tile). */
-export const ALTAR_TILE = [195, -110] as const;
+export const ALTAR_TILE = near(24, 69);
 
 const ALTAR: Fixture = {
   kind: 'altar',
@@ -39,16 +43,7 @@ const ALTAR: Fixture = {
 };
 
 /** The standing stones round the pool, on its bank (none on the north side, where the river comes in). */
-const STONE_TILES: readonly (readonly [number, number])[] = [
-  [202, -116],
-  [201, -113],
-  [199, -111],
-  [192, -111],
-  [190, -113],
-  [189, -116],
-  [190, -119],
-  [201, -119],
-];
+const STONE_TILES: readonly (readonly [number, number])[] = [near(31, 63), near(30, 66), near(28, 68), near(21, 68), near(19, 66), near(18, 63), near(19, 60), near(30, 60)];
 
 const STONE_PAGES = ['A standing stone, taller than a man, carved with waves.'];
 /** One stone says more to a character with INT 14: Tigris both makes and breaks (Kandrax). */
@@ -61,4 +56,4 @@ export const SHRINE_FIXTURES: readonly Fixture[] = [
 ];
 
 /** The rectangle of the shrine (tiles): no tree grows in it or next to it, and no herbs. */
-export const SHRINE_RECT = { x0: 189, y0: -119, x1: 202, y1: -110 } as const;
+export const SHRINE_RECT = { x0: near(18, 0)[0], y0: near(0, 60)[1], x1: near(31, 0)[0], y1: near(0, 69)[1] } as const;

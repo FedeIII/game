@@ -709,7 +709,7 @@ describe('accounts: personal data', () => {
     }
   });
 
-  it('moves a character from before the new hut to its hut, and keeps the place of a newer one', () => {
+  it('moves a character from before the new hut to its hut, and keeps the place of a newer one, until the settlements moved apart', () => {
     const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
     try {
       const file = join(dir, 'game.db');
@@ -721,14 +721,46 @@ describe('accounts: personal data', () => {
       store.setPlace(user.id, old.id, { world: 'wilds', x: 100, y: 200 });
       store.setPlace(user.id, young.id, { world: 'wilds', x: 300, y: 400 });
       store.close();
-      // The database as it was before the step of 2026-10-13 (the 11 steps before it), without the columns of the later steps.
+      // The database as it was before the step of 2026-10-13 (the 11 steps before it), without the columns
+      // of the later steps; the step of 2026-11-03 is the last one.
       const db = new DatabaseSync(file);
       db.exec('ALTER TABLE characters DROP COLUMN xp; ALTER TABLE users DROP COLUMN xp_divisor; PRAGMA user_version = 11');
       db.close();
       const again = new AccountStore(file);
       expect(again.character(user.id, old.id)!.place).toBeNull();
-      expect(again.character(user.id, young.id)!.place).toEqual({ world: 'wilds', x: 300, y: 400 });
+      // The step of 2026-11-03 sends every character to its hut (the next test): the newer one too.
+      expect(again.character(user.id, young.id)!.place).toBeNull();
       again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('sends every character to its new hut, and clears its map of the explored land, when the settlements moved apart', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'game-store-'));
+    try {
+      const file = join(dir, 'game.db');
+      const store = new AccountStore(file);
+      const user = store.signIn('google', '1', 1);
+      const made = store.createCharacter(user.id, sheet, NEW_HUT_AT + 60_000);
+      if (made === 'limit') throw new Error('limit');
+      store.setPlace(user.id, made.id, { world: 'wilds', x: 300, y: 400 });
+      store.setExplored(user.id, made.id, [[1, 2], [3, 4]]);
+      store.close();
+      // The database as it was before the step of 2026-11-03 (the 13 steps before it).
+      const db = new DatabaseSync(file);
+      db.exec('PRAGMA user_version = 13');
+      db.close();
+      const again = new AccountStore(file);
+      const loaded = again.character(user.id, made.id)!;
+      expect(loaded.place).toBeNull();
+      expect(loaded.explored).toEqual([]);
+      // A place saved after the step stays.
+      again.setPlace(user.id, made.id, { world: 'wilds', x: 500, y: 600 });
+      again.close();
+      const third = new AccountStore(file);
+      expect(third.character(user.id, made.id)!.place).toEqual({ world: 'wilds', x: 500, y: 600 });
+      third.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

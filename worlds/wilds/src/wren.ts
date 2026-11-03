@@ -1,6 +1,6 @@
 import { Ground, type Fixture } from '@game/engine';
 import { MIRA } from './dialogs.ts';
-import { road } from './road.ts';
+import { SILVERSPRING_SITE, road } from './road.ts';
 import { Town, type Plan } from './towns.ts';
 
 /**
@@ -55,8 +55,8 @@ const BUILDINGS: readonly Plan[] = [
   },
 ];
 
-/** The homestead, with its north-west tile at (176, -108): south-west of the pool of the Silvervein (river.ts). */
-export const WREN = new Town({ name: 'the Wren homestead', x0: 176, y0: -108, map: MAP, buildings: BUILDINGS, things: {} as Readonly<Record<string, Fixture>> });
+/** The homestead, with its north-west tile 5 tiles east and 71 south of the site of Silverspring (road.ts): south-west of the pool of the Silvervein (river.ts). */
+export const WREN = new Town({ name: 'the Wren homestead', x0: SILVERSPRING_SITE.tx + 5, y0: SILVERSPRING_SITE.ty + 71, map: MAP, buildings: BUILDINGS, things: {} as Readonly<Record<string, Fixture>> });
 
 /** Mira Wren (story phase 7). Her order is her code on the wire: add new people at the end. */
 export const WREN_NPCS = WREN.residents;
@@ -68,7 +68,7 @@ export const WREN_GATE = WREN.at(12, 7);
  * The middle of the camp of the Ashen Seekers (story phase 8): in the hills east of the Silvervein,
  * at the east end of the burned trail.
  */
-export const SEEKER_CAMP_SITE = { tx: 236, ty: -100 } as const;
+export const SEEKER_CAMP_SITE = { tx: SILVERSPRING_SITE.tx + 65, ty: SILVERSPRING_SITE.ty + 79 } as const;
 
 /** The burned trail of the Seekers: from the yard of the Wren homestead east to their camp (its west edge). */
 export const SEEKER_TRAIL = road(WREN_GATE[0] + 1.5, WREN_GATE[1] + 0.5, SEEKER_CAMP_SITE.tx - 8 + 0.5, SEEKER_CAMP_SITE.ty + 0.5);

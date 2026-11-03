@@ -1,3 +1,5 @@
+import { SILVERSPRING_SITE } from './road.ts';
+
 /**
  * The Silvervein (el río Vena de Plata in Kandrax: `Kandrax - Mundo`, 2.2.1.5, "the river that crosses
  * Silverspring", where the village pans its mithril). It rises at a spring in the hills north of
@@ -99,15 +101,17 @@ export class River {
 }
 
 /**
- * The Silvervein of Silverspring: its spring 34 tiles north of the town, the town's channel at x 202
- * (between the columns 29 and 30 of its map), and its pool 50 tiles south of the town.
+ * The Silvervein of Silverspring: its spring 34 tiles north of the town, the town's channel 31 tiles
+ * east of the site (between the columns 29 and 30 of its map), and its pool 50 tiles south of the town.
+ * All of it follows the site of Silverspring (road.ts).
  */
+const { tx: SX, ty: SY } = SILVERSPRING_SITE;
 export const SILVERVEIN = new River(
   'the Silvervein',
-  [205.5, -223.5],
+  [SX + 34.5, SY - 44.5],
   [
-    [205.5, -221, 202, -189],
-    [202, -165, 196, -120],
+    [SX + 34.5, SY - 42, SX + 31, SY - 10],
+    [SX + 31, SY + 14, SX + 25, SY + 59],
   ],
-  [196, -115.5],
+  [SX + 25, SY + 63.5],
 );

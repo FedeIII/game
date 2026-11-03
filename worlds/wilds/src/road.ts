@@ -11,7 +11,9 @@ import { TOWN, TOWN_GATE, TOWN_SOUTH, inTown } from './town.ts';
  * starts below the path to the home's door, goes west and turns north to Whitegrove, crosses it and
  * Bronzehold on their streets (hamlets.ts), and ends at the south edge of Ironhold, below its lane
  * (TOWN_SOUTH). The north road (story phase 3, chapter 1.5.1) leaves the north-east corner of the town for
- * Silverspring, about 250 tiles to the north-east, through the grove (Grove). A road is a chain of
+ * Silverspring, about 1100 tiles to the north-east, through the grove (Grove). Each leg between two
+ * settlements is about 600 tiles of road, 2 minutes of a walk, and the north road twice that (Fede,
+ * 2026-11-03: long enough for an encounter by day or at night). A road is a chain of
  * smooth curves (legs); each leg leaves and enters its ends along a heading. Its tiles are mud, also
  * over water (a causeway); nothing grows on it or close to it (except in the grove), and no house of
  * the wilds stands on its ground.
@@ -104,6 +106,42 @@ export class Road {
   }
 }
 
+/** The side of a bin of a RoadBand (tiles). */
+const BAND_BIN = 4;
+
+/**
+ * The land near some roads: the tiles within about `reach` tiles of their middle lines (Fede, 2026-11-03:
+ * the mobs near a road come at the rate of the road). A fast test for each tile: the land is cut into bins
+ * of BAND_BIN tiles, and a bin is near when its middle is within `reach` of a point of a road.
+ */
+export class RoadBand {
+  private readonly bins = new Set<string>();
+
+  constructor(roads: readonly Road[], reach: number) {
+    const span = Math.ceil(reach / BAND_BIN) + 1;
+    for (const road of roads) {
+      // A road has about four points in each tile of its length: one in four is enough.
+      for (let i = 0; i < road.points.length; i += 4) {
+        const [x, y] = road.points[i]!;
+        const bx = Math.floor(x / BAND_BIN);
+        const by = Math.floor(y / BAND_BIN);
+        for (let dy = -span; dy <= span; dy++) {
+          for (let dx = -span; dx <= span; dx++) {
+            const mx = (bx + dx + 0.5) * BAND_BIN;
+            const my = (by + dy + 0.5) * BAND_BIN;
+            if (Math.hypot(mx - x, my - y) <= reach) this.bins.add(`${bx + dx},${by + dy}`);
+          }
+        }
+      }
+    }
+  }
+
+  /** Whether the tile is near one of the roads. */
+  has(tx: number, ty: number): boolean {
+    return this.bins.has(`${Math.floor(tx / BAND_BIN)},${Math.floor(ty / BAND_BIN)}`);
+  }
+}
+
 /** A road of one leg, from (ax, ay) to (bx, by) (tiles, as fractions), level (along x) at both ends. */
 export function road(ax: number, ay: number, bx: number, by: number): Road {
   return new Road([{ from: [ax, ay], to: [bx, by] }]);
@@ -142,7 +180,8 @@ export function cartSpot(road: Road): { tx: number; ty: number } {
  * The legs of the road from the home to Ironhold: from below the path to the home's door west and then
  * north to the south end of Whitegrove's street; from its north end to the south end of Bronzehold's
  * street; from its north end north to the south edge of Ironhold (TOWN_SOUTH). The streets of the two
- * hamlets join the legs.
+ * hamlets join the legs. Each leg is about 600 tiles (2 minutes of a walk), and no leg crosses water
+ * (the places of the hamlets and the home: Fede, 2026-11-03).
  */
 export function homeLegs(home: Building): Leg[] {
   const mid = ([tx, ty]: readonly [number, number]) => [tx + 0.5, ty + 0.5] as const;
@@ -160,8 +199,13 @@ export function homeRoad(home: Building): Road {
 
 /** Where the north road leaves Ironhold: the tile east of the north-east corner of the town, a row in. */
 export const NORTH_ROAD_START = { tx: TOWN.x1 + 1, ty: TOWN.y0 + 1 } as const;
-/** Where the north road ends: the site of Silverspring, about 250 tiles north-east of the town (Fede's choice, 2026-10-11). */
-export const SILVERSPRING_SITE = { tx: NORTH_ROAD_START.tx + 178, ty: NORTH_ROAD_START.ty - 172 } as const;
+/**
+ * Where the north road ends: the site of Silverspring, north-east of the town (Fede's choice, 2026-10-11),
+ * about 1100 tiles away (Fede, 2026-11-03: about 4 minutes of a walk on the road).
+ */
+export const SILVERSPRING_SITE = { tx: NORTH_ROAD_START.tx + 834, ty: NORTH_ROAD_START.ty - 696 } as const;
+/** The north road bends here (tiles), and runs east and west through it: thus it goes round the lakes. */
+const NORTH_BEND = [110, -233] as const;
 
 /**
  * The way from the east gate of Ironhold (the east end of its main street) north along the town to the
@@ -171,13 +215,19 @@ export function gateRoad(): Road {
   return new Road([{ from: [TOWN_GATE.tx + 0.5, TOWN_GATE.ty + 0.5], to: [NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5], start: 'y', end: 'y' }]);
 }
 
-/** The north road, from Ironhold to Silverspring. */
+/** The north road, from Ironhold to Silverspring: two legs, through its bend (about 1160 tiles of road). */
 export function northRoad(): Road {
-  return road(NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5, SILVERSPRING_SITE.tx + 0.5, SILVERSPRING_SITE.ty + 0.5);
+  return new Road([
+    { from: [NORTH_ROAD_START.tx + 0.5, NORTH_ROAD_START.ty + 0.5], to: NORTH_BEND },
+    { from: NORTH_BEND, to: [SILVERSPRING_SITE.tx + 0.5, SILVERSPRING_SITE.ty + 0.5] },
+  ]);
 }
 
-/** The grove: this share of the north road (from Ironhold), and its trees this far from the middle line (tiles). */
-export const GROVE_SPAN = [0.36, 0.46] as const;
+/**
+ * The grove: this share of the north road (from Ironhold), about 26 tiles of it, and its trees this far
+ * from the middle line (tiles). The scouts come from its two ends: a longer grove keeps them too far.
+ */
+export const GROVE_SPAN = [0.36, 0.3825] as const;
 export const GROVE_RADIUS = 7;
 
 /**
@@ -243,10 +293,10 @@ export class Grove extends RoadStretch {
 
 /**
  * The war band (story phase 4b) marches on the north road from this share of its length, a little
- * beyond the grove, to its end at the gate of Silverspring. A character at the step on the road
- * from the grove to Silverspring (this far from it, tiles) starts it.
+ * beyond the grove (about 18 tiles), to its end at the gate of Silverspring. A character at the step on
+ * the road from the grove to Silverspring (this far from it, tiles) starts it.
  */
-export const BAND_SPAN = [GROVE_SPAN[1] + 0.07, 1] as const;
+export const BAND_SPAN = [GROVE_SPAN[1] + 0.0155, 1] as const;
 export const BAND_AREA = { span: [GROVE_SPAN[0], 0.97], radius: 10 } as const;
 
 /**

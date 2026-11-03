@@ -288,8 +288,8 @@ letter leads to an adventure.
 find the way.
 
 **Acceptance Criteria:**
-- **AC-QST-011.1:** A road leaves the north-east corner of Ironhold and goes about 250 tiles to the
-  north-east, to the site of Silverspring. Its tiles are mud (a causeway over water); nothing grows on
+- **AC-QST-011.1:** A road leaves the north-east corner of Ironhold and goes about 1160 tiles (since
+  2026-11-03; about 4 minutes of a walk, REQ-TWN-010) to the north-east, to the site of Silverspring. Its tiles are mud (a causeway over water); nothing grows on
   it or within 2 tiles of it, and no house of the Wilds stands on it.
 - **AC-QST-011.2:** From about a third of the way, for about a tenth of the road, the road goes through
   the grove: the forest of the Wilds without its clearings, right to the edge of the road. No house
@@ -525,7 +525,7 @@ next and to get there first, so that I can stop one fire.
   `next` or `stone` go to `held` (12 coins and a draught). Mira gives the stone to a character at
   `held` who has none.
 - **AC-QST-022.6:** At `held` and `late`, the map marks the camp of the Seekers at the east end of the
-  trail (236, -100).
+  trail (892, -624).
 
 ---
 
@@ -561,7 +561,7 @@ to face them for it, so that I hurt their plans and learn more about them.
 
 **Acceptance Criteria:**
 - **AC-QST-024.1:** Eight standing stones stand on the bank of the pool of the Silvervein, and an altar of
-  the old kind on its south bank (195, -110). No tree, rock or herb grows round them. With INT 14, the
+  the old kind on its south bank (851, -634). No tree, rock or herb grows round them. With INT 14, the
   altar shows the name TIGRIS, and one stone says that Tigris gives and takes.
 - **AC-QST-024.2:** At `captive` with the wave stone, acting on the altar takes the stone and gives the
   Tear of Tigris: the quest moves to `shrine`. Without the stone, the altar gives nothing.
@@ -666,8 +666,8 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   ground storey); the people `farmer` (pages) and `soldier` (`SOLDIER`) in the town hall; `REEVE` starts at
   `warn` (`heard`) and `go` (`asked`).
 - **The north road and the grove** (`worlds/wilds/src/road.ts`): `Road` (any two ends, level at both),
-  `homeRoad()`, `northRoad()`, `NORTH_ROAD_START`, `SILVERSPRING_SITE` (171, -179; the step `asked`
-  marks it, and a test checks the numbers), `Grove` (`GROVE_SPAN` 0.36 to 0.46 of the road,
+  `homeRoad()`, `northRoad()`, `NORTH_ROAD_START`, `SILVERSPRING_SITE` (827, -703; the step `asked`
+  marks it, and a test checks the numbers), `Grove` (`GROVE_SPAN` 0.36 to 0.3825 of the road, about 26 tiles,
   `GROVE_RADIUS` 7); `WildsSource.north`, `.grove` (`GROVE_THRESHOLD`: the trees of the grove).
 - **Ambushes** (`packages/engine/src/ambushes.ts`): `AmbushDef` (`id`, `inArea`, `when`, `from`,
   `units` of `AmbushMember` (`kind`, `rides`, `seat`), `effect`), `Ambushes` (`step()`: it ends a
@@ -706,8 +706,8 @@ in a dream and make me choose, so that chapter 1 ends with a choice that has a c
   `SMITH_SHOP`, `MITHRIL_PRICE` 10); `REEVE` (starts `himo`, `himo-lost`). The items `mithril` (stacks
   of 10) and `mithril-permit`. The server checks the condition (`when`) of an answer with a deal, or of
   the answer that opens a shop and of its ware (`Room.deal()`, `findDeal()`).
-- **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6): `HALE` (9, -35), `MARROW`
-  (51, -5), `TANNER` (-21, 25) (each a `Town` of 11 x 11 tiles; `RUINS`, `brandTile()`), the style
+- **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6): `HALE` (-35, -45), `MARROW`
+  (2, -50), `TANNER` (-66, -30), north of Ironhold (each a `Town` of 11 x 11 tiles; `RUINS`, `brandTile()`), the style
   `{ walls: 'charred', roof: 'none' }` (the page draws no roof: `ROOFLESS` in `render/buildings.ts`;
   the art: `charred` in `art/buildings.ts`), the fixture `brand` (code 32), `RUIN_NPCS`
   (`hale-survivor`, `tanner-survivor`, look `survivor`; protocol 30). The steps `reeve` (at the

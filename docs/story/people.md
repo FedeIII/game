@@ -10,7 +10,7 @@ and come out at dawn (`NpcDef.night`, `docs/features/npcs/night.md`); the others
 
 | Person (Spanish) | Id, place | Role in the story |
 |---|---|---|
-| **The merchant** (el comerciante) | `merchant`, by the broken cart (`-3, 123`) | Goes to Ironhold to see if the road can carry a trade with Silverspring. Gives "The Broken Cart". After the help: the news of the trade; INT 10 or CHA 11 hear that the Sovereignty and the Enclave both want the wildlands and play dirty. Refuses a wanted character. |
+| **The merchant** (el comerciante) | `merchant`, by the broken cart (`-317, 1467`) | Goes to Ironhold to see if the road can carry a trade with Silverspring. Gives "The Broken Cart". After the help: the news of the trade; INT 10 or CHA 11 hear that the Sovereignty and the Enclave both want the wildlands and play dirty. Refuses a wanted character. |
 | **The farmer of Whitegrove** (el granjero de Arboleda Blanca) | `whitegrove-farmer`, at his stall | Waits for the merchant, who should buy his lentils. Gives "Lentils for Bronzehold", and says to keep the sack dry (another line when it is wet). Lends his lever for the cart. |
 | A villager of Whitegrove | `whitegrove-villager`, Whitegrove; at night in the shut cottage | Pages: the shrine is open to all, and the road remembers who steps inside; the goblins run, mostly. |
 | **The sergeant of Bronzehold** (el sargento de Bronzal) | `bronzehold-sergeant`, the guard post | A post of the Iron Sovereignty. Takes the lentils and pays. Does not pay for wet lentils, except a part to a character with CHA 14. The news of the road: the Sovereignty sends soldiers and settlers to claim the wildlands, towards Silverspring (after the lentils, or WIS 12). |

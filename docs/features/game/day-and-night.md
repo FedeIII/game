@@ -87,9 +87,10 @@ different to play and to hear, not only to see (Fede, 2026-10-13).
 - **AC-DAY-004.2:** The server takes the hour from its own clock, with the same rule as the pages; no
   message carries the hour. A test server can fix it (`GAME_HOUR`).
 - **AC-DAY-004.3:** The mobs: each area has its mobs by day and at night (`docs/features/game/combat.md`,
-  REQ-CMB-010). In the forest of the tutorial the goblin patrols are there at night, and rare bandits
-  that ambush by day (REQ-CMB-011); a new character on the road meets one patrol of goblins by day
-  (REQ-CMB-012). In the wildlands the imps and the brutes are less frequent by day.
+  REQ-CMB-010). In the forest of the tutorial the goblin patrols are there at night, and bandits
+  that ambush by day (REQ-CMB-011), about one encounter in each leg of the road; a new character on the road meets one patrol of goblins by day
+  (REQ-CMB-012). In the wildlands the imps and the brutes are less frequent by day, and near a road than away from
+  the roads.
 - **AC-DAY-004.4:** The NPCs: at night the people without a post go home and say no lines; they come
   out at dawn (`docs/features/npcs/night.md`).
 - **AC-DAY-004.5:** The sound: from 6:00 to 20:00 the places sound by day, and at night each place plays
@@ -123,7 +124,8 @@ different to play and to hear, not only to see (Fede, 2026-10-13).
   runs, from `skyNow()` (so `?hour=` works there).
 - **The mobs:** `MobRules.areaAt()` and `MobArea` (`docs/features/game/combat.md`, REQ-CMB-010 to
   REQ-CMB-012); the Wilds: `FOREST_MOBS` (goblins at night, bandits by day), `FIRST_GOBLINS` (one patrol
-  by day for a new character), and `WILD_MOBS` (the imps and brutes of the wildlands: fewer by day).
+  by day for a new character), `ROAD_WILD_MOBS` (the imps and brutes of the wildlands near a road: fewer by day), and `WILD_MOBS`
+  (away from the roads: three times as often).
 - **The NPCs:** at night (20:00 to 6:00) the people without a post go home (`NpcDef.night`): the widow
   of Ironhold to the chapel, the villager of Whitegrove and the panner of Silverspring into their shut
   houses. They say no lines, and they come out at dawn. See `docs/features/npcs/night.md`.

@@ -6,7 +6,7 @@ change its part of the code, and change it in the same commit as the code.
 - **The Wilds** (`worlds/wilds`): the engine's natural terrain from a seed (`?seed=`), the
   player's home in the middle (`home.ts`), and a house in about a third of the 24 x 24-tile cells
   (`houses.ts`; the cell east of the home always tries). **The home** is the house of the cell
-  `HOME_CELL` (1, 5; `houses.ts`), id `home`, in the forest at the northern edge of the Iron
+  `HOME_CELL` (-5, 69; `houses.ts`; since 2026-11-03, when the settlements moved apart), id `home`, in the forest at the northern edge of the Iron
   Sovereignty, south of Ironhold (Fede, 2026-10-12 and 2026-10-13): a timber hut with a thatch roof, 7 x 6 tiles, an earth floor, a lit window
   and a chimney, a bed with a chest, a shelf, a table with a candle and a barrel, each with its
   own line. It stands on the dry place of its cell nearest the middle (the source keeps its ground
@@ -41,10 +41,25 @@ change its part of the code, and change it in the same commit as the code.
   Iron Sovereignty; Ironhold and Silverspring are in the unclaimed wildlands north of it (not "the
   Wilds", which are far north and far south). **The forest of the tutorial** (`inTutorialForest()`,
   `FOREST_EDGE_Y` -8, the row of Ironhold's north edge: south of it): only goblin patrols live there at
-  night, and rare bandits by day (`FOREST_MOBS`, `MobRules.areaAt`, `roam(tx, ty, kind)`; the skirmisher
+  night, and bandits by day (`FOREST_MOBS`, `MobRules.areaAt`, `roam(tx, ty, kind)`; the skirmisher
   and the bandit; one goblin patrol by day for a new character, `FIRST_GOBLINS`), round the hut, the two hamlets and Ironhold; imps and brutes keep the
   wildlands north of Ironhold (Fede, 2026-10-13). Ironhold is the last town of the Sovereignty before the
   wildlands, on the way to Silverspring, the Enclave's last village. Plan: `docs/drafts/tutorial.md`.
+- **The distances and the encounters** (Fede, 2026-11-03; REQ-TWN-010 in `docs/features/game/towns.md`,
+  AC-CMB-010.5 and 010.6 in `docs/features/game/combat.md`): the walk from one settlement to the next is long
+  enough for an encounter by day or at night. Each leg of the road from the hut (to Whitegrove, to
+  Bronzehold, to Ironhold) is about 600 tiles, 2 minutes of a walk at 5 tiles a second, and the north
+  road about 1160 tiles (4 minutes). The places come from a search of the terrain of `DEFAULT_SEED`: no
+  leg crosses water, and Bronzehold stands west of a lake. **The rates** (`MobSpawn.every`, the mean wait
+  between two groups round one player): near a road, about one encounter in each leg of 2 minutes by day
+  and one each minute at night (`ROAD_DAY_EVERY`, `ROAD_NIGHT_EVERY` in `source.ts`). The whole forest of
+  the tutorial has the rate of a road (`FOREST_MOBS`: a goblin patrol about every minute at night, a group
+  of bandits about every 2 minutes by day). In the wildlands, a tile within `ROAD_REACH` (16) tiles of the
+  road to Ironhold, the north road or the way from the east gate (not the trails; `WildsSource.nearRoads`,
+  a `RoadBand` of bins of 4 tiles in `road.ts`) has `ROAD_WILD_MOBS`; the rest has `WILD_MOBS`, three
+  times as often (an imp about every 30 s and a brute about every minute at night; an imp about every
+  minute and a brute about every two by day). The area is the one where the player stands; the wait of a
+  kind (`Horde` keeps one for each player and kind) runs on across a change of area.
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below
   the path to the hut's door west and north to **Whitegrove** (Arboleda Blanca), up its lane, on to
   **Bronzehold** (Bronzal), up its lane, and north to the south edge of Ironhold (`TOWN_SOUTH`, below an
@@ -53,14 +68,14 @@ change its part of the code, and change it in the same commit as the code.
   cart stands beside the first leg (`cartSpot()`: north of a road that runs east and west, or east of
   one that runs north and south). `gateRoad()` keeps the east gate of Ironhold open: from it north to
   the start of the north road. **The hamlets** (`hamlets.ts`, town plans of 19 x 22 tiles, safe as
-  towns): Whitegrove (x -20, y 88: the farmer at the market stall, `FARMER`; a villager; the shrine,
-  a refuge `whitegrove`; an open farmhouse, two shut houses) and Bronzehold (x -45, y 38, west of the
+  towns): Whitegrove (x -384, y 1168: the farmer at the market stall, `FARMER`; a villager; the shrine,
+  a refuge `whitegrove`; an open farmhouse, two shut houses) and Bronzehold (x -160, y 602, west of a
   lake: the guard post of the Sovereignty with the sergeant, `SERGEANT`; a guard on the lane,
   `BRONZEHOLD_GUARD`; a cold forge; two shut houses). Their NPCs come last in `npcs()` (`HAMLET_NPCS`).
   Each has a name sign in the style of the Iron Sovereignty (`HAMLET_SIGNS`: `namesign`, `look:
   'iron'`, `label` its name) right outside the south end of its lane, one tile west of the road, and
   no title on arrival (a small place; Fede's rule of 2026-10-13).
-  `?at=-11,99` starts in Whitegrove, `?at=-36,49` in Bronzehold, `?at=-32,16` at the south edge of
+  `?at=-375,1179` starts in Whitegrove, `?at=-151,613` in Bronzehold, `?at=-32,16` at the south edge of
   Ironhold.
 - **Ironhold** (`worlds/wilds/src/town.ts`, since 2026-10-10; a new plan on 2026-10-13, Fede's
   request: wooden walls, and closer to Ferrozar in chapter 1.5.1 and its picture on the Drive,
@@ -98,18 +113,22 @@ change its part of the code, and change it in the same commit as the code.
   names (`TOWN`, `TOWN_BUILDINGS`, `inTown()`...), and `IRONHOLD` is the built town.
 - **Silverspring** (`worlds/wilds/src/silverspring.ts`, story phase 4a, 2026-10-11;
   `docs/features/game/towns.md`): the mithril village of the Mithril Enclave, 42 x 24 tiles at the
-  end of the north road (the road ends at the gate, `SILVERSPRING_SITE`, west of its main street).
+  end of the north road (the road ends at the gate, `SILVERSPRING_SITE`, west of its main street; the
+  north road has two legs, through `NORTH_BEND`, and goes round the lakes).
+  Everything round Silverspring has its place from that site: the Silvervein, the Wren homestead, the
+  camp of the Seekers and the shrine of Tigris (`river.ts`, `wren.ts`, `shrine.ts`). The places of the
+  quest steps there (`quests.ts`) are numbers: the story tests check them against the places.
   A spring in a pool at the north end, a stream south to a second pool (water, solid), two bridges of
   planks (`Ground.Floor`). North of the main street: the militia hall (Kasmut Parnika, veteran of the
   Enclave: `KASMUT`), the Silver Trout (Tova: ale; the bed of the refuge `trout`, for the guard of
   Silverspring), the jeweller (Ilsa: mithril at 5 coins with the permit; the smith of Ironhold pays
   10); four shut houses face the lane. Doran of the militia at the gate, a panner by the stream. Its
   NPCs come after the merchant in `npcs()` (wire codes). Mobs keep out of it as out of Ironhold
-  (`TOWNS` in `source.ts`), except the war band during the raid. `?at=180,-179` starts in its main
+  (`TOWNS` in `source.ts`), except the war band during the raid. `?at=836,-703` starts in its main
   street. Silverspring has a title on arrival and a name sign of the Mithril Enclave
   (`SILVERSPRING_NAME_SIGN`, `look: 'mithril'`: outside the west end of the main street, north of the
   road). **The camp of the war band** (`camp.ts`, a place of the builder but not a town:
-  `PLACES`): off the north road at (91, -146), with a trail; `?at=92,-141` starts next to the post.
+  `PLACES`): off the north road at (487, -523), with a trail; `?at=488,-518` starts next to the post.
 - **The burned homesteads** (`worlds/wilds/src/ruins.ts`, story phase 6, 2026-10-11): the Hale, the
   Marrow and the Tanner homestead, fixed, in the wildlands north of Ironhold (Hale north, Marrow north-east, Tanner north-west; 2026-10-13); roofless charred
   houses (`{ walls: 'charred', roof: 'none' }`), each with a phoenix (the fixture `brand`) that moves
@@ -125,20 +144,21 @@ change its part of the code, and change it in the same commit as the code.
   Only the mobs of the story (`Mob.story`) hunt guards (`HordePlayer.quarry`).
 - **The Silvervein** (`worlds/wilds/src/river.ts`, 2026-10-12): the river of Silverspring (el río Vena de
   Plata), from a spring 34 tiles north of the town, across the town (its map's channel), to a pool 50
-  tiles south. Water, shallows, and a bank with no tree, house or herb.
+  tiles south. Water, shallows, and a bank with no tree, house or herb. Its points follow
+  `SILVERSPRING_SITE`.
 - **The Arcane Raiders** (story phases 7 to 13, `docs/drafts/story-arcane-raiders.md`, 2026-10-12): the
   end of chapter 1 (the rest of `ashes`) and chapter 2. **Chapter 2 (phases 11 to 13) is on hold: Fede
   said "stop developing here" on 2026-10-12. Build it only when Fede asks.** Phase 7: **the Wren homestead** (`wren.ts`, by
   the pool of the Silvervein; Mira Wren); the priest sends a character at `symbol` there (`next`), and
   the cinder hounds of the Ashen Seekers race it from the east on the burned trail (`SEEKER_TRAIL`; the
   ambush `cinders`). New mob kinds: `hound`, `watcher` (never fights, goes in ash), `seeker`, `adept`
-  (fire bolts), `warden` (goes in ash at half health). `?at=182,-101` starts in the yard of the
+  (fire bolts), `warden` (goes in ash at half health). `?at=838,-625` starts in the yard of the
   homestead. Phase 8: **the camp of the Seekers** (`seekers.ts`) at the east end of the trail; its
   guards fall (`camp`), Sela is tied to the post (her conversation is on the post), and she sends the
-  character to the shrine of Tigris (`captive`). `?at=240,-96` starts next to the post. Phase 9: **the
+  character to the shrine of Tigris (`captive`). `?at=896,-620` starts next to the post. Phase 9: **the
   shrine of Tigris** (`shrine.ts`: standing stones and an altar, loose things on the bank of the pool);
   the wave stone in the altar gives **the Tear of Tigris** (worn: walks in deep water, `PlayerTraits.swim`),
-  and the Ash Warden marches for it (`relic`: its orders). `?at=196,-108` starts by the altar. Phase 10:
+  and the Ash Warden marches for it (`relic`: its orders). `?at=852,-632` starts by the altar. Phase 10:
   **the dream of Verath** (`dream.ts`): at `relic` the beds open a dream (`Interaction.dream`, the veil
   of `ui/dream.ts`); the choice ends chapter 1 at `gave`, `refused` or `lied` (CHA 16). Quest effects
   count what a character wears (`ownedPack()`, `unwearFor()`).

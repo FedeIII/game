@@ -87,6 +87,7 @@ import {
   STONE_BACK,
   ALTAR_TILE,
   SHRINE_FIXTURES,
+  SHRINE_RECT,
   TEAR_TAKEN,
   SILVERVEIN,
   VERATH,
@@ -119,7 +120,10 @@ function contentOfTheWilds(): { effects: QuestEffect[]; conditions: Conditions[]
   const effects: QuestEffect[] = [];
   const conditions: Conditions[] = [];
   const dialogs: Dialog[] = [];
-  const fixtures = [...new Set([...source.home().fixtures, ...source.fixturesIn(TOWN.x0 - 200, TOWN.y0 - 200, 260, 200)])];
+  // The things of the home, round every place of the story (its name sign too), and the merchant's cart by the road.
+  const round = (r: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }, m: number) => source.fixturesIn(r.x0 - m, r.y0 - m, r.x1 + m, r.y1 + m);
+  const cart = source.cart;
+  const fixtures = [...new Set([...source.home().fixtures, ...source.places().flatMap((place) => round(place, 8)), ...round({ x0: cart.tx, y0: cart.ty, x1: cart.tx + 1, y1: cart.ty }, 1)])];
   for (const content of [...source.npcs().map((n) => n.content), ...fixtures.flatMap((f) => [f.content, f.variant?.content])]) {
     if (content?.effect) effects.push(content.effect);
     if (!content?.dialog) continue;
@@ -652,8 +656,9 @@ describe('the war band on the north road', () => {
     expect(horde.mobs.some((m) => m.kind === 'devastator')).toBe(true);
     // The character waits in the town, where the band does not see it.
     Object.assign(p.state, { x: (SILVERSPRING.x0 + 12) * TILE_SIZE + 8, y: (SILVERSPRING.y0 + 11) * TILE_SIZE + 12 });
+    // The band marches about 700 tiles of the road at a slow walk: about 5 minutes.
     let t = 100;
-    for (; t < 120_000 && p.quests.raid?.step === 'scouts'; t += 50) room.tick(t);
+    for (; t < 400_000 && p.quests.raid?.step === 'scouts'; t += 50) room.tick(t);
     expect(p.quests.raid?.step).toBe('raid');
     room.tick((t += 50));
     // The raid: the band again, at the gate, free to come into the town.
@@ -672,7 +677,7 @@ describe('the war band on the north road', () => {
     }
     for (let end = t + 3000; t < end && p.quests.raid?.step === 'raid'; t += 50) room.tick(t);
     expect(p.quests.raid?.step).toBe('defended');
-  }, 60_000);
+  }, 120_000);
 });
 
 describe('Himo', () => {
@@ -1106,7 +1111,7 @@ describe('the shrine of Tigris', () => {
       expect(world.ground(f.tx, f.ty)).not.toBe(Ground.Water);
       expect(Math.hypot(f.tx + 0.5 - SILVERVEIN.pool[0], f.ty + 0.5 - SILVERVEIN.pool[1])).toBeLessThan(8);
     }
-    expect(world.fixturesIn(185, -125, 205, -105).filter((f) => SHRINE_FIXTURES.includes(f))).toHaveLength(SHRINE_FIXTURES.length);
+    expect(world.fixturesIn(SHRINE_RECT.x0 - 4, SHRINE_RECT.y0 - 6, SHRINE_RECT.x1 + 3, SHRINE_RECT.y1 + 5).filter((f) => SHRINE_FIXTURES.includes(f))).toHaveLength(SHRINE_FIXTURES.length);
   });
 
   it('takes the wave stone from a character at `captive` and gives the Tear; then the Ash Warden comes, and goes in ash at half of its hit points', () => {

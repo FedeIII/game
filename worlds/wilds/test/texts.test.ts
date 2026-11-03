@@ -4,7 +4,10 @@ import { DEFAULT_SEED, TEXTS_ES, TOWN, WildsSource, wilds } from '../src/index.t
 import { worldTexts } from './world-texts.ts';
 
 describe('the texts of the Wilds in Spanish', () => {
-  const english = worldTexts(wilds, new WildsSource(DEFAULT_SEED));
+  const source = new WildsSource(DEFAULT_SEED);
+  // The merchant's cart stands by the road, far from every place.
+  const cart = source.cart;
+  const english = worldTexts(wilds, source, 260, [{ x0: cart.tx - 1, y0: cart.ty - 1, x1: cart.tx + 2, y1: cart.ty + 1 }]);
 
   it('translate every text of the content, and nothing else', () => {
     const missing = [...english].filter((text) => !(text in TEXTS_ES));

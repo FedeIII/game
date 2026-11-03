@@ -78,9 +78,13 @@ function guardedValue(guard: 'lock' | 'boards'): number {
 
 /**
  * The model: the roaming mobs that a character kills in chapter 1, alone (the goblins of the forest on
- * the road at night, a rare ambush of bandits there by day, then the wildlands).
+ * the road at night, an ambush of bandits there by day, then the wildlands). Since 2026-11-03 the road
+ * from the hut to Ironhold is about 6 minutes of a walk, with a group of bandits about every 2 minutes by
+ * day and a goblin patrol about every minute at night; the north road is about 4 minutes, and the
+ * wildlands away from the roads have three times the encounters of a road (source.ts, FOREST_MOBS,
+ * ROAD_WILD_MOBS, WILD_MOBS). Some fights a character avoids, and goblins flee.
  */
-const KILLS: Partial<Record<MobKind, number>> = { skirmisher: 9, bandit: 3, imp: 12, brute: 4 };
+const KILLS: Partial<Record<MobKind, number>> = { skirmisher: 9, bandit: 5, imp: 15, brute: 7 };
 /** The chests that it opens: ordinary, locked (DEX 10 to 13), barred (STR 10 to 13), and the buried cache (WIS 13). */
 const OPENED = { chest: 12, locked: 2, barred: 2, cache: 1 } as const;
 /** The quests that it finishes, by their best way. */

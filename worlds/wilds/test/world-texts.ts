@@ -1,13 +1,33 @@
 import type { Dialog, Interaction, WorldDefinition, WorldSource } from '@game/engine';
 
+/** A rectangle of tiles, its corners included. */
+interface Rect {
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
 /**
  * Every text of a world's content that a player can read, as the content has it (in English):
  * the name of the world, the lines of `examine` and `items`, the signs and the lines of the
  * buildings (on every storey), the pages, lore, links and dialogs of the fixtures and the NPCs, the lines and
  * greetings of the NPCs, the names of the landmarks, the titles of the places and the lands, the places and the lines of the journal's regions, the lines of the scenes, the cards of the prologue, and the titles and journal lines of the quests. It reads the content through the source,
- * in a square of `radius` tiles round the home: the two towns, the camps and many houses of the Wilds.
+ * in a square of `radius` tiles round (0, 0), with many houses of the Wilds, round every place of the
+ * journal's regions (`margin` tiles round it: its houses too), and in `extra` (more rectangles of tiles).
  */
-export function worldTexts(definition: WorldDefinition, source: WorldSource, radius = 260): Set<string> {
+export function worldTexts(
+  definition: WorldDefinition,
+  source: WorldSource,
+  radius = 260,
+  extra: readonly Rect[] = [],
+  margin = 40,
+): Set<string> {
+  const areas: Rect[] = [
+    { x0: -radius, y0: -radius, x1: radius, y1: radius },
+    ...(source.places?.() ?? []).map((p) => ({ x0: p.x0 - margin, y0: p.y0 - margin, x1: p.x1 + margin, y1: p.y1 + margin })),
+    ...extra,
+  ];
   const texts = new Set<string>();
   const add = (text: string | undefined) => {
     if (text) texts.add(text);
@@ -48,14 +68,16 @@ export function worldTexts(definition: WorldDefinition, source: WorldSource, rad
     npc.barks?.forEach(add);
     add(npc.greeting);
   }
-  for (const building of source.buildingsIn(-radius, -radius, radius, radius)) {
+  const buildings = new Set(areas.flatMap((a) => source.buildingsIn(a.x0, a.y0, a.x1, a.y1)));
+  for (const building of buildings) {
     add(building.sign);
     add(building.locked);
     for (const fixture of building.fixtures) content(fixture.content);
     // The things of the storeys above the ground (Building.storeys).
     for (const storey of building.storeys ?? []) for (const fixture of storey.fixtures) content(fixture.content);
   }
-  for (const fixture of source.fixturesIn(-radius, -radius, radius, radius)) {
+  const fixtures = new Set(areas.flatMap((a) => source.fixturesIn(a.x0, a.y0, a.x1, a.y1)));
+  for (const fixture of fixtures) {
     content(fixture.content);
     content(fixture.variant?.content);
   }

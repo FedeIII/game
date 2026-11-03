@@ -14,8 +14,9 @@ Nothing that happens in the sandbox is saved.
 
 - **An admin**: an account whose email is in the server's `ADMIN_EMAILS` (`/api/me` says `admin`).
 - **The sandbox**: the fight of an admin's character that this document describes (`sandbox.ts`).
-- **The glade**: the place of the fight (`WorldDefinition.sandbox`): in the Wilds, the tile (11, 134),
-  a glade of the forest 25 tiles west of the home, with trees round it.
+- **The glade**: the place of the fight (`WorldDefinition.sandbox`): in the Wilds, the tile (-102, 1707),
+  a glade of the forest about 30 tiles south of the home, with trees round it (since 2026-11-03,
+  when the home moved south).
 - **A foe**: a mob of the fight. **A steady foe**: a mob that hunts the players that it sees, and never
   startles, flees, hides or lurks (`SpawnOptions.steady`).
 - **A mechanic**: a proposal of the melee draft, built as a switch that is off by default

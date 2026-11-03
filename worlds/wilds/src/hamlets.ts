@@ -17,9 +17,13 @@ import { LAMP, Town, nameSign, type Plan, type Tile } from './towns.ts';
 
 // ---------------------------------------------------------------- Whitegrove
 
-/** The north-west tile of Whitegrove. */
-const WHITEGROVE_X0 = -20;
-const WHITEGROVE_Y0 = 88;
+/**
+ * The north-west tile of Whitegrove: about 600 tiles of road (2 minutes of a walk) north-west of the
+ * hut, and as far south of Bronzehold (Fede, 2026-11-03: the road between two settlements is long
+ * enough for an encounter by day or at night).
+ */
+const WHITEGROVE_X0 = -384;
+const WHITEGROVE_Y0 = 1168;
 /** The column of the middle of the lane, where the road comes in and goes out. */
 const WHITEGROVE_LANE = 9;
 
@@ -129,9 +133,12 @@ export const WHITEGROVE_SHRINE = WHITEGROVE.buildings.find((b) => b.id === 'whit
 
 // ---------------------------------------------------------------- Bronzehold
 
-/** The north-west tile of Bronzehold. */
-const BRONZEHOLD_X0 = -45;
-const BRONZEHOLD_Y0 = 38;
+/**
+ * The north-west tile of Bronzehold: west of a lake, about 600 tiles of road south of Ironhold (Fede,
+ * 2026-11-03).
+ */
+const BRONZEHOLD_X0 = -160;
+const BRONZEHOLD_Y0 = 602;
 const BRONZEHOLD_LANE = 9;
 
 const BRONZEHOLD_MAP = [

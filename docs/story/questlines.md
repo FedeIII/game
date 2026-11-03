@@ -28,7 +28,7 @@ merchant ─▶ cart          farmer ─▶ lentils          (both: any time, on
 The tutorial (Fede, 2026-10-13; `docs/drafts/tutorial.md`). The letter of Thrain Steelforge sends the
 character from its hut north up the road, through Whitegrove and Bronzehold, to Ironhold. On the road
 the game teaches its basics with tips (`docs/features/game/tips.md`); the enemies are goblin patrols at
-night and rare bandits by day. A character at `go` meets one patrol of goblins by day all the same: it
+night and bandits by day, about one encounter in each leg of 2 minutes. A character at `go` meets one patrol of goblins by day all the same: it
 comes ahead of the character, out of view, and the first goblin that hunts the character sets the flag
 `goblins` of the road (`FIRST_GOBLINS`, `GOBLINS_MET`); a meeting with goblins at night sets it too
 (Fede, 2026-10-13).
@@ -81,12 +81,12 @@ Chapter 1 of the game ends with it.
 | `ruin2` | The same phoenix at Marrow; tracks go south-west. | the phoenix of the Tanner homestead (`-60, -27`) | The phoenix of the Marrow homestead (`RUIN_MARROW`). |
 | `ruins` | Three phoenixes. The priest or the apothecary may know the sign. | the priest | The phoenix of the Tanner homestead (`RUIN_TANNER`). |
 | `symbol` | The priest: a god older than the gods. The apothecary: raiders called the Ashen Seekers. | the priest | The priest or Isolde (`ASHES_SYMBOL`). |
-| `next` | The Seekers take old things; the Wrens by the pool keep carved stones. Reach them first. | the Wren homestead (`182, -103`) | The priest: "The Seekers take old things from each house before they burn it." (`ASHES_NEXT`). |
+| `next` | The Seekers take old things; the Wrens by the pool keep carved stones. Reach them first. | the Wren homestead (`838, -627`) | The priest: "The Seekers take old things from each house before they burn it." (`ASHES_NEXT`). |
 | `stone` | Mira gave me the carved stone. Something comes from the east. | the Wren homestead | Mira (`MIRA_STONE`: the wave stone). |
-| `held` | The cinder hounds fell. A masked figure watched. A burned trail leads east. | the camp of the Seekers (`236, -100`) | The ambush "cinders" falls (`ASHES_HELD`: 12 coins and a draught). |
+| `held` | The cinder hounds fell. A masked figure watched. A burned trail leads east. | the camp of the Seekers (`892, -624`) | The ambush "cinders" falls (`ASHES_HELD`: 12 coins and a draught). |
 | `late` | The Seekers came first and took the stone. A burned trail leads east. | the camp of the Seekers | The hounds reach the homestead first (`ASHES_LATE`). |
-| `camp` | The guards of the camp fell. A woman is tied to a post. | the post (`240, -98`) | The ambush "camp-guard" falls (`CAMP_TAKEN`). |
-| `captive` | Sela: the Seekers want the shrine of Tigris; the wave stone opens it. | the altar (`195, -110`) | "I will cut the ropes." (`SELA_FREE`). |
+| `camp` | The guards of the camp fell. A woman is tied to a post. | the post (`896, -622`) | The ambush "camp-guard" falls (`CAMP_TAKEN`). |
+| `captive` | Sela: the Seekers want the shrine of Tigris; the wave stone opens it. | the altar (`851, -634`) | "I will cut the ropes." (`SELA_FREE`). |
 | `shrine` | The altar opened; the Tear of Tigris is mine. The Seekers come. | the altar | The wave stone into the altar (`TEAR_TAKEN`: the stone for the Tear). |
 | `relic` | The Ash Warden went in ash. I keep the Tear and its orders. I need sleep. | | The ambush "shrine" falls (`ASHES_RELIC`: the Warden's orders). |
 | `gave` (end) | In a dream of ash, I gave Verath the Tear. | | The dream: "Take it." (`DREAM_GIVE`). |
@@ -112,13 +112,13 @@ Chapter 1.5.1, "Incursión Hobgoblin".
 | Step | The journal says (short) | The map marks | What moves the quest there |
 |---|---|---|---|
 | `heard` | Hobgoblins go to Silverspring; they took Himo. The reeve wants a word. | the reeve | The scene "the argument" (`RAID_HEARD`); WIS 13 hears the soldier's low line. |
-| `asked` | Warn Silverspring, north-east of Ironhold. Ironhold cannot pay; the soldiers want me out of it. | Silverspring (`171, -179`) | "I will warn Silverspring." (`RAID_ASKED`). |
+| `asked` | Warn Silverspring, north-east of Ironhold. Ironhold cannot pay; the soldiers want me out of it. | Silverspring (`827, -703`) | "I will warn Silverspring." (`RAID_ASKED`). |
 | `scouts` | The scouts in the grove fell; the war band marches on Silverspring. | Silverspring | The ambush "scouts" in the grove falls (`RAID_SCOUTS`: 2 badger furs). |
-| `band` | The band fell on the road; Himo may be in its camp. | the post of the war camp (`92, -143`) | The ambush "band" falls on the north road (`RAID_BAND`). |
+| `band` | The band fell on the road; Himo may be in its camp. | the post of the war camp (`488, -520`) | The ambush "band" falls on the north road (`RAID_BAND`). |
 | `escort` | Himo is free; take him home to Ironhold. | the east gate of Ironhold (`-7, 3`) | To press the action at the post: "You cut the ropes." (`HIMO_FREE`). Himo follows. |
 | `home` | Himo is home; his family paid. Silverspring must hear it. | Kasmut | Himo reaches Ironhold (`HIMO_HOME`: 20 coins). |
 | `lost` | Himo fell on the way. Silverspring must hear of the band. | Kasmut | Himo falls (`HIMO_LOST`). |
-| `raid` | The war band came to Silverspring first. | the main street of Silverspring (`192, -179`) | The band reaches the gate of Silverspring (`RAID_ARRIVED`). |
+| `raid` | The war band came to Silverspring first. | the main street of Silverspring (`848, -703`) | The band reaches the gate of Silverspring (`RAID_ARRIVED`). |
 | `defended` | The band fell in the streets. Himo died in the camp. | Kasmut | The ambush "raid" falls in the town (`RAID_DEFENDED`). |
 | `title` (end) | Silverspring gave me a title in its guard, and a bed. | | Kasmut: from `home` or `lost` with the mithril permit (`RAID_TITLE_PERMIT`), from `defended` without it (`RAID_TITLE`). |
 
@@ -134,7 +134,7 @@ Silverspring.
 
 | Step | The journal says (short) | The map marks | What moves the quest there |
 |---|---|---|---|
-| `heard` | I overheard a plot against a caravan of Silverspring, half a day down the north road. | the meeting point (`127, -161`) | The scene "the plot" (`CARAVAN_HEARD`): WIS 15 hears every line, WIS 13 two more. |
+| `heard` | I overheard a plot against a caravan of Silverspring, half a day down the north road. | the meeting point (`608, -625`) | The scene "the plot" (`CARAVAN_HEARD`): WIS 15 hears every line, WIS 13 two more. |
 | `saved` (end) | I saved the caravan. | | Every attacker falls, and the wagon lives (`CARAVAN_SAVED`: 15 coins and a draught). |
 | `lost` (end) | The hobgoblins broke the wagon. | | The wagon falls (`CARAVAN_LOST`). |
 | `robbing` | I attack the caravan; Ironhold and Silverspring want me for it. | | "Hand over the cargo." to the driver (`CARAVAN_ROB`; from `heard` or `saved`). |

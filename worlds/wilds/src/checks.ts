@@ -1,6 +1,7 @@
 import { DRINKS, WADE_GATE, type Ability, type Dialog, type Fixture, type Gate, type Interaction, type ItemKind } from '@game/engine';
-import { HOME_CELL } from './houses.ts';
+import { BUILDING_CELL, HOME_CELL } from './houses.ts';
 import type { WildsSource } from './source.ts';
+import { IRONHOLD } from './town.ts';
 
 /**
  * The register of the checks of the Wilds: every gate of the content, with its DC and its context
@@ -18,8 +19,15 @@ export interface CheckEntry {
   readonly text: string;
 }
 
-/** The houses of the wilds in this many cells round the home: enough to meet every book and every grade of chest. */
+/**
+ * The houses of the wilds in this many cells round the home (the forest of the Sovereignty) and round
+ * Ironhold (the forest and the wildlands): enough to meet every book and every grade of chest.
+ */
 const HOUSE_CELLS = 8;
+const HOUSE_AREAS: readonly (readonly [number, number])[] = [
+  HOME_CELL,
+  [Math.floor((IRONHOLD.x0 + IRONHOLD.x1) / 2 / BUILDING_CELL), Math.floor((IRONHOLD.y0 + IRONHOLD.y1) / 2 / BUILDING_CELL)],
+];
 
 /** Every check of the content of the Wilds, once each (a book or a grade of chest that many houses share comes once). */
 export function checksOf(source: WildsSource): CheckEntry[] {
@@ -65,12 +73,14 @@ export function checksOf(source: WildsSource): CheckEntry[] {
       for (const storey of b.storeys ?? []) for (const f of storey.fixtures) fixture(f, place.name);
     }
   }
-  for (let cy = HOME_CELL[1] - HOUSE_CELLS; cy <= HOME_CELL[1] + HOUSE_CELLS; cy++) {
-    for (let cx = HOME_CELL[0] - HOUSE_CELLS; cx <= HOME_CELL[0] + HOUSE_CELLS; cx++) {
-      const house = source.house(cx, cy);
-      if (!house || house.id === 'home') continue;
-      if (house.barred) add(house.barred, 'boards', 'a house of the wilds', 'a barred door, before a chest');
-      for (const f of house.fixtures) fixture(f, 'a house of the wilds');
+  for (const [mx, my] of HOUSE_AREAS) {
+    for (let cy = my - HOUSE_CELLS; cy <= my + HOUSE_CELLS; cy++) {
+      for (let cx = mx - HOUSE_CELLS; cx <= mx + HOUSE_CELLS; cx++) {
+        const house = source.house(cx, cy);
+        if (!house || house.id === 'home') continue;
+        if (house.barred) add(house.barred, 'boards', 'a house of the wilds', 'a barred door, before a chest');
+        for (const f of house.fixtures) fixture(f, 'a house of the wilds');
+      }
     }
   }
   for (const scene of source.scenes()) for (const line of scene.lines) if (line.gate) add(line.gate, 'scene', `scene ${scene.id} (${line.npc})`, line.text);

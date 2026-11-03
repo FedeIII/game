@@ -109,6 +109,10 @@ const MIGRATIONS: readonly string[] = [
   // of the kills that an admin chose for the admin's own characters (null: KILL_XP_DIVISOR).
   `ALTER TABLE characters ADD COLUMN xp INTEGER;
    ALTER TABLE users ADD COLUMN xp_divisor INTEGER;`,
+  // 2026-11-03: the settlements of the Wilds moved apart (about 2 minutes of a walk between two of them),
+  // and the hut moved with them. Every character starts in its new hut, and its map of the explored land
+  // starts again: the old chunks show the old places (Fede's decision).
+  `UPDATE characters SET place = NULL, explored = NULL;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */
