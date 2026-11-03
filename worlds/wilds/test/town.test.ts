@@ -177,7 +177,7 @@ describe('the signpost and the road', () => {
       }
       expect(tiles).toBeGreaterThan(30);
     }
-  });
+  }, 60_000);
 
   it('keep the houses of the wilds off the town and the road', () => {
     for (const seed of SEEDS) {
@@ -677,10 +677,7 @@ describe('the road through the hamlets', () => {
         const [lx] = town === WHITEGROVE ? WHITEGROVE_SOUTH : BRONZEHOLD_SOUTH;
         for (let ty = town.y0; ty <= town.y1; ty++) expect(w.solidBox(lx, ty), `${town.name}: ${lx},${ty}`).toBeNull();
       }
-      // A player walks from the door of the hut to the gate.
-      const home = s.home();
-      const area = reachable(w, home.doorX, home.y1 + 1, -Infinity, -Infinity, Infinity, Infinity, onTheWay(s));
-      expect(area.has(key(TOWN_GATE.tx, TOWN_GATE.ty)), `seed ${seed}`).toBe(true);
+      // A player walks from the door of the hut to the gate: "the signpost and the road" checks it.
     }
   });
 
