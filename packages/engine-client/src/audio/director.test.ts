@@ -194,7 +194,8 @@ describe('the pieces of the game', () => {
       }
       for (const inst of track.first ?? []) expect(track.instruments, `${mood}: first ${inst}`).toContain(inst);
     }
-  });
+    // Forty sections of every piece: about 1 s on the laptop, and more than 5 s on a busy VPS.
+  }, 30_000);
 
   it('have stingers on recorded instruments, near recorded notes', () => {
     for (const [id, stinger] of Object.entries(STINGERS)) checkNotes(id, stinger.notes, stinger.instruments, stinger.beats);
