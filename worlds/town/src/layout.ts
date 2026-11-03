@@ -12,6 +12,10 @@ import { PROJECTS, type Project } from './projects.ts';
  * inner ends of their houses. In front of each door the ground stays clear: no lamp, prop or
  * tree in the 5 x 3 tiles below it (the tests check both).
  *
+ * The first four projects have the four houses in the middle (1 to 4: the doors that a phone
+ * shows); the next four have the corners (5 to 8). A corner house needs a short name, so that
+ * its sign stays on the screen and clear of the GUI in the corners.
+ *
  *   .  garden: grass with tufts and flowers      T  a tree in a garden
  *   =  cobblestones                               1-8  the house of PROJECTS[n - 1] (projects.ts)
  *   F  the fountain (3 x 3)     N  the notice board (2 x 1)     C  the town crier
@@ -22,25 +26,25 @@ import { PROJECTS, type Project } from './projects.ts';
 const MAP = [
   '............T............T............',
   '.T....................................',
-  '...222222............444444.888888....',
-  '...222222.1111111..T.444444.888888....',
-  '...222222.1111111....444444.888888..T.',
-  '...222222.1111111.T..444444.888888....',
-  '...222222.1111111....444444.888888....',
-  '...222222.1111111....444444.888888....',
-  '...222222.1111111....444444.888888....',
+  '...666666............333333.555555....',
+  '...666666.1111111..T.333333.555555....',
+  '...666666.1111111....333333.555555..T.',
+  '...666666.1111111.T..333333.555555....',
+  '...666666.1111111....333333.555555....',
+  '...666666.1111111....333333.555555....',
+  '...666666.1111111....333333.555555....',
   '..=L=======L======FFF=====L======L==..',
   'T.================FFF===============..',
   '..x===============FFF==============x..',
   '..b========NN=========C============b..',
   '..==================================.T',
   '..==================================..',
-  '..=666666===========5555555=77777777..',
-  '..=666666=33333333==5555555=77777777..',
-  'T.=666666=33333333==5555555=77777777..',
-  '..=666666=33333333==5555555=77777777..',
-  '..=666666=33333333==5555555=77777777.T',
-  '..=666666=33333333==5555555=77777777..',
+  '..=777777===========4444444=88888888..',
+  '..=777777=22222222==4444444=88888888..',
+  'T.=777777=22222222==4444444=88888888..',
+  '..=777777=22222222==4444444=88888888..',
+  '..=777777=22222222==4444444=88888888.T',
+  '..=777777=22222222==4444444=88888888..',
   '.==L======L========L=============L===.',
   '.b==================================b.',
   '.x==================================x.',
@@ -234,7 +238,11 @@ const NOTICES: Fixture = {
   tx: 0,
   ty: 0,
   content: {
-    pages: ['AZYR · Developer & Creator.', 'Eight houses: vest101, Osler·MD, Kandrax Rol and Kandrax App,', 'Hidden Agenda, Azyrio, GitHub and Journal.'],
+    pages: [
+      'AZYR · Developer & Creator.',
+      'Eight houses: vest101, Kandrax Rol, World of Kandrax, Hidden Agenda,',
+      'Kandrax App, Osler·MD, Azyrio and Journal.',
+    ],
     link: { url: 'https://azyr.io/projects', label: 'All the projects', title: 'Azyr' },
   },
 };

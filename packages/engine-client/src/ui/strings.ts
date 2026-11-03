@@ -51,6 +51,7 @@ export const STRINGS = {
     forge: 'forge',
     crystalball: 'crystal ball',
     scales: 'scales',
+    weaponrack: 'weapon rack',
   } satisfies Record<Interactable, string>,
   linkClose: 'Close',
   linkKeyHint: 'or press E',

@@ -57,6 +57,10 @@ everyone), and a door does not close on an NPC. The lines that NPCs say are even
 snapshot (`b`: [npc index, line index]); a client that misses a snapshot (a full send buffer)
 misses the line, which is harmless.
 
+The index of an NPC and the houses come from the world that both sides build. So a change of the
+houses or of the NPCs also increases the version, and a page that is still open reloads: protocol 7
+(2026-11-03) is the new order of the houses, with World of Kandrax in place of GitHub.
+
 ## Looks and names (protocol 4, 2026-10-08)
 
 The "You" section of the settings panel (`ui/you-section.ts`) shows the player's look and its

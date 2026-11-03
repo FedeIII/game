@@ -342,11 +342,16 @@ player at the start (single-player worlds); `?nomobs` turns them off.
   azyr.io landing page (`/var/www/azyr.io/public/index.html` and the detail pages), in the
   landing page's order. When those pages change, ask Fede if the town must follow (a town
 change needs a request; see "What this is"). Kandrax Rol speaks
-  Spanish, as its page does. Each project also has its **house**: a style, a floor, roof props
+  Spanish, as its page does. **Since 2026-11-03 (Fede's request)** the order is vest101, Kandrax
+  Rol (its portal goes to https://rol.kandrax.app/, not to the channel), World of Kandrax, Hidden
+  Agenda, Kandrax App, Osler·MD, Azyrio and Journal. The first four have the four houses in the
+  middle (the doors that a phone shows), the next four the corners. GitHub has no house: World of
+  Kandrax took its place (the stone and slate of the game's houses, a weapon rack, a map of the
+  Wilds, a bed and a chest; its keeper is the `warden` look, in armour with a sword). Each project also has its **house**: a style, a floor, roof props
   and a **plan** in ASCII, walls included (`#` wall, `D` door, `+` lit window, `.` floor, `P`
   the portal, `K` the keeper, any other letter a thing of `exhibits`; a thing of more tiles has
   its letter on each tile). Every house has its own walls and roof, and things that match them
-  (the smithy has a forge and an anvil, the healer's hut a cauldron). `layout.ts` has the **town
+  (the warden's lodge has a weapon rack, the healer's hut a cauldron). `layout.ts` has the **town
   map** in ASCII: digits `1`-`8` are the rectangles of the houses (the plan must have the same
   size), `=` cobblestones, `.` gardens, `T` trees, and the things of the plaza and the lane
   (`F` fountain, `N` notice board with a link to azyr.io, `C` the crier, `L` lamps, `b` barrels,

@@ -11,8 +11,9 @@ plague doctor, noble or gravedigger, of any size and colour, that the browser ke
 visits. Everyone has a name over the head: the one set in the settings panel, or else a
 name that comes with the look ("Brother Aldric", "Sir Galen"). The settings panel also draws a
 new look. A small cobbled plaza and a lane with eight little
-houses, one for each project of the azyr.io landing page, each in its own style (a timber
-counting house, a thatched healer's hut, a players' tent, a rubble keep, a stone smithy...).
+houses, one for each project of the azyr.io landing page except GitHub, each in its own style
+(a timber counting house, a thatched healer's hut, a players' tent, a rubble keep, the stone
+lodge of a warden...).
 In each house a keeper introduces the project, the exhibits show its details, and a portal
 opens the real thing. Mobs prowl in the forest round the town, and every visitor sees the
 same ones; the plaza and the lane are safe.

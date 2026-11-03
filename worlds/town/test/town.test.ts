@@ -78,7 +78,7 @@ function drawable(ch: string): boolean {
 
 describe('the town of Azyr', () => {
   it('has a house for every project of the landing page, with its name on the sign', () => {
-    expect(HOUSES.map((h) => h.sign)).toEqual(['vest101', 'Osler·MD', 'Kandrax Rol', 'Kandrax App', 'Hidden Agenda', 'Azyrio', 'GitHub', 'Journal']);
+    expect(HOUSES.map((h) => h.sign)).toEqual(['vest101', 'Kandrax Rol', 'World of Kandrax', 'Hidden Agenda', 'Kandrax App', 'Osler·MD', 'Azyrio', 'Journal']);
   });
 
   it('gives every house one portal with an https link, a keeper, and at least three exhibits', () => {
@@ -101,12 +101,12 @@ describe('the town of Azyr', () => {
     const urls = Object.fromEntries(PROJECTS.map((p) => [p.id, p.portal.url]));
     expect(urls).toEqual({
       vest101: 'https://vest101.com',
-      osler: 'https://osler.azyr.io',
-      'kandrax-rol': 'https://www.youtube.com/@KandraxRol',
-      'kandrax-app': 'https://www.kandrax.app/',
+      'kandrax-rol': 'https://rol.kandrax.app/',
+      'world-of-kandrax': 'https://world.kandrax.app/',
       'hidden-agenda': 'https://hidden-agenda.azyr.io/',
+      'kandrax-app': 'https://www.kandrax.app/',
+      osler: 'https://osler.azyr.io',
       azyrio: 'https://www.youtube.com/@Azyrio',
-      github: 'https://github.com/FedeIII',
       journal: 'https://journal.azyr.io',
     });
   });

@@ -30,12 +30,16 @@ export const WANDERER_PALETTE: Palette = {
   mask: ramp('#3a3324', '#544a35', '#6e6248', '#8a7d5e'),
 };
 
-/** A costume: the colours of the cloak, the jerkin and the hair, and the hood up or down. */
+/**
+ * A costume: the colours of the cloak, the jerkin and the hair, and the hood up or down.
+ * `figure` changes the cut of the wanderer (a helm, armour, a sword), for a look that needs it.
+ */
 interface Look {
   readonly cloak: readonly number[];
   readonly hood: boolean;
   readonly hair?: readonly number[];
   readonly leather?: readonly number[];
+  readonly figure?: Partial<FigureSpec>;
 }
 
 /** The figure and the colours of an NPC look: the wanderer with the look's colours in place. */
@@ -47,7 +51,7 @@ function npcFigure(look: Look): { spec: FigureSpec; materials: Material[] } {
     ...(look.hair ? { hair: look.hair } : {}),
     ...(look.leather ? { garment: look.leather } : {}),
   };
-  return { spec: { ...WANDERER, headwear: look.hood ? 'hood' : 'bare' }, materials: figureMaterials(palette) };
+  return { spec: { ...WANDERER, headwear: look.hood ? 'hood' : 'bare', ...look.figure }, materials: figureMaterials(palette) };
 }
 
 const HAIR = {
@@ -77,6 +81,12 @@ export const NPC_LOOKS: Record<string, Look> = {
   },
   archivist: { cloak: ramp('#0d1014', '#151a20', '#1e252d', '#28303a', '#333d49', '#3f4b59'), hood: true },
   crier: { cloak: ramp('#14070a', '#260c10', '#3a1216', '#501a1d', '#662325', '#7c302e'), hood: false, hair: HAIR.blond },
+  // World of Kandrax: a warden of the Wilds, in armour under a blood-red tabard.
+  warden: {
+    cloak: ramp('#160505', '#280909', '#3c0e0d', '#521413', '#691b19', '#802420'),
+    hood: false,
+    figure: { headwear: 'helm', body: 'armour', tabard: true, cloak: 'short', item: 'sword' },
+  },
 };
 
 /**

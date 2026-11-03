@@ -8,9 +8,10 @@ import { clampInput, type Facing, type MoveInput } from '../player.ts';
  * docs/multiplayer.md.
  *
  * Change PROTOCOL_VERSION when a message changes. A client with another version is refused, and
- * it tells the visitor to reload the page.
+ * it tells the visitor to reload the page. Change it also when the houses or the NPCs of the
+ * town change: the messages name NPCs by their index, and both sides build the same world.
  */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Snapshots per second from the server to each client. */
 export const SNAPSHOT_RATE = 20;

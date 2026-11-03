@@ -1,7 +1,10 @@
 import { Ground, type BuildingStyle, type FixtureKind, type Interaction, type Light } from '@game/engine';
 
 /**
- * The projects of the azyr.io landing page, one house each, in the order of the landing page.
+ * The projects of the azyr.io landing page, one house each, in the order of the landing page:
+ * vest101, Kandrax Rol, World of Kandrax, Hidden Agenda, Kandrax App, Osler·MD, Azyrio and
+ * Journal (Fede, 2026-11-03). The first four have the four houses in the middle of the town.
+ * GitHub is on the landing page, but it has no house: World of Kandrax took its place.
  * The texts come from the project list (/var/www/azyr.io/public/index.html) and the detail page
  * of each project (wallet.html, osler.html, ...). When those pages change, change this file.
  *
@@ -109,66 +112,28 @@ export const PROJECTS: readonly Project[] = [
     },
   },
   {
-    id: 'osler',
-    name: 'Osler·MD',
-    keeper: {
-      look: 'healer',
-      pages: ['Welcome to Osler·MD, a personal medical assistant.', 'Upload your records and get guidance shaped by your own history.'],
-      barks: [
-        'Your records, kept as a private medical memory.',
-        'Meals, sleep, exercise: ask about your own history.',
-        'In English or in Spanish.',
-        'I am not a doctor. In an emergency, call your local emergency services.',
-      ],
-    },
-    portal: {
-      colour: 0x7fd6c8,
-      pages: ['A pale, clean light. Beyond it: osler.azyr.io.'],
-      url: 'https://osler.azyr.io',
-      label: 'Open Osler·MD',
-    },
-    // A healer's hut of planks and thatch: jars of remedies and a brew on the fire.
-    house: {
-      style: { walls: 'planks', roof: 'thatch' },
-      floor: Ground.FloorEarth,
-      roofProps: [{ name: 'chimney', column: 1 }],
-      plan: [
-        '######',
-        '#aPPb#',
-        '#....#',
-        '#crrK#',
-        '#.rr.#',
-        '#l...#',
-        '##+#D#',
-      ],
-      exhibits: {
-        a: { kind: 'apothecary', content: say("Lab results, doctor's notes and reports, kept as a private medical memory.") },
-        b: { kind: 'bookshelf', content: say('In English and Spanish. Your health data stays private to your account.') },
-        c: { kind: 'cauldron', content: say('Ask about meals, exercise, sleep, habits and supplements.', 'The answers use your own history, not generic advice.') },
-        r: { kind: 'rug' },
-        l: { kind: 'lectern', content: say('Osler is not a doctor. It gives general wellness information only.', 'In an emergency, contact your local emergency services.') },
-      },
-    },
-  },
-  {
     id: 'kandrax-rol',
     name: 'Kandrax Rol',
     keeper: {
       look: 'bard',
-      pages: ['¡Bienvenido a Kandrax Rol!', 'Un canal de YouTube dedicado al arte del rol de mesa.'],
+      pages: [
+        '¡Bienvenido a Kandrax Rol!',
+        'Kandrax es un mundo de Dungeons & Dragons: una civilización joven.',
+        'Su libro está en rol.kandrax.app: un libro abierto a la luz de una vela.',
+      ],
       barks: [
-        '¡Aventuras épicas en los reinos de Dungeons & Dragons!',
-        'Donde la narración y la imaginación se unen.',
-        'Cada sesión trae nuevos desafíos.',
-        '¡Suscríbete y sigue nuestras campañas!',
-        'El rol de mesa es un arte colaborativo.',
+        'Donde los dioses y los mortales entrelazan su destino.',
+        'Las campañas, sus episodios y sus crónicas, en un libro.',
+        'Cada partida se graba y se publica en YouTube.',
+        'El Códice guarda el saber del mundo.',
+        '¡Abre el libro de Kandrax!',
       ],
     },
     portal: {
       colour: 0xa070e0,
-      pages: ['Una luz violeta. Al otro lado: el canal de YouTube.'],
-      url: 'https://www.youtube.com/@KandraxRol',
-      label: 'Visitar el canal',
+      pages: ['Una luz violeta. Al otro lado: rol.kandrax.app, el libro de Kandrax.'],
+      url: 'https://rol.kandrax.app/',
+      label: 'Visitar rol.kandrax.app',
     },
     // A players' tent, low and wide: a map, a game board and the props of the next session.
     house: {
@@ -186,52 +151,65 @@ export const PROJECTS: readonly Project[] = [
         '####D###',
       ],
       exhibits: {
-        b: { kind: 'bookshelf', content: say('Cada sesión trae nuevos desafíos y personajes memorables.') },
-        x: { kind: 'crate', content: say('Dados, mapas y miniaturas, listos para la próxima sesión.') },
-        l: { kind: 'lectern', content: say('Suscríbete para seguir nuestras campañas en curso y nuestros oneshots.') },
-        m: { kind: 'maptable', content: say('Aventuras épicas por los reinos de Dungeons & Dragons.', 'Donde la narración y la imaginación se unen.') },
-        g: { kind: 'boardtable', content: say('El juego de mesa, convertido en un arte colaborativo.') },
+        b: { kind: 'bookshelf', content: say('Las crónicas de cada campaña, y el Códice: el saber del mundo.') },
+        x: { kind: 'crate', content: say('Dados, mapas y miniaturas, listos para la próxima partida.') },
+        l: { kind: 'lectern', content: say('El calendario de publicaciones: el próximo episodio y el próximo short.') },
+        m: { kind: 'maptable', content: say('Kandrax: una civilización joven,', 'donde los dioses y los mortales entrelazan su destino.') },
+        g: { kind: 'boardtable', content: say('Las campañas, los personajes, el año y la cronología de Kandrax.', 'Cada partida se graba y se publica en el canal de YouTube.') },
       },
     },
   },
   {
-    id: 'kandrax-app',
-    name: 'Kandrax App',
+    id: 'world-of-kandrax',
+    name: 'World of Kandrax',
     keeper: {
-      look: 'dungeonmaster',
-      pages: ['Kandrax App: a tool for Dungeons & Dragons.', 'From dungeon masters to players, it helps everyone at the table.'],
+      look: 'warden',
+      pages: [
+        'Welcome to World of Kandrax, traveller.',
+        'A pixel-art role-playing game for the browser, in Kandrax: the D&D world of Kandrax Rol.',
+        'Make a character, and wake up in your hut in the Wilds.',
+      ],
       barks: [
-        'Track your characters. Organize your campaign.',
-        'Quick reference to the rules, at the table.',
-        'Focus on what matters most: the story.',
-        'For dungeon masters and players alike.',
+        'The Wilds are dark. Stay in the torchlight.',
+        'Imps are quick. Brutes hit hard.',
+        'Ironhold lies to the north.',
+        'Every player walks the same Wilds.',
+        'A race, a class, a name: who are you?',
       ],
     },
     portal: {
-      colour: 0x60c080,
-      pages: ['A green light. Beyond it: kandrax.app.'],
-      url: 'https://www.kandrax.app/',
-      label: 'Visit Kandrax App',
+      colour: 0xff7a30,
+      pages: ['An ember-red light, like a torch in the woods. Beyond it: world.kandrax.app.'],
+      url: 'https://world.kandrax.app/',
+      label: 'Play World of Kandrax',
     },
-    // A small rubble keep with a flat, battlemented roof: maps, records and a telescope.
+    // A warden's lodge of stone and slate at the edge of the forest, as the houses of the game
+    // look: a rack of weapons, a map of the Wilds, the bed of a hut and a chest for the pack.
     house: {
-      style: { walls: 'rubble', roof: 'battlement' },
+      style: { walls: 'stone', roof: 'slate' },
       floor: Ground.FloorStone,
-      roofProps: [{ name: 'flag-green', column: 3 }],
+      roofProps: [
+        { name: 'chimney', column: 1 },
+        { name: 'flag-silver', column: 4 },
+      ],
       plan: [
         '######',
-        '#bPPt#',
+        '#wPPa#',
         '#....#',
-        '#.mmK#',
-        '#....#',
-        '#..dd#',
+        '#b..K#',
+        '#b.mm#',
+        '#c...#',
         '##D+##',
       ],
       exhibits: {
-        b: { kind: 'bookshelf', content: say("Quick reference to the game's mechanics.") },
-        t: { kind: 'telescope', content: say('A clean interface, powerful features,', 'and a deep respect for the game itself.') },
-        m: { kind: 'maptable', content: say('Focus on what matters most: the story.') },
-        d: { kind: 'desk', content: say('Character tracking and campaign organization.') },
+        w: { kind: 'weaponrack', content: say('Swords, a spear, a shield.', 'Every class fights in its own way: press Space, or the sword button.') },
+        a: { kind: 'candelabra', content: say('Torchlight. In the Wilds, you walk in a small circle of it.') },
+        b: { kind: 'bed', content: say('Every character wakes up here first: in a hut in the woods.') },
+        m: { kind: 'maptable', content: say('A map of the Wilds: an endless dark forest.', 'Lonely houses, two hamlets, and the town of Ironhold to the north.') },
+        c: {
+          kind: 'chest',
+          content: say('Sign in with Google and make a character:', 'a race and a class of D&D 5e, ability scores by point buy, a look and a name.'),
+        },
       },
     },
   },
@@ -277,6 +255,89 @@ export const PROJECTS: readonly Project[] = [
     },
   },
   {
+    id: 'kandrax-app',
+    name: 'Kandrax App',
+    keeper: {
+      look: 'dungeonmaster',
+      pages: ['Kandrax App: a tool for Dungeons & Dragons.', 'From dungeon masters to players, it helps everyone at the table.'],
+      barks: [
+        'Track your characters. Organize your campaign.',
+        'Quick reference to the rules, at the table.',
+        'Focus on what matters most: the story.',
+        'For dungeon masters and players alike.',
+      ],
+    },
+    portal: {
+      colour: 0x60c080,
+      pages: ['A green light. Beyond it: kandrax.app.'],
+      url: 'https://www.kandrax.app/',
+      label: 'Visit Kandrax App',
+    },
+    // A small rubble keep with a flat, battlemented roof: maps, records and a telescope.
+    house: {
+      style: { walls: 'rubble', roof: 'battlement' },
+      floor: Ground.FloorStone,
+      roofProps: [{ name: 'flag-green', column: 3 }],
+      plan: [
+        '######',
+        '#bPPt#',
+        '#....#',
+        '#.mmK#',
+        '#....#',
+        '#..dd#',
+        '#D+###',
+      ],
+      exhibits: {
+        b: { kind: 'bookshelf', content: say("Quick reference to the game's mechanics.") },
+        t: { kind: 'telescope', content: say('A clean interface, powerful features,', 'and a deep respect for the game itself.') },
+        m: { kind: 'maptable', content: say('Focus on what matters most: the story.') },
+        d: { kind: 'desk', content: say('Character tracking and campaign organization.') },
+      },
+    },
+  },
+  {
+    id: 'osler',
+    name: 'Osler·MD',
+    keeper: {
+      look: 'healer',
+      pages: ['Welcome to Osler·MD, a personal medical assistant.', 'Upload your records and get guidance shaped by your own history.'],
+      barks: [
+        'Your records, kept as a private medical memory.',
+        'Meals, sleep, exercise: ask about your own history.',
+        'In English or in Spanish.',
+        'I am not a doctor. In an emergency, call your local emergency services.',
+      ],
+    },
+    portal: {
+      colour: 0x7fd6c8,
+      pages: ['A pale, clean light. Beyond it: osler.azyr.io.'],
+      url: 'https://osler.azyr.io',
+      label: 'Open Osler·MD',
+    },
+    // A healer's hut of planks and thatch: jars of remedies and a brew on the fire.
+    house: {
+      style: { walls: 'planks', roof: 'thatch' },
+      floor: Ground.FloorEarth,
+      roofProps: [{ name: 'chimney', column: 1 }],
+      plan: [
+        '######',
+        '#aPPb#',
+        '#....#',
+        '#crrK#',
+        '#.rr.#',
+        '#l...#',
+        '##+#D#',
+      ],
+      exhibits: {
+        a: { kind: 'apothecary', content: say("Lab results, doctor's notes and reports, kept as a private medical memory.") },
+        b: { kind: 'bookshelf', content: say('In English and Spanish. Your health data stays private to your account.') },
+        c: { kind: 'cauldron', content: say('Ask about meals, exercise, sleep, habits and supplements.', 'The answers use your own history, not generic advice.') },
+        r: { kind: 'rug' },
+        l: { kind: 'lectern', content: say('Osler is not a doctor. It gives general wellness information only.', 'In an emergency, contact your local emergency services.') },
+      },
+    },
+  },
+  {
     id: 'azyrio',
     name: 'Azyrio',
     keeper: {
@@ -317,47 +378,6 @@ export const PROJECTS: readonly Project[] = [
     },
   },
   {
-    id: 'github',
-    name: 'GitHub',
-    keeper: {
-      look: 'smith',
-      pages: ['GitHub: code and open source.', 'Web development, tools and experimental projects.'],
-      barks: [
-        'Clean, maintainable software.',
-        'From full-stack apps to utility libraries.',
-        'Open source, tools and experiments.',
-        'Each repository: a commitment to quality.',
-      ],
-    },
-    portal: {
-      colour: 0xc8d0dc,
-      pages: ['A silver light. Beyond it: github.com/FedeIII.'],
-      url: 'https://github.com/FedeIII',
-      label: 'Visit the GitHub profile',
-    },
-    // A stone smithy: a forge under its own chimney, an anvil, a water barrel.
-    house: {
-      style: { walls: 'stone', roof: 'slate' },
-      floor: Ground.FloorStone,
-      roofProps: [{ name: 'chimney', column: 5 }],
-      plan: [
-        '########',
-        '#bPP.ff#',
-        '#......#',
-        '#dd.Ka.#',
-        '#.....w#',
-        '#D+###+#',
-      ],
-      exhibits: {
-        b: { kind: 'bookshelf', content: say('Personal projects and open source contributions.') },
-        f: { kind: 'forge', content: say('From full-stack applications to utility libraries.') },
-        d: { kind: 'desk', content: say('Clean, maintainable software.') },
-        a: { kind: 'anvil', content: say('Each repository: a commitment to quality and innovation.') },
-        w: { kind: 'barrel', content: say('Water, to cool the hot iron.') },
-      },
-    },
-  },
-  {
     id: 'journal',
     name: 'Journal',
     keeper: {
@@ -376,22 +396,21 @@ export const PROJECTS: readonly Project[] = [
       url: 'https://journal.azyr.io',
       label: 'Open Journal',
     },
-    // A tall gothic chapel of records with a green copper roof, lit by candles.
+    // A gothic chapel of records with a green copper roof, lit by candles.
     house: {
       style: { walls: 'gothic', roof: 'copper' },
       floor: Ground.FloorStone,
       roofProps: [
-        { name: 'spire', column: 1 },
-        { name: 'spire', column: 4 },
+        { name: 'spire', column: 2 },
+        { name: 'spire', column: 5 },
       ],
       plan: [
-        '######',
-        '#bPPc#',
-        '#....#',
-        '#c..K#',
-        '#dd..#',
-        '#...l#',
-        '#D+###',
+        '########',
+        '#bPPc.b#',
+        '#......#',
+        '#c.dd.K#',
+        '#.....l#',
+        '#D+###+#',
       ],
       exhibits: {
         b: { kind: 'bookshelf', content: say('Years of memories, side by side.', 'A time-traveling walk through your own history.') },

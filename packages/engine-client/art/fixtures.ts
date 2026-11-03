@@ -399,6 +399,34 @@ function scales(): Part[] {
   ];
 }
 
+/** A sword on a rack: the blade down in the bottom bar, the hilt up, at x. */
+function rackedSword(x: number): Part[] {
+  return [
+    { sdf: box([x - 0.6, 3, -12.9], [x + 0.6, 17.5, -12.1]), material: M.metal },
+    { sdf: box([x - 2, 17.5, -13.1], [x + 2, 18.5, -11.9], 0.2), material: M.iron },
+    { sdf: box([x - 0.45, 18.5, -12.9], [x + 0.45, 22, -12.1]), material: M.woodDark },
+    { sdf: sphere([x, 22.7, -12.5], 0.85), material: M.gold },
+  ];
+}
+
+/**
+ * A weapon rack against the north wall (World of Kandrax): two swords and a spear on a wooden
+ * frame, and a round red shield with an iron rim and boss hung in front of them.
+ */
+function weaponrack(): Part[] {
+  return [
+    { sdf: union(box([1.5, 0, -15.5], [3, 25, -13.5]), box([13, 0, -15.5], [14.5, 25, -13.5])), material: M.woodDark },
+    { sdf: box([1.5, 20, -15.5], [14.5, 21.4, -12.3], 0.2), material: M.wood },
+    { sdf: box([1.5, 1.6, -15.5], [14.5, 3.2, -11.4], 0.2), material: M.wood },
+    { sdf: roundCone([8, 2, -14], [8, 26, -14], 0.55, 0.5), material: M.wood },
+    { sdf: roundCone([8, 26, -14], [8, 30, -14], 1.1, 0.1), material: M.metal },
+    ...rackedSword(4.4),
+    ...rackedSword(11.6),
+    { sdf: cylinder([8, 10.5, -11.2], 'z', 3.4, 1.2), material: (x, y) => (Math.hypot(x - 8, y - 10.5) > 2.7 ? M.iron : M.wine) },
+    { sdf: sphere([8, 10.5, -10.6], 0.9), material: M.metal },
+  ];
+}
+
 export function fixtureFrames(): Frame[] {
   return [
     fixture('bookshelf', bookshelf(), 24, 56),
@@ -426,5 +454,6 @@ export function fixtureFrames(): Frame[] {
     fixture('forge', forge(), 40, 64),
     fixture('crystalball', crystalball(), 24, 32),
     fixture('scales', scales(), 24, 32),
+    fixture('weaponrack', weaponrack(), 24, 56),
   ];
 }
