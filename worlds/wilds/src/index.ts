@@ -211,7 +211,7 @@ export const wilds: WorldDefinition = {
   // One day and one night in 48 real minutes, and a dim, overcast noon (Fede's decisions, 2026-10-13).
   day: { length: 48 * 60_000, noon: 0.25 },
   multiplayer: true,
-  // The sandbox of an admin (Fede, 2026-10-15): a glade of the forest about 30 tiles south of the home,
+  // The sandbox of an admin (Fede, 2026-10-15): a glade of the forest about 35 tiles north of the home,
   // with trees round it, away from the road and the houses.
-  sandbox: { at: [-102, 1707] },
+  sandbox: { at: [-114, 868] },
 };

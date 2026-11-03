@@ -126,12 +126,12 @@ const REFUGES: readonly Refuge[] = [
 ];
 
 /**
- * The encounters of the roads (Fede, 2026-11-03): near a road, about one encounter in each leg of 2
- * minutes of a walk by day, and one each minute at night (the mean wait between two groups, ms). Away
- * from the roads of the wildlands, three times as many (WILD_MOBS).
+ * The encounters of the roads (Fede, 2026-11-03): near a road, about one encounter in each leg of 1
+ * minute of a walk by day, and two at night (the mean wait between two groups, ms). Away from the roads
+ * of the wildlands, three times as many (WILD_MOBS).
  */
-const ROAD_DAY_EVERY = 120_000;
-const ROAD_NIGHT_EVERY = 60_000;
+const ROAD_DAY_EVERY = 60_000;
+const ROAD_NIGHT_EVERY = 30_000;
 /** A player this close to the middle line of a road (tiles) is near the road: its mobs are those of the road. */
 export const ROAD_REACH = 16;
 
@@ -141,7 +141,7 @@ export const ROAD_REACH = 16;
  * a brute one in three. The hobgoblin band comes only with the story: none of it roams.
  */
 const MOB_POPULATION = { imp: 4, brute: 2 } as const;
-/** The mobs of the wildlands near a road (ROAD_REACH): by day an encounter about every 2 minutes, at night about every minute. */
+/** The mobs of the wildlands near a road (ROAD_REACH): by day an encounter about every minute, at night about every 30 s. */
 export const ROAD_WILD_MOBS: MobArea = {
   night: [
     { kind: 'imp', count: MOB_POPULATION.imp, every: ROAD_NIGHT_EVERY * 1.5 },
@@ -154,8 +154,8 @@ export const ROAD_WILD_MOBS: MobArea = {
 };
 /**
  * The mobs of the wildlands away from the roads: three times as often as near a road (Fede, 2026-11-03).
- * By day an imp about every minute and a brute about every two (an encounter about every 40 s); at night
- * an imp about every 30 s and a brute about every minute (an encounter about every 20 s).
+ * By day an imp about every 30 s and a brute about every minute (an encounter about every 20 s); at night
+ * an imp about every 15 s and a brute about every 30 s (an encounter about every 10 s).
  */
 export const WILD_MOBS: MobArea = {
   night: ROAD_WILD_MOBS.night.map((spawn) => ({ ...spawn, every: spawn.every! / 3 })),
@@ -172,9 +172,9 @@ export const WILD_MOBS: MobArea = {
 export const FOREST_EDGE_Y = IRONHOLD.y0;
 /**
  * The mobs of the forest of the tutorial (Fede, 2026-10-13), at the rate of a road (Fede, 2026-11-03: the
- * whole forest is the land of the road). At night: the goblins, a patrol of 2 or 3 about every minute
+ * whole forest is the land of the road). At night: the goblins, a patrol of 2 or 3 about every 30 s
  * round each player, at most one patrol at a time. By day the bandits take their place: a group of 1 to
- * 3 that ambushes the player, about every 2 minutes (one in each leg of the road).
+ * 3 that ambushes the player, about every minute (one in each leg of the road).
  */
 export const FOREST_MOBS: MobArea = {
   night: [{ kind: 'skirmisher', count: 3, behaviour: 'patrol', every: ROAD_NIGHT_EVERY }],

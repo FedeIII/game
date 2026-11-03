@@ -722,13 +722,13 @@ describe('accounts: personal data', () => {
       store.setPlace(user.id, young.id, { world: 'wilds', x: 300, y: 400 });
       store.close();
       // The database as it was before the step of 2026-10-13 (the 11 steps before it), without the columns
-      // of the later steps; the step of 2026-11-03 is the last one.
+      // of the later steps; the steps of 2026-11-03 are the last ones.
       const db = new DatabaseSync(file);
       db.exec('ALTER TABLE characters DROP COLUMN xp; ALTER TABLE users DROP COLUMN xp_divisor; PRAGMA user_version = 11');
       db.close();
       const again = new AccountStore(file);
       expect(again.character(user.id, old.id)!.place).toBeNull();
-      // The step of 2026-11-03 sends every character to its hut (the next test): the newer one too.
+      // The steps of 2026-11-03 send every character to its hut (the next test): the newer one too.
       expect(again.character(user.id, young.id)!.place).toBeNull();
       again.close();
     } finally {
@@ -747,7 +747,8 @@ describe('accounts: personal data', () => {
       store.setPlace(user.id, made.id, { world: 'wilds', x: 300, y: 400 });
       store.setExplored(user.id, made.id, [[1, 2], [3, 4]]);
       store.close();
-      // The database as it was before the step of 2026-11-03 (the 13 steps before it).
+      // The database as it was before the steps of 2026-11-03 (the 13 steps before them); the second one
+      // moved the settlements again, to half of the distance.
       const db = new DatabaseSync(file);
       db.exec('PRAGMA user_version = 13');
       db.close();
@@ -761,6 +762,13 @@ describe('accounts: personal data', () => {
       const third = new AccountStore(file);
       expect(third.character(user.id, made.id)!.place).toEqual({ world: 'wilds', x: 500, y: 600 });
       third.close();
+      // A database after the first step of 2026-11-03 only: the second step clears the place again.
+      const before = new DatabaseSync(file);
+      before.exec('PRAGMA user_version = 14');
+      before.close();
+      const fourth = new AccountStore(file);
+      expect(fourth.character(user.id, made.id)!.place).toBeNull();
+      fourth.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

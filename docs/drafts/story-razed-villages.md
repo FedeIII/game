@@ -347,7 +347,7 @@ before the next one.
    (`raid.heard`, `raid.asked`; built 2026-10-11, protocol 24); 3b, the new mobs (built
    2026-10-11, protocol 25: the goblin shoots arrows that hit players, the worg charges straight;
    none of the band roams the woods); 3c (built 2026-10-11, protocol 27): the north road to
-   Silverspring (about 250 tiles, Fede's choice; about 1160 tiles since 2026-11-03), the grove, the riders (Fede's choice: build
+   Silverspring (about 250 tiles, Fede's choice; about 560 tiles since 2026-11-03), the grove, the riders (Fede's choice: build
    them), and the ambush of the scouts sized to the characters there (docs/drafts/level-3.md: Fede's
    level-3 decisions came first). In 3a, the guard of the scene is a soldier
    of the Sovereignty in the reeve's house, not Brann (Brann says that he is the whole town watch),

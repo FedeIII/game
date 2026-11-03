@@ -656,7 +656,7 @@ describe('the war band on the north road', () => {
     expect(horde.mobs.some((m) => m.kind === 'devastator')).toBe(true);
     // The character waits in the town, where the band does not see it.
     Object.assign(p.state, { x: (SILVERSPRING.x0 + 12) * TILE_SIZE + 8, y: (SILVERSPRING.y0 + 11) * TILE_SIZE + 12 });
-    // The band marches about 700 tiles of the road at a slow walk: about 5 minutes.
+    // The band marches about 300 tiles of the road at a slow walk: about 2 minutes.
     let t = 100;
     for (; t < 400_000 && p.quests.raid?.step === 'scouts'; t += 50) room.tick(t);
     expect(p.quests.raid?.step).toBe('raid');

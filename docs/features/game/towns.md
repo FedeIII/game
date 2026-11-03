@@ -6,7 +6,7 @@ The Wilds have two fixed towns: Ironhold, north of the home, and Silverspring, t
 the Mithril Enclave at the end of the north road (story phase 4a, 2026-10-11; plan:
 `docs/drafts/story-razed-villages.md`). Since 2026-10-13 two hamlets of the Iron Sovereignty stand on
 the road from the home to Ironhold: Whitegrove and Bronzehold (the tutorial: `docs/drafts/tutorial.md`).
-Since 2026-11-03 the settlements are about 2 minutes of a walk apart (REQ-TWN-010). Since
+Since 2026-11-03 the settlements are about 1 minute of a walk apart (REQ-TWN-010). Since
 2026-10-13 Ironhold is a planned town of wood behind a palisade, with its town hall in the middle of a
 square (REQ-TWN-008). Since 2026-10-13 the name of a land (the Iron Sovereignty, the Mithril Enclave,
 the Wildlands) shows when a player crosses into it (REQ-TWN-009). Each town is a fixed plan of characters, one for each tile,
@@ -264,20 +264,22 @@ path between settlements should be long enough to have some night or day encount
 
 **Acceptance Criteria:**
 - **AC-TWN-010.1:** Each leg of the road from the hut to Ironhold (the hut to Whitegrove, Whitegrove to
-  Bronzehold, Bronzehold to Ironhold) is about 2 minutes of a walk on the road: from 500 to 700 tiles at
-  5 tiles a second (Fede's choice). The whole road is about 6 minutes.
-- **AC-TWN-010.2:** The north road from Ironhold to Silverspring is about 4 minutes of a walk: from 1050
-  to 1300 tiles. The places of the story on it (the grove, the camp of the war band, the meeting point
+  Bronzehold, Bronzehold to Ironhold) is about 1 minute of a walk on the road: from 250 to 350 tiles at
+  5 tiles a second. The whole road is about 3 minutes. (Fede chose 2 minutes first, and then half of it:
+  "the distances are now too long, make them half the distance".)
+- **AC-TWN-010.2:** The north road from Ironhold to Silverspring is about 2 minutes of a walk: from 500
+  to 650 tiles. The places of the story on it (the grove, the camp of the war band, the meeting point
   of the caravan) keep their shares of it; the grove keeps its length (about 26 tiles).
 - **AC-TWN-010.3:** The places round Silverspring (the Silvervein, the Wren homestead, the camp of the
   Seekers, the shrine of Tigris) keep their places from the town. The burned homesteads keep their
   places north of Ironhold.
 - **AC-TWN-010.4:** For the seed of the game, no leg of the road from the hut and no part of the north
   road crosses water, and Bronzehold stands west of a lake.
-- **AC-TWN-010.5:** A character that played before 2026-11-03 starts in its new hut, and its map of the
-  explored land starts again (Fede's choice: a step of the schema of the store).
-- **AC-TWN-010.6:** On the roads, about one encounter comes in each leg by day and one each minute at
-  night; in the wildlands away from the roads, three times as many (REQ-CMB-010).
+- **AC-TWN-010.5:** A character that played before a move of the settlements starts in its new hut, and
+  its map of the explored land starts again (Fede's choice: a step of the schema of the store for each
+  move).
+- **AC-TWN-010.6:** On the roads, about one encounter comes in each leg by day and two at night; in the
+  wildlands away from the roads, three times as many (REQ-CMB-010).
 
 ---
 

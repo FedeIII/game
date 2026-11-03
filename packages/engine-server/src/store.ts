@@ -113,6 +113,10 @@ const MIGRATIONS: readonly string[] = [
   // and the hut moved with them. Every character starts in its new hut, and its map of the explored land
   // starts again: the old chunks show the old places (Fede's decision).
   `UPDATE characters SET place = NULL, explored = NULL;`,
+  // 2026-11-03, later: the walks were too long, and the settlements moved to half of that distance
+  // (about 1 minute of a walk between two of them; Fede). Every character starts in its new hut again,
+  // with a new map, as at the step before.
+  `UPDATE characters SET place = NULL, explored = NULL;`,
 ];
 
 /** A sign-in state lives this long: the time to choose an account on Google's page. */

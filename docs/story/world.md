@@ -52,7 +52,7 @@ into it, in both directions.
 | Land | Where |
 |---|---|
 | **The Iron Sovereignty** (Soberanía del Hierro) | from row -8 (the north edge of Ironhold) south: the hut, the road, the hamlets, Ironhold |
-| **The Mithril Enclave** (Enclave del Mithril) | round Silverspring only: the town and 12 tiles round it (`816..881, -725..-678`) |
+| **The Mithril Enclave** (Enclave del Mithril) | round Silverspring only: the town and 12 tiles round it (`360..425, -361..-314`) |
 | **The Wildlands** (Tierras salvajes) | everywhere else: north of Ironhold, the north road, the homesteads, the camps, the shrine of Tigris, and the land north of Silverspring |
 
 From the south to the north:
@@ -61,24 +61,24 @@ From the south to the north:
 
 | Place | Where | What |
 |---|---|---|
-| **The hut** (the home; el hogar) | the cell `HOME_CELL` (-5, 69): `-105..-99, 1670..1675` | The character's own hut: a bed (rest, and the wake point after a defeat), a chest (no loot), the table with the letter of Thrain. Every new character starts here. The house of the next cell to the east is never barred. |
-| The signpost | `-104, 1677`, below the hut, west of its path | "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road." Under it, cut with a knife: "KEEP TO THE ROAD." |
-| **The road to Ironhold** | `road.ts`, `homeLegs()` | From the hut west, then north through Whitegrove and Bronzehold, to the south edge of Ironhold (`TOWN_SOUTH`, `-32, 15`). Each of its three legs is about 600 tiles: 2 minutes of a walk (Fede, 2026-11-03). |
-| The broken cart | `-317, 1467`, on the first leg | The merchant's cart, with a lantern: no mob comes within 4 tiles. |
-| **Whitegrove** (Arboleda Blanca) | `-384..-366, 1168..1189` | A hamlet of the Sovereignty: the farmer's house and stall, the **shrine** (a refuge), two shut houses. |
-| **Bronzehold** (Bronzal) | `-160..-142, 602..623`, west of a lake | A village of the Sovereignty: the guard post, a forge, two shut houses. |
-| The name signs of the hamlets | `-380..-378, 1190` and `-156..-154, 624`: right outside the south end of each lane, west of the road | Two posts and an iron plate with the name (WHITEGROVE, BRONZEHOLD) under the anvil of the Iron Sovereignty. A hamlet has no title on arrival. |
+| **The hut** (the home; el hogar) | the cell `HOME_CELL` (-5, 37): `-111..-105, 897..902` | The character's own hut: a bed (rest, and the wake point after a defeat), a chest (no loot), the table with the letter of Thrain. Every new character starts here. The house of the next cell to the east is never barred. |
+| The signpost | `-110, 904`, below the hut, west of its path | "It reads: WHITEGROVE, BRONZEHOLD, IRONHOLD. The arrow points west, along the road." Under it, cut with a knife: "KEEP TO THE ROAD." |
+| **The road to Ironhold** | `road.ts`, `homeLegs()` | From the hut west, then north through Whitegrove and Bronzehold, to the south edge of Ironhold (`TOWN_SOUTH`, `-32, 15`). Each of its three legs is about 300 tiles: 1 minute of a walk (Fede, 2026-11-03). |
+| The broken cart | `-152, 782`, on the first leg | The merchant's cart, with a lantern: no mob comes within 4 tiles. |
+| **Whitegrove** (Arboleda Blanca) | `-174..-156, 597..618` | A hamlet of the Sovereignty: the farmer's house and stall, the **shrine** (a refuge), two shut houses. |
+| **Bronzehold** (Bronzal) | `-152..-134, 274..295`, west of a lake | A village of the Sovereignty: the guard post, a forge, two shut houses. |
+| The name signs of the hamlets | `-170..-168, 619` and `-148..-146, 296`: right outside the south end of each lane, west of the road | Two posts and an iron plate with the name (WHITEGROVE, BRONZEHOLD) under the anvil of the Iron Sovereignty. A hamlet has no title on arrival. |
 
 **The distances** (Fede, 2026-11-03): the walk from one settlement to the next is long enough for an
-encounter by day or at night. Each leg of the road from the hut to Ironhold is about 2 minutes of a walk
-(the whole road about 6 minutes), and the north road to Silverspring about 4 minutes. A day and a night
-last 48 minutes, so a walk often crosses the dusk or the dawn.
+encounter by day or at night, and not longer (Fede: twice as long was too long). Each leg of the road
+from the hut to Ironhold is about 1 minute of a walk (the whole road about 3 minutes), and the north
+road to Silverspring about 2 minutes. A day and a night last 48 minutes.
 
 **The forest of the tutorial** is every tile from row `FOREST_EDGE_Y` (-8, the north edge of
 Ironhold) south: the whole road from the hut, and the land round Ironhold (Fede, 2026-10-13). It has
 the encounters of a road: about one in each leg (Fede, 2026-11-03). At night a goblin patrol (the
-skirmisher: 2 or 3 in a group) comes about every minute round a character. By day the goblins keep
-away, and bandits ambush there instead (1 to 3, a group about every 2 minutes round a character;
+skirmisher: 2 or 3 in a group) comes about every 30 s round a character. By day the goblins keep
+away, and bandits ambush there instead (1 to 3, a group about every minute round a character;
 `FOREST_MOBS`); a new character on the road meets one patrol of goblins by day as well
 (`FIRST_GOBLINS`; its first fight). Goblins and bandits live only from row -6 south. No imp and no brute
 lives there; they live from row -11 north, in the wildlands (below).
@@ -122,8 +122,8 @@ at its north edge.
 North of the forest (row -9 and north), imps and brutes live, only from row -11 north (two rows of
 margin from the forest); at most 4 imps and 2 brutes round a character at night, and 2 imps and 1
 brute by day. Near a road (16 tiles from the north road or the way from the east gate) they come at the
-rate of a road: an encounter about every minute at night and every 2 minutes by day. Away from the
-roads they come three times as often (Fede, 2026-11-03: about every 20 s at night and every 40 s by
+rate of a road: an encounter about every 30 s at night and every minute by day. Away from the
+roads they come three times as often (Fede, 2026-11-03: about every 10 s at night and every 20 s by
 day; `ROAD_WILD_MOBS`, `WILD_MOBS`). An imp is two encounters in three, a brute one in three. Lonely houses stand in about a third of the 24 x 24-tile cells:
 a quarter of the houses with a chest are barred (STR), a third of the other chests are locked (DEX).
 The DC of the boards or of the lock is from 10 to 13, by what the chest holds
@@ -134,22 +134,22 @@ The DC of the boards or of the lock is from 10 to 13, by what the chest holds
 | **The Hale homestead** (la granja de los Hale) | `-35..-25, -45..-35`, north of Ironhold | Burned, with the phoenix. Old Hale stays in the ashes. |
 | **The Marrow homestead** (la granja de los Marrow) | `2..12, -50..-40`, east of the Hale homestead | Burned, with the phoenix. Nobody stays. |
 | **The Tanner homestead** (la granja de los Tanner) | `-66..-56, -30..-20`, north-west of Ironhold | Burned, with the phoenix. The Tanner girl waits for her mother. |
-| **The north road** | from the north-east of Ironhold (`-7, -7`), through a bend (`110, -233`), to Silverspring (`827, -703`) | About 1160 tiles, north-east: about 4 minutes of a walk. |
-| **The grove** | on the north road, about `265, -269` to `287, -281` | A wood of close trees: the scouts of the hobgoblins wait there. |
-| **The camp of the war band** | `479..494, -529..-518`, off the north road, with a trail | The camp of the hobgoblins. Himo is tied to its post (`488, -520`). |
-| The meeting point of the caravan | on the north road, at four fifths of it (`608, -625`) | Half a day from Silverspring. |
+| **The north road** | from the north-east of Ironhold (`-7, -7`), through a bend (`96, -234`), to Silverspring (`371, -339`) | About 560 tiles, north-east: about 2 minutes of a walk. |
+| **The grove** | on the north road, about `69, -207` to `82, -228` | A wood of close trees: the scouts of the hobgoblins wait there. |
+| **The camp of the war band** | `185..200, -286..-275`, off the north road, with a trail | The camp of the hobgoblins. Himo is tied to its post (`194, -277`). |
+| The meeting point of the caravan | on the north road, at four fifths of it (`261, -307`) | Half a day from Silverspring. |
 
 ### Silverspring and the Silvervein
 
 | Place | Where | What |
 |---|---|---|
-| **Silverspring** | `828..869, -713..-690`, at the end of the north road | The mithril village of the Mithril Enclave: the counterpart of Ironhold, the last village of the Enclave before the wildlands. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. Its name shows over the screen when a character comes in (a title). |
-| The name sign of Silverspring | `822..824, -705`, outside the west end of the main street, north of the road | Two pillars of pale stone with gold domes, a blue plate in a silver frame with the name (SILVERSPRING), and the silver peaks of the Mithril Enclave on a blue shield. |
-| **The Silvervein** (el río Vena de Plata) | from its spring (`861, -747`), through Silverspring, to a pool (`852, -639`) | The river of Silverspring. It brings mithril dust down from the hills. |
-| **The Wren homestead** (la granja de los Wren) | `832..844, -632..-622`, by the pool | A whole house. Mira Wren lives there with her two children. |
+| **Silverspring** | `372..413, -349..-326`, at the end of the north road | The mithril village of the Mithril Enclave: the counterpart of Ironhold, the last village of the Enclave before the wildlands. The militia hall (Kasmut Parnika), the Silver Trout (la Trucha de Plata; a refuge for the guard of the town), the jeweller, four shut houses. The road comes in at the west end of the main street. Mobs keep out, except the war band in the raid. Its name shows over the screen when a character comes in (a title). |
+| The name sign of Silverspring | `366..368, -341`, outside the west end of the main street, north of the road | Two pillars of pale stone with gold domes, a blue plate in a silver frame with the name (SILVERSPRING), and the silver peaks of the Mithril Enclave on a blue shield. |
+| **The Silvervein** (el río Vena de Plata) | from its spring (`405, -383`), through Silverspring, to a pool (`396, -275`) | The river of Silverspring. It brings mithril dust down from the hills. |
+| **The Wren homestead** (la granja de los Wren) | `376..388, -268..-258`, by the pool | A whole house. Mira Wren lives there with her two children. |
 | **The burned trail** | from the Wren homestead east into the hills | The trail of the Ashen Seekers. |
-| **The camp of the Seekers** | `884..899, -630..-619`, at the east end of the trail | The camp of the Ashen Seekers. Sela is tied to its post (`896, -622`). |
-| **The shrine of Tigris** | `845..858, -643..-634`, at the pool | Standing stones and an altar (`851, -634`). The wave stone opens the altar. |
+| **The camp of the Seekers** | `428..443, -266..-255`, at the east end of the trail | The camp of the Ashen Seekers. Sela is tied to its post (`440, -258`). |
+| **The shrine of Tigris** | `389..402, -279..-270`, at the pool | Standing stones and an altar (`395, -270`). The wave stone opens the altar. |
 
 ### The regions of the journal
 

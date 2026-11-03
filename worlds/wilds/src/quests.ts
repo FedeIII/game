@@ -85,22 +85,22 @@ export const ASHES: QuestDef = {
     {
       id: 'next',
       journal: 'The Seekers take old things from the houses that they burn. The priest says that the Wrens, by the pool of the Silvervein, keep carved stones from the old ruins there. I must reach them before the Seekers do.',
-      at: [838, -627],
+      at: [382, -263],
     },
-    { id: 'stone', journal: 'Mira Wren gave me the carved stone of her family, to take it far from her children. Something comes through the woods from the east.', at: [838, -627] },
+    { id: 'stone', journal: 'Mira Wren gave me the carved stone of her family, to take it far from her children. Something comes through the woods from the east.', at: [382, -263] },
     // Both ends point to the burned trail and the camp of the Seekers at its east end (story phase 8).
-    { id: 'held', journal: 'The cinder hounds of the Seekers fell at the Wren homestead. A masked figure watched from the trees, and it was gone in a puff of ash. A burned trail leads east, into the hills.', at: [892, -624] },
-    { id: 'late', journal: 'The Seekers came to the Wren homestead before me. Mira hid with her children; the Seekers took only the carved stone. A burned trail leads east, into the hills.', at: [892, -624] },
+    { id: 'held', journal: 'The cinder hounds of the Seekers fell at the Wren homestead. A masked figure watched from the trees, and it was gone in a puff of ash. A burned trail leads east, into the hills.', at: [436, -260] },
+    { id: 'late', journal: 'The Seekers came to the Wren homestead before me. Mira hid with her children; the Seekers took only the carved stone. A burned trail leads east, into the hills.', at: [436, -260] },
     // The camp of the Seekers (story phase 8, seekers.ts; a test checks the tiles): its guards fall, and
     // Sela is tied to its post. She sends the character to the shrine of Tigris at the pool (phase 9).
-    { id: 'camp', journal: 'The guards of the camp of the Seekers fell. The camp is half packed. A woman in the robe of the Seekers is tied to a post there.', at: [896, -622] },
+    { id: 'camp', journal: 'The guards of the camp of the Seekers fell. The camp is half packed. A woman in the robe of the Seekers is tied to a post there.', at: [440, -258] },
     {
       id: 'captive',
       journal: 'Sela, a Seeker who would not burn a family, told me what the Seekers want next: the shrine of Tigris under the pool of the Silvervein. The wave stone opens it. I must get there first.',
       // The altar of the shrine (story phase 9, shrine.ts; a test checks the tile).
-      at: [851, -634],
+      at: [395, -270],
     },
-    { id: 'shrine', journal: 'The wave stone opened the altar of Tigris, and the Tear of Tigris is mine. The Seekers are here for it!', at: [851, -634] },
+    { id: 'shrine', journal: 'The wave stone opened the altar of Tigris, and the Tear of Tigris is mine. The Seekers are here for it!', at: [395, -270] },
     {
       id: 'relic',
       journal: 'The Ash Warden went in ash, and its Seekers fell. I keep the Tear of Tigris, and the orders of the Warden. The road was long: I need a bed and a night of sleep.',
@@ -152,23 +152,23 @@ export const RAID: QuestDef = {
       id: 'asked',
       journal: 'Elama Rothenel asks me to warn Silverspring, north-east of Ironhold, before the hobgoblins come. Ironhold cannot pay. The soldiers of the Sovereignty want me to stay out of it.',
       // The site of Silverspring at the end of the north road (road.ts, SILVERSPRING_SITE; a test checks it).
-      at: [827, -703],
+      at: [371, -339],
     },
     // The scouts wait in the grove on the north road (source.ts, the ambush SCOUTS). Then the war band
     // marches on the road to Silverspring, for each party (story phase 4b, the ambush BAND).
     {
       id: 'scouts',
       journal: 'I killed the scouts of the hobgoblins in the grove. Their war band marches on Silverspring along the north road. If I catch it on the road, Himo may still live.',
-      at: [827, -703],
+      at: [371, -339],
     },
     // The band fell on the road: Himo is tied to the post of its camp (camp.ts; a test checks the tile).
-    { id: 'band', journal: 'The war band fell on the north road. Its camp is in the hills off the road, and Himo may be a prisoner there.', at: [488, -520] },
+    { id: 'band', journal: 'The war band fell on the north road. Its camp is in the hills off the road, and Himo may be a prisoner there.', at: [194, -277] },
     // Himo follows the character (source.ts, the escort HIMO) to Ironhold (its gate, town.ts: TOWN_GATE).
     { id: 'escort', journal: 'Himo is free. I must take Himo home to Ironhold, through the woods.', at: [-7, 3] },
     { id: 'home', journal: 'Himo is home in Ironhold, and his family paid me. Silverspring must hear that the war band is dead.', npc: 'kasmut' },
     { id: 'lost', journal: 'Himo fell on the way home. The war band is dead all the same: Silverspring must hear of it.', npc: 'kasmut' },
     // The band came to Silverspring first: the raid on the town (story phase 4c, the ambush RAID).
-    { id: 'raid', journal: 'The war band came to Silverspring before me. The hobgoblins attack the town!', at: [848, -703] },
+    { id: 'raid', journal: 'The war band came to Silverspring before me. The hobgoblins attack the town!', at: [392, -339] },
     { id: 'defended', journal: 'The war band fell in the streets of Silverspring. Himo died in its camp, the panners say. Kasmut wants to see me.', npc: 'kasmut' },
     { id: 'title', journal: 'Silverspring gave me a title in its guard, and a bed in the town.', end: true },
   ],
@@ -192,7 +192,7 @@ export const CARAVAN: QuestDef = {
     {
       id: 'heard',
       journal: 'In the Crooked Lantern I overheard a plot: soldiers of the Sovereignty send hobgoblins against a caravan of Silverspring, half a day down the north road.',
-      at: [608, -625],
+      at: [261, -307],
     },
     { id: 'saved', journal: 'I saved the caravan of Silverspring from the hobgoblins. Its driver thanked me in the name of the Enclave.', end: true },
     { id: 'lost', journal: 'The hobgoblins broke the wagon of the caravan of Silverspring. Its cargo is lost.', end: true },

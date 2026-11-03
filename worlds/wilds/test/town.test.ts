@@ -89,7 +89,7 @@ function reachable(w: World, sx: number, sy: number, x0: number, y0: number, x1:
  */
 /**
  * The tiles where a walk on the road from the hut to Ironhold may go: the road and its cleared ground,
- * the ground of the home, the hamlets, the town and the way out of its east gate (the road is about 1800
+ * the ground of the home, the hamlets, the town and the way out of its east gate (the road is about 900
  * tiles long: a walk through the whole forest round it would take too long).
  */
 function onTheWay(s: WildsSource): (tx: number, ty: number) => boolean {
@@ -831,36 +831,37 @@ describe('the forest of the tutorial', () => {
     expect(rules.areaAt!(home.doorX, home.y1 + 4)).toBe(FOREST_MOBS);
     expect(rules.areaAt!(TOWN_GATE.tx, TOWN_GATE.ty)).toBe(FOREST_MOBS);
     expect(rules.areaAt!(TOWN.x0 - 4, TOWN.y0 + 4)).toBe(FOREST_MOBS);
-    // At the rate of a road (Fede, 2026-11-03): a goblin patrol about every minute at night, a group of bandits about every 2 minutes by day.
-    expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol', every: 60_000 }]);
-    expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group, s.every])).toEqual([['bandit', 'ambush', [1, 3], 120_000]]);
+    // At the rate of a road (Fede, 2026-11-03): a goblin patrol about every 30 s at night, a group of bandits about every minute by day.
+    expect(FOREST_MOBS.night).toEqual([{ kind: 'skirmisher', count: 3, behaviour: 'patrol', every: 30_000 }]);
+    expect(FOREST_MOBS.day.map((s) => [s.kind, s.behaviour, s.group, s.every])).toEqual([['bandit', 'ambush', [1, 3], 60_000]]);
     // In the wildlands near a road (the way from the east gate to the north road): an encounter about every
-    // minute at night and every 2 minutes by day; an imp is two encounters in three.
+    // 30 s at night and every minute by day; an imp is two encounters in three.
     const road = rules.areaAt!(TOWN_GATE.tx, TOWN.y0 - 1);
     expect(road).toBe(ROAD_WILD_MOBS);
     expect(road.night).toEqual([
-      { kind: 'imp', count: 4, every: 90_000 },
-      { kind: 'brute', count: 2, every: 180_000 },
+      { kind: 'imp', count: 4, every: 45_000 },
+      { kind: 'brute', count: 2, every: 90_000 },
     ]);
     // By day fewer, and each one only after a wait (Fede: "less frequent during day").
     expect(road.day).toEqual([
-      { kind: 'imp', count: 2, every: 180_000 },
-      { kind: 'brute', count: 1, every: 360_000 },
+      { kind: 'imp', count: 2, every: 90_000 },
+      { kind: 'brute', count: 1, every: 180_000 },
     ]);
     // Away from the roads, three times as often (Fede, 2026-11-03).
     const wildlands = rules.areaAt!(TOWN.x0 - 10, TOWN.y0 - 60);
     expect(wildlands).toBe(WILD_MOBS);
     expect(wildlands.night).toEqual([
-      { kind: 'imp', count: 4, every: 30_000 },
-      { kind: 'brute', count: 2, every: 60_000 },
+      { kind: 'imp', count: 4, every: 15_000 },
+      { kind: 'brute', count: 2, every: 30_000 },
     ]);
     expect(wildlands.day).toEqual([
-      { kind: 'imp', count: 2, every: 60_000 },
-      { kind: 'brute', count: 1, every: 120_000 },
+      { kind: 'imp', count: 2, every: 30_000 },
+      { kind: 'brute', count: 1, every: 60_000 },
     ]);
     const rate = (spawns: readonly { every?: number }[]) => spawns.reduce((sum, spawn) => sum + 60_000 / spawn.every!, 0);
-    expect(rate(road.day)).toBeCloseTo(0.5);
-    expect(rate(road.night)).toBeCloseTo(1);
+    // Encounters each minute: one by day near a road, two at night.
+    expect(rate(road.day)).toBeCloseTo(1);
+    expect(rate(road.night)).toBeCloseTo(2);
     expect(rate(wildlands.day)).toBeCloseTo(3 * rate(road.day));
     expect(rate(wildlands.night)).toBeCloseTo(3 * rate(road.night));
     // Somewhere dry in the forest and in the wildlands: each kind only in its own woods.
@@ -912,20 +913,20 @@ describe('the distances between the settlements', () => {
   /** The length of a road (tiles). */
   const length = (points: readonly (readonly [number, number])[]) => points.slice(1).reduce((sum, [x, y], i) => sum + Math.hypot(x - points[i]![0], y - points[i]![1]), 0);
 
-  it('are about 2 minutes of a walk on the road from one settlement to the next, and twice that to Silverspring (Fede, 2026-11-03)', () => {
+  it('are about 1 minute of a walk on the road from one settlement to the next, and about twice that to Silverspring (Fede, 2026-11-03)', () => {
     const walk = 5; // tiles each second (PLAYER_SPEED)
     for (const seed of SEEDS) {
       const s = new WildsSource(seed);
       // Each leg of the road from the hut: to Whitegrove, to Bronzehold, to Ironhold.
       for (const leg of homeLegs(s.home())) {
         const seconds = length(new Road([leg]).points) / walk;
-        expect(seconds, `seed ${seed}`).toBeGreaterThan(100);
-        expect(seconds, `seed ${seed}`).toBeLessThan(140);
+        expect(seconds, `seed ${seed}`).toBeGreaterThan(50);
+        expect(seconds, `seed ${seed}`).toBeLessThan(70);
       }
     }
     const north = length(source.north.points) / walk;
-    expect(north).toBeGreaterThan(210);
-    expect(north).toBeLessThan(260);
+    expect(north).toBeGreaterThan(100);
+    expect(north).toBeLessThan(130);
   });
 
   it('has a road from the hut to Ironhold that crosses no water for the seed of the game', () => {

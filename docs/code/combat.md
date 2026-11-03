@@ -36,8 +36,8 @@ about once in that time round a player). Without it, `population` is the same by
 `RoomOptions.day` and `clock` (the server: `Date.now`, or `GAME_HOUR` for a test), the page from
 `skyNow()`. A mob that the area brought and does not want at this hour goes away when no player is within
 17 tiles. The Wilds (`FOREST_MOBS` in `source.ts`): in the forest of the tutorial the goblin patrols at
-night (a patrol about every minute round a player), and by day the **bandits** (the SRD bandit: 11 HP,
-AC 12, +3, 1d6+1; a group about every 2 minutes round a player: one in each leg of the road, Fede,
+night (a patrol about every 30 s round a player), and by day the **bandits** (the SRD bandit: 11 HP,
+AC 12, +3, 1d6+1; a group about every minute round a player: one in each leg of the road, Fede,
 2026-11-03), in a group of 1 to 3 that **ambushes** (`MobStats.ambush`,
 `Horde.spawnAmbush()`): it comes 11 to 15 tiles ahead of the player and hides (state `lurk`), creeps after
 the player crouched (44 px/s), holds still within 5 tiles, and springs within 2.5 tiles, after a hold of
@@ -142,7 +142,7 @@ player at the start (single-player worlds, so the Wilds with `?offline`); `?nomo
 "I test them myself"; `docs/features/game/sandbox.md`, REQ-SBX): "Sandbox" in the main menu or the game
 menu, then a character. The page runs the world alone (no server, nothing saved, no XP, no loot); the
 character fights three steady foes (`Horde.spawn(..., { health, steady })`: they never startle, flee or
-lurk; `Horde.provoke()`) in the glade of `WorldDefinition.sandbox` (the Wilds: (-102, 1707)), with ten times
+lurk; `Horde.provoke()`) in the glade of `WorldDefinition.sandbox` (the Wilds: (-114, 868)), with ten times
 its hit points (`SANDBOX_HP`) against five times theirs (`FOE_HP`). A defeat starts the whole sandbox
 again with the same character; a victory 2.5 s later. A panel at the bottom left (crossed swords) chooses
 the foes and turns each mechanic of `docs/drafts/combat-melee.md` on or off: `packages/engine/src/mechanics.ts`

@@ -79,8 +79,8 @@ function guardedValue(guard: 'lock' | 'boards'): number {
 /**
  * The model: the roaming mobs that a character kills in chapter 1, alone (the goblins of the forest on
  * the road at night, an ambush of bandits there by day, then the wildlands). Since 2026-11-03 the road
- * from the hut to Ironhold is about 6 minutes of a walk, with a group of bandits about every 2 minutes by
- * day and a goblin patrol about every minute at night; the north road is about 4 minutes, and the
+ * from the hut to Ironhold is about 3 minutes of a walk, with a group of bandits about every minute by
+ * day and a goblin patrol about every 30 s at night; the north road is about 2 minutes, and the
  * wildlands away from the roads have three times the encounters of a road (source.ts, FOREST_MOBS,
  * ROAD_WILD_MOBS, WILD_MOBS). Some fights a character avoids, and goblins flee.
  */
