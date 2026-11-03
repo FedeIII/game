@@ -258,6 +258,11 @@ frequency and encoded behavior.").
   (Fede, 2026-11-03): an imp about every 15 s and a brute about every 30 s at night, an imp about every
   30 s and a brute about every minute by day. The place of the character chooses the
   rate.
+- **AC-CMB-010.7:** A rare spawn is an encounter (Fede, 2026-11-03: "I've travelled for minutes at
+  night, both on road and off road and I encountered no enemies at all"): it comes ahead of the
+  character, where it walks or faces, 17 to 21 tiles away (out of view) and at most 0.35 radians (about
+  20 degrees) to a side of its way. Thus a character that walks on meets it: a patrol on its loop sees
+  the character, and a wanderer sees it or prowls to it. A spawn without `every` comes at any side.
 
 ---
 

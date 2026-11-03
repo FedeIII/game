@@ -107,6 +107,25 @@ describe('the mobs of an area by day and at night (MobArea)', () => {
     expect(horde.mobs.some((m) => m.kind === 'skirmisher')).toBe(false);
   });
 
+  it('brings an encounter (a rare spawn) ahead of a player who walks, out of its view, so that the player meets it', () => {
+    // Fede, 2026-11-03: at night a traveller met nobody; a group that came at a random side stayed 17 tiles away.
+    const area: MobArea = { night: [{ kind: 'imp', count: 1, every: MINUTE }], day: [] };
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const horde = new Horde(new World(textSource([])), { ...open, areaAt: () => area }, seed, AVERAGE_DICE);
+      // The player walks east: the horde reads where it goes from its speed.
+      const state = tough(at(0, 0).x, at(0, 0).y);
+      state.vx = PLAYER_SPEED;
+      const player: HordePlayer = { id: 1, state };
+      for (let t = 0; t < 2 * MINUTE && horde.mobs.length === 0; t += TICK_MS) horde.step(TICK_MS, [player]);
+      expect(horde.mobs, `seed ${seed}`).toHaveLength(1);
+      const imp = horde.mobs[0]!;
+      const d = dist(imp, state) / TILE_SIZE;
+      expect(d, `seed ${seed}`).toBeGreaterThan(16.5);
+      expect(d, `seed ${seed}`).toBeLessThan(22);
+      expect(Math.abs(Math.atan2(imp.y - state.y, imp.x - state.x)), `seed ${seed}`).toBeLessThan(0.45);
+    }
+  });
+
   it('keeps a mob of the area while a player is close enough to see it go', () => {
     const horde = new Horde(new World(textSource([])), forest, 5, AVERAGE_DICE);
     const player: HordePlayer = { id: 1, state: tough(at(0, 0).x, at(0, 0).y) };

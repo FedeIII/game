@@ -61,7 +61,10 @@ change its part of the code, and change it in the same commit as the code.
   a `RoadBand` of bins of 4 tiles in `road.ts`) has `ROAD_WILD_MOBS`; the rest has `WILD_MOBS`, three
   times as often (an imp about every 15 s and a brute about every 30 s at night; an imp about every
   30 s and a brute about every minute by day). The area is the one where the player stands; the wait of a
-  kind (`Horde` keeps one for each player and kind) runs on across a change of area.
+  kind (`Horde` keeps one for each player and kind) runs on across a change of area. Each of these
+  spawns has a wait (`every`), so it is an encounter: it comes ahead of the player, where it walks
+  (AC-CMB-010.7; before that fix, a patrol came at a random side and a traveller passed it 17 tiles
+  away).
 - **The road to Ironhold** (`road.ts`, `homeLegs()`; 2026-10-13, after chapter 1.5.1 [A.2]): from below
   the path to the hut's door west and north to **Whitegrove** (Arboleda Blanca), up its lane, on to
   **Bronzehold** (Bronzal), up its lane, and north to the south edge of Ironhold (`TOWN_SOUTH`, below an

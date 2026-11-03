@@ -976,8 +976,12 @@ const AMBUSH_LEAD = 1500;
 const AMBUSH_GAP = 14;
 /** A mob that the area does not want at this hour goes away when no player is this close (tiles): out of view. */
 const LEAVE_DISTANCE = 17;
-/** A group of the story comes this far ahead of its player (tiles: Horde.spawnAhead), out of its view. */
+/**
+ * A group of the story (Horde.spawnAhead) or an encounter (a rare spawn, MobSpawn.every) comes this far
+ * ahead of its player (tiles), out of its view, at most AHEAD_SPREAD (radians) to a side of its way.
+ */
 const AHEAD_DISTANCE = [17, 21] as const;
+const AHEAD_SPREAD = 0.35;
 
 interface Brain {
   home: { readonly x: number; readonly y: number };
@@ -1394,7 +1398,7 @@ export class Horde {
    */
   spawnAhead(kind: MobKind, group: readonly [number, number], player: PlayerState, players: readonly PlayerState[] = []): Mob[] {
     for (let tries = 0; tries < 24; tries++) {
-      const angle = headingOf(player) + this.between(-0.35, 0.35);
+      const angle = headingOf(player) + this.between(-AHEAD_SPREAD, AHEAD_SPREAD);
       const r = this.between(AHEAD_DISTANCE[0], AHEAD_DISTANCE[1]) * TILE_SIZE;
       const tx = tileOf(player.x + Math.cos(angle) * r);
       const ty = tileOf(player.y + Math.sin(angle) * r);
@@ -2961,7 +2965,9 @@ export class Horde {
    * Brings new mobs where players have fewer than the area wants at this hour (MobRules.areaAt where
    * the player stands, else MobRules.population), one at a time (a patrol or an ambush: one group), out
    * of their sight; a rare spawn only after its wait (MobSpawn.every). An ambush comes ahead of its
-   * player, where it walks or faces, and hides.
+   * player, where it walks or faces, and hides. A rare spawn is an encounter: it comes ahead of its
+   * player too, out of its view (AHEAD_DISTANCE), so that a player who walks on meets it (Fede,
+   * 2026-11-03: a group that came at a random side stayed 17 tiles away, and a traveller never met it).
    */
   private populate(dt: number, players: readonly HordePlayer[]): void {
     this.spawnMs -= dt;
@@ -2985,10 +2991,17 @@ export class Horde {
     const { kind } = best.spawn;
     const behaviour = spawnBehaviour(best.spawn);
     const ambush = behaviour === 'ambush';
+    const encounter = !ambush && best.spawn.every !== undefined;
     for (let tries = 0; tries < 16; tries++) {
-      // An ambush: ahead of the player, a little to a side. The others: all round, out of sight.
-      const angle = ambush ? headingOf(best.player) + this.between(-0.6, 0.6) : this.random() * 2 * Math.PI;
-      const r = (ambush ? this.between(AMBUSH_DISTANCE[0], AMBUSH_DISTANCE[1]) : this.between(SPAWN_DISTANCE[0], SPAWN_DISTANCE[1])) * TILE_SIZE;
+      // An ambush: ahead of the player, a little to a side. An encounter: ahead of the player, out of
+      // view, as Horde.spawnAhead. The others: all round, out of sight.
+      const angle = ambush
+        ? headingOf(best.player) + this.between(-0.6, 0.6)
+        : encounter
+          ? headingOf(best.player) + this.between(-AHEAD_SPREAD, AHEAD_SPREAD)
+          : this.random() * 2 * Math.PI;
+      const [near, far] = ambush ? AMBUSH_DISTANCE : encounter ? AHEAD_DISTANCE : SPAWN_DISTANCE;
+      const r = this.between(near, far) * TILE_SIZE;
       const tx = tileOf(best.player.x + Math.cos(angle) * r);
       const ty = tileOf(best.player.y + Math.sin(angle) * r);
       if (!this.open(tx, ty, kind)) continue;

@@ -31,7 +31,10 @@ tiles east.
 `docs/features/game/combat.md`, REQ-CMB-010 and REQ-CMB-011): `MobRules.areaAt(tx, ty)` gives the
 `MobArea` round a player on that tile: a list of `MobSpawn` by `day` and one at `night` (a kind, `count`
 round each player, `behaviour` `wander`, `patrol` or `ambush`, `group`, and `every`: a rare spawn comes
-about once in that time round a player). Without it, `population` is the same by day and at night
+about once in that time round a player). A rare spawn is an encounter (since 2026-11-03): it comes
+ahead of its player, where it walks or faces, 17 to 21 tiles away and at most 0.35 radians to a side
+(`AHEAD_DISTANCE`, `AHEAD_SPREAD`, as `Horde.spawnAhead()`), so that a traveller meets it; an ambush comes
+11 to 15 tiles ahead and hides; a spawn without `every` comes 17 to 25 tiles away, at any side. Without it, `population` is the same by day and at night
 (`populationArea()`). `Horde.daytime` is the hour (`isDaytime()`: 6:00 to 20:00); the Room sets it from
 `RoomOptions.day` and `clock` (the server: `Date.now`, or `GAME_HOUR` for a test), the page from
 `skyNow()`. A mob that the area brought and does not want at this hour goes away when no player is within
