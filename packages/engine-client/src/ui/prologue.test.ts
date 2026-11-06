@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROLOGUE_TIMING, bannerLineOf, bannerWidth, cardMs, cardTexts, layerOffset, layerShows, lineMs, prologueLayout } from './prologue.ts';
+import { PROLOGUE_TIMING, bannerLineOf, bannerScale, bannerWidth, cardMs, cardTexts, cropLeft, layerOffset, layerShows, lineMs, prologueLayout } from './prologue.ts';
 
 describe('the prologue', () => {
   it('gives a line the time to type it and to read it', () => {
@@ -47,6 +47,23 @@ describe('the prologue', () => {
     expect(bannerWidth('Á')).toBe(bannerWidth('A'));
   });
 
+  it('draws a banner at twice the font, or at its own size in a narrow view', () => {
+    // The full view takes every name at twice the font, also the longest one (Spanish).
+    expect(bannerScale(bannerWidth('Soberanía del Hierro'), 320)).toBe(2);
+    expect(bannerScale(bannerWidth('Iron Sovereignty'), 183)).toBe(2);
+    expect(bannerScale(bannerWidth('Soberanía del Hierro'), 183)).toBe(1);
+  });
+
+  it('shows the part of a scene around its focus in a narrow view', () => {
+    expect(cropLeft({ focus: 200 }, 320)).toBe(0);
+    expect(cropLeft({ focus: 200 }, 180)).toBe(110);
+    // Without a focus, the middle; the part stays inside the scene.
+    expect(cropLeft({}, 180)).toBe(70);
+    expect(cropLeft({ focus: 10 }, 180)).toBe(0);
+    expect(cropLeft({ focus: 310 }, 180)).toBe(140);
+    expect(cropLeft(undefined, 200)).toBe(60);
+  });
+
   describe('the layout', () => {
     // About 430 characters (the longest card in Spanish), 7 pixels each, rows of 21 pixels, three paragraphs.
     const need = (width: number) => (Math.ceil(430 / Math.floor(width / 7)) + 3) * 21;
@@ -65,6 +82,44 @@ describe('the prologue', () => {
       expect(layout.side).toBe(false);
       expect(layout.fits).toBe(true);
       expect(180 * layout.scale + 18 + layout.textHeight).toBeLessThanOrEqual(820);
+    });
+
+    it('shows a larger part of the scene on a phone held upright, sharp in device pixels', () => {
+      for (const [width, height, dpr] of [
+        [366, 820, 3],
+        [388, 891, 2.625],
+        [336, 616, 2],
+        [744, 1000, 2],
+      ] as const) {
+        const at = `${width} x ${height} @${dpr}`;
+        const layout = prologueLayout(width, height, need, dpr);
+        expect(layout.side, at).toBe(false);
+        expect(layout.fits, at).toBe(true);
+        expect(layout.crop, at).toBeLessThan(320);
+        expect(layout.crop, at).toBeGreaterThanOrEqual(180);
+        expect(Number.isInteger(Math.round(layout.scale * dpr * 1e6) / 1e6), at).toBe(true);
+        // Larger than the whole scene across the screen, and as wide as the screen allows.
+        expect(layout.scale, at).toBeGreaterThan(width / 320);
+        expect(layout.sceneWidth, at).toBeCloseTo(layout.crop * layout.scale, 6);
+        expect(layout.sceneWidth, at).toBeLessThanOrEqual(width);
+        expect(layout.sceneWidth, at).toBeGreaterThan(width - layout.scale);
+        expect(layout.sceneHeight + 18 + layout.textHeight, at).toBeLessThanOrEqual(height);
+      }
+      // An iPhone: a square part of the scene, two pixels of the page for each pixel of the art.
+      expect(prologueLayout(366, 820, need, 3)).toMatchObject({ scale: 2, crop: 183, sceneWidth: 366, sceneHeight: 360 });
+    });
+
+    it('shows all the scene on a screen that is not upright', () => {
+      for (const [width, height] of [
+        [1416, 876],
+        [820, 330],
+        [600, 600],
+      ] as const) {
+        const layout = prologueLayout(width, height, need, 2);
+        expect(layout.crop, `${width} x ${height}`).toBe(320);
+        expect(layout.sceneWidth).toBe(Math.round(320 * layout.scale));
+        expect(layout).toEqual(prologueLayout(width, height, need));
+      }
     });
 
     it('puts the text beside the scene on a phone on its side', () => {

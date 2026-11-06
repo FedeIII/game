@@ -145,7 +145,8 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
 
 // The prologue (art/prologue.ts) has an atlas of its own: the page loads it only when the prologue
 // plays. Its layers go into one page, row by row; the JSON lists each scene's layers (their place in
-// the page, their depth, how far they rise, their language) and its emitters. The glyphs of the pixel
+// the page, their depth, how far they rise, their language), its emitters and its focus (the part that
+// a screen held upright shows). The glyphs of the pixel
 // font follow in a last row: the page draws the banners of the cards with them.
 {
   const scenes = prologueScenes();
@@ -206,6 +207,7 @@ console.log(`art: ${art.frames.length} frames -> ${atlases.map((a, i) => `src/ge
       }),
       emitters: scene.emitters,
       ...(scene.ambience ? { ambience: scene.ambience } : {}),
+      ...(scene.focus !== undefined ? { focus: scene.focus } : {}),
     })),
   };
   writeFileSync(join(outDir, 'prologue.png'), encodePng(sheet));

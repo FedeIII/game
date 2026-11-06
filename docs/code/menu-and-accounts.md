@@ -54,7 +54,8 @@ decision, 2026-10-11)**: there are no guests on game.azyr.io (`?nomenu` works on
   one layer for each language (`lang`). A card can have a banner (`PrologueCard.banner`: the two
   dominions), drawn with the pixel font as the name of a world on arrival; `bannerLine` makes it wait
   for the line that names the place (the Iron Sovereignty: its second line). The lines type from left to
-  right, one under the other, under the scene or beside it (`prologueLayout()`). It plays once after
+  right, one under the other, under the scene or beside it (`prologueLayout()`); on a screen held upright,
+  the scene is larger and shows a part of its width around its subject (`PrologueScene.focus`). It plays once after
   "Create" in the builder, and from "Prologue" in the game menu; `?prologue` plays it for any start.
   It has the theme of Kandrax, an ambience for each scene and small effects, and a speaker button that
   mutes all sound (`audio/`, `docs/features/game/sound.md`). **Only the player leaves a card** (Fede,

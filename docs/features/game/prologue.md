@@ -109,6 +109,13 @@ holds me back.
   larger scene with the longest card in view. The box of the text has the size of the longest card
   from the start, and a word never moves while it types. Only when nothing fits (a very small screen)
   does the box scroll, with the line that types in view.
+- **AC-PRO-003.8:** On a screen held upright (a phone; the screen is taller than wide), the scene is
+  larger (Fede, 2026-11-06): it fills the width of the screen and shows a part of its width, around the
+  subject of the scene (its focus), but never less than a square. Each pixel of the art is a whole
+  number of device pixels. The text stays under the scene. The scene shows all its width when that
+  does not give a larger scene (a short screen). A banner that is too wide for the part at twice the
+  font shows at the font's own size. A desktop, a phone on its side and a square screen show the
+  prologue as before: all the width of the scene.
 
 ---
 
@@ -123,7 +130,9 @@ holds me back.
   `0.0 - Guía del aventurero novato`, `Los Investigadores de Forjacero`, `Lugares/Dominios Centrales`);
   the Spanish in `text-es.ts`.
 - **The art** (`packages/engine-client/art/`): `paint.ts` (`Canvas`: dithered gradients, glows,
-  shapes, ridges, pines; value noise), `prologue-kit.ts` (`PROLOGUE_VIEW` 320 x 180, `PrologueScene`,
+  shapes, ridges, pines; value noise), `prologue-kit.ts` (`PROLOGUE_VIEW` 320 x 180, `PrologueScene`
+  with its `focus` (the middle of its subject, across the view: the part that a screen held upright
+  shows),
   `PrologueLayer` with its `depth`, its `rise` (how far a tall layer rises over the card) and its `lang`
   (a layer of labels for one language), `PrologueEmitter`, and the shared pieces: stars, moon,
   mountains, clouds), `prologue.ts` (`prologueScenes()` and most scenes), `prologue-map.ts` (the map),
@@ -144,15 +153,18 @@ holds me back.
   lantern, a woodpile, a fence and the signpost, in a clearing of a spruce forest under a full moon.
 - **The player** (`packages/engine-client/src/ui/prologue.ts`): `playPrologue()` (a promise),
   `prologuePlaying()`, `PROLOGUE_TIMING`, `PROLOGUE_BANNER`, `lineMs()`, `cardMs()`, `cardTexts()`,
-  `layerOffset()`, `layerShows()`, `prologueLayout()` (under or beside the scene; a hidden box measures
+  `layerOffset()`, `layerShows()`, `prologueLayout()` (under or beside the scene, with all its width:
+  `wideLayout()`; or, on a screen held upright, a part of its width, at least a square, when the scene is
+  then larger: `uprightLayout()`, `cropLeft()`, `LAYOUT.uprightCrop`; a hidden box measures
   the cards at each width); the emitters run in a 2D canvas at 320 x 180 (`Emitter`). The banner draws
-  in the same canvas, at twice the size of the font. The look: `#prologue` and `.prologue-*` in
+  in the same canvas, at twice the size of the font (at the font's own size in a part too narrow for
+  it: `bannerScale()`). The look: `#prologue` and `.prologue-*` in
   `style.css` (the part of a line still to type is `.prologue-rest`, hidden in its place). The texts:
-  `STRINGS.prologue` (`label`, `skip`, `soundOn`, `soundOff`). The ambience of each scene: `AMBIENCE_OF`
+  `STRINGS.prologue` (`label`, `skip`, `soundOn`, `soundOff`). The focus of each scene: `FOCUS_OF` in `art/prologue.ts`, carried in `prologue.json`. The ambience of each scene: `AMBIENCE_OF`
   in `art/prologue.ts`, carried in `prologue.json`.
 - **The start** (`game.ts`): `MenuChoice.fresh` (`menu/menu.ts`: true after "Create"); the game awaits
   the prologue before it makes its world; the game menu's third argument plays it again
   (`GameMenu`, `STRINGS.gameMenu.prologue`); the tick gives `NO_INPUT` while it plays.
 - **Tests**: `packages/engine-client/src/ui/prologue.test.ts` (timing, texts, banner, rise, labels,
-  layout), `apps/game/src/worlds.test.ts`
+  layout, the part of a scene on a screen held upright), `apps/game/src/worlds.test.ts`
   (each card names a painted scene), `worlds/wilds/test/texts.test.ts` (the Spanish).

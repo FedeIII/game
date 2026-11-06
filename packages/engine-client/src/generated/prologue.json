@@ -667,7 +667,8 @@
      "colour": "#d8f0a0"
     }
    ],
-   "ambience": "night"
+   "ambience": "night",
+   "focus": 205
   },
   {
    "id": "ruins",
@@ -723,7 +724,8 @@
      "colour": "#2a1020"
     }
    ],
-   "ambience": "wind"
+   "ambience": "wind",
+   "focus": 175
   },
   {
    "id": "map",
@@ -785,7 +787,8 @@
      "colour": "#ffe0a0"
     }
    ],
-   "ambience": "candle"
+   "ambience": "candle",
+   "focus": 178
   },
   {
    "id": "wild",
@@ -855,7 +858,8 @@
      "colour": "#d4c8bc"
     }
    ],
-   "ambience": "gale"
+   "ambience": "gale",
+   "focus": 205
   },
   {
    "id": "gods",
@@ -908,7 +912,8 @@
      "colour": "#ffe2a0"
     }
    ],
-   "ambience": "wind"
+   "ambience": "wind",
+   "focus": 190
   },
   {
    "id": "iron",
@@ -1104,7 +1109,8 @@
      "colour": "#ffd070"
     }
    ],
-   "ambience": "town"
+   "ambience": "town",
+   "focus": 195
   },
   {
    "id": "mithril",
@@ -1197,7 +1203,8 @@
      "colour": "#b8e4ff"
     }
    ],
-   "ambience": "shrine"
+   "ambience": "shrine",
+   "focus": 175
   },
   {
    "id": "factory",
@@ -1333,7 +1340,8 @@
      "colour": "#e8ecff"
     }
    ],
-   "ambience": "forge"
+   "ambience": "forge",
+   "focus": 165
   },
   {
    "id": "hut",
@@ -1416,7 +1424,8 @@
      "colour": "#d8f0a0"
     }
    ],
-   "ambience": "hearth"
+   "ambience": "hearth",
+   "focus": 205
   }
  ]
 }

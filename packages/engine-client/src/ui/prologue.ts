@@ -21,7 +21,8 @@ import { STRINGS } from './strings.ts';
  * one. The box of the text has the place of the longest card from the start, so nothing moves while
  * a line types. The scene and the text share the screen: the text under the scene, or beside it on a
  * wide, short screen (a phone on its side), whichever gives the larger scene with all the text in
- * view. "Skip" or Escape ends the prologue at once.
+ * view. On a screen held upright (a phone), the scene shows a part of its width around its subject
+ * (at least a square), so that it is larger. "Skip" or Escape ends the prologue at once.
  *
  * Its sound (audio/): the theme of Kandrax from the first scene to the end (its opening, its rise with
  * the gods, and its quiet coda with the last card), the ambience of each scene
@@ -59,6 +60,19 @@ interface SceneData {
   readonly emitters: readonly EmitterData[];
   /** The sound under the scene (audio/sounds.ts). */
   readonly ambience?: string;
+  /** The middle of its subject, across the view (pixels of the art): a narrow view shows the part around it. */
+  readonly focus?: number;
+}
+
+/**
+ * The left edge of the part of a scene that a view of `crop` pixels shows (pixels of the art): the
+ * part around the scene's focus, inside the scene. A view of the full width starts at 0.
+ */
+export function cropLeft(scene: Pick<SceneData, 'focus'> | undefined, crop: number): number {
+  const { w } = DATA.view;
+  if (crop >= w) return 0;
+  const focus = scene?.focus ?? w / 2;
+  return Math.max(0, Math.min(w - crop, Math.round(focus - crop / 2)));
 }
 
 /** The ambience of a scene, if it names one that the engine has. */
@@ -111,6 +125,8 @@ export const PROLOGUE_BANNER = {
   row: 47,
   /** The lines are this much longer than the name (pixels of the art). */
   overhang: 28,
+  /** The name and the lines stay this far from the sides of a narrow view (pixels of the art). */
+  edge: 4,
   ink: '#d8ccb0',
   shadow: '#07050a',
   line: '#9a3a36',
@@ -208,28 +224,43 @@ function bannerImage(sheet: CanvasImageSource, text: string): HTMLCanvasElement 
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
-/** Draws a banner `local` ms after it starts: a dark band, two lines that grow from the centre, and the name, which rises a little as it fades in. */
+/**
+ * The pixels of the art for each pixel of the font in a view `viewWidth` pixels wide: twice the font,
+ * or the font's own size when the name at twice its size is too wide (a narrow view, on a screen held
+ * upright). The full view takes every name at twice the font.
+ */
+export function bannerScale(textWidth: number, viewWidth: number): number {
+  return textWidth * PROLOGUE_BANNER.scale <= viewWidth - 2 * PROLOGUE_BANNER.edge ? PROLOGUE_BANNER.scale : 1;
+}
+
+/**
+ * Draws a banner `local` ms after it starts, in the middle of the canvas: a dark band, two lines that
+ * grow from the centre, and the name, which rises a little as it fades in.
+ */
 function drawBanner(ctx: CanvasRenderingContext2D, image: HTMLCanvasElement, local: number): void {
   const B = PROLOGUE_BANNER;
   if (local < 0 || local >= B.fadeIn + B.hold + B.fadeOut) return;
   const appear = easeOut(Math.min(1, local / B.fadeIn));
   const alpha = local < B.fadeIn + B.hold ? appear : 1 - (local - B.fadeIn - B.hold) / B.fadeOut;
-  const textW = (image.width - 1) * B.scale;
-  const textH = DATA.font.height * B.scale;
-  const cx = Math.round(DATA.view.w / 2);
+  const viewW = ctx.canvas.width;
+  const scale = bannerScale(image.width - 1, viewW);
+  const textW = (image.width - 1) * scale;
+  const textH = DATA.font.height * scale;
+  const cx = Math.round(viewW / 2);
   const cy = B.row;
   ctx.save();
   ctx.globalAlpha = Math.max(0, alpha) * 0.55;
   ctx.fillStyle = B.shadow;
   const bandH = textH + 22;
-  ctx.fillRect(0, Math.round(cy - bandH / 2), DATA.view.w, bandH);
+  ctx.fillRect(0, Math.round(cy - bandH / 2), viewW, bandH);
   ctx.globalAlpha = Math.max(0, alpha);
   ctx.fillStyle = B.line;
-  const lineW = 2 * Math.round(((textW + B.overhang) / 2) * easeOut(Math.min(1, local / (B.fadeIn * 1.4))));
+  const fullW = Math.min(textW + B.overhang, viewW - 2 * B.edge);
+  const lineW = 2 * Math.round((fullW / 2) * easeOut(Math.min(1, local / (B.fadeIn * 1.4))));
   ctx.fillRect(cx - lineW / 2, Math.round(cy - textH / 2 - 6), lineW, 1);
   ctx.fillRect(cx - lineW / 2, Math.round(cy + textH / 2 + 5), lineW, 1);
   const rise = Math.round((1 - appear) * 6);
-  ctx.drawImage(image, Math.round(cx - textW / 2), Math.round(cy - textH / 2) + rise, image.width * B.scale, image.height * B.scale);
+  ctx.drawImage(image, Math.round(cx - textW / 2), Math.round(cy - textH / 2) + rise, image.width * scale, image.height * scale);
   ctx.restore();
 }
 
@@ -458,6 +489,8 @@ const LAYOUT = {
   sideMin: 220,
   sideMax: 460,
   sideShares: [0.3, 0.34, 0.38, 0.42, 0.46, 0.5],
+  /** On a screen held upright, the scene shows at least this much of its width (pixels of the art): a square. */
+  uprightCrop: 180,
 } as const;
 
 export interface PrologueLayout {
@@ -465,33 +498,55 @@ export interface PrologueLayout {
   readonly side: boolean;
   /** Screen pixels for each pixel of the art. */
   readonly scale: number;
+  /** How much of the width of the scene shows (pixels of the art): all of it, or a part around its focus. */
+  readonly crop: number;
+  /** The size of the scene on the screen (px). */
+  readonly sceneWidth: number;
+  readonly sceneHeight: number;
   readonly textWidth: number;
   readonly textHeight: number;
   /** Whether the longest card fits in the box of the text (else the box scrolls). */
   readonly fits: boolean;
 }
 
+/** The width of the text under a scene: as wide as the scene, but not too narrow or too wide to read. */
+function underWidth(width: number, sceneWidth: number): number {
+  return Math.min(width, Math.max(LAYOUT.narrowest, Math.min(sceneWidth, LAYOUT.widest)));
+}
+
 /**
- * Where the scene and the text go in a space of `width` x `height` pixels. `need` gives the height
- * of the longest card in a box of the text of a given width. The text goes under the scene, as
- * wide as the scene (but not too narrow or too wide to read), or beside it in a column on a wide,
- * short screen; the choice gives the larger scene with all the text in view. A scale of 2 or more
- * is a whole number, so that the pixels of the art stay sharp.
+ * Where the scene and the text go in a space of `width` x `height` pixels, on a screen with `dpr`
+ * device pixels for each pixel of the page. `need` gives the height of the longest card in a box of
+ * the text of a given width. The scene shows all its width (wideLayout()), or, on a screen held
+ * upright, a part of it when that gives a larger scene (uprightLayout()).
  */
-export function prologueLayout(width: number, height: number, need: (textWidth: number) => number): PrologueLayout {
+export function prologueLayout(width: number, height: number, need: (textWidth: number) => number, dpr = 1): PrologueLayout {
+  const wide = wideLayout(width, height, need);
+  const { w, h } = DATA.view;
+  const full: PrologueLayout = { ...wide, crop: w, sceneWidth: Math.round(w * wide.scale), sceneHeight: Math.round(h * wide.scale) };
+  if (height <= width) return full;
+  const upright = uprightLayout(width, height, need, dpr);
+  return upright && (!full.fits || upright.scale > full.scale) ? upright : full;
+}
+
+/**
+ * The scene with all its width: the text under it, or beside it in a column on a wide, short screen;
+ * the choice gives the larger scene with all the text in view. A scale of 2 or more is a whole
+ * number, so that the pixels of the art stay sharp.
+ */
+function wideLayout(width: number, height: number, need: (textWidth: number) => number): Omit<PrologueLayout, 'crop' | 'sceneWidth' | 'sceneHeight'> {
   const { w, h } = DATA.view;
   const whole = (scale: number) => (scale >= 2 ? Math.floor(scale) : scale);
-  const underWidth = (sceneWidth: number) => Math.min(width, Math.max(LAYOUT.narrowest, Math.min(sceneWidth, LAYOUT.widest)));
   let scale = whole(width / w);
-  let textWidth = underWidth(w * scale);
+  let textWidth = underWidth(width, w * scale);
   let textHeight = need(textWidth);
   // The scene and the text take room from each other: a few rounds find the balance.
   for (let round = 0; round < 4; round++) {
     scale = whole(Math.max(0.1, Math.min(width / w, (height - LAYOUT.gap - textHeight) / h)));
-    textWidth = underWidth(w * scale);
+    textWidth = underWidth(width, w * scale);
     textHeight = need(textWidth);
   }
-  let best: PrologueLayout | null =
+  let best: Omit<PrologueLayout, 'crop' | 'sceneWidth' | 'sceneHeight'> | null =
     scale >= LAYOUT.smallest && h * scale + LAYOUT.gap + textHeight <= height + 0.5 ? { side: false, scale, textWidth, textHeight, fits: true } : null;
   // Beside the scene: the scene and the column are under the buttons at the top right.
   const sideRoom = height - LAYOUT.controls;
@@ -511,7 +566,30 @@ export function prologueLayout(width: number, height: number, need: (textWidth: 
     return { side: true, scale: sideScale(sideWidth), textWidth: sideWidth, textHeight: Math.max(40, Math.floor(sideRoom)), fits: false };
   }
   const small = whole(Math.min(width / w, (height * 0.55) / h));
-  return { side: false, scale: small, textWidth: underWidth(w * small), textHeight: Math.max(40, Math.floor(height - LAYOUT.gap - h * small)), fits: false };
+  return { side: false, scale: small, textWidth: underWidth(width, w * small), textHeight: Math.max(40, Math.floor(height - LAYOUT.gap - h * small)), fits: false };
+}
+
+/**
+ * A screen held upright (a phone): the text under the scene, and the scene as wide as the screen and
+ * as large as the text lets it be. To be larger, it shows only a part of its width, around the focus
+ * of the scene (cropLeft()), but never less than a square. Each pixel of the art is a whole number of
+ * device pixels, so that the art stays sharp. Null: nothing fits in this way.
+ */
+function uprightLayout(width: number, height: number, need: (textWidth: number) => number, dpr: number): PrologueLayout | null {
+  const { w, h } = DATA.view;
+  // From the largest scale that shows a square, down to one device pixel for each pixel of the art.
+  for (let steps = Math.floor((width / LAYOUT.uprightCrop) * dpr + 1e-9); steps >= 1; steps--) {
+    const scale = steps / dpr;
+    if (scale < LAYOUT.smallest) break;
+    const crop = Math.min(w, Math.floor(width / scale + 1e-9));
+    const sceneWidth = crop * scale;
+    const textWidth = underWidth(width, sceneWidth);
+    const textHeight = need(textWidth);
+    if (h * scale + LAYOUT.gap + textHeight <= height + 0.5) {
+      return { side: false, scale, crop, sceneWidth, sceneHeight: h * scale, textWidth, textHeight, fits: true };
+    }
+  }
+  return null;
 }
 
 /** One line of a card in the box of the text: the typed part, the part still to type (hidden, but in its place), and the arrow. */
@@ -654,13 +732,17 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       }
       return heights.get(key)!;
     };
-    const layout = prologueLayout(width, height, need);
+    const layout = prologueLayout(width, height, need, window.devicePixelRatio || 1);
     measurer.replaceChildren();
     content.classList.toggle('side', layout.side);
-    const sceneWidth = Math.round(DATA.view.w * layout.scale);
-    canvas.style.width = `${sceneWidth}px`;
-    canvas.style.height = `${Math.round(DATA.view.h * layout.scale)}px`;
-    stage.style.setProperty('--stage-width', `${sceneWidth}px`);
+    // The canvas has the pixels of the part of the scene that shows (a new width clears its state).
+    if (canvas.width !== layout.crop) {
+      canvas.width = layout.crop;
+      canvas.getContext('2d')!.imageSmoothingEnabled = false;
+    }
+    canvas.style.width = `${layout.sceneWidth}px`;
+    canvas.style.height = `${layout.sceneHeight}px`;
+    stage.style.setProperty('--stage-width', `${layout.sceneWidth}px`);
     text.style.width = `${Math.floor(layout.textWidth)}px`;
     text.style.height = `${Math.floor(layout.textHeight)}px`;
   };
@@ -859,10 +941,12 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       }
     }
     // The scene: its layers, panned (and risen), with what moves on each; the labels of the page's language only.
+    // A narrow canvas (a screen held upright) shows the part of the scene around its focus.
     const progress = Math.min(1, t / panLength);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (const e of emitters) e.step(dt);
+    ctx.setTransform(1, 0, 0, 1, -cropLeft(scene, canvas.width), 0);
     scene?.layers.forEach((layer, i) => {
       if (!layerShows(layer, LANG)) return;
       const off = layerOffset(layer, progress);
@@ -870,6 +954,7 @@ export async function playPrologue(options: PrologueOptions): Promise<void> {
       ctx.drawImage(sheet, layer.x + off.x, layer.y + off.y, DATA.view.w, height, 0, 0, DATA.view.w, height);
       for (const e of emitters) if (e.data.layer === i) e.draw(ctx, off.x, off.y);
     });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (banner && bannerAt !== null) drawBanner(ctx, banner, t - bannerAt);
     // The fades at the start and the end of a card (the end only after the player asked for it).
     const fade = Math.max(0, 1 - t / PROLOGUE_TIMING.fade, leaveAt === null ? 0 : (t - leaveAt) / PROLOGUE_TIMING.fade);

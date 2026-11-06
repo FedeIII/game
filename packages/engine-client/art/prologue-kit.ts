@@ -45,6 +45,11 @@ export interface PrologueScene {
   readonly emitters: readonly PrologueEmitter[];
   /** The sound under the scene (an ambience of src/audio/sounds.ts). */
   readonly ambience?: string;
+  /**
+   * The middle of the subject of the scene, across the view (pixels of the art). A screen held
+   * upright shows only a part of the width of the scene, around this point. None: the middle.
+   */
+  readonly focus?: number;
 }
 
 export const H = PROLOGUE_VIEW.h;

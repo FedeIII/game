@@ -17,6 +17,17 @@ export { PROLOGUE_VIEW, type PrologueEmitter, type PrologueLayer, type PrologueS
 /** The sound under each scene (src/audio/sounds.ts, AMBIENCES). */
 const AMBIENCE_OF: Readonly<Record<string, string>> = { kandrax: 'night', ruins: 'wind', map: 'candle', wild: 'gale', gods: 'wind', iron: 'town', mithril: 'shrine', factory: 'forge', hut: 'hearth' };
 
+/**
+ * The middle of the subject of each scene (PrologueScene.focus): a screen held upright shows the
+ * scene around it, about 180 pixels wide. The subjects on a layer that pans move to the left during
+ * a card, so some of these points are a little to the right of the subject at the start.
+ * kandrax: the moon and the lights of the valley. ruins: the sun and the tall pillars. map: all the
+ * names of the map. wild: the cliff and its watcher. gods: the cloud and the temple. iron: the spire
+ * and the palace of the guilds. mithril: the dome and its star. factory: the tower with the cog.
+ * hut: the hut and its woodpile.
+ */
+const FOCUS_OF: Readonly<Record<string, number>> = { kandrax: 205, ruins: 175, map: 178, wild: 205, gods: 190, iron: 195, mithril: 175, factory: 165, hut: 205 };
+
 // ---------------------------------------------------------------- 1. Kandrax: the world at night
 
 function kandrax(): PrologueScene {
@@ -1245,7 +1256,7 @@ function hut(): PrologueScene {
 
 /** Every scene of the prologue, in order. */
 export function prologueScenes(): PrologueScene[] {
-  return [kandrax(), ruins(), mapScene(), wild(), gods(), ironScene(), mithrilScene(), factory(), hut()].map((scene) => ({ ...scene, ambience: AMBIENCE_OF[scene.id] }));
+  return [kandrax(), ruins(), mapScene(), wild(), gods(), ironScene(), mithrilScene(), factory(), hut()].map((scene) => ({ ...scene, ambience: AMBIENCE_OF[scene.id], focus: FOCUS_OF[scene.id] }));
 }
 
 /** A scene as one picture with every layer at rest (previews). */
